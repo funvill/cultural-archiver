@@ -23,7 +23,7 @@ tasks\done\tasks-prd-mvp-database-migration.md
 
 AC: Running migrations creates/updates schema; sample inserts/reads succeed.
 
-### [ ] Step 2 — Worker API endpoints (Cloudflare Workers)
+### [x] Step 2 — Worker API endpoints (Cloudflare Workers)
 
 Implement minimal, typed JSON APIs:
 
