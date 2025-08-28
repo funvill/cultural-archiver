@@ -140,24 +140,49 @@ ensuring legal compliance.
 
 ### Dependencies
 
-- **Cloudflare Images**: Primary image processing service
-- **Cloudflare R2**: Object storage for originals and thumbnails
-- **Cloudflare KV**: Rate limiting counter storage
-- **Cloudflare D1**: User consent and audit log storage
+- **Cloudflare Images**: Primary image processing service ⚠️ *TO BE INTEGRATED*
+- **Cloudflare R2**: Object storage for originals and thumbnails ✅ *IMPLEMENTED - PHOTOS bucket configured*
+- **Cloudflare KV**: Rate limiting counter storage ✅ *IMPLEMENTED - RATE_LIMITS namespace configured*
+- **Cloudflare D1**: User consent and audit log storage ✅ *IMPLEMENTED - database schema ready*
 
 ### Integration Points
 
-- Must integrate with existing `LogbookRecord.photos` JSON array field
-- Must integrate with existing user token system for consent management
-- Must extend existing API error handling patterns
-- Must work with existing TypeScript types in `src/shared/types.ts`
+- Must integrate with existing `LogbookRecord.photos` JSON array field ✅ *IMPLEMENTED*
+- Must integrate with existing user token system for consent management ✅ *IMPLEMENTED*
+- Must extend existing API error handling patterns ✅ *IMPLEMENTED*
+- Must work with existing TypeScript types in `src/shared/types.ts` ✅ *IMPLEMENTED*
 
 ### Performance Considerations
 
-- Implement sliding window rate limiting to distribute load
-- Use CDN caching for thumbnail delivery
-- Optimize R2 storage costs through intelligent format selection
-- Batch audit log writes to reduce D1 overhead
+- Implement sliding window rate limiting to distribute load ✅ *IMPLEMENTED*
+- Use CDN caching for thumbnail delivery ⚠️ *TO BE IMPLEMENTED with Cloudflare Images*
+- Optimize R2 storage costs through intelligent format selection ⚠️ *TO BE IMPLEMENTED*
+- Batch audit log writes to reduce D1 overhead ⚠️ *TO BE IMPLEMENTED*
+
+### Current Implementation Status
+
+**✅ Completed Components:**
+
+- Rate limiting middleware with sliding windows using KV storage
+- Photo upload to R2 with timestamp-UUID filename generation
+- User token authentication and authorization
+- API request/response validation using Zod schemas
+- Error handling with consistent response formatting
+- Basic photo processing pipeline (original storage only)
+
+**⚠️ Partially Implemented:**
+
+- Photo processing (missing thumbnail generation and Cloudflare Images integration)
+- Content moderation (reviewer middleware exists, but no takedown workflows)
+- Audit logging (basic logging exists, but no structured audit trails)
+
+**❌ Not Yet Implemented:**
+
+- EXIF metadata preservation and permalink injection
+- Cloudflare Images integration for automatic optimization
+- Consent collection and versioning system
+- Magic link authentication endpoints
+- Comprehensive content moderation workflows
 
 ## Success Metrics
 
@@ -189,20 +214,39 @@ ensuring legal compliance.
 
 ### Database Schema Updates
 
-- Add `consent_version` field to user tokens
-- Create `audit_logs` table for takedown tracking
-- Add `processing_status` field to logbook entries for upload state tracking
+- Add `consent_version` field to user tokens ❌ *NOT IMPLEMENTED*
+- Create `audit_logs` table for takedown tracking ❌ *NOT IMPLEMENTED*
+- Add `processing_status` field to logbook entries for upload state tracking ❌ *NOT IMPLEMENTED*
 
 ### API Endpoints Affected
 
-- `POST /api/logbook` - Add image processing and rate limiting
-- `GET /api/artworks/nearby` - Add rate limiting
-- `POST /api/review/approve` - Add consent version checks
-- `POST /api/review/reject` - Add hard delete with audit logging
+- `POST /api/logbook` - Add image processing and rate limiting ✅ *IMPLEMENTED - basic functionality*
+- `GET /api/artworks/nearby` - Add rate limiting ✅ *IMPLEMENTED*
+- `POST /api/review/approve` - Add consent version checks ❌ *NOT IMPLEMENTED*
+- `POST /api/review/reject` - Add hard delete with audit logging ❌ *NOT IMPLEMENTED*
 
 ### Configuration Requirements
 
-- Cloudflare Images API configuration
-- R2 bucket policies and CDN settings
-- KV namespace setup for rate limiting
-- External link configuration for FoP resources
+- Cloudflare Images API configuration ❌ *NOT CONFIGURED*
+- R2 bucket policies and CDN settings ✅ *IMPLEMENTED - PHOTOS bucket configured*
+- KV namespace setup for rate limiting ✅ *IMPLEMENTED - RATE_LIMITS namespace*
+- External link configuration for FoP resources ❌ *NOT IMPLEMENTED*
+
+### Next Steps for Completion
+
+**High Priority:**
+
+1. **Integrate Cloudflare Images** - Replace basic R2 storage with Cloudflare Images for automatic optimization
+2. **Implement thumbnail generation** - Create 800px thumbnails using Cloudflare Images API
+3. **Add EXIF handling** - Preserve GPS data and inject permalink URLs in EXIF comments
+
+**Medium Priority:**
+
+1. **Implement consent system** - Add age gate, CC0 licensing, and FoP acknowledgment
+2. **Create audit logging** - Structured logs for content moderation actions
+3. **Add magic link auth** - Email verification for optional user accounts
+
+**Low Priority:**
+
+1. **Enhanced moderation** - Takedown workflows and reviewer queue management
+2. **Performance optimization** - CDN configuration and intelligent format selection

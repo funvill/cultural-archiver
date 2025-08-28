@@ -69,15 +69,21 @@ AC: Limits enforced with friendly errors; consent must be checked to submit.
 
 ### [ ] Step 5 — Frontend screens (Vue + Tailwind + shadcn/ui)
 
-- App shell: top app bar (“Cultural Archiver”, Add, Login/Logout, About, Help,
-  Profile); overflow menu.
-- Map (Leaflet + OSM tiles): geolocate, load approved pins within ≤500m; pin tap
-  → map card (title, type, hero photo, “More info”).
-- Submit: drag/drop or camera capture; 3 photos max; optional note (≤500 chars);
-  optional type; shows location; consent checkboxes; submit.
-- Detail page: gallery newest first, location, type, optional fields
-  (title/artist/year/material) when present; link “Add a logbook entry”.
-- Profile: list user’s pending + approved; no rejected visibility.
+- Mobile first. 90% of customers will use mobile only.
+- App shell: Top app bar. The logo and the site title “Cultural Archiver” should be left aligned. Then a series of buttons that get collapsed to a overflow menu if the screen resolution is too small. Each button should have an icon. Buttons: + Add, Login/Logout, (i) About, (?) Help, Profile, etc...
+- Page: Main
+  - The screen contains a map. Map (Leaflet + OSM tiles): geolocate, load approved pins within ≤500m; pin tap → map card (title, type, hero photo, “More info” button).
+- Page: Submit or + Add
+  - The user is shown their location and a list of existing artworks around that location. The user can click one of these to add a log book entry to one of these artbooks or they can add a new artwork.
+  - User can upload a 3 photos max
+    - Check the photos for location information, update the list of existing artworks if the locaiton information is different.
+  - optional note (≤1000 chars); optional type; shows location;
+  - consent checkboxes;
+  - Getting the user to select an existing art work or getting an accret location for new artwork is important.
+- Page: Artwork Details:
+  - gallery newest first, location, type, optional fields (title/artist/year/material) when present
+  - link “Add a logbook entry” that preselects the artwork on the "Submit or + Add" page
+- Page: Profile: list user’s pending + approved; no rejected visibility.
 - Reviewer: simple queue → open → approve/reject (no field edits in MVP).
 
 AC: Keyboard/contrast meets WCAG AA; mobile works; happy path takes < 60s.
@@ -121,7 +127,6 @@ AC: All pass on iOS Safari + Android Chrome + desktop Chrome/Firefox.
 - Clustering on zoomed-out views.
 - Filters: type, “has photo”, year range.
 - Timeline toggle: view photos by year.
-- “Add to existing” shortcut from map card.
 
 ## Phase 4 — Community & growth
 
