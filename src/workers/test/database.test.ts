@@ -5,31 +5,35 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { createDatabaseService } from '../lib/database';
 
 // Mock Cloudflare D1 database for testing
-const mockDB = {
-  prepare: (_query: string): object => ({
-    bind: (..._params: unknown[]): object => ({
-      first: async (): Promise<null> => null,
+const mockDB: Partial<D1Database> = {
+  prepare: (_query: string): Partial<D1PreparedStatement> => ({
+    bind: (..._params: unknown[]): Partial<D1PreparedStatement> => ({
+      first: async (): Promise<unknown> => null,
       all: async (): Promise<{ results: unknown[] }> => ({ results: [] }),
-      run: async (): Promise<{ success: boolean; meta: { changes: number } }> => ({
+      run: async (): Promise<{ success: true; meta: { changes: number } }> => ({
         success: true,
         meta: { changes: 1 },
       }),
     }),
-    first: async (): Promise<null> => null,
+    first: async (): Promise<unknown> => null,
     all: async (): Promise<{ results: unknown[] }> => ({ results: [] }),
-    run: async (): Promise<{ success: boolean; meta: { changes: number } }> => ({
+    run: async (): Promise<{ success: true; meta: { changes: number } }> => ({
       success: true,
       meta: { changes: 1 },
     }),
   }),
   batch: async (
-    statements: unknown[]
-  ): Promise<{ success: boolean; meta: { changes: number } }[]> => {
-    return statements.map(() => ({ success: true, meta: { changes: 1 } }));
+    _statements: D1PreparedStatement[]
+  ): Promise<{ success: true; meta: { changes: number } }[]> => {
+    return _statements.map(() => ({ success: true, meta: { changes: 1 } }));
   },
-  exec: async (_query: string): Promise<{ results: unknown[] }> => ({ results: [] }),
-  withSession: async () => mockDB,
-  dump: async () => new Uint8Array(),
+  exec: async (_query: string): Promise<{ results: unknown[]; count: number; duration: number }> => ({ 
+    results: [], 
+    count: 0, 
+    duration: 0 
+  }),
+  withSession: (_constraintOrBookmark?: string): Partial<D1DatabaseSession> => mockDB as Partial<D1DatabaseSession>,
+  dump: async (): Promise<ArrayBuffer> => new ArrayBuffer(0),
 };
 
 describe('Database Service', (): void => {

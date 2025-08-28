@@ -4,7 +4,6 @@
  */
 
 import type { Context } from 'hono';
-import type { StatusCode } from 'hono/utils/http-status';
 import type { ApiErrorResponse, ValidationError, WorkerEnv } from '../types';
 
 export interface ErrorOptions {
@@ -229,12 +228,12 @@ export function sendErrorResponse(
 
   // Add special headers for rate limiting
   if (error instanceof RateLimitError && error.details?.retry_after) {
-    return c.json(errorResponse, statusCode as any, {
+    return c.json(errorResponse, statusCode as 429, {
       'Retry-After': error.details.retry_after.toString(),
     });
   }
 
-  return c.json(errorResponse, statusCode as any);
+  return c.json(errorResponse, statusCode as 400 | 401 | 403 | 404 | 429 | 500);
 }
 
 /**

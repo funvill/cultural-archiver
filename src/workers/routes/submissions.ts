@@ -13,6 +13,7 @@ import type {
 } from '../types';
 import { createDatabaseService } from '../lib/database';
 import { createSuccessResponse, ValidationApiError } from '../lib/errors';
+import { validatePhotoFiles } from '../lib/photos';
 import { getUserToken } from '../middleware/auth';
 import { getValidatedData, getValidatedFiles } from '../middleware/validation';
 import { safeJsonParse } from '../lib/errors';
@@ -27,7 +28,7 @@ interface UserStatsResult {
   total_submissions: number;
   approved_submissions: number;
   pending_submissions: number;
-  last_submission: string | null;
+  last_submission_at: string | null;
 }
 
 /**
@@ -109,7 +110,7 @@ async function processPhotos(
     const validation = validatePhotoFiles(files);
     if (!validation.isValid) {
       throw new ValidationApiError(
-        validation.errors.map(msg => ({ message: msg, field: 'photos', code: 'VALIDATION_ERROR' })),
+        validation.errors.map((msg: string) => ({ message: msg, field: 'photos', code: 'VALIDATION_ERROR' })),
         'Photo validation failed'
       );
     }
@@ -169,7 +170,7 @@ export async function checkDuplicateSubmission(
     `);
 
     const result = await stmt.bind(userToken, cutoffTime, lat, lon).first();
-    return (result as DuplicateCheckResult | null)?.count > 0;
+    return result ? (result as DuplicateCheckResult).count > 0 : false;
   } catch (error) {
     console.warn('Failed to check duplicate submission:', error);
     return false; // Allow submission if check fails
@@ -232,7 +233,7 @@ export async function getUserSubmissionStats(
           total_submissions: 0,
           approved_submissions: 0,
           pending_submissions: 0,
-          last_submission: null,
+          last_submission_at: null,
         };
   } catch (error) {
     console.error('Failed to get user submission stats:', error);
