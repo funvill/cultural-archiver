@@ -14,7 +14,7 @@ import type {
 } from '../../shared/types';
 
 export class DatabaseService {
-  constructor(private db: any) {} // Use any for D1Database compatibility
+  constructor(public db: any) {} // Make db public for direct SQL access when needed
 
   // ================================
   // Artwork Operations
