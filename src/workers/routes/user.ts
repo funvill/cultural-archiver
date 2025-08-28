@@ -16,6 +16,22 @@ import { getValidatedData } from '../middleware/validation';
 import { getRateLimitStatus } from '../middleware/rateLimit';
 import { safeJsonParse } from '../lib/errors';
 
+// Interfaces for database results
+interface UserStatsResult {
+  total_submissions: number;
+  approved_submissions: number;
+  pending_submissions: number;
+  last_submission: string;
+}
+
+interface RecentSubmissionsResult {
+  count: number;
+}
+
+interface LastActiveResult {
+  last_active: string;
+}
+
 /**
  * GET /api/me/submissions - User's Submissions
  * Returns user's pending and approved submissions
@@ -197,7 +213,7 @@ export async function deleteUserAccount(
  * Get user submission statistics
  */
 async function getUserSubmissionStats(
-  db: any,
+  db: D1Database,
   userToken: string
 ): Promise<{
   total_submissions: number;
@@ -219,7 +235,7 @@ async function getUserSubmissionStats(
     `);
     
     const result = await stmt.bind(userToken).first();
-    return result as any || {
+    return result as UserStatsResult || {
       total_submissions: 0,
       approved_submissions: 0,
       pending_submissions: 0,
@@ -242,7 +258,7 @@ async function getUserSubmissionStats(
  * Get user preferences from KV storage
  */
 async function getUserPreferences(
-  kv: any, // KVNamespace
+  kv: KVNamespace,
   userToken: string
 ): Promise<Record<string, unknown>> {
   try {
@@ -266,7 +282,7 @@ async function getUserPreferences(
 /**
  * Validate user preferences structure
  */
-function validateUserPreferences(preferences: any): Record<string, unknown> {
+function validateUserPreferences(preferences: Record<string, unknown>): Record<string, unknown> {
   const validPreferences: Record<string, unknown> = {};
   
   // Email notifications
@@ -330,7 +346,7 @@ export async function getUserActivity(
     `);
     
     const recentSubmissions = await recentSubmissionsStmt.bind(userToken).first();
-    const submissionCount = (recentSubmissions as any)?.count || 0;
+    const submissionCount = (recentSubmissions as RecentSubmissionsResult | null)?.count || 0;
     
     // Get rate limit data to estimate query activity
     const rateLimitStatus = await getRateLimitStatus(c.env.RATE_LIMITS, userToken);
@@ -347,7 +363,7 @@ export async function getUserActivity(
     `);
     
     const lastActiveResult = await lastActiveStmt.bind(userToken).first();
-    const lastActive = (lastActiveResult as any)?.last_active || null;
+    const lastActive = (lastActiveResult as LastActiveResult | null)?.last_active || null;
     
     return {
       recent_submissions: submissionCount,

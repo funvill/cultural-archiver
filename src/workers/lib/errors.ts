@@ -3,7 +3,7 @@
  * Provides standardized error responses following the PRD specification
  */
 
-import type { Context } from 'hono';
+import type { Context, StatusCode } from 'hono';
 import type { ApiErrorResponse, ValidationError, WorkerEnv } from '../../shared/types';
 
 export interface ErrorOptions {
@@ -223,12 +223,12 @@ export function sendErrorResponse(
 
   // Add special headers for rate limiting
   if (error instanceof RateLimitError && error.details?.retry_after) {
-    return c.json(errorResponse, statusCode as any, {
+    return c.json(errorResponse, statusCode as StatusCode, {
       'Retry-After': error.details.retry_after.toString(),
     });
   }
 
-  return c.json(errorResponse, statusCode as any);
+  return c.json(errorResponse, statusCode as StatusCode);
 }
 
 /**

@@ -13,8 +13,14 @@ import type {
   CreateTagRequest,
 } from '../../shared/types';
 
+// Database result interfaces
+interface ArtworkWithDistance extends ArtworkRecord {
+  distance_sq: number;
+  distance_km: number;
+}
+
 export class DatabaseService {
-  constructor(public db: any) {} // Make db public for direct SQL access when needed
+  constructor(public db: D1Database) {} // Make db public for direct SQL access when needed
 
   // ================================
   // Artwork Operations
@@ -39,7 +45,7 @@ export class DatabaseService {
   async getArtworkById(id: string): Promise<ArtworkRecord | null> {
     const stmt = this.db.prepare('SELECT * FROM artwork WHERE id = ?');
     const result = await stmt.bind(id).first();
-    return result as ArtworkRecord || null;
+    return result as unknown as ArtworkRecord || null;
   }
 
   async getArtworkWithDetails(id: string): Promise<ArtworkRecord & { type_name: string } | null> {
@@ -89,13 +95,13 @@ export class DatabaseService {
     ).all();
     
     // Convert distance_sq to actual distance and filter by radius
-    return (results.results as any[]).map((artwork: any) => {
+    return (results.results as ArtworkWithDistance[]).map((artwork: ArtworkWithDistance) => {
       const distanceKm = Math.sqrt(artwork.distance_sq) * 111; // Convert degrees to km
       return {
         ...artwork,
         distance_km: distanceKm,
       };
-    }).filter((artwork: any) => artwork.distance_km <= radius / 1000);
+    }).filter((artwork: ArtworkWithDistance) => artwork.distance_km <= radius / 1000);
   }
 
   async updateArtworkStatus(id: string, status: ArtworkRecord['status']): Promise<void> {
@@ -174,7 +180,7 @@ export class DatabaseService {
     
     return {
       submissions: results.results as (LogbookRecord & { artwork_lat?: number; artwork_lon?: number; artwork_type_name?: string })[],
-      total: (countResult as any)?.total || 0,
+      total: (countResult as { total: number } | null)?.total || 0,
     };
   }
 
@@ -286,12 +292,12 @@ export class DatabaseService {
       WHERE user_token = ? AND created_at > ?
     `);
     const result = await stmt.bind(userToken, twentyFourHoursAgo).first();
-    return (result as any)?.count || 0;
+    return (result as { count: number } | null)?.count || 0;
   }
 }
 
 // Helper function to create database service instance
-export function createDatabaseService(db: any): DatabaseService {
+export function createDatabaseService(db: D1Database): DatabaseService {
   return new DatabaseService(db);
 }
 
@@ -299,7 +305,7 @@ export function createDatabaseService(db: any): DatabaseService {
 // Individual Function Exports (for legacy compatibility)
 // ================================
 
-export async function insertArtwork(db: any, artwork: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'>): Promise<string> {
+export async function insertArtwork(db: D1Database, artwork: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'>): Promise<string> {
   const service = createDatabaseService(db);
   
   // Convert artwork to CreateArtworkRequest format
@@ -313,7 +319,7 @@ export async function insertArtwork(db: any, artwork: Omit<ArtworkRecord, 'id' |
   return service.createArtwork(createRequest);
 }
 
-export async function updateLogbookStatus(db: any, id: string, status: LogbookRecord['status'], artworkId?: string): Promise<void> {
+export async function updateLogbookStatus(db: D1Database, id: string, status: LogbookRecord['status'], artworkId?: string): Promise<void> {
   const service = createDatabaseService(db);
   await service.updateLogbookStatus(id, status);
   if (artworkId) {
@@ -321,17 +327,17 @@ export async function updateLogbookStatus(db: any, id: string, status: LogbookRe
   }
 }
 
-export async function findNearbyArtworks(db: any, lat: number, lon: number, radiusMeters: number = 500): Promise<ArtworkRecord[]> {
+export async function findNearbyArtworks(db: D1Database, lat: number, lon: number, radiusMeters: number = 500): Promise<ArtworkRecord[]> {
   const service = createDatabaseService(db);
   return service.findNearbyArtworks(lat, lon, radiusMeters);
 }
 
-export async function findLogbookById(db: any, id: string): Promise<LogbookRecord | null> {
+export async function findLogbookById(db: D1Database, id: string): Promise<LogbookRecord | null> {
   const service = createDatabaseService(db);
   return service.getLogbookById(id);
 }
 
-export async function insertTags(db: any, tags: Array<{ label: string; value: string; artwork_id?: string; logbook_id?: string | null }>): Promise<void> {
+export async function insertTags(db: D1Database, tags: Array<{ label: string; value: string; artwork_id?: string; logbook_id?: string | null }>): Promise<void> {
   const service = createDatabaseService(db);
   for (const tag of tags) {
     if (tag.artwork_id || tag.logbook_id) {
@@ -346,12 +352,12 @@ export async function insertTags(db: any, tags: Array<{ label: string; value: st
   }
 }
 
-export async function findArtworkById(db: any, id: string): Promise<ArtworkRecord | null> {
+export async function findArtworkById(db: D1Database, id: string): Promise<ArtworkRecord | null> {
   const service = createDatabaseService(db);
   return service.getArtworkById(id);
 }
 
-export async function updateArtworkPhotos(db: any, id: string, photoUrls: string[]): Promise<void> {
+export async function updateArtworkPhotos(db: D1Database, id: string, photoUrls: string[]): Promise<void> {
   // For MVP, since photos field doesn't exist in artwork table, 
   // we'll store photos in the tags field as a special key
   const stmt = db.prepare(`
@@ -365,7 +371,7 @@ export async function updateArtworkPhotos(db: any, id: string, photoUrls: string
   await stmt.bind(JSON.stringify(photoUrls), id).run();
 }
 
-export async function getArtworkTypeByName(db: any, name: string): Promise<ArtworkTypeRecord | null> {
+export async function getArtworkTypeByName(db: D1Database, name: string): Promise<ArtworkTypeRecord | null> {
   const service = createDatabaseService(db);
   return service.getArtworkTypeByName(name);
 }

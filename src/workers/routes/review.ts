@@ -18,6 +18,29 @@ import {
 } from '../lib/database';
 import { movePhotosToArtwork, cleanupRejectedPhotos } from '../lib/photos';
 import { calculateDistance } from '../lib/spatial';
+
+// Interfaces for database results
+interface SubmissionRow {
+  id: string;
+  user_token: string;
+  lat: number;
+  lon: number;
+  note: string;
+  photos: string;
+  created_at: string;
+  status: string;
+  total_count: number;
+}
+
+interface StatusRow {
+  status: string;
+  count: number;
+}
+
+interface ParsedSubmissionData extends SubmissionRow {
+  type_id: string;
+  tags: string;
+}
 import { ApiError } from '../lib/errors';
 
 // Configuration
@@ -72,10 +95,10 @@ export async function getReviewQueue(
     }
     
     const totalCount = results.results.length > 0 ? 
-      (results.results[0] as any).total_count : 0;
+      (results.results[0] as SubmissionRow).total_count : 0;
     
     // Format submissions for review
-    const submissions = results.results.map((row: any) => {
+    const submissions = results.results.map((row: SubmissionRow) => {
       const submission = {
         id: row.id,
         type: row.artwork_type_name,
@@ -125,7 +148,7 @@ export async function getReviewQueue(
  * For MVP: Extract submission coordinates and type from logbook note field
  * Format: { note: "user note", _submission: { lat: 49.123, lon: -123.456, type_id: "public_art", tags: {} } }
  */
-function parseSubmissionData(logbookEntry: any) {
+function parseSubmissionData(logbookEntry: SubmissionRow): ParsedSubmissionData {
   try {
     if (logbookEntry.note) {
       const noteData = JSON.parse(logbookEntry.note);
@@ -191,7 +214,7 @@ export async function getSubmissionForReview(
     );
     
     // Calculate distances for reviewer context
-    const nearbyWithDistances = nearbyArtworks.map((artwork: any) => ({
+    const nearbyWithDistances = nearbyArtworks.map((artwork: ArtworkRecord) => ({
       ...artwork,
       distance_meters: Math.round(calculateDistance(
         submission.lat,
@@ -549,7 +572,7 @@ export async function getReviewStats(
     const recentResults = await recentStmt.all();
     
     // Format statistics
-    const statusCounts = statusResults.results.reduce((acc: any, row: any) => {
+    const statusCounts = statusResults.results.reduce((acc: Record<string, number>, row: StatusRow) => {
       acc[row.status] = row.count;
       return acc;
     }, {});
@@ -622,7 +645,7 @@ export async function processBatchReview(
     const results = {
       approved: 0,
       rejected: 0,
-      errors: [] as any[],
+      errors: [] as string[],
     };
     
     // Process each submission

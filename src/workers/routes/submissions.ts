@@ -16,10 +16,19 @@ import { createSuccessResponse, ValidationApiError } from '../lib/errors';
 import { getUserToken } from '../middleware/auth';
 import { getValidatedData, getValidatedFiles } from '../middleware/validation';
 import { safeJsonParse } from '../lib/errors';
-import { 
-  processAndUploadPhotos,
-  validatePhotoFiles,
-} from '../lib/photos';
+import { processAndUploadPhotos } from '../lib/photos';
+
+// Interfaces for database results
+interface DuplicateCheckResult {
+  count: number;
+}
+
+interface UserStatsResult {
+  total_submissions: number;
+  approved_submissions: number;
+  pending_submissions: number;
+  last_submission: string;
+}
 
 /**
  * POST /api/logbook - Create Submission
@@ -141,7 +150,7 @@ async function processPhotos(
  * Prevents rapid-fire duplicate submissions
  */
 export async function checkDuplicateSubmission(
-  db: any,
+  db: D1Database,
   userToken: string,
   lat: number,
   lon: number,
@@ -160,7 +169,7 @@ export async function checkDuplicateSubmission(
     `);
     
     const result = await stmt.bind(userToken, cutoffTime, lat, lon).first();
-    return (result as any)?.count > 0;
+    return (result as DuplicateCheckResult | null)?.count > 0;
   } catch (error) {
     console.warn('Failed to check duplicate submission:', error);
     return false; // Allow submission if check fails
@@ -193,7 +202,7 @@ export function validateSubmissionCoordinates(lat: number, lon: number): void {
  * Used for rate limiting and user feedback
  */
 export async function getUserSubmissionStats(
-  db: any,
+  db: D1Database,
   userToken: string
 ): Promise<{
   total_submissions: number;
@@ -213,7 +222,7 @@ export async function getUserSubmissionStats(
     `);
     
     const result = await stmt.bind(userToken).first();
-    return result as any || {
+    return result as UserStatsResult || {
       total_submissions: 0,
       approved_submissions: 0,
       pending_submissions: 0,

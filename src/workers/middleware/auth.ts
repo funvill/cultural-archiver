@@ -91,7 +91,7 @@ export async function requireReviewer(
       HAVING count >= 5
     `);
     const result = await stmt.bind(userToken).first();
-    const isReviewer = (result as any)?.count >= 5; // Users with 5+ approved submissions can review
+    const isReviewer = (result as { count: number } | null)?.count >= 5; // Users with 5+ approved submissions can review
     
     if (!isReviewer) {
       throw new ForbiddenError('Reviewer permissions required');

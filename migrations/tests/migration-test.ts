@@ -7,9 +7,9 @@
 interface DatabaseConnection {
   exec(sql: string): void;
   prepare(sql: string): {
-    run(...params: any[]): { changes: number; lastInsertRowid: number | bigint };
-    get(...params: any[]): any;
-    all(...params: any[]): any[];
+    run(...params: unknown[]): { changes: number; lastInsertRowid: number | bigint };
+    get(...params: unknown[]): Record<string, unknown> | undefined;
+    all(...params: unknown[]): Record<string, unknown>[];
   };
 }
 
@@ -31,7 +31,7 @@ export function testTablesCreated(db: DatabaseConnection): TestResult {
       ORDER BY name
     `);
     
-    const tables = tableStmt.all().map((row: any) => row.name);
+    const tables = tableStmt.all().map((row: { name: string }) => row.name);
     const expectedTables = ['artwork', 'artwork_types', 'logbook', 'tags'];
     
     for (const expectedTable of expectedTables) {
@@ -74,7 +74,7 @@ export function testIndexesCreated(db: DatabaseConnection): TestResult {
       ORDER BY name
     `);
     
-    const indexes = indexStmt.all().map((row: any) => row.name);
+    const indexes = indexStmt.all().map((row: { name: string }) => row.name);
     
     const expectedIndexes = [
       'idx_artwork_types_name',
@@ -252,7 +252,7 @@ export function testStatusCombinations(db: DatabaseConnection): TestResult {
     
     const expectedArtworkStatuses = ['pending', 'approved', 'removed'];
     for (const status of expectedArtworkStatuses) {
-      const found = artworkStatuses.find((s: any) => s.status === status);
+      const found = artworkStatuses.find((s: { status: string; count: number }) => s.status === status);
       if (!found || found.count < 2) {
         return { 
           passed: false, 
@@ -272,7 +272,7 @@ export function testStatusCombinations(db: DatabaseConnection): TestResult {
     
     const expectedLogbookStatuses = ['pending', 'approved', 'rejected'];
     for (const status of expectedLogbookStatuses) {
-      const found = logbookStatuses.find((s: any) => s.status === status);
+      const found = logbookStatuses.find((s: { status: string; count: number }) => s.status === status);
       if (!found || found.count < 3) {
         return { 
           passed: false, 
@@ -318,8 +318,8 @@ export function testVancouverCoordinates(db: DatabaseConnection): TestResult {
       }
     }
 
-    const avgLat = coordinates.reduce((sum: number, c: any) => sum + c.lat, 0) / coordinates.length;
-    const avgLon = coordinates.reduce((sum: number, c: any) => sum + c.lon, 0) / coordinates.length;
+    const avgLat = coordinates.reduce((sum: number, c: { lat: number }) => sum + c.lat, 0) / coordinates.length;
+    const avgLon = coordinates.reduce((sum: number, c: { lon: number }) => sum + c.lon, 0) / coordinates.length;
 
     return { 
       passed: true, 
@@ -341,7 +341,7 @@ export function testTableSchemas(db: DatabaseConnection): TestResult {
     
     const requiredArtworkTypesFields = ['id', 'name', 'description', 'created_at'];
     for (const field of requiredArtworkTypesFields) {
-      if (!artworkTypesSchema.find((col: any) => col.name === field)) {
+      if (!artworkTypesSchema.find((col: { name: string }) => col.name === field)) {
         return { 
           passed: false, 
           error: `artwork_types table missing required field: ${field}` 
@@ -355,7 +355,7 @@ export function testTableSchemas(db: DatabaseConnection): TestResult {
     
     const requiredArtworkFields = ['id', 'lat', 'lon', 'type_id', 'created_at', 'status', 'tags'];
     for (const field of requiredArtworkFields) {
-      if (!artworkSchema.find((col: any) => col.name === field)) {
+      if (!artworkSchema.find((col: { name: string }) => col.name === field)) {
         return { 
           passed: false, 
           error: `artwork table missing required field: ${field}` 
@@ -369,7 +369,7 @@ export function testTableSchemas(db: DatabaseConnection): TestResult {
     
     const requiredLogbookFields = ['id', 'artwork_id', 'user_token', 'note', 'photos', 'status', 'created_at'];
     for (const field of requiredLogbookFields) {
-      if (!logbookSchema.find((col: any) => col.name === field)) {
+      if (!logbookSchema.find((col: { name: string }) => col.name === field)) {
         return { 
           passed: false, 
           error: `logbook table missing required field: ${field}` 
@@ -383,7 +383,7 @@ export function testTableSchemas(db: DatabaseConnection): TestResult {
     
     const requiredTagsFields = ['id', 'artwork_id', 'logbook_id', 'label', 'value', 'created_at'];
     for (const field of requiredTagsFields) {
-      if (!tagsSchema.find((col: any) => col.name === field)) {
+      if (!tagsSchema.find((col: { name: string }) => col.name === field)) {
         return { 
           passed: false, 
           error: `tags table missing required field: ${field}` 

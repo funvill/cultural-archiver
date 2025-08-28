@@ -14,9 +14,9 @@ import type {
 interface DatabaseConnection {
   exec(sql: string): void;
   prepare(sql: string): {
-    run(...params: any[]): { changes: number; lastInsertRowid: number | bigint };
-    get(...params: any[]): any;
-    all(...params: any[]): any[];
+    run(...params: unknown[]): { changes: number; lastInsertRowid: number | bigint };
+    get(...params: unknown[]): Record<string, unknown> | undefined;
+    all(...params: unknown[]): Record<string, unknown>[];
   };
 }
 
@@ -47,7 +47,7 @@ export function testArtworkTypesCRUD(db: DatabaseConnection): TestResult {
 
     // Test SELECT
     const selectStmt = db.prepare('SELECT * FROM artwork_types WHERE id = ?');
-    const record = selectStmt.get(testId) as ArtworkTypeRecord;
+    const record = selectStmt.get(testId) as unknown as ArtworkTypeRecord;
     
     if (!record || record.name !== 'test_type') {
       return { passed: false, error: 'Failed to retrieve inserted artwork type' };
@@ -62,7 +62,7 @@ export function testArtworkTypesCRUD(db: DatabaseConnection): TestResult {
     }
 
     // Verify update
-    const updatedRecord = selectStmt.get(testId) as ArtworkTypeRecord;
+    const updatedRecord = selectStmt.get(testId) as unknown as ArtworkTypeRecord;
     if (updatedRecord.description !== 'Updated description') {
       return { passed: false, error: 'Update verification failed' };
     }
@@ -102,7 +102,7 @@ export function testArtworkCRUD(db: DatabaseConnection): TestResult {
 
     // Test SELECT
     const selectStmt = db.prepare('SELECT * FROM artwork WHERE id = ?');
-    const record = selectStmt.get(testId) as ArtworkRecord;
+    const record = selectStmt.get(testId) as unknown as ArtworkRecord;
     
     if (!record || record.lat !== 49.2827 || record.type_id !== 'public_art') {
       return { passed: false, error: 'Failed to retrieve inserted artwork' };
@@ -167,7 +167,7 @@ export function testLogbookCRUD(db: DatabaseConnection): TestResult {
 
     // Test SELECT
     const selectStmt = db.prepare('SELECT * FROM logbook WHERE id = ?');
-    const record = selectStmt.get(testId) as LogbookRecord;
+    const record = selectStmt.get(testId) as unknown as LogbookRecord;
     
     if (!record || record.artwork_id !== artworkId || record.note !== 'Test note') {
       return { passed: false, error: 'Failed to retrieve inserted logbook entry' };
@@ -245,8 +245,8 @@ export function testTagsCRUD(db: DatabaseConnection): TestResult {
 
     // Test SELECT
     const selectStmt = db.prepare('SELECT * FROM tags WHERE id = ?');
-    const artworkTag = selectStmt.get(artworkTagId) as TagRecord;
-    const logbookTag = selectStmt.get(logbookTagId) as TagRecord;
+    const artworkTag = selectStmt.get(artworkTagId) as unknown as TagRecord;
+    const logbookTag = selectStmt.get(logbookTagId) as unknown as TagRecord;
     
     if (!artworkTag || artworkTag.artwork_id !== artworkId || artworkTag.label !== 'material') {
       return { passed: false, error: 'Failed to retrieve artwork tag' };
@@ -311,7 +311,8 @@ export function testForeignKeyIntegrity(db: DatabaseConnection): TestResult {
 
     // Verify data exists
     const countStmt = db.prepare('SELECT COUNT(*) as count FROM tags WHERE artwork_id = ? OR logbook_id = ?');
-    const beforeCount = countStmt.get(artworkId, logbookId).count;
+    const beforeResult = countStmt.get(artworkId, logbookId) as { count: number } | undefined;
+    const beforeCount = beforeResult?.count || 0;
     
     if (beforeCount !== 2) {
       return { passed: false, error: 'Test data not properly created' };
@@ -322,8 +323,10 @@ export function testForeignKeyIntegrity(db: DatabaseConnection): TestResult {
     deleteArtworkStmt.run(artworkId);
 
     // Verify cascade delete worked
-    const afterCount = countStmt.get(artworkId, logbookId).count;
-    const logbookCount = db.prepare('SELECT COUNT(*) as count FROM logbook WHERE id = ?').get(logbookId).count;
+    const afterResult = countStmt.get(artworkId, logbookId) as { count: number } | undefined;
+    const afterCount = afterResult?.count || 0;
+    const logbookResult = db.prepare('SELECT COUNT(*) as count FROM logbook WHERE id = ?').get(logbookId) as { count: number } | undefined;
+    const logbookCount = logbookResult?.count || 0;
     
     if (afterCount !== 0 || logbookCount !== 0) {
       return { passed: false, error: 'CASCADE DELETE did not work properly' };
@@ -493,7 +496,7 @@ export function testJSONFieldParsing(db: DatabaseConnection): TestResult {
 
     // Retrieve and parse JSON fields
     const artworkSelectStmt = db.prepare('SELECT * FROM artwork WHERE id = ?');
-    const artwork = artworkSelectStmt.get(artworkId) as ArtworkRecord;
+    const artwork = artworkSelectStmt.get(artworkId) as unknown as ArtworkRecord;
     
     if (!artwork.tags) {
       return { passed: false, error: 'Artwork tags JSON was not stored' };
@@ -505,7 +508,7 @@ export function testJSONFieldParsing(db: DatabaseConnection): TestResult {
     }
 
     const logbookSelectStmt = db.prepare('SELECT * FROM logbook WHERE id = ?');
-    const logbook = logbookSelectStmt.get(logbookId) as LogbookRecord;
+    const logbook = logbookSelectStmt.get(logbookId) as unknown as LogbookRecord;
     
     if (!logbook.photos) {
       return { passed: false, error: 'Logbook photos JSON was not stored' };

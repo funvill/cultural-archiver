@@ -20,9 +20,9 @@ import {
 // Extend the Hono context types
 declare module 'hono' {
   interface ContextVariableMap {
-    validated_body: any;
-    validated_query: any;
-    validated_params: any;
+    validated_body: Record<string, unknown>;
+    validated_query: Record<string, unknown>;
+    validated_params: Record<string, unknown>;
     validated_files: File[];
   }
 }
@@ -317,7 +317,7 @@ export async function validateFileUploads(
     const files: File[] = [];
     
     // Collect all files from form data
-    for (const [_, value] of formData.entries()) {
+    for (const [, value] of formData.entries()) {
       if (typeof value === 'object' && value && 'size' in value && 'type' in value) {
         files.push(value as File);
       }

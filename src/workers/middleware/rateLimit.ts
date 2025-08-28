@@ -44,7 +44,7 @@ function getRateLimitKey(userToken: string, type: 'submissions' | 'queries'): st
  * Get rate limit data from KV
  */
 async function getRateLimitData(
-  kv: any, // KVNamespace
+  kv: KVNamespace,
   userToken: string, 
   type: 'submissions' | 'queries'
 ): Promise<RateLimitData> {
@@ -75,7 +75,7 @@ async function getRateLimitData(
  * Update rate limit data in KV
  */
 async function updateRateLimitData(
-  kv: any, // KVNamespace
+  kv: KVNamespace,
   userToken: string, 
   type: 'submissions' | 'queries',
   data: RateLimitData
@@ -99,7 +99,7 @@ async function updateRateLimitData(
  * Increment rate limit counter
  */
 async function incrementRateLimit(
-  kv: any, // KVNamespace
+  kv: KVNamespace,
   userToken: string, 
   type: 'submissions' | 'queries'
 ): Promise<RateLimitData> {
@@ -255,7 +255,7 @@ export async function rateLimitQueries(
  * Get current rate limit status for a user
  */
 export async function getRateLimitStatus(
-  kv: any, // KVNamespace
+  kv: KVNamespace,
   userToken: string
 ): Promise<RateLimitInfo> {
   const [submissionsData, queriesData] = await Promise.all([
@@ -298,7 +298,7 @@ export async function addRateLimitStatus(
  * Reset rate limits for a user (admin function)
  */
 export async function resetRateLimits(
-  kv: any, // KVNamespace
+  kv: KVNamespace,
   userToken: string
 ): Promise<void> {
   // Get keys for current period

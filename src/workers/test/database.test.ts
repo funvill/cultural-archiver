@@ -6,8 +6,8 @@ import { createDatabaseService } from '../lib/database';
 
 // Mock Cloudflare D1 database for testing
 const mockDB = {
-  prepare: (_query: string) => ({
-    bind: (..._params: unknown[]) => ({
+  prepare: (_query: string): object => ({
+    bind: (..._params: unknown[]): object => ({
       first: async (): Promise<null> => null,
       all: async (): Promise<{ results: unknown[] }> => ({ results: [] }),
       run: async (): Promise<{ success: boolean; meta: { changes: number } }> => ({ success: true, meta: { changes: 1 } })
@@ -26,7 +26,7 @@ describe('Database Service', () => {
   let dbService: ReturnType<typeof createDatabaseService>;
 
   beforeAll(() => {
-    dbService = createDatabaseService(mockDB as any);
+    dbService = createDatabaseService(mockDB as D1Database);
   });
 
   it('should create database service', () => {

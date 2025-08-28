@@ -94,45 +94,45 @@
   - [x] 5.5 Add rate limiting integration for user endpoints
   - [x] 5.6 Write unit tests for user data retrieval and privacy compliance
 
-- [ ] 6.0 Implement Authentication Endpoints (Magic Links)
-  - [ ] 6.1 Create authentication route handler (`src/workers/routes/auth.ts`) for magic link workflow
-  - [ ] 6.2 Create email utilities (`src/workers/lib/email.ts`) for Cloudflare Email Workers integration
-  - [ ] 6.3 Implement magic link generation with secure tokens and expiration
-  - [ ] 6.4 Create simple HTML email template for verification links
-  - [ ] 6.5 Implement magic link consumption endpoint with token validation
-  - [ ] 6.6 Add email-to-user-token binding in database or KV storage
-  - [ ] 6.7 Add token cleanup and invalidation after use
-  - [ ] 6.8 Write unit tests for email sending and token validation
+- [x] 6.0 Implement Authentication Endpoints (Magic Links)
+  - [x] 6.1 Create authentication route handler (`src/workers/routes/auth.ts`) for magic link workflow
+  - [x] 6.2 Create email utilities (`src/workers/lib/email.ts`) for Cloudflare Email Workers integration
+  - [x] 6.3 Implement magic link generation with secure tokens and expiration
+  - [x] 6.4 Create simple HTML email template for verification links
+  - [x] 6.5 Implement magic link consumption endpoint with token validation
+  - [x] 6.6 Add email-to-user-token binding in database or KV storage
+  - [x] 6.7 Add token cleanup and invalidation after use
+  - [x] 6.8 Write unit tests for email sending and token validation
 
-- [ ] 7.0 Implement Photo Processing Pipeline
-  - [ ] 7.1 Create photo utilities (`src/workers/lib/photos.ts`) for R2 operations and image processing
-  - [ ] 7.2 Implement file upload validation (MIME type detection, size checks)
-  - [ ] 7.3 Add filename sanitization using timestamp + UUID format
-  - [ ] 7.4 Implement image resizing to 800px longest edge while maintaining aspect ratio
-  - [ ] 7.5 Add EXIF data preservation and permalink injection in comment field
-  - [ ] 7.6 Implement date-based folder structure (YYYY/MM/DD) in R2 storage
-  - [ ] 7.7 Add error handling and cleanup for failed uploads
-  - [ ] 7.8 Write unit tests for photo processing and R2 operations
+- [x] 7.0 Implement Photo Processing Pipeline
+  - [x] 7.1 Create photo utilities (`src/workers/lib/photos.ts`) for R2 operations and image processing
+  - [x] 7.2 Implement file upload validation (MIME type detection, size checks)
+  - [x] 7.3 Add filename sanitization using timestamp + UUID format
+  - [x] 7.4 Implement image resizing to 800px longest edge while maintaining aspect ratio
+  - [x] 7.5 Add EXIF data preservation and permalink injection in comment field
+  - [x] 7.6 Implement date-based folder structure (YYYY/MM/DD) in R2 storage
+  - [x] 7.7 Add error handling and cleanup for failed uploads
+  - [x] 7.8 Write unit tests for photo processing and R2 operations
 
-- [ ] 8.0 Implement Moderation Endpoints (Review/Approve/Reject)
-  - [ ] 8.1 Create review route handler (`src/workers/routes/review.ts`) with reviewer permission enforcement
-  - [ ] 8.2 Implement submission approval endpoint with artwork creation/linking logic
-  - [ ] 8.3 Add nearby artwork detection for reviewers (within ~100m radius)
-  - [ ] 8.4 Implement submission data to artwork data conversion with reviewer overrides
-  - [ ] 8.5 Add photo migration from logbook to artwork on approval
-  - [ ] 8.6 Implement submission rejection endpoint with R2 cleanup
-  - [ ] 8.7 Add audit logging for approval/rejection decisions
-  - [ ] 8.8 Write unit tests for moderation workflows and data integrity
+- [x] 8.0 Implement Moderation Endpoints (Review/Approve/Reject)
+  - [x] 8.1 Create review route handler (`src/workers/routes/review.ts`) with reviewer permission enforcement
+  - [x] 8.2 Implement submission approval endpoint with artwork creation/linking logic
+  - [x] 8.3 Add nearby artwork detection for reviewers (within ~100m radius)
+  - [x] 8.4 Implement submission data to artwork data conversion with reviewer overrides
+  - [x] 8.5 Add photo migration from logbook to artwork on approval
+  - [x] 8.6 Implement submission rejection endpoint with R2 cleanup
+  - [x] 8.7 Add audit logging for approval/rejection decisions
+  - [x] 8.8 Write unit tests for moderation workflows and data integrity
 
-- [ ] 9.0 Integration Testing and Error Handling Refinement
-  - [ ] 9.1 Refactor main worker entry point (`src/workers/index.ts`) to use new route handlers
-  - [ ] 9.2 Add comprehensive error handling with HTTP status codes and user-friendly messages
-  - [ ] 9.3 Implement progressive error disclosure (simple message + details option)
-  - [ ] 9.4 Set up integration tests for complete API workflows
-  - [ ] 9.5 Test rate limiting behavior under various usage patterns
-  - [ ] 9.6 Validate photo processing pipeline end-to-end
-  - [ ] 9.7 Test moderation workflows with sample data
-  - [ ] 9.8 Performance testing for spatial queries and concurrent operations
+- [x] 9.0 Integration Testing and Error Handling Refinement
+  - [x] 9.1 Refactor main worker entry point (`src/workers/index.ts`) to use new route handlers
+  - [x] 9.2 Add comprehensive error handling with HTTP status codes and user-friendly messages
+  - [x] 9.3 Implement progressive error disclosure (simple message + details option)
+  - [x] 9.4 Set up integration tests for complete API workflows
+  - [x] 9.5 Test rate limiting behavior under various usage patterns
+  - [x] 9.6 Validate photo processing pipeline end-to-end
+  - [x] 9.7 Test moderation workflows with sample data
+  - [x] 9.8 Performance testing for spatial queries and concurrent operations
 
 - [ ] 10.0 Update Documentation and Developer Resources
   - [ ] 10.1 Update main `README.md` with API endpoint documentation and setup instructions

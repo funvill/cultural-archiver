@@ -297,14 +297,14 @@ export interface AuthContext {
   isReviewer: boolean;
 }
 
-// Cloudflare Workers Environment
+// Cloudflare Workers Environment (generic interface)
 export interface WorkerEnv {
-  DB: any; // D1Database - use any for compatibility
-  SESSIONS: any; // KVNamespace 
-  CACHE: any; // KVNamespace
-  RATE_LIMITS: any; // KVNamespace
-  MAGIC_LINKS: any; // KVNamespace
-  PHOTOS_BUCKET: any; // R2Bucket
+  DB: unknown; // D1Database
+  SESSIONS: unknown; // KVNamespace;
+  CACHE: unknown; // KVNamespace;
+  RATE_LIMITS: unknown; // KVNamespace;
+  MAGIC_LINKS: unknown; // KVNamespace;
+  PHOTOS_BUCKET: unknown; // R2Bucket;
   ENVIRONMENT: string;
   FRONTEND_URL: string;
   LOG_LEVEL: string;

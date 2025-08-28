@@ -17,6 +17,18 @@ import { createSuccessResponse, NotFoundError } from '../lib/errors';
 import { getValidatedData } from '../middleware/validation';
 import { safeJsonParse } from '../lib/errors';
 
+// Database result interfaces
+interface ArtworkStatsResult {
+  total_artworks: number;
+  approved_artworks: number;
+  pending_artworks: number;
+}
+
+interface SubmissionStatsResult {
+  total_submissions: number;
+  recent_submissions: number;
+}
+
 /**
  * GET /api/artworks/nearby - Find Nearby Artworks
  * Returns approved artworks within a specified radius
@@ -154,7 +166,7 @@ export async function getArtworkDetails(
  * Not exposed as API endpoint but useful for internal metrics
  */
 export async function getArtworkStats(
-  db: any
+  db: D1Database
 ): Promise<{
   total_artworks: number;
   approved_artworks: number;
@@ -184,11 +196,11 @@ export async function getArtworkStats(
     ]);
     
     return {
-      total_artworks: (artworkResult as any)?.total_artworks || 0,
-      approved_artworks: (artworkResult as any)?.approved_artworks || 0,
-      pending_artworks: (artworkResult as any)?.pending_artworks || 0,
-      total_submissions: (submissionResult as any)?.total_submissions || 0,
-      recent_submissions: (submissionResult as any)?.recent_submissions || 0,
+      total_artworks: (artworkResult as ArtworkStatsResult | null)?.total_artworks || 0,
+      approved_artworks: (artworkResult as ArtworkStatsResult | null)?.approved_artworks || 0,
+      pending_artworks: (artworkResult as ArtworkStatsResult | null)?.pending_artworks || 0,
+      total_submissions: (submissionResult as SubmissionStatsResult | null)?.total_submissions || 0,
+      recent_submissions: (submissionResult as SubmissionStatsResult | null)?.recent_submissions || 0,
     };
     
   } catch (error) {
@@ -236,7 +248,7 @@ export async function searchArtworks(
     
     // Format results similar to nearby artworks
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
-      (results.results as any[]).map(async artwork => {
+      (results.results as ArtworkWithPhotos[]).map(async artwork => {
         const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
         
         const allPhotos: string[] = [];
@@ -289,7 +301,7 @@ export async function getPopularArtworks(
     
     // Format results
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
-      (results.results as any[]).map(async artwork => {
+      (results.results as ArtworkWithPhotos[]).map(async artwork => {
         const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
         
         const allPhotos: string[] = [];
@@ -341,7 +353,7 @@ export async function getRecentArtworks(
     
     // Format results
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
-      (results.results as any[]).map(async artwork => {
+      (results.results as ArtworkWithPhotos[]).map(async artwork => {
         const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
         
         const allPhotos: string[] = [];
