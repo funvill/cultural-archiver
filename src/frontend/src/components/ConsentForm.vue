@@ -1,3 +1,139 @@
+<script setup lang="ts">
+import { ref, computed, watch, withDefaults, defineProps, defineEmits } from 'vue'
+
+// Form data interface
+interface ConsentFormData {
+  ageVerification: boolean
+  cc0Licensing: boolean
+  publicCommons: boolean
+  freedomOfPanorama: boolean
+  consentVersion?: string
+  consentedAt?: string
+}
+
+// Component props
+interface Props {
+  initialData?: Partial<ConsentFormData>
+  consentVersion?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  consentVersion: '1.0.0'
+})
+
+// Component emits
+interface Emits {
+  (e: 'submit', data: ConsentFormData): void
+  (e: 'cancel'): void
+}
+
+const emit = defineEmits<Emits>()
+
+// Constants
+const CONSENT_VERSION = props.consentVersion
+
+// Form state
+const formData = ref<ConsentFormData>({
+  ageVerification: false,
+  cc0Licensing: false,
+  publicCommons: false,
+  freedomOfPanorama: false,
+  ...props.initialData
+})
+
+const isSubmitting = ref(false)
+
+// Validation errors
+const errors = ref<Partial<Record<keyof ConsentFormData, string>>>({})
+
+// Computed properties
+const isFormValid = computed(() => {
+  return formData.value.ageVerification &&
+         formData.value.cc0Licensing &&
+         formData.value.publicCommons &&
+         formData.value.freedomOfPanorama
+})
+
+const hasErrors = computed(() => {
+  return Object.keys(errors.value).length > 0
+})
+
+const allErrors = computed(() => {
+  return Object.values(errors.value).filter(Boolean)
+})
+
+// Validation functions
+function validateForm(): boolean {
+  errors.value = {}
+
+  if (!formData.value.ageVerification) {
+    errors.value.ageVerification = 'Age verification is required'
+  }
+
+  if (!formData.value.cc0Licensing) {
+    errors.value.cc0Licensing = 'CC0 licensing consent is required'
+  }
+
+  if (!formData.value.publicCommons) {
+    errors.value.publicCommons = 'Public commons consent is required'
+  }
+
+  if (!formData.value.freedomOfPanorama) {
+    errors.value.freedomOfPanorama = 'Freedom of Panorama acknowledgment is required'
+  }
+
+  return Object.keys(errors.value).length === 0
+}
+
+// Event handlers
+async function handleSubmit() {
+  if (!validateForm()) {
+    return
+  }
+
+  isSubmitting.value = true
+
+  try {
+    // Emit the consent data to parent component
+    emit('submit', {
+      ...formData.value,
+      consentVersion: CONSENT_VERSION,
+      consentedAt: new Date().toISOString()
+    } as ConsentFormData)
+  } catch (error) {
+    console.error('Consent submission error:', error)
+    // Handle error appropriately
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+// Watcher to clear individual errors when user fixes them
+watch(() => formData.value.ageVerification, (newValue) => {
+  if (newValue && errors.value.ageVerification) {
+    delete errors.value.ageVerification
+  }
+})
+
+watch(() => formData.value.cc0Licensing, (newValue) => {
+  if (newValue && errors.value.cc0Licensing) {
+    delete errors.value.cc0Licensing
+  }
+})
+
+watch(() => formData.value.publicCommons, (newValue) => {
+  if (newValue && errors.value.publicCommons) {
+    delete errors.value.publicCommons
+  }
+})
+
+watch(() => formData.value.freedomOfPanorama, (newValue) => {
+  if (newValue && errors.value.freedomOfPanorama) {
+    delete errors.value.freedomOfPanorama
+  }
+})
+</script>
+
 <template>
   <div class="consent-form bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
     <!-- Header -->
@@ -175,7 +311,7 @@
             </svg>
             Submitting...
           </span>
-          <span v-else>
+          <span v-else">
             Provide Consent
           </span>
         </button>
@@ -195,142 +331,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-
-// Component props
-interface Props {
-  initialData?: Partial<ConsentFormData>
-  consentVersion?: string
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  consentVersion: '1.0.0'
-})
-
-// Component emits
-interface Emits {
-  (e: 'submit', data: ConsentFormData): void
-  (e: 'cancel'): void
-}
-
-const emit = defineEmits<Emits>()
-
-// Constants
-const CONSENT_VERSION = props.consentVersion
-
-// Form data interface
-interface ConsentFormData {
-  ageVerification: boolean
-  cc0Licensing: boolean
-  publicCommons: boolean
-  freedomOfPanorama: boolean
-}
-
-// Form state
-const formData = ref<ConsentFormData>({
-  ageVerification: false,
-  cc0Licensing: false,
-  publicCommons: false,
-  freedomOfPanorama: false,
-  ...props.initialData
-})
-
-const isSubmitting = ref(false)
-
-// Validation errors
-const errors = ref<Partial<Record<keyof ConsentFormData, string>>>({})
-
-// Computed properties
-const isFormValid = computed(() => {
-  return formData.value.ageVerification &&
-         formData.value.cc0Licensing &&
-         formData.value.publicCommons &&
-         formData.value.freedomOfPanorama
-})
-
-const hasErrors = computed(() => {
-  return Object.keys(errors.value).length > 0
-})
-
-const allErrors = computed(() => {
-  return Object.values(errors.value).filter(Boolean)
-})
-
-// Validation functions
-function validateForm(): boolean {
-  errors.value = {}
-
-  if (!formData.value.ageVerification) {
-    errors.value.ageVerification = 'Age verification is required'
-  }
-
-  if (!formData.value.cc0Licensing) {
-    errors.value.cc0Licensing = 'CC0 licensing consent is required'
-  }
-
-  if (!formData.value.publicCommons) {
-    errors.value.publicCommons = 'Public commons consent is required'
-  }
-
-  if (!formData.value.freedomOfPanorama) {
-    errors.value.freedomOfPanorama = 'Freedom of Panorama acknowledgment is required'
-  }
-
-  return Object.keys(errors.value).length === 0
-}
-
-// Event handlers
-async function handleSubmit() {
-  if (!validateForm()) {
-    return
-  }
-
-  isSubmitting.value = true
-
-  try {
-    // Emit the consent data to parent component
-    emit('submit', {
-      ...formData.value,
-      consentVersion: CONSENT_VERSION,
-      consentedAt: new Date().toISOString()
-    } as ConsentFormData)
-  } catch (error) {
-    console.error('Consent submission error:', error)
-    // Handle error appropriately
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
-// Watcher to clear individual errors when user fixes them
-import { watch } from 'vue'
-
-watch(() => formData.value.ageVerification, (newValue) => {
-  if (newValue && errors.value.ageVerification) {
-    delete errors.value.ageVerification
-  }
-})
-
-watch(() => formData.value.cc0Licensing, (newValue) => {
-  if (newValue && errors.value.cc0Licensing) {
-    delete errors.value.cc0Licensing
-  }
-})
-
-watch(() => formData.value.publicCommons, (newValue) => {
-  if (newValue && errors.value.publicCommons) {
-    delete errors.value.publicCommons
-  }
-})
-
-watch(() => formData.value.freedomOfPanorama, (newValue) => {
-  if (newValue && errors.value.freedomOfPanorama) {
-    delete errors.value.freedomOfPanorama
-  }
-})
-</script>
 
 <style scoped>
 .consent-form {

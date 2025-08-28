@@ -46,7 +46,7 @@ const mockEnv: WorkerEnv = {
 
 // Mock File class for testing
 class MockFile extends File {
-  constructor(content: string, name: string, options: FilePropertyBag = {}) {
+  constructor(content: string, name: string, options: { type?: string; lastModified?: number } = {}) {
     const blob = new Blob([content], { type: options.type || 'image/jpeg' });
     super([blob], name, options);
   }

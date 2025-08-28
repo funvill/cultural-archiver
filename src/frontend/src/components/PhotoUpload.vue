@@ -1,3 +1,307 @@
+<script setup lang="ts">
+import { ref, computed, onMounted, withDefaults, defineProps, defineEmits } from 'vue'
+import ConsentForm from './ConsentForm.vue'
+
+// File interface
+interface PhotoFile {
+  id: string
+  name: string
+  size: number
+  type: string
+  file: File
+  preview: string
+  exifData?: any
+  uploading?: boolean
+}
+
+// Component props
+interface Props {
+  apiBaseUrl?: string
+  userToken?: string
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  apiBaseUrl: '/api'
+})
+
+// Component emits
+interface Emits {
+  (e: 'success', data: any): void
+  (e: 'cancel'): void
+  (e: 'error', error: string): void
+}
+
+const emit = defineEmits<Emits>()
+
+// State
+const selectedFiles = ref<PhotoFile[]>([])
+const showConsentForm = ref(false)
+const hasValidConsent = ref(false)
+const isDragging = ref(false)
+const isSubmitting = ref(false)
+const isGettingLocation = ref(false)
+const fileInput = ref<HTMLInputElement>()
+
+const locationData = ref({
+  latitude: null as number | null,
+  longitude: null as number | null
+})
+
+const description = ref('')
+const errors = ref<string[]>([])
+
+// Constants
+const MAX_FILES = 3
+const MAX_FILE_SIZE = 15 * 1024 * 1024 // 15MB
+const SUPPORTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic']
+
+// Computed properties
+const canSubmit = computed(() => {
+  return selectedFiles.value.length > 0 &&
+         locationData.value.latitude !== null &&
+         locationData.value.longitude !== null &&
+         hasValidConsent.value &&
+         !isSubmitting.value
+})
+
+// Lifecycle
+onMounted(() => {
+  checkConsentStatus()
+})
+
+// Methods
+async function checkConsentStatus() {
+  try {
+    // Check if user has valid consent
+    // This would typically call an API endpoint
+    // For now, we'll assume consent is needed
+    hasValidConsent.value = false
+  } catch (error) {
+    console.error('Failed to check consent status:', error)
+  }
+}
+
+function triggerFileInput() {
+  fileInput.value?.click()
+}
+
+function handleFileSelect(event: Event) {
+  const input = event.target as HTMLInputElement
+  if (input.files) {
+    addFiles(Array.from(input.files))
+  }
+}
+
+function handleDrop(event: DragEvent) {
+  event.preventDefault()
+  isDragging.value = false
+  
+  if (event.dataTransfer?.files) {
+    addFiles(Array.from(event.dataTransfer.files))
+  }
+}
+
+async function addFiles(files: File[]) {
+  errors.value = []
+  
+  for (const file of files) {
+    if (selectedFiles.value.length >= MAX_FILES) {
+      errors.value.push(`Maximum ${MAX_FILES} files allowed`)
+      break
+    }
+    
+    if (!validateFile(file)) {
+      continue
+    }
+    
+    const photoFile: PhotoFile = {
+      id: generateId(),
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      file,
+      preview: await createPreview(file)
+    }
+    
+    // Extract EXIF data
+    try {
+      photoFile.exifData = await extractExifData(file)
+    } catch (error) {
+      console.warn('Failed to extract EXIF data:', error)
+    }
+    
+    selectedFiles.value.push(photoFile)
+  }
+}
+
+function validateFile(file: File): boolean {
+  if (!SUPPORTED_TYPES.includes(file.type)) {
+    errors.value.push(`Unsupported file type: ${file.name}`)
+    return false
+  }
+  
+  if (file.size > MAX_FILE_SIZE) {
+    errors.value.push(`File too large: ${file.name} (max ${formatFileSize(MAX_FILE_SIZE)})`)
+    return false
+  }
+  
+  if (file.size === 0) {
+    errors.value.push(`File is empty: ${file.name}`)
+    return false
+  }
+  
+  return true
+}
+
+function removeFile(index: number) {
+  const file = selectedFiles.value[index]
+  if (file) {
+    URL.revokeObjectURL(file.preview)
+  }
+  selectedFiles.value.splice(index, 1)
+}
+
+async function createPreview(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = (e) => resolve(e.target?.result as string)
+    reader.readAsDataURL(file)
+  })
+}
+
+async function extractExifData(_file: File): Promise<any> {
+  // This would use an EXIF library like exifr
+  // For now, return mock data
+  return {
+    gps: {
+      latitude: 49.2827,
+      longitude: -123.1207
+    },
+    camera: {
+      make: 'Apple',
+      model: 'iPhone 12 Pro'
+    }
+  }
+}
+
+function getCurrentLocation() {
+  if (!navigator.geolocation) {
+    errors.value.push('Geolocation is not supported by this browser')
+    return
+  }
+  
+  isGettingLocation.value = true
+  
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      locationData.value.latitude = position.coords.latitude
+      locationData.value.longitude = position.coords.longitude
+      isGettingLocation.value = false
+    },
+    (error) => {
+      console.error('Geolocation error:', error)
+      errors.value.push('Failed to get current location')
+      isGettingLocation.value = false
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 300000 // 5 minutes
+    }
+  )
+}
+
+async function handleSubmit() {
+  if (!canSubmit.value) return
+  
+  errors.value = []
+  isSubmitting.value = true
+  
+  try {
+    const formData = new FormData()
+    
+    // Add files
+    selectedFiles.value.forEach((photoFile) => {
+      formData.append(`photos`, photoFile.file)
+    })
+    
+    // Add location data
+    formData.append('latitude', locationData.value.latitude!.toString())
+    formData.append('longitude', locationData.value.longitude!.toString())
+    
+    // Add description
+    if (description.value.trim()) {
+      formData.append('note', description.value.trim())
+    }
+    
+    // Submit to API
+    const response = await fetch(`${props.apiBaseUrl}/logbook`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${props.userToken}`
+      },
+      body: formData
+    })
+    
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.message || 'Upload failed')
+    }
+    
+    const result = await response.json()
+    emit('success', result)
+    
+  } catch (error) {
+    console.error('Upload error:', error)
+    const errorMessage = error instanceof Error ? error.message : 'Upload failed'
+    errors.value.push(errorMessage)
+    emit('error', errorMessage)
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+async function handleConsentSubmit(consentData: any) {
+  try {
+    // Submit consent to API
+    const response = await fetch(`${props.apiBaseUrl}/consent`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${props.userToken}`
+      },
+      body: JSON.stringify(consentData)
+    })
+    
+    if (!response.ok) {
+      throw new Error('Failed to submit consent')
+    }
+    
+    hasValidConsent.value = true
+    showConsentForm.value = false
+    
+  } catch (error) {
+    console.error('Consent submission error:', error)
+    errors.value.push('Failed to submit consent')
+  }
+}
+
+// Utility functions
+function formatFileSize(bytes: number): string {
+  if (bytes === 0) return '0 Bytes'
+  
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+function generateId(): string {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36)
+}
+</script>
+
 <template>
   <div class="photo-upload bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
     <!-- Header -->
@@ -257,308 +561,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import ConsentForm from './ConsentForm.vue'
-
-// Component props
-interface Props {
-  apiBaseUrl?: string
-  userToken?: string
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  apiBaseUrl: '/api'
-})
-
-// Component emits
-interface Emits {
-  (e: 'success', data: any): void
-  (e: 'cancel'): void
-  (e: 'error', error: string): void
-}
-
-const emit = defineEmits<Emits>()
-
-// File interface
-interface PhotoFile {
-  id: string
-  name: string
-  size: number
-  type: string
-  file: File
-  preview: string
-  exifData?: any
-  uploading?: boolean
-}
-
-// State
-const selectedFiles = ref<PhotoFile[]>([])
-const showConsentForm = ref(false)
-const hasValidConsent = ref(false)
-const isDragging = ref(false)
-const isSubmitting = ref(false)
-const isGettingLocation = ref(false)
-const fileInput = ref<HTMLInputElement>()
-
-const locationData = ref({
-  latitude: null as number | null,
-  longitude: null as number | null
-})
-
-const description = ref('')
-const errors = ref<string[]>([])
-
-// Constants
-const MAX_FILES = 3
-const MAX_FILE_SIZE = 15 * 1024 * 1024 // 15MB
-const SUPPORTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic']
-
-// Computed properties
-const canSubmit = computed(() => {
-  return selectedFiles.value.length > 0 &&
-         locationData.value.latitude !== null &&
-         locationData.value.longitude !== null &&
-         hasValidConsent.value &&
-         !isSubmitting.value
-})
-
-// Lifecycle
-onMounted(() => {
-  checkConsentStatus()
-})
-
-// Methods
-async function checkConsentStatus() {
-  try {
-    // Check if user has valid consent
-    // This would typically call an API endpoint
-    // For now, we'll assume consent is needed
-    hasValidConsent.value = false
-  } catch (error) {
-    console.error('Failed to check consent status:', error)
-  }
-}
-
-function triggerFileInput() {
-  fileInput.value?.click()
-}
-
-function handleFileSelect(event: Event) {
-  const input = event.target as HTMLInputElement
-  if (input.files) {
-    addFiles(Array.from(input.files))
-  }
-}
-
-function handleDrop(event: DragEvent) {
-  event.preventDefault()
-  isDragging.value = false
-  
-  if (event.dataTransfer?.files) {
-    addFiles(Array.from(event.dataTransfer.files))
-  }
-}
-
-async function addFiles(files: File[]) {
-  errors.value = []
-  
-  for (const file of files) {
-    if (selectedFiles.value.length >= MAX_FILES) {
-      errors.value.push(`Maximum ${MAX_FILES} files allowed`)
-      break
-    }
-    
-    if (!validateFile(file)) {
-      continue
-    }
-    
-    const photoFile: PhotoFile = {
-      id: generateId(),
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      file,
-      preview: await createPreview(file)
-    }
-    
-    // Extract EXIF data
-    try {
-      photoFile.exifData = await extractExifData(file)
-    } catch (error) {
-      console.warn('Failed to extract EXIF data:', error)
-    }
-    
-    selectedFiles.value.push(photoFile)
-  }
-}
-
-function validateFile(file: File): boolean {
-  if (!SUPPORTED_TYPES.includes(file.type)) {
-    errors.value.push(`Unsupported file type: ${file.name}`)
-    return false
-  }
-  
-  if (file.size > MAX_FILE_SIZE) {
-    errors.value.push(`File too large: ${file.name} (max ${formatFileSize(MAX_FILE_SIZE)})`)
-    return false
-  }
-  
-  if (file.size === 0) {
-    errors.value.push(`File is empty: ${file.name}`)
-    return false
-  }
-  
-  return true
-}
-
-function removeFile(index: number) {
-  const file = selectedFiles.value[index]
-  URL.revokeObjectURL(file.preview)
-  selectedFiles.value.splice(index, 1)
-}
-
-async function createPreview(file: File): Promise<string> {
-  return new Promise((resolve) => {
-    const reader = new FileReader()
-    reader.onload = (e) => resolve(e.target?.result as string)
-    reader.readAsDataURL(file)
-  })
-}
-
-async function extractExifData(file: File): Promise<any> {
-  // This would use an EXIF library like exifr
-  // For now, return mock data
-  return {
-    gps: {
-      latitude: 49.2827,
-      longitude: -123.1207
-    },
-    camera: {
-      make: 'Apple',
-      model: 'iPhone 12 Pro'
-    }
-  }
-}
-
-function getCurrentLocation() {
-  if (!navigator.geolocation) {
-    errors.value.push('Geolocation is not supported by this browser')
-    return
-  }
-  
-  isGettingLocation.value = true
-  
-  navigator.geolocation.getCurrentPosition(
-    (position) => {
-      locationData.value.latitude = position.coords.latitude
-      locationData.value.longitude = position.coords.longitude
-      isGettingLocation.value = false
-    },
-    (error) => {
-      console.error('Geolocation error:', error)
-      errors.value.push('Failed to get current location')
-      isGettingLocation.value = false
-    },
-    {
-      enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 300000 // 5 minutes
-    }
-  )
-}
-
-async function handleSubmit() {
-  if (!canSubmit.value) return
-  
-  errors.value = []
-  isSubmitting.value = true
-  
-  try {
-    const formData = new FormData()
-    
-    // Add files
-    selectedFiles.value.forEach((photoFile, index) => {
-      formData.append(`photos`, photoFile.file)
-    })
-    
-    // Add location data
-    formData.append('latitude', locationData.value.latitude!.toString())
-    formData.append('longitude', locationData.value.longitude!.toString())
-    
-    // Add description
-    if (description.value.trim()) {
-      formData.append('note', description.value.trim())
-    }
-    
-    // Submit to API
-    const response = await fetch(`${props.apiBaseUrl}/logbook`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${props.userToken}`
-      },
-      body: formData
-    })
-    
-    if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || 'Upload failed')
-    }
-    
-    const result = await response.json()
-    emit('success', result)
-    
-  } catch (error) {
-    console.error('Upload error:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Upload failed'
-    errors.value.push(errorMessage)
-    emit('error', errorMessage)
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
-async function handleConsentSubmit(consentData: any) {
-  try {
-    // Submit consent to API
-    const response = await fetch(`${props.apiBaseUrl}/consent`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${props.userToken}`
-      },
-      body: JSON.stringify(consentData)
-    })
-    
-    if (!response.ok) {
-      throw new Error('Failed to submit consent')
-    }
-    
-    hasValidConsent.value = true
-    showConsentForm.value = false
-    
-  } catch (error) {
-    console.error('Consent submission error:', error)
-    errors.value.push('Failed to submit consent')
-  }
-}
-
-// Utility functions
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes'
-  
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-}
-
-function generateId(): string {
-  return Math.random().toString(36).substring(2) + Date.now().toString(36)
-}
-</script>
 
 <style scoped>
 .photo-upload {
