@@ -63,14 +63,14 @@ Based on PRD: `prd-frontend-screens.md`
   - [x] 2.5 Implement keyboard navigation for drawer menu
   - [x] 2.6 Add conditional Review tab visibility based on user permissions
 
-- [ ] 3.0 Develop Main Map Page with Leaflet Integration
-  - [ ] 3.1 Create MapComponent with Leaflet and OpenStreetMap tiles
-  - [ ] 3.2 Implement geolocation request and Vancouver fallback
-  - [ ] 3.3 Add artwork pin clustering for zoomed out views
-  - [ ] 3.4 Create artwork pin popup modals with hero photo and "View Details" button
-  - [ ] 3.5 Implement 500m radius artwork loading with background data fetching
-  - [ ] 3.6 Add map error handling with retry functionality
-  - [ ] 3.7 Create MapView component integrating map with app shell
+- [x] 3.0 Develop Main Map Page with Leaflet Integration
+  - [x] 3.1 Create MapComponent with Leaflet and OpenStreetMap tiles
+  - [x] 3.2 Implement geolocation request and Vancouver fallback
+  - [x] 3.3 Add artwork pin clustering for zoomed out views
+  - [x] 3.4 Create artwork pin popup modals with hero photo and "View Details" button
+  - [x] 3.5 Implement 500m radius artwork loading with background data fetching
+  - [x] 3.6 Add map error handling with retry functionality
+  - [x] 3.7 Create MapView component integrating map with app shell
 
 - [ ] 4.0 Build Submit/Add Page with Photo Upload
   - [ ] 4.1 Create SubmitView layout with location display and nearby artwork list
