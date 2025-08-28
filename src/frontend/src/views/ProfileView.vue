@@ -156,7 +156,7 @@
 
             <!-- Empty State -->
             <div v-else-if="filteredSubmissions.length === 0" class="p-8 text-center">
-              <svg class="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg class="h-12 w-12 mx-auto mb-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <p class="text-gray-600 mb-4">
@@ -192,7 +192,7 @@
                           {{ submission.status }}
                         </span>
                       </div>
-                      <div class="text-sm text-gray-500">
+                      <div class="text-sm text-gray-600">
                         {{ formatDate(submission.created_at) }}
                       </div>
                     </div>
@@ -449,11 +449,11 @@ function getTabTitle(tabId: string): string {
 
 function getStatusBadgeClass(status: string): string {
   const statusMap: Record<string, string> = {
-    'approved': 'bg-green-100 text-green-800',
-    'pending': 'bg-yellow-100 text-yellow-800',
-    'rejected': 'bg-red-100 text-red-800'
+    'approved': 'bg-green-100 text-green-800 border border-green-200',
+    'pending': 'bg-yellow-100 text-yellow-900 border border-yellow-200',
+    'rejected': 'bg-red-100 text-red-800 border border-red-200'
   }
-  return statusMap[status] || 'bg-gray-100 text-gray-800'
+  return statusMap[status] || 'bg-gray-100 text-gray-900 border border-gray-200'
 }
 
 function formatDate(dateString: string): string {

@@ -112,7 +112,7 @@
 
       <!-- Drawer Footer -->
       <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-        <div class="text-sm text-gray-500 text-center">
+        <div class="text-sm text-gray-600 text-center">
           Cultural Archiver v1.0
         </div>
       </div>

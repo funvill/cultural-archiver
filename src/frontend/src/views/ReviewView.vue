@@ -87,11 +87,11 @@
 
       <!-- Empty State -->
       <div v-else-if="filteredSubmissions.length === 0" class="text-center py-12">
-        <svg class="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg class="h-12 w-12 mx-auto mb-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <p class="text-gray-600 mb-4">No submissions pending review</p>
-        <p class="text-sm text-gray-500">Great job! All submissions have been reviewed.</p>
+        <p class="text-sm text-gray-600">Great job! All submissions have been reviewed.</p>
       </div>
 
       <!-- Submissions Grid -->
@@ -138,7 +138,7 @@
             
             <!-- No Photos Placeholder -->
             <div v-else class="h-48 bg-gray-100 flex items-center justify-center">
-              <svg class="w-12 h-12 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+              <svg class="w-12 h-12 text-gray-600" fill="currentColor" viewBox="0 0 20 20">
                 <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
               </svg>
             </div>

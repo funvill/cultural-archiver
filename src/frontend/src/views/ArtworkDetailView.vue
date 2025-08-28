@@ -310,11 +310,11 @@ function getArtworkTypeName(type: string): string {
 
 function getStatusBadgeClass(status: string): string {
   const statusMap: Record<string, string> = {
-    'approved': 'bg-green-100 text-green-800',
-    'pending': 'bg-yellow-100 text-yellow-800',
-    'removed': 'bg-red-100 text-red-800'
+    'approved': 'bg-green-100 text-green-800 border border-green-200',
+    'pending': 'bg-yellow-100 text-yellow-900 border border-yellow-200',
+    'removed': 'bg-red-100 text-red-800 border border-red-200'
   }
-  return statusMap[status] || 'bg-gray-100 text-gray-800'
+  return statusMap[status] || 'bg-gray-100 text-gray-900 border border-gray-200'
 }
 
 function formatDate(dateString: string): string {
