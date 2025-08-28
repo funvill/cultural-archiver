@@ -140,24 +140,32 @@ ensuring legal compliance.
 
 ### Dependencies
 
-- **Cloudflare Images**: Primary image processing service ⚠️ *TO BE INTEGRATED*
-- **Cloudflare R2**: Object storage for originals and thumbnails ✅ *IMPLEMENTED - PHOTOS bucket configured*
-- **Cloudflare KV**: Rate limiting counter storage ✅ *IMPLEMENTED - RATE_LIMITS namespace configured*
-- **Cloudflare D1**: User consent and audit log storage ✅ *IMPLEMENTED - database schema ready*
+- **Cloudflare Images**: Primary image processing service ⚠️ _TO BE INTEGRATED_
+- **Cloudflare R2**: Object storage for originals and thumbnails ✅
+  _IMPLEMENTED - PHOTOS bucket configured_
+- **Cloudflare KV**: Rate limiting counter storage ✅ _IMPLEMENTED - RATE_LIMITS
+  namespace configured_
+- **Cloudflare D1**: User consent and audit log storage ✅ _IMPLEMENTED -
+  database schema ready_
 
 ### Integration Points
 
-- Must integrate with existing `LogbookRecord.photos` JSON array field ✅ *IMPLEMENTED*
-- Must integrate with existing user token system for consent management ✅ *IMPLEMENTED*
-- Must extend existing API error handling patterns ✅ *IMPLEMENTED*
-- Must work with existing TypeScript types in `src/shared/types.ts` ✅ *IMPLEMENTED*
+- Must integrate with existing `LogbookRecord.photos` JSON array field ✅
+  _IMPLEMENTED_
+- Must integrate with existing user token system for consent management ✅
+  _IMPLEMENTED_
+- Must extend existing API error handling patterns ✅ _IMPLEMENTED_
+- Must work with existing TypeScript types in `src/shared/types.ts` ✅
+  _IMPLEMENTED_
 
 ### Performance Considerations
 
-- Implement sliding window rate limiting to distribute load ✅ *IMPLEMENTED*
-- Use CDN caching for thumbnail delivery ⚠️ *TO BE IMPLEMENTED with Cloudflare Images*
-- Optimize R2 storage costs through intelligent format selection ⚠️ *TO BE IMPLEMENTED*
-- Batch audit log writes to reduce D1 overhead ⚠️ *TO BE IMPLEMENTED*
+- Implement sliding window rate limiting to distribute load ✅ _IMPLEMENTED_
+- Use CDN caching for thumbnail delivery ⚠️ _TO BE IMPLEMENTED with Cloudflare
+  Images_
+- Optimize R2 storage costs through intelligent format selection ⚠️ _TO BE
+  IMPLEMENTED_
+- Batch audit log writes to reduce D1 overhead ⚠️ _TO BE IMPLEMENTED_
 
 ### Current Implementation Status
 
@@ -172,7 +180,8 @@ ensuring legal compliance.
 
 **⚠️ Partially Implemented:**
 
-- Photo processing (missing thumbnail generation and Cloudflare Images integration)
+- Photo processing (missing thumbnail generation and Cloudflare Images
+  integration)
 - Content moderation (reviewer middleware exists, but no takedown workflows)
 - Audit logging (basic logging exists, but no structured audit trails)
 
@@ -214,39 +223,48 @@ ensuring legal compliance.
 
 ### Database Schema Updates
 
-- Add `consent_version` field to user tokens ❌ *NOT IMPLEMENTED*
-- Create `audit_logs` table for takedown tracking ❌ *NOT IMPLEMENTED*
-- Add `processing_status` field to logbook entries for upload state tracking ❌ *NOT IMPLEMENTED*
+- Add `consent_version` field to user tokens ❌ _NOT IMPLEMENTED_
+- Create `audit_logs` table for takedown tracking ❌ _NOT IMPLEMENTED_
+- Add `processing_status` field to logbook entries for upload state tracking ❌
+  _NOT IMPLEMENTED_
 
 ### API Endpoints Affected
 
-- `POST /api/logbook` - Add image processing and rate limiting ✅ *IMPLEMENTED - basic functionality*
-- `GET /api/artworks/nearby` - Add rate limiting ✅ *IMPLEMENTED*
-- `POST /api/review/approve` - Add consent version checks ❌ *NOT IMPLEMENTED*
-- `POST /api/review/reject` - Add hard delete with audit logging ❌ *NOT IMPLEMENTED*
+- `POST /api/logbook` - Add image processing and rate limiting ✅ _IMPLEMENTED -
+  basic functionality_
+- `GET /api/artworks/nearby` - Add rate limiting ✅ _IMPLEMENTED_
+- `POST /api/review/approve` - Add consent version checks ❌ _NOT IMPLEMENTED_
+- `POST /api/review/reject` - Add hard delete with audit logging ❌ _NOT
+  IMPLEMENTED_
 
 ### Configuration Requirements
 
-- Cloudflare Images API configuration ❌ *NOT CONFIGURED*
-- R2 bucket policies and CDN settings ✅ *IMPLEMENTED - PHOTOS bucket configured*
-- KV namespace setup for rate limiting ✅ *IMPLEMENTED - RATE_LIMITS namespace*
-- External link configuration for FoP resources ❌ *NOT IMPLEMENTED*
+- Cloudflare Images API configuration ❌ _NOT CONFIGURED_
+- R2 bucket policies and CDN settings ✅ _IMPLEMENTED - PHOTOS bucket
+  configured_
+- KV namespace setup for rate limiting ✅ _IMPLEMENTED - RATE_LIMITS namespace_
+- External link configuration for FoP resources ❌ _NOT IMPLEMENTED_
 
 ### Next Steps for Completion
 
 **High Priority:**
 
-1. **Integrate Cloudflare Images** - Replace basic R2 storage with Cloudflare Images for automatic optimization
-2. **Implement thumbnail generation** - Create 800px thumbnails using Cloudflare Images API
-3. **Add EXIF handling** - Preserve GPS data and inject permalink URLs in EXIF comments
+1. **Integrate Cloudflare Images** - Replace basic R2 storage with Cloudflare
+   Images for automatic optimization
+2. **Implement thumbnail generation** - Create 800px thumbnails using Cloudflare
+   Images API
+3. **Add EXIF handling** - Preserve GPS data and inject permalink URLs in EXIF
+   comments
 
 **Medium Priority:**
 
-1. **Implement consent system** - Add age gate, CC0 licensing, and FoP acknowledgment
+1. **Implement consent system** - Add age gate, CC0 licensing, and FoP
+   acknowledgment
 2. **Create audit logging** - Structured logs for content moderation actions
 3. **Add magic link auth** - Email verification for optional user accounts
 
 **Low Priority:**
 
 1. **Enhanced moderation** - Takedown workflows and reviewer queue management
-2. **Performance optimization** - CDN configuration and intelligent format selection
+2. **Performance optimization** - CDN configuration and intelligent format
+   selection
