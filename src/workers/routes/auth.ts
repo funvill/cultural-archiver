@@ -62,8 +62,10 @@ export async function requestMagicLink(
         'RATE_LIMITED',
         429,
         { 
-          resetTime: 'in 1 hour',
-          maxRequests: 3,
+          details: {
+            resetTime: 'in 1 hour',
+            maxRequests: 3,
+          }
         }
       );
     }
@@ -358,8 +360,10 @@ export async function resendVerificationEmail(
         'RATE_LIMITED',
         429,
         { 
-          resetTime: 'in 1 hour',
-          maxRequests: 2,
+          details: {
+            resetTime: 'in 1 hour',
+            maxRequests: 2,
+          }
         }
       );
     }

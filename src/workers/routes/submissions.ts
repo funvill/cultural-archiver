@@ -100,7 +100,10 @@ async function processPhotos(
     // Validate files first
     const validation = validatePhotoFiles(files);
     if (!validation.isValid) {
-      throw new ValidationApiError('Photo validation failed', validation.errors.map(msg => ({ message: msg })));
+      throw new ValidationApiError(
+        validation.errors.map(msg => ({ message: msg, field: 'photos', code: 'VALIDATION_ERROR' })),
+        'Photo validation failed'
+      );
     }
     
     // Process and upload photos
@@ -122,8 +125,8 @@ async function processPhotos(
     }
     
     throw new ValidationApiError(
-      'Failed to process uploaded photos', 
-      [{ message: error instanceof Error ? error.message : 'Unknown photo processing error' }]
+      [{ message: error instanceof Error ? error.message : 'Unknown photo processing error', field: 'photos', code: 'PROCESSING_ERROR' }],
+      'Failed to process uploaded photos'
     );
   }
 }

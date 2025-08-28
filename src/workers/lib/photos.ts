@@ -233,7 +233,7 @@ export async function uploadToR2(
       'Failed to upload photo to storage',
       'STORAGE_UPLOAD_ERROR',
       503,
-      { key }
+      { details: { key } }
     );
   }
 }
@@ -294,7 +294,7 @@ export async function processAndUploadPhotos(
         'Photo validation failed',
         'INVALID_PHOTOS',
         400,
-        { errors: validation.errors }
+        { details: { errors: validation.errors } }
       );
     }
     

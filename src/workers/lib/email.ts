@@ -209,7 +209,12 @@ export async function sendMagicLinkEmail(
       if (!response.ok) {
         const errorData = await response.text();
         console.error('Email sending failed:', errorData);
-        throw new ApiError('Email delivery failed', 'INTEGRATION_ERROR', 502);
+        throw new ApiError(
+          'Email delivery failed', 
+          'INTEGRATION_ERROR', 
+          502,
+          { details: { email: email.toLowerCase().trim() } }
+        );
       }
     } else {
       // Development mode: log email content instead of sending
@@ -238,7 +243,7 @@ export async function sendMagicLinkEmail(
       'Failed to send verification email',
       'EMAIL_SEND_ERROR',
       503,
-      { email: email.toLowerCase().trim() }
+      { details: { email: email.toLowerCase().trim() } }
     );
   }
 }
@@ -327,7 +332,7 @@ export async function consumeMagicLink(
 /**
  * Clean up expired magic links (for maintenance)
  */
-export async function cleanupExpiredMagicLinks(env: WorkerEnv): Promise<number> {
+export async function cleanupExpiredMagicLinks(_env: WorkerEnv): Promise<number> {
   // Note: KV automatically expires keys based on TTL, so this is mainly for audit purposes
   // In a production system, you might want to log cleanup statistics
   

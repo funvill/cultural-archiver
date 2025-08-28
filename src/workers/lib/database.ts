@@ -20,10 +20,11 @@ export class DatabaseService {
   // Artwork Operations
   // ================================
 
-  async createArtwork(data: CreateArtworkRequest): Promise<ArtworkRecord> {
+  async createArtwork(data: CreateArtworkRequest): Promise<string> {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
     
+    // For MVP, we'll add photos as NULL since the current schema doesn't have it
     const stmt = this.db.prepare(`
       INSERT INTO artwork (id, lat, lon, type_id, created_at, status, tags)
       VALUES (?, ?, ?, ?, ?, 'pending', ?)
@@ -32,15 +33,7 @@ export class DatabaseService {
     const tagsJson = data.tags ? JSON.stringify(data.tags) : null;
     await stmt.bind(id, data.lat, data.lon, data.type_id, now, tagsJson).run();
     
-    return {
-      id,
-      lat: data.lat,
-      lon: data.lon,
-      type_id: data.type_id,
-      created_at: now,
-      status: 'pending',
-      tags: tagsJson,
-    };
+    return id;
   }
 
   async getArtworkById(id: string): Promise<ArtworkRecord | null> {
@@ -226,6 +219,12 @@ export class DatabaseService {
     return result as ArtworkTypeRecord || null;
   }
 
+  async getArtworkTypeByName(name: string): Promise<ArtworkTypeRecord | null> {
+    const stmt = this.db.prepare('SELECT * FROM artwork_types WHERE name = ?');
+    const result = await stmt.bind(name).first();
+    return result as ArtworkTypeRecord | null;
+  }
+
   // ================================
   // Tag Operations
   // ================================
@@ -302,7 +301,16 @@ export function createDatabaseService(db: any): DatabaseService {
 
 export async function insertArtwork(db: any, artwork: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'>): Promise<string> {
   const service = createDatabaseService(db);
-  return service.createArtwork(artwork);
+  
+  // Convert artwork to CreateArtworkRequest format
+  const createRequest: CreateArtworkRequest = {
+    lat: artwork.lat,
+    lon: artwork.lon,
+    type_id: artwork.type_id,
+    tags: artwork.tags ? JSON.parse(artwork.tags) : {},
+  };
+  
+  return service.createArtwork(createRequest);
 }
 
 export async function updateLogbookStatus(db: any, id: string, status: LogbookRecord['status'], artworkId?: string): Promise<void> {
@@ -320,13 +328,21 @@ export async function findNearbyArtworks(db: any, lat: number, lon: number, radi
 
 export async function findLogbookById(db: any, id: string): Promise<LogbookRecord | null> {
   const service = createDatabaseService(db);
-  return service.getLogbookEntryById(id);
+  return service.getLogbookById(id);
 }
 
 export async function insertTags(db: any, tags: Array<{ label: string; value: string; artwork_id?: string; logbook_id?: string | null }>): Promise<void> {
   const service = createDatabaseService(db);
   for (const tag of tags) {
-    await service.createTag(tag);
+    if (tag.artwork_id || tag.logbook_id) {
+      const createRequest: CreateTagRequest = {
+        label: tag.label,
+        value: tag.value,
+        ...(tag.artwork_id && { artwork_id: tag.artwork_id }),
+        ...(tag.logbook_id && { logbook_id: tag.logbook_id }),
+      };
+      await service.createTag(createRequest);
+    }
   }
 }
 
@@ -336,7 +352,16 @@ export async function findArtworkById(db: any, id: string): Promise<ArtworkRecor
 }
 
 export async function updateArtworkPhotos(db: any, id: string, photoUrls: string[]): Promise<void> {
-  const stmt = db.prepare('UPDATE artwork SET photos = ? WHERE id = ?');
+  // For MVP, since photos field doesn't exist in artwork table, 
+  // we'll store photos in the tags field as a special key
+  const stmt = db.prepare(`
+    UPDATE artwork 
+    SET tags = CASE 
+      WHEN tags IS NULL THEN json('{"_photos": []}')
+      ELSE json_set(tags, '$._photos', json(?))
+    END 
+    WHERE id = ?
+  `);
   await stmt.bind(JSON.stringify(photoUrls), id).run();
 }
 

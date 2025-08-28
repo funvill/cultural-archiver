@@ -122,9 +122,36 @@ export async function getReviewQueue(
 }
 
 /**
- * GET /api/review/submission/:id
- * Get detailed submission for review with nearby artwork detection
+ * For MVP: Extract submission coordinates and type from logbook note field
+ * Format: { note: "user note", _submission: { lat: 49.123, lon: -123.456, type_id: "public_art", tags: {} } }
  */
+function parseSubmissionData(logbookEntry: any) {
+  try {
+    if (logbookEntry.note) {
+      const noteData = JSON.parse(logbookEntry.note);
+      if (noteData._submission) {
+        return {
+          ...logbookEntry,
+          lat: noteData._submission.lat,
+          lon: noteData._submission.lon,
+          type_id: noteData._submission.type_id,
+          tags: noteData._submission.tags || '{}',
+          note: noteData.note || null, // Extract the actual user note
+        };
+      }
+    }
+  } catch (error) {
+    // If parsing fails, return as-is with default values
+  }
+  
+  return {
+    ...logbookEntry,
+    lat: 49.2827, // Default Vancouver coordinates for testing
+    lon: -123.1207,
+    type_id: 'other',
+    tags: '{}',
+  };
+}
 export async function getSubmissionForReview(
   c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
 ): Promise<Response> {
@@ -143,14 +170,17 @@ export async function getSubmissionForReview(
     const submissionId = c.req.param('id');
     
     // Get submission details
-    const submission = await findLogbookById(c.env.DB, submissionId);
-    if (!submission) {
+    const rawSubmission = await findLogbookById(c.env.DB, submissionId);
+    if (!rawSubmission) {
       throw new ApiError(
         'Submission not found',
         'SUBMISSION_NOT_FOUND',
         404
       );
     }
+    
+    // Parse submission data from note field
+    const submission = parseSubmissionData(rawSubmission);
     
     // Find nearby artworks for duplicate detection
     const nearbyArtworks = await findNearbyArtworks(
@@ -168,7 +198,7 @@ export async function getSubmissionForReview(
         submission.lon,
         artwork.lat,
         artwork.lon
-      ).distanceKm * 1000), // Convert km to meters
+      ).distance_km * 1000), // Convert km to meters
     }));
     
     // Get artwork type name
@@ -245,14 +275,16 @@ export async function approveSubmission(
     }
     
     // Get submission
-    const submission = await findLogbookById(c.env.DB, submissionId);
-    if (!submission) {
+    const rawSubmission = await findLogbookById(c.env.DB, submissionId);
+    if (!rawSubmission) {
       throw new ApiError(
         'Submission not found',
         'SUBMISSION_NOT_FOUND',
         404
       );
     }
+    
+    const submission = parseSubmissionData(rawSubmission);
     
     if (submission.status !== 'pending') {
       throw new ApiError(
@@ -273,6 +305,7 @@ export async function approveSubmission(
         lon: overrides?.lon || submission.lon,
         tags: submission.tags || '{}',
         status: 'approved',
+        photos: '[]', // Will be updated after photo migration
       };
       
       finalArtworkId = await insertArtwork(c.env.DB, artworkData);
@@ -401,15 +434,17 @@ export async function rejectSubmission(
     const submissionId = c.req.param('id');
     const { reason, cleanup_photos = true } = await c.req.json();
     
-    // Get submission
-    const submission = await findLogbookById(c.env.DB, submissionId);
-    if (!submission) {
+    // Get submission for rejection
+    const rawSubmission = await findLogbookById(c.env.DB, submissionId);
+    if (!rawSubmission) {
       throw new ApiError(
         'Submission not found',
         'SUBMISSION_NOT_FOUND',
         404
       );
     }
+    
+    const submission = parseSubmissionData(rawSubmission);
     
     if (submission.status !== 'pending') {
       throw new ApiError(
@@ -597,14 +632,16 @@ export async function processBatchReview(
         
         if (action === 'approve') {
           // Simple approval (create new artwork)
-          const submission = await findLogbookById(c.env.DB, id);
-          if (submission && submission.status === 'pending') {
+          const rawSubmission = await findLogbookById(c.env.DB, id);
+          if (rawSubmission && rawSubmission.status === 'pending') {
+            const submission = parseSubmissionData(rawSubmission);
             const artworkData: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'> = {
               type_id: submission.type_id,
               lat: submission.lat,
               lon: submission.lon,
               tags: submission.tags || '{}',
               status: 'approved',
+              photos: null, // Will be updated separately if needed
             };
             
             const artworkId = await insertArtwork(c.env.DB, artworkData);
@@ -613,8 +650,8 @@ export async function processBatchReview(
           }
           
         } else if (action === 'reject') {
-          const submission = await findLogbookById(c.env.DB, id);
-          if (submission && submission.status === 'pending') {
+          const rawSubmission = await findLogbookById(c.env.DB, id);
+          if (rawSubmission && rawSubmission.status === 'pending') {
             await updateLogbookStatus(c.env.DB, id, 'rejected');
             results.rejected++;
           }

@@ -17,6 +17,7 @@ export interface ArtworkRecord {
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null; // JSON object for key-value metadata like {"material": "bronze", "style": "modern"}
+  photos: string | null; // JSON array of R2 URLs like ["url1", "url2", "url3"]
 }
 
 export interface LogbookRecord {
@@ -123,9 +124,16 @@ export interface ArtworkWithPhotos extends ArtworkRecord {
   photo_count: number;
 }
 
-export interface ArtworkDetailResponse extends ArtworkRecord {
+export interface ArtworkDetailResponse {
+  id: string;
+  lat: number;
+  lon: number;
+  type_id: string;
+  created_at: string;
+  status: 'pending' | 'approved' | 'removed';
+  tags: string | null;
+  photos: string[]; // Parsed photo URLs
   type_name: string;
-  photos: string[];
   logbook_entries: LogbookEntryWithPhotos[];
   tags_parsed: Record<string, string>;
 }
