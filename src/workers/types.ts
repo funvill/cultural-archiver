@@ -319,6 +319,9 @@ interface BaseWorkerEnv {
   PHOTOS_BASE_URL?: string;
   R2_PUBLIC_URL?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
+  CLOUDFLARE_IMAGES_ENABLED?: string;
+  CLOUDFLARE_IMAGES_HASH?: string;
+  CLOUDFLARE_IMAGES_API_TOKEN?: string;
 }
 
 // Cloudflare Workers Environment with proper types
