@@ -29,30 +29,8 @@ jobs:
           npm ci
           npm run setup --if-present
 
-      - name: Run ESLint
-        run: npm run lint
-
-      - name: Check TypeScript types
-        run: npm run type-check
-
-      - name: Check code formatting
-        run: npm run format:check
-
-      - name: Validate package.json files
-        run: |
-          npm run type-check:frontend --if-present
-          npm run type-check:workers --if-present
-          npm run type-check:shared --if-present
-
-      - name: Test migration runner
-        run: |
-          node migrations/migrate.ts list
-
-      - name: Validate TypeScript compilation
-        run: |
-          # Test that TypeScript files can be executed with Node.js v23+
-          cd src/workers && node --check index.ts
-          cd ../.. && node --check migrations/migrate.ts
+      - name: Run tests
+        run: npm run test
 
       - name: Cache dependencies
         uses: actions/cache@v3

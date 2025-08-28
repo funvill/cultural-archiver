@@ -7,9 +7,9 @@
 interface DatabaseConnection {
   exec(sql: string): void;
   prepare(sql: string): {
-    run(...params: any[]): { changes: number; lastInsertRowid: number | bigint };
-    get(...params: any[]): any;
-    all(...params: any[]): any[];
+    run(...params: unknown[]): { changes: number; lastInsertRowid: number | bigint };
+    get(...params: unknown[]): Record<string, unknown> | undefined;
+    all(...params: unknown[]): Record<string, unknown>[];
   };
 }
 
@@ -30,33 +30,33 @@ export function testTablesCreated(db: DatabaseConnection): TestResult {
       WHERE type='table' AND name NOT LIKE 'sqlite_%'
       ORDER BY name
     `);
-    
-    const tables = tableStmt.all().map((row: any) => row.name);
+
+    const tables = tableStmt.all().map((row: { name: string }) => row.name);
     const expectedTables = ['artwork', 'artwork_types', 'logbook', 'tags'];
-    
+
     for (const expectedTable of expectedTables) {
       if (!tables.includes(expectedTable)) {
-        return { 
-          passed: false, 
-          error: `Expected table '${expectedTable}' was not created` 
-        };
-      }
-    }
-    
-    // Check that old tables were dropped
-    const oldTables = ['artworks', 'photos', 'users', 'sessions'];
-    for (const oldTable of oldTables) {
-      if (tables.includes(oldTable)) {
-        return { 
-          passed: false, 
-          error: `Old table '${oldTable}' was not dropped` 
+        return {
+          passed: false,
+          error: `Expected table '${expectedTable}' was not created`,
         };
       }
     }
 
-    return { 
-      passed: true, 
-      details: `All expected tables created: ${expectedTables.join(', ')}` 
+    // Check that old tables were dropped
+    const oldTables = ['artworks', 'photos', 'users', 'sessions'];
+    for (const oldTable of oldTables) {
+      if (tables.includes(oldTable)) {
+        return {
+          passed: false,
+          error: `Old table '${oldTable}' was not dropped`,
+        };
+      }
+    }
+
+    return {
+      passed: true,
+      details: `All expected tables created: ${expectedTables.join(', ')}`,
     };
   } catch (error) {
     return { passed: false, error: `Error checking tables: ${error}` };
@@ -73,9 +73,9 @@ export function testIndexesCreated(db: DatabaseConnection): TestResult {
       WHERE type='index' AND name NOT LIKE 'sqlite_%'
       ORDER BY name
     `);
-    
-    const indexes = indexStmt.all().map((row: any) => row.name);
-    
+
+    const indexes = indexStmt.all().map((row: { name: string }) => row.name);
+
     const expectedIndexes = [
       'idx_artwork_types_name',
       'idx_artwork_lat_lon',
@@ -86,21 +86,21 @@ export function testIndexesCreated(db: DatabaseConnection): TestResult {
       'idx_logbook_user_token',
       'idx_tags_artwork_id',
       'idx_tags_logbook_id',
-      'idx_tags_label'
+      'idx_tags_label',
     ];
-    
+
     for (const expectedIndex of expectedIndexes) {
       if (!indexes.includes(expectedIndex)) {
-        return { 
-          passed: false, 
-          error: `Expected index '${expectedIndex}' was not created` 
+        return {
+          passed: false,
+          error: `Expected index '${expectedIndex}' was not created`,
         };
       }
     }
 
-    return { 
-      passed: true, 
-      details: `All expected indexes created: ${expectedIndexes.length} indexes` 
+    return {
+      passed: true,
+      details: `All expected indexes created: ${expectedIndexes.length} indexes`,
     };
   } catch (error) {
     return { passed: false, error: `Error checking indexes: ${error}` };
@@ -115,11 +115,11 @@ export function testForeignKeyConstraints(db: DatabaseConnection): TestResult {
     // Check foreign key enforcement is enabled
     const fkStmt = db.prepare('PRAGMA foreign_keys');
     const fkResult = fkStmt.get();
-    
+
     if (!fkResult || fkResult.foreign_keys !== 1) {
-      return { 
-        passed: false, 
-        error: 'Foreign key constraints are not enabled' 
+      return {
+        passed: false,
+        error: 'Foreign key constraints are not enabled',
       };
     }
 
@@ -130,10 +130,10 @@ export function testForeignKeyConstraints(db: DatabaseConnection): TestResult {
         VALUES (?, ?, ?, ?, ?)
       `);
       invalidArtworkStmt.run('test-invalid-fk', 49.2827, -123.1207, 'nonexistent_type', 'pending');
-      
-      return { 
-        passed: false, 
-        error: 'Foreign key constraint artwork.type_id -> artwork_types.id not enforced' 
+
+      return {
+        passed: false,
+        error: 'Foreign key constraint artwork.type_id -> artwork_types.id not enforced',
       };
     } catch (error) {
       // This should fail - foreign key constraint working
@@ -145,19 +145,24 @@ export function testForeignKeyConstraints(db: DatabaseConnection): TestResult {
         INSERT INTO logbook (id, artwork_id, user_token, status) 
         VALUES (?, ?, ?, ?)
       `);
-      invalidLogbookStmt.run('test-invalid-logbook-fk', 'nonexistent_artwork', 'test-user', 'pending');
-      
-      return { 
-        passed: false, 
-        error: 'Foreign key constraint logbook.artwork_id -> artwork.id not enforced' 
+      invalidLogbookStmt.run(
+        'test-invalid-logbook-fk',
+        'nonexistent_artwork',
+        'test-user',
+        'pending'
+      );
+
+      return {
+        passed: false,
+        error: 'Foreign key constraint logbook.artwork_id -> artwork.id not enforced',
       };
     } catch (error) {
       // This should fail - foreign key constraint working
     }
 
-    return { 
-      passed: true, 
-      details: 'Foreign key constraints are properly enforced' 
+    return {
+      passed: true,
+      details: 'Foreign key constraints are properly enforced',
     };
   } catch (error) {
     return { passed: false, error: `Error testing foreign keys: ${error}` };
@@ -172,64 +177,68 @@ export function testSampleDataInserted(db: DatabaseConnection): TestResult {
     // Check artwork_types sample data
     const artworkTypesStmt = db.prepare('SELECT COUNT(*) as count FROM artwork_types');
     const artworkTypesCount = artworkTypesStmt.get().count;
-    
+
     if (artworkTypesCount < 5) {
-      return { 
-        passed: false, 
-        error: `Expected at least 5 artwork types, found ${artworkTypesCount}` 
+      return {
+        passed: false,
+        error: `Expected at least 5 artwork types, found ${artworkTypesCount}`,
       };
     }
 
     // Check that required artwork types exist
     const requiredTypes = ['public_art', 'street_art', 'monument', 'sculpture', 'other'];
     const typeCheckStmt = db.prepare('SELECT COUNT(*) as count FROM artwork_types WHERE name = ?');
-    
+
     for (const type of requiredTypes) {
       const count = typeCheckStmt.get(type).count;
       if (count !== 1) {
-        return { 
-          passed: false, 
-          error: `Required artwork type '${type}' not found or duplicated` 
+        return {
+          passed: false,
+          error: `Required artwork type '${type}' not found or duplicated`,
         };
       }
     }
 
     // Check sample artworks
-    const artworkStmt = db.prepare(`SELECT COUNT(*) as count FROM artwork WHERE id LIKE 'SAMPLE-%'`);
+    const artworkStmt = db.prepare(
+      `SELECT COUNT(*) as count FROM artwork WHERE id LIKE 'SAMPLE-%'`
+    );
     const artworkCount = artworkStmt.get().count;
-    
+
     if (artworkCount < 6) {
-      return { 
-        passed: false, 
-        error: `Expected at least 6 sample artworks, found ${artworkCount}` 
+      return {
+        passed: false,
+        error: `Expected at least 6 sample artworks, found ${artworkCount}`,
       };
     }
 
     // Check sample logbook entries
-    const logbookStmt = db.prepare(`SELECT COUNT(*) as count FROM logbook WHERE id LIKE 'SAMPLE-%'`);
+    const logbookStmt = db.prepare(
+      `SELECT COUNT(*) as count FROM logbook WHERE id LIKE 'SAMPLE-%'`
+    );
     const logbookCount = logbookStmt.get().count;
-    
+
     if (logbookCount < 9) {
-      return { 
-        passed: false, 
-        error: `Expected at least 9 sample logbook entries, found ${logbookCount}` 
+      return {
+        passed: false,
+        error: `Expected at least 9 sample logbook entries, found ${logbookCount}`,
       };
     }
 
     // Check sample tags
     const tagsStmt = db.prepare(`SELECT COUNT(*) as count FROM tags WHERE id LIKE 'SAMPLE-%'`);
     const tagsCount = tagsStmt.get().count;
-    
+
     if (tagsCount < 5) {
-      return { 
-        passed: false, 
-        error: `Expected at least 5 sample tags, found ${tagsCount}` 
+      return {
+        passed: false,
+        error: `Expected at least 5 sample tags, found ${tagsCount}`,
       };
     }
 
-    return { 
-      passed: true, 
-      details: `Sample data: ${artworkTypesCount} types, ${artworkCount} artworks, ${logbookCount} logbook entries, ${tagsCount} tags` 
+    return {
+      passed: true,
+      details: `Sample data: ${artworkTypesCount} types, ${artworkCount} artworks, ${logbookCount} logbook entries, ${tagsCount} tags`,
     };
   } catch (error) {
     return { passed: false, error: `Error checking sample data: ${error}` };
@@ -249,14 +258,16 @@ export function testStatusCombinations(db: DatabaseConnection): TestResult {
       GROUP BY status
     `);
     const artworkStatuses = artworkStatusStmt.all();
-    
+
     const expectedArtworkStatuses = ['pending', 'approved', 'removed'];
     for (const status of expectedArtworkStatuses) {
-      const found = artworkStatuses.find((s: any) => s.status === status);
+      const found = artworkStatuses.find(
+        (s: { status: string; count: number }) => s.status === status
+      );
       if (!found || found.count < 2) {
-        return { 
-          passed: false, 
-          error: `Insufficient sample artworks with status '${status}' (need at least 2)` 
+        return {
+          passed: false,
+          error: `Insufficient sample artworks with status '${status}' (need at least 2)`,
         };
       }
     }
@@ -269,21 +280,23 @@ export function testStatusCombinations(db: DatabaseConnection): TestResult {
       GROUP BY status
     `);
     const logbookStatuses = logbookStatusStmt.all();
-    
+
     const expectedLogbookStatuses = ['pending', 'approved', 'rejected'];
     for (const status of expectedLogbookStatuses) {
-      const found = logbookStatuses.find((s: any) => s.status === status);
+      const found = logbookStatuses.find(
+        (s: { status: string; count: number }) => s.status === status
+      );
       if (!found || found.count < 3) {
-        return { 
-          passed: false, 
-          error: `Insufficient sample logbook entries with status '${status}' (need at least 3)` 
+        return {
+          passed: false,
+          error: `Insufficient sample logbook entries with status '${status}' (need at least 3)`,
         };
       }
     }
 
-    return { 
-      passed: true, 
-      details: 'All required status combinations present in sample data' 
+    return {
+      passed: true,
+      details: 'All required status combinations present in sample data',
     };
   } catch (error) {
     return { passed: false, error: `Error checking status combinations: ${error}` };
@@ -300,30 +313,36 @@ export function testVancouverCoordinates(db: DatabaseConnection): TestResult {
       WHERE id LIKE 'SAMPLE-%'
     `);
     const coordinates = coordStmt.all();
-    
+
     const vancouverBounds = {
       minLat: 49.2,
       maxLat: 49.35,
       minLon: -123.3,
-      maxLon: -123.0
+      maxLon: -123.0,
     };
-    
+
     for (const coord of coordinates) {
-      if (coord.lat < vancouverBounds.minLat || coord.lat > vancouverBounds.maxLat ||
-          coord.lon < vancouverBounds.minLon || coord.lon > vancouverBounds.maxLon) {
-        return { 
-          passed: false, 
-          error: `Coordinates ${coord.lat}, ${coord.lon} are outside Vancouver area` 
+      if (
+        coord.lat < vancouverBounds.minLat ||
+        coord.lat > vancouverBounds.maxLat ||
+        coord.lon < vancouverBounds.minLon ||
+        coord.lon > vancouverBounds.maxLon
+      ) {
+        return {
+          passed: false,
+          error: `Coordinates ${coord.lat}, ${coord.lon} are outside Vancouver area`,
         };
       }
     }
 
-    const avgLat = coordinates.reduce((sum: number, c: any) => sum + c.lat, 0) / coordinates.length;
-    const avgLon = coordinates.reduce((sum: number, c: any) => sum + c.lon, 0) / coordinates.length;
+    const avgLat =
+      coordinates.reduce((sum: number, c: { lat: number }) => sum + c.lat, 0) / coordinates.length;
+    const avgLon =
+      coordinates.reduce((sum: number, c: { lon: number }) => sum + c.lon, 0) / coordinates.length;
 
-    return { 
-      passed: true, 
-      details: `All coordinates within Vancouver bounds. Average: ${avgLat.toFixed(4)}, ${avgLon.toFixed(4)}` 
+    return {
+      passed: true,
+      details: `All coordinates within Vancouver bounds. Average: ${avgLat.toFixed(4)}, ${avgLon.toFixed(4)}`,
     };
   } catch (error) {
     return { passed: false, error: `Error checking coordinates: ${error}` };
@@ -338,13 +357,13 @@ export function testTableSchemas(db: DatabaseConnection): TestResult {
     // Test artwork_types table structure
     const artworkTypesSchemaStmt = db.prepare('PRAGMA table_info(artwork_types)');
     const artworkTypesSchema = artworkTypesSchemaStmt.all();
-    
+
     const requiredArtworkTypesFields = ['id', 'name', 'description', 'created_at'];
     for (const field of requiredArtworkTypesFields) {
-      if (!artworkTypesSchema.find((col: any) => col.name === field)) {
-        return { 
-          passed: false, 
-          error: `artwork_types table missing required field: ${field}` 
+      if (!artworkTypesSchema.find((col: { name: string }) => col.name === field)) {
+        return {
+          passed: false,
+          error: `artwork_types table missing required field: ${field}`,
         };
       }
     }
@@ -352,13 +371,13 @@ export function testTableSchemas(db: DatabaseConnection): TestResult {
     // Test artwork table structure
     const artworkSchemaStmt = db.prepare('PRAGMA table_info(artwork)');
     const artworkSchema = artworkSchemaStmt.all();
-    
+
     const requiredArtworkFields = ['id', 'lat', 'lon', 'type_id', 'created_at', 'status', 'tags'];
     for (const field of requiredArtworkFields) {
-      if (!artworkSchema.find((col: any) => col.name === field)) {
-        return { 
-          passed: false, 
-          error: `artwork table missing required field: ${field}` 
+      if (!artworkSchema.find((col: { name: string }) => col.name === field)) {
+        return {
+          passed: false,
+          error: `artwork table missing required field: ${field}`,
         };
       }
     }
@@ -366,13 +385,21 @@ export function testTableSchemas(db: DatabaseConnection): TestResult {
     // Test logbook table structure
     const logbookSchemaStmt = db.prepare('PRAGMA table_info(logbook)');
     const logbookSchema = logbookSchemaStmt.all();
-    
-    const requiredLogbookFields = ['id', 'artwork_id', 'user_token', 'note', 'photos', 'status', 'created_at'];
+
+    const requiredLogbookFields = [
+      'id',
+      'artwork_id',
+      'user_token',
+      'note',
+      'photos',
+      'status',
+      'created_at',
+    ];
     for (const field of requiredLogbookFields) {
-      if (!logbookSchema.find((col: any) => col.name === field)) {
-        return { 
-          passed: false, 
-          error: `logbook table missing required field: ${field}` 
+      if (!logbookSchema.find((col: { name: string }) => col.name === field)) {
+        return {
+          passed: false,
+          error: `logbook table missing required field: ${field}`,
         };
       }
     }
@@ -380,20 +407,20 @@ export function testTableSchemas(db: DatabaseConnection): TestResult {
     // Test tags table structure
     const tagsSchemaStmt = db.prepare('PRAGMA table_info(tags)');
     const tagsSchema = tagsSchemaStmt.all();
-    
+
     const requiredTagsFields = ['id', 'artwork_id', 'logbook_id', 'label', 'value', 'created_at'];
     for (const field of requiredTagsFields) {
-      if (!tagsSchema.find((col: any) => col.name === field)) {
-        return { 
-          passed: false, 
-          error: `tags table missing required field: ${field}` 
+      if (!tagsSchema.find((col: { name: string }) => col.name === field)) {
+        return {
+          passed: false,
+          error: `tags table missing required field: ${field}`,
         };
       }
     }
 
-    return { 
-      passed: true, 
-      details: 'All table schemas match requirements' 
+    return {
+      passed: true,
+      details: 'All table schemas match requirements',
     };
   } catch (error) {
     return { passed: false, error: `Error checking table schemas: ${error}` };
@@ -409,7 +436,7 @@ export function runAllMigrationTests(db: DatabaseConnection): {
   summary: string;
 } {
   const results: Record<string, TestResult> = {};
-  
+
   try {
     results.tablesCreated = testTablesCreated(db);
     results.indexesCreated = testIndexesCreated(db);
@@ -422,20 +449,21 @@ export function runAllMigrationTests(db: DatabaseConnection): {
     return {
       overallPassed: false,
       results,
-      summary: `Migration test execution failed: ${error}`
+      summary: `Migration test execution failed: ${error}`,
     };
   }
 
   const totalTests = Object.keys(results).length;
   const passedTests = Object.values(results).filter(r => r.passed).length;
   const overallPassed = passedTests === totalTests;
-  
-  const summary = `Migration Tests: ${passedTests}/${totalTests} passed. ` +
+
+  const summary =
+    `Migration Tests: ${passedTests}/${totalTests} passed. ` +
     (overallPassed ? 'Migration successful!' : 'Migration issues detected.');
 
   return {
     overallPassed,
     results,
-    summary
+    summary,
   };
 }

@@ -10,12 +10,12 @@ The Cultural Archiver MVP uses a SQLite database (Cloudflare D1) with four core 
 
 Lookup table for predefined artwork categories.
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | TEXT | PRIMARY KEY | Unique identifier |
-| `name` | TEXT | NOT NULL, UNIQUE | Human-readable type name |
-| `description` | TEXT | NULL | Optional description of the artwork type |
-| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now') | Creation timestamp |
+| Field         | Type | Constraints                       | Description                              |
+| ------------- | ---- | --------------------------------- | ---------------------------------------- |
+| `id`          | TEXT | PRIMARY KEY                       | Unique identifier                        |
+| `name`        | TEXT | NOT NULL, UNIQUE                  | Human-readable type name                 |
+| `description` | TEXT | NULL                              | Optional description of the artwork type |
+| `created_at`  | TEXT | NOT NULL, DEFAULT datetime('now') | Creation timestamp                       |
 
 **Indexes:**
 
@@ -33,15 +33,15 @@ Lookup table for predefined artwork categories.
 
 Core table storing public artwork locations and metadata.
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | TEXT | PRIMARY KEY | Unique identifier |
-| `lat` | REAL | NOT NULL | Latitude coordinate (-90 to 90) |
-| `lon` | REAL | NOT NULL | Longitude coordinate (-180 to 180) |
-| `type_id` | TEXT | NOT NULL, FK→artwork_types.id | Reference to artwork type |
-| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now') | Creation timestamp |
-| `status` | TEXT | CHECK('pending','approved','removed') | Moderation status |
-| `tags` | TEXT | NULL | JSON object for key-value metadata |
+| Field        | Type | Constraints                           | Description                        |
+| ------------ | ---- | ------------------------------------- | ---------------------------------- |
+| `id`         | TEXT | PRIMARY KEY                           | Unique identifier                  |
+| `lat`        | REAL | NOT NULL                              | Latitude coordinate (-90 to 90)    |
+| `lon`        | REAL | NOT NULL                              | Longitude coordinate (-180 to 180) |
+| `type_id`    | TEXT | NOT NULL, FK→artwork_types.id         | Reference to artwork type          |
+| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Creation timestamp                 |
+| `status`     | TEXT | CHECK('pending','approved','removed') | Moderation status                  |
+| `tags`       | TEXT | NULL                                  | JSON object for key-value metadata |
 
 **Indexes:**
 
@@ -63,15 +63,15 @@ Core table storing public artwork locations and metadata.
 
 Community submissions and entries for artworks.
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | TEXT | PRIMARY KEY | Unique identifier |
-| `artwork_id` | TEXT | NULL, FK→artwork.id | Reference to artwork (NULL for new submissions) |
-| `user_token` | TEXT | NOT NULL | Anonymous UUID or authenticated user ID |
-| `note` | TEXT | NULL | Optional submission note (≤500 chars at app level) |
-| `photos` | TEXT | NULL | JSON array of R2 URLs: `["url1", "url2"]` |
-| `status` | TEXT | CHECK('pending','approved','rejected') | Moderation status |
-| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now') | Creation timestamp |
+| Field        | Type | Constraints                            | Description                                        |
+| ------------ | ---- | -------------------------------------- | -------------------------------------------------- |
+| `id`         | TEXT | PRIMARY KEY                            | Unique identifier                                  |
+| `artwork_id` | TEXT | NULL, FK→artwork.id                    | Reference to artwork (NULL for new submissions)    |
+| `user_token` | TEXT | NOT NULL                               | Anonymous UUID or authenticated user ID            |
+| `note`       | TEXT | NULL                                   | Optional submission note (≤500 chars at app level) |
+| `photos`     | TEXT | NULL                                   | JSON array of R2 URLs: `["url1", "url2"]`          |
+| `status`     | TEXT | CHECK('pending','approved','rejected') | Moderation status                                  |
+| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now')      | Creation timestamp                                 |
 
 **Indexes:**
 
@@ -93,14 +93,14 @@ Community submissions and entries for artworks.
 
 Flexible tagging system for additional metadata.
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | TEXT | PRIMARY KEY | Unique identifier |
-| `artwork_id` | TEXT | NULL, FK→artwork.id | Reference to artwork |
-| `logbook_id` | TEXT | NULL, FK→logbook.id | Reference to logbook entry |
-| `label` | TEXT | NOT NULL | Tag category (e.g., "material", "style") |
-| `value` | TEXT | NOT NULL | Tag value (e.g., "bronze", "modern") |
-| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now') | Creation timestamp |
+| Field        | Type | Constraints                       | Description                              |
+| ------------ | ---- | --------------------------------- | ---------------------------------------- |
+| `id`         | TEXT | PRIMARY KEY                       | Unique identifier                        |
+| `artwork_id` | TEXT | NULL, FK→artwork.id               | Reference to artwork                     |
+| `logbook_id` | TEXT | NULL, FK→logbook.id               | Reference to logbook entry               |
+| `label`      | TEXT | NOT NULL                          | Tag category (e.g., "material", "style") |
+| `value`      | TEXT | NOT NULL                          | Tag value (e.g., "bronze", "modern")     |
+| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now') | Creation timestamp                       |
 
 **Indexes:**
 
@@ -148,7 +148,7 @@ WHERE a.status = 'approved'
 
 ```sql
 -- Get artwork details with recent logbook entries
-SELECT a.*, at.name as type_name, 
+SELECT a.*, at.name as type_name,
        l.note, l.photos, l.created_at as submission_date
 FROM artwork a
 JOIN artwork_types at ON a.type_id = at.id
@@ -213,7 +213,7 @@ ORDER BY l.created_at ASC;
 The database schema is reflected in TypeScript types in `src/shared/types.ts`:
 
 - `ArtworkTypeRecord` - artwork_types table
-- `ArtworkRecord` - artwork table  
+- `ArtworkRecord` - artwork table
 - `LogbookRecord` - logbook table
 - `TagRecord` - tags table
 

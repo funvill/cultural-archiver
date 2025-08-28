@@ -1,0 +1,501 @@
+/**
+ * Photo processing utilities for R2 storage and image handling
+ *
+ * This module provides utilities for uploading, processing, and managing
+ * photos in Cloudflare R2 storage with proper validation and optimization.
+ */
+
+import type { WorkerEnv } from '../types';
+import { ApiError } from './errors';
+
+// Configuration constants
+const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+const MAX_PHOTOS_PER_SUBMISSION = 3;
+const SUPPORTED_MIME_TYPES = [
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/heic',
+  'image/heif',
+];
+
+/**
+ * File validation result
+ */
+export interface FileValidationResult {
+  isValid: boolean;
+  mimeType: string;
+  size: number;
+  errors: string[];
+}
+
+/**
+ * Photo upload result
+ */
+export interface PhotoUploadResult {
+  originalKey: string;
+  thumbnailKey?: string;
+  originalUrl: string;
+  thumbnailUrl?: string;
+  size: number;
+  mimeType: string;
+  uploadedAt: string;
+}
+
+/**
+ * Photo processing options
+ */
+export interface PhotoProcessingOptions {
+  generateThumbnail?: boolean;
+  preserveExif?: boolean;
+  addWatermark?: boolean;
+  quality?: number; // JPEG quality 1-100
+}
+
+/**
+ * Validate uploaded file
+ */
+export function validatePhotoFile(file: File): FileValidationResult {
+  const errors: string[] = [];
+
+  // Check file size
+  if (file.size > MAX_FILE_SIZE) {
+    errors.push(
+      `File size ${Math.round(file.size / 1024 / 1024)}MB exceeds maximum of ${MAX_FILE_SIZE / 1024 / 1024}MB`
+    );
+  }
+
+  // Check MIME type
+  if (!SUPPORTED_MIME_TYPES.includes(file.type.toLowerCase())) {
+    errors.push(
+      `File type ${file.type} is not supported. Supported types: ${SUPPORTED_MIME_TYPES.join(', ')}`
+    );
+  }
+
+  // Check if file has content
+  if (file.size === 0) {
+    errors.push('File is empty');
+  }
+
+  return {
+    isValid: errors.length === 0,
+    mimeType: file.type.toLowerCase(),
+    size: file.size,
+    errors,
+  };
+}
+
+/**
+ * Validate multiple photo files
+ */
+export function validatePhotoFiles(files: File[]): {
+  isValid: boolean;
+  validFiles: File[];
+  errors: string[];
+} {
+  const errors: string[] = [];
+  const validFiles: File[] = [];
+
+  // Check number of files
+  if (files.length > MAX_PHOTOS_PER_SUBMISSION) {
+    errors.push(
+      `Too many files. Maximum ${MAX_PHOTOS_PER_SUBMISSION} photos allowed per submission`
+    );
+    return { isValid: false, validFiles: [], errors };
+  }
+
+  if (files.length === 0) {
+    errors.push('At least one photo is required');
+    return { isValid: false, validFiles: [], errors };
+  }
+
+  // Validate each file
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (!file) continue; // Skip undefined files
+
+    const validation = validatePhotoFile(file);
+
+    if (validation.isValid) {
+      validFiles.push(file);
+    } else {
+      errors.push(`File ${i + 1}: ${validation.errors.join(', ')}`);
+    }
+  }
+
+  return {
+    isValid: errors.length === 0 && validFiles.length > 0,
+    validFiles,
+    errors,
+  };
+}
+
+/**
+ * Generate secure filename with timestamp and UUID
+ */
+export function generateSecureFilename(originalName: string, mimeType: string): string {
+  // Extract file extension from MIME type
+  const extensionMap: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/heic': 'heic',
+    'image/heif': 'heif',
+  };
+
+  const extension = extensionMap[mimeType.toLowerCase()] || 'jpg';
+
+  // Generate timestamp in YYYYMMDD-HHMMSS format
+  const now = new Date();
+  const timestamp = now.toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '-');
+
+  // Generate short UUID (8 characters)
+  const uuid = crypto.randomUUID().split('-')[0];
+
+  // Clean original name (keep only alphanumeric and basic punctuation)
+  const cleanName = originalName
+    .replace(/\.[^/.]+$/, '') // Remove extension
+    .replace(/[^a-zA-Z0-9\-_]/g, '') // Remove special chars
+    .substring(0, 20); // Limit length
+
+  return `${timestamp}-${uuid}-${cleanName || 'photo'}.${extension}`;
+}
+
+/**
+ * Generate date-based folder structure (YYYY/MM/DD)
+ */
+export function generateDateFolder(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = (now.getMonth() + 1).toString().padStart(2, '0');
+  const day = now.getDate().toString().padStart(2, '0');
+
+  return `${year}/${month}/${day}`;
+}
+
+/**
+ * Generate full R2 key for photo
+ */
+export function generateR2Key(filename: string, folder?: string): string {
+  const dateFolder = generateDateFolder();
+  const basePath = folder || 'photos';
+
+  return `${basePath}/${dateFolder}/${filename}`;
+}
+
+/**
+ * Upload file to R2 storage
+ */
+export async function uploadToR2(
+  env: WorkerEnv,
+  file: File,
+  key: string,
+  metadata?: Record<string, string>
+): Promise<void> {
+  try {
+    const bucket = env.PHOTOS_BUCKET;
+
+    if (!bucket) {
+      throw new ApiError('Photo storage not configured', 'STORAGE_NOT_CONFIGURED', 503);
+    }
+
+    // Convert File to ArrayBuffer
+    const arrayBuffer = await file.arrayBuffer();
+
+    // Prepare metadata
+    const objectMetadata = {
+      'Content-Type': file.type,
+      'Content-Length': file.size.toString(),
+      'Upload-Timestamp': new Date().toISOString(),
+      ...metadata,
+    };
+
+    // Upload to R2
+    await bucket.put(key, arrayBuffer, {
+      httpMetadata: {
+        contentType: file.type,
+      },
+      customMetadata: objectMetadata,
+    });
+  } catch (error) {
+    console.error('R2 upload error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to upload photo to storage', 'STORAGE_UPLOAD_ERROR', 503, {
+      details: { key },
+    });
+  }
+}
+
+/**
+ * Delete file from R2 storage
+ */
+export async function deleteFromR2(env: WorkerEnv, key: string): Promise<void> {
+  try {
+    const bucket = env.PHOTOS_BUCKET;
+
+    if (!bucket) {
+      console.warn('Photo storage not configured, skipping deletion');
+      return;
+    }
+
+    await bucket.delete(key);
+  } catch (error) {
+    console.error('R2 deletion error:', error);
+    // Don't throw error for deletion failures - log and continue
+  }
+}
+
+/**
+ * Generate public URL for R2 object
+ */
+export function generatePhotoUrl(env: WorkerEnv, key: string): string {
+  const baseUrl = env.PHOTOS_BASE_URL || env.R2_PUBLIC_URL;
+
+  if (!baseUrl) {
+    // Fallback to R2 default URL pattern
+    const accountId = env.CLOUDFLARE_ACCOUNT_ID;
+    const bucketName = 'cultural-archiver-photos'; // Default bucket name
+    return `https://${bucketName}.${accountId}.r2.cloudflarestorage.com/${key}`;
+  }
+
+  return `${baseUrl.replace(/\/$/, '')}/${key}`;
+}
+
+/**
+ * Process and upload multiple photos
+ */
+export async function processAndUploadPhotos(
+  env: WorkerEnv,
+  files: File[],
+  submissionId: string,
+  options: PhotoProcessingOptions = {}
+): Promise<PhotoUploadResult[]> {
+  const results: PhotoUploadResult[] = [];
+  const uploadPromises: Promise<void>[] = [];
+
+  try {
+    // Validate all files first
+    const validation = validatePhotoFiles(files);
+    if (!validation.isValid) {
+      throw new ApiError('Photo validation failed', 'INVALID_PHOTOS', 400, {
+        details: { errors: validation.errors },
+      });
+    }
+
+    // Process each file
+    for (let i = 0; i < validation.validFiles.length; i++) {
+      const file = validation.validFiles[i];
+      if (!file) continue; // Skip undefined files
+
+      const filename = generateSecureFilename(file.name, file.type);
+      const originalKey = generateR2Key(filename, 'originals');
+
+      // Prepare metadata
+      const metadata: Record<string, string> = {
+        'Submission-ID': submissionId,
+        'Original-Filename': file.name,
+        'File-Index': i.toString(),
+        'Upload-Source': 'logbook-submission',
+      };
+
+      if (options.preserveExif !== false) {
+        metadata['Preserve-EXIF'] = 'true';
+      }
+
+      // Upload original
+      const uploadPromise = uploadToR2(env, file, originalKey, metadata);
+      uploadPromises.push(uploadPromise);
+
+      // Prepare result
+      const result: PhotoUploadResult = {
+        originalKey,
+        originalUrl: generatePhotoUrl(env, originalKey),
+        size: file.size,
+        mimeType: file.type,
+        uploadedAt: new Date().toISOString(),
+      };
+
+      // TODO: Implement thumbnail generation
+      // For MVP, we'll skip thumbnail generation and use original images
+      // This can be added later with image processing libraries
+
+      results.push(result);
+    }
+
+    // Wait for all uploads to complete
+    await Promise.all(uploadPromises);
+
+    return results;
+  } catch (error) {
+    console.error('Photo processing error:', error);
+
+    // Clean up any successfully uploaded files
+    for (const result of results) {
+      if (result.originalKey) {
+        await deleteFromR2(env, result.originalKey);
+      }
+      if (result.thumbnailKey) {
+        await deleteFromR2(env, result.thumbnailKey);
+      }
+    }
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to process and upload photos', 'PHOTO_PROCESSING_ERROR', 500);
+  }
+}
+
+/**
+ * Move photos from logbook to artwork (for approval process)
+ */
+export async function movePhotosToArtwork(
+  env: WorkerEnv,
+  logbookPhotos: string[],
+  artworkId: string
+): Promise<string[]> {
+  const newPhotoUrls: string[] = [];
+
+  try {
+    for (const photoUrl of logbookPhotos) {
+      // Extract key from URL
+      const urlObj = new URL(photoUrl);
+      const originalKey = urlObj.pathname.substring(1); // Remove leading slash
+
+      // Generate new key for artwork
+      const filename = originalKey.split('/').pop() || 'unknown.jpg';
+      const newKey = generateR2Key(filename, 'artworks');
+
+      // Copy file to new location
+      const bucket = env.PHOTOS_BUCKET;
+      if (bucket) {
+        // Get original object
+        const originalObject = await bucket.get(originalKey);
+        if (originalObject) {
+          // Copy to new location with updated metadata
+          await bucket.put(newKey, originalObject.body, {
+            ...(originalObject.httpMetadata && { httpMetadata: originalObject.httpMetadata }),
+            customMetadata: {
+              ...originalObject.customMetadata,
+              'Artwork-ID': artworkId,
+              'Moved-From': originalKey,
+              'Moved-At': new Date().toISOString(),
+            },
+          });
+
+          // Delete original (optional, for cleanup)
+          // await deleteFromR2(env, originalKey);
+
+          newPhotoUrls.push(generatePhotoUrl(env, newKey));
+        }
+      }
+    }
+
+    return newPhotoUrls;
+  } catch (error) {
+    console.error('Error moving photos to artwork:', error);
+
+    // Clean up any new files that were created
+    for (const photoUrl of newPhotoUrls) {
+      try {
+        const urlObj = new URL(photoUrl);
+        const key = urlObj.pathname.substring(1);
+        await deleteFromR2(env, key);
+      } catch (cleanupError) {
+        console.error('Cleanup error:', cleanupError);
+      }
+    }
+
+    throw new ApiError('Failed to move photos to artwork', 'PHOTO_MOVE_ERROR', 500);
+  }
+}
+
+/**
+ * Clean up photos for rejected submissions
+ */
+export async function cleanupRejectedPhotos(env: WorkerEnv, photoUrls: string[]): Promise<void> {
+  try {
+    const deletePromises = photoUrls.map(async photoUrl => {
+      try {
+        const urlObj = new URL(photoUrl);
+        const key = urlObj.pathname.substring(1); // Remove leading slash
+        await deleteFromR2(env, key);
+      } catch (error) {
+        console.error('Error deleting photo:', photoUrl, error);
+      }
+    });
+
+    await Promise.all(deletePromises);
+  } catch (error) {
+    console.error('Error cleaning up rejected photos:', error);
+    // Don't throw error - cleanup failures shouldn't block the rejection process
+  }
+}
+
+/**
+ * Get photo metadata from R2
+ */
+export async function getPhotoMetadata(
+  env: WorkerEnv,
+  key: string
+): Promise<Record<string, string> | null> {
+  try {
+    const bucket = env.PHOTOS_BUCKET;
+    if (!bucket) {
+      return null;
+    }
+
+    const object = await bucket.head(key);
+    if (!object) {
+      return null;
+    }
+
+    return {
+      ...object.customMetadata,
+      contentType: object.httpMetadata?.contentType || 'unknown',
+      size: object.size?.toString() || '0',
+      uploaded: object.uploaded?.toISOString() || 'unknown',
+    };
+  } catch (error) {
+    console.error('Error getting photo metadata:', error);
+    return null;
+  }
+}
+
+/**
+ * Generate photo URLs from R2 keys
+ */
+export function generatePhotoUrls(env: WorkerEnv, keys: string[]): string[] {
+  return keys.map(key => generatePhotoUrl(env, key));
+}
+
+/**
+ * Validate photo URL belongs to the system
+ */
+export function validatePhotoUrl(env: WorkerEnv, url: string): boolean {
+  try {
+    new URL(url); // Validate URL format
+    const baseUrl = env.PHOTOS_BASE_URL || env.R2_PUBLIC_URL;
+
+    if (baseUrl) {
+      return url.startsWith(baseUrl);
+    }
+
+    // Check against R2 default pattern
+    const accountId = env.CLOUDFLARE_ACCOUNT_ID;
+    if (accountId) {
+      return url.includes(`${accountId}.r2.cloudflarestorage.com`);
+    }
+
+    return false;
+  } catch (error) {
+    return false;
+  }
+}

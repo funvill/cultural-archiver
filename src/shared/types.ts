@@ -17,6 +17,7 @@ export interface ArtworkRecord {
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null; // JSON object for key-value metadata like {"material": "bronze", "style": "modern"}
+  photos: string | null; // JSON array of R2 URLs like ["url1", "url2", "url3"]
 }
 
 export interface LogbookRecord {
@@ -71,6 +72,133 @@ export interface CreateLogbookEntryRequest {
   user_token: string;
   note?: string;
   photos?: string[];
+}
+
+// ================================
+// MVP Worker API Types
+// ================================
+
+// Submission Endpoints
+export interface LogbookSubmissionRequest {
+  lat: number;
+  lon: number;
+  note?: string;
+  type?: string;
+  photos?: File[];
+}
+
+export interface LogbookSubmissionResponse {
+  id: string;
+  status: 'pending';
+  message: string;
+  nearby_artworks?: NearbyArtworkInfo[];
+}
+
+export interface NearbyArtworkInfo {
+  id: string;
+  lat: number;
+  lon: number;
+  type_name: string;
+  distance_meters: number;
+  photos: string[];
+}
+
+// Discovery Endpoints
+export interface NearbyArtworksRequest {
+  lat: number;
+  lon: number;
+  radius?: number;
+  limit?: number;
+}
+
+export interface NearbyArtworksResponse {
+  artworks: ArtworkWithPhotos[];
+  total: number;
+  search_center: { lat: number; lon: number };
+  search_radius: number;
+}
+
+export interface ArtworkWithPhotos extends ArtworkRecord {
+  type_name: string;
+  recent_photo?: string;
+  photo_count: number;
+}
+
+export interface ArtworkDetailResponse {
+  id: string;
+  lat: number;
+  lon: number;
+  type_id: string;
+  created_at: string;
+  status: 'pending' | 'approved' | 'removed';
+  tags: string | null;
+  photos: string[]; // Parsed photo URLs
+  type_name: string;
+  logbook_entries: LogbookEntryWithPhotos[];
+  tags_parsed: Record<string, string>;
+}
+
+export interface LogbookEntryWithPhotos extends LogbookRecord {
+  photos_parsed: string[];
+}
+
+// User Management Endpoints
+export interface UserSubmissionsResponse {
+  submissions: UserSubmissionInfo[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export interface UserSubmissionInfo extends LogbookRecord {
+  artwork_lat?: number;
+  artwork_lon?: number;
+  artwork_type_name?: string;
+  photos_parsed: string[];
+}
+
+// Authentication Endpoints
+export interface MagicLinkRequest {
+  email: string;
+}
+
+export interface MagicLinkResponse {
+  message: string;
+  success: boolean;
+}
+
+export interface ConsumeMagicLinkRequest {
+  token: string;
+}
+
+export interface ConsumeMagicLinkResponse {
+  success: boolean;
+  message: string;
+  user_token?: string;
+}
+
+// Moderation Endpoints
+export interface ReviewSubmissionRequest {
+  submission_id: string;
+  action: 'approve' | 'reject';
+  rejection_reason?: string;
+  artwork_overrides?: Partial<CreateArtworkRequest>;
+  link_to_existing_artwork?: string;
+}
+
+export interface ReviewSubmissionResponse {
+  success: boolean;
+  message: string;
+  artwork_id?: string;
+  submission_status: LogbookRecord['status'];
+}
+
+// Rate Limiting Types
+export interface RateLimitInfo {
+  submissions_remaining: number;
+  submissions_reset_at: string;
+  queries_remaining: number;
+  queries_reset_at: string;
 }
 
 // ================================
@@ -160,6 +288,35 @@ export interface AppConfig {
 }
 
 // ================================
+// Authentication Context
+// ================================
+
+export interface AuthContext {
+  userToken: string;
+  isVerifiedEmail: boolean;
+  isReviewer: boolean;
+}
+
+// Cloudflare Workers Environment (generic interface)
+export interface WorkerEnv {
+  DB: unknown; // D1Database
+  SESSIONS: unknown; // KVNamespace;
+  CACHE: unknown; // KVNamespace;
+  RATE_LIMITS: unknown; // KVNamespace;
+  MAGIC_LINKS: unknown; // KVNamespace;
+  PHOTOS_BUCKET: unknown; // R2Bucket;
+  ENVIRONMENT: string;
+  FRONTEND_URL: string;
+  LOG_LEVEL: string;
+  API_VERSION: string;
+  EMAIL_API_KEY?: string; // Optional for development
+  EMAIL_FROM: string;
+  PHOTOS_BASE_URL?: string;
+  R2_PUBLIC_URL?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
+}
+
+// ================================
 // Utility Types
 // ================================
 
@@ -191,11 +348,22 @@ export interface ValidationError {
 }
 
 export interface ApiError {
-  code: string;
+  error: string;
   message: string;
-  details?: Record<string, unknown>;
-  validation_errors?: ValidationError[];
+  details?: {
+    validation_errors?: ValidationError[];
+    [key: string]: unknown;
+  };
+  show_details?: boolean;
 }
+
+// Success response format - returns data directly
+export interface ApiSuccessResponse<T = unknown> {
+  [key: string]: T;
+}
+
+// Error response uses progressive disclosure
+export interface ApiErrorResponse extends ApiError {}
 
 // ================================
 // Authentication Types (for future use)
@@ -251,7 +419,7 @@ export const ARTWORK_STATUSES = ['pending', 'approved', 'removed'] as const;
 export const LOGBOOK_STATUSES = ['pending', 'approved', 'rejected'] as const;
 export const ARTWORK_TYPES = [
   'public_art',
-  'street_art', 
+  'street_art',
   'monument',
   'sculpture',
   'other',
@@ -261,3 +429,17 @@ export const ARTWORK_TYPES = [
 export const DEFAULT_SEARCH_RADIUS = 500;
 export const MAX_SEARCH_RADIUS = 10000; // 10km
 export const MIN_SEARCH_RADIUS = 50; // 50m
+
+// Rate limiting constants
+export const RATE_LIMIT_SUBMISSIONS_PER_DAY = 10;
+export const RATE_LIMIT_QUERIES_PER_HOUR = 60;
+export const MAX_NOTE_LENGTH = 500;
+export const MAX_PHOTOS_PER_SUBMISSION = 3;
+export const MAX_PHOTO_SIZE = 15 * 1024 * 1024; // 15MB
+
+// Photo processing constants
+export const THUMBNAIL_MAX_SIZE = 800; // pixels
+export const PHOTO_BUCKET_STRUCTURE = {
+  ORIGINALS: 'originals',
+  THUMBS: 'thumbs',
+} as const;

@@ -1,7 +1,6 @@
 # External GitHub Setup Guide
 
-This document outlines the manual setup steps required in the GitHub repository
-that cannot be automated through code changes.
+This document outlines the manual setup steps required in the GitHub repository that cannot be automated through code changes.
 
 ## Repository Settings Configuration
 
@@ -22,8 +21,7 @@ that cannot be automated through code changes.
 
 ### Repository Secrets Configuration
 
-Navigate to **Settings** → **Secrets and variables** → **Actions** and add the
-following secrets:
+Navigate to **Settings** → **Secrets and variables** → **Actions** and add the following secrets:
 
 #### [X] Required Secrets for CI/CD
 
@@ -88,8 +86,7 @@ Navigate to **Settings** → **Manage access**:
 
 Navigate to **Settings** → **General**:
 
-1. **Description**: "Cultural heritage documentation platform using Vue 3,
-   TypeScript, and Cloudflare infrastructure"
+1. **Description**: "Cultural heritage documentation platform using Vue 3, TypeScript, and Cloudflare infrastructure"
 2. **Topics** (add these tags):
    - `cultural-heritage`
    - `typescript`
@@ -103,15 +100,13 @@ Navigate to **Settings** → **General**:
 
 Navigate to **Settings** → **Actions** → **General**:
 
-1. **Actions permissions**: "Allow enterprise, and select non-enterprise,
-   actions and reusable workflows"
+1. **Actions permissions**: "Allow enterprise, and select non-enterprise, actions and reusable workflows"
 2. **Workflow permissions**: "Read and write permissions"
 3. ✅ **Allow GitHub Actions to create and approve pull requests**
 
 ## Issue and PR Templates
 
-These templates should be created through code commits, but require the
-following GitHub repository settings:
+These templates should be created through code commits, but require the following GitHub repository settings:
 
 Navigate to **Settings** → **Features**:
 

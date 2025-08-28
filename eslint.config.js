@@ -6,6 +6,7 @@ import vuePlugin from 'eslint-plugin-vue';
 export default [
   {
     files: ['**/*.ts', '**/*.tsx'],
+    ignores: ['**/*.test.ts', '**/*.spec.ts'],
     languageOptions: {
       parser: typescriptParser,
       parserOptions: {
@@ -20,6 +21,24 @@ export default [
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'warn',
       '@typescript-eslint/no-explicit-any': 'error',
+    },
+  },
+  {
+    files: ['**/*.test.ts', '**/*.spec.ts'],
+    languageOptions: {
+      parser: typescriptParser,
+      parserOptions: {
+        ecmaVersion: 2023,
+        sourceType: 'module',
+      },
+    },
+    plugins: {
+      '@typescript-eslint': typescriptEslint,
+    },
+    rules: {
+      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      '@typescript-eslint/explicit-function-return-type': 'warn',
+      '@typescript-eslint/no-explicit-any': 'warn', // Allow any in test files for mocking
     },
   },
   {
@@ -67,6 +86,10 @@ export default [
       'src/frontend/dist/**',
       'src/workers/dist/**',
       'src/workers/.wrangler/**',
+      '.wrangler/**',
+      '**/.wrangler/**',
+      '**/tmp/**',
+      '**/bundle-*/**',
       '*.d.ts',
     ],
   },

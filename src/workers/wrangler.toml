@@ -37,6 +37,16 @@ id = "c991e608759d45bdae4198b72955da5f"
 binding = "CACHE"
 id = "91052eaeeef24b6fab6ac2b3c75b8b0b"
 
+# Rate limiting KV namespace for MVP
+[[env.development.kv_namespaces]]
+binding = "RATE_LIMITS"
+id = "rate-limits-dev-placeholder"
+
+# Magic links KV namespace for MVP
+[[env.development.kv_namespaces]]
+binding = "MAGIC_LINKS"
+id = "magic-links-dev-placeholder"
+
 [[env.staging.kv_namespaces]]
 binding = "SESSIONS"
 id = "c991e608759d45bdae4198b72955da5f"  # Fill in from Cloudflare dashboard
@@ -45,6 +55,14 @@ id = "c991e608759d45bdae4198b72955da5f"  # Fill in from Cloudflare dashboard
 binding = "CACHE"
 id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Fill in from Cloudflare dashboard
 
+[[env.staging.kv_namespaces]]
+binding = "RATE_LIMITS"
+id = ""  # Fill in from Cloudflare dashboard
+
+[[env.staging.kv_namespaces]]
+binding = "MAGIC_LINKS"
+id = ""  # Fill in from Cloudflare dashboard
+
 [[env.production.kv_namespaces]]
 binding = "SESSIONS"
 id = "c991e608759d45bdae4198b72955da5f"  # Fill in from Cloudflare dashboard
@@ -52,18 +70,26 @@ id = "c991e608759d45bdae4198b72955da5f"  # Fill in from Cloudflare dashboard
 [[env.production.kv_namespaces]]
 binding = "CACHE"
 id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Fill in from Cloudflare dashboard
+
+[[env.production.kv_namespaces]]
+binding = "RATE_LIMITS"
+id = ""  # Fill in from Cloudflare dashboard
+
+[[env.production.kv_namespaces]]
+binding = "MAGIC_LINKS"
+id = ""  # Fill in from Cloudflare dashboard
 
 # R2 bucket bindings
 [[env.development.r2_buckets]]
-binding = "PHOTOS"
-bucket_name = "cultural-archiver-photos"
+binding = "PHOTOS_BUCKET"
+bucket_name = "cultural-archiver-photos-dev"
 
 [[env.staging.r2_buckets]]
-binding = "PHOTOS"
+binding = "PHOTOS_BUCKET"
 bucket_name = "cultural-archiver-photos-staging"
 
 [[env.production.r2_buckets]]
-binding = "PHOTOS"
+binding = "PHOTOS_BUCKET"
 bucket_name = "cultural-archiver-photos"
 
 # Environment variables
@@ -71,13 +97,32 @@ bucket_name = "cultural-archiver-photos"
 ENVIRONMENT = "development"
 FRONTEND_URL = "http://localhost:5173"
 LOG_LEVEL = "debug"
+API_VERSION = "1.0.0"
+# Email configuration (leave empty for development mode)
+EMAIL_API_KEY = ""
+EMAIL_FROM = "Cultural Archiver <noreply@cultural-archiver.com>"
+PHOTOS_BASE_URL = "http://localhost:8787/photos"
+R2_PUBLIC_URL = "http://localhost:8787/photos"
+CLOUDFLARE_ACCOUNT_ID = "development"
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
 FRONTEND_URL = "https://staging-art.abluestar.com"
 LOG_LEVEL = "info"
+API_VERSION = "1.0.0"
+# Email configuration (set via secrets)
+EMAIL_FROM = "Cultural Archiver Staging <noreply@staging.cultural-archiver.com>"
+PHOTOS_BASE_URL = "https://photos-staging.cultural-archiver.com"
+# EMAIL_API_KEY set via `wrangler secret put EMAIL_API_KEY`
+# CLOUDFLARE_ACCOUNT_ID set via `wrangler secret put CLOUDFLARE_ACCOUNT_ID`
 
 [env.production.vars]
 ENVIRONMENT = "production"
 FRONTEND_URL = "https://art.abluestar.com"
 LOG_LEVEL = "warn"
+API_VERSION = "1.0.0"
+# Email configuration (set via secrets)
+EMAIL_FROM = "Cultural Archiver <noreply@cultural-archiver.com>"
+PHOTOS_BASE_URL = "https://photos.cultural-archiver.com"
+# EMAIL_API_KEY set via `wrangler secret put EMAIL_API_KEY`
+# CLOUDFLARE_ACCOUNT_ID set via `wrangler secret put CLOUDFLARE_ACCOUNT_ID`
