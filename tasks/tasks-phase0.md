@@ -42,13 +42,13 @@ Based on PRD: `tasks/phase0_prd.md`
 
 - [ ] 1.0 Repository Foundation & Documentation
   - [x] 1.1 Update README.md with comprehensive setup instructions and npm commands
-  - [ ] 1.2 Create CODE_OF_CONDUCT.md following GitHub's community standards
-  - [ ] 1.3 Create SECURITY.md with vulnerability reporting guidelines
-  - [ ] 1.4 Update CONTRIBUTING.md with specific development workflow and TypeScript requirements
-  - [ ] 1.5 Create .github/PULL_REQUEST_TEMPLATE.md with checklist for code quality and testing
-  - [ ] 1.6 Create .github/ISSUE_TEMPLATE/bug_report.md for standardized bug reports
-  - [ ] 1.7 Create .github/ISSUE_TEMPLATE/feature_request.md for feature proposals
-  - [ ] 1.8 Configure GitHub repository settings: branch protection rules for main branch requiring PR reviews
+  - [x] ~~1.2 Create CODE_OF_CONDUCT.md following GitHub's community standards~~ (Skipped)
+  - [x] ~~1.3 Create SECURITY.md with vulnerability reporting guidelines~~ (Skipped)
+  - [x] ~~1.4 Update CONTRIBUTING.md with specific development workflow and TypeScript requirements~~ (Skipped)
+  - [x] ~~1.5 Create .github/PULL_REQUEST_TEMPLATE.md with checklist for code quality and testing~~ (Skipped)
+  - [x] ~~1.6 Create .github/ISSUE_TEMPLATE/bug_report.md for standardized bug reports~~ (Skipped)
+  - [x] ~~1.7 Create .github/ISSUE_TEMPLATE/feature_request.md for feature proposals~~ (Skipped)
+  - [ ] 1.8 Configure GitHub repository settings: branch protection rules for main branch requiring PR reviews (See `tasks/external-github-setup.md`)
   - [ ] 1.9 Set up repository licenses: MIT/Apache-2.0 for code, CC0 for data (update LICENSE file)
 
 - [ ] 2.0 Project Structure & Configuration
@@ -70,7 +70,7 @@ Based on PRD: `tasks/phase0_prd.md`
   - [ ] 2.16 Create src/shared/types.ts with database and API interfaces
   - [ ] 2.17 Set up npm scripts leveraging Node.js v23+ native TypeScript execution for development
 
-- [ ] 3.0 Cloudflare Infrastructure Setup
+- [ ] 3.0 Cloudflare Infrastructure Setup (See `tasks/external-cloudflare-setup.md`)
   - [ ] 3.1 Set up shared development Cloudflare account access and document credentials
   - [ ] 3.2 Create Cloudflare Pages project linked to GitHub repository
   - [ ] 3.3 Configure Cloudflare Pages build settings for Vue/Vite frontend
