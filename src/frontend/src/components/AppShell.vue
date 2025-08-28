@@ -1,27 +1,37 @@
 <template>
   <div class="app-shell">
+    <!-- Skip Navigation Link for Accessibility -->
+    <a 
+      href="#main-content" 
+      class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md"
+    >
+      Skip to main content
+    </a>
+
     <!-- Top App Bar -->
-    <header class="app-header bg-blue-600 text-white shadow-md">
+    <header class="app-header bg-blue-600 text-white shadow-md" role="banner">
       <div class="flex items-center justify-between h-16 px-4">
         <!-- Left side: Logo and Title -->
         <div class="flex items-center space-x-3">
-          <div class="text-2xl">🎨</div>
+          <div class="text-2xl" role="img" aria-label="Cultural Archiver logo">🎨</div>
           <h1 class="text-xl font-semibold truncate">Cultural Archiver</h1>
         </div>
 
         <!-- Right side: Navigation (Desktop) -->
-        <nav class="hidden md:flex items-center space-x-4">
+        <nav class="hidden md:flex items-center space-x-4" role="navigation" aria-label="Main navigation">
           <RouterLink
             v-for="item in visibleNavItems"
             :key="item.path"
             :to="item.path"
-            class="nav-link px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+            class="nav-link px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
             :class="{ 'bg-blue-800': $route.path === item.path }"
+            :aria-current="$route.path === item.path ? 'page' : undefined"
           >
             <component
               v-if="item.icon"
               :is="item.icon"
               class="w-5 h-5 inline-block mr-1"
+              aria-hidden="true"
             />
             {{ item.name }}
           </RouterLink>
@@ -29,13 +39,15 @@
 
         <!-- Mobile menu button -->
         <button
-          class="md:hidden p-2 rounded-md hover:bg-blue-700 transition-colors"
+          class="md:hidden p-2 rounded-md hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
           @click="toggleDrawer"
+          @keydown.escape="closeDrawer"
           :aria-expanded="showDrawer"
           aria-label="Open navigation menu"
+          aria-controls="mobile-menu"
         >
-          <Bars3Icon v-if="!showDrawer" class="w-6 h-6" />
-          <XMarkIcon v-else class="w-6 h-6" />
+          <Bars3Icon v-if="!showDrawer" class="w-6 h-6" aria-hidden="true" />
+          <XMarkIcon v-else class="w-6 h-6" aria-hidden="true" />
         </button>
       </div>
     </header>
@@ -52,41 +64,47 @@
 
     <!-- Mobile Drawer -->
     <div
+      id="mobile-menu"
       class="fixed top-0 left-0 z-50 h-full w-64 bg-white shadow-xl transform transition-transform duration-300 md:hidden"
       :class="showDrawer ? 'translate-x-0' : '-translate-x-full'"
       role="dialog"
       aria-modal="true"
       aria-labelledby="drawer-title"
+      @keydown.escape="closeDrawer"
     >
       <!-- Drawer Header -->
       <div class="flex items-center justify-between h-16 px-4 bg-blue-600 text-white">
         <div class="flex items-center space-x-3">
-          <div class="text-2xl">🎨</div>
-          <h2 id="drawer-title" class="text-lg font-semibold">Menu</h2>
+          <div class="text-2xl" role="img" aria-label="Cultural Archiver logo">🎨</div>
+          <h2 id="drawer-title" class="text-lg font-semibold">Navigation Menu</h2>
         </div>
         <button
+          ref="drawerCloseButton"
           @click="closeDrawer"
-          class="p-2 rounded-md hover:bg-blue-700 transition-colors"
+          class="p-2 rounded-md hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
           aria-label="Close navigation menu"
         >
-          <XMarkIcon class="w-6 h-6" />
+          <XMarkIcon class="w-6 h-6" aria-hidden="true" />
         </button>
       </div>
 
       <!-- Drawer Navigation -->
-      <nav class="py-4">
+      <nav class="py-4" role="navigation" aria-label="Mobile navigation">
         <RouterLink
-          v-for="item in visibleNavItems"
+          v-for="(item, index) in visibleNavItems"
           :key="item.path"
+          :ref="index === 0 ? 'firstNavLink' : undefined"
           :to="item.path"
-          class="drawer-link flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+          class="drawer-link flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 focus:bg-blue-50 focus:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
           :class="{ 'bg-blue-100 text-blue-600 border-r-4 border-blue-600': $route.path === item.path }"
+          :aria-current="$route.path === item.path ? 'page' : undefined"
           @click="closeDrawer"
         >
           <component
             v-if="item.icon"
             :is="item.icon"
             class="w-5 h-5 mr-3"
+            aria-hidden="true"
           />
           <span class="font-medium">{{ item.name }}</span>
         </RouterLink>
@@ -101,7 +119,7 @@
     </div>
 
     <!-- Main Content -->
-    <main class="app-main">
+    <main id="main-content" class="app-main" role="main">
       <RouterView />
     </main>
   </div>
