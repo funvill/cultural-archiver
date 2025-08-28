@@ -43,10 +43,16 @@ The Cultural Archiver API provides a comprehensive backend for crowdsourced publ
 
 ### Base URL
 
-```
-Production: https://api.cultural-archiver.com
-Development: http://localhost:8787
-```
+#### Production
+
+- Main website: https://art.abluestar.com
+- API: https://art-api.abluestar.com
+- Photos: https://art-photos.abluestar.com
+
+#### Devlopment
+
+- Main website: http://localhost:8787
+
 
 ### Authentication
 

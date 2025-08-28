@@ -175,7 +175,7 @@ const processPhotoUpload = async (file: File, env: Env, folder: 'submissions' | 
 
   // 6. Return result
   return {
-    url: `https://photos.cultural-archiver.com/${key}`,
+    url: `https://art-photos.abluestar.com/${key}`,
     filename,
     size: processedBuffer.byteLength,
     mimeType: validation.mimeType,
@@ -289,7 +289,7 @@ const migratePhotosOnApproval = async (env: Env, logbookPhotos: string[], artwor
     });
 
     // 4. Generate new URL
-    const artworkUrl = `https://photos.cultural-archiver.com/${artworkKey}`;
+    const artworkUrl = `https://art-photos.abluestar.com/${artworkKey}`;
     migratedUrls.push(artworkUrl);
   }
 
@@ -331,7 +331,7 @@ interface PhotoUrlOptions {
 }
 
 const generatePhotoUrl = (key: string, options: PhotoUrlOptions = {}): string => {
-  const baseUrl = 'https://photos.cultural-archiver.com';
+  const baseUrl = 'https://art-photos.abluestar.com';
 
   if (options.transform) {
     // Future: Cloudflare Images integration for on-demand transforms
@@ -422,7 +422,7 @@ const flagPhotoForModeration = async (photoKey: string, flags: ModerationFlags, 
 ```typescript
 // R2 custom domain with Cloudflare CDN
 const CDN_CONFIG = {
-  domain: 'photos.cultural-archiver.com',
+  domain: 'art-photos.abluestar.com',
   cacheSettings: {
     browserCacheTtl: 31536000, // 1 year
     edgeCacheTtl: 2592000, // 30 days

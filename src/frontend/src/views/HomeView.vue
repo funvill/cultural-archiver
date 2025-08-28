@@ -219,7 +219,7 @@
             Start Contributing
           </button>
           <a
-            href="mailto:hello@culturalarchiver.org"
+            href="mailto:hello@abluestar.com"
             class="px-6 py-3 bg-white text-blue-600 font-semibold rounded-lg border border-blue-600 hover:bg-blue-50 transition-colors"
           >
             Contact Us

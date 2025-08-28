@@ -78,7 +78,7 @@ Example transformations:
 
 #### R2 Fallback URLs
 ```
-https://photos.cultural-archiver.com/{date-path}/{filename}
+https://art-photos.abluestar.com/{date-path}/{filename}
 ```
 
 ## Implementation Details

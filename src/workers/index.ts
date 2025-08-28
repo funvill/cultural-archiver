@@ -13,6 +13,7 @@ import { rateLimitSubmissions, rateLimitQueries, addRateLimitStatus } from './mi
 import {
   validateLogbookSubmission,
   validateNearbyArtworksQuery,
+  validateBoundsQuery,
   validateUserSubmissionsQuery,
   validateFileUploads,
   validateUUID,
@@ -24,7 +25,7 @@ import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
 // Import route handlers
 import { createLogbookSubmission } from './routes/submissions';
-import { getNearbyArtworks, getArtworkDetails } from './routes/discovery';
+import { getNearbyArtworks, getArtworkDetails, getArtworksInBounds } from './routes/discovery';
 import { getUserSubmissions, getUserProfile } from './routes/user';
 import {
   requestMagicLink,
@@ -93,8 +94,6 @@ app.get('/api/status', c => {
 // User token middleware for authenticated API routes
 app.use('/api/logbook', ensureUserToken);
 app.use('/api/logbook', checkEmailVerification);
-app.use('/api/artworks/*', ensureUserToken);
-app.use('/api/artworks/*', checkEmailVerification);
 app.use('/api/me/*', ensureUserToken);
 app.use('/api/me/*', checkEmailVerification);
 app.use('/api/auth/*', ensureUserToken);
@@ -124,6 +123,13 @@ app.get(
   rateLimitQueries,
   validateNearbyArtworksQuery,
   withErrorHandling(getNearbyArtworks)
+);
+
+app.get(
+  '/api/artworks/bounds',
+  rateLimitQueries,
+  validateBoundsQuery,
+  withErrorHandling(getArtworksInBounds)
 );
 
 app.get(

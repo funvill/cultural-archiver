@@ -324,8 +324,8 @@ watch(() => formData.value.freedomOfPanorama, (newValue) => {
         By providing consent, you agree to our terms of service and confirm
         that you have the legal right to submit these photos. For questions
         about consent or data handling, please contact us at
-        <a href="mailto:privacy@cultural-archiver.com" class="text-blue-600 hover:text-blue-800">
-          privacy@cultural-archiver.com
+        <a href="mailto:privacy@abluestar.com" class="text-blue-600 hover:text-blue-800">
+          privacy@abluestar.com
         </a>.
       </p>
     </div>

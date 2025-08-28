@@ -43,7 +43,7 @@ Record the following information for team access:
 ```env
 # Main Account Details
 CLOUDFLARE_ACCOUNT_ID=your_account_id_here
-CLOUDFLARE_EMAIL=team@culturalarchiver.org
+CLOUDFLARE_EMAIL=team@abluestar.com
 ````
 
 ## Cloudflare Pages Setup

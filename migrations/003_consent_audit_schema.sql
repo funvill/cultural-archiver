@@ -223,7 +223,7 @@ INSERT OR REPLACE INTO photo_metadata (
 ) VALUES 
 (
     'SAMPLE-photo-meta-001',
-    'https://photos.cultural-archiver.com/2025/08/28/sample-001-original.jpg',
+    'https://art-photos.abluestar.com/2025/08/28/sample-001-original.jpg',
     'SAMPLE-logbook-001',
     'original',
     2048576,
@@ -240,7 +240,7 @@ INSERT OR REPLACE INTO photo_metadata (
 ),
 (
     'SAMPLE-photo-meta-002',
-    'https://photos.cultural-archiver.com/2025/08/28/sample-001-thumb.jpg',
+    'https://art-photos.abluestar.com/2025/08/28/sample-001-thumb.jpg',
     'SAMPLE-logbook-001',
     'thumbnail',
     204857,

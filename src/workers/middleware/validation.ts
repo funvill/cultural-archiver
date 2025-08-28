@@ -260,6 +260,84 @@ export async function validateNearbyArtworksQuery(
   await next();
 }
 
+// Custom validation for bounds query parameters
+export async function validateBoundsQuery(
+  c: Context<{ Bindings: WorkerEnv }>,
+  next: Next
+): Promise<void | Response> {
+  const url = new URL(c.req.url);
+  const north = url.searchParams.get('north');
+  const south = url.searchParams.get('south');
+  const east = url.searchParams.get('east');
+  const west = url.searchParams.get('west');
+
+  const validationErrors = [];
+
+  // Validate required bounds
+  if (!north) {
+    validationErrors.push({ field: 'north', message: 'North bound is required', code: 'REQUIRED' });
+  } else {
+    const northNum = parseFloat(north);
+    if (isNaN(northNum) || !isValidLatitude(northNum)) {
+      validationErrors.push({ field: 'north', message: 'Invalid north latitude', code: 'INVALID' });
+    }
+  }
+
+  if (!south) {
+    validationErrors.push({ field: 'south', message: 'South bound is required', code: 'REQUIRED' });
+  } else {
+    const southNum = parseFloat(south);
+    if (isNaN(southNum) || !isValidLatitude(southNum)) {
+      validationErrors.push({ field: 'south', message: 'Invalid south latitude', code: 'INVALID' });
+    }
+  }
+
+  if (!east) {
+    validationErrors.push({ field: 'east', message: 'East bound is required', code: 'REQUIRED' });
+  } else {
+    const eastNum = parseFloat(east);
+    if (isNaN(eastNum) || !isValidLongitude(eastNum)) {
+      validationErrors.push({ field: 'east', message: 'Invalid east longitude', code: 'INVALID' });
+    }
+  }
+
+  if (!west) {
+    validationErrors.push({ field: 'west', message: 'West bound is required', code: 'REQUIRED' });
+  } else {
+    const westNum = parseFloat(west);
+    if (isNaN(westNum) || !isValidLongitude(westNum)) {
+      validationErrors.push({ field: 'west', message: 'Invalid west longitude', code: 'INVALID' });
+    }
+  }
+
+  // Validate bounds make sense (north > south, east != west)
+  if (north && south) {
+    const northNum = parseFloat(north);
+    const southNum = parseFloat(south);
+    if (northNum <= southNum) {
+      validationErrors.push({ 
+        field: 'bounds', 
+        message: 'North bound must be greater than south bound', 
+        code: 'INVALID' 
+      });
+    }
+  }
+
+  if (validationErrors.length > 0) {
+    throw new ValidationApiError(validationErrors);
+  }
+
+  // Store parsed values
+  c.set('validated_query', {
+    north: parseFloat(north!),
+    south: parseFloat(south!),
+    east: parseFloat(east!),
+    west: parseFloat(west!),
+  });
+
+  await next();
+}
+
 export const validateArtworkId = validateSchema(artworkIdSchema, 'params');
 
 // Custom validation for user submissions query
