@@ -27,8 +27,6 @@ completing a PRD
   3. Once all the subtasks are marked completed and changes have been committed,
      mark the **parent task** as completed.
 
-- Stop after each sub‑task and wait for the user's go‑ahead.
-
 ## Task List Maintenance
 
 1. **Update the task list as you work:**
