@@ -19,7 +19,7 @@ Done. See tasks\done\prd-mvp-database-migration.md and tasks\done\tasks-prd-mvp-
 
 AC: Running migrations creates/updates schema; sample inserts/reads succeed.
 
-### Step 2 — Worker API endpoints (Cloudflare Workers)
+### [ ] Step 2 — Worker API endpoints (Cloudflare Workers)
 
 Implement minimal, typed JSON APIs:
 
@@ -36,7 +36,7 @@ Implement minimal, typed JSON APIs:
 
 AC: All routes return typed responses; errors are consistent; rate limits applied.
 
-### Step 3 — Image handling
+### [ ] Step 3 — Image handling
 
 - Client: resize to 800px long edge before upload (serve this size); allow up to 3 photos.
 - Server: keep originals in R2; convert to a “known good” format for thumbs/ (start with JPEG ~q0.82; detect transparency → PNG).
@@ -45,7 +45,7 @@ AC: All routes return typed responses; errors are consistent; rate limits applie
 
 AC: Uploads succeed on mobile; R2 shows originals+thumbs; metadata stored.
 
-### Step 4 — Rate limiting & abuse protection
+### [ ] Step 4 — Rate limiting & abuse protection
 
 - KV counters: /nearby 60 req/hour per IP; /submit 10/day per token+IP.
 - Age gate & consent (checkboxes): “I am 18+”, CC0 for metadata, public-commons consent, FoP tip.
@@ -53,7 +53,7 @@ AC: Uploads succeed on mobile; R2 shows originals+thumbs; metadata stored.
 
 AC: Limits enforced with friendly errors; consent must be checked to submit.
 
-### Step 5 — Frontend screens (Vue + Tailwind + shadcn/ui)
+### [ ] Step 5 — Frontend screens (Vue + Tailwind + shadcn/ui)
 
 - App shell: top app bar (“Cultural Archiver”, Add, Login/Logout, About, Help, Profile); overflow menu.
 - Map (Leaflet + OSM tiles): geolocate, load approved pins within ≤500m; pin tap → map card (title, type, hero photo, “More info”).
@@ -64,7 +64,7 @@ AC: Limits enforced with friendly errors; consent must be checked to submit.
 
 AC: Keyboard/contrast meets WCAG AA; mobile works; happy path takes < 60s.
 
-### Step 6 — QA checklist (manual)
+### [ ] Step 6 — QA checklist (manual)
 
 - Fresh user → submit single photo only (no note/type).
 - Existing artwork → add logbook entry; verify merge flow vs new artwork creation.
@@ -75,7 +75,7 @@ AC: Keyboard/contrast meets WCAG AA; mobile works; happy path takes < 60s.
 
 AC: All pass on iOS Safari + Android Chrome + desktop Chrome/Firefox.
 
-### Step 7 — Pilot in Vancouver
+### [ ] Step 7 — Pilot in Vancouver
 
 - Seed 5–10 test artworks.
 - Invite 2–3 trusted reviewers.
