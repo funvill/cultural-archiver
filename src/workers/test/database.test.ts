@@ -6,36 +6,24 @@ import { createDatabaseService } from '../lib/database';
 
 // Mock Cloudflare D1 database for testing
 const mockDB: Partial<D1Database> = {
-  prepare: (_query: string): Partial<D1PreparedStatement> => ({
-    bind: (..._params: unknown[]): Partial<D1PreparedStatement> => ({
+  prepare: (_query: string): any => ({
+    bind: (..._params: unknown[]): any => ({
       first: async (): Promise<unknown> => null,
-      all: async (): Promise<{ results: unknown[] }> => ({ results: [] }),
-      run: async (): Promise<{ success: true; meta: { changes: number } }> => ({
-        success: true,
-        meta: { changes: 1 },
-      }),
+      all: async (): Promise<any> => ({ results: [] }),
+      run: async (): Promise<any> => ({ success: true, meta: { changes: 1 } }),
     }),
     first: async (): Promise<unknown> => null,
-    all: async (): Promise<{ results: unknown[] }> => ({ results: [] }),
-    run: async (): Promise<{ success: true; meta: { changes: number } }> => ({
-      success: true,
-      meta: { changes: 1 },
-    }),
+    all: async (): Promise<any> => ({ results: [] }),
+    run: async (): Promise<any> => ({ success: true, meta: { changes: 1 } }),
   }),
-  batch: async (
-    _statements: D1PreparedStatement[]
-  ): Promise<{ success: true; meta: { changes: number } }[]> => {
+  batch: async (_statements: any[]): Promise<any[]> => {
     return _statements.map(() => ({ success: true, meta: { changes: 1 } }));
   },
-  exec: async (
-    _query: string
-  ): Promise<{ results: unknown[]; count: number; duration: number }> => ({
-    results: [],
+  exec: async (_query: string): Promise<any> => ({
     count: 0,
     duration: 0,
   }),
-  withSession: (_constraintOrBookmark?: string): Partial<D1DatabaseSession> =>
-    mockDB as Partial<D1DatabaseSession>,
+  withSession: (_constraintOrBookmark?: string): any => mockDB,
   dump: async (): Promise<ArrayBuffer> => new ArrayBuffer(0),
 };
 

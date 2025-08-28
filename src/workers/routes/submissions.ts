@@ -174,7 +174,7 @@ export async function checkDuplicateSubmission(
     `);
 
     const result = await stmt.bind(userToken, cutoffTime, lat, lon).first();
-    return result ? (result as DuplicateCheckResult).count > 0 : false;
+    return result ? (result as unknown as DuplicateCheckResult).count > 0 : false;
   } catch (error) {
     console.warn('Failed to check duplicate submission:', error);
     return false; // Allow submission if check fails
