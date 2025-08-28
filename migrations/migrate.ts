@@ -93,8 +93,6 @@ class MigrationRunner {
     try {
       // For development, we'll use wrangler CLI to execute migrations
       const { spawn } = await import('child_process');
-      const { promisify } = await import('util');
-      const execAsync = promisify(spawn);
 
       // Create temporary file for migration
       const { writeFile, unlink } = await import('fs/promises');

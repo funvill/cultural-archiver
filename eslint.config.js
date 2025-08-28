@@ -1,15 +1,20 @@
-module.exports = [
+import typescriptEslint from '@typescript-eslint/eslint-plugin';
+import typescriptParser from '@typescript-eslint/parser';
+import vueEslintParser from 'vue-eslint-parser';
+import vuePlugin from 'eslint-plugin-vue';
+
+export default [
   {
     files: ['**/*.ts', '**/*.tsx'],
     languageOptions: {
-      parser: require('@typescript-eslint/parser'),
+      parser: typescriptParser,
       parserOptions: {
         ecmaVersion: 2023,
         sourceType: 'module',
       },
     },
     plugins: {
-      '@typescript-eslint': require('@typescript-eslint/eslint-plugin'),
+      '@typescript-eslint': typescriptEslint,
     },
     rules: {
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
@@ -20,17 +25,17 @@ module.exports = [
   {
     files: ['**/*.vue'],
     languageOptions: {
-      parser: require('vue-eslint-parser'),
+      parser: vueEslintParser,
       parserOptions: {
-        parser: require('@typescript-eslint/parser'),
+        parser: typescriptParser,
         ecmaVersion: 2023,
         sourceType: 'module',
         extraFileExtensions: ['.vue'],
       },
     },
     plugins: {
-      vue: require('eslint-plugin-vue'),
-      '@typescript-eslint': require('@typescript-eslint/eslint-plugin'),
+      vue: vuePlugin,
+      '@typescript-eslint': typescriptEslint,
     },
     rules: {
       'vue/multi-word-component-names': 'off',
@@ -61,6 +66,7 @@ module.exports = [
       'dist/**',
       'src/frontend/dist/**',
       'src/workers/dist/**',
+      'src/workers/.wrangler/**',
       '*.d.ts',
     ],
   },
