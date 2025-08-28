@@ -25,7 +25,7 @@ that cannot be automated through code changes.
 Navigate to **Settings** → **Secrets and variables** → **Actions** and add the
 following secrets:
 
-#### Required Secrets for CI/CD
+#### [X] Required Secrets for CI/CD
 
 | Secret Name             | Description                                             | Example Value                      |
 | ----------------------- | ------------------------------------------------------- | ---------------------------------- |
@@ -122,14 +122,14 @@ Navigate to **Settings** → **Features**:
 
 After completing the manual setup, verify:
 
-- [ ] Branch protection rules are active on `main` branch
+- [X] Branch protection rules are active on `main` branch
 - [ ] Required status checks are configured
-- [ ] Repository secrets are added and accessible to workflows
-- [ ] Collaborator permissions are properly set
+- [X] Repository secrets are added and accessible to workflows
+- [X] Collaborator permissions are properly set
 - [ ] Repository topics and description are updated
-- [ ] License file is present and correct
-- [ ] GitHub Actions have appropriate permissions
-- [ ] Issues and PRs are enabled
+- [X] License file is present and correct
+- [X] GitHub Actions have appropriate permissions
+- [X] Issues and PRs are enabled
 
 ## Security Considerations
 

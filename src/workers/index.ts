@@ -104,14 +104,3 @@ app.onError((err, c) => {
 
 // Export for Cloudflare Workers
 export default app;
-
-// Export for Node.js v23+ native TypeScript execution (development)
-if (typeof module !== 'undefined' && module.exports) {
-  module.exports = app;
-}
-
-// Development server for local testing with Node.js v23+
-if (import.meta.url === `file://${process.argv[1]}`) {
-  console.log('Starting development server...');
-  console.log('Note: Use "npm run dev" or "wrangler dev" for full Cloudflare Workers environment');
-}

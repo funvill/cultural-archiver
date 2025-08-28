@@ -15,8 +15,8 @@ name = "cultural-archiver-workers-prod"
 # D1 Database bindings
 [[env.development.d1_databases]]
 binding = "DB"
-database_name = "cultural-archiver-dev"
-database_id = ""  # Fill in from Cloudflare dashboard
+database_name = "cultural-archiver"
+database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"
 
 [[env.staging.d1_databases]]
 binding = "DB"
@@ -31,32 +31,32 @@ database_id = ""  # Fill in from Cloudflare dashboard
 # KV namespace bindings
 [[env.development.kv_namespaces]]
 binding = "SESSIONS"
-id = ""  # Fill in from Cloudflare dashboard
+id = "c991e608759d45bdae4198b72955da5f"
 
 [[env.development.kv_namespaces]]
 binding = "CACHE"
-id = ""  # Fill in from Cloudflare dashboard
+id = "91052eaeeef24b6fab6ac2b3c75b8b0b"
 
 [[env.staging.kv_namespaces]]
 binding = "SESSIONS"
-id = ""  # Fill in from Cloudflare dashboard
+id = "c991e608759d45bdae4198b72955da5f"  # Fill in from Cloudflare dashboard
 
 [[env.staging.kv_namespaces]]
 binding = "CACHE"
-id = ""  # Fill in from Cloudflare dashboard
+id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Fill in from Cloudflare dashboard
 
 [[env.production.kv_namespaces]]
 binding = "SESSIONS"
-id = ""  # Fill in from Cloudflare dashboard
+id = "c991e608759d45bdae4198b72955da5f"  # Fill in from Cloudflare dashboard
 
 [[env.production.kv_namespaces]]
 binding = "CACHE"
-id = ""  # Fill in from Cloudflare dashboard
+id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Fill in from Cloudflare dashboard
 
 # R2 bucket bindings
 [[env.development.r2_buckets]]
 binding = "PHOTOS"
-bucket_name = "cultural-archiver-photos-dev"
+bucket_name = "cultural-archiver-photos"
 
 [[env.staging.r2_buckets]]
 binding = "PHOTOS"
@@ -64,7 +64,7 @@ bucket_name = "cultural-archiver-photos-staging"
 
 [[env.production.r2_buckets]]
 binding = "PHOTOS"
-bucket_name = "cultural-archiver-photos-prod"
+bucket_name = "cultural-archiver-photos"
 
 # Environment variables
 [env.development.vars]
@@ -74,10 +74,10 @@ LOG_LEVEL = "debug"
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
-FRONTEND_URL = "https://staging.cultural-archiver.com"
+FRONTEND_URL = "https://staging-art.abluestar.com"
 LOG_LEVEL = "info"
 
 [env.production.vars]
 ENVIRONMENT = "production"
-FRONTEND_URL = "https://cultural-archiver.com"
+FRONTEND_URL = "https://art.abluestar.com"
 LOG_LEVEL = "warn"

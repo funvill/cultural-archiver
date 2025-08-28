@@ -101,28 +101,28 @@ Based on PRD: `tasks/phase0_prd.md`
   - [x] 2.17 Set up npm scripts leveraging Node.js v23+ native TypeScript
         execution for development
 
-- [ ] 3.0 Cloudflare Infrastructure Setup (See
+- [x] 3.0 Cloudflare Infrastructure Setup (See
       `tasks/external-cloudflare-setup.md`)
-  - [ ] 3.1 Set up shared development Cloudflare account access and document
+  - [x] 3.1 Set up shared development Cloudflare account access and document
         credentials
-  - [ ] 3.2 Create Cloudflare Pages project linked to GitHub repository
-  - [ ] 3.3 Configure Cloudflare Pages build settings for Vue/Vite frontend
-  - [ ] 3.4 Create Cloudflare Workers project with TypeScript support
-  - [ ] 3.5 Create shared development D1 database instance
-        "cultural-archiver-dev"
+  - [x] 3.2 Create Cloudflare Pages project linked to GitHub repository
+  - [x] 3.3 Configure Cloudflare Pages build settings for Vue/Vite frontend
+  - [x] 3.4 Create Cloudflare Workers project with TypeScript support
+  - [x] 3.5 Create shared development D1 database instance
+        "cultural-archiver"
   - [x] 3.6 Create migrations/ directory structure for database version control
   - [x] 3.7 Create migrations/001_initial_schema.sql with artwork, tags, and
         logbook tables
   - [x] 3.8 Create TypeScript migration runner script leveraging Node.js v23+
         native execution
-  - [ ] 3.9 Run initial schema migration on development D1 database
-  - [ ] 3.10 Create KV namespaces: "sessions" and "cache" for development
+  - [x] 3.9 Run initial schema migration on development D1 database
+  - [x] 3.10 Create KV namespaces: "sessions" and "cache" for development
         environment
-  - [ ] 3.11 Create R2 bucket "cultural-archiver-photos" with originals/ and
+  - [x] 3.11 Create R2 bucket "cultural-archiver-photos" with originals/ and
         thumbs/ folders
-  - [ ] 3.12 Document all Cloudflare resource IDs and access instructions for
+  - [x] 3.12 Document all Cloudflare resource IDs and access instructions for
         team
-  - [ ] 3.13 Configure Cloudflare Workers environment variables and bindings
+  - [x] 3.13 Configure Cloudflare Workers environment variables and bindings
 
 - [x] 4.0 CI/CD Pipeline Implementation
   - [x] 4.1 Create .github/workflows/test.yml for ESLint, TypeScript checking,
@@ -135,7 +135,7 @@ Based on PRD: `tasks/phase0_prd.md`
         deployment
   - [x] 4.6 Configure workers deployment with proper environment variable
         injection
-  - [ ] 4.7 Set up GitHub repository secrets for Cloudflare API tokens and
+  - [x] 4.7 Set up GitHub repository secrets for Cloudflare API tokens and
         account IDs
   - [ ] 4.8 Test all three workflows with sample commits and verify proper
         execution
@@ -145,12 +145,12 @@ Based on PRD: `tasks/phase0_prd.md`
 - [x] 5.0 Development Environment & Testing
   - [x] 5.1 Install and configure concurrently package for running frontend and
         workers simultaneously
-  - [ ] 5.2 Test npm run dev command starts both frontend (Vite) and workers
+  - [x] 5.2 Test npm run dev command starts both frontend (Vite) and workers
         (Wrangler) with native TypeScript
   - [x] 5.3 Test npm run build command creates production builds for both
         frontend and workers
-  - [ ] 5.4 Verify local development connects to shared D1 database instance
-  - [ ] 5.5 Test local development workflow with hot reloading and native
+  - [x] 5.4 Verify local development connects to shared D1 database instance
+  - [x] 5.5 Test local development workflow with hot reloading and native
         TypeScript execution
   - [x] 5.6 Validate .env.example contains all necessary variables with clear
         descriptions
@@ -160,7 +160,7 @@ Based on PRD: `tasks/phase0_prd.md`
         process
   - [ ] 5.9 Document any discovered setup issues and update documentation
         accordingly
-  - [ ] 5.10 Verify all success metrics from PRD are met (15-minute setup,
+  - [x] 5.10 Verify all success metrics from PRD are met (15-minute setup,
         5-minute deployment)
   - [ ] 5.11 Create developer onboarding checklist highlighting Node.js v23+
         requirements

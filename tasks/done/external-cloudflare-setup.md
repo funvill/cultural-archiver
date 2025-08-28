@@ -7,7 +7,19 @@ be automated through code changes.
 
 - Cloudflare account with appropriate permissions
 - Access to the Cultural Archiver shared development account
-- Understanding of Cloudflare's services: Pages, Workers, KV, D1, R2
+- Understa```bash
+# Test Workers deployment
+wrangler deploy src/workers/index.ts
+
+# Test D1 connection (use --env development for configured database)
+wrangler d1 execute cultural-archiver --command "SELECT 1;" --env development
+
+# Test KV access
+wrangler kv namespace list
+
+# Test R2 access
+wrangler r2 bucket list
+```dflare's services: Pages, Workers, KV, D1, R2
 
 ## Account Setup
 
@@ -31,7 +43,7 @@ CLOUDFLARE_EMAIL=team@culturalarchiver.org
 
 ## Cloudflare Pages Setup
 
-### Create Pages Project
+### [X] Create Pages Project
 
 1. Navigate to **Cloudflare Dashboard** → **Pages**
 2. Click **Create a project**
@@ -64,18 +76,18 @@ Navigate to **Pages** → **cultural-archiver-frontend** → **Settings** →
 | `NODE_ENV`     | `development`                                   | Environment mode         |
 | `VITE_API_URL` | `https://api-dev.cultural-archiver.workers.dev` | Development API endpoint |
 
-### Custom Domain (Optional)
+### [X] Custom Domain (Optional)
 
 If using a custom domain:
 
 1. Navigate to **Pages** → **cultural-archiver-frontend** → **Custom domains**
 2. Click **Set up a custom domain**
-3. Enter domain: `app.cultural-archiver.org`
+3. Enter domain: `art.abluestar.com`
 4. Update DNS records as instructed
 
 ## Cloudflare Workers Setup
 
-### Create Workers Project
+### [X] Create Workers Project
 
 1. Navigate to **Cloudflare Dashboard** → **Workers & Pages**
 2. Click **Create application** → **Create Worker**
@@ -99,19 +111,19 @@ Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** �
 **Triggers**:
 
 1. **Custom Domain**: `api.cultural-archiver.workers.dev`
-2. **Route**: `api.cultural-archiver.org/*` (if using custom domain)
+2. **Route**: `art-api.abluestar.com/*` (if using custom domain)
 
-## D1 Database Setup
+## [x]D1 Database Setup
 
 ### Create Database Instance
 
 1. Navigate to **Cloudflare Dashboard** → **D1 SQL Database**
 2. Click **Create database**
 3. Configure:
-   - **Database name**: `cultural-archiver-dev`
+   - **Database name**: `cultural-archiver`
    - **Location**: Automatic (closest to team)
 
-### Database Schema Migration
+### [x] Database Schema Migration
 
 After database creation:
 
@@ -129,7 +141,7 @@ Record the following for team access:
 D1_DATABASE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
 
-### Database Bindings
+### [X] Database Bindings
 
 For each Workers project, add D1 binding:
 
@@ -138,7 +150,7 @@ For each Workers project, add D1 binding:
 2. Add **Service Binding**:
    - **Variable name**: `DB`
    - **Service**: `D1 database`
-   - **Database**: `cultural-archiver-dev`
+   - **Database**: `cultural-archiver`
 
 ## KV Namespace Setup
 
@@ -159,7 +171,7 @@ For each Workers project, add D1 binding:
 - **Purpose**: Application caching
 - **TTL**: 1 hour default
 
-### KV Bindings
+### [X] KV Bindings
 
 For each Workers project, add KV bindings:
 
@@ -172,7 +184,7 @@ For each Workers project, add KV bindings:
    - **Variable name**: `CACHE`
    - **KV namespace**: `cultural-archiver-cache`
 
-### Record KV IDs
+### [X] Record KV IDs
 
 Document the namespace IDs for team access:
 
@@ -183,7 +195,7 @@ KV_CACHE_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
 ## R2 Storage Setup
 
-### Create R2 Bucket
+### [X] Create R2 Bucket
 
 1. Navigate to **Cloudflare Dashboard** → **R2 Object Storage**
 2. Click **Create bucket**
@@ -191,7 +203,7 @@ KV_CACHE_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
    - **Bucket name**: `cultural-archiver-photos`
    - **Location**: Automatic (closest to team)
 
-### R2 Folder Structure
+### [??] R2 Folder Structure
 
 Create the following folder structure in the bucket:
 
@@ -208,7 +220,7 @@ cultural-archiver-photos/
 2. **CORS Policy**: Allow frontend domain access
 3. **Custom Domain**: Optional custom domain for assets
 
-### R2 Bindings
+### [x] R2 Bindings
 
 For Workers projects, add R2 binding:
 
@@ -218,7 +230,7 @@ For Workers projects, add R2 binding:
    - **Variable name**: `PHOTOS`
    - **R2 bucket**: `cultural-archiver-photos`
 
-### Record R2 Information
+### [x] Record R2 Information
 
 Document for team access:
 
@@ -247,17 +259,17 @@ R2_BUCKET_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 Ensure the API token has these specific permissions:
 
 - `Cloudflare Workers:Edit`
-- `Cloudflare Pages:Edit`
-- `D1:Edit`
+- [x] `Cloudflare Pages:Edit`
+- [x] `D1:Edit`
 - `KV Storage:Edit`
-- `R2 Storage:Edit`
-- `Account Settings:Read`
+- [x] `R2 Storage:Edit`
+- [x] `Account Settings:Read`
 
 ### Store Token Securely
 
 Add the token to GitHub repository secrets as `CLOUDFLARE_API_TOKEN`.
 
-## Environment Configuration Summary
+## [x] Environment Configuration Summary
 
 After completing all setup, your `.env` file should contain:
 
@@ -288,10 +300,10 @@ After completing setup, verify each service:
 
 - [ ] **Pages**: Frontend deploys successfully from GitHub
 - [ ] **Workers**: API responds to HTTP requests
-- [ ] **D1**: Database queries work through Workers
-- [ ] **KV**: Session storage and cache operations work
-- [ ] **R2**: File uploads and retrieval work
-- [ ] **Bindings**: All Workers can access bound resources
+- [x] **D1**: Database queries work through Workers
+- [x] **KV**: Session storage and cache operations work
+- [x] **R2**: File uploads and retrieval work
+- [x] **Bindings**: All Workers can access bound resources
 - [ ] **API Token**: CI/CD pipelines can deploy successfully
 
 ### Test Commands
@@ -299,16 +311,16 @@ After completing setup, verify each service:
 Run these commands to test each service:
 
 ```bash
-# Test Workers deployment
+# [x] Test Workers deployment
 wrangler deploy src/workers/index.ts
 
-# Test D1 connection
-wrangler d1 execute cultural-archiver-dev --command "SELECT 1;"
+# [x] Test D1 connection (use --env development for configured database)
+wrangler d1 execute cultural-archiver --command "SELECT 1;" --env development
 
-# Test KV access
-wrangler kv:namespace list
+# [x] Test KV access
+wrangler kv namespace list
 
-# Test R2 access
+# [x] Test R2 access
 wrangler r2 bucket list
 ```
 
