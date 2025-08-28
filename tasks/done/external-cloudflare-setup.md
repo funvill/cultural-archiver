@@ -8,18 +8,24 @@ be automated through code changes.
 - Cloudflare account with appropriate permissions
 - Access to the Cultural Archiver shared development account
 - Understa```bash
+
 # Test Workers deployment
+
 wrangler deploy src/workers/index.ts
 
 # Test D1 connection (use --env development for configured database)
+
 wrangler d1 execute cultural-archiver --command "SELECT 1;" --env development
 
 # Test KV access
+
 wrangler kv namespace list
 
 # Test R2 access
+
 wrangler r2 bucket list
-```dflare's services: Pages, Workers, KV, D1, R2
+
+````dflare's services: Pages, Workers, KV, D1, R2
 
 ## Account Setup
 
@@ -39,7 +45,7 @@ Record the following information for team access:
 # Main Account Details
 CLOUDFLARE_ACCOUNT_ID=your_account_id_here
 CLOUDFLARE_EMAIL=team@culturalarchiver.org
-```
+````
 
 ## Cloudflare Pages Setup
 

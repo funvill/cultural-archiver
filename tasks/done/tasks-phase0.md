@@ -108,8 +108,7 @@ Based on PRD: `tasks/phase0_prd.md`
   - [x] 3.2 Create Cloudflare Pages project linked to GitHub repository
   - [x] 3.3 Configure Cloudflare Pages build settings for Vue/Vite frontend
   - [x] 3.4 Create Cloudflare Workers project with TypeScript support
-  - [x] 3.5 Create shared development D1 database instance
-        "cultural-archiver"
+  - [x] 3.5 Create shared development D1 database instance "cultural-archiver"
   - [x] 3.6 Create migrations/ directory structure for database version control
   - [x] 3.7 Create migrations/001_initial_schema.sql with artwork, tags, and
         logbook tables

@@ -122,14 +122,14 @@ Navigate to **Settings** → **Features**:
 
 After completing the manual setup, verify:
 
-- [X] Branch protection rules are active on `main` branch
+- [x] Branch protection rules are active on `main` branch
 - [ ] Required status checks are configured
-- [X] Repository secrets are added and accessible to workflows
-- [X] Collaborator permissions are properly set
+- [x] Repository secrets are added and accessible to workflows
+- [x] Collaborator permissions are properly set
 - [ ] Repository topics and description are updated
-- [X] License file is present and correct
-- [X] GitHub Actions have appropriate permissions
-- [X] Issues and PRs are enabled
+- [x] License file is present and correct
+- [x] GitHub Actions have appropriate permissions
+- [x] Issues and PRs are enabled
 
 ## Security Considerations
 
