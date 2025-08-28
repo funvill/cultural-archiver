@@ -57,11 +57,15 @@ The database uses four main tables:
 - Default radius is 500 meters for nearby artwork searches
 
 ## File Structure
-- `/src/frontend/` - Vue 3 application
-- `/src/workers/` - Cloudflare Workers API
+- `/src/frontend/` - Vue 3 application  
+- `/src/workers/` - Cloudflare Workers API with complete backend implementation
+  - `/routes/` - API endpoint handlers (auth, discovery, submissions, user, review)
+  - `/middleware/` - Authentication, rate limiting, and validation middleware
+  - `/lib/` - Utilities for database, photos, email, spatial queries, and errors
+  - `/tests/` - Comprehensive test suite with 54 tests across 5 test suites
 - `/src/shared/` - Shared TypeScript types and utilities
-- `/migrations/` - Database migration files
-- `/docs/` - Project documentation
+- `/migrations/` - Database migration files with MVPschema
+- `/docs/` - Complete project documentation including API specs, deployment guides, and troubleshooting
 
 ## Testing
 - Test functions should validate CRUD operations on all tables
