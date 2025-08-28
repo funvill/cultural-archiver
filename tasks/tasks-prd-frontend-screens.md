@@ -48,12 +48,12 @@ Based on PRD: `prd-frontend-screens.md`
 
 ## Tasks
 
-- [ ] 1.0 Setup Core Application Architecture
-  - [ ] 1.1 Install required dependencies (Leaflet, vue-leaflet, EXIF parsing library)
-  - [ ] 1.2 Configure Vue Router with all required routes (/, /submit, /artwork/:id, /profile, /review)
-  - [ ] 1.3 Create shared TypeScript types for frontend components
-  - [ ] 1.4 Set up Pinia stores for auth and artwork state management
-  - [ ] 1.5 Configure environment variables for API base URL and development settings
+- [x] 1.0 Setup Core Application Architecture
+  - [x] 1.1 Install required dependencies (Leaflet, vue-leaflet, EXIF parsing library)
+  - [x] 1.2 Configure Vue Router with all required routes (/, /submit, /artwork/:id, /profile, /review)
+  - [x] 1.3 Create shared TypeScript types for frontend components
+  - [x] 1.4 Set up Pinia stores for auth and artwork state management
+  - [x] 1.5 Configure environment variables for API base URL and development settings
 
 - [ ] 2.0 Implement App Shell & Navigation System
   - [ ] 2.1 Replace existing App.vue with mobile-first header layout
