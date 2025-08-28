@@ -1,7 +1,6 @@
 # Cultural Archiver Deployment Guide
 
-This guide covers deploying the Cultural Archiver Worker API to Cloudflare
-Workers, along with setting up the required Cloudflare services (D1, KV, R2).
+This guide covers deploying the Cultural Archiver Worker API to Cloudflare Workers, along with setting up the required Cloudflare services (D1, KV, R2).
 
 ## Prerequisites
 
@@ -154,10 +153,7 @@ Create `cors.json`:
 ```json
 [
   {
-    "AllowedOrigins": [
-      "https://cultural-archiver.com",
-      "http://localhost:3000"
-    ],
+    "AllowedOrigins": ["https://cultural-archiver.com", "http://localhost:3000"],
     "AllowedMethods": ["GET", "PUT", "POST"],
     "AllowedHeaders": ["*"],
     "ExposeHeaders": ["ETag"],
@@ -534,5 +530,4 @@ jobs:
           command: deploy --env production
 ```
 
-This deployment guide provides a comprehensive setup process for the Cultural
-Archiver Worker API on Cloudflare's platform.
+This deployment guide provides a comprehensive setup process for the Cultural Archiver Worker API on Cloudflare's platform.

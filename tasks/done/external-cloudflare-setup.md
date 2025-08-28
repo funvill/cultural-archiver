@@ -1,7 +1,6 @@
 # External Cloudflare Setup Guide
 
-This document outlines the manual setup steps required in Cloudflare that cannot
-be automated through code changes.
+This document outlines the manual setup steps required in Cloudflare that cannot be automated through code changes.
 
 ## Prerequisites
 
@@ -65,8 +64,7 @@ CLOUDFLARE_EMAIL=team@culturalarchiver.org
 
 ### Pages Environment Variables
 
-Navigate to **Pages** → **cultural-archiver-frontend** → **Settings** →
-**Environment variables**:
+Navigate to **Pages** → **cultural-archiver-frontend** → **Settings** → **Environment variables**:
 
 #### Production Environment
 
@@ -103,8 +101,7 @@ If using a custom domain:
 
 ### Workers Environment Variables
 
-Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** →
-**Variables**:
+Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** → **Variables**:
 
 | Variable      | Value                                 | Description             |
 | ------------- | ------------------------------------- | ----------------------- |
@@ -113,8 +110,7 @@ Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** �
 
 ### Workers Routes and Triggers
 
-Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** →
-**Triggers**:
+Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** → **Triggers**:
 
 1. **Custom Domain**: `api.cultural-archiver.workers.dev`
 2. **Route**: `art-api.abluestar.com/*` (if using custom domain)
@@ -151,8 +147,7 @@ D1_DATABASE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 For each Workers project, add D1 binding:
 
-1. Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** →
-   **Variables**
+1. Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** → **Variables**
 2. Add **Service Binding**:
    - **Variable name**: `DB`
    - **Service**: `D1 database`
@@ -181,8 +176,7 @@ For each Workers project, add D1 binding:
 
 For each Workers project, add KV bindings:
 
-1. Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** →
-   **Variables**
+1. Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** → **Variables**
 2. Add **KV Namespace Binding**:
    - **Variable name**: `SESSIONS`
    - **KV namespace**: `cultural-archiver-sessions`
@@ -230,8 +224,7 @@ cultural-archiver-photos/
 
 For Workers projects, add R2 binding:
 
-1. Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** →
-   **Variables**
+1. Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** → **Variables**
 2. Add **R2 Bucket Binding**:
    - **Variable name**: `PHOTOS`
    - **R2 bucket**: `cultural-archiver-photos`

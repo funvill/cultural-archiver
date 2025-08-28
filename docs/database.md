@@ -2,9 +2,7 @@
 
 ## Overview
 
-The Cultural Archiver MVP uses a SQLite database (Cloudflare D1) with four core
-tables designed for crowdsourced public art mapping. The schema supports
-geospatial queries, community submissions, and moderation workflows.
+The Cultural Archiver MVP uses a SQLite database (Cloudflare D1) with four core tables designed for crowdsourced public art mapping. The schema supports geospatial queries, community submissions, and moderation workflows.
 
 ## Database Tables
 
@@ -188,10 +186,8 @@ ORDER BY l.created_at ASC;
 ### Spatial Queries
 
 - The `(lat, lon)` composite index enables efficient radius searches
-- For precise distance calculations, use the haversine formula in application
-  code
-- Consider query bounds of ±0.0045 degrees (~500m at mid-latitudes) for initial
-  filtering
+- For precise distance calculations, use the haversine formula in application code
+- Consider query bounds of ±0.0045 degrees (~500m at mid-latitudes) for initial filtering
 
 ### Indexing Strategy
 
@@ -221,5 +217,4 @@ The database schema is reflected in TypeScript types in `src/shared/types.ts`:
 - `LogbookRecord` - logbook table
 - `TagRecord` - tags table
 
-Refer to the types file for complete interface definitions and validation
-functions.
+Refer to the types file for complete interface definitions and validation functions.

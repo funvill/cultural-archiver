@@ -2,9 +2,7 @@
 
 ## Overview
 
-This guide explains how to test the Cultural Archiver Worker API endpoints that
-have been implemented according to the tasks in
-`tasks/tasks-prd-worker-api-endpoints.md`.
+This guide explains how to test the Cultural Archiver Worker API endpoints that have been implemented according to the tasks in `tasks/tasks-prd-worker-api-endpoints.md`.
 
 ## What's Been Implemented ✅
 
@@ -162,14 +160,11 @@ npm test test/database.test.ts
 
 ## Authentication Testing
 
-Most API endpoints require a user token in the `X-User-Token` header. For
-testing:
+Most API endpoints require a user token in the `X-User-Token` header. For testing:
 
-1. **Generate a test token**: Use any UUID generator or `crypto.randomUUID()` in
-   browser console
+1. **Generate a test token**: Use any UUID generator or `crypto.randomUUID()` in browser console
 2. **Add to requests**: Include header `X-User-Token: your-uuid-here`
-3. **Rate limiting**: Each token has limits (10 submissions/day, 60
-   queries/hour)
+3. **Rate limiting**: Each token has limits (10 submissions/day, 60 queries/hour)
 
 ## Expected Responses
 

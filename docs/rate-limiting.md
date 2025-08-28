@@ -1,13 +1,10 @@
 # Rate Limiting Configuration and Monitoring
 
-The Cultural Archiver API implements comprehensive rate limiting to prevent
-abuse while maintaining good user experience. This document covers
-configuration, monitoring, and management of rate limits.
+The Cultural Archiver API implements comprehensive rate limiting to prevent abuse while maintaining good user experience. This document covers configuration, monitoring, and management of rate limits.
 
 ## Overview
 
-Rate limiting is implemented using Cloudflare KV storage with per-user-token
-tracking. Limits are enforced at the middleware level before request processing.
+Rate limiting is implemented using Cloudflare KV storage with per-user-token tracking. Limits are enforced at the middleware level before request processing.
 
 ### Rate Limit Types
 
@@ -76,11 +73,7 @@ id = "your-dev-kv-id"
 ### Implementation
 
 ```typescript
-export async function rateLimitMiddleware(
-  c: Context,
-  userToken: string,
-  limitType: 'submission' | 'query' | 'magic-link'
-): Promise<Response | void> {
+export async function rateLimitMiddleware(c: Context, userToken: string, limitType: 'submission' | 'query' | 'magic-link'): Promise<Response | void> {
   const config = getRateLimitConfig(limitType);
   const key = generateRateLimitKey(userToken, limitType);
 
@@ -213,11 +206,7 @@ wrangler kv:bulk delete --binding=RATE_LIMITS --file=expired-keys.txt
 Reviewers have elevated limits:
 
 ```typescript
-const getEffectiveRateLimit = (
-  userToken: string,
-  isReviewer: boolean,
-  limitType: string
-) => {
+const getEffectiveRateLimit = (userToken: string, isReviewer: boolean, limitType: string) => {
   const baseLimits = {
     submission: 10,
     query: 60,
@@ -240,10 +229,7 @@ For urgent situations:
 
 ```typescript
 // Emergency bypass (admin only)
-const EMERGENCY_BYPASS_TOKENS = new Set([
-  'emergency-admin-token',
-  'incident-response-token',
-]);
+const EMERGENCY_BYPASS_TOKENS = new Set(['emergency-admin-token', 'incident-response-token']);
 
 if (EMERGENCY_BYPASS_TOKENS.has(userToken)) {
   // Skip rate limiting
@@ -261,21 +247,14 @@ if (EMERGENCY_BYPASS_TOKENS.has(userToken)) {
 
 ```typescript
 // Batch rate limit checking
-const checkMultipleRateLimits = async (
-  kv: KVNamespace,
-  checks: Array<{ token: string; type: string }>
-) => {
-  const keys = checks.map(check =>
-    generateRateLimitKey(check.token, check.type)
-  );
+const checkMultipleRateLimits = async (kv: KVNamespace, checks: Array<{ token: string; type: string }>) => {
+  const keys = checks.map(check => generateRateLimitKey(check.token, check.type));
   const values = await Promise.all(keys.map(key => kv.get(key)));
 
   return checks.map((check, index) => ({
     ...check,
     current: values[index] ? JSON.parse(values[index]) : { count: 0 },
-    allowed: values[index]
-      ? JSON.parse(values[index]).count < getRateLimit(check.type)
-      : true,
+    allowed: values[index] ? JSON.parse(values[index]).count < getRateLimit(check.type) : true,
   }));
 };
 ```
@@ -295,9 +274,7 @@ Prevent rate limit bypass attempts:
 ```typescript
 // Token validation
 const validateUserToken = (token: string): boolean => {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-    token
-  );
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token);
 };
 
 // Detect suspicious patterns

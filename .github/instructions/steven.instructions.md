@@ -9,76 +9,55 @@ This is a general instruction file of Steven best practices
 - Timestamps should be in this format YYYY-MMM-DD-HHMMSS
 - Use `const` express intent
 - No clever tricks - choose the boring solution
-  - Only use stable packages, never use latest versions unless its stable or has
-    long term support.
+  - Only use stable packages, never use latest versions unless its stable or has long term support.
 - Fail fast with descriptive messages
-- Logging: use info!/debug!/warn!/error! (no println, or console.log, etc...!);
-  avoid per-frame logs unless trace!.
+- Logging: use info!/debug!/warn!/error! (no println, or console.log, etc...!); avoid per-frame logs unless trace!.
 
-- The computer that Steven uses for code review and devlopment: Windows using
-  powershell
+- The computer that Steven uses for code review and devlopment: Windows using powershell
   - PowerShell uses ; instead of &&.
-- Its common the that the project files are in a sub folder of the git project
-  with the same name as the project.
+- Its common the that the project files are in a sub folder of the git project with the same name as the project.
 
-- Version numbers should have a 'build' number that automaticly incurments by
-  the CI system.
+- Version numbers should have a 'build' number that automaticly incurments by the CI system.
 
-- All output files, should include the applications name that generated that
-  file, the version, and the timestamp of when that file was generated.
+- All output files, should include the applications name that generated that file, the version, and the timestamp of when that file was generated.
 
 - Functions should check parameters of the function at the top of the function
-- Fail early in functions. The functions should have many places it fails, but
-  only a few places that pass
+- Fail early in functions. The functions should have many places it fails, but only a few places that pass
 
 - if C/C++ use GoogleTest, and makefiles
 
 ## GUI/ UX
 
-- Always have a "Reset to defaults" button with a "Are you sure?" comformation
-  dialog.
-- Any destructive action should have a "Are you sure?" comformation dialog. For
-  example if you are deleting a row in a table.
-- In general, Don't ask customers where to save files. Instead just save the
-  file with a default file name that includes the current timestamp
-  (YYYY-MMM-DD-HHMMSS), to the working directory. Then shell open the folder
-  with the file to reveal the file.
+- Always have a "Reset to defaults" button with a "Are you sure?" comformation dialog.
+- Any destructive action should have a "Are you sure?" comformation dialog. For example if you are deleting a row in a table.
+- In general, Don't ask customers where to save files. Instead just save the file with a default file name that includes the current timestamp (YYYY-MMM-DD-HHMMSS), to the working directory. Then shell open the folder with the file to reveal the file.
 - Use icons and colors
 
 ## Logging
 
-Good log messages are very importain. Its common that the only feedback we get
-from a customer is the logs. The logging system is one of the first things that
-should be set up.
+Good log messages are very importain. Its common that the only feedback we get from a customer is the logs. The logging system is one of the first things that should be set up.
 
-- Always set up a logging system that logs to both the console and the file
-  system automaticly
+- Always set up a logging system that logs to both the console and the file system automaticly
 - If logging to the file system, Log rotation must be built in
 - Must support at lest these logging levels (debug, info, error)
 - Logs should have a timestamp
 - Logs should have a service/script that the log message orginated from
-- Any error message that is shown to the user should also be logged. This
-  includes validataion
+- Any error message that is shown to the user should also be logged. This includes validataion
 - The very first message in the log should be the version of the application.
 
 ## CI / Github Actions workflow
 
-- All projects should have a 'test' and a 'build and publish' Github Actions
-  workflow.
+- All projects should have a 'test' and a 'build and publish' Github Actions workflow.
 - 'Test' should run on every commit, and automaticly run the unit tests.
-- 'Build and publish' should run when a tag matches 'v*.*.\*'. This should
-  produce a Github project release.
-  - As close as possiable to a "one button" publish. Make it easy to publish the
-    project so it can happen more frequntly.
+- 'Build and publish' should run when a tag matches 'v*.*.\*'. This should produce a Github project release.
+  - As close as possiable to a "one button" publish. Make it easy to publish the project so it can happen more frequntly.
   - Auto update the build number in the version from the CI system.
 
 ## Change log
 
 - The `CHANGELOG.MD` lists a history of changes.
   - Update the changelog with any changes, reference the issue ID
-  - Add the list of changes to the file in a "## Unreleased" section just below
-    the "# Change Log" title. Do not include a date or version in this list of
-    changes.
+  - Add the list of changes to the file in a "## Unreleased" section just below the "# Change Log" title. Do not include a date or version in this list of changes.
 
 ## Unit tests
 
@@ -95,8 +74,7 @@ should be set up.
 ## NPM
 
 - All package.json should have a 'test', and a 'start' script.
-- Only use stable packages, never use latest versions unless its stable or has
-  long term support.
+- Only use stable packages, never use latest versions unless its stable or has long term support.
 
 ## Perfered tech stack
 
@@ -113,8 +91,7 @@ When appropriate use this tech stack
 
 ### Core Beliefs
 
-- **Incremental progress over big bangs** - Small changes that compile and pass
-  tests
+- **Incremental progress over big bangs** - Small changes that compile and pass tests
 - **Learning from existing code** - Study and plan before implementing
 - **Pragmatic over dogmatic** - Adapt to project reality
 - **Clear intent over clever code** - Be boring and obvious
@@ -135,8 +112,7 @@ Break complex work into 3-5 stages. Document in `IMPLEMENTATION_PLAN.md`:
 ```markdown
 ## Stage N: [Name]
 
-**Goal**: [Specific deliverable] **Success Criteria**: [Testable outcomes]
-**Tests**: [Specific test cases] **Status**: [Not Started|In Progress|Complete]
+**Goal**: [Specific deliverable] **Success Criteria**: [Testable outcomes] **Tests**: [Specific test cases] **Status**: [Not Started|In Progress|Complete]
 ```
 
 - Update status as you progress

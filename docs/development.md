@@ -1,7 +1,6 @@
 # Cultural Archiver Development Guide
 
-This guide covers local development setup, testing, and debugging for the
-Cultural Archiver Worker API.
+This guide covers local development setup, testing, and debugging for the Cultural Archiver Worker API.
 
 ## Prerequisites
 
@@ -229,8 +228,7 @@ curl -X POST http://localhost:8787/api/auth/magic-link \
 
 ### Using Postman
 
-Import the collection from `postman-collection.json` in the repository root. It
-includes:
+Import the collection from `postman-collection.json` in the repository root. It includes:
 
 - Pre-configured requests for all endpoints
 - Environment variables for development/staging
@@ -242,8 +240,7 @@ includes:
 ### Schema Changes
 
 1. Create new migration file in `migrations/`
-2. Apply locally:
-   `npx wrangler d1 execute cultural-archiver-dev --local --file=migrations/new-migration.sql`
+2. Apply locally: `npx wrangler d1 execute cultural-archiver-dev --local --file=migrations/new-migration.sql`
 3. Test with existing data
 4. Update TypeScript types in `src/shared/types.ts`
 

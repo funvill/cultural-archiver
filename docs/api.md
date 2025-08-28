@@ -1,9 +1,6 @@
 # Cultural Archiver API Documentation
 
-The Cultural Archiver Worker API provides a comprehensive backend for
-crowdsourced public art mapping with mobile-first submission workflows. This API
-is built using Hono with TypeScript and runs on Cloudflare Workers, integrating
-with D1 (database), KV (rate limiting & sessions), and R2 (photo storage).
+The Cultural Archiver Worker API provides a comprehensive backend for crowdsourced public art mapping with mobile-first submission workflows. This API is built using Hono with TypeScript and runs on Cloudflare Workers, integrating with D1 (database), KV (rate limiting & sessions), and R2 (photo storage).
 
 ## Base URL
 
@@ -13,9 +10,7 @@ https://api.cultural-archiver.example.com
 
 ## Authentication
 
-The API uses Bearer token authentication with anonymous user tokens. Users
-receive a UUID token that identifies their submissions without requiring
-registration.
+The API uses Bearer token authentication with anonymous user tokens. Users receive a UUID token that identifies their submissions without requiring registration.
 
 ```http
 Authorization: Bearer {user-token-uuid}
@@ -83,8 +78,7 @@ POST /api/logbook
 - `lat` (required): Latitude (-90 to 90)
 - `lon` (required): Longitude (-180 to 180)
 - `note` (optional): Description (max 500 characters)
-- `type` (optional): Artwork type (`public_art`, `street_art`, `monument`,
-  `sculpture`, `other`)
+- `type` (optional): Artwork type (`public_art`, `street_art`, `monument`, `sculpture`, `other`)
 - `photos` (optional): Up to 3 image files (15MB each, JPEG/PNG/WebP/GIF)
 
 **Response** (201 Created):
@@ -173,9 +167,7 @@ GET /api/artworks/nearby
 **Example**:
 
 ```javascript
-const response = await fetch(
-  `/api/artworks/nearby?lat=49.2827&lon=-123.1207&radius=1000&limit=20`
-);
+const response = await fetch(`/api/artworks/nearby?lat=49.2827&lon=-123.1207&radius=1000&limit=20`);
 ```
 
 #### Get Artwork Details
@@ -575,8 +567,7 @@ Photos are processed and stored with the following specifications:
 The API uses efficient spatial indexing for location-based searches:
 
 - **Coordinate system**: WGS84 (GPS coordinates)
-- **Search algorithm**: Bounding box filtering with haversine distance
-  calculation
+- **Search algorithm**: Bounding box filtering with haversine distance calculation
 - **Default radius**: 500 meters
 - **Maximum radius**: 10 kilometers
 - **Minimum radius**: 50 meters

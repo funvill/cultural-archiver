@@ -1,36 +1,26 @@
 # Cultural Archiver
 
-**Cultural Archiver** is a community-driven project that empowers people to
-become Citizen Cultural Archivists. The goal is to document, preserve, and share
-public and cultural artworks so they remain accessible to everyone, forever.
+**Cultural Archiver** is a community-driven project that empowers people to become Citizen Cultural Archivists. The goal is to document, preserve, and share public and cultural artworks so they remain accessible to everyone, forever.
 
 ## 🌍 Project Vision
 
-Cities are filled with cultural landmarks—murals, sculptures, mosaics, tiny
-libraries, installations, and more. Too often, these works fade away, get
-demolished, or disappear when privately managed websites go offline. Cultural
-Archiver provides a public, open platform to:
+Cities are filled with cultural landmarks—murals, sculptures, mosaics, tiny libraries, installations, and more. Too often, these works fade away, get demolished, or disappear when privately managed websites go offline. Cultural Archiver provides a public, open platform to:
 
 - **Discover** public art near you on an interactive map.
 - **Document** artworks by uploading photos, notes, and details.
-- **Preserve** submissions by contributing metadata under CC0 to the open
-  commons.
-- **Contribute** to long-lived open datasets such as OpenStreetMap and Wikidata
-  (future phases).
+- **Preserve** submissions by contributing metadata under CC0 to the open commons.
+- **Contribute** to long-lived open datasets such as OpenStreetMap and Wikidata (future phases).
 
-This ensures that the cultural history of our cities outlives any single
-platform or institution.
+This ensures that the cultural history of our cities outlives any single platform or institution.
 
 ## 🎯 MVP Goals
 
 Phase 0 and 1 focus on delivering a simple, accessible web app where users can:
 
 - Upload photos (auto-geolocated) and notes about artworks.
-- See their own submissions immediately, with public visibility after moderator
-  approval.
+- See their own submissions immediately, with public visibility after moderator approval.
 - Browse artworks on a Leaflet + OpenStreetMap powered map.
-- Store data and images safely in a serverless Cloudflare stack (Pages, Workers,
-  D1, KV, R2).
+- Store data and images safely in a serverless Cloudflare stack (Pages, Workers, D1, KV, R2).
 
 ## 🛠 Tech Stack
 
@@ -49,9 +39,7 @@ Phase 0 and 1 focus on delivering a simple, accessible web app where users can:
 
 ## 📚 API Documentation
 
-The Cultural Archiver API provides a comprehensive backend for crowdsourced
-public art mapping. The API is built with Hono and TypeScript, running on
-Cloudflare Workers.
+The Cultural Archiver API provides a comprehensive backend for crowdsourced public art mapping. The API is built with Hono and TypeScript, running on Cloudflare Workers.
 
 ### Base URL
 
@@ -159,8 +147,7 @@ Authorization: Bearer {reviewer-token}
 }
 ```
 
-For complete API documentation with examples and error codes, see
-[`docs/api.md`](docs/api.md).
+For complete API documentation with examples and error codes, see [`docs/api.md`](docs/api.md).
 
 ## 🚀 Quick Start
 
@@ -198,8 +185,7 @@ For complete API documentation with examples and error codes, see
    npm run dev
    ```
 
-   This starts both the frontend (Vite) and workers (Wrangler) with hot
-   reloading.
+   This starts both the frontend (Vite) and workers (Wrangler) with hot reloading.
 
 ### Available Scripts
 
@@ -256,12 +242,10 @@ cultural-archiver/
 
 ### Development Features
 
-- **Native TypeScript**: Uses Node.js v23+ native TypeScript support (no
-  compilation needed)
+- **Native TypeScript**: Uses Node.js v23+ native TypeScript support (no compilation needed)
 - **Hot Reloading**: Frontend and workers restart automatically on changes
 - **Shared Types**: Common TypeScript interfaces between frontend and backend
-- **Database Migrations**: Version-controlled schema changes with TypeScript
-  runner
+- **Database Migrations**: Version-controlled schema changes with TypeScript runner
 - **CI/CD**: Automated testing and deployment workflows
 
 ### Cloudflare Resources
@@ -276,28 +260,21 @@ The project uses these Cloudflare services:
 
 ### Worker API Features
 
-- **Spatial Queries**: Efficient geospatial search with bounding box
-  optimization
+- **Spatial Queries**: Efficient geospatial search with bounding box optimization
 - **Photo Processing**: Secure upload pipeline with validation and R2 storage
-- **Rate Limiting**: Per-user limits using KV storage (10 submissions/day, 60
-  queries/hour)
+- **Rate Limiting**: Per-user limits using KV storage (10 submissions/day, 60 queries/hour)
 - **Magic Link Auth**: Email verification with secure token generation
-- **Content Moderation**: Review workflow for submissions with
-  approval/rejection
+- **Content Moderation**: Review workflow for submissions with approval/rejection
 - **Type Safety**: Full TypeScript with comprehensive error handling
-- **Testing**: 54 tests across integration, performance, and moderation
-  workflows
+- **Testing**: 54 tests across integration, performance, and moderation workflows
 
 ### Documentation
 
-- **[API Documentation](docs/api.md)**: Complete endpoint specifications with
-  examples
-- **[Deployment Guide](docs/deployment.md)**: Cloudflare Workers, D1, KV, and R2
-  setup
+- **[API Documentation](docs/api.md)**: Complete endpoint specifications with examples
+- **[Deployment Guide](docs/deployment.md)**: Cloudflare Workers, D1, KV, and R2 setup
 - **[Development Guide](docs/development.md)**: Local development and debugging
 - **[Rate Limiting](docs/rate-limiting.md)**: Configuration and monitoring
-- **[Photo Processing](docs/photo-processing.md)**: Upload pipeline and R2
-  storage
+- **[Photo Processing](docs/photo-processing.md)**: Upload pipeline and R2 storage
 - **[Troubleshooting](docs/troubleshooting.md)**: Common issues and solutions
 
 ### Setup Time Goals
@@ -307,9 +284,7 @@ The project uses these Cloudflare services:
 
 ## 🤝 Contributing
 
-Everyone is welcome to contribute to this project. See the CONTRIBUTING.md for
-guidelines. All metadata is licensed CC0, making it freely reusable for the
-commons.
+Everyone is welcome to contribute to this project. See the CONTRIBUTING.md for guidelines. All metadata is licensed CC0, making it freely reusable for the commons.
 
 ### Development Workflow
 

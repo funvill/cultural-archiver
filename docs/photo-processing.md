@@ -1,8 +1,6 @@
 # Photo Processing Documentation
 
-The Cultural Archiver API implements a comprehensive photo processing pipeline
-using Cloudflare R2 storage. This document covers the complete workflow from
-upload validation to final storage and retrieval.
+The Cultural Archiver API implements a comprehensive photo processing pipeline using Cloudflare R2 storage. This document covers the complete workflow from upload validation to final storage and retrieval.
 
 ## Overview
 
@@ -66,12 +64,7 @@ const getDatePath = (date: Date = new Date()): string => {
 ### Supported Formats
 
 ```typescript
-const SUPPORTED_MIME_TYPES = new Set([
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp',
-]);
+const SUPPORTED_MIME_TYPES = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
 
 const SUPPORTED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
 ```
@@ -104,9 +97,7 @@ const validatePhoto = async (file: File): Promise<PhotoValidationResult> => {
 
   // File size check
   if (file.size > PHOTO_CONSTRAINTS.maxFileSize) {
-    errors.push(
-      `File size ${formatBytes(file.size)} exceeds maximum ${formatBytes(PHOTO_CONSTRAINTS.maxFileSize)}`
-    );
+    errors.push(`File size ${formatBytes(file.size)} exceeds maximum ${formatBytes(PHOTO_CONSTRAINTS.maxFileSize)}`);
   }
 
   // MIME type validation
@@ -146,11 +137,7 @@ interface PhotoUploadResult {
   uploadedAt: string;
 }
 
-const processPhotoUpload = async (
-  file: File,
-  env: Env,
-  folder: 'submissions' | 'artworks'
-): Promise<PhotoUploadResult> => {
+const processPhotoUpload = async (file: File, env: Env, folder: 'submissions' | 'artworks'): Promise<PhotoUploadResult> => {
   // 1. Validate file
   const validation = await validatePhoto(file);
   if (!validation.isValid) {
@@ -208,10 +195,7 @@ interface ImageProcessingOptions {
   preserveExif?: boolean;
 }
 
-const processImage = async (
-  buffer: ArrayBuffer,
-  options: ImageProcessingOptions
-): Promise<ArrayBuffer> => {
+const processImage = async (buffer: ArrayBuffer, options: ImageProcessingOptions): Promise<ArrayBuffer> => {
   // Note: In a full implementation, this would use a service like:
   // - Cloudflare Images for automatic optimization
   // - Sharp.js for server-side processing
@@ -259,11 +243,7 @@ const extractExifData = async (buffer: ArrayBuffer): Promise<ExifData> => {
 ### Permalink Injection
 
 ```typescript
-const injectPermalink = async (
-  buffer: ArrayBuffer,
-  permalink: string,
-  metadata: ExifData
-): Promise<ArrayBuffer> => {
+const injectPermalink = async (buffer: ArrayBuffer, permalink: string, metadata: ExifData): Promise<ArrayBuffer> => {
   // Inject permalink into EXIF comment field
   // This ensures attribution survives photo sharing
 
@@ -282,11 +262,7 @@ const injectPermalink = async (
 When a logbook submission is approved, photos must be migrated:
 
 ```typescript
-const migratePhotosOnApproval = async (
-  env: Env,
-  logbookPhotos: string[],
-  artworkId: string
-): Promise<string[]> => {
+const migratePhotosOnApproval = async (env: Env, logbookPhotos: string[], artworkId: string): Promise<string[]> => {
   const migratedUrls: string[] = [];
 
   for (const submissionUrl of logbookPhotos) {
@@ -326,10 +302,7 @@ const migratePhotosOnApproval = async (
 When submissions are rejected, clean up photos:
 
 ```typescript
-const cleanupRejectedPhotos = async (
-  env: Env,
-  photoUrls: string[]
-): Promise<void> => {
+const cleanupRejectedPhotos = async (env: Env, photoUrls: string[]): Promise<void> => {
   for (const url of photoUrls) {
     try {
       const key = extractKeyFromUrl(url);
@@ -357,21 +330,15 @@ interface PhotoUrlOptions {
   expiry?: number; // Seconds until expiry (for private photos)
 }
 
-const generatePhotoUrl = (
-  key: string,
-  options: PhotoUrlOptions = {}
-): string => {
+const generatePhotoUrl = (key: string, options: PhotoUrlOptions = {}): string => {
   const baseUrl = 'https://photos.cultural-archiver.com';
 
   if (options.transform) {
     // Future: Cloudflare Images integration for on-demand transforms
     const params = new URLSearchParams();
-    if (options.transform.width)
-      params.set('w', options.transform.width.toString());
-    if (options.transform.height)
-      params.set('h', options.transform.height.toString());
-    if (options.transform.quality)
-      params.set('q', options.transform.quality.toString());
+    if (options.transform.width) params.set('w', options.transform.width.toString());
+    if (options.transform.height) params.set('h', options.transform.height.toString());
+    if (options.transform.quality) params.set('q', options.transform.quality.toString());
 
     return `${baseUrl}/${key}?${params.toString()}`;
   }
@@ -409,11 +376,7 @@ const generateResponsiveImageSet = (key: string): ResponsiveImageSet => {
 ### Access Control
 
 ```typescript
-const validatePhotoAccess = async (
-  key: string,
-  userToken: string,
-  env: Env
-): Promise<boolean> => {
+const validatePhotoAccess = async (key: string, userToken: string, env: Env): Promise<boolean> => {
   // 1. Check if photo is in public artworks folder
   if (key.startsWith('artworks/')) {
     return true; // Public access to approved artwork photos
@@ -439,12 +402,7 @@ interface ModerationFlags {
   offTopic: boolean;
 }
 
-const flagPhotoForModeration = async (
-  photoKey: string,
-  flags: ModerationFlags,
-  reviewerToken: string,
-  env: Env
-): Promise<void> => {
+const flagPhotoForModeration = async (photoKey: string, flags: ModerationFlags, reviewerToken: string, env: Env): Promise<void> => {
   // Store moderation flags in KV for reviewer interface
   const moderationData = {
     photoKey,
@@ -489,9 +447,7 @@ interface PhotoMetadata {
   dominantColor?: string; // For background while loading
 }
 
-const generatePhotoMetadata = async (
-  buffer: ArrayBuffer
-): Promise<PhotoMetadata> => {
+const generatePhotoMetadata = async (buffer: ArrayBuffer): Promise<PhotoMetadata> => {
   // Extract dimensions and generate placeholder data
   const dimensions = await getImageDimensions(buffer);
 
@@ -584,13 +540,11 @@ curl -w "%{time_total}" -X POST http://localhost:8787/api/logbook \
 
 ## Future Enhancements
 
-1. **Image Optimization**: Cloudflare Images integration for automatic format
-   conversion and resizing
+1. **Image Optimization**: Cloudflare Images integration for automatic format conversion and resizing
 2. **AI Content Moderation**: Automatic detection of inappropriate content
 3. **Duplicate Detection**: Identify and handle duplicate photo submissions
 4. **Backup and Recovery**: Cross-region replication for photo backup
 5. **Advanced EXIF**: Enhanced metadata extraction and privacy controls
 6. **Progressive Enhancement**: WebP format support with fallbacks
-7. **Thumbnail Generation**: Automatic thumbnail creation for improved
-   performance
+7. **Thumbnail Generation**: Automatic thumbnail creation for improved performance
 8. **Content Delivery**: Edge optimization for global photo delivery

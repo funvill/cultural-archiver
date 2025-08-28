@@ -2,65 +2,41 @@
 
 ## Introduction/Overview
 
-This PRD defines the implementation of minimal, typed JSON APIs for the Cultural
-Archiver MVP using Cloudflare Workers. The API provides endpoints for community
-art submissions, artwork discovery, user management, and moderation workflows.
-The system enables crowdsourced public art mapping with a focus on mobile-first
-submission workflows and efficient moderation processes.
+This PRD defines the implementation of minimal, typed JSON APIs for the Cultural Archiver MVP using Cloudflare Workers. The API provides endpoints for community art submissions, artwork discovery, user management, and moderation workflows. The system enables crowdsourced public art mapping with a focus on mobile-first submission workflows and efficient moderation processes.
 
-**Problem Statement:** The current Cultural Archiver application lacks backend
-API endpoints to handle artwork submissions, user authentication, photo
-processing, and moderation workflows.
+**Problem Statement:** The current Cultural Archiver application lacks backend API endpoints to handle artwork submissions, user authentication, photo processing, and moderation workflows.
 
-**Goal:** Implement a complete REST API that enables the frontend to submit
-artwork entries, discover nearby artworks, manage user sessions, and provide
-moderation tools for reviewers.
+**Goal:** Implement a complete REST API that enables the frontend to submit artwork entries, discover nearby artworks, manage user sessions, and provide moderation tools for reviewers.
 
 ## Goals
 
-1. **Enable Community Submissions**: Provide robust endpoints for users to
-   submit artwork with photos, location, and metadata
-2. **Support Artwork Discovery**: Implement geospatial search for finding
-   approved artworks near specific locations
-3. **Facilitate User Management**: Handle anonymous user tokens and optional
-   email verification via magic links
-4. **Enable Moderation Workflows**: Provide reviewer tools for
-   approving/rejecting submissions and managing artwork lifecycle
-5. **Ensure Performance & Reliability**: Implement rate limiting, error
-   handling, and efficient database queries
-6. **Maintain Data Integrity**: Validate inputs, process photos consistently,
-   and maintain referential integrity
+1. **Enable Community Submissions**: Provide robust endpoints for users to submit artwork with photos, location, and metadata
+2. **Support Artwork Discovery**: Implement geospatial search for finding approved artworks near specific locations
+3. **Facilitate User Management**: Handle anonymous user tokens and optional email verification via magic links
+4. **Enable Moderation Workflows**: Provide reviewer tools for approving/rejecting submissions and managing artwork lifecycle
+5. **Ensure Performance & Reliability**: Implement rate limiting, error handling, and efficient database queries
+6. **Maintain Data Integrity**: Validate inputs, process photos consistently, and maintain referential integrity
 
 ## User Stories
 
 ### Community Users
 
-- **As a community member**, I want to submit artwork photos and details so that
-  I can contribute to the public art map
-- **As a mobile user**, I want to upload photos directly from my camera so that
-  I can quickly document artwork I encounter
-- **As a contributor**, I want to see my submission status so that I know when
-  my artwork appears on the public map
-- **As a user**, I want to find artwork near my location so that I can discover
-  public art in my area
+- **As a community member**, I want to submit artwork photos and details so that I can contribute to the public art map
+- **As a mobile user**, I want to upload photos directly from my camera so that I can quickly document artwork I encounter
+- **As a contributor**, I want to see my submission status so that I know when my artwork appears on the public map
+- **As a user**, I want to find artwork near my location so that I can discover public art in my area
 
 ### Reviewers
 
-- **As a reviewer**, I want to see pending submissions in order so that I can
-  efficiently moderate content
-- **As a reviewer**, I want to approve submissions and create artwork entries so
-  that quality content appears on the public map
-- **As a reviewer**, I want to reject inappropriate submissions so that the
-  platform maintains content quality
-- **As a reviewer**, I want to see nearby existing artwork when reviewing
-  submissions so that I can avoid duplicates
+- **As a reviewer**, I want to see pending submissions in order so that I can efficiently moderate content
+- **As a reviewer**, I want to approve submissions and create artwork entries so that quality content appears on the public map
+- **As a reviewer**, I want to reject inappropriate submissions so that the platform maintains content quality
+- **As a reviewer**, I want to see nearby existing artwork when reviewing submissions so that I can avoid duplicates
 
 ### System Users
 
-- **As a user**, I want to optionally verify my email so that I can recover
-  access to my submissions
-- **As a user**, I want consistent error messages so that I understand what went
-  wrong and how to fix it
+- **As a user**, I want to optionally verify my email so that I can recover access to my submissions
+- **As a user**, I want consistent error messages so that I understand what went wrong and how to fix it
 
 ## Functional Requirements
 
@@ -69,39 +45,31 @@ moderation tools for reviewers.
 #### 1.1 POST /api/logbook - Create Submission
 
 - **Must** accept JSON body with required fields: `lat` (number), `lon` (number)
-- **Must** accept optional fields: `note` (string, ≤500 chars), `type` (string),
-  `photos` (array, max 3 files)
-- **Must** validate coordinates are valid lat/lon globally (-90 to 90, -180
-  to 180)
+- **Must** accept optional fields: `note` (string, ≤500 chars), `type` (string), `photos` (array, max 3 files)
+- **Must** validate coordinates are valid lat/lon globally (-90 to 90, -180 to 180)
 - **Must** enforce photo limits: max 3 photos, max 15MB each
 - **Must** accept any image format and convert to JPEG/PNG as needed
 - **Must** generate anonymous user token (UUID) on first visit if none exists
-- **Must** store original photos in R2 at
-  `originals/YYYY/MM/{timestamp}-{uuid}.{ext}`
-- **Must** generate 800px thumbnails (longest edge) in R2 at
-  `thumbs/YYYY/MM/{timestamp}-{uuid}.jpg`
-- **Must** preserve all original EXIF data and add permalink in EXIF comment
-  field
+- **Must** store original photos in R2 at `originals/YYYY/MM/{timestamp}-{uuid}.{ext}`
+- **Must** generate 800px thumbnails (longest edge) in R2 at `thumbs/YYYY/MM/{timestamp}-{uuid}.jpg`
+- **Must** preserve all original EXIF data and add permalink in EXIF comment field
 - **Must** create logbook entry with status 'pending'
 - **Must** return submission ID and status
 
 #### 1.2 Photo Processing Pipeline
 
 - **Must** validate file types using MIME type detection
-- **Must** sanitize filenames using timestamp + UUID format:
-  `{timestamp}-{uuid}.{ext}`
+- **Must** sanitize filenames using timestamp + UUID format: `{timestamp}-{uuid}.{ext}`
 - **Must** maintain aspect ratio when resizing to 800px longest edge
 - **Must** store photos in date-based folder structure: `YYYY/MM/`
-- **Must** write permalink URL to EXIF comment field on both original and
-  thumbnail
+- **Must** write permalink URL to EXIF comment field on both original and thumbnail
 - **Must** handle upload failures gracefully and cleanup partial uploads
 
 ### 2. Discovery Endpoints
 
 #### 2.1 GET /api/artworks/nearby - Find Nearby Artworks
 
-- **Must** accept query parameters: `lat` (required), `lon` (required), `radius`
-  (optional, default 500m), `limit` (optional, default 20)
+- **Must** accept query parameters: `lat` (required), `lon` (required), `radius` (optional, default 500m), `limit` (optional, default 20)
 - **Must** validate latitude/longitude parameters
 - **Must** use bounding box spatial queries for performance
 - **Must** return only approved artwork (status = 'approved')
@@ -172,8 +140,7 @@ moderation tools for reviewers.
 
 #### 5.1 Nearby Artwork Warning During Submission
 
-- **Must** show nearby artwork (within 500m) when user submits at similar
-  location
+- **Must** show nearby artwork (within 500m) when user submits at similar location
 - **Must** display cards with photos and basic info of nearby artwork
 - **Must** allow user to confirm "this is different artwork"
 - **Must** create separate logbook entry if user confirms it's different
@@ -181,19 +148,15 @@ moderation tools for reviewers.
 
 ## Non-Goals (Out of Scope)
 
-1. **Advanced Content Moderation**: Virus scanning, inappropriate image
-   detection (future versions)
-2. **Automatic Duplicate Detection**: No automated merging or duplicate flagging
-   for MVP
+1. **Advanced Content Moderation**: Virus scanning, inappropriate image detection (future versions)
+2. **Automatic Duplicate Detection**: No automated merging or duplicate flagging for MVP
 3. **Real-time Notifications**: Push notifications or real-time updates
-4. **Advanced Analytics**: Detailed usage tracking beyond basic Cloudflare
-   analytics
+4. **Advanced Analytics**: Detailed usage tracking beyond basic Cloudflare analytics
 5. **API Versioning**: No version management during MVP phase
 6. **Complex User Roles**: Only basic reviewer flag, no role-based permissions
 7. **Caching Layer**: All queries real-time for MVP
 8. **Geographic Restrictions**: Accept submissions globally, no region limiting
-9. **Advanced Email Features**: No email preferences, unsubscribe, or rich
-   templates
+9. **Advanced Email Features**: No email preferences, unsubscribe, or rich templates
 
 ## Technical Considerations
 
@@ -293,31 +256,23 @@ thumbs/
 3. **Photo Processing**: 100% successful processing of valid image uploads
 4. **Rate Limiting Effectiveness**: <1% false positive rate on legitimate usage
 5. **Error Handling**: <5% user confusion rate based on error message clarity
-6. **Moderation Efficiency**: Reviewers can process submissions in <2 minutes
-   average
+6. **Moderation Efficiency**: Reviewers can process submissions in <2 minutes average
 7. **Data Integrity**: 0% data corruption or orphaned records
 
 ## Open Questions
 
-1. **Cloudflare Email Workers Availability**: Need to verify current status and
-   setup requirements for magic link emails
-2. **R2 Storage Costs**: Should we implement automatic cleanup of old rejected
-   submissions?
-3. **Geographic Accuracy**: Should we implement more precise distance
-   calculations in future iterations?
-4. **Review Queue Scalability**: How will we handle reviewer queue when
-   submission volume grows?
-5. **Token Persistence**: Should anonymous tokens be stored in database or
-   remain stateless?
-6. **Error Logging Correlation**: Do we need request correlation IDs for
-   debugging complex workflows?
+1. **Cloudflare Email Workers Availability**: Need to verify current status and setup requirements for magic link emails
+2. **R2 Storage Costs**: Should we implement automatic cleanup of old rejected submissions?
+3. **Geographic Accuracy**: Should we implement more precise distance calculations in future iterations?
+4. **Review Queue Scalability**: How will we handle reviewer queue when submission volume grows?
+5. **Token Persistence**: Should anonymous tokens be stored in database or remain stateless?
+6. **Error Logging Correlation**: Do we need request correlation IDs for debugging complex workflows?
 
 ## Implementation Notes
 
 ### Setup Requirements
 
-1. **Cloudflare Workers Analytics**: Enable in Cloudflare dashboard under
-   Workers > Analytics
+1. **Cloudflare Workers Analytics**: Enable in Cloudflare dashboard under Workers > Analytics
 2. **Cloudflare Email Workers**: Verify availability and configure SMTP settings
 3. **Database Migrations**: Ensure MVP schema is deployed with proper indexes
 4. **R2 Bucket**: Configure with public access for thumbnail serving
@@ -325,14 +280,10 @@ thumbs/
 
 ### Development Phases
 
-1. **Phase 1**: Core CRUD operations (POST /logbook, GET /nearby, GET
-   /artwork/:id)
+1. **Phase 1**: Core CRUD operations (POST /logbook, GET /nearby, GET /artwork/:id)
 2. **Phase 2**: Photo processing pipeline and R2 integration
 3. **Phase 3**: User management and magic link authentication
 4. **Phase 4**: Moderation endpoints and reviewer workflows
 5. **Phase 5**: Rate limiting and error handling refinement
 
-This PRD provides the complete specification for implementing the Worker API
-endpoints that will power the Cultural Archiver MVP, with clear acceptance
-criteria and technical requirements for a junior developer to implement
-successfully.
+This PRD provides the complete specification for implementing the Worker API endpoints that will power the Cultural Archiver MVP, with clear acceptance criteria and technical requirements for a junior developer to implement successfully.

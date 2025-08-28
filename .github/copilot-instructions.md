@@ -11,15 +11,12 @@ Cultural Archiver is a crowdsourced public art mapping application built with:
 
 ## Database Schema
 
-**Important**: Always refer to `/docs/database.md` for the complete database
-schema documentation.
+**Important**: Always refer to `/docs/database.md` for the complete database schema documentation.
 
 The database uses four main tables:
 
-- `artwork_types` - Predefined artwork categories (public_art, street_art,
-  monument, sculpture, other)
-- `artwork` - Core artwork locations with lat/lon coordinates and status
-  workflow
+- `artwork_types` - Predefined artwork categories (public_art, street_art, monument, sculpture, other)
+- `artwork` - Core artwork locations with lat/lon coordinates and status workflow
 - `logbook` - Community submissions and entries linked to artworks
 - `tags` - Flexible key-value tagging system
 
@@ -44,8 +41,7 @@ The database uses four main tables:
 
 ### Database Queries
 
-- Use the spatial index for lat/lon queries:
-  `WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?`
+- Use the spatial index for lat/lon queries: `WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?`
 - Always filter by status for public-facing queries: `WHERE status = 'approved'`
 - JSON fields (tags, photos) are stored as TEXT - parse at application level
 
@@ -73,15 +69,13 @@ The database uses four main tables:
 
 - `/src/frontend/` - Vue 3 application
 - `/src/workers/` - Cloudflare Workers API with complete backend implementation
-  - `/routes/` - API endpoint handlers (auth, discovery, submissions, user,
-    review)
+  - `/routes/` - API endpoint handlers (auth, discovery, submissions, user, review)
   - `/middleware/` - Authentication, rate limiting, and validation middleware
   - `/lib/` - Utilities for database, photos, email, spatial queries, and errors
   - `/tests/` - Comprehensive test suite with 54 tests across 5 test suites
 - `/src/shared/` - Shared TypeScript types and utilities
 - `/migrations/` - Database migration files with MVPschema
-- `/docs/` - Complete project documentation including API specs, deployment
-  guides, and troubleshooting
+- `/docs/` - Complete project documentation including API specs, deployment guides, and troubleshooting
 
 ## Testing
 
@@ -124,9 +118,7 @@ The database uses four main tables:
 - Uses realistic Vancouver coordinates for testing
 - Foreign key constraints must be enabled in SQLite configuration
 
-When working on this project, always consider the MVP requirements: simple
-submission workflow, efficient spatial queries, and moderation-friendly status
-management.
+When working on this project, always consider the MVP requirements: simple submission workflow, efficient spatial queries, and moderation-friendly status management.
 
 ## Other instructions
 

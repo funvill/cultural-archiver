@@ -1,7 +1,6 @@
 # Troubleshooting Guide
 
-This guide covers common issues, debugging techniques, and solutions for the
-Cultural Archiver Worker API.
+This guide covers common issues, debugging techniques, and solutions for the Cultural Archiver Worker API.
 
 ## Table of Contents
 
@@ -206,10 +205,7 @@ const validateUserToken = (token: string) => {
     return false;
   }
 
-  const isValidUUID =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-      token
-    );
+  const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token);
   console.log('Token format valid:', isValidUUID);
 
   return isValidUUID;
@@ -248,10 +244,7 @@ wrangler kv:key delete "rate:submit:test-token:2024-01-15" --binding=RATE_LIMITS
 ```typescript
 // Check email configuration in development
 if (env.ENVIRONMENT === 'development') {
-  console.log(
-    'Magic link (dev mode):',
-    `${env.MAGIC_LINK_BASE_URL}/auth/verify?token=${token}`
-  );
+  console.log('Magic link (dev mode):', `${env.MAGIC_LINK_BASE_URL}/auth/verify?token=${token}`);
   // Email will be logged to console instead of sent
 }
 
@@ -566,10 +559,7 @@ const logger = {
     console.warn(`[WARN] ${message}`, data ? JSON.stringify(data) : '');
   },
   error: (message: string, error?: any) => {
-    console.error(
-      `[ERROR] ${message}`,
-      error instanceof Error ? error.stack : error
-    );
+    console.error(`[ERROR] ${message}`, error instanceof Error ? error.stack : error);
   },
 };
 
@@ -687,7 +677,4 @@ const performanceMonitor = {
 };
 ```
 
-This troubleshooting guide should help you identify and resolve most common
-issues with the Cultural Archiver Worker API. For issues not covered here, check
-the logs first, then consult the specific service documentation (Cloudflare
-Workers, D1, KV, R2) for more detailed debugging information.
+This troubleshooting guide should help you identify and resolve most common issues with the Cultural Archiver Worker API. For issues not covered here, check the logs first, then consult the specific service documentation (Cloudflare Workers, D1, KV, R2) for more detailed debugging information.
