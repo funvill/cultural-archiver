@@ -240,7 +240,7 @@ export async function searchArtworks(
 
     // Format results similar to nearby artworks
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
-      (results.results as ArtworkWithPhotos[]).map(async artwork => {
+      (results.results as unknown as ArtworkWithPhotos[]).map(async artwork => {
         const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
 
         const allPhotos: string[] = [];
@@ -292,7 +292,7 @@ export async function getPopularArtworks(
 
     // Format results
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
-      (results.results as ArtworkWithPhotos[]).map(async artwork => {
+      (results.results as unknown as ArtworkWithPhotos[]).map(async artwork => {
         const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
 
         const allPhotos: string[] = [];
@@ -343,7 +343,7 @@ export async function getRecentArtworks(
 
     // Format results
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
-      (results.results as ArtworkWithPhotos[]).map(async artwork => {
+      (results.results as unknown as ArtworkWithPhotos[]).map(async artwork => {
         const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
 
         const allPhotos: string[] = [];

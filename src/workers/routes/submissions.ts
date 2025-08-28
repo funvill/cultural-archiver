@@ -110,7 +110,11 @@ async function processPhotos(
     const validation = validatePhotoFiles(files);
     if (!validation.isValid) {
       throw new ValidationApiError(
-        validation.errors.map((msg: string) => ({ message: msg, field: 'photos', code: 'VALIDATION_ERROR' })),
+        validation.errors.map((msg: string) => ({
+          message: msg,
+          field: 'photos',
+          code: 'VALIDATION_ERROR',
+        })),
         'Photo validation failed'
       );
     }

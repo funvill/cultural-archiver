@@ -69,6 +69,8 @@ export default [
       'src/workers/.wrangler/**',
       '.wrangler/**',
       '**/.wrangler/**',
+      '**/tmp/**',
+      '**/bundle-*/**',
       '*.d.ts',
     ],
   },

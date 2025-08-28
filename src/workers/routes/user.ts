@@ -284,7 +284,10 @@ function validateUserPreferences(preferences: Record<string, unknown>): Record<s
   }
 
   // Privacy level
-  if (typeof preferences.privacy_level === 'string' && ['minimal', 'standard', 'enhanced'].includes(preferences.privacy_level)) {
+  if (
+    typeof preferences.privacy_level === 'string' &&
+    ['minimal', 'standard', 'enhanced'].includes(preferences.privacy_level)
+  ) {
     validPreferences.privacy_level = preferences.privacy_level;
   }
 
@@ -303,7 +306,10 @@ function validateUserPreferences(preferences: Record<string, unknown>): Record<s
   }
 
   // Theme preference
-  if (typeof preferences.theme === 'string' && ['light', 'dark', 'auto'].includes(preferences.theme)) {
+  if (
+    typeof preferences.theme === 'string' &&
+    ['light', 'dark', 'auto'].includes(preferences.theme)
+  ) {
     validPreferences.theme = preferences.theme;
   }
 

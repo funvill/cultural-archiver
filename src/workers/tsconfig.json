@@ -12,6 +12,6 @@
       "@shared/*": ["../shared/*"]
     }
   },
-  "include": ["**/*", "../shared/**/*"],
+  "include": ["**/*", "../shared/**/*", "global.d.ts"],
   "exclude": ["node_modules", "dist"]
 }

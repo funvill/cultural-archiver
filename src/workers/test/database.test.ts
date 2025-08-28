@@ -27,12 +27,15 @@ const mockDB: Partial<D1Database> = {
   ): Promise<{ success: true; meta: { changes: number } }[]> => {
     return _statements.map(() => ({ success: true, meta: { changes: 1 } }));
   },
-  exec: async (_query: string): Promise<{ results: unknown[]; count: number; duration: number }> => ({ 
-    results: [], 
-    count: 0, 
-    duration: 0 
+  exec: async (
+    _query: string
+  ): Promise<{ results: unknown[]; count: number; duration: number }> => ({
+    results: [],
+    count: 0,
+    duration: 0,
   }),
-  withSession: (_constraintOrBookmark?: string): Partial<D1DatabaseSession> => mockDB as Partial<D1DatabaseSession>,
+  withSession: (_constraintOrBookmark?: string): Partial<D1DatabaseSession> =>
+    mockDB as Partial<D1DatabaseSession>,
   dump: async (): Promise<ArrayBuffer> => new ArrayBuffer(0),
 };
 
