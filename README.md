@@ -49,16 +49,21 @@ Phase 0 and 1 focus on delivering a simple, accessible web app where users can:
 
 ## 📚 API Documentation
 
-The Cultural Archiver API provides a comprehensive backend for crowdsourced public art mapping. The API is built with Hono and TypeScript, running on Cloudflare Workers.
+The Cultural Archiver API provides a comprehensive backend for crowdsourced
+public art mapping. The API is built with Hono and TypeScript, running on
+Cloudflare Workers.
 
 ### Base URL
+
 ```
 Production: https://api.cultural-archiver.com
 Development: http://localhost:8787
 ```
 
 ### Authentication
+
 Uses Bearer token authentication with anonymous user tokens:
+
 ```http
 Authorization: Bearer {user-token-uuid}
 ```
@@ -66,6 +71,7 @@ Authorization: Bearer {user-token-uuid}
 ### Core Endpoints
 
 #### Submission Workflow
+
 ```http
 POST /api/logbook
 Content-Type: multipart/form-data
@@ -79,6 +85,7 @@ photos: [file1.jpg, file2.jpg] # Up to 3 photos, 15MB each
 ```
 
 #### Discovery
+
 ```http
 # Find nearby artworks
 GET /api/artworks/nearby?lat=49.2827&lon=-123.1207&radius=500
@@ -88,6 +95,7 @@ GET /api/artworks/{artwork-id}
 ```
 
 #### User Management
+
 ```http
 # Get user's submissions
 GET /api/me/submissions
@@ -99,6 +107,7 @@ Authorization: Bearer {user-token}
 ```
 
 #### Authentication
+
 ```http
 # Request magic link
 POST /api/auth/magic-link
@@ -118,6 +127,7 @@ Content-Type: application/json
 ```
 
 #### Content Moderation (Reviewers Only)
+
 ```http
 # Get review queue
 GET /api/review/queue
@@ -133,11 +143,13 @@ Authorization: Bearer {reviewer-token}
 ```
 
 ### Rate Limits
+
 - **Submissions**: 10 per day per user token
 - **Queries**: 60 per hour per user token
 - **Magic Links**: 5 per hour per email
 
 ### Response Format
+
 ```json
 {
   "success": true,
@@ -147,7 +159,8 @@ Authorization: Bearer {reviewer-token}
 }
 ```
 
-For complete API documentation with examples and error codes, see [`docs/api.md`](docs/api.md).
+For complete API documentation with examples and error codes, see
+[`docs/api.md`](docs/api.md).
 
 ## 🚀 Quick Start
 
@@ -263,21 +276,28 @@ The project uses these Cloudflare services:
 
 ### Worker API Features
 
-- **Spatial Queries**: Efficient geospatial search with bounding box optimization
+- **Spatial Queries**: Efficient geospatial search with bounding box
+  optimization
 - **Photo Processing**: Secure upload pipeline with validation and R2 storage
-- **Rate Limiting**: Per-user limits using KV storage (10 submissions/day, 60 queries/hour)
+- **Rate Limiting**: Per-user limits using KV storage (10 submissions/day, 60
+  queries/hour)
 - **Magic Link Auth**: Email verification with secure token generation
-- **Content Moderation**: Review workflow for submissions with approval/rejection
+- **Content Moderation**: Review workflow for submissions with
+  approval/rejection
 - **Type Safety**: Full TypeScript with comprehensive error handling
-- **Testing**: 54 tests across integration, performance, and moderation workflows
+- **Testing**: 54 tests across integration, performance, and moderation
+  workflows
 
 ### Documentation
 
-- **[API Documentation](docs/api.md)**: Complete endpoint specifications with examples
-- **[Deployment Guide](docs/deployment.md)**: Cloudflare Workers, D1, KV, and R2 setup
+- **[API Documentation](docs/api.md)**: Complete endpoint specifications with
+  examples
+- **[Deployment Guide](docs/deployment.md)**: Cloudflare Workers, D1, KV, and R2
+  setup
 - **[Development Guide](docs/development.md)**: Local development and debugging
 - **[Rate Limiting](docs/rate-limiting.md)**: Configuration and monitoring
-- **[Photo Processing](docs/photo-processing.md)**: Upload pipeline and R2 storage
+- **[Photo Processing](docs/photo-processing.md)**: Upload pipeline and R2
+  storage
 - **[Troubleshooting](docs/troubleshooting.md)**: Common issues and solutions
 
 ### Setup Time Goals

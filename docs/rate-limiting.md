@@ -1,10 +1,13 @@
 # Rate Limiting Configuration and Monitoring
 
-The Cultural Archiver API implements comprehensive rate limiting to prevent abuse while maintaining good user experience. This document covers configuration, monitoring, and management of rate limits.
+The Cultural Archiver API implements comprehensive rate limiting to prevent
+abuse while maintaining good user experience. This document covers
+configuration, monitoring, and management of rate limits.
 
 ## Overview
 
-Rate limiting is implemented using Cloudflare KV storage with per-user-token tracking. Limits are enforced at the middleware level before request processing.
+Rate limiting is implemented using Cloudflare KV storage with per-user-token
+tracking. Limits are enforced at the middleware level before request processing.
 
 ### Rate Limit Types
 
@@ -21,9 +24,9 @@ Rate limits use Cloudflare KV with structured keys:
 ```typescript
 // KV Key Patterns
 const RATE_LIMIT_KEYS = {
-  submissions: `rate:submit:${userToken}:${date}`,  // YYYY-MM-DD format
-  queries: `rate:query:${userToken}:${hour}`,       // YYYY-MM-DD-HH format
-  magicLinks: `rate:magic:${email}:${hour}`         // YYYY-MM-DD-HH format
+  submissions: `rate:submit:${userToken}:${date}`, // YYYY-MM-DD format
+  queries: `rate:query:${userToken}:${hour}`, // YYYY-MM-DD-HH format
+  magicLinks: `rate:magic:${email}:${hour}`, // YYYY-MM-DD-HH format
 };
 ```
 
@@ -32,8 +35,8 @@ const RATE_LIMIT_KEYS = {
 ```typescript
 interface RateLimitCounter {
   count: number;
-  firstRequest: number;  // Unix timestamp
-  lastRequest: number;   // Unix timestamp
+  firstRequest: number; // Unix timestamp
+  lastRequest: number; // Unix timestamp
 }
 ```
 
@@ -80,30 +83,33 @@ export async function rateLimitMiddleware(
 ): Promise<Response | void> {
   const config = getRateLimitConfig(limitType);
   const key = generateRateLimitKey(userToken, limitType);
-  
+
   const current = await c.env.RATE_LIMITS.get(key);
   const counter = current ? JSON.parse(current) : { count: 0 };
-  
+
   if (counter.count >= config.limit) {
-    return c.json({
-      success: false,
-      error: {
-        code: 'RATE_LIMIT_EXCEEDED',
-        message: `Rate limit exceeded: ${config.limit} ${limitType}s per ${config.window}`,
-        retryAfter: calculateRetryAfter(key, config)
-      }
-    }, 429);
+    return c.json(
+      {
+        success: false,
+        error: {
+          code: 'RATE_LIMIT_EXCEEDED',
+          message: `Rate limit exceeded: ${config.limit} ${limitType}s per ${config.window}`,
+          retryAfter: calculateRetryAfter(key, config),
+        },
+      },
+      429
+    );
   }
-  
+
   // Increment counter
   counter.count++;
   counter.lastRequest = Date.now();
   if (!counter.firstRequest) counter.firstRequest = Date.now();
-  
+
   await c.env.RATE_LIMITS.put(key, JSON.stringify(counter), {
-    expirationTtl: config.ttl
+    expirationTtl: config.ttl,
   });
-  
+
   // Add rate limit headers to response
   c.header('X-RateLimit-Limit', config.limit.toString());
   c.header('X-RateLimit-Remaining', (config.limit - counter.count).toString());
@@ -153,6 +159,7 @@ interface RateLimitMetrics {
 ### CloudFlare Analytics
 
 Monitor through Cloudflare dashboard:
+
 - Workers analytics for 429 response codes
 - KV usage patterns and storage consumption
 - Geographic distribution of rate-limited requests
@@ -165,21 +172,21 @@ For development and debugging:
 
 ```typescript
 // Debug endpoints (development only)
-app.get('/debug/rate-limits/:token', async (c) => {
+app.get('/debug/rate-limits/:token', async c => {
   if (c.env.ENVIRONMENT !== 'development') {
     return c.json({ error: 'Not available in production' }, 404);
   }
-  
+
   const token = c.req.param('token');
   const limits = await getAllRateLimits(c.env.RATE_LIMITS, token);
   return c.json({ token, limits });
 });
 
-app.delete('/debug/rate-limits/:token', async (c) => {
+app.delete('/debug/rate-limits/:token', async c => {
   if (c.env.ENVIRONMENT !== 'development') {
     return c.json({ error: 'Not available in production' }, 404);
   }
-  
+
   const token = c.req.param('token');
   await clearUserRateLimits(c.env.RATE_LIMITS, token);
   return c.json({ message: 'Rate limits cleared', token });
@@ -206,19 +213,23 @@ wrangler kv:bulk delete --binding=RATE_LIMITS --file=expired-keys.txt
 Reviewers have elevated limits:
 
 ```typescript
-const getEffectiveRateLimit = (userToken: string, isReviewer: boolean, limitType: string) => {
+const getEffectiveRateLimit = (
+  userToken: string,
+  isReviewer: boolean,
+  limitType: string
+) => {
   const baseLimits = {
     submission: 10,
-    query: 60
+    query: 60,
   };
-  
+
   if (isReviewer) {
     return {
-      submission: baseLimits.submission * 5,  // 50 per day
-      query: baseLimits.query * 3             // 180 per hour
+      submission: baseLimits.submission * 5, // 50 per day
+      query: baseLimits.query * 3, // 180 per hour
     }[limitType];
   }
-  
+
   return baseLimits[limitType];
 };
 ```
@@ -231,7 +242,7 @@ For urgent situations:
 // Emergency bypass (admin only)
 const EMERGENCY_BYPASS_TOKENS = new Set([
   'emergency-admin-token',
-  'incident-response-token'
+  'incident-response-token',
 ]);
 
 if (EMERGENCY_BYPASS_TOKENS.has(userToken)) {
@@ -254,13 +265,17 @@ const checkMultipleRateLimits = async (
   kv: KVNamespace,
   checks: Array<{ token: string; type: string }>
 ) => {
-  const keys = checks.map(check => generateRateLimitKey(check.token, check.type));
+  const keys = checks.map(check =>
+    generateRateLimitKey(check.token, check.type)
+  );
   const values = await Promise.all(keys.map(key => kv.get(key)));
-  
+
   return checks.map((check, index) => ({
     ...check,
     current: values[index] ? JSON.parse(values[index]) : { count: 0 },
-    allowed: values[index] ? JSON.parse(values[index]).count < getRateLimit(check.type) : true
+    allowed: values[index]
+      ? JSON.parse(values[index]).count < getRateLimit(check.type)
+      : true,
   }));
 };
 ```
@@ -280,14 +295,16 @@ Prevent rate limit bypass attempts:
 ```typescript
 // Token validation
 const validateUserToken = (token: string): boolean => {
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token);
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    token
+  );
 };
 
 // Detect suspicious patterns
 const detectAbnormalUsage = (counter: RateLimitCounter): boolean => {
   const timeWindow = counter.lastRequest - counter.firstRequest;
   const avgInterval = timeWindow / counter.count;
-  
+
   // Flag if requests are too evenly spaced (bot-like behavior)
   return avgInterval < 1000 && counter.count > 5;
 };
@@ -303,10 +320,7 @@ const ipRateLimitKey = `rate:ip:${clientIP}:${hour}`;
 const ipLimit = 1000; // Higher limit for IP-based limiting
 
 // Apply both token and IP rate limiting
-await Promise.all([
-  checkTokenRateLimit(userToken),
-  checkIPRateLimit(clientIP)
-]);
+await Promise.all([checkTokenRateLimit(userToken), checkIPRateLimit(clientIP)]);
 ```
 
 ## Troubleshooting
@@ -314,16 +328,19 @@ await Promise.all([
 ### Common Issues
 
 **High Rate Limit Rejections:**
+
 1. Check for bot traffic patterns
 2. Verify user token generation
 3. Review limit configurations for appropriate levels
 
 **KV Storage Errors:**
+
 1. Verify KV namespace bindings in wrangler.toml
 2. Check KV namespace permissions
 3. Monitor KV storage quotas
 
 **Performance Impact:**
+
 1. Monitor request latency with rate limiting enabled
 2. Optimize KV read/write patterns
 3. Consider implementing request queuing for burst traffic

@@ -1,6 +1,6 @@
 /**
  * Email utilities for magic link authentication using Cloudflare Email Workers
- * 
+ *
  * This module handles sending verification emails with magic links and
  * managing email-based authentication flows.
  */
@@ -29,7 +29,7 @@ export async function generateMagicLinkToken(): Promise<string> {
   // Generate a secure random token using Web Crypto API
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
-  
+
   // Convert to base64url (URL-safe)
   const base64 = btoa(String.fromCharCode(...array));
   return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
@@ -46,7 +46,7 @@ export async function createMagicLink(
 ): Promise<{ token: string; expiresAt: Date }> {
   const token = await generateMagicLinkToken();
   const expiresAt = new Date(Date.now() + MAGIC_LINK_EXPIRY_MINUTES * 60 * 1000);
-  
+
   // Store magic link data in KV with expiration
   const magicLinkData = {
     email: email.toLowerCase().trim(),
@@ -57,14 +57,12 @@ export async function createMagicLink(
     ipAddress: request.headers.get('CF-Connecting-IP') || 'Unknown',
     consumed: false,
   };
-  
+
   // Store in KV with automatic expiration
-  await env.SESSIONS.put(
-    `magic:${token}`,
-    JSON.stringify(magicLinkData),
-    { expirationTtl: MAGIC_LINK_EXPIRY_MINUTES * 60 }
-  );
-  
+  await env.SESSIONS.put(`magic:${token}`, JSON.stringify(magicLinkData), {
+    expirationTtl: MAGIC_LINK_EXPIRY_MINUTES * 60,
+  });
+
   return { token, expiresAt };
 }
 
@@ -73,7 +71,7 @@ export async function createMagicLink(
  */
 export function generateMagicLinkEmail(data: MagicLinkEmailData): string {
   const { email, magicLink, expiresAt, userAgent, ipAddress } = data;
-  
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -182,12 +180,12 @@ export async function sendMagicLinkEmail(
       userAgent: request.headers.get('User-Agent') || undefined,
       ipAddress: request.headers.get('CF-Connecting-IP') || undefined,
     };
-    
+
     const htmlContent = generateMagicLinkEmail(emailData);
-    
+
     // For MVP, we'll use a simple email sending approach
     // In production, this would integrate with Cloudflare Email Workers or a service like Resend
-    
+
     if (env.EMAIL_API_KEY && env.EMAIL_FROM) {
       // Use external email service (Resend, SendGrid, etc.)
       const emailPayload = {
@@ -196,25 +194,22 @@ export async function sendMagicLinkEmail(
         subject: 'Verify your Cultural Archiver account',
         html: htmlContent,
       };
-      
+
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${env.EMAIL_API_KEY}`,
+          Authorization: `Bearer ${env.EMAIL_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(emailPayload),
       });
-      
+
       if (!response.ok) {
         const errorData = await response.text();
         console.error('Email sending failed:', errorData);
-        throw new ApiError(
-          'Email delivery failed', 
-          'INTEGRATION_ERROR', 
-          502,
-          { details: { email: email.toLowerCase().trim() } }
-        );
+        throw new ApiError('Email delivery failed', 'INTEGRATION_ERROR', 502, {
+          details: { email: email.toLowerCase().trim() },
+        });
       }
     } else {
       // Development mode: log email content instead of sending
@@ -223,7 +218,7 @@ export async function sendMagicLinkEmail(
       console.log('Magic Link:', magicLink);
       console.log('Expires:', expiresAt.toISOString());
       console.log('========================');
-      
+
       // In development, we'll store the magic link in KV for easy access
       await env.SESSIONS.put(
         `dev-email:${email}`,
@@ -231,20 +226,16 @@ export async function sendMagicLinkEmail(
         { expirationTtl: MAGIC_LINK_EXPIRY_MINUTES * 60 }
       );
     }
-    
   } catch (error) {
     console.error('Error sending magic link email:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to send verification email',
-      'EMAIL_SEND_ERROR',
-      503,
-      { details: { email: email.toLowerCase().trim() } }
-    );
+
+    throw new ApiError('Failed to send verification email', 'EMAIL_SEND_ERROR', 503, {
+      details: { email: email.toLowerCase().trim() },
+    });
   }
 }
 
@@ -258,46 +249,34 @@ export async function consumeMagicLink(
   try {
     // Retrieve magic link data from KV
     const magicLinkDataStr = await env.SESSIONS.get(`magic:${token}`);
-    
+
     if (!magicLinkDataStr) {
-      throw new ApiError(
-        'Invalid or expired verification link',
-        'INVALID_MAGIC_LINK',
-        400
-      );
+      throw new ApiError('Invalid or expired verification link', 'INVALID_MAGIC_LINK', 400);
     }
-    
+
     const magicLinkData = JSON.parse(magicLinkDataStr);
-    
+
     // Check if already consumed
     if (magicLinkData.consumed) {
-      throw new ApiError(
-        'Verification link has already been used',
-        'MAGIC_LINK_CONSUMED',
-        400
-      );
+      throw new ApiError('Verification link has already been used', 'MAGIC_LINK_CONSUMED', 400);
     }
-    
+
     // Check expiration (double-check even though KV has TTL)
     const expiresAt = new Date(magicLinkData.expiresAt);
     if (expiresAt <= new Date()) {
-      throw new ApiError(
-        'Verification link has expired',
-        'MAGIC_LINK_EXPIRED',
-        400
-      );
+      throw new ApiError('Verification link has expired', 'MAGIC_LINK_EXPIRED', 400);
     }
-    
+
     // Mark as consumed
     magicLinkData.consumed = true;
     magicLinkData.consumedAt = new Date().toISOString();
-    
+
     await env.SESSIONS.put(
       `magic:${token}`,
       JSON.stringify(magicLinkData),
       { expirationTtl: 300 } // Keep for 5 minutes for audit purposes
     );
-    
+
     // Store email verification for user
     await env.SESSIONS.put(
       `email:${magicLinkData.userToken}`,
@@ -308,24 +287,19 @@ export async function consumeMagicLink(
       }),
       { expirationTtl: 86400 * 30 } // Keep for 30 days
     );
-    
+
     return {
       userToken: magicLinkData.userToken,
       email: magicLinkData.email,
     };
-    
   } catch (error) {
     console.error('Error consuming magic link:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to verify email',
-      'MAGIC_LINK_ERROR',
-      500
-    );
+
+    throw new ApiError('Failed to verify email', 'MAGIC_LINK_ERROR', 500);
   }
 }
 
@@ -335,45 +309,36 @@ export async function consumeMagicLink(
 export async function cleanupExpiredMagicLinks(_env: WorkerEnv): Promise<number> {
   // Note: KV automatically expires keys based on TTL, so this is mainly for audit purposes
   // In a production system, you might want to log cleanup statistics
-  
+
   let cleanedCount = 0;
-  
+
   try {
     // KV automatically handles expiration, but we could implement additional cleanup logic here
     // For now, we'll just return 0 as cleanup is handled automatically
     console.log('Magic link cleanup: automatic TTL expiration in effect');
-    
   } catch (error) {
     console.error('Error during magic link cleanup:', error);
   }
-  
+
   return cleanedCount;
 }
 
 /**
  * Development helper: get magic link for email (only in development)
  */
-export async function getDevMagicLink(
-  env: WorkerEnv,
-  email: string
-): Promise<string | null> {
+export async function getDevMagicLink(env: WorkerEnv, email: string): Promise<string | null> {
   if (env.ENVIRONMENT === 'production') {
-    throw new ApiError(
-      'Development endpoint not available in production',
-      'FORBIDDEN',
-      403
-    );
+    throw new ApiError('Development endpoint not available in production', 'FORBIDDEN', 403);
   }
-  
+
   try {
     const devEmailData = await env.SESSIONS.get(`dev-email:${email}`);
     if (!devEmailData) {
       return null;
     }
-    
+
     const data = JSON.parse(devEmailData);
     return data.magicLink;
-    
   } catch (error) {
     console.error('Error retrieving dev magic link:', error);
     return null;

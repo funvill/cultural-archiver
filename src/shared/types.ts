@@ -419,7 +419,7 @@ export const ARTWORK_STATUSES = ['pending', 'approved', 'removed'] as const;
 export const LOGBOOK_STATUSES = ['pending', 'approved', 'rejected'] as const;
 export const ARTWORK_TYPES = [
   'public_art',
-  'street_art', 
+  'street_art',
   'monument',
   'sculpture',
   'other',

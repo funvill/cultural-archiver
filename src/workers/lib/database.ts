@@ -3,10 +3,10 @@
  * Provides prepared statements and helper functions for artwork, logbook, and tag operations
  */
 
-import type { 
-  ArtworkRecord, 
-  LogbookRecord, 
-  TagRecord, 
+import type {
+  ArtworkRecord,
+  LogbookRecord,
+  TagRecord,
   ArtworkTypeRecord,
   CreateArtworkRequest,
   CreateLogbookEntryRequest,
@@ -29,26 +29,26 @@ export class DatabaseService {
   async createArtwork(data: CreateArtworkRequest): Promise<string> {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    
+
     // For MVP, we'll add photos as NULL since the current schema doesn't have it
     const stmt = this.db.prepare(`
       INSERT INTO artwork (id, lat, lon, type_id, created_at, status, tags)
       VALUES (?, ?, ?, ?, ?, 'pending', ?)
     `);
-    
+
     const tagsJson = data.tags ? JSON.stringify(data.tags) : null;
     await stmt.bind(id, data.lat, data.lon, data.type_id, now, tagsJson).run();
-    
+
     return id;
   }
 
   async getArtworkById(id: string): Promise<ArtworkRecord | null> {
     const stmt = this.db.prepare('SELECT * FROM artwork WHERE id = ?');
     const result = await stmt.bind(id).first();
-    return result as unknown as ArtworkRecord || null;
+    return (result as unknown as ArtworkRecord) || null;
   }
 
-  async getArtworkWithDetails(id: string): Promise<ArtworkRecord & { type_name: string } | null> {
+  async getArtworkWithDetails(id: string): Promise<(ArtworkRecord & { type_name: string }) | null> {
     const stmt = this.db.prepare(`
       SELECT a.*, at.name as type_name
       FROM artwork a
@@ -56,18 +56,18 @@ export class DatabaseService {
       WHERE a.id = ? AND a.status = 'approved'
     `);
     const result = await stmt.bind(id).first();
-    return result as (ArtworkRecord & { type_name: string }) || null;
+    return (result as ArtworkRecord & { type_name: string }) || null;
   }
 
   async findNearbyArtworks(
-    lat: number, 
-    lon: number, 
-    radius: number = 500, 
+    lat: number,
+    lon: number,
+    radius: number = 500,
     limit: number = 20
   ): Promise<(ArtworkRecord & { type_name: string; distance_km: number })[]> {
     // Convert radius from meters to degrees (approximate)
     const radiusDegrees = radius / 111000; // ~111km per degree
-    
+
     const stmt = this.db.prepare(`
       SELECT a.*, at.name as type_name,
              (
@@ -82,26 +82,36 @@ export class DatabaseService {
       ORDER BY distance_sq ASC
       LIMIT ?
     `);
-    
+
     const minLat = lat - radiusDegrees;
     const maxLat = lat + radiusDegrees;
     const minLon = lon - radiusDegrees;
     const maxLon = lon + radiusDegrees;
-    
-    const results = await stmt.bind(
-      lat, lat, lon, lon,  // for distance calculation
-      minLat, maxLat, minLon, maxLon,  // for bounding box
-      limit
-    ).all();
-    
+
+    const results = await stmt
+      .bind(
+        lat,
+        lat,
+        lon,
+        lon, // for distance calculation
+        minLat,
+        maxLat,
+        minLon,
+        maxLon, // for bounding box
+        limit
+      )
+      .all();
+
     // Convert distance_sq to actual distance and filter by radius
-    return (results.results as ArtworkWithDistance[]).map((artwork: ArtworkWithDistance) => {
-      const distanceKm = Math.sqrt(artwork.distance_sq) * 111; // Convert degrees to km
-      return {
-        ...artwork,
-        distance_km: distanceKm,
-      };
-    }).filter((artwork: ArtworkWithDistance) => artwork.distance_km <= radius / 1000);
+    return (results.results as ArtworkWithDistance[])
+      .map((artwork: ArtworkWithDistance) => {
+        const distanceKm = Math.sqrt(artwork.distance_sq) * 111; // Convert degrees to km
+        return {
+          ...artwork,
+          distance_km: distanceKm,
+        };
+      })
+      .filter((artwork: ArtworkWithDistance) => artwork.distance_km <= radius / 1000);
   }
 
   async updateArtworkStatus(id: string, status: ArtworkRecord['status']): Promise<void> {
@@ -116,15 +126,17 @@ export class DatabaseService {
   async createLogbookEntry(data: CreateLogbookEntryRequest): Promise<LogbookRecord> {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    
+
     const stmt = this.db.prepare(`
       INSERT INTO logbook (id, artwork_id, user_token, note, photos, status, created_at)
       VALUES (?, ?, ?, ?, ?, 'pending', ?)
     `);
-    
+
     const photosJson = data.photos ? JSON.stringify(data.photos) : null;
-    await stmt.bind(id, data.artwork_id || null, data.user_token, data.note || null, photosJson, now).run();
-    
+    await stmt
+      .bind(id, data.artwork_id || null, data.user_token, data.note || null, photosJson, now)
+      .run();
+
     return {
       id,
       artwork_id: data.artwork_id || null,
@@ -139,7 +151,7 @@ export class DatabaseService {
   async getLogbookById(id: string): Promise<LogbookRecord | null> {
     const stmt = this.db.prepare('SELECT * FROM logbook WHERE id = ?');
     const result = await stmt.bind(id).first();
-    return result as LogbookRecord || null;
+    return (result as LogbookRecord) || null;
   }
 
   async getLogbookEntriesForArtwork(artworkId: string): Promise<LogbookRecord[]> {
@@ -152,12 +164,20 @@ export class DatabaseService {
     return results.results as LogbookRecord[];
   }
 
-  async getUserSubmissions(userToken: string, page: number = 1, perPage: number = 20): Promise<{
-    submissions: (LogbookRecord & { artwork_lat?: number; artwork_lon?: number; artwork_type_name?: string })[];
+  async getUserSubmissions(
+    userToken: string,
+    page: number = 1,
+    perPage: number = 20
+  ): Promise<{
+    submissions: (LogbookRecord & {
+      artwork_lat?: number;
+      artwork_lon?: number;
+      artwork_type_name?: string;
+    })[];
     total: number;
   }> {
     const offset = (page - 1) * perPage;
-    
+
     // Get submissions (exclude rejected)
     const stmt = this.db.prepare(`
       SELECT l.*, a.lat as artwork_lat, a.lon as artwork_lon, at.name as artwork_type_name
@@ -168,18 +188,22 @@ export class DatabaseService {
       ORDER BY l.created_at DESC
       LIMIT ? OFFSET ?
     `);
-    
+
     const results = await stmt.bind(userToken, perPage, offset).all();
-    
+
     // Get total count
     const countStmt = this.db.prepare(`
       SELECT COUNT(*) as total FROM logbook 
       WHERE user_token = ? AND status != 'rejected'
     `);
     const countResult = await countStmt.bind(userToken).first();
-    
+
     return {
-      submissions: results.results as (LogbookRecord & { artwork_lat?: number; artwork_lon?: number; artwork_type_name?: string })[],
+      submissions: results.results as (LogbookRecord & {
+        artwork_lat?: number;
+        artwork_lon?: number;
+        artwork_type_name?: string;
+      })[],
       total: (countResult as { total: number } | null)?.total || 0,
     };
   }
@@ -222,7 +246,7 @@ export class DatabaseService {
   async getArtworkTypeById(id: string): Promise<ArtworkTypeRecord | null> {
     const stmt = this.db.prepare('SELECT * FROM artwork_types WHERE id = ?');
     const result = await stmt.bind(id).first();
-    return result as ArtworkTypeRecord || null;
+    return (result as ArtworkTypeRecord) || null;
   }
 
   async getArtworkTypeByName(name: string): Promise<ArtworkTypeRecord | null> {
@@ -238,14 +262,16 @@ export class DatabaseService {
   async createTag(data: CreateTagRequest): Promise<TagRecord> {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
-    
+
     const stmt = this.db.prepare(`
       INSERT INTO tags (id, artwork_id, logbook_id, label, value, created_at)
       VALUES (?, ?, ?, ?, ?, ?)
     `);
-    
-    await stmt.bind(id, data.artwork_id || null, data.logbook_id || null, data.label, data.value, now).run();
-    
+
+    await stmt
+      .bind(id, data.artwork_id || null, data.logbook_id || null, data.label, data.value, now)
+      .run();
+
     return {
       id,
       artwork_id: data.artwork_id || null,
@@ -278,9 +304,9 @@ export class DatabaseService {
       await stmt.first();
       return { status: 'healthy' };
     } catch (error) {
-      return { 
-        status: 'unhealthy', 
-        message: error instanceof Error ? error.message : 'Unknown database error' 
+      return {
+        status: 'unhealthy',
+        message: error instanceof Error ? error.message : 'Unknown database error',
       };
     }
   }
@@ -305,9 +331,12 @@ export function createDatabaseService(db: D1Database): DatabaseService {
 // Individual Function Exports (for legacy compatibility)
 // ================================
 
-export async function insertArtwork(db: D1Database, artwork: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'>): Promise<string> {
+export async function insertArtwork(
+  db: D1Database,
+  artwork: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'>
+): Promise<string> {
   const service = createDatabaseService(db);
-  
+
   // Convert artwork to CreateArtworkRequest format
   const createRequest: CreateArtworkRequest = {
     lat: artwork.lat,
@@ -315,11 +344,16 @@ export async function insertArtwork(db: D1Database, artwork: Omit<ArtworkRecord,
     type_id: artwork.type_id,
     tags: artwork.tags ? JSON.parse(artwork.tags) : {},
   };
-  
+
   return service.createArtwork(createRequest);
 }
 
-export async function updateLogbookStatus(db: D1Database, id: string, status: LogbookRecord['status'], artworkId?: string): Promise<void> {
+export async function updateLogbookStatus(
+  db: D1Database,
+  id: string,
+  status: LogbookRecord['status'],
+  artworkId?: string
+): Promise<void> {
   const service = createDatabaseService(db);
   await service.updateLogbookStatus(id, status);
   if (artworkId) {
@@ -327,7 +361,12 @@ export async function updateLogbookStatus(db: D1Database, id: string, status: Lo
   }
 }
 
-export async function findNearbyArtworks(db: D1Database, lat: number, lon: number, radiusMeters: number = 500): Promise<ArtworkRecord[]> {
+export async function findNearbyArtworks(
+  db: D1Database,
+  lat: number,
+  lon: number,
+  radiusMeters: number = 500
+): Promise<ArtworkRecord[]> {
   const service = createDatabaseService(db);
   return service.findNearbyArtworks(lat, lon, radiusMeters);
 }
@@ -337,7 +376,10 @@ export async function findLogbookById(db: D1Database, id: string): Promise<Logbo
   return service.getLogbookById(id);
 }
 
-export async function insertTags(db: D1Database, tags: Array<{ label: string; value: string; artwork_id?: string; logbook_id?: string | null }>): Promise<void> {
+export async function insertTags(
+  db: D1Database,
+  tags: Array<{ label: string; value: string; artwork_id?: string; logbook_id?: string | null }>
+): Promise<void> {
   const service = createDatabaseService(db);
   for (const tag of tags) {
     if (tag.artwork_id || tag.logbook_id) {
@@ -357,8 +399,12 @@ export async function findArtworkById(db: D1Database, id: string): Promise<Artwo
   return service.getArtworkById(id);
 }
 
-export async function updateArtworkPhotos(db: D1Database, id: string, photoUrls: string[]): Promise<void> {
-  // For MVP, since photos field doesn't exist in artwork table, 
+export async function updateArtworkPhotos(
+  db: D1Database,
+  id: string,
+  photoUrls: string[]
+): Promise<void> {
+  // For MVP, since photos field doesn't exist in artwork table,
   // we'll store photos in the tags field as a special key
   const stmt = db.prepare(`
     UPDATE artwork 
@@ -371,7 +417,10 @@ export async function updateArtworkPhotos(db: D1Database, id: string, photoUrls:
   await stmt.bind(JSON.stringify(photoUrls), id).run();
 }
 
-export async function getArtworkTypeByName(db: D1Database, name: string): Promise<ArtworkTypeRecord | null> {
+export async function getArtworkTypeByName(
+  db: D1Database,
+  name: string
+): Promise<ArtworkTypeRecord | null> {
   const service = createDatabaseService(db);
   return service.getArtworkTypeByName(name);
 }

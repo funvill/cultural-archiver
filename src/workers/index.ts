@@ -8,17 +8,9 @@ import { secureHeaders } from 'hono/secure-headers';
 import type { WorkerEnv } from '../shared/types';
 
 // Import middleware
-import { 
-  ensureUserToken, 
-  addUserTokenToResponse, 
-  checkEmailVerification 
-} from './middleware/auth';
-import { 
-  rateLimitSubmissions, 
-  rateLimitQueries, 
-  addRateLimitStatus 
-} from './middleware/rateLimit';
-import { 
+import { ensureUserToken, addUserTokenToResponse, checkEmailVerification } from './middleware/auth';
+import { rateLimitSubmissions, rateLimitQueries, addRateLimitStatus } from './middleware/rateLimit';
+import {
   validateLogbookSubmission,
   validateNearbyArtworksQuery,
   validateUserSubmissionsQuery,
@@ -34,7 +26,7 @@ import { withErrorHandling, sendErrorResponse } from './lib/errors';
 import { createLogbookSubmission } from './routes/submissions';
 import { getNearbyArtworks, getArtworkDetails } from './routes/discovery';
 import { getUserSubmissions, getUserProfile } from './routes/user';
-import { 
+import {
   requestMagicLink,
   consumeMagicLinkToken,
   getVerificationStatus,
@@ -98,7 +90,8 @@ app.get('/api/status', c => {
 // Submission Endpoints
 // ================================
 
-app.post('/api/logbook',
+app.post(
+  '/api/logbook',
   rateLimitSubmissions,
   validateFileUploads,
   validateLogbookSubmission,
@@ -110,13 +103,15 @@ app.post('/api/logbook',
 // Discovery Endpoints
 // ================================
 
-app.get('/api/artworks/nearby',
+app.get(
+  '/api/artworks/nearby',
   rateLimitQueries,
   validateNearbyArtworksQuery,
   withErrorHandling(getNearbyArtworks)
 );
 
-app.get('/api/artworks/:id',
+app.get(
+  '/api/artworks/:id',
   rateLimitQueries,
   validateUUID('id'),
   withErrorHandling(getArtworkDetails)
@@ -126,14 +121,16 @@ app.get('/api/artworks/:id',
 // User Management Endpoints
 // ================================
 
-app.get('/api/me/submissions',
+app.get(
+  '/api/me/submissions',
   validateUserSubmissionsQuery,
   addRateLimitStatus,
   addUserTokenToResponse,
   withErrorHandling(getUserSubmissions)
 );
 
-app.get('/api/me/profile',
+app.get(
+  '/api/me/profile',
   addRateLimitStatus,
   addUserTokenToResponse,
   withErrorHandling(getUserProfile)
@@ -143,30 +140,35 @@ app.get('/api/me/profile',
 // Authentication Endpoints
 // ================================
 
-app.post('/api/auth/magic-link',
+app.post(
+  '/api/auth/magic-link',
   rateLimitQueries, // Use query rate limit for auth requests
   validateMagicLinkRequest,
   addUserTokenToResponse,
   withErrorHandling(requestMagicLink)
 );
 
-app.post('/api/auth/consume',
+app.post(
+  '/api/auth/consume',
   validateSchema(consumeMagicLinkSchema, 'body'),
   addUserTokenToResponse,
   withErrorHandling(consumeMagicLinkToken)
 );
 
-app.get('/api/auth/verify-status',
+app.get(
+  '/api/auth/verify-status',
   addUserTokenToResponse,
   withErrorHandling(getVerificationStatus)
 );
 
-app.delete('/api/auth/unverify',
+app.delete(
+  '/api/auth/unverify',
   addUserTokenToResponse,
   withErrorHandling(removeEmailVerification)
 );
 
-app.post('/api/auth/resend',
+app.post(
+  '/api/auth/resend',
   rateLimitQueries,
   validateMagicLinkRequest,
   addUserTokenToResponse,
@@ -174,40 +176,27 @@ app.post('/api/auth/resend',
 );
 
 // Development only - get magic link for email
-app.get('/api/auth/dev/magic-link',
-  withErrorHandling(getDevMagicLinkEndpoint)
-);
+app.get('/api/auth/dev/magic-link', withErrorHandling(getDevMagicLinkEndpoint));
 
 // ================================
 // Review/Moderation Endpoints
 // ================================
 
-app.get('/api/review/queue',
-  withErrorHandling(getReviewQueue)
-);
+app.get('/api/review/queue', withErrorHandling(getReviewQueue));
 
-app.get('/api/review/submission/:id',
+app.get(
+  '/api/review/submission/:id',
   validateUUID('id'),
   withErrorHandling(getSubmissionForReview)
 );
 
-app.post('/api/review/approve/:id',
-  validateUUID('id'),
-  withErrorHandling(approveSubmission)
-);
+app.post('/api/review/approve/:id', validateUUID('id'), withErrorHandling(approveSubmission));
 
-app.post('/api/review/reject/:id',
-  validateUUID('id'),
-  withErrorHandling(rejectSubmission)
-);
+app.post('/api/review/reject/:id', validateUUID('id'), withErrorHandling(rejectSubmission));
 
-app.get('/api/review/stats',
-  withErrorHandling(getReviewStats)
-);
+app.get('/api/review/stats', withErrorHandling(getReviewStats));
 
-app.put('/api/review/batch',
-  withErrorHandling(processBatchReview)
-);
+app.put('/api/review/batch', withErrorHandling(processBatchReview));
 
 // ================================
 // Legacy/Compatibility Endpoints
@@ -222,7 +211,7 @@ app.get('/api/artworks', async c => {
   url.pathname = '/api/artworks/nearby';
   url.searchParams.set('lat', defaultLat.toString());
   url.searchParams.set('lon', defaultLon.toString());
-  
+
   return c.redirect(url.toString(), 302);
 });
 
@@ -263,7 +252,7 @@ app.notFound(c => {
 // Global error handler
 app.onError((err, c) => {
   console.error('Worker error:', err);
-  
+
   // Use our error handling system
   return sendErrorResponse(c, err);
 });

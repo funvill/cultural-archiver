@@ -67,6 +67,8 @@ export default [
       'src/frontend/dist/**',
       'src/workers/dist/**',
       'src/workers/.wrangler/**',
+      '.wrangler/**',
+      '**/.wrangler/**',
       '*.d.ts',
     ],
   },

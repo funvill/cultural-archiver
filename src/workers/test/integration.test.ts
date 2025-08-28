@@ -6,60 +6,64 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 
 // Mock environment for testing
-const createMockEnv = () => ({
+const createMockEnv = (): Record<string, unknown> => ({
   DB: {
-    prepare: (sql: string) => ({
-      bind: (...params: unknown[]) => ({
-        first: async () => null,
-        all: async () => ({ results: [] }),
-        run: async () => ({ success: true, meta: { changes: 1 } }),
+    prepare: (_sql: string) => ({
+      bind: (..._params: unknown[]) => ({
+        first: async (): Promise<null> => null,
+        all: async (): Promise<{ results: unknown[] }> => ({ results: [] }),
+        run: async (): Promise<{ success: boolean; meta: { changes: number } }> => ({
+          success: true,
+          meta: { changes: 1 },
+        }),
       }),
-      first: async () => null,
-      all: async () => ({ results: [] }),
-      run: async () => ({ success: true, meta: { changes: 1 } }),
+      first: async (): Promise<null> => null,
+      all: async (): Promise<{ results: unknown[] }> => ({ results: [] }),
+      run: async (): Promise<{ success: boolean; meta: { changes: number } }> => ({
+        success: true,
+        meta: { changes: 1 },
+      }),
     }),
-    exec: async () => {},
+    exec: async (): Promise<void> => {},
   },
   SESSIONS: {
-    get: async () => null,
-    put: async () => {},
-    delete: async () => {},
-    list: async () => ({ keys: [] }),
+    get: async (): Promise<null> => null,
+    put: async (): Promise<void> => {},
+    delete: async (): Promise<void> => {},
+    list: async (): Promise<{ keys: unknown[] }> => ({ keys: [] }),
   },
   RATE_LIMITS: {
-    get: async () => null,
-    put: async () => {},
-    delete: async () => {},
-    list: async () => ({ keys: [] }),
+    get: async (): Promise<null> => null,
+    put: async (): Promise<void> => {},
+    delete: async (): Promise<void> => {},
+    list: async (): Promise<{ keys: unknown[] }> => ({ keys: [] }),
   },
   MAGIC_LINKS: {
-    get: async () => null,
-    put: async () => {},
-    delete: async () => {},
-    list: async () => ({ keys: [] }),
+    get: async (): Promise<null> => null,
+    put: async (): Promise<void> => {},
+    delete: async (): Promise<void> => {},
+    list: async (): Promise<{ keys: unknown[] }> => ({ keys: [] }),
   },
   PHOTOS_BUCKET: {
-    put: async () => {},
-    get: async () => null,
-    delete: async () => {},
-    list: async () => ({ objects: [] }),
+    put: async (): Promise<void> => {},
+    get: async (): Promise<null> => null,
+    delete: async (): Promise<void> => {},
+    list: async (): Promise<{ objects: unknown[] }> => ({ objects: [] }),
   },
   ENVIRONMENT: 'test',
   FRONTEND_URL: 'http://localhost:3000',
   LOG_LEVEL: 'debug',
 });
 
-describe('Cultural Archiver API Integration Tests', () => {
+describe('Cultural Archiver API Integration Tests', (): void => {
   let mockEnv: ReturnType<typeof createMockEnv>;
-  let userToken: string;
 
-  beforeAll(async () => {
+  beforeAll(async (): Promise<void> => {
     mockEnv = createMockEnv();
-    userToken = crypto.randomUUID();
   });
 
-  describe('API Structure Validation', () => {
-    it('should have proper error response format', () => {
+  describe('API Structure Validation', (): void => {
+    it('should have proper error response format', (): void => {
       const errorResponse = {
         success: false,
         error: {
@@ -76,7 +80,7 @@ describe('Cultural Archiver API Integration Tests', () => {
       expect(errorResponse.success).toBe(false);
     });
 
-    it('should have proper success response format', () => {
+    it('should have proper success response format', (): void => {
       const successResponse = {
         success: true,
         data: {
@@ -91,8 +95,8 @@ describe('Cultural Archiver API Integration Tests', () => {
     });
   });
 
-  describe('Coordinate Validation', () => {
-    it('should validate latitude boundaries', () => {
+  describe('Coordinate Validation', (): void => {
+    it('should validate latitude boundaries', (): void => {
       const validLat = 49.2827;
       const invalidLatHigh = 91;
       const invalidLatLow = -91;
@@ -103,7 +107,7 @@ describe('Cultural Archiver API Integration Tests', () => {
       expect(invalidLatLow).toBeLessThan(-90);
     });
 
-    it('should validate longitude boundaries', () => {
+    it('should validate longitude boundaries', (): void => {
       const validLon = -123.1207;
       const invalidLonHigh = 181;
       const invalidLonLow = -181;
@@ -115,8 +119,8 @@ describe('Cultural Archiver API Integration Tests', () => {
     });
   });
 
-  describe('Rate Limiting Logic', () => {
-    it('should track submission counts per user', () => {
+  describe('Rate Limiting Logic', (): void => {
+    it('should track submission counts per user', (): void => {
       const submissionCounts = new Map<string, number>();
       const userToken = 'test-user-1';
       const dailyLimit = 10;
@@ -132,7 +136,7 @@ describe('Cultural Archiver API Integration Tests', () => {
       expect(finalCount).toBeLessThan(dailyLimit);
     });
 
-    it('should enforce submission limits', () => {
+    it('should enforce submission limits', (): void => {
       const submissionCounts = new Map<string, number>();
       const userToken = 'test-user-2';
       const dailyLimit = 10;
@@ -147,8 +151,8 @@ describe('Cultural Archiver API Integration Tests', () => {
     });
   });
 
-  describe('Photo Validation Logic', () => {
-    it('should validate file types', () => {
+  describe('Photo Validation Logic', (): void => {
+    it('should validate file types', (): void => {
       const validMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
       const testMimeType = 'image/jpeg';
       const invalidMimeType = 'text/plain';
@@ -157,7 +161,7 @@ describe('Cultural Archiver API Integration Tests', () => {
       expect(validMimeTypes).not.toContain(invalidMimeType);
     });
 
-    it('should validate file sizes', () => {
+    it('should validate file sizes', (): void => {
       const maxFileSize = 15 * 1024 * 1024; // 15MB
       const validSize = 5 * 1024 * 1024; // 5MB
       const invalidSize = 20 * 1024 * 1024; // 20MB
@@ -166,7 +170,7 @@ describe('Cultural Archiver API Integration Tests', () => {
       expect(invalidSize).toBeGreaterThan(maxFileSize);
     });
 
-    it('should limit number of photos per submission', () => {
+    it('should limit number of photos per submission', (): void => {
       const maxPhotos = 3;
       const validPhotoCount = 2;
       const invalidPhotoCount = 5;
@@ -176,22 +180,21 @@ describe('Cultural Archiver API Integration Tests', () => {
     });
   });
 
-  describe('Spatial Query Logic', () => {
-    it('should calculate distance between coordinates', () => {
+  describe('Spatial Query Logic', (): void => {
+    it('should calculate distance between coordinates', (): void => {
       // Simple distance calculation test
       const point1 = { lat: 49.2827, lon: -123.1207 };
       const point2 = { lat: 49.2827, lon: -123.1207 }; // Same point
-      
+
       // Distance between same points should be 0
       const distance = Math.sqrt(
-        Math.pow(point2.lat - point1.lat, 2) + 
-        Math.pow(point2.lon - point1.lon, 2)
+        Math.pow(point2.lat - point1.lat, 2) + Math.pow(point2.lon - point1.lon, 2)
       );
-      
+
       expect(distance).toBe(0);
     });
 
-    it('should generate bounding box for radius search', () => {
+    it('should generate bounding box for radius search', (): void => {
       const centerLat = 49.2827;
       const centerLon = -123.1207;
       const radiusKm = 1; // 1km
@@ -211,15 +214,15 @@ describe('Cultural Archiver API Integration Tests', () => {
     });
   });
 
-  describe('UUID Generation and Validation', () => {
-    it('should generate valid UUIDs', () => {
+  describe('UUID Generation and Validation', (): void => {
+    it('should generate valid UUIDs', (): void => {
       const uuid = crypto.randomUUID();
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
       expect(uuid).toMatch(uuidRegex);
     });
 
-    it('should generate unique UUIDs', () => {
+    it('should generate unique UUIDs', (): void => {
       const uuid1 = crypto.randomUUID();
       const uuid2 = crypto.randomUUID();
 
@@ -227,11 +230,11 @@ describe('Cultural Archiver API Integration Tests', () => {
     });
   });
 
-  describe('JSON Parsing Safety', () => {
-    it('should safely parse valid JSON', () => {
+  describe('JSON Parsing Safety', (): void => {
+    it('should safely parse valid JSON', (): void => {
       const validJson = '{"key": "value"}';
       let result;
-      
+
       try {
         result = JSON.parse(validJson);
       } catch {
@@ -241,10 +244,10 @@ describe('Cultural Archiver API Integration Tests', () => {
       expect(result).toEqual({ key: 'value' });
     });
 
-    it('should handle invalid JSON gracefully', () => {
+    it('should handle invalid JSON gracefully', (): void => {
       const invalidJson = '{"key": invalid}';
       let result;
-      
+
       try {
         result = JSON.parse(invalidJson);
       } catch {
@@ -255,8 +258,8 @@ describe('Cultural Archiver API Integration Tests', () => {
     });
   });
 
-  describe('Database Query Structure', () => {
-    it('should structure artwork queries correctly', () => {
+  describe('Database Query Structure', (): void => {
+    it('should structure artwork queries correctly', (): void => {
       const queryStructure = {
         table: 'artwork',
         fields: ['id', 'lat', 'lon', 'type_id', 'status', 'created_at'],
@@ -270,7 +273,7 @@ describe('Cultural Archiver API Integration Tests', () => {
       expect(queryStructure.filters).toContain('status = ?');
     });
 
-    it('should structure logbook queries correctly', () => {
+    it('should structure logbook queries correctly', (): void => {
       const queryStructure = {
         table: 'logbook',
         fields: ['id', 'artwork_id', 'user_token', 'note', 'status', 'created_at'],
@@ -285,8 +288,8 @@ describe('Cultural Archiver API Integration Tests', () => {
     });
   });
 
-  describe('Environment Configuration', () => {
-    it('should have required environment variables', () => {
+  describe('Environment Configuration', (): void => {
+    it('should have required environment variables', (): void => {
       expect(mockEnv).toHaveProperty('DB');
       expect(mockEnv).toHaveProperty('SESSIONS');
       expect(mockEnv).toHaveProperty('RATE_LIMITS');
@@ -296,7 +299,7 @@ describe('Cultural Archiver API Integration Tests', () => {
       expect(mockEnv).toHaveProperty('LOG_LEVEL');
     });
 
-    it('should validate environment values', () => {
+    it('should validate environment values', (): void => {
       expect(mockEnv.ENVIRONMENT).toBe('test');
       expect(mockEnv.FRONTEND_URL).toMatch(/^https?:\/\//);
       expect(['debug', 'info', 'warn', 'error']).toContain(mockEnv.LOG_LEVEL);

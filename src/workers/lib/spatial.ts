@@ -3,11 +3,7 @@
  * Handles bounding box calculations, distance calculations, and coordinate validation
  */
 
-import { 
-  DEFAULT_SEARCH_RADIUS, 
-  MAX_SEARCH_RADIUS, 
-  MIN_SEARCH_RADIUS 
-} from '../../shared/types';
+import { DEFAULT_SEARCH_RADIUS, MAX_SEARCH_RADIUS, MIN_SEARCH_RADIUS } from '../../shared/types';
 
 export interface Coordinates {
   lat: number;
@@ -54,15 +50,15 @@ export function validateSearchRadius(radius?: number): number {
   if (typeof radius !== 'number' || isNaN(radius)) {
     return DEFAULT_SEARCH_RADIUS;
   }
-  
+
   if (radius < MIN_SEARCH_RADIUS) {
     return MIN_SEARCH_RADIUS;
   }
-  
+
   if (radius > MAX_SEARCH_RADIUS) {
     return MAX_SEARCH_RADIUS;
   }
-  
+
   return radius;
 }
 
@@ -74,8 +70,8 @@ export function calculateBoundingBox(lat: number, lon: number, radiusMeters: num
   // Approximate conversion: 1 degree latitude ≈ 111,000 meters
   // Longitude varies by latitude, but we use a simple approximation
   const latDelta = radiusMeters / 111000;
-  const lonDelta = radiusMeters / (111000 * Math.cos(lat * Math.PI / 180));
-  
+  const lonDelta = radiusMeters / (111000 * Math.cos((lat * Math.PI) / 180));
+
   return {
     minLat: lat - latDelta,
     maxLat: lat + latDelta,
@@ -89,30 +85,29 @@ export function calculateBoundingBox(lat: number, lon: number, radiusMeters: num
  * Returns distance in both meters and kilometers
  */
 export function calculateDistance(
-  lat1: number, 
-  lon1: number, 
-  lat2: number, 
+  lat1: number,
+  lon1: number,
+  lat2: number,
   lon2: number
 ): DistanceResult {
   const R = 6371000; // Earth's radius in meters
-  
-  const lat1Rad = lat1 * Math.PI / 180;
-  const lat2Rad = lat2 * Math.PI / 180;
-  const deltaLatRad = (lat2 - lat1) * Math.PI / 180;
-  const deltaLonRad = (lon2 - lon1) * Math.PI / 180;
-  
-  const a = 
+
+  const lat1Rad = (lat1 * Math.PI) / 180;
+  const lat2Rad = (lat2 * Math.PI) / 180;
+  const deltaLatRad = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLonRad = ((lon2 - lon1) * Math.PI) / 180;
+
+  const a =
     Math.sin(deltaLatRad / 2) * Math.sin(deltaLatRad / 2) +
-    Math.cos(lat1Rad) * Math.cos(lat2Rad) *
-    Math.sin(deltaLonRad / 2) * Math.sin(deltaLonRad / 2);
-  
+    Math.cos(lat1Rad) * Math.cos(lat2Rad) * Math.sin(deltaLonRad / 2) * Math.sin(deltaLonRad / 2);
+
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  
+
   const distanceMeters = R * c;
-  
+
   return {
     distance_meters: Math.round(distanceMeters),
-    distance_km: Math.round(distanceMeters / 1000 * 100) / 100, // Round to 2 decimal places
+    distance_km: Math.round((distanceMeters / 1000) * 100) / 100, // Round to 2 decimal places
   };
 }
 
@@ -140,11 +135,7 @@ export function filterByDistance<T extends Coordinates>(
 /**
  * Check if a point is within a bounding box
  */
-export function isWithinBoundingBox(
-  lat: number, 
-  lon: number, 
-  boundingBox: BoundingBox
-): boolean {
+export function isWithinBoundingBox(lat: number, lon: number, boundingBox: BoundingBox): boolean {
   return (
     lat >= boundingBox.minLat &&
     lat <= boundingBox.maxLat &&
@@ -164,7 +155,7 @@ export function findClosest<T extends Coordinates>(
   if (items.length === 0) {
     return null;
   }
-  
+
   const itemsWithDistance = items.map(item => {
     const distance = calculateDistance(targetLat, targetLon, item.lat, item.lon);
     return {
@@ -172,8 +163,8 @@ export function findClosest<T extends Coordinates>(
       ...distance,
     };
   });
-  
-  return itemsWithDistance.reduce((closest, current) => 
+
+  return itemsWithDistance.reduce((closest, current) =>
     current.distance_meters < closest.distance_meters ? current : closest
   );
 }
@@ -186,7 +177,7 @@ export function suggestSearchRadius(lat: number, lon: number): number {
   // Simple heuristic: if coordinates are in heavily populated areas (like cities),
   // suggest smaller radius. This is very basic and could be improved with actual
   // population density data.
-  
+
   // Check if coordinates are near major cities (rough approximation)
   const majorCities = [
     { lat: 49.2827, lon: -123.1207 }, // Vancouver
@@ -194,12 +185,12 @@ export function suggestSearchRadius(lat: number, lon: number): number {
     { lat: 43.6532, lon: -79.3832 }, // Toronto
     { lat: 51.0447, lon: -114.0719 }, // Calgary
   ];
-  
+
   const nearCity = majorCities.some(city => {
     const distance = calculateDistance(lat, lon, city.lat, city.lon);
     return distance.distance_km < 50; // Within 50km of a major city
   });
-  
+
   return nearCity ? 300 : 800; // Smaller radius in cities, larger in rural areas
 }
 
@@ -217,10 +208,10 @@ export function normalizeCoordinates(lat: number, lon: number): Coordinates {
  * Check if two coordinates are approximately equal within a tolerance
  */
 export function areCoordinatesEqual(
-  lat1: number, 
-  lon1: number, 
-  lat2: number, 
-  lon2: number, 
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number,
   toleranceMeters: number = 10
 ): boolean {
   const distance = calculateDistance(lat1, lon1, lat2, lon2);
@@ -232,15 +223,15 @@ export function areCoordinatesEqual(
  * Useful for testing
  */
 export function generateRandomCoordinateNear(
-  centerLat: number, 
-  centerLon: number, 
+  centerLat: number,
+  centerLon: number,
   maxRadiusMeters: number
 ): Coordinates {
   const angle = Math.random() * 2 * Math.PI;
   const radius = Math.random() * maxRadiusMeters;
-  
+
   const latDelta = (radius * Math.cos(angle)) / 111000;
-  const lonDelta = (radius * Math.sin(angle)) / (111000 * Math.cos(centerLat * Math.PI / 180));
-  
+  const lonDelta = (radius * Math.sin(angle)) / (111000 * Math.cos((centerLat * Math.PI) / 180));
+
   return normalizeCoordinates(centerLat + latDelta, centerLon + lonDelta);
 }

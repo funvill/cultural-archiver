@@ -1,6 +1,6 @@
 /**
  * Photo processing utilities for R2 storage and image handling
- * 
+ *
  * This module provides utilities for uploading, processing, and managing
  * photos in Cloudflare R2 storage with proper validation and optimization.
  */
@@ -58,22 +58,26 @@ export interface PhotoProcessingOptions {
  */
 export function validatePhotoFile(file: File): FileValidationResult {
   const errors: string[] = [];
-  
+
   // Check file size
   if (file.size > MAX_FILE_SIZE) {
-    errors.push(`File size ${Math.round(file.size / 1024 / 1024)}MB exceeds maximum of ${MAX_FILE_SIZE / 1024 / 1024}MB`);
+    errors.push(
+      `File size ${Math.round(file.size / 1024 / 1024)}MB exceeds maximum of ${MAX_FILE_SIZE / 1024 / 1024}MB`
+    );
   }
-  
+
   // Check MIME type
   if (!SUPPORTED_MIME_TYPES.includes(file.type.toLowerCase())) {
-    errors.push(`File type ${file.type} is not supported. Supported types: ${SUPPORTED_MIME_TYPES.join(', ')}`);
+    errors.push(
+      `File type ${file.type} is not supported. Supported types: ${SUPPORTED_MIME_TYPES.join(', ')}`
+    );
   }
-  
+
   // Check if file has content
   if (file.size === 0) {
     errors.push('File is empty');
   }
-  
+
   return {
     isValid: errors.length === 0,
     mimeType: file.type.toLowerCase(),
@@ -92,32 +96,34 @@ export function validatePhotoFiles(files: File[]): {
 } {
   const errors: string[] = [];
   const validFiles: File[] = [];
-  
+
   // Check number of files
   if (files.length > MAX_PHOTOS_PER_SUBMISSION) {
-    errors.push(`Too many files. Maximum ${MAX_PHOTOS_PER_SUBMISSION} photos allowed per submission`);
+    errors.push(
+      `Too many files. Maximum ${MAX_PHOTOS_PER_SUBMISSION} photos allowed per submission`
+    );
     return { isValid: false, validFiles: [], errors };
   }
-  
+
   if (files.length === 0) {
     errors.push('At least one photo is required');
     return { isValid: false, validFiles: [], errors };
   }
-  
+
   // Validate each file
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     if (!file) continue; // Skip undefined files
-    
+
     const validation = validatePhotoFile(file);
-    
+
     if (validation.isValid) {
       validFiles.push(file);
     } else {
       errors.push(`File ${i + 1}: ${validation.errors.join(', ')}`);
     }
   }
-  
+
   return {
     isValid: errors.length === 0 && validFiles.length > 0,
     validFiles,
@@ -138,25 +144,22 @@ export function generateSecureFilename(originalName: string, mimeType: string): 
     'image/heic': 'heic',
     'image/heif': 'heif',
   };
-  
+
   const extension = extensionMap[mimeType.toLowerCase()] || 'jpg';
-  
+
   // Generate timestamp in YYYYMMDD-HHMMSS format
   const now = new Date();
-  const timestamp = now.toISOString()
-    .replace(/[-:]/g, '')
-    .replace(/\..+/, '')
-    .replace('T', '-');
-  
+  const timestamp = now.toISOString().replace(/[-:]/g, '').replace(/\..+/, '').replace('T', '-');
+
   // Generate short UUID (8 characters)
   const uuid = crypto.randomUUID().split('-')[0];
-  
+
   // Clean original name (keep only alphanumeric and basic punctuation)
   const cleanName = originalName
     .replace(/\.[^/.]+$/, '') // Remove extension
     .replace(/[^a-zA-Z0-9\-_]/g, '') // Remove special chars
     .substring(0, 20); // Limit length
-  
+
   return `${timestamp}-${uuid}-${cleanName || 'photo'}.${extension}`;
 }
 
@@ -168,7 +171,7 @@ export function generateDateFolder(): string {
   const year = now.getFullYear();
   const month = (now.getMonth() + 1).toString().padStart(2, '0');
   const day = now.getDate().toString().padStart(2, '0');
-  
+
   return `${year}/${month}/${day}`;
 }
 
@@ -178,7 +181,7 @@ export function generateDateFolder(): string {
 export function generateR2Key(filename: string, folder?: string): string {
   const dateFolder = generateDateFolder();
   const basePath = folder || 'photos';
-  
+
   return `${basePath}/${dateFolder}/${filename}`;
 }
 
@@ -193,18 +196,14 @@ export async function uploadToR2(
 ): Promise<void> {
   try {
     const bucket = env.PHOTOS_BUCKET;
-    
+
     if (!bucket) {
-      throw new ApiError(
-        'Photo storage not configured',
-        'STORAGE_NOT_CONFIGURED',
-        503
-      );
+      throw new ApiError('Photo storage not configured', 'STORAGE_NOT_CONFIGURED', 503);
     }
-    
+
     // Convert File to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
-    
+
     // Prepare metadata
     const objectMetadata = {
       'Content-Type': file.type,
@@ -212,7 +211,7 @@ export async function uploadToR2(
       'Upload-Timestamp': new Date().toISOString(),
       ...metadata,
     };
-    
+
     // Upload to R2
     await bucket.put(key, arrayBuffer, {
       httpMetadata: {
@@ -221,20 +220,16 @@ export async function uploadToR2(
       },
       customMetadata: objectMetadata,
     });
-    
   } catch (error) {
     console.error('R2 upload error:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to upload photo to storage',
-      'STORAGE_UPLOAD_ERROR',
-      503,
-      { details: { key } }
-    );
+
+    throw new ApiError('Failed to upload photo to storage', 'STORAGE_UPLOAD_ERROR', 503, {
+      details: { key },
+    });
   }
 }
 
@@ -244,14 +239,13 @@ export async function uploadToR2(
 export async function deleteFromR2(env: WorkerEnv, key: string): Promise<void> {
   try {
     const bucket = env.PHOTOS_BUCKET;
-    
+
     if (!bucket) {
       console.warn('Photo storage not configured, skipping deletion');
       return;
     }
-    
+
     await bucket.delete(key);
-    
   } catch (error) {
     console.error('R2 deletion error:', error);
     // Don't throw error for deletion failures - log and continue
@@ -263,14 +257,14 @@ export async function deleteFromR2(env: WorkerEnv, key: string): Promise<void> {
  */
 export function generatePhotoUrl(env: WorkerEnv, key: string): string {
   const baseUrl = env.PHOTOS_BASE_URL || env.R2_PUBLIC_URL;
-  
+
   if (!baseUrl) {
     // Fallback to R2 default URL pattern
     const accountId = env.CLOUDFLARE_ACCOUNT_ID;
     const bucketName = 'cultural-archiver-photos'; // Default bucket name
     return `https://${bucketName}.${accountId}.r2.cloudflarestorage.com/${key}`;
   }
-  
+
   return `${baseUrl.replace(/\/$/, '')}/${key}`;
 }
 
@@ -285,27 +279,24 @@ export async function processAndUploadPhotos(
 ): Promise<PhotoUploadResult[]> {
   const results: PhotoUploadResult[] = [];
   const uploadPromises: Promise<void>[] = [];
-  
+
   try {
     // Validate all files first
     const validation = validatePhotoFiles(files);
     if (!validation.isValid) {
-      throw new ApiError(
-        'Photo validation failed',
-        'INVALID_PHOTOS',
-        400,
-        { details: { errors: validation.errors } }
-      );
+      throw new ApiError('Photo validation failed', 'INVALID_PHOTOS', 400, {
+        details: { errors: validation.errors },
+      });
     }
-    
+
     // Process each file
     for (let i = 0; i < validation.validFiles.length; i++) {
       const file = validation.validFiles[i];
       if (!file) continue; // Skip undefined files
-      
+
       const filename = generateSecureFilename(file.name, file.type);
       const originalKey = generateR2Key(filename, 'originals');
-      
+
       // Prepare metadata
       const metadata: Record<string, string> = {
         'Submission-ID': submissionId,
@@ -313,15 +304,15 @@ export async function processAndUploadPhotos(
         'File-Index': i.toString(),
         'Upload-Source': 'logbook-submission',
       };
-      
+
       if (options.preserveExif !== false) {
         metadata['Preserve-EXIF'] = 'true';
       }
-      
+
       // Upload original
       const uploadPromise = uploadToR2(env, file, originalKey, metadata);
       uploadPromises.push(uploadPromise);
-      
+
       // Prepare result
       const result: PhotoUploadResult = {
         originalKey,
@@ -330,22 +321,21 @@ export async function processAndUploadPhotos(
         mimeType: file.type,
         uploadedAt: new Date().toISOString(),
       };
-      
+
       // TODO: Implement thumbnail generation
       // For MVP, we'll skip thumbnail generation and use original images
       // This can be added later with image processing libraries
-      
+
       results.push(result);
     }
-    
+
     // Wait for all uploads to complete
     await Promise.all(uploadPromises);
-    
+
     return results;
-    
   } catch (error) {
     console.error('Photo processing error:', error);
-    
+
     // Clean up any successfully uploaded files
     for (const result of results) {
       if (result.originalKey) {
@@ -355,16 +345,12 @@ export async function processAndUploadPhotos(
         await deleteFromR2(env, result.thumbnailKey);
       }
     }
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to process and upload photos',
-      'PHOTO_PROCESSING_ERROR',
-      500
-    );
+
+    throw new ApiError('Failed to process and upload photos', 'PHOTO_PROCESSING_ERROR', 500);
   }
 }
 
@@ -377,17 +363,17 @@ export async function movePhotosToArtwork(
   artworkId: string
 ): Promise<string[]> {
   const newPhotoUrls: string[] = [];
-  
+
   try {
     for (const photoUrl of logbookPhotos) {
       // Extract key from URL
       const urlObj = new URL(photoUrl);
       const originalKey = urlObj.pathname.substring(1); // Remove leading slash
-      
+
       // Generate new key for artwork
       const filename = originalKey.split('/').pop() || 'unknown.jpg';
       const newKey = generateR2Key(filename, 'artworks');
-      
+
       // Copy file to new location
       const bucket = env.PHOTOS_BUCKET;
       if (bucket) {
@@ -404,20 +390,19 @@ export async function movePhotosToArtwork(
               'Moved-At': new Date().toISOString(),
             },
           });
-          
+
           // Delete original (optional, for cleanup)
           // await deleteFromR2(env, originalKey);
-          
+
           newPhotoUrls.push(generatePhotoUrl(env, newKey));
         }
       }
     }
-    
+
     return newPhotoUrls;
-    
   } catch (error) {
     console.error('Error moving photos to artwork:', error);
-    
+
     // Clean up any new files that were created
     for (const photoUrl of newPhotoUrls) {
       try {
@@ -428,24 +413,17 @@ export async function movePhotosToArtwork(
         console.error('Cleanup error:', cleanupError);
       }
     }
-    
-    throw new ApiError(
-      'Failed to move photos to artwork',
-      'PHOTO_MOVE_ERROR',
-      500
-    );
+
+    throw new ApiError('Failed to move photos to artwork', 'PHOTO_MOVE_ERROR', 500);
   }
 }
 
 /**
  * Clean up photos for rejected submissions
  */
-export async function cleanupRejectedPhotos(
-  env: WorkerEnv,
-  photoUrls: string[]
-): Promise<void> {
+export async function cleanupRejectedPhotos(env: WorkerEnv, photoUrls: string[]): Promise<void> {
   try {
-    const deletePromises = photoUrls.map(async (photoUrl) => {
+    const deletePromises = photoUrls.map(async photoUrl => {
       try {
         const urlObj = new URL(photoUrl);
         const key = urlObj.pathname.substring(1); // Remove leading slash
@@ -454,9 +432,8 @@ export async function cleanupRejectedPhotos(
         console.error('Error deleting photo:', photoUrl, error);
       }
     });
-    
+
     await Promise.all(deletePromises);
-    
   } catch (error) {
     console.error('Error cleaning up rejected photos:', error);
     // Don't throw error - cleanup failures shouldn't block the rejection process
@@ -475,19 +452,18 @@ export async function getPhotoMetadata(
     if (!bucket) {
       return null;
     }
-    
+
     const object = await bucket.head(key);
     if (!object) {
       return null;
     }
-    
+
     return {
       ...object.customMetadata,
       contentType: object.httpMetadata?.contentType || 'unknown',
       size: object.size?.toString() || '0',
       uploaded: object.uploaded?.toISOString() || 'unknown',
     };
-    
   } catch (error) {
     console.error('Error getting photo metadata:', error);
     return null;
@@ -508,19 +484,18 @@ export function validatePhotoUrl(env: WorkerEnv, url: string): boolean {
   try {
     new URL(url); // Validate URL format
     const baseUrl = env.PHOTOS_BASE_URL || env.R2_PUBLIC_URL;
-    
+
     if (baseUrl) {
       return url.startsWith(baseUrl);
     }
-    
+
     // Check against R2 default pattern
     const accountId = env.CLOUDFLARE_ACCOUNT_ID;
     if (accountId) {
       return url.includes(`${accountId}.r2.cloudflarestorage.com`);
     }
-    
+
     return false;
-    
   } catch (error) {
     return false;
   }

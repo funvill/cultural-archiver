@@ -15,10 +15,10 @@ async function testAPI() {
     const response = await fetch(`${BASE_URL}/health`);
     console.log(`   Response status: ${response.status}`);
     console.log(`   Response headers: ${JSON.stringify([...response.headers.entries()])}`);
-    
+
     const text = await response.text();
     console.log(`   Response body (first 200 chars): ${text.substring(0, 200)}`);
-    
+
     try {
       const data = JSON.parse(text);
       console.log(`✅ Health check: ${response.status} - ${data.status}`);
@@ -49,7 +49,9 @@ async function testAPI() {
     // Vancouver coordinates
     const lat = 49.2827;
     const lon = -123.1207;
-    const response = await fetch(`${BASE_URL}/api/artworks/nearby?lat=${lat}&lon=${lon}&radius=1000`);
+    const response = await fetch(
+      `${BASE_URL}/api/artworks/nearby?lat=${lat}&lon=${lon}&radius=1000`
+    );
     const data = await response.json();
     console.log(`✅ Nearby artworks: ${response.status}`);
     console.log(`   Found: ${data.artworks ? data.artworks.length : 0} artworks`);

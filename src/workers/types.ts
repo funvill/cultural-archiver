@@ -5,7 +5,11 @@
 import type { WorkerEnv as BaseWorkerEnv } from '../shared/types';
 
 // Cloudflare Workers Environment with proper types
-export interface WorkerEnv extends Omit<BaseWorkerEnv, 'DB' | 'SESSIONS' | 'CACHE' | 'RATE_LIMITS' | 'MAGIC_LINKS' | 'PHOTOS_BUCKET'> {
+export interface WorkerEnv
+  extends Omit<
+    BaseWorkerEnv,
+    'DB' | 'SESSIONS' | 'CACHE' | 'RATE_LIMITS' | 'MAGIC_LINKS' | 'PHOTOS_BUCKET'
+  > {
   DB: D1Database;
   SESSIONS: KVNamespace;
   CACHE: KVNamespace;

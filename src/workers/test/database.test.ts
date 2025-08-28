@@ -10,26 +10,34 @@ const mockDB = {
     bind: (..._params: unknown[]): object => ({
       first: async (): Promise<null> => null,
       all: async (): Promise<{ results: unknown[] }> => ({ results: [] }),
-      run: async (): Promise<{ success: boolean; meta: { changes: number } }> => ({ success: true, meta: { changes: 1 } })
+      run: async (): Promise<{ success: boolean; meta: { changes: number } }> => ({
+        success: true,
+        meta: { changes: 1 },
+      }),
     }),
     first: async (): Promise<null> => null,
     all: async (): Promise<{ results: unknown[] }> => ({ results: [] }),
-    run: async (): Promise<{ success: boolean; meta: { changes: number } }> => ({ success: true, meta: { changes: 1 } })
+    run: async (): Promise<{ success: boolean; meta: { changes: number } }> => ({
+      success: true,
+      meta: { changes: 1 },
+    }),
   }),
-  batch: async (statements: unknown[]): Promise<{ success: boolean; meta: { changes: number } }[]> => {
+  batch: async (
+    statements: unknown[]
+  ): Promise<{ success: boolean; meta: { changes: number } }[]> => {
     return statements.map(() => ({ success: true, meta: { changes: 1 } }));
   },
-  exec: async (_query: string): Promise<{ results: unknown[] }> => ({ results: [] })
+  exec: async (_query: string): Promise<{ results: unknown[] }> => ({ results: [] }),
 };
 
-describe('Database Service', () => {
+describe('Database Service', (): void => {
   let dbService: ReturnType<typeof createDatabaseService>;
 
-  beforeAll(() => {
+  beforeAll((): void => {
     dbService = createDatabaseService(mockDB as D1Database);
   });
 
-  it('should create database service', () => {
+  it('should create database service', (): void => {
     expect(dbService).toBeDefined();
     expect(typeof dbService.findNearbyArtworks).toBe('function');
     expect(typeof dbService.getArtworkById).toBe('function');
@@ -55,9 +63,9 @@ describe('Database Service', () => {
       notes: 'Test entry',
       tags: { style: 'modern' },
       photos: ['photo1.jpg'],
-      user_token: 'test-token'
+      user_token: 'test-token',
     };
-    
+
     const result = await dbService.createLogbookEntry(entry);
     expect(result).toBeDefined();
   });

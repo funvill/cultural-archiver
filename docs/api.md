@@ -1,6 +1,9 @@
 # Cultural Archiver API Documentation
 
-The Cultural Archiver Worker API provides a comprehensive backend for crowdsourced public art mapping with mobile-first submission workflows. This API is built using Hono with TypeScript and runs on Cloudflare Workers, integrating with D1 (database), KV (rate limiting & sessions), and R2 (photo storage).
+The Cultural Archiver Worker API provides a comprehensive backend for
+crowdsourced public art mapping with mobile-first submission workflows. This API
+is built using Hono with TypeScript and runs on Cloudflare Workers, integrating
+with D1 (database), KV (rate limiting & sessions), and R2 (photo storage).
 
 ## Base URL
 
@@ -10,7 +13,9 @@ https://api.cultural-archiver.example.com
 
 ## Authentication
 
-The API uses Bearer token authentication with anonymous user tokens. Users receive a UUID token that identifies their submissions without requiring registration.
+The API uses Bearer token authentication with anonymous user tokens. Users
+receive a UUID token that identifies their submissions without requiring
+registration.
 
 ```http
 Authorization: Bearer {user-token-uuid}
@@ -34,6 +39,7 @@ X-RateLimit-Reset: 1640995200
 All responses follow a consistent JSON format:
 
 ### Success Response
+
 ```json
 {
   "success": true,
@@ -44,6 +50,7 @@ All responses follow a consistent JSON format:
 ```
 
 ### Error Response
+
 ```json
 {
   "success": false,
@@ -60,6 +67,7 @@ All responses follow a consistent JSON format:
 ### Submission Endpoints
 
 #### Submit New Artwork
+
 Submit a new artwork for community review.
 
 ```http
@@ -71,13 +79,16 @@ POST /api/logbook
 **Authentication**: Required
 
 **Parameters**:
+
 - `lat` (required): Latitude (-90 to 90)
 - `lon` (required): Longitude (-180 to 180)
 - `note` (optional): Description (max 500 characters)
-- `type` (optional): Artwork type (`public_art`, `street_art`, `monument`, `sculpture`, `other`)
+- `type` (optional): Artwork type (`public_art`, `street_art`, `monument`,
+  `sculpture`, `other`)
 - `photos` (optional): Up to 3 image files (15MB each, JPEG/PNG/WebP/GIF)
 
 **Response** (201 Created):
+
 ```json
 {
   "success": true,
@@ -96,6 +107,7 @@ POST /api/logbook
 ```
 
 **Example**:
+
 ```javascript
 const formData = new FormData();
 formData.append('lat', '49.2827');
@@ -107,15 +119,16 @@ formData.append('photos', fileInput.files[0]);
 const response = await fetch('/api/logbook', {
   method: 'POST',
   headers: {
-    'Authorization': 'Bearer your-user-token'
+    Authorization: 'Bearer your-user-token',
   },
-  body: formData
+  body: formData,
 });
 ```
 
 ### Discovery Endpoints
 
 #### Search Nearby Artworks
+
 Find artworks within a specified radius.
 
 ```http
@@ -123,12 +136,14 @@ GET /api/artworks/nearby
 ```
 
 **Parameters**:
+
 - `lat` (required): Center latitude
 - `lon` (required): Center longitude
 - `radius` (optional): Search radius in meters (50-10000, default: 500)
 - `limit` (optional): Maximum results (1-100, default: 20)
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -141,9 +156,7 @@ GET /api/artworks/nearby
         "type_name": "Public Art",
         "status": "approved",
         "distance_km": 0.15,
-        "photos": [
-          "https://photos.cultural-archiver.com/2024/01/15/photo.jpg"
-        ],
+        "photos": ["https://photos.cultural-archiver.com/2024/01/15/photo.jpg"],
         "recent_submissions": 3,
         "created_at": "2024-01-15T10:30:00Z"
       }
@@ -158,6 +171,7 @@ GET /api/artworks/nearby
 ```
 
 **Example**:
+
 ```javascript
 const response = await fetch(
   `/api/artworks/nearby?lat=49.2827&lon=-123.1207&radius=1000&limit=20`
@@ -165,6 +179,7 @@ const response = await fetch(
 ```
 
 #### Get Artwork Details
+
 Retrieve detailed information about a specific artwork.
 
 ```http
@@ -172,6 +187,7 @@ GET /api/artworks/{id}
 ```
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -206,6 +222,7 @@ GET /api/artworks/{id}
 ### User Management Endpoints
 
 #### Get User Submissions
+
 Retrieve the authenticated user's submission history.
 
 ```http
@@ -215,10 +232,12 @@ GET /api/me/submissions
 **Authentication**: Required
 
 **Parameters**:
+
 - `page` (optional): Page number (default: 1)
 - `per_page` (optional): Items per page (1-100, default: 20)
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -246,6 +265,7 @@ GET /api/me/submissions
 ```
 
 #### Get User Profile
+
 Retrieve user statistics and preferences.
 
 ```http
@@ -255,6 +275,7 @@ GET /api/me/profile
 **Authentication**: Required
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -285,6 +306,7 @@ GET /api/me/profile
 ### Authentication Endpoints
 
 #### Request Magic Link
+
 Request an email verification link for enhanced user privileges.
 
 ```http
@@ -294,6 +316,7 @@ POST /api/auth/magic-link
 **Content-Type**: `application/json`
 
 **Body**:
+
 ```json
 {
   "email": "user@example.com"
@@ -301,6 +324,7 @@ POST /api/auth/magic-link
 ```
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -312,6 +336,7 @@ POST /api/auth/magic-link
 ```
 
 #### Consume Magic Link
+
 Exchange a magic link token for user verification.
 
 ```http
@@ -321,6 +346,7 @@ POST /api/auth/consume
 **Content-Type**: `application/json`
 
 **Body**:
+
 ```json
 {
   "token": "magic-link-token",
@@ -329,6 +355,7 @@ POST /api/auth/consume
 ```
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -340,6 +367,7 @@ POST /api/auth/consume
 ```
 
 #### Check Verification Status
+
 Check if a user token is email-verified.
 
 ```http
@@ -349,6 +377,7 @@ GET /api/auth/verify-status
 **Authentication**: Required
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -362,9 +391,10 @@ GET /api/auth/verify-status
 
 ### Moderation Endpoints
 
-*Note: These endpoints require reviewer permissions*
+_Note: These endpoints require reviewer permissions_
 
 #### Get Review Queue
+
 Retrieve pending submissions for moderation.
 
 ```http
@@ -374,10 +404,12 @@ GET /api/review/queue
 **Authentication**: Required (Reviewer)
 
 **Parameters**:
+
 - `page` (optional): Page number (default: 1)
 - `per_page` (optional): Items per page (default: 20)
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -411,6 +443,7 @@ GET /api/review/queue
 ```
 
 #### Approve Submission
+
 Approve a pending submission and create or link to artwork.
 
 ```http
@@ -422,6 +455,7 @@ POST /api/review/approve/{submission_id}
 **Content-Type**: `application/json`
 
 **Body**:
+
 ```json
 {
   "action": "create_new_artwork",
@@ -436,6 +470,7 @@ POST /api/review/approve/{submission_id}
 ```
 
 **Response** (201 Created):
+
 ```json
 {
   "success": true,
@@ -448,6 +483,7 @@ POST /api/review/approve/{submission_id}
 ```
 
 #### Reject Submission
+
 Reject a pending submission with reason.
 
 ```http
@@ -459,6 +495,7 @@ POST /api/review/reject/{submission_id}
 **Content-Type**: `application/json`
 
 **Body**:
+
 ```json
 {
   "rejection_reason": "Duplicate of existing artwork"
@@ -466,6 +503,7 @@ POST /api/review/reject/{submission_id}
 ```
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -477,6 +515,7 @@ POST /api/review/reject/{submission_id}
 ```
 
 #### Get Moderation Statistics
+
 Retrieve moderation statistics and metrics.
 
 ```http
@@ -486,6 +525,7 @@ GET /api/review/stats
 **Authentication**: Required (Reviewer)
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -507,17 +547,17 @@ GET /api/review/stats
 
 ## Error Codes
 
-| Code | Description |
-|------|-------------|
-| `VALIDATION_ERROR` | Request validation failed |
-| `UNAUTHORIZED` | Authentication required |
-| `FORBIDDEN` | Insufficient permissions |
-| `NOT_FOUND` | Resource not found |
-| `RATE_LIMITED` | Rate limit exceeded |
-| `FILE_TOO_LARGE` | Uploaded file exceeds size limit |
-| `INVALID_FILE_TYPE` | Unsupported file format |
+| Code                   | Description                       |
+| ---------------------- | --------------------------------- |
+| `VALIDATION_ERROR`     | Request validation failed         |
+| `UNAUTHORIZED`         | Authentication required           |
+| `FORBIDDEN`            | Insufficient permissions          |
+| `NOT_FOUND`            | Resource not found                |
+| `RATE_LIMITED`         | Rate limit exceeded               |
+| `FILE_TOO_LARGE`       | Uploaded file exceeds size limit  |
+| `INVALID_FILE_TYPE`    | Unsupported file format           |
 | `DUPLICATE_SUBMISSION` | Similar submission already exists |
-| `INTERNAL_ERROR` | Server error occurred |
+| `INTERNAL_ERROR`       | Server error occurred             |
 
 ## Photo Handling
 
@@ -535,7 +575,8 @@ Photos are processed and stored with the following specifications:
 The API uses efficient spatial indexing for location-based searches:
 
 - **Coordinate system**: WGS84 (GPS coordinates)
-- **Search algorithm**: Bounding box filtering with haversine distance calculation
+- **Search algorithm**: Bounding box filtering with haversine distance
+  calculation
 - **Default radius**: 500 meters
 - **Maximum radius**: 10 kilometers
 - **Minimum radius**: 50 meters
@@ -584,10 +625,10 @@ curl -H "Authorization: Bearer your-token" \
 for (let i = 0; i < 12; i++) {
   const response = await fetch('/api/logbook', {
     method: 'POST',
-    headers: { 'Authorization': 'Bearer test-token' },
-    body: formData
+    headers: { Authorization: 'Bearer test-token' },
+    body: formData,
   });
-  
+
   if (response.status === 429) {
     console.log('Rate limited at submission', i);
     const retryAfter = response.headers.get('Retry-After');

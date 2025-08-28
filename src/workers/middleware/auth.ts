@@ -38,25 +38,27 @@ export async function ensureUserToken(
   next: Next
 ): Promise<void | Response> {
   let userToken = c.req.header('Authorization')?.replace('Bearer ', '');
-  
+
   if (!userToken) {
     // Check for token in cookie (for browser requests)
-    userToken = c.req.header('Cookie')?.split(';')
+    userToken = c.req
+      .header('Cookie')
+      ?.split(';')
       .find(cookie => cookie.trim().startsWith('user_token='))
       ?.split('=')[1];
   }
-  
+
   if (!userToken) {
     // Generate new anonymous token
     userToken = generateUserToken();
   }
-  
+
   // Validate token format (should be UUID)
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   if (!uuidRegex.test(userToken)) {
     userToken = generateUserToken();
   }
-  
+
   // Store in context for use by route handlers
   c.set('userToken', userToken);
   c.set('authContext', {
@@ -64,7 +66,7 @@ export async function ensureUserToken(
     isReviewer: false,
     isVerifiedEmail: false,
   });
-  
+
   await next();
 }
 
@@ -77,11 +79,11 @@ export async function requireReviewer(
   next: Next
 ): Promise<void | Response> {
   const userToken = c.get('userToken');
-  
+
   if (!userToken) {
     throw new UnauthorizedError('User token required');
   }
-  
+
   try {
     // For MVP, we'll check if the user token matches a known reviewer token
     // This is a simplified approach - in production, you'd have a proper user/role system
@@ -92,16 +94,16 @@ export async function requireReviewer(
     `);
     const result = await stmt.bind(userToken).first();
     const isReviewer = (result as { count: number } | null)?.count >= 5; // Users with 5+ approved submissions can review
-    
+
     if (!isReviewer) {
       throw new ForbiddenError('Reviewer permissions required');
     }
-    
+
     // Update auth context
     const authContext = c.get('authContext');
     authContext.isReviewer = true;
     c.set('authContext', authContext);
-    
+
     await next();
   } catch (error) {
     if (error instanceof ForbiddenError) {
@@ -120,12 +122,12 @@ export async function checkEmailVerification(
   next: Next
 ): Promise<void | Response> {
   const userToken = c.get('userToken');
-  
+
   if (userToken) {
     try {
       // Check if user has verified email stored in KV
       const emailData = await c.env.SESSIONS.get(`email:${userToken}`);
-      
+
       if (emailData) {
         const authContext = c.get('authContext');
         authContext.isVerifiedEmail = true;
@@ -136,7 +138,7 @@ export async function checkEmailVerification(
       console.warn('Email verification check failed:', error);
     }
   }
-  
+
   await next();
 }
 
@@ -149,13 +151,13 @@ export async function addUserTokenToResponse(
   next: Next
 ): Promise<void | Response> {
   await next();
-  
+
   const userToken = c.get('userToken');
-  
+
   if (userToken) {
     // Add token to response headers
     c.res.headers.set('X-User-Token', userToken);
-    
+
     // Add as secure cookie for browser requests
     const isProduction = c.env.ENVIRONMENT === 'production';
     const cookieOptions = [
@@ -165,7 +167,7 @@ export async function addUserTokenToResponse(
       'Max-Age=31536000', // 1 year
       ...(isProduction ? ['Secure'] : []),
     ].join('; ');
-    
+
     c.res.headers.set('Set-Cookie', `user_token=${userToken}; ${cookieOptions}`);
   }
 }
@@ -174,11 +176,13 @@ export async function addUserTokenToResponse(
  * Get auth context from request context
  */
 export function getAuthContext(c: Context): AuthContext {
-  return c.get('authContext') || {
-    userToken: '',
-    isReviewer: false,
-    isVerifiedEmail: false,
-  };
+  return (
+    c.get('authContext') || {
+      userToken: '',
+      isReviewer: false,
+      isVerifiedEmail: false,
+    }
+  );
 }
 
 /**

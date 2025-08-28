@@ -3,12 +3,7 @@
  * These functions validate CRUD operations on all MVP database tables
  */
 
-import type { 
-  ArtworkTypeRecord, 
-  ArtworkRecord, 
-  LogbookRecord, 
-  TagRecord 
-} from '../types.js';
+import type { ArtworkTypeRecord, ArtworkRecord, LogbookRecord, TagRecord } from '../types.js';
 
 // Test interface for database operations
 interface DatabaseConnection {
@@ -37,10 +32,10 @@ export function testArtworkTypesCRUD(db: DatabaseConnection): TestResult {
       INSERT INTO artwork_types (id, name, description) 
       VALUES (?, ?, ?)
     `);
-    
+
     const testId = 'test-type-' + Date.now();
     const result = insertStmt.run(testId, 'test_type', 'Test artwork type');
-    
+
     if (result.changes !== 1) {
       return { passed: false, error: 'Failed to insert artwork type' };
     }
@@ -48,7 +43,7 @@ export function testArtworkTypesCRUD(db: DatabaseConnection): TestResult {
     // Test SELECT
     const selectStmt = db.prepare('SELECT * FROM artwork_types WHERE id = ?');
     const record = selectStmt.get(testId) as unknown as ArtworkTypeRecord;
-    
+
     if (!record || record.name !== 'test_type') {
       return { passed: false, error: 'Failed to retrieve inserted artwork type' };
     }
@@ -56,7 +51,7 @@ export function testArtworkTypesCRUD(db: DatabaseConnection): TestResult {
     // Test UPDATE
     const updateStmt = db.prepare('UPDATE artwork_types SET description = ? WHERE id = ?');
     const updateResult = updateStmt.run('Updated description', testId);
-    
+
     if (updateResult.changes !== 1) {
       return { passed: false, error: 'Failed to update artwork type' };
     }
@@ -70,7 +65,7 @@ export function testArtworkTypesCRUD(db: DatabaseConnection): TestResult {
     // Test DELETE
     const deleteStmt = db.prepare('DELETE FROM artwork_types WHERE id = ?');
     const deleteResult = deleteStmt.run(testId);
-    
+
     if (deleteResult.changes !== 1) {
       return { passed: false, error: 'Failed to delete artwork type' };
     }
@@ -91,11 +86,11 @@ export function testArtworkCRUD(db: DatabaseConnection): TestResult {
       INSERT INTO artwork (id, lat, lon, type_id, status, tags) 
       VALUES (?, ?, ?, ?, ?, ?)
     `);
-    
+
     const testId = 'test-artwork-' + Date.now();
     const tags = JSON.stringify({ material: 'test', condition: 'new' });
     const result = insertStmt.run(testId, 49.2827, -123.1207, 'public_art', 'pending', tags);
-    
+
     if (result.changes !== 1) {
       return { passed: false, error: 'Failed to insert artwork' };
     }
@@ -103,7 +98,7 @@ export function testArtworkCRUD(db: DatabaseConnection): TestResult {
     // Test SELECT
     const selectStmt = db.prepare('SELECT * FROM artwork WHERE id = ?');
     const record = selectStmt.get(testId) as unknown as ArtworkRecord;
-    
+
     if (!record || record.lat !== 49.2827 || record.type_id !== 'public_art') {
       return { passed: false, error: 'Failed to retrieve inserted artwork' };
     }
@@ -118,8 +113,8 @@ export function testArtworkCRUD(db: DatabaseConnection): TestResult {
 
     // Test UPDATE
     const updateStmt = db.prepare('UPDATE artwork SET status = ?, lat = ? WHERE id = ?');
-    const updateResult = updateStmt.run('approved', 49.2830, testId);
-    
+    const updateResult = updateStmt.run('approved', 49.283, testId);
+
     if (updateResult.changes !== 1) {
       return { passed: false, error: 'Failed to update artwork' };
     }
@@ -127,7 +122,7 @@ export function testArtworkCRUD(db: DatabaseConnection): TestResult {
     // Test DELETE
     const deleteStmt = db.prepare('DELETE FROM artwork WHERE id = ?');
     const deleteResult = deleteStmt.run(testId);
-    
+
     if (deleteResult.changes !== 1) {
       return { passed: false, error: 'Failed to delete artwork' };
     }
@@ -156,11 +151,21 @@ export function testLogbookCRUD(db: DatabaseConnection): TestResult {
       INSERT INTO logbook (id, artwork_id, user_token, note, photos, status) 
       VALUES (?, ?, ?, ?, ?, ?)
     `);
-    
+
     const testId = 'test-logbook-' + Date.now();
-    const photos = JSON.stringify(['https://test-url.com/photo1.jpg', 'https://test-url.com/photo2.jpg']);
-    const result = insertStmt.run(testId, artworkId, 'test-user-token', 'Test note', photos, 'pending');
-    
+    const photos = JSON.stringify([
+      'https://test-url.com/photo1.jpg',
+      'https://test-url.com/photo2.jpg',
+    ]);
+    const result = insertStmt.run(
+      testId,
+      artworkId,
+      'test-user-token',
+      'Test note',
+      photos,
+      'pending'
+    );
+
     if (result.changes !== 1) {
       return { passed: false, error: 'Failed to insert logbook entry' };
     }
@@ -168,7 +173,7 @@ export function testLogbookCRUD(db: DatabaseConnection): TestResult {
     // Test SELECT
     const selectStmt = db.prepare('SELECT * FROM logbook WHERE id = ?');
     const record = selectStmt.get(testId) as unknown as LogbookRecord;
-    
+
     if (!record || record.artwork_id !== artworkId || record.note !== 'Test note') {
       return { passed: false, error: 'Failed to retrieve inserted logbook entry' };
     }
@@ -184,7 +189,7 @@ export function testLogbookCRUD(db: DatabaseConnection): TestResult {
     // Test UPDATE
     const updateStmt = db.prepare('UPDATE logbook SET status = ?, note = ? WHERE id = ?');
     const updateResult = updateStmt.run('approved', 'Updated test note', testId);
-    
+
     if (updateResult.changes !== 1) {
       return { passed: false, error: 'Failed to update logbook entry' };
     }
@@ -192,11 +197,14 @@ export function testLogbookCRUD(db: DatabaseConnection): TestResult {
     // Clean up
     const deleteLogbookStmt = db.prepare('DELETE FROM logbook WHERE id = ?');
     deleteLogbookStmt.run(testId);
-    
+
     const deleteArtworkStmt = db.prepare('DELETE FROM artwork WHERE id = ?');
     deleteArtworkStmt.run(artworkId);
 
-    return { passed: true, details: 'All CRUD operations and foreign key relationships successful' };
+    return {
+      passed: true,
+      details: 'All CRUD operations and foreign key relationships successful',
+    };
   } catch (error) {
     return { passed: false, error: `Unexpected error: ${error}` };
   }
@@ -227,18 +235,24 @@ export function testTagsCRUD(db: DatabaseConnection): TestResult {
       INSERT INTO tags (id, artwork_id, logbook_id, label, value) 
       VALUES (?, ?, ?, ?, ?)
     `);
-    
+
     const artworkTagId = 'test-artwork-tag-' + Date.now();
     const result1 = insertArtworkTagStmt.run(artworkTagId, artworkId, null, 'material', 'bronze');
-    
+
     if (result1.changes !== 1) {
       return { passed: false, error: 'Failed to insert artwork tag' };
     }
 
     // Test INSERT for logbook tag
     const logbookTagId = 'test-logbook-tag-' + Date.now();
-    const result2 = insertArtworkTagStmt.run(logbookTagId, null, logbookId, 'condition', 'excellent');
-    
+    const result2 = insertArtworkTagStmt.run(
+      logbookTagId,
+      null,
+      logbookId,
+      'condition',
+      'excellent'
+    );
+
     if (result2.changes !== 1) {
       return { passed: false, error: 'Failed to insert logbook tag' };
     }
@@ -247,11 +261,11 @@ export function testTagsCRUD(db: DatabaseConnection): TestResult {
     const selectStmt = db.prepare('SELECT * FROM tags WHERE id = ?');
     const artworkTag = selectStmt.get(artworkTagId) as unknown as TagRecord;
     const logbookTag = selectStmt.get(logbookTagId) as unknown as TagRecord;
-    
+
     if (!artworkTag || artworkTag.artwork_id !== artworkId || artworkTag.label !== 'material') {
       return { passed: false, error: 'Failed to retrieve artwork tag' };
     }
-    
+
     if (!logbookTag || logbookTag.logbook_id !== logbookId || logbookTag.label !== 'condition') {
       return { passed: false, error: 'Failed to retrieve logbook tag' };
     }
@@ -259,7 +273,7 @@ export function testTagsCRUD(db: DatabaseConnection): TestResult {
     // Test UPDATE
     const updateStmt = db.prepare('UPDATE tags SET value = ? WHERE id = ?');
     const updateResult = updateStmt.run('silver', artworkTagId);
-    
+
     if (updateResult.changes !== 1) {
       return { passed: false, error: 'Failed to update tag' };
     }
@@ -267,10 +281,10 @@ export function testTagsCRUD(db: DatabaseConnection): TestResult {
     // Clean up
     const deleteTagStmt = db.prepare('DELETE FROM tags WHERE id IN (?, ?)');
     deleteTagStmt.run(artworkTagId, logbookTagId);
-    
+
     const deleteLogbookStmt = db.prepare('DELETE FROM logbook WHERE id = ?');
     deleteLogbookStmt.run(logbookId);
-    
+
     const deleteArtworkStmt = db.prepare('DELETE FROM artwork WHERE id = ?');
     deleteArtworkStmt.run(artworkId);
 
@@ -310,10 +324,12 @@ export function testForeignKeyIntegrity(db: DatabaseConnection): TestResult {
     tagStmt.run(logbookTagId, null, logbookId, 'condition', 'good');
 
     // Verify data exists
-    const countStmt = db.prepare('SELECT COUNT(*) as count FROM tags WHERE artwork_id = ? OR logbook_id = ?');
+    const countStmt = db.prepare(
+      'SELECT COUNT(*) as count FROM tags WHERE artwork_id = ? OR logbook_id = ?'
+    );
     const beforeResult = countStmt.get(artworkId, logbookId) as { count: number } | undefined;
     const beforeCount = beforeResult?.count || 0;
-    
+
     if (beforeCount !== 2) {
       return { passed: false, error: 'Test data not properly created' };
     }
@@ -325,14 +341,19 @@ export function testForeignKeyIntegrity(db: DatabaseConnection): TestResult {
     // Verify cascade delete worked
     const afterResult = countStmt.get(artworkId, logbookId) as { count: number } | undefined;
     const afterCount = afterResult?.count || 0;
-    const logbookResult = db.prepare('SELECT COUNT(*) as count FROM logbook WHERE id = ?').get(logbookId) as { count: number } | undefined;
+    const logbookResult = db
+      .prepare('SELECT COUNT(*) as count FROM logbook WHERE id = ?')
+      .get(logbookId) as { count: number } | undefined;
     const logbookCount = logbookResult?.count || 0;
-    
+
     if (afterCount !== 0 || logbookCount !== 0) {
       return { passed: false, error: 'CASCADE DELETE did not work properly' };
     }
 
-    return { passed: true, details: 'Foreign key constraints and cascade deletes working correctly' };
+    return {
+      passed: true,
+      details: 'Foreign key constraints and cascade deletes working correctly',
+    };
   } catch (error) {
     return { passed: false, error: `Unexpected error: ${error}` };
   }
@@ -348,10 +369,10 @@ export function testStatusEnumValidation(db: DatabaseConnection): TestResult {
       INSERT INTO artwork (id, lat, lon, type_id, status) 
       VALUES (?, ?, ?, ?, ?)
     `);
-    
+
     const validId = 'test-valid-status-' + Date.now();
     const validResult = validArtworkStmt.run(validId, 49.2827, -123.1207, 'public_art', 'pending');
-    
+
     if (validResult.changes !== 1) {
       return { passed: false, error: 'Failed to insert artwork with valid status' };
     }
@@ -360,7 +381,10 @@ export function testStatusEnumValidation(db: DatabaseConnection): TestResult {
     try {
       const invalidId = 'test-invalid-status-' + Date.now();
       validArtworkStmt.run(invalidId, 49.2827, -123.1207, 'public_art', 'invalid_status');
-      return { passed: false, error: 'Invalid artwork status was accepted (CHECK constraint failed)' };
+      return {
+        passed: false,
+        error: 'Invalid artwork status was accepted (CHECK constraint failed)',
+      };
     } catch (error) {
       // This should happen - invalid status should be rejected
     }
@@ -370,10 +394,10 @@ export function testStatusEnumValidation(db: DatabaseConnection): TestResult {
       INSERT INTO logbook (id, artwork_id, user_token, status) 
       VALUES (?, ?, ?, ?)
     `);
-    
+
     const logbookId = 'test-valid-logbook-status-' + Date.now();
     const logbookResult = validLogbookStmt.run(logbookId, validId, 'test-user', 'approved');
-    
+
     if (logbookResult.changes !== 1) {
       return { passed: false, error: 'Failed to insert logbook with valid status' };
     }
@@ -382,7 +406,10 @@ export function testStatusEnumValidation(db: DatabaseConnection): TestResult {
     try {
       const invalidLogbookId = 'test-invalid-logbook-status-' + Date.now();
       validLogbookStmt.run(invalidLogbookId, validId, 'test-user', 'invalid_status');
-      return { passed: false, error: 'Invalid logbook status was accepted (CHECK constraint failed)' };
+      return {
+        passed: false,
+        error: 'Invalid logbook status was accepted (CHECK constraint failed)',
+      };
     } catch (error) {
       // This should happen - invalid status should be rejected
     }
@@ -390,7 +417,7 @@ export function testStatusEnumValidation(db: DatabaseConnection): TestResult {
     // Clean up
     const deleteLogbookStmt = db.prepare('DELETE FROM logbook WHERE id = ?');
     deleteLogbookStmt.run(logbookId);
-    
+
     const deleteArtworkStmt = db.prepare('DELETE FROM artwork WHERE id = ?');
     deleteArtworkStmt.run(validId);
 
@@ -410,13 +437,13 @@ export function testSpatialQueries(db: DatabaseConnection): TestResult {
       INSERT INTO artwork (id, lat, lon, type_id, status) 
       VALUES (?, ?, ?, ?, ?)
     `);
-    
+
     const testIds = [];
     // Insert artworks in a grid around Vancouver
     for (let i = 0; i < 10; i++) {
       const id = `test-spatial-${i}-${Date.now()}`;
-      const lat = 49.2827 + (i * 0.001); // Spread across ~1km
-      const lon = -123.1207 + (i * 0.001);
+      const lat = 49.2827 + i * 0.001; // Spread across ~1km
+      const lon = -123.1207 + i * 0.001;
       insertStmt.run(id, lat, lon, 'public_art', 'approved');
       testIds.push(id);
     }
@@ -428,22 +455,24 @@ export function testSpatialQueries(db: DatabaseConnection): TestResult {
       AND lon BETWEEN ? AND ? 
       AND status = 'approved'
     `);
-    
+
     const centerLat = 49.2827;
     const centerLon = -123.1207;
     const radius = 0.0045; // Approximately 500m in degrees
-    
+
     const startTime = Date.now();
     const results = spatialStmt.all(
-      centerLat - radius, centerLat + radius,
-      centerLon - radius, centerLon + radius
+      centerLat - radius,
+      centerLat + radius,
+      centerLon - radius,
+      centerLon + radius
     );
     const queryTime = Date.now() - startTime;
-    
+
     if (queryTime > 100) {
       return { passed: false, error: `Spatial query took ${queryTime}ms, expected under 100ms` };
     }
-    
+
     if (results.length < 5) {
       return { passed: false, error: 'Spatial query did not return expected results' };
     }
@@ -452,9 +481,9 @@ export function testSpatialQueries(db: DatabaseConnection): TestResult {
     const deleteStmt = db.prepare(`DELETE FROM artwork WHERE id LIKE 'test-spatial-%'`);
     deleteStmt.run();
 
-    return { 
-      passed: true, 
-      details: `Spatial query returned ${results.length} results in ${queryTime}ms` 
+    return {
+      passed: true,
+      details: `Spatial query returned ${results.length} results in ${queryTime}ms`,
     };
   } catch (error) {
     return { passed: false, error: `Unexpected error: ${error}` };
@@ -471,11 +500,16 @@ export function testJSONFieldParsing(db: DatabaseConnection): TestResult {
       INSERT INTO artwork (id, lat, lon, type_id, status, tags) 
       VALUES (?, ?, ?, ?, ?, ?)
     `);
-    
+
     const artworkId = 'test-json-artwork-' + Date.now();
-    const tagsObject = { material: 'bronze', style: 'modern', condition: 'excellent', year: '2023' };
+    const tagsObject = {
+      material: 'bronze',
+      style: 'modern',
+      condition: 'excellent',
+      year: '2023',
+    };
     const tagsJson = JSON.stringify(tagsObject);
-    
+
     artworkStmt.run(artworkId, 49.2827, -123.1207, 'public_art', 'approved', tagsJson);
 
     // Test logbook photos JSON array
@@ -483,25 +517,25 @@ export function testJSONFieldParsing(db: DatabaseConnection): TestResult {
       INSERT INTO logbook (id, artwork_id, user_token, note, photos, status) 
       VALUES (?, ?, ?, ?, ?, ?)
     `);
-    
+
     const logbookId = 'test-json-logbook-' + Date.now();
     const photosArray = [
       'https://example.com/photo1.jpg',
       'https://example.com/photo2.jpg',
-      'https://example.com/photo3.jpg'
+      'https://example.com/photo3.jpg',
     ];
     const photosJson = JSON.stringify(photosArray);
-    
+
     logbookStmt.run(logbookId, artworkId, 'test-user', 'Test note', photosJson, 'approved');
 
     // Retrieve and parse JSON fields
     const artworkSelectStmt = db.prepare('SELECT * FROM artwork WHERE id = ?');
     const artwork = artworkSelectStmt.get(artworkId) as unknown as ArtworkRecord;
-    
+
     if (!artwork.tags) {
       return { passed: false, error: 'Artwork tags JSON was not stored' };
     }
-    
+
     const parsedTags = JSON.parse(artwork.tags);
     if (parsedTags.material !== 'bronze' || parsedTags.style !== 'modern') {
       return { passed: false, error: 'Artwork tags JSON parsing failed' };
@@ -509,16 +543,16 @@ export function testJSONFieldParsing(db: DatabaseConnection): TestResult {
 
     const logbookSelectStmt = db.prepare('SELECT * FROM logbook WHERE id = ?');
     const logbook = logbookSelectStmt.get(logbookId) as unknown as LogbookRecord;
-    
+
     if (!logbook.photos) {
       return { passed: false, error: 'Logbook photos JSON was not stored' };
     }
-    
+
     const parsedPhotos = JSON.parse(logbook.photos);
     if (!Array.isArray(parsedPhotos) || parsedPhotos.length !== 3) {
       return { passed: false, error: 'Logbook photos JSON parsing failed' };
     }
-    
+
     if (parsedPhotos[0] !== 'https://example.com/photo1.jpg') {
       return { passed: false, error: 'Logbook photos array content incorrect' };
     }
@@ -526,7 +560,7 @@ export function testJSONFieldParsing(db: DatabaseConnection): TestResult {
     // Clean up
     const deleteLogbookStmt = db.prepare('DELETE FROM logbook WHERE id = ?');
     deleteLogbookStmt.run(logbookId);
-    
+
     const deleteArtworkStmt = db.prepare('DELETE FROM artwork WHERE id = ?');
     deleteArtworkStmt.run(artworkId);
 
@@ -545,7 +579,7 @@ export function runAllDatabaseTests(db: DatabaseConnection): {
   summary: string;
 } {
   const results: Record<string, TestResult> = {};
-  
+
   try {
     results.artworkTypesCRUD = testArtworkTypesCRUD(db);
     results.artworkCRUD = testArtworkCRUD(db);
@@ -559,20 +593,21 @@ export function runAllDatabaseTests(db: DatabaseConnection): {
     return {
       overallPassed: false,
       results,
-      summary: `Test execution failed: ${error}`
+      summary: `Test execution failed: ${error}`,
     };
   }
 
   const totalTests = Object.keys(results).length;
   const passedTests = Object.values(results).filter(r => r.passed).length;
   const overallPassed = passedTests === totalTests;
-  
-  const summary = `${passedTests}/${totalTests} tests passed. ` +
+
+  const summary =
+    `${passedTests}/${totalTests} tests passed. ` +
     (overallPassed ? 'All tests successful!' : 'Some tests failed.');
 
   return {
     overallPassed,
     results,
-    summary
+    summary,
   };
 }

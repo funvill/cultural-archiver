@@ -4,12 +4,12 @@
  */
 
 import type { Context } from 'hono';
-import type { 
-  WorkerEnv, 
+import type {
+  WorkerEnv,
   ArtworkDetailResponse,
   ArtworkWithPhotos,
   LogbookEntryWithPhotos,
-  NearbyArtworksResponse
+  NearbyArtworksResponse,
 } from '../../shared/types';
 import { DEFAULT_SEARCH_RADIUS } from '../../shared/types';
 import { createDatabaseService } from '../lib/database';
@@ -33,22 +33,20 @@ interface SubmissionStatsResult {
  * GET /api/artworks/nearby - Find Nearby Artworks
  * Returns approved artworks within a specified radius
  */
-export async function getNearbyArtworks(
-  c: Context<{ Bindings: WorkerEnv }>
-): Promise<Response> {
+export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const validatedQuery = getValidatedData<{
     lat: number;
     lon: number;
     radius?: number;
     limit?: number;
   }>(c, 'query');
-  
+
   const db = createDatabaseService(c.env.DB);
-  
+
   // Set defaults
   const radius = validatedQuery.radius || DEFAULT_SEARCH_RADIUS;
   const limit = validatedQuery.limit || 20;
-  
+
   try {
     // Find nearby artworks
     const artworks = await db.findNearbyArtworks(
@@ -57,13 +55,13 @@ export async function getNearbyArtworks(
       radius,
       limit
     );
-    
+
     // Format response with photos and additional info
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       artworks.map(async artwork => {
         // Get logbook entries for this artwork to find photos
         const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
-        
+
         // Extract photos from logbook entries
         const allPhotos: string[] = [];
         logbookEntries.forEach(entry => {
@@ -72,7 +70,7 @@ export async function getNearbyArtworks(
             allPhotos.push(...photos);
           }
         });
-        
+
         return {
           ...artwork,
           type_name: artwork.type_name,
@@ -82,7 +80,7 @@ export async function getNearbyArtworks(
         } as ArtworkWithPhotos;
       })
     );
-    
+
     const response: NearbyArtworksResponse = {
       artworks: artworksWithPhotos,
       total: artworksWithPhotos.length,
@@ -92,9 +90,8 @@ export async function getNearbyArtworks(
       },
       search_radius: radius,
     };
-    
+
     return c.json(createSuccessResponse(response));
-    
   } catch (error) {
     console.error('Failed to get nearby artworks:', error);
     throw error;
@@ -105,43 +102,41 @@ export async function getNearbyArtworks(
  * GET /api/artworks/:id - Artwork Details
  * Returns complete artwork details with logbook timeline
  */
-export async function getArtworkDetails(
-  c: Context<{ Bindings: WorkerEnv }>
-): Promise<Response> {
+export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const artworkId = c.req.param('id');
-  
+
   if (!artworkId) {
     throw new NotFoundError('Artwork', 'ID parameter missing');
   }
-  
+
   const db = createDatabaseService(c.env.DB);
-  
+
   try {
     // Get artwork with type information
     const artwork = await db.getArtworkWithDetails(artworkId);
-    
+
     if (!artwork) {
       throw new NotFoundError('Artwork', artworkId);
     }
-    
+
     // Get logbook entries for timeline
     const logbookEntries = await db.getLogbookEntriesForArtwork(artworkId);
-    
+
     // Format logbook entries with parsed photos
     const logbookEntriesWithPhotos: LogbookEntryWithPhotos[] = logbookEntries.map(entry => ({
       ...entry,
       photos_parsed: safeJsonParse<string[]>(entry.photos, []),
     }));
-    
+
     // Get all photos from logbook entries
     const allPhotos: string[] = [];
     logbookEntriesWithPhotos.forEach(entry => {
       allPhotos.push(...entry.photos_parsed);
     });
-    
+
     // Parse artwork tags
     const tagsParsed = safeJsonParse<Record<string, string>>(artwork.tags, {});
-    
+
     const response: ArtworkDetailResponse = {
       ...artwork,
       type_name: artwork.type_name,
@@ -149,9 +144,8 @@ export async function getArtworkDetails(
       logbook_entries: logbookEntriesWithPhotos,
       tags_parsed: tagsParsed,
     };
-    
+
     return c.json(createSuccessResponse(response));
-    
   } catch (error) {
     if (error instanceof NotFoundError) {
       throw error;
@@ -165,9 +159,7 @@ export async function getArtworkDetails(
  * Get artwork statistics for analytics
  * Not exposed as API endpoint but useful for internal metrics
  */
-export async function getArtworkStats(
-  db: D1Database
-): Promise<{
+export async function getArtworkStats(db: D1Database): Promise<{
   total_artworks: number;
   approved_artworks: number;
   pending_artworks: number;
@@ -182,27 +174,27 @@ export async function getArtworkStats(
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_artworks
       FROM artwork
     `);
-    
+
     const submissionStmt = db.db.prepare(`
       SELECT 
         COUNT(*) as total_submissions,
         SUM(CASE WHEN created_at > datetime('now', '-7 days') THEN 1 ELSE 0 END) as recent_submissions
       FROM logbook
     `);
-    
+
     const [artworkResult, submissionResult] = await Promise.all([
       artworkStmt.first(),
       submissionStmt.first(),
     ]);
-    
+
     return {
       total_artworks: (artworkResult as ArtworkStatsResult | null)?.total_artworks || 0,
       approved_artworks: (artworkResult as ArtworkStatsResult | null)?.approved_artworks || 0,
       pending_artworks: (artworkResult as ArtworkStatsResult | null)?.pending_artworks || 0,
       total_submissions: (submissionResult as SubmissionStatsResult | null)?.total_submissions || 0,
-      recent_submissions: (submissionResult as SubmissionStatsResult | null)?.recent_submissions || 0,
+      recent_submissions:
+        (submissionResult as SubmissionStatsResult | null)?.recent_submissions || 0,
     };
-    
   } catch (error) {
     console.error('Failed to get artwork stats:', error);
     return {
@@ -224,7 +216,7 @@ export async function searchArtworks(
   query: string
 ): Promise<ArtworkWithPhotos[]> {
   const db = createDatabaseService(c.env.DB);
-  
+
   try {
     // For MVP, we'll do a simple text search on notes
     // In production, this would use a proper search index
@@ -242,15 +234,15 @@ export async function searchArtworks(
       ORDER BY a.created_at DESC
       LIMIT 20
     `);
-    
+
     const searchTerm = `%${query}%`;
     const results = await stmt.bind(searchTerm, searchTerm).all();
-    
+
     // Format results similar to nearby artworks
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       (results.results as ArtworkWithPhotos[]).map(async artwork => {
         const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
-        
+
         const allPhotos: string[] = [];
         logbookEntries.forEach(entry => {
           if (entry.photos) {
@@ -258,7 +250,7 @@ export async function searchArtworks(
             allPhotos.push(...photos);
           }
         });
-        
+
         return {
           ...artwork,
           recent_photo: allPhotos.length > 0 ? allPhotos[0] : undefined,
@@ -266,9 +258,8 @@ export async function searchArtworks(
         } as ArtworkWithPhotos;
       })
     );
-    
+
     return artworksWithPhotos;
-    
   } catch (error) {
     console.error('Failed to search artworks:', error);
     return [];
@@ -284,7 +275,7 @@ export async function getPopularArtworks(
   limit: number = 10
 ): Promise<ArtworkWithPhotos[]> {
   const db = createDatabaseService(c.env.DB);
-  
+
   try {
     const stmt = db.db.prepare(`
       SELECT a.*, at.name as type_name, COUNT(l.id) as submission_count
@@ -296,14 +287,14 @@ export async function getPopularArtworks(
       ORDER BY submission_count DESC, a.created_at DESC
       LIMIT ?
     `);
-    
+
     const results = await stmt.bind(limit).all();
-    
+
     // Format results
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       (results.results as ArtworkWithPhotos[]).map(async artwork => {
         const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
-        
+
         const allPhotos: string[] = [];
         logbookEntries.forEach(entry => {
           if (entry.photos) {
@@ -311,7 +302,7 @@ export async function getPopularArtworks(
             allPhotos.push(...photos);
           }
         });
-        
+
         return {
           ...artwork,
           distance_km: 0, // Not applicable for popular artworks
@@ -320,9 +311,8 @@ export async function getPopularArtworks(
         } as ArtworkWithPhotos;
       })
     );
-    
+
     return artworksWithPhotos;
-    
   } catch (error) {
     console.error('Failed to get popular artworks:', error);
     return [];
@@ -338,7 +328,7 @@ export async function getRecentArtworks(
   limit: number = 10
 ): Promise<ArtworkWithPhotos[]> {
   const db = createDatabaseService(c.env.DB);
-  
+
   try {
     const stmt = db.db.prepare(`
       SELECT a.*, at.name as type_name
@@ -348,14 +338,14 @@ export async function getRecentArtworks(
       ORDER BY a.created_at DESC
       LIMIT ?
     `);
-    
+
     const results = await stmt.bind(limit).all();
-    
+
     // Format results
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       (results.results as ArtworkWithPhotos[]).map(async artwork => {
         const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
-        
+
         const allPhotos: string[] = [];
         logbookEntries.forEach(entry => {
           if (entry.photos) {
@@ -363,7 +353,7 @@ export async function getRecentArtworks(
             allPhotos.push(...photos);
           }
         });
-        
+
         return {
           ...artwork,
           distance_km: 0, // Not applicable for recent artworks
@@ -372,9 +362,8 @@ export async function getRecentArtworks(
         } as ArtworkWithPhotos;
       })
     );
-    
+
     return artworksWithPhotos;
-    
   } catch (error) {
     console.error('Failed to get recent artworks:', error);
     return [];

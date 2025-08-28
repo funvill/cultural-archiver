@@ -7,15 +7,8 @@ import type { Context, Next } from 'hono';
 import { z } from 'zod';
 import type { WorkerEnv } from '../../shared/types';
 import { ValidationApiError } from '../lib/errors';
-import {
-  isValidLatitude,
-  isValidLongitude,
-} from '../lib/spatial';
-import {
-  MAX_NOTE_LENGTH,
-  MAX_PHOTOS_PER_SUBMISSION,
-  ARTWORK_TYPES
-} from '../../shared/types';
+import { isValidLatitude, isValidLongitude } from '../lib/spatial';
+import { MAX_NOTE_LENGTH, MAX_PHOTOS_PER_SUBMISSION, ARTWORK_TYPES } from '../../shared/types';
 
 // Extend the Hono context types
 declare module 'hono' {
@@ -32,11 +25,13 @@ declare module 'hono' {
 // ================================
 
 export const coordinateSchema = z.object({
-  lat: z.number()
+  lat: z
+    .number()
     .min(-90, 'Latitude must be between -90 and 90')
     .max(90, 'Latitude must be between -90 and 90')
     .refine(isValidLatitude, 'Invalid latitude format'),
-  lon: z.number()
+  lon: z
+    .number()
     .min(-180, 'Longitude must be between -180 and 180')
     .max(180, 'Longitude must be between -180 and 180')
     .refine(isValidLongitude, 'Invalid longitude format'),
@@ -47,33 +42,37 @@ export const coordinateSchema = z.object({
 // ================================
 
 export const logbookSubmissionSchema = z.object({
-  lat: z.number()
+  lat: z
+    .number()
     .min(-90, 'Latitude must be between -90 and 90')
     .max(90, 'Latitude must be between -90 and 90'),
-  lon: z.number()
+  lon: z
+    .number()
     .min(-180, 'Longitude must be between -180 and 180')
     .max(180, 'Longitude must be between -180 and 180'),
-  note: z.string()
+  note: z
+    .string()
     .max(MAX_NOTE_LENGTH, `Note must be ${MAX_NOTE_LENGTH} characters or less`)
     .optional(),
-  type: z.enum(ARTWORK_TYPES)
-    .optional(),
+  type: z.enum(ARTWORK_TYPES).optional(),
 });
 
 // ================================
-// Discovery Validation Schemas  
+// Discovery Validation Schemas
 // ================================
 
 export const nearbyArtworksQuerySchema = z.object({
   lat: z.string().regex(/^-?\d+\.?\d*$/, 'Latitude must be a valid number'),
   lon: z.string().regex(/^-?\d+\.?\d*$/, 'Longitude must be a valid number'),
-  radius: z.string().regex(/^\d+\.?\d*$/, 'Radius must be a valid positive number').optional(),
+  radius: z
+    .string()
+    .regex(/^\d+\.?\d*$/, 'Radius must be a valid positive number')
+    .optional(),
   limit: z.string().regex(/^\d+$/, 'Limit must be a valid integer').optional(),
 });
 
 export const artworkIdSchema = z.object({
-  id: z.string()
-    .uuid('Artwork ID must be a valid UUID'),
+  id: z.string().uuid('Artwork ID must be a valid UUID'),
 });
 
 // ================================
@@ -90,13 +89,12 @@ export const userSubmissionsQuerySchema = z.object({
 // ================================
 
 export const magicLinkRequestSchema = z.object({
-  email: z.string()
-    .email('Invalid email format')
-    .max(254, 'Email must be 254 characters or less'),
+  email: z.string().email('Invalid email format').max(254, 'Email must be 254 characters or less'),
 });
 
 export const consumeMagicLinkSchema = z.object({
-  token: z.string()
+  token: z
+    .string()
     .min(32, 'Token must be at least 32 characters')
     .max(128, 'Token must be 128 characters or less'),
 });
@@ -106,23 +104,23 @@ export const consumeMagicLinkSchema = z.object({
 // ================================
 
 export const reviewSubmissionSchema = z.object({
-  submission_id: z.string()
-    .uuid('Submission ID must be a valid UUID'),
+  submission_id: z.string().uuid('Submission ID must be a valid UUID'),
   action: z.enum(['approve', 'reject'], {
     errorMap: () => ({ message: 'Action must be either "approve" or "reject"' }),
   }),
-  rejection_reason: z.string()
+  rejection_reason: z
+    .string()
     .max(500, 'Rejection reason must be 500 characters or less')
     .optional(),
-  artwork_overrides: z.object({
-    lat: z.number().min(-90).max(90).optional(),
-    lon: z.number().min(-180).max(180).optional(),
-    type_id: z.enum(ARTWORK_TYPES).optional(),
-    tags: z.record(z.string()).optional(),
-  }).optional(),
-  link_to_existing_artwork: z.string()
-    .uuid('Existing artwork ID must be a valid UUID')
+  artwork_overrides: z
+    .object({
+      lat: z.number().min(-90).max(90).optional(),
+      lon: z.number().min(-180).max(180).optional(),
+      type_id: z.enum(ARTWORK_TYPES).optional(),
+      tags: z.record(z.string()).optional(),
+    })
     .optional(),
+  link_to_existing_artwork: z.string().uuid('Existing artwork ID must be a valid UUID').optional(),
 });
 
 // ================================
@@ -132,18 +130,21 @@ export const reviewSubmissionSchema = z.object({
 /**
  * Generic validation middleware factory
  */
-export function validateSchema<T>(schema: z.ZodSchema<T>, source: 'body' | 'query' | 'params' = 'body') {
+export function validateSchema<T>(
+  schema: z.ZodSchema<T>,
+  source: 'body' | 'query' | 'params' = 'body'
+) {
   return async (c: Context<{ Bindings: WorkerEnv }>, next: Next): Promise<void | Response> => {
     try {
       let data: unknown;
-      
+
       switch (source) {
         case 'body':
           try {
             data = await c.req.json();
           } catch {
             throw new ValidationApiError([
-              { field: 'body', message: 'Invalid JSON in request body', code: 'INVALID_JSON' }
+              { field: 'body', message: 'Invalid JSON in request body', code: 'INVALID_JSON' },
             ]);
           }
           break;
@@ -154,31 +155,30 @@ export function validateSchema<T>(schema: z.ZodSchema<T>, source: 'body' | 'quer
           data = c.req.param();
           break;
       }
-      
+
       const result = schema.safeParse(data);
-      
+
       if (!result.success) {
         const validationErrors = result.error.errors.map(error => ({
           field: error.path.join('.') || 'unknown',
           message: error.message,
           code: error.code.toUpperCase(),
         }));
-        
+
         throw new ValidationApiError(validationErrors);
       }
-      
+
       // Store validated data in context
       c.set(`validated_${source}`, result.data);
-      
     } catch (error) {
       if (error instanceof ValidationApiError) {
         throw error;
       }
       throw new ValidationApiError([
-        { field: source, message: `Validation failed for ${source}`, code: 'VALIDATION_ERROR' }
+        { field: source, message: `Validation failed for ${source}`, code: 'VALIDATION_ERROR' },
       ]);
     }
-    
+
     await next();
   };
 }
@@ -199,9 +199,9 @@ export async function validateNearbyArtworksQuery(
   const lon = url.searchParams.get('lon');
   const radius = url.searchParams.get('radius');
   const limit = url.searchParams.get('limit');
-  
+
   const validationErrors = [];
-  
+
   // Validate required lat/lon
   if (!lat) {
     validationErrors.push({ field: 'lat', message: 'Latitude is required', code: 'REQUIRED' });
@@ -211,7 +211,7 @@ export async function validateNearbyArtworksQuery(
       validationErrors.push({ field: 'lat', message: 'Invalid latitude', code: 'INVALID' });
     }
   }
-  
+
   if (!lon) {
     validationErrors.push({ field: 'lon', message: 'Longitude is required', code: 'REQUIRED' });
   } else {
@@ -220,27 +220,35 @@ export async function validateNearbyArtworksQuery(
       validationErrors.push({ field: 'lon', message: 'Invalid longitude', code: 'INVALID' });
     }
   }
-  
+
   // Validate optional radius
   if (radius) {
     const radiusNum = parseFloat(radius);
     if (isNaN(radiusNum) || radiusNum < 50 || radiusNum > 10000) {
-      validationErrors.push({ field: 'radius', message: 'Radius must be between 50 and 10000 meters', code: 'INVALID' });
+      validationErrors.push({
+        field: 'radius',
+        message: 'Radius must be between 50 and 10000 meters',
+        code: 'INVALID',
+      });
     }
   }
-  
+
   // Validate optional limit
   if (limit) {
     const limitNum = parseInt(limit, 10);
     if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
-      validationErrors.push({ field: 'limit', message: 'Limit must be between 1 and 100', code: 'INVALID' });
+      validationErrors.push({
+        field: 'limit',
+        message: 'Limit must be between 1 and 100',
+        code: 'INVALID',
+      });
     }
   }
-  
+
   if (validationErrors.length > 0) {
     throw new ValidationApiError(validationErrors);
   }
-  
+
   // Store parsed values
   c.set('validated_query', {
     lat: parseFloat(lat!),
@@ -248,7 +256,7 @@ export async function validateNearbyArtworksQuery(
     radius: radius ? parseFloat(radius) : undefined,
     limit: limit ? parseInt(limit, 10) : undefined,
   });
-  
+
   await next();
 }
 
@@ -262,35 +270,43 @@ export async function validateUserSubmissionsQuery(
   const url = new URL(c.req.url);
   const page = url.searchParams.get('page');
   const per_page = url.searchParams.get('per_page');
-  
+
   const validationErrors = [];
-  
+
   // Validate optional page
   if (page) {
     const pageNum = parseInt(page, 10);
     if (isNaN(pageNum) || pageNum < 1) {
-      validationErrors.push({ field: 'page', message: 'Page must be 1 or greater', code: 'INVALID' });
+      validationErrors.push({
+        field: 'page',
+        message: 'Page must be 1 or greater',
+        code: 'INVALID',
+      });
     }
   }
-  
+
   // Validate optional per_page
   if (per_page) {
     const perPageNum = parseInt(per_page, 10);
     if (isNaN(perPageNum) || perPageNum < 1 || perPageNum > 100) {
-      validationErrors.push({ field: 'per_page', message: 'Per page must be between 1 and 100', code: 'INVALID' });
+      validationErrors.push({
+        field: 'per_page',
+        message: 'Per page must be between 1 and 100',
+        code: 'INVALID',
+      });
     }
   }
-  
+
   if (validationErrors.length > 0) {
     throw new ValidationApiError(validationErrors);
   }
-  
+
   // Store parsed values
   c.set('validated_query', {
     page: page ? parseInt(page, 10) : undefined,
     per_page: per_page ? parseInt(per_page, 10) : undefined,
   });
-  
+
   await next();
 }
 
@@ -307,39 +323,39 @@ export async function validateFileUploads(
 ): Promise<void | Response> {
   try {
     const contentType = c.req.header('Content-Type');
-    
+
     if (!contentType?.includes('multipart/form-data')) {
       await next();
       return;
     }
-    
+
     const formData = await c.req.formData();
     const files: File[] = [];
-    
+
     // Collect all files from form data
     for (const [, value] of formData.entries()) {
       if (typeof value === 'object' && value && 'size' in value && 'type' in value) {
         files.push(value as File);
       }
     }
-    
+
     // Validate file count
     if (files.length > MAX_PHOTOS_PER_SUBMISSION) {
       throw new ValidationApiError([
-        { 
-          field: 'photos', 
-          message: `Maximum ${MAX_PHOTOS_PER_SUBMISSION} photos allowed`, 
-          code: 'TOO_MANY_FILES' 
-        }
+        {
+          field: 'photos',
+          message: `Maximum ${MAX_PHOTOS_PER_SUBMISSION} photos allowed`,
+          code: 'TOO_MANY_FILES',
+        },
       ]);
     }
-    
+
     // Validate each file
     const validationErrors = [];
-    
+
     for (let i = 0; i < files.length; i++) {
       const file = files[i]!;
-      
+
       // Check file size (15MB max)
       if (file.size > 15 * 1024 * 1024) {
         validationErrors.push({
@@ -348,7 +364,7 @@ export async function validateFileUploads(
           code: 'FILE_TOO_LARGE',
         });
       }
-      
+
       // Check file type
       if (!file.type.startsWith('image/')) {
         validationErrors.push({
@@ -357,7 +373,7 @@ export async function validateFileUploads(
           code: 'INVALID_FILE_TYPE',
         });
       }
-      
+
       // Check supported image types
       const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
       if (!supportedTypes.includes(file.type)) {
@@ -368,23 +384,22 @@ export async function validateFileUploads(
         });
       }
     }
-    
+
     if (validationErrors.length > 0) {
       throw new ValidationApiError(validationErrors);
     }
-    
+
     // Store validated files in context
     c.set('validated_files', files);
-    
   } catch (error) {
     if (error instanceof ValidationApiError) {
       throw error;
     }
     throw new ValidationApiError([
-      { field: 'photos', message: 'File validation failed', code: 'FILE_VALIDATION_ERROR' }
+      { field: 'photos', message: 'File validation failed', code: 'FILE_VALIDATION_ERROR' },
     ]);
   }
-  
+
   await next();
 }
 
@@ -408,21 +423,21 @@ export function getValidatedFiles(c: Context): File[] {
 export function validateUUID(paramName: string = 'id') {
   return async (c: Context<{ Bindings: WorkerEnv }>, next: Next): Promise<void | Response> => {
     const value = c.req.param(paramName);
-    
+
     if (!value) {
       throw new ValidationApiError([
-        { field: paramName, message: `${paramName} is required`, code: 'REQUIRED' }
+        { field: paramName, message: `${paramName} is required`, code: 'REQUIRED' },
       ]);
     }
-    
+
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    
+
     if (!uuidRegex.test(value)) {
       throw new ValidationApiError([
-        { field: paramName, message: `${paramName} must be a valid UUID`, code: 'INVALID_UUID' }
+        { field: paramName, message: `${paramName} must be a valid UUID`, code: 'INVALID_UUID' },
       ]);
     }
-    
+
     await next();
   };
 }

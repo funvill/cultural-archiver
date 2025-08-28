@@ -1,10 +1,13 @@
 # Photo Processing Documentation
 
-The Cultural Archiver API implements a comprehensive photo processing pipeline using Cloudflare R2 storage. This document covers the complete workflow from upload validation to final storage and retrieval.
+The Cultural Archiver API implements a comprehensive photo processing pipeline
+using Cloudflare R2 storage. This document covers the complete workflow from
+upload validation to final storage and retrieval.
 
 ## Overview
 
 The photo processing system handles:
+
 - File validation and security checks
 - Image processing and optimization
 - Secure storage with organized folder structure
@@ -65,24 +68,22 @@ const getDatePath = (date: Date = new Date()): string => {
 ```typescript
 const SUPPORTED_MIME_TYPES = new Set([
   'image/jpeg',
-  'image/jpg', 
+  'image/jpg',
   'image/png',
-  'image/webp'
+  'image/webp',
 ]);
 
-const SUPPORTED_EXTENSIONS = new Set([
-  'jpg', 'jpeg', 'png', 'webp'
-]);
+const SUPPORTED_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
 ```
 
 ### Size and Quality Limits
 
 ```typescript
 const PHOTO_CONSTRAINTS = {
-  maxFileSize: 15 * 1024 * 1024,     // 15MB per file
-  maxPhotosPerSubmission: 3,          // Maximum photos per submission
-  minDimensions: { width: 200, height: 200 },  // Minimum resolution
-  maxDimensions: { width: 4096, height: 4096 } // Maximum resolution
+  maxFileSize: 15 * 1024 * 1024, // 15MB per file
+  maxPhotosPerSubmission: 3, // Maximum photos per submission
+  minDimensions: { width: 200, height: 200 }, // Minimum resolution
+  maxDimensions: { width: 4096, height: 4096 }, // Maximum resolution
 };
 ```
 
@@ -100,32 +101,34 @@ interface PhotoValidationResult {
 
 const validatePhoto = async (file: File): Promise<PhotoValidationResult> => {
   const errors: string[] = [];
-  
+
   // File size check
   if (file.size > PHOTO_CONSTRAINTS.maxFileSize) {
-    errors.push(`File size ${formatBytes(file.size)} exceeds maximum ${formatBytes(PHOTO_CONSTRAINTS.maxFileSize)}`);
+    errors.push(
+      `File size ${formatBytes(file.size)} exceeds maximum ${formatBytes(PHOTO_CONSTRAINTS.maxFileSize)}`
+    );
   }
-  
+
   // MIME type validation
   const mimeType = file.type;
   if (!SUPPORTED_MIME_TYPES.has(mimeType)) {
     errors.push(`Unsupported file type: ${mimeType}`);
   }
-  
+
   // Magic number validation (security check)
   const buffer = await file.arrayBuffer();
   const actualMimeType = detectMimeType(buffer);
   if (actualMimeType !== mimeType) {
     errors.push(`File content doesn't match declared type`);
   }
-  
+
   return {
     isValid: errors.length === 0,
     mimeType: actualMimeType,
     extension: getExtensionFromMimeType(actualMimeType),
     size: file.size,
     dimensions: await getImageDimensions(buffer),
-    errors
+    errors,
   };
 };
 ```
@@ -153,43 +156,43 @@ const processPhotoUpload = async (
   if (!validation.isValid) {
     throw new Error(`Photo validation failed: ${validation.errors.join(', ')}`);
   }
-  
+
   // 2. Generate secure filename
   const timestamp = new Date().toISOString().replace(/[-:]/g, '').slice(0, 15);
   const uuid = crypto.randomUUID();
   const filename = `${timestamp}-${uuid}.${validation.extension}`;
-  
+
   // 3. Create storage path
   const datePath = getDatePath();
   const key = `${folder}/${datePath}/${filename}`;
-  
+
   // 4. Process image (resize, optimize)
   const processedBuffer = await processImage(await file.arrayBuffer(), {
     maxWidth: 1920,
     maxHeight: 1920,
-    quality: 85
+    quality: 85,
   });
-  
+
   // 5. Upload to R2
   await env.PHOTOS.put(key, processedBuffer, {
     httpMetadata: {
       contentType: validation.mimeType,
-      cacheControl: 'public, max-age=31536000' // 1 year
+      cacheControl: 'public, max-age=31536000', // 1 year
     },
     customMetadata: {
       originalFilename: file.name,
       uploadedAt: new Date().toISOString(),
-      userAgent: 'cultural-archiver-api'
-    }
+      userAgent: 'cultural-archiver-api',
+    },
   });
-  
+
   // 6. Return result
   return {
     url: `https://photos.cultural-archiver.com/${key}`,
     filename,
     size: processedBuffer.byteLength,
     mimeType: validation.mimeType,
-    uploadedAt: new Date().toISOString()
+    uploadedAt: new Date().toISOString(),
   };
 };
 ```
@@ -206,17 +209,17 @@ interface ImageProcessingOptions {
 }
 
 const processImage = async (
-  buffer: ArrayBuffer, 
+  buffer: ArrayBuffer,
   options: ImageProcessingOptions
 ): Promise<ArrayBuffer> => {
   // Note: In a full implementation, this would use a service like:
   // - Cloudflare Images for automatic optimization
   // - Sharp.js for server-side processing
   // - ImageMagick integration
-  
+
   // For MVP, we return the original buffer with basic validation
   // Future enhancement: implement actual image processing
-  
+
   return buffer;
 };
 ```
@@ -244,11 +247,11 @@ interface ExifData {
 const extractExifData = async (buffer: ArrayBuffer): Promise<ExifData> => {
   // Implementation would use a library like exif-js or piexifjs
   // Extract relevant metadata while respecting privacy
-  
+
   return {
     // Safe metadata only (no GPS unless explicitly consented)
     camera: 'Camera metadata if available',
-    capturedAt: 'Timestamp if available'
+    capturedAt: 'Timestamp if available',
   };
 };
 ```
@@ -263,9 +266,9 @@ const injectPermalink = async (
 ): Promise<ArrayBuffer> => {
   // Inject permalink into EXIF comment field
   // This ensures attribution survives photo sharing
-  
+
   const comment = `Cultural Archiver: ${permalink} - Submitted ${metadata.capturedAt || 'date unknown'}`;
-  
+
   // Implementation would modify EXIF comment field
   // For now, return original buffer
   return buffer;
@@ -285,35 +288,35 @@ const migratePhotosOnApproval = async (
   artworkId: string
 ): Promise<string[]> => {
   const migratedUrls: string[] = [];
-  
+
   for (const submissionUrl of logbookPhotos) {
     // 1. Extract key from submission URL
     const submissionKey = extractKeyFromUrl(submissionUrl);
-    
+
     // 2. Generate new artwork key
     const filename = submissionKey.split('/').pop()!;
     const datePath = getDatePath();
     const artworkKey = `artworks/${datePath}/${filename}`;
-    
+
     // 3. Copy object in R2
     const object = await env.PHOTOS.get(submissionKey);
     if (!object) continue;
-    
+
     await env.PHOTOS.put(artworkKey, object.body, {
       httpMetadata: object.httpMetadata,
       customMetadata: {
         ...object.customMetadata,
         migratedFrom: submissionKey,
         artworkId,
-        approvedAt: new Date().toISOString()
-      }
+        approvedAt: new Date().toISOString(),
+      },
     });
-    
+
     // 4. Generate new URL
     const artworkUrl = `https://photos.cultural-archiver.com/${artworkKey}`;
     migratedUrls.push(artworkUrl);
   }
-  
+
   return migratedUrls;
 };
 ```
@@ -359,17 +362,20 @@ const generatePhotoUrl = (
   options: PhotoUrlOptions = {}
 ): string => {
   const baseUrl = 'https://photos.cultural-archiver.com';
-  
+
   if (options.transform) {
     // Future: Cloudflare Images integration for on-demand transforms
     const params = new URLSearchParams();
-    if (options.transform.width) params.set('w', options.transform.width.toString());
-    if (options.transform.height) params.set('h', options.transform.height.toString());
-    if (options.transform.quality) params.set('q', options.transform.quality.toString());
-    
+    if (options.transform.width)
+      params.set('w', options.transform.width.toString());
+    if (options.transform.height)
+      params.set('h', options.transform.height.toString());
+    if (options.transform.quality)
+      params.set('q', options.transform.quality.toString());
+
     return `${baseUrl}/${key}?${params.toString()}`;
   }
-  
+
   return `${baseUrl}/${key}`;
 };
 ```
@@ -379,9 +385,9 @@ const generatePhotoUrl = (
 ```typescript
 interface ResponsiveImageSet {
   original: string;
-  large: string;    // 1200px
-  medium: string;   // 800px
-  small: string;    // 400px
+  large: string; // 1200px
+  medium: string; // 800px
+  small: string; // 400px
   thumbnail: string; // 200px
 }
 
@@ -391,7 +397,9 @@ const generateResponsiveImageSet = (key: string): ResponsiveImageSet => {
     large: generatePhotoUrl(key, { transform: { width: 1200, quality: 85 } }),
     medium: generatePhotoUrl(key, { transform: { width: 800, quality: 85 } }),
     small: generatePhotoUrl(key, { transform: { width: 400, quality: 80 } }),
-    thumbnail: generatePhotoUrl(key, { transform: { width: 200, height: 200, quality: 75 } })
+    thumbnail: generatePhotoUrl(key, {
+      transform: { width: 200, height: 200, quality: 75 },
+    }),
   };
 };
 ```
@@ -410,13 +418,13 @@ const validatePhotoAccess = async (
   if (key.startsWith('artworks/')) {
     return true; // Public access to approved artwork photos
   }
-  
+
   // 2. Check if user owns the submission
   if (key.startsWith('submissions/')) {
     const logbookEntry = await getLogbookEntryByPhotoKey(key, env);
     return logbookEntry?.user_token === userToken;
   }
-  
+
   return false; // Deny access by default
 };
 ```
@@ -442,13 +450,10 @@ const flagPhotoForModeration = async (
     photoKey,
     flags,
     flaggedBy: reviewerToken,
-    flaggedAt: new Date().toISOString()
+    flaggedAt: new Date().toISOString(),
   };
-  
-  await env.MODERATION.put(
-    `photo:${photoKey}`,
-    JSON.stringify(moderationData)
-  );
+
+  await env.MODERATION.put(`photo:${photoKey}`, JSON.stringify(moderationData));
 };
 ```
 
@@ -461,15 +466,15 @@ const flagPhotoForModeration = async (
 const CDN_CONFIG = {
   domain: 'photos.cultural-archiver.com',
   cacheSettings: {
-    browserCacheTtl: 31536000,    // 1 year
-    edgeCacheTtl: 2592000,        // 30 days
-    cacheEverything: true
+    browserCacheTtl: 31536000, // 1 year
+    edgeCacheTtl: 2592000, // 30 days
+    cacheEverything: true,
   },
   optimizations: {
-    minify: false,                 // Don't minify images
+    minify: false, // Don't minify images
     automaticHttpsRewrites: true,
-    brotliCompression: true
-  }
+    brotliCompression: true,
+  },
 };
 ```
 
@@ -480,8 +485,8 @@ interface PhotoMetadata {
   width: number;
   height: number;
   aspectRatio: number;
-  blurhash?: string;          // For placeholder generation
-  dominantColor?: string;     // For background while loading
+  blurhash?: string; // For placeholder generation
+  dominantColor?: string; // For background while loading
 }
 
 const generatePhotoMetadata = async (
@@ -489,12 +494,12 @@ const generatePhotoMetadata = async (
 ): Promise<PhotoMetadata> => {
   // Extract dimensions and generate placeholder data
   const dimensions = await getImageDimensions(buffer);
-  
+
   return {
     width: dimensions.width,
     height: dimensions.height,
     aspectRatio: dimensions.width / dimensions.height,
-    dominantColor: '#f0f0f0' // Future: extract actual dominant color
+    dominantColor: '#f0f0f0', // Future: extract actual dominant color
   };
 };
 ```
@@ -506,7 +511,7 @@ const generatePhotoMetadata = async (
 ```typescript
 interface PhotoStorageMetrics {
   totalPhotos: number;
-  totalSize: number;           // Bytes
+  totalSize: number; // Bytes
   submissionPhotos: number;
   artworkPhotos: number;
   averageFileSize: number;
@@ -516,14 +521,14 @@ interface PhotoStorageMetrics {
 const getStorageMetrics = async (env: Env): Promise<PhotoStorageMetrics> => {
   // Implementation would analyze R2 bucket contents
   // For production, use Cloudflare Analytics API
-  
+
   return {
     totalPhotos: 0,
     totalSize: 0,
     submissionPhotos: 0,
     artworkPhotos: 0,
     averageFileSize: 0,
-    storageByMonth: {}
+    storageByMonth: {},
   };
 };
 ```
@@ -532,9 +537,9 @@ const getStorageMetrics = async (env: Env): Promise<PhotoStorageMetrics> => {
 
 ```typescript
 interface PhotoPerformanceMetrics {
-  uploadDuration: number;      // Average upload time (ms)
-  processingDuration: number;  // Average processing time (ms)
-  failureRate: number;         // Percentage of failed uploads
+  uploadDuration: number; // Average upload time (ms)
+  processingDuration: number; // Average processing time (ms)
+  failureRate: number; // Percentage of failed uploads
   popularSizes: Record<string, number>; // Most requested image sizes
 }
 ```
@@ -544,16 +549,19 @@ interface PhotoPerformanceMetrics {
 ### Common Issues
 
 **Upload Failures:**
+
 1. Check file size limits and MIME type validation
 2. Verify R2 bucket permissions and KV namespace access
 3. Monitor R2 request quotas and storage limits
 
 **Missing Photos:**
+
 1. Verify photo migration completed successfully
 2. Check R2 object existence and metadata
 3. Validate URL generation and CDN configuration
 
 **Performance Issues:**
+
 1. Monitor R2 request latency and error rates
 2. Check CDN cache hit rates and edge performance
 3. Optimize image processing pipeline
@@ -576,11 +584,13 @@ curl -w "%{time_total}" -X POST http://localhost:8787/api/logbook \
 
 ## Future Enhancements
 
-1. **Image Optimization**: Cloudflare Images integration for automatic format conversion and resizing
+1. **Image Optimization**: Cloudflare Images integration for automatic format
+   conversion and resizing
 2. **AI Content Moderation**: Automatic detection of inappropriate content
 3. **Duplicate Detection**: Identify and handle duplicate photo submissions
 4. **Backup and Recovery**: Cross-region replication for photo backup
 5. **Advanced EXIF**: Enhanced metadata extraction and privacy controls
 6. **Progressive Enhancement**: WebP format support with fallbacks
-7. **Thumbnail Generation**: Automatic thumbnail creation for improved performance
+7. **Thumbnail Generation**: Automatic thumbnail creation for improved
+   performance
 8. **Content Delivery**: Edge optimization for global photo delivery

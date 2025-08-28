@@ -1,13 +1,13 @@
 /**
  * Review and moderation route handlers
- * 
+ *
  * Provides endpoints for reviewers to approve, reject, and manage
  * user submissions with proper permission checking and audit logging.
  */
 
 import type { Context } from 'hono';
 import type { WorkerEnv, AuthContext, ArtworkRecord } from '../../shared/types';
-import { 
+import {
   insertArtwork,
   updateLogbookStatus,
   findNearbyArtworks,
@@ -56,21 +56,17 @@ export async function getReviewQueue(
 ): Promise<Response> {
   try {
     const authContext = c.get('authContext');
-    
+
     // Check reviewer permissions
     if (!authContext.isReviewer) {
-      throw new ApiError(
-        'Reviewer permissions required',
-        'INSUFFICIENT_PERMISSIONS',
-        403
-      );
+      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
-    
+
     // Get query parameters
     const { limit = '20', offset = '0', status = 'pending' } = c.req.query();
     const limitNum = Math.min(parseInt(limit) || 20, MAX_REVIEW_BATCH_SIZE);
     const offsetNum = parseInt(offset) || 0;
-    
+
     // Query pending submissions
     const stmt = c.env.DB.prepare(`
       SELECT 
@@ -83,20 +79,16 @@ export async function getReviewQueue(
       ORDER BY l.created_at ASC
       LIMIT ? OFFSET ?
     `);
-    
+
     const results = await stmt.bind(status, limitNum, offsetNum).all();
-    
+
     if (!results.success) {
-      throw new ApiError(
-        'Failed to fetch review queue',
-        'DATABASE_ERROR',
-        500
-      );
+      throw new ApiError('Failed to fetch review queue', 'DATABASE_ERROR', 500);
     }
-    
-    const totalCount = results.results.length > 0 ? 
-      (results.results[0] as SubmissionRow).total_count : 0;
-    
+
+    const totalCount =
+      results.results.length > 0 ? (results.results[0] as SubmissionRow).total_count : 0;
+
     // Format submissions for review
     const submissions = results.results.map((row: SubmissionRow) => {
       const submission = {
@@ -112,13 +104,13 @@ export async function getReviewQueue(
         user_token: row.user_token,
         artwork_id: row.artwork_id,
       };
-      
+
       // Remove sensitive data
       delete submission.user_token;
-      
+
       return submission;
     });
-    
+
     return c.json({
       submissions,
       pagination: {
@@ -128,19 +120,14 @@ export async function getReviewQueue(
         has_more: offsetNum + limitNum < totalCount,
       },
     });
-    
   } catch (error) {
     console.error('Review queue error:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to retrieve review queue',
-      'REVIEW_QUEUE_ERROR',
-      500
-    );
+
+    throw new ApiError('Failed to retrieve review queue', 'REVIEW_QUEUE_ERROR', 500);
   }
 }
 
@@ -166,7 +153,7 @@ function parseSubmissionData(logbookEntry: SubmissionRow): ParsedSubmissionData 
   } catch (error) {
     // If parsing fails, return as-is with default values
   }
-  
+
   return {
     ...logbookEntry,
     lat: 49.2827, // Default Vancouver coordinates for testing
@@ -180,31 +167,23 @@ export async function getSubmissionForReview(
 ): Promise<Response> {
   try {
     const authContext = c.get('authContext');
-    
+
     // Check reviewer permissions
     if (!authContext.isReviewer) {
-      throw new ApiError(
-        'Reviewer permissions required',
-        'INSUFFICIENT_PERMISSIONS',
-        403
-      );
+      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
-    
+
     const submissionId = c.req.param('id');
-    
+
     // Get submission details
     const rawSubmission = await findLogbookById(c.env.DB, submissionId);
     if (!rawSubmission) {
-      throw new ApiError(
-        'Submission not found',
-        'SUBMISSION_NOT_FOUND',
-        404
-      );
+      throw new ApiError('Submission not found', 'SUBMISSION_NOT_FOUND', 404);
     }
-    
+
     // Parse submission data from note field
     const submission = parseSubmissionData(rawSubmission);
-    
+
     // Find nearby artworks for duplicate detection
     const nearbyArtworks = await findNearbyArtworks(
       c.env.DB,
@@ -212,24 +191,20 @@ export async function getSubmissionForReview(
       submission.lon,
       NEARBY_ARTWORK_RADIUS_METERS
     );
-    
+
     // Calculate distances for reviewer context
     const nearbyWithDistances = nearbyArtworks.map((artwork: ArtworkRecord) => ({
       ...artwork,
-      distance_meters: Math.round(calculateDistance(
-        submission.lat,
-        submission.lon,
-        artwork.lat,
-        artwork.lon
-      ).distance_km * 1000), // Convert km to meters
+      distance_meters: Math.round(
+        calculateDistance(submission.lat, submission.lon, artwork.lat, artwork.lon).distance_km *
+          1000
+      ), // Convert km to meters
     }));
-    
+
     // Get artwork type name
-    const typeStmt = c.env.DB.prepare(
-      'SELECT name FROM artwork_types WHERE id = ?'
-    );
+    const typeStmt = c.env.DB.prepare('SELECT name FROM artwork_types WHERE id = ?');
     const typeResult = await typeStmt.bind(submission.type_id).first();
-    
+
     return c.json({
       submission: {
         id: submission.id,
@@ -250,19 +225,14 @@ export async function getSubmissionForReview(
         requires_action: submission.status === 'pending',
       },
     });
-    
   } catch (error) {
     console.error('Submission review error:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to retrieve submission for review',
-      'SUBMISSION_REVIEW_ERROR',
-      500
-    );
+
+    throw new ApiError('Failed to retrieve submission for review', 'SUBMISSION_REVIEW_ERROR', 500);
   }
 }
 
@@ -275,19 +245,15 @@ export async function approveSubmission(
 ): Promise<Response> {
   try {
     const authContext = c.get('authContext');
-    
+
     // Check reviewer permissions
     if (!authContext.isReviewer) {
-      throw new ApiError(
-        'Reviewer permissions required',
-        'INSUFFICIENT_PERMISSIONS',
-        403
-      );
+      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
-    
+
     const submissionId = c.req.param('id');
     const { action, artwork_id, overrides } = await c.req.json();
-    
+
     // Validate action
     if (!['create_new', 'link_existing'].includes(action)) {
       throw new ApiError(
@@ -296,30 +262,22 @@ export async function approveSubmission(
         400
       );
     }
-    
+
     // Get submission
     const rawSubmission = await findLogbookById(c.env.DB, submissionId);
     if (!rawSubmission) {
-      throw new ApiError(
-        'Submission not found',
-        'SUBMISSION_NOT_FOUND',
-        404
-      );
+      throw new ApiError('Submission not found', 'SUBMISSION_NOT_FOUND', 404);
     }
-    
+
     const submission = parseSubmissionData(rawSubmission);
-    
+
     if (submission.status !== 'pending') {
-      throw new ApiError(
-        'Only pending submissions can be approved',
-        'INVALID_STATUS',
-        400
-      );
+      throw new ApiError('Only pending submissions can be approved', 'INVALID_STATUS', 400);
     }
-    
+
     let finalArtworkId: string = '';
     let newArtworkCreated = false;
-    
+
     if (action === 'create_new') {
       // Create new artwork from submission
       const artworkData: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'> = {
@@ -330,10 +288,9 @@ export async function approveSubmission(
         status: 'approved',
         photos: '[]', // Will be updated after photo migration
       };
-      
+
       finalArtworkId = await insertArtwork(c.env.DB, artworkData);
       newArtworkCreated = true;
-      
     } else if (action === 'link_existing') {
       // Link to existing artwork
       if (!artwork_id) {
@@ -343,45 +300,36 @@ export async function approveSubmission(
           400
         );
       }
-      
+
       // Verify artwork exists
       const existingArtwork = await findArtworkById(c.env.DB, artwork_id);
       if (!existingArtwork) {
-        throw new ApiError(
-          'Target artwork not found',
-          'ARTWORK_NOT_FOUND',
-          404
-        );
+        throw new ApiError('Target artwork not found', 'ARTWORK_NOT_FOUND', 404);
       }
-      
+
       finalArtworkId = artwork_id;
     }
-    
+
     // Move photos from submission to artwork
     let newPhotoUrls: string[] = [];
     if (submission.photos) {
       const submissionPhotos = JSON.parse(submission.photos);
       if (submissionPhotos.length > 0) {
-        newPhotoUrls = await movePhotosToArtwork(
-          c.env,
-          submissionPhotos,
-          finalArtworkId
-        );
-        
+        newPhotoUrls = await movePhotosToArtwork(c.env, submissionPhotos, finalArtworkId);
+
         // Update artwork with new photos
         if (newArtworkCreated) {
           await updateArtworkPhotos(c.env.DB, finalArtworkId, newPhotoUrls);
         } else {
           // Merge with existing photos
           const existingArtwork = await findArtworkById(c.env.DB, finalArtworkId);
-          const existingPhotos = existingArtwork?.photos ? 
-            JSON.parse(existingArtwork.photos) : [];
+          const existingPhotos = existingArtwork?.photos ? JSON.parse(existingArtwork.photos) : [];
           const allPhotos = [...existingPhotos, ...newPhotoUrls];
           await updateArtworkPhotos(c.env.DB, finalArtworkId, allPhotos);
         }
       }
     }
-    
+
     // Add tags from submission to artwork
     if (submission.tags) {
       const tags = JSON.parse(submission.tags);
@@ -391,15 +339,15 @@ export async function approveSubmission(
         artwork_id: finalArtworkId,
         logbook_id: null,
       }));
-      
+
       if (tagEntries.length > 0) {
         await insertTags(c.env.DB, tagEntries);
       }
     }
-    
+
     // Update submission status
     await updateLogbookStatus(c.env.DB, submissionId, 'approved', finalArtworkId);
-    
+
     // Log approval action
     console.log('Submission approved:', {
       submissionId,
@@ -409,7 +357,7 @@ export async function approveSubmission(
       newArtworkCreated,
       photosMoved: newPhotoUrls.length,
     });
-    
+
     return c.json({
       message: 'Submission approved successfully',
       submission_id: submissionId,
@@ -419,19 +367,14 @@ export async function approveSubmission(
       photos_migrated: newPhotoUrls.length,
       approved_at: new Date().toISOString(),
     });
-    
   } catch (error) {
     console.error('Approval error:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to approve submission',
-      'APPROVAL_ERROR',
-      500
-    );
+
+    throw new ApiError('Failed to approve submission', 'APPROVAL_ERROR', 500);
   }
 }
 
@@ -444,39 +387,27 @@ export async function rejectSubmission(
 ): Promise<Response> {
   try {
     const authContext = c.get('authContext');
-    
+
     // Check reviewer permissions
     if (!authContext.isReviewer) {
-      throw new ApiError(
-        'Reviewer permissions required',
-        'INSUFFICIENT_PERMISSIONS',
-        403
-      );
+      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
-    
+
     const submissionId = c.req.param('id');
     const { reason, cleanup_photos = true } = await c.req.json();
-    
+
     // Get submission for rejection
     const rawSubmission = await findLogbookById(c.env.DB, submissionId);
     if (!rawSubmission) {
-      throw new ApiError(
-        'Submission not found',
-        'SUBMISSION_NOT_FOUND',
-        404
-      );
+      throw new ApiError('Submission not found', 'SUBMISSION_NOT_FOUND', 404);
     }
-    
+
     const submission = parseSubmissionData(rawSubmission);
-    
+
     if (submission.status !== 'pending') {
-      throw new ApiError(
-        'Only pending submissions can be rejected',
-        'INVALID_STATUS',
-        400
-      );
+      throw new ApiError('Only pending submissions can be rejected', 'INVALID_STATUS', 400);
     }
-    
+
     // Clean up photos if requested
     if (cleanup_photos && submission.photos) {
       const submissionPhotos = JSON.parse(submission.photos);
@@ -484,10 +415,10 @@ export async function rejectSubmission(
         await cleanupRejectedPhotos(c.env, submissionPhotos);
       }
     }
-    
+
     // Update submission status
     await updateLogbookStatus(c.env.DB, submissionId, 'rejected');
-    
+
     // Log rejection action
     console.log('Submission rejected:', {
       submissionId,
@@ -495,7 +426,7 @@ export async function rejectSubmission(
       reviewerId: authContext.userToken,
       photosCleanedUp: cleanup_photos,
     });
-    
+
     return c.json({
       message: 'Submission rejected successfully',
       submission_id: submissionId,
@@ -503,19 +434,14 @@ export async function rejectSubmission(
       photos_cleaned_up: cleanup_photos,
       rejected_at: new Date().toISOString(),
     });
-    
   } catch (error) {
     console.error('Rejection error:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to reject submission',
-      'REJECTION_ERROR',
-      500
-    );
+
+    throw new ApiError('Failed to reject submission', 'REJECTION_ERROR', 500);
   }
 }
 
@@ -528,16 +454,12 @@ export async function getReviewStats(
 ): Promise<Response> {
   try {
     const authContext = c.get('authContext');
-    
+
     // Check reviewer permissions
     if (!authContext.isReviewer) {
-      throw new ApiError(
-        'Reviewer permissions required',
-        'INSUFFICIENT_PERMISSIONS',
-        403
-      );
+      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
-    
+
     // Get submission counts by status
     const statusStmt = c.env.DB.prepare(`
       SELECT 
@@ -546,17 +468,13 @@ export async function getReviewStats(
       FROM logbook
       GROUP BY status
     `);
-    
+
     const statusResults = await statusStmt.all();
-    
+
     if (!statusResults.success) {
-      throw new ApiError(
-        'Failed to fetch review statistics',
-        'DATABASE_ERROR',
-        500
-      );
+      throw new ApiError('Failed to fetch review statistics', 'DATABASE_ERROR', 500);
     }
-    
+
     // Get recent activity
     const recentStmt = c.env.DB.prepare(`
       SELECT 
@@ -568,17 +486,20 @@ export async function getReviewStats(
       GROUP BY DATE(created_at), status
       ORDER BY date DESC
     `);
-    
+
     const recentResults = await recentStmt.all();
-    
+
     // Format statistics
-    const statusCounts = statusResults.results.reduce((acc: Record<string, number>, row: StatusRow) => {
-      acc[row.status] = row.count;
-      return acc;
-    }, {});
-    
+    const statusCounts = statusResults.results.reduce(
+      (acc: Record<string, number>, row: StatusRow) => {
+        acc[row.status] = row.count;
+        return acc;
+      },
+      {}
+    );
+
     const recentActivity = recentResults.success ? recentResults.results : [];
-    
+
     return c.json({
       status_counts: {
         pending: statusCounts.pending || 0,
@@ -589,19 +510,14 @@ export async function getReviewStats(
       recent_activity: recentActivity,
       generated_at: new Date().toISOString(),
     });
-    
   } catch (error) {
     console.error('Review stats error:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to retrieve review statistics',
-      'REVIEW_STATS_ERROR',
-      500
-    );
+
+    throw new ApiError('Failed to retrieve review statistics', 'REVIEW_STATS_ERROR', 500);
   }
 }
 
@@ -614,26 +530,18 @@ export async function processBatchReview(
 ): Promise<Response> {
   try {
     const authContext = c.get('authContext');
-    
+
     // Check reviewer permissions
     if (!authContext.isReviewer) {
-      throw new ApiError(
-        'Reviewer permissions required',
-        'INSUFFICIENT_PERMISSIONS',
-        403
-      );
+      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
-    
+
     const { submissions } = await c.req.json();
-    
+
     if (!Array.isArray(submissions) || submissions.length === 0) {
-      throw new ApiError(
-        'Submissions array is required',
-        'INVALID_BATCH',
-        400
-      );
+      throw new ApiError('Submissions array is required', 'INVALID_BATCH', 400);
     }
-    
+
     if (submissions.length > MAX_REVIEW_BATCH_SIZE) {
       throw new ApiError(
         `Batch size cannot exceed ${MAX_REVIEW_BATCH_SIZE} submissions`,
@@ -641,18 +549,18 @@ export async function processBatchReview(
         400
       );
     }
-    
+
     const results = {
       approved: 0,
       rejected: 0,
       errors: [] as string[],
     };
-    
+
     // Process each submission
     for (const item of submissions) {
       try {
         const { id, action } = item;
-        
+
         if (action === 'approve') {
           // Simple approval (create new artwork)
           const rawSubmission = await findLogbookById(c.env.DB, id);
@@ -666,12 +574,11 @@ export async function processBatchReview(
               status: 'approved',
               photos: null, // Will be updated separately if needed
             };
-            
+
             const artworkId = await insertArtwork(c.env.DB, artworkData);
             await updateLogbookStatus(c.env.DB, id, 'approved', artworkId);
             results.approved++;
           }
-          
         } else if (action === 'reject') {
           const rawSubmission = await findLogbookById(c.env.DB, id);
           if (rawSubmission && rawSubmission.status === 'pending') {
@@ -679,7 +586,6 @@ export async function processBatchReview(
             results.rejected++;
           }
         }
-        
       } catch (error) {
         results.errors.push({
           submission_id: item.id,
@@ -687,24 +593,19 @@ export async function processBatchReview(
         });
       }
     }
-    
+
     return c.json({
       message: 'Batch review completed',
       results,
       processed_at: new Date().toISOString(),
     });
-    
   } catch (error) {
     console.error('Batch review error:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to process batch review',
-      'BATCH_REVIEW_ERROR',
-      500
-    );
+
+    throw new ApiError('Failed to process batch review', 'BATCH_REVIEW_ERROR', 500);
   }
 }

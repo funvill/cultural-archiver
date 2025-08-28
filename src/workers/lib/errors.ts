@@ -71,10 +71,8 @@ export class RateLimitError extends ApiError {
  */
 export class NotFoundError extends ApiError {
   constructor(resource: string, id?: string) {
-    const message = id 
-      ? `${resource} with id '${id}' not found`
-      : `${resource} not found`;
-    
+    const message = id ? `${resource} with id '${id}' not found` : `${resource} not found`;
+
     super('NOT_FOUND', message, 404, {
       details: { resource, id },
       showDetails: false,
@@ -119,14 +117,20 @@ export class InternalServerError extends ApiError {
 /**
  * Create validation error for a single field
  */
-export function createFieldError(field: string, message: string, code: string = 'INVALID'): ValidationError {
+export function createFieldError(
+  field: string,
+  message: string,
+  code: string = 'INVALID'
+): ValidationError {
   return { field, message, code };
 }
 
 /**
  * Create multiple validation errors
  */
-export function createValidationErrors(errors: Array<{ field: string; message: string; code?: string }>): ValidationError[] {
+export function createValidationErrors(
+  errors: Array<{ field: string; message: string; code?: string }>
+): ValidationError[] {
   return errors.map(error => createFieldError(error.field, error.message, error.code));
 }
 
@@ -134,12 +138,13 @@ export function createValidationErrors(errors: Array<{ field: string; message: s
  * Format error response according to PRD specification with progressive disclosure
  */
 export function formatErrorResponse(
-  error: ApiError | Error, 
+  error: ApiError | Error,
   environment: string = 'production',
   options: ErrorOptions = {}
 ): ApiErrorResponse {
   const isProduction = environment === 'production';
-  const showDetails = options.showDetails ?? (!isProduction || (error instanceof ApiError && error.showDetails));
+  const showDetails =
+    options.showDetails ?? (!isProduction || (error instanceof ApiError && error.showDetails));
 
   if (error instanceof ApiError) {
     const response: ApiErrorResponse = {
@@ -149,15 +154,15 @@ export function formatErrorResponse(
 
     if (showDetails) {
       response.details = {};
-      
+
       if (error.validationErrors && error.validationErrors.length > 0) {
         response.details.validation_errors = error.validationErrors;
       }
-      
+
       if (error.details) {
         Object.assign(response.details, error.details);
       }
-      
+
       response.show_details = true;
     }
 
@@ -199,11 +204,11 @@ export function sendErrorResponse(
   options: ErrorOptions = {}
 ): Response {
   const environment = c.env?.ENVIRONMENT || 'production';
-  const statusCode = error instanceof ApiError ? error.statusCode : (options.statusCode || 500);
-  
+  const statusCode = error instanceof ApiError ? error.statusCode : options.statusCode || 500;
+
   // Generate correlation ID for debugging
   const correlationId = options.correlationId || crypto.randomUUID().substring(0, 8);
-  
+
   // Log error for debugging
   const logLevel = c.env?.LOG_LEVEL || 'warn';
   if (['debug', 'info', 'warn', 'error'].includes(logLevel)) {
@@ -244,12 +249,12 @@ export function withErrorHandling<T extends Context>(
       if (error instanceof ApiError) {
         return sendErrorResponse(c as Context<{ Bindings: WorkerEnv }>, error);
       }
-      
+
       // Log unexpected errors
       console.error('Unexpected error in route handler:', error);
-      
+
       return sendErrorResponse(
-        c as Context<{ Bindings: WorkerEnv }>, 
+        c as Context<{ Bindings: WorkerEnv }>,
         new InternalServerError('An unexpected error occurred')
       );
     }
@@ -261,13 +266,13 @@ export function withErrorHandling<T extends Context>(
  */
 export function validateRequired(data: Record<string, unknown>, requiredFields: string[]): void {
   const errors: ValidationError[] = [];
-  
+
   for (const field of requiredFields) {
     if (data[field] === undefined || data[field] === null || data[field] === '') {
       errors.push(createFieldError(field, `${field} is required`, 'REQUIRED'));
     }
   }
-  
+
   if (errors.length > 0) {
     throw new ValidationApiError(errors);
   }
@@ -277,15 +282,15 @@ export function validateRequired(data: Record<string, unknown>, requiredFields: 
  * Validate field types and throw validation error if incorrect
  */
 export function validateTypes(
-  data: Record<string, unknown>, 
+  data: Record<string, unknown>,
   fieldTypes: Record<string, 'string' | 'number' | 'boolean' | 'array' | 'object'>
 ): void {
   const errors: ValidationError[] = [];
-  
+
   for (const [field, expectedType] of Object.entries(fieldTypes)) {
     const value = data[field];
     if (value === undefined || value === null) continue;
-    
+
     let isValid = false;
     switch (expectedType) {
       case 'string':
@@ -304,12 +309,12 @@ export function validateTypes(
         isValid = typeof value === 'object' && !Array.isArray(value);
         break;
     }
-    
+
     if (!isValid) {
       errors.push(createFieldError(field, `${field} must be a ${expectedType}`, 'INVALID_TYPE'));
     }
   }
-  
+
   if (errors.length > 0) {
     throw new ValidationApiError(errors);
   }
@@ -327,7 +332,7 @@ export function createSuccessResponse<T>(data: T): T {
  */
 export function safeJsonParse<T>(jsonString: string | null, defaultValue: T): T {
   if (!jsonString) return defaultValue;
-  
+
   try {
     return JSON.parse(jsonString) as T;
   } catch {

@@ -1,6 +1,7 @@
 # Cultural Archiver Deployment Guide
 
-This guide covers deploying the Cultural Archiver Worker API to Cloudflare Workers, along with setting up the required Cloudflare services (D1, KV, R2).
+This guide covers deploying the Cultural Archiver Worker API to Cloudflare
+Workers, along with setting up the required Cloudflare services (D1, KV, R2).
 
 ## Prerequisites
 
@@ -153,7 +154,10 @@ Create `cors.json`:
 ```json
 [
   {
-    "AllowedOrigins": ["https://cultural-archiver.com", "http://localhost:3000"],
+    "AllowedOrigins": [
+      "https://cultural-archiver.com",
+      "http://localhost:3000"
+    ],
     "AllowedMethods": ["GET", "PUT", "POST"],
     "AllowedHeaders": ["*"],
     "ExposeHeaders": ["ETag"],
@@ -249,6 +253,7 @@ curl https://cultural-archiver-api.your-subdomain.workers.dev/api/review/stats
 ### 1. Add Custom Domain
 
 In Cloudflare Dashboard:
+
 1. Go to Workers & Pages
 2. Select your worker
 3. Go to Custom Domains
@@ -257,6 +262,7 @@ In Cloudflare Dashboard:
 ### 2. Update DNS
 
 Add CNAME record:
+
 ```
 api.cultural-archiver.com -> cultural-archiver-api.your-subdomain.workers.dev
 ```
@@ -274,6 +280,7 @@ const API_BASE_URL = 'https://api.cultural-archiver.com';
 ### 1. Enable Workers Analytics
 
 In Cloudflare Dashboard:
+
 1. Go to Workers & Pages
 2. Select your worker
 3. Enable Analytics
@@ -281,6 +288,7 @@ In Cloudflare Dashboard:
 ### 2. Set Up Alerts
 
 Configure alerts for:
+
 - High error rates (>5%)
 - Response time anomalies
 - CPU/memory usage spikes
@@ -400,7 +408,7 @@ Ensure rate limits are properly configured:
 // Implement progressive rate limiting
 const limits = {
   submissions: { daily: 10, burst: 3 },
-  queries: { hourly: 60, burst: 10 }
+  queries: { hourly: 60, burst: 10 },
 };
 ```
 
@@ -432,18 +440,21 @@ if (!allowedTypes.includes(file.type)) {
 ### Common Issues
 
 1. **Database Connection Errors**
+
    ```bash
    # Check D1 binding
    wrangler d1 info cultural-archiver-db
    ```
 
 2. **KV Namespace Issues**
+
    ```bash
    # List namespaces
    wrangler kv:namespace list
    ```
 
 3. **R2 Access Issues**
+
    ```bash
    # Test R2 access
    wrangler r2 bucket list
@@ -506,15 +517,15 @@ jobs:
       - uses: actions/setup-node@v3
         with:
           node-version: '18'
-      
+
       - name: Install dependencies
         run: |
           npm install
           cd src/workers && npm install
-      
+
       - name: Run tests
         run: cd src/workers && npm test
-      
+
       - name: Deploy to Cloudflare Workers
         uses: cloudflare/wrangler-action@v3
         with:
@@ -523,4 +534,5 @@ jobs:
           command: deploy --env production
 ```
 
-This deployment guide provides a comprehensive setup process for the Cultural Archiver Worker API on Cloudflare's platform.
+This deployment guide provides a comprehensive setup process for the Cultural
+Archiver Worker API on Cloudflare's platform.

@@ -1,6 +1,7 @@
 # Cultural Archiver Development Guide
 
-This guide covers local development setup, testing, and debugging for the Cultural Archiver Worker API.
+This guide covers local development setup, testing, and debugging for the
+Cultural Archiver Worker API.
 
 ## Prerequisites
 
@@ -70,6 +71,7 @@ npm run dev
 ```
 
 This starts the Wrangler development server with:
+
 - Hot reloading on file changes
 - Local D1 database
 - Local KV storage
@@ -139,7 +141,7 @@ describe('Submissions API', () => {
   test('should validate coordinates', async () => {
     const request = new Request('http://localhost/api/logbook', {
       method: 'POST',
-      body: createFormData({ lat: 'invalid', lon: '-123.1207' })
+      body: createFormData({ lat: 'invalid', lon: '-123.1207' }),
     });
 
     const response = await app.fetch(request, env);
@@ -153,12 +155,14 @@ describe('Submissions API', () => {
 ### Development Mode Features
 
 **Console Logging:**
+
 - All email magic links logged to console
 - Database queries logged with execution time
 - Rate limiting status displayed
 - Error stack traces included
 
 **Local Storage:**
+
 - D1 database stored locally in `.wrangler/state`
 - KV storage simulated in memory
 - R2 storage simulated locally
@@ -181,6 +185,7 @@ GET /debug/health
 ### Common Issues
 
 **Database Connection Errors:**
+
 ```bash
 # Reset local database
 rm -rf .wrangler/state
@@ -188,12 +193,14 @@ npx wrangler d1 execute cultural-archiver-dev --local --file=../../migrations/00
 ```
 
 **Rate Limiting in Development:**
+
 ```bash
 # Clear rate limits
 curl -X DELETE http://localhost:8787/debug/rate-limits/your-token
 ```
 
 **Photo Upload Issues:**
+
 - Check file size limits (15MB max)
 - Verify MIME type support (jpg, png, webp)
 - Ensure multipart/form-data encoding
@@ -222,7 +229,9 @@ curl -X POST http://localhost:8787/api/auth/magic-link \
 
 ### Using Postman
 
-Import the collection from `postman-collection.json` in the repository root. It includes:
+Import the collection from `postman-collection.json` in the repository root. It
+includes:
+
 - Pre-configured requests for all endpoints
 - Environment variables for development/staging
 - Authentication token management
@@ -233,7 +242,8 @@ Import the collection from `postman-collection.json` in the repository root. It 
 ### Schema Changes
 
 1. Create new migration file in `migrations/`
-2. Apply locally: `npx wrangler d1 execute cultural-archiver-dev --local --file=migrations/new-migration.sql`
+2. Apply locally:
+   `npx wrangler d1 execute cultural-archiver-dev --local --file=migrations/new-migration.sql`
 3. Test with existing data
 4. Update TypeScript types in `src/shared/types.ts`
 
@@ -269,7 +279,7 @@ const generateTestCoordinates = (count: number) => {
   const base = { lat: 49.2827, lon: -123.1207 };
   return Array.from({ length: count }, () => ({
     lat: base.lat + (Math.random() - 0.5) * 0.01,
-    lon: base.lon + (Math.random() - 0.5) * 0.01
+    lon: base.lon + (Math.random() - 0.5) * 0.01,
   }));
 };
 ```
@@ -312,6 +322,7 @@ npm run deploy:production
 ### VS Code Configuration
 
 Recommended extensions:
+
 - TypeScript and JavaScript Language Features
 - Prettier - Code formatter
 - ESLint

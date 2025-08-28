@@ -4,12 +4,12 @@
  */
 
 import type { Context } from 'hono';
-import type { 
-  WorkerEnv, 
+import type {
+  WorkerEnv,
   LogbookSubmissionRequest,
   LogbookSubmissionResponse,
   NearbyArtworkInfo,
-  CreateLogbookEntryRequest
+  CreateLogbookEntryRequest,
 } from '../../shared/types';
 import { createDatabaseService } from '../lib/database';
 import { createSuccessResponse, ValidationApiError } from '../lib/errors';
@@ -40,18 +40,18 @@ export async function createLogbookSubmission(
   const userToken = getUserToken(c);
   const validatedData = getValidatedData<LogbookSubmissionRequest>(c, 'body');
   const validatedFiles = getValidatedFiles(c);
-  
+
   const db = createDatabaseService(c.env.DB);
-  
+
   try {
     // Check for nearby artworks to show user potential duplicates
     const nearbyArtworks = await db.findNearbyArtworks(
       validatedData.lat,
       validatedData.lon,
       500, // 500m radius for duplicate detection
-      5    // Limit to 5 nearby artworks
+      5 // Limit to 5 nearby artworks
     );
-    
+
     // Convert nearby artworks to the expected format
     const nearbyArtworkInfo: NearbyArtworkInfo[] = nearbyArtworks.map(artwork => ({
       id: artwork.id,
@@ -61,25 +61,25 @@ export async function createLogbookSubmission(
       distance_meters: Math.round(artwork.distance_km * 1000),
       photos: safeJsonParse<string[]>(artwork.tags, []), // For now, photos are in tags - this will be improved
     }));
-    
+
     // Create logbook entry first (without photos)
     const logbookEntry: CreateLogbookEntryRequest = {
       user_token: userToken,
       ...(validatedData.note && { note: validatedData.note }),
       photos: [], // Will be updated after processing
     };
-    
+
     const newEntry = await db.createLogbookEntry(logbookEntry);
-    
+
     // Process photos if any were uploaded
     let photoUrls: string[] = [];
     if (validatedFiles.length > 0) {
       photoUrls = await processPhotos(c.env, validatedFiles, newEntry.id);
-      
+
       // Update logbook entry with photo URLs
       await db.updateLogbookPhotos(newEntry.id, photoUrls);
     }
-    
+
     // Create response
     const response: LogbookSubmissionResponse = {
       id: newEntry.id,
@@ -87,9 +87,8 @@ export async function createLogbookSubmission(
       message: 'Submission received and is pending review',
       ...(nearbyArtworkInfo.length > 0 && { nearby_artworks: nearbyArtworkInfo }),
     };
-    
+
     return c.json(createSuccessResponse(response), 201);
-    
   } catch (error) {
     console.error('Failed to create logbook submission:', error);
     throw error;
@@ -114,27 +113,29 @@ async function processPhotos(
         'Photo validation failed'
       );
     }
-    
+
     // Process and upload photos
-    const results = await processAndUploadPhotos(
-      env,
-      validation.validFiles,
-      submissionId,
-      { preserveExif: true }
-    );
-    
+    const results = await processAndUploadPhotos(env, validation.validFiles, submissionId, {
+      preserveExif: true,
+    });
+
     // Return the URLs
     return results.map(result => result.originalUrl);
-    
   } catch (error) {
     console.error('Photo processing error:', error);
-    
+
     if (error instanceof ValidationApiError) {
       throw error;
     }
-    
+
     throw new ValidationApiError(
-      [{ message: error instanceof Error ? error.message : 'Unknown photo processing error', field: 'photos', code: 'PROCESSING_ERROR' }],
+      [
+        {
+          message: error instanceof Error ? error.message : 'Unknown photo processing error',
+          field: 'photos',
+          code: 'PROCESSING_ERROR',
+        },
+      ],
       'Failed to process uploaded photos'
     );
   }
@@ -143,7 +144,6 @@ async function processPhotos(
 /**
  * Get file extension from MIME type
  */
-
 
 /**
  * Check for duplicate submissions within a time window
@@ -158,7 +158,7 @@ export async function checkDuplicateSubmission(
 ): Promise<boolean> {
   const timeWindowMs = timeWindowMinutes * 60 * 1000;
   const cutoffTime = new Date(Date.now() - timeWindowMs).toISOString();
-  
+
   try {
     const stmt = db.prepare(`
       SELECT COUNT(*) as count FROM logbook 
@@ -167,7 +167,7 @@ export async function checkDuplicateSubmission(
         AND ABS(49.2827 - ?) < 0.001 -- Rough coordinate check within ~100m
         AND ABS(-123.1207 - ?) < 0.001
     `);
-    
+
     const result = await stmt.bind(userToken, cutoffTime, lat, lon).first();
     return (result as DuplicateCheckResult | null)?.count > 0;
   } catch (error) {
@@ -184,10 +184,14 @@ export function validateSubmissionCoordinates(lat: number, lon: number): void {
   // Basic validation already done by middleware, but add additional checks
   if (lat === 0 && lon === 0) {
     throw new ValidationApiError([
-      { field: 'coordinates', message: 'Coordinates appear to be null island (0,0)', code: 'INVALID_COORDINATES' }
+      {
+        field: 'coordinates',
+        message: 'Coordinates appear to be null island (0,0)',
+        code: 'INVALID_COORDINATES',
+      },
     ]);
   }
-  
+
   // Check if coordinates are in ocean (very basic check)
   // This is a simplified check - in production you might use a more sophisticated service
   const isLikelyLand = Math.abs(lat) > 0.1 || Math.abs(lon) > 0.1;
@@ -220,14 +224,16 @@ export async function getUserSubmissionStats(
       FROM logbook 
       WHERE user_token = ? AND status != 'rejected'
     `);
-    
+
     const result = await stmt.bind(userToken).first();
-    return result as UserStatsResult || {
-      total_submissions: 0,
-      approved_submissions: 0,
-      pending_submissions: 0,
-      last_submission_at: null,
-    };
+    return (
+      (result as UserStatsResult) || {
+        total_submissions: 0,
+        approved_submissions: 0,
+        pending_submissions: 0,
+        last_submission_at: null,
+      }
+    );
   } catch (error) {
     console.error('Failed to get user submission stats:', error);
     return {
