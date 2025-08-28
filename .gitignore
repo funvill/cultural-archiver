@@ -93,3 +93,4 @@ pnpm-lock.yaml
 
 # Optional: Exclude specific config files with sensitive data
 # wrangler.toml  # Uncomment if you want to exclude this
+.env_2025Aug28-082254.zip
