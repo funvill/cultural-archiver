@@ -376,7 +376,11 @@ a {
 
 /* Error state styling */
 .border-red-500 {
-  @apply border-red-500 ring-1 ring-red-500;
+  border-color: #ef4444;
+  --tw-ring-color: #ef4444;
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 
 /* Disabled button styling */
