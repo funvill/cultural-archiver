@@ -104,6 +104,9 @@ EMAIL_FROM = "Cultural Archiver <noreply@cultural-archiver.com>"
 PHOTOS_BASE_URL = "http://localhost:8787/photos"
 R2_PUBLIC_URL = "http://localhost:8787/photos"
 CLOUDFLARE_ACCOUNT_ID = "development"
+# Cloudflare Images configuration (set via secrets for production)
+CLOUDFLARE_IMAGES_ENABLED = "false"
+CLOUDFLARE_IMAGES_HASH = ""
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
@@ -115,6 +118,9 @@ EMAIL_FROM = "Cultural Archiver Staging <noreply@staging.cultural-archiver.com>"
 PHOTOS_BASE_URL = "https://photos-staging.cultural-archiver.com"
 # EMAIL_API_KEY set via `wrangler secret put EMAIL_API_KEY`
 # CLOUDFLARE_ACCOUNT_ID set via `wrangler secret put CLOUDFLARE_ACCOUNT_ID`
+# Cloudflare Images configuration
+CLOUDFLARE_IMAGES_ENABLED = "true"
+# CLOUDFLARE_IMAGES_HASH set via `wrangler secret put CLOUDFLARE_IMAGES_HASH`
 
 [env.production.vars]
 ENVIRONMENT = "production"
@@ -126,3 +132,6 @@ EMAIL_FROM = "Cultural Archiver <noreply@cultural-archiver.com>"
 PHOTOS_BASE_URL = "https://photos.cultural-archiver.com"
 # EMAIL_API_KEY set via `wrangler secret put EMAIL_API_KEY`
 # CLOUDFLARE_ACCOUNT_ID set via `wrangler secret put CLOUDFLARE_ACCOUNT_ID`
+# Cloudflare Images configuration  
+CLOUDFLARE_IMAGES_ENABLED = "true"
+# CLOUDFLARE_IMAGES_HASH set via `wrangler secret put CLOUDFLARE_IMAGES_HASH`

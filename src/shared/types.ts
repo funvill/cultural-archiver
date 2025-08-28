@@ -251,6 +251,116 @@ export interface LogbookFilters {
 }
 
 // ================================
+// EXIF and Metadata Types
+// ================================
+
+export interface ExifGPSData {
+  latitude: number;
+  longitude: number;
+  altitude?: number;
+  timestamp?: string;
+}
+
+export interface ExifCameraData {
+  make?: string;
+  model?: string;
+  software?: string;
+  dateTime?: string;
+  orientation?: number;
+  focalLength?: string;
+  aperture?: string;
+  shutterSpeed?: string;
+  iso?: number;
+}
+
+export interface ExifData {
+  gps?: ExifGPSData;
+  camera?: ExifCameraData;
+  comment?: string;
+  userComment?: string;
+  permalink?: string;
+}
+
+// ================================
+// Consent Management Types
+// ================================
+
+export interface ConsentData {
+  ageVerification: boolean;
+  cc0Licensing: boolean;
+  publicCommons: boolean;
+  freedomOfPanorama: boolean;
+  consentVersion: string;
+  consentedAt: string;
+  userToken: string;
+}
+
+export interface ConsentValidationResult {
+  isValid: boolean;
+  missingConsents: string[];
+  errors: string[];
+}
+
+// ================================
+// Audit Logging Types
+// ================================
+
+export interface AuditLogRecord {
+  id: string;
+  action_type: 'submission_created' | 'submission_approved' | 'submission_rejected' | 
+               'artwork_created' | 'artwork_updated' | 'artwork_removed' |
+               'consent_collected' | 'consent_updated' | 'email_verified' |
+               'photo_uploaded' | 'photo_processed' | 'batch_processed';
+  entity_type: 'artwork' | 'logbook' | 'user' | 'photo' | 'consent';
+  entity_id: string;
+  user_token: string;
+  moderator_token?: string;
+  action_data?: string; // JSON string
+  reason?: string;
+  ip_address?: string;
+  user_agent?: string;
+  created_at: string;
+}
+
+export interface ConsentRecord {
+  id: string;
+  user_token: string;
+  consent_version: string;
+  age_verification: boolean;
+  cc0_licensing: boolean;
+  public_commons: boolean;
+  freedom_of_panorama: boolean;
+  ip_address?: string;
+  user_agent?: string;
+  consented_at: string;
+  expires_at?: string;
+  revoked_at?: string;
+}
+
+export interface PhotoMetadata {
+  id: string;
+  photo_url: string;
+  logbook_entry_id: string;
+  variant_type: 'original' | 'thumbnail' | '200px' | '400px' | '800px' | '1200px';
+  file_size: number;
+  mime_type: string;
+  width?: number;
+  height?: number;
+  aspect_ratio?: number;
+  dominant_color?: string;
+  exif_processed: boolean;
+  permalink_injected: boolean;
+  gps_latitude?: number;
+  gps_longitude?: number;
+  camera_make?: string;
+  camera_model?: string;
+  taken_at?: string;
+  processing_status: 'pending' | 'processing' | 'completed' | 'failed';
+  cloudflare_image_id?: string;
+  created_at: string;
+}
+
+// ================================
 // File Upload Types
 // ================================
 
@@ -273,6 +383,8 @@ export interface PhotoRecord {
   logbook_entry_id?: string;
   metadata?: Record<string, unknown>;
   uploaded_at: string;
+  exif_processed?: boolean;
+  permalink_injected?: boolean;
 }
 
 // ================================
