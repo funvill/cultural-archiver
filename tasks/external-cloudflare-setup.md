@@ -1,6 +1,7 @@
 # External Cloudflare Setup Guide
 
-This document outlines the manual setup steps required in Cloudflare that cannot be automated through code changes.
+This document outlines the manual setup steps required in Cloudflare that cannot
+be automated through code changes.
 
 ## Prerequisites
 
@@ -12,7 +13,8 @@ This document outlines the manual setup steps required in Cloudflare that cannot
 
 ### Shared Development Account
 
-1. **Account Access**: Contact project maintainer for access to shared Cloudflare account
+1. **Account Access**: Contact project maintainer for access to shared
+   Cloudflare account
 2. **Team Permissions**: Ensure you have the following roles:
    - **Administrator** or **Super Administrator** for full access
    - **Developer** role minimum for resource creation
@@ -45,23 +47,27 @@ CLOUDFLARE_EMAIL=team@culturalarchiver.org
 
 ### Pages Environment Variables
 
-Navigate to **Pages** → **cultural-archiver-frontend** → **Settings** → **Environment variables**:
+Navigate to **Pages** → **cultural-archiver-frontend** → **Settings** →
+**Environment variables**:
 
 #### Production Environment
-| Variable | Value | Description |
-|----------|-------|-------------|
-| `NODE_ENV` | `production` | Environment mode |
+
+| Variable       | Value                                       | Description          |
+| -------------- | ------------------------------------------- | -------------------- |
+| `NODE_ENV`     | `production`                                | Environment mode     |
 | `VITE_API_URL` | `https://api.cultural-archiver.workers.dev` | Workers API endpoint |
 
 #### Development/Preview Environment
-| Variable | Value | Description |
-|----------|-------|-------------|
-| `NODE_ENV` | `development` | Environment mode |
+
+| Variable       | Value                                           | Description              |
+| -------------- | ----------------------------------------------- | ------------------------ |
+| `NODE_ENV`     | `development`                                   | Environment mode         |
 | `VITE_API_URL` | `https://api-dev.cultural-archiver.workers.dev` | Development API endpoint |
 
 ### Custom Domain (Optional)
 
 If using a custom domain:
+
 1. Navigate to **Pages** → **cultural-archiver-frontend** → **Custom domains**
 2. Click **Set up a custom domain**
 3. Enter domain: `app.cultural-archiver.org`
@@ -79,16 +85,18 @@ If using a custom domain:
 
 ### Workers Environment Variables
 
-Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** → **Variables**:
+Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** →
+**Variables**:
 
-| Variable | Value | Description |
-|----------|-------|-------------|
-| `NODE_ENV` | `production` | Environment mode |
+| Variable      | Value                                 | Description             |
+| ------------- | ------------------------------------- | ----------------------- |
+| `NODE_ENV`    | `production`                          | Environment mode        |
 | `CORS_ORIGIN` | `https://cultural-archiver.pages.dev` | Allowed frontend origin |
 
 ### Workers Routes and Triggers
 
-Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** → **Triggers**:
+Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** →
+**Triggers**:
 
 1. **Custom Domain**: `api.cultural-archiver.workers.dev`
 2. **Route**: `api.cultural-archiver.org/*` (if using custom domain)
@@ -116,6 +124,7 @@ After database creation:
 Navigate to **D1** → **cultural-archiver-dev** → **Settings**:
 
 Record the following for team access:
+
 ```env
 D1_DATABASE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ```
@@ -123,7 +132,9 @@ D1_DATABASE_ID=xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 ### Database Bindings
 
 For each Workers project, add D1 binding:
-1. Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** → **Variables**
+
+1. Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** →
+   **Variables**
 2. Add **Service Binding**:
    - **Variable name**: `DB`
    - **Service**: `D1 database`
@@ -137,11 +148,13 @@ For each Workers project, add D1 binding:
 2. Create the following namespaces:
 
 #### Sessions Namespace
+
 - **Namespace name**: `cultural-archiver-sessions`
 - **Purpose**: User session storage
 - **TTL**: 24 hours default
 
-#### Cache Namespace  
+#### Cache Namespace
+
 - **Namespace name**: `cultural-archiver-cache`
 - **Purpose**: Application caching
 - **TTL**: 1 hour default
@@ -149,7 +162,9 @@ For each Workers project, add D1 binding:
 ### KV Bindings
 
 For each Workers project, add KV bindings:
-1. Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** → **Variables**
+
+1. Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** →
+   **Variables**
 2. Add **KV Namespace Binding**:
    - **Variable name**: `SESSIONS`
    - **KV namespace**: `cultural-archiver-sessions`
@@ -160,6 +175,7 @@ For each Workers project, add KV bindings:
 ### Record KV IDs
 
 Document the namespace IDs for team access:
+
 ```env
 KV_SESSIONS_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 KV_CACHE_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -178,6 +194,7 @@ KV_CACHE_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ### R2 Folder Structure
 
 Create the following folder structure in the bucket:
+
 ```
 cultural-archiver-photos/
 ├── originals/          # Original uploaded photos
@@ -194,7 +211,9 @@ cultural-archiver-photos/
 ### R2 Bindings
 
 For Workers projects, add R2 binding:
-1. Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** → **Variables**
+
+1. Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** →
+   **Variables**
 2. Add **R2 Bucket Binding**:
    - **Variable name**: `PHOTOS`
    - **R2 bucket**: `cultural-archiver-photos`
@@ -202,6 +221,7 @@ For Workers projects, add R2 binding:
 ### Record R2 Information
 
 Document for team access:
+
 ```env
 R2_BUCKET_NAME=cultural-archiver-photos
 R2_BUCKET_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -225,8 +245,9 @@ R2_BUCKET_ID=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ### Token Permissions Required
 
 Ensure the API token has these specific permissions:
+
 - `Cloudflare Workers:Edit`
-- `Cloudflare Pages:Edit`  
+- `Cloudflare Pages:Edit`
 - `D1:Edit`
 - `KV Storage:Edit`
 - `R2 Storage:Edit`
@@ -296,6 +317,7 @@ wrangler r2 bucket list
 ### Cloudflare Analytics
 
 Set up monitoring for:
+
 1. **Pages Analytics**: Track frontend performance
 2. **Workers Analytics**: Monitor API usage and errors
 3. **R2 Analytics**: Track storage usage and costs
@@ -303,6 +325,7 @@ Set up monitoring for:
 ### Cost Management
 
 Monitor usage to stay within free tier limits:
+
 - **Workers**: 100,000 requests/day
 - **Pages**: 1 build per project
 - **KV**: 100,000 read operations/day
@@ -312,6 +335,7 @@ Monitor usage to stay within free tier limits:
 ### Backup Strategy
 
 Document backup procedures for:
+
 1. **D1 Database**: Regular exports via CLI
 2. **KV Data**: Backup critical session data
 3. **R2 Objects**: Consider external backup for photos
@@ -362,6 +386,7 @@ Document backup procedures for:
 ## Next Steps
 
 After completing Cloudflare setup:
+
 1. Test all services manually
 2. Run automated deployment pipeline
 3. Verify frontend connects to API

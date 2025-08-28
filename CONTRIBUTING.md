@@ -2,7 +2,9 @@
 
 Thank you for considering contributing to Cultural Archiver!
 
-We welcome contributions from the community to help document, preserve, and share cultural and public art. By contributing, you agree to abide by our Code of Conduct.
+We welcome contributions from the community to help document, preserve, and
+share cultural and public art. By contributing, you agree to abide by our Code
+of Conduct.
 
 ## How to Contribute
 
@@ -24,7 +26,8 @@ We welcome contributions from the community to help document, preserve, and shar
 ### Code Style
 
 - Use TypeScript for all new code.
-- Follow existing code formatting and style conventions (linting is enforced in CI).
+- Follow existing code formatting and style conventions (linting is enforced in
+  CI).
 
 ### Licensing
 

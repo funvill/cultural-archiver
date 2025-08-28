@@ -1,6 +1,12 @@
-MIT License
+CULTURAL ARCHIVER DUAL LICENSE
 
-Copyright (c) 2025 Steven Smethurst
+This project uses a dual licensing approach:
+
+================================================================================
+SOFTWARE LICENSE (MIT License)
+================================================================================
+
+Copyright (c) 2025 Steven Smethurst and Cultural Archiver Contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +25,53 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+================================================================================
+DATA LICENSE (CC0 1.0 Universal - Public Domain Dedication)
+================================================================================
+
+To the extent possible under law, the Cultural Archiver project contributors
+have waived all copyright and related or neighboring rights to the database
+schemas, sample data, documentation examples, and any data created or stored
+through the use of this software.
+
+This work is published from: Canada
+
+You can copy, modify, distribute and perform the work, even for commercial 
+purposes, all without asking permission. See the CC0 Legal Code for more 
+information:
+
+https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+================================================================================
+SCOPE OF LICENSES
+================================================================================
+
+MIT License applies to:
+- Source code (TypeScript, JavaScript, Vue components)
+- Configuration files
+- Build scripts and tooling
+- Documentation and setup instructions
+
+CC0 License applies to:
+- Database schemas and migrations
+- Sample/demo data
+- Template configurations
+- User-generated content stored in the system
+- Export formats and data structures
+
+================================================================================
+THIRD-PARTY LICENSES
+================================================================================
+
+This project includes third-party software components with their own licenses.
+See package.json files and individual component documentation for details.
+
+Notable dependencies:
+- Vue.js (MIT License)
+- TypeScript (Apache License 2.0)
+- Cloudflare Workers Runtime (Cloudflare Terms of Service)
+- Node.js (MIT License)
+
+For a complete list of dependencies and their licenses, run:
+npm run licenses --if-present

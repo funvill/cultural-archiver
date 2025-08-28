@@ -1,6 +1,7 @@
 # External GitHub Setup Guide
 
-This document outlines the manual setup steps required in the GitHub repository that cannot be automated through code changes.
+This document outlines the manual setup steps required in the GitHub repository
+that cannot be automated through code changes.
 
 ## Repository Settings Configuration
 
@@ -21,27 +22,29 @@ This document outlines the manual setup steps required in the GitHub repository 
 
 ### Repository Secrets Configuration
 
-Navigate to **Settings** → **Secrets and variables** → **Actions** and add the following secrets:
+Navigate to **Settings** → **Secrets and variables** → **Actions** and add the
+following secrets:
 
 #### Required Secrets for CI/CD
 
-| Secret Name | Description | Example Value |
-|-------------|-------------|---------------|
-| `CLOUDFLARE_API_TOKEN` | Cloudflare API token with Workers and Pages permissions | `xxxxxxxxxxxxxxxxxxxxxxxx` |
-| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID | `abcdef1234567890abcdef1234567890` |
+| Secret Name             | Description                                             | Example Value                      |
+| ----------------------- | ------------------------------------------------------- | ---------------------------------- |
+| `CLOUDFLARE_API_TOKEN`  | Cloudflare API token with Workers and Pages permissions | `xxxxxxxxxxxxxxxxxxxxxxxx`         |
+| `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account ID                                   | `abcdef1234567890abcdef1234567890` |
 
 #### Optional Secrets for Advanced Features
 
-| Secret Name | Description | When Needed |
-|-------------|-------------|-------------|
-| `CLOUDFLARE_ZONE_ID` | Zone ID for custom domain setup | When using custom domain |
-| `DISCORD_WEBHOOK_URL` | Discord webhook for deployment notifications | For team notifications |
+| Secret Name           | Description                                  | When Needed              |
+| --------------------- | -------------------------------------------- | ------------------------ |
+| `CLOUDFLARE_ZONE_ID`  | Zone ID for custom domain setup              | When using custom domain |
+| `DISCORD_WEBHOOK_URL` | Discord webhook for deployment notifications | For team notifications   |
 
 ### Repository Settings
 
 Navigate to **Settings** → **General** and configure:
 
 #### Features
+
 - ✅ **Wikis** (enabled)
 - ✅ **Issues** (enabled)
 - ✅ **Sponsorships** (optional)
@@ -50,6 +53,7 @@ Navigate to **Settings** → **General** and configure:
 - ✅ **Discussions** (optional)
 
 #### Pull Requests
+
 - ✅ **Allow merge commits**
 - ✅ **Allow squash merging** (recommended as default)
 - ✅ **Allow rebase merging**
@@ -58,6 +62,7 @@ Navigate to **Settings** → **General** and configure:
 - ✅ **Automatically delete head branches**
 
 #### Archives
+
 - ✅ **Include Git LFS objects in archives**
 
 ### Collaborators and Teams
@@ -83,7 +88,8 @@ Navigate to **Settings** → **Manage access**:
 
 Navigate to **Settings** → **General**:
 
-1. **Description**: "Cultural heritage documentation platform using Vue 3, TypeScript, and Cloudflare infrastructure"
+1. **Description**: "Cultural heritage documentation platform using Vue 3,
+   TypeScript, and Cloudflare infrastructure"
 2. **Topics** (add these tags):
    - `cultural-heritage`
    - `typescript`
@@ -97,15 +103,18 @@ Navigate to **Settings** → **General**:
 
 Navigate to **Settings** → **Actions** → **General**:
 
-1. **Actions permissions**: "Allow enterprise, and select non-enterprise, actions and reusable workflows"
+1. **Actions permissions**: "Allow enterprise, and select non-enterprise,
+   actions and reusable workflows"
 2. **Workflow permissions**: "Read and write permissions"
 3. ✅ **Allow GitHub Actions to create and approve pull requests**
 
 ## Issue and PR Templates
 
-These templates should be created through code commits, but require the following GitHub repository settings:
+These templates should be created through code commits, but require the
+following GitHub repository settings:
 
 Navigate to **Settings** → **Features**:
+
 - ✅ **Issues** must be enabled
 - ✅ **Pull requests** must be enabled
 
@@ -148,6 +157,7 @@ After completing the manual setup, verify:
 ## Next Steps
 
 After completing this manual setup:
+
 1. Test branch protection by creating a test PR
 2. Verify secrets work by triggering a deployment workflow
 3. Confirm all team members have appropriate access

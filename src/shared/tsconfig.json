@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "outDir": "./dist",
+    "baseUrl": ".",
+    "paths": {}
+  },
+  "include": ["**/*"],
+  "exclude": ["node_modules", "dist"]
+}
