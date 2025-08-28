@@ -279,6 +279,16 @@ export interface AppConfig {
   log_level: 'trace' | 'debug' | 'info' | 'warn' | 'error';
 }
 
+// ================================
+// Authentication Context
+// ================================
+
+export interface AuthContext {
+  userToken: string;
+  isVerifiedEmail: boolean;
+  isReviewer: boolean;
+}
+
 // Cloudflare Workers Environment
 export interface WorkerEnv {
   DB: any; // D1Database - use any for compatibility
@@ -286,10 +296,16 @@ export interface WorkerEnv {
   CACHE: any; // KVNamespace
   RATE_LIMITS: any; // KVNamespace
   MAGIC_LINKS: any; // KVNamespace
-  PHOTOS: any; // R2Bucket
+  PHOTOS_BUCKET: any; // R2Bucket
   ENVIRONMENT: string;
   FRONTEND_URL: string;
   LOG_LEVEL: string;
+  API_VERSION: string;
+  EMAIL_API_KEY?: string; // Optional for development
+  EMAIL_FROM: string;
+  PHOTOS_BASE_URL?: string;
+  R2_PUBLIC_URL?: string;
+  CLOUDFLARE_ACCOUNT_ID?: string;
 }
 
 // ================================

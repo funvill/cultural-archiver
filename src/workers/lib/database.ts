@@ -200,6 +200,11 @@ export class DatabaseService {
     await stmt.bind(status, id).run();
   }
 
+  async updateLogbookPhotos(id: string, photoUrls: string[]): Promise<void> {
+    const stmt = this.db.prepare('UPDATE logbook SET photos = ? WHERE id = ?');
+    await stmt.bind(JSON.stringify(photoUrls), id).run();
+  }
+
   async linkLogbookToArtwork(logbookId: string, artworkId: string): Promise<void> {
     const stmt = this.db.prepare('UPDATE logbook SET artwork_id = ? WHERE id = ?');
     await stmt.bind(artworkId, logbookId).run();
@@ -289,4 +294,53 @@ export class DatabaseService {
 // Helper function to create database service instance
 export function createDatabaseService(db: any): DatabaseService {
   return new DatabaseService(db);
+}
+
+// ================================
+// Individual Function Exports (for legacy compatibility)
+// ================================
+
+export async function insertArtwork(db: any, artwork: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'>): Promise<string> {
+  const service = createDatabaseService(db);
+  return service.createArtwork(artwork);
+}
+
+export async function updateLogbookStatus(db: any, id: string, status: LogbookRecord['status'], artworkId?: string): Promise<void> {
+  const service = createDatabaseService(db);
+  await service.updateLogbookStatus(id, status);
+  if (artworkId) {
+    await service.linkLogbookToArtwork(id, artworkId);
+  }
+}
+
+export async function findNearbyArtworks(db: any, lat: number, lon: number, radiusMeters: number = 500): Promise<ArtworkRecord[]> {
+  const service = createDatabaseService(db);
+  return service.findNearbyArtworks(lat, lon, radiusMeters);
+}
+
+export async function findLogbookById(db: any, id: string): Promise<LogbookRecord | null> {
+  const service = createDatabaseService(db);
+  return service.getLogbookEntryById(id);
+}
+
+export async function insertTags(db: any, tags: Array<{ label: string; value: string; artwork_id?: string; logbook_id?: string | null }>): Promise<void> {
+  const service = createDatabaseService(db);
+  for (const tag of tags) {
+    await service.createTag(tag);
+  }
+}
+
+export async function findArtworkById(db: any, id: string): Promise<ArtworkRecord | null> {
+  const service = createDatabaseService(db);
+  return service.getArtworkById(id);
+}
+
+export async function updateArtworkPhotos(db: any, id: string, photoUrls: string[]): Promise<void> {
+  const stmt = db.prepare('UPDATE artwork SET photos = ? WHERE id = ?');
+  await stmt.bind(JSON.stringify(photoUrls), id).run();
+}
+
+export async function getArtworkTypeByName(db: any, name: string): Promise<ArtworkTypeRecord | null> {
+  const service = createDatabaseService(db);
+  return service.getArtworkTypeByName(name);
 }

@@ -23,7 +23,10 @@ import {
   validateNearbyArtworksQuery,
   validateUserSubmissionsQuery,
   validateFileUploads,
-  validateUUID
+  validateUUID,
+  validateMagicLinkRequest,
+  validateSchema,
+  consumeMagicLinkSchema,
 } from './middleware/validation';
 import { withErrorHandling, sendErrorResponse } from './lib/errors';
 
@@ -31,6 +34,22 @@ import { withErrorHandling, sendErrorResponse } from './lib/errors';
 import { createLogbookSubmission } from './routes/submissions';
 import { getNearbyArtworks, getArtworkDetails } from './routes/discovery';
 import { getUserSubmissions, getUserProfile } from './routes/user';
+import { 
+  requestMagicLink,
+  consumeMagicLinkToken,
+  getVerificationStatus,
+  removeEmailVerification,
+  resendVerificationEmail,
+  getDevMagicLinkEndpoint,
+} from './routes/auth';
+import {
+  getReviewQueue,
+  getSubmissionForReview,
+  approveSubmission,
+  rejectSubmission,
+  getReviewStats,
+  processBatchReview,
+} from './routes/review';
 
 // Initialize Hono app
 const app = new Hono<{ Bindings: WorkerEnv }>();
@@ -121,6 +140,76 @@ app.get('/api/me/profile',
 );
 
 // ================================
+// Authentication Endpoints
+// ================================
+
+app.post('/api/auth/magic-link',
+  rateLimitQueries, // Use query rate limit for auth requests
+  validateMagicLinkRequest,
+  addUserTokenToResponse,
+  withErrorHandling(requestMagicLink)
+);
+
+app.post('/api/auth/consume',
+  validateSchema(consumeMagicLinkSchema, 'body'),
+  addUserTokenToResponse,
+  withErrorHandling(consumeMagicLinkToken)
+);
+
+app.get('/api/auth/verify-status',
+  addUserTokenToResponse,
+  withErrorHandling(getVerificationStatus)
+);
+
+app.delete('/api/auth/unverify',
+  addUserTokenToResponse,
+  withErrorHandling(removeEmailVerification)
+);
+
+app.post('/api/auth/resend',
+  rateLimitQueries,
+  validateMagicLinkRequest,
+  addUserTokenToResponse,
+  withErrorHandling(resendVerificationEmail)
+);
+
+// Development only - get magic link for email
+app.get('/api/auth/dev/magic-link',
+  withErrorHandling(getDevMagicLinkEndpoint)
+);
+
+// ================================
+// Review/Moderation Endpoints
+// ================================
+
+app.get('/api/review/queue',
+  withErrorHandling(getReviewQueue)
+);
+
+app.get('/api/review/submission/:id',
+  validateUUID('id'),
+  withErrorHandling(getSubmissionForReview)
+);
+
+app.post('/api/review/approve/:id',
+  validateUUID('id'),
+  withErrorHandling(approveSubmission)
+);
+
+app.post('/api/review/reject/:id',
+  validateUUID('id'),
+  withErrorHandling(rejectSubmission)
+);
+
+app.get('/api/review/stats',
+  withErrorHandling(getReviewStats)
+);
+
+app.put('/api/review/batch',
+  withErrorHandling(processBatchReview)
+);
+
+// ================================
 // Legacy/Compatibility Endpoints
 // ================================
 
@@ -159,6 +248,12 @@ app.notFound(c => {
         'GET /api/artworks/:id',
         'GET /api/me/submissions',
         'GET /api/me/profile',
+        'POST /api/auth/magic-link',
+        'POST /api/auth/consume',
+        'GET /api/auth/verify-status',
+        'GET /api/review/queue',
+        'POST /api/review/approve/:id',
+        'POST /api/review/reject/:id',
       ],
     },
     404

@@ -16,6 +16,10 @@ import { createSuccessResponse, ValidationApiError } from '../lib/errors';
 import { getUserToken } from '../middleware/auth';
 import { getValidatedData, getValidatedFiles } from '../middleware/validation';
 import { safeJsonParse } from '../lib/errors';
+import { 
+  processAndUploadPhotos,
+  validatePhotoFiles,
+} from '../lib/photos';
 
 /**
  * POST /api/logbook - Create Submission
@@ -49,20 +53,23 @@ export async function createLogbookSubmission(
       photos: safeJsonParse<string[]>(artwork.tags, []), // For now, photos are in tags - this will be improved
     }));
     
-    // Process photos if any were uploaded
-    let photoUrls: string[] = [];
-    if (validatedFiles.length > 0) {
-      photoUrls = await processPhotos(c.env.PHOTOS, validatedFiles);
-    }
-    
-    // Create logbook entry
+    // Create logbook entry first (without photos)
     const logbookEntry: CreateLogbookEntryRequest = {
       user_token: userToken,
       ...(validatedData.note && { note: validatedData.note }),
-      ...(photoUrls.length > 0 && { photos: photoUrls }),
+      photos: [], // Will be updated after processing
     };
     
     const newEntry = await db.createLogbookEntry(logbookEntry);
+    
+    // Process photos if any were uploaded
+    let photoUrls: string[] = [];
+    if (validatedFiles.length > 0) {
+      photoUrls = await processPhotos(c.env, validatedFiles, newEntry.id);
+      
+      // Update logbook entry with photo URLs
+      await db.updateLogbookPhotos(newEntry.id, photoUrls);
+    }
     
     // Create response
     const response: LogbookSubmissionResponse = {
@@ -81,70 +88,50 @@ export async function createLogbookSubmission(
 }
 
 /**
- * Process uploaded photos and store them in R2
+ * Process uploaded photos using the photo processing pipeline
  * Returns array of photo URLs
  */
 async function processPhotos(
-  r2Bucket: any, // R2Bucket
-  files: File[]
+  env: WorkerEnv,
+  files: File[],
+  submissionId: string
 ): Promise<string[]> {
-  const photoUrls: string[] = [];
-  const now = new Date();
-  const dateFolder = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`;
-  
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
-    if (!file) continue;
-    
-    try {
-      // Generate unique filename
-      const timestamp = Math.floor(Date.now() / 1000);
-      const uuid = crypto.randomUUID().substring(0, 8);
-      const extension = getFileExtension(file.type);
-      const filename = `${timestamp}-${uuid}${extension}`;
-      
-      // Store original in R2
-      const originalKey = `originals/${dateFolder}/${filename}`;
-      const fileBuffer = await file.arrayBuffer();
-      
-      await r2Bucket.put(originalKey, fileBuffer, {
-        httpMetadata: {
-          contentType: file.type,
-        },
-        customMetadata: {
-          originalName: file.name,
-          uploadTimestamp: now.toISOString(),
-        },
-      });
-      
-      // For MVP, we'll store the R2 key as the photo URL
-      // In production, this would be a public URL
-      photoUrls.push(originalKey);
-      
-      // TODO: Generate thumbnail (will be implemented in photo processing pipeline)
-      
-    } catch (error) {
-      console.error(`Failed to process photo ${i}:`, error);
-      // Continue with other photos - don't fail the entire submission
+  try {
+    // Validate files first
+    const validation = validatePhotoFiles(files);
+    if (!validation.isValid) {
+      throw new ValidationApiError('Photo validation failed', validation.errors.map(msg => ({ message: msg })));
     }
+    
+    // Process and upload photos
+    const results = await processAndUploadPhotos(
+      env,
+      validation.validFiles,
+      submissionId,
+      { preserveExif: true }
+    );
+    
+    // Return the URLs
+    return results.map(result => result.originalUrl);
+    
+  } catch (error) {
+    console.error('Photo processing error:', error);
+    
+    if (error instanceof ValidationApiError) {
+      throw error;
+    }
+    
+    throw new ValidationApiError(
+      'Failed to process uploaded photos', 
+      [{ message: error instanceof Error ? error.message : 'Unknown photo processing error' }]
+    );
   }
-  
-  return photoUrls;
 }
 
 /**
  * Get file extension from MIME type
  */
-function getFileExtension(mimeType: string): string {
-  const extensions: Record<string, string> = {
-    'image/jpeg': '.jpg',
-    'image/png': '.png',
-    'image/webp': '.webp',
-    'image/gif': '.gif',
-  };
-  
-  return extensions[mimeType] || '.jpg';
-}
+
 
 /**
  * Check for duplicate submissions within a time window
