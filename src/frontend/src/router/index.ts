@@ -61,6 +61,14 @@ const router = createRouter({
         requiresReviewer: true
       }
     },
+    {
+      path: '/help',
+      name: 'Help',
+      component: HomeView, // Temporarily use HomeView for help
+      meta: {
+        title: 'Help - Cultural Archiver'
+      }
+    },
     // Redirect old paths for compatibility
     {
       path: '/home',

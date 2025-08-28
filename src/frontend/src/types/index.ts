@@ -111,7 +111,7 @@ export interface SubmissionFormData {
 export interface NavigationItem {
   name: string
   path: string
-  icon?: string
+  icon?: any // Vue component or string
   requiresAuth?: boolean
   requiresReviewer?: boolean
 }
