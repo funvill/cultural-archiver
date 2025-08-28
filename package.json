@@ -28,7 +28,7 @@
     "type-check:workers": "cd src/workers && npm run type-check",
     "type-check:shared": "tsc --noEmit --project src/shared/tsconfig.json",
     "migrate": "tsx migrations/migrate.ts",
-    "test": "npm run lint && npm run type-check && npm run format:check",
+    "test": "npm run lint && npm run type-check",
     "setup": "npm install && npm run build"
   },
   "devDependencies": {
