@@ -4,7 +4,7 @@
  */
 
 import type { Context } from 'hono';
-import type { WorkerEnv, UserSubmissionsResponse, UserSubmissionInfo } from '../../shared/types';
+import type { WorkerEnv, UserSubmissionsResponse, UserSubmissionInfo } from '../types';
 import { createDatabaseService } from '../lib/database';
 import { createSuccessResponse, UnauthorizedError } from '../lib/errors';
 import { getUserToken, getAuthContext } from '../middleware/auth';
@@ -17,7 +17,8 @@ interface UserStatsResult {
   total_submissions: number;
   approved_submissions: number;
   pending_submissions: number;
-  last_submission: string;
+  first_submission_at: string | null;
+  last_submission_at: string | null;
 }
 
 interface RecentSubmissionsResult {
@@ -90,7 +91,7 @@ export async function getUserProfile(c: Context<{ Bindings: WorkerEnv }>): Promi
 
   try {
     // Get user submission statistics
-    const submissionStats = await getUserSubmissionStats(db, userToken);
+    const submissionStats = await getUserSubmissionStats(db.db, userToken);
 
     // Get rate limit status
     const rateLimitStatus = await getRateLimitStatus(c.env.RATE_LIMITS, userToken);
@@ -213,7 +214,7 @@ async function getUserSubmissionStats(
   last_submission_at: string | null;
 }> {
   try {
-    const stmt = db.db.prepare(`
+    const stmt = db.prepare(`
       SELECT 
         COUNT(*) as total_submissions,
         SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_submissions,
@@ -225,15 +226,15 @@ async function getUserSubmissionStats(
     `);
 
     const result = await stmt.bind(userToken).first();
-    return (
-      (result as UserStatsResult) || {
-        total_submissions: 0,
-        approved_submissions: 0,
-        pending_submissions: 0,
-        first_submission_at: null,
-        last_submission_at: null,
-      }
-    );
+    return result
+      ? (result as unknown as UserStatsResult)
+      : {
+          total_submissions: 0,
+          approved_submissions: 0,
+          pending_submissions: 0,
+          first_submission_at: null,
+          last_submission_at: null,
+        };
   } catch (error) {
     console.error('Failed to get user submission stats:', error);
     return {
@@ -283,7 +284,7 @@ function validateUserPreferences(preferences: Record<string, unknown>): Record<s
   }
 
   // Privacy level
-  if (['minimal', 'standard', 'enhanced'].includes(preferences.privacy_level)) {
+  if (typeof preferences.privacy_level === 'string' && ['minimal', 'standard', 'enhanced'].includes(preferences.privacy_level)) {
     validPreferences.privacy_level = preferences.privacy_level;
   }
 
@@ -302,7 +303,7 @@ function validateUserPreferences(preferences: Record<string, unknown>): Record<s
   }
 
   // Theme preference
-  if (['light', 'dark', 'auto'].includes(preferences.theme)) {
+  if (typeof preferences.theme === 'string' && ['light', 'dark', 'auto'].includes(preferences.theme)) {
     validPreferences.theme = preferences.theme;
   }
 
@@ -400,7 +401,7 @@ export async function exportUserData(c: Context<{ Bindings: WorkerEnv }>): Promi
     const preferences = await getUserPreferences(c.env.SESSIONS, userToken);
 
     // Get submission statistics
-    const stats = await getUserSubmissionStats(db, userToken);
+    const stats = await getUserSubmissionStats(db.db, userToken);
 
     const exportData = {
       export_date: new Date().toISOString(),

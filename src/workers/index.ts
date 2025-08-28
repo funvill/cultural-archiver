@@ -5,7 +5,7 @@ import { prettyJSON } from 'hono/pretty-json';
 import { secureHeaders } from 'hono/secure-headers';
 
 // Import types
-import type { WorkerEnv } from '../shared/types';
+import type { WorkerEnv } from './types';
 
 // Import middleware
 import { ensureUserToken, addUserTokenToResponse, checkEmailVerification } from './middleware/auth';

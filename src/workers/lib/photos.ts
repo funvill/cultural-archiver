@@ -5,7 +5,7 @@
  * photos in Cloudflare R2 storage with proper validation and optimization.
  */
 
-import type { WorkerEnv } from '../../shared/types';
+import type { WorkerEnv } from '../types';
 import { ApiError } from './errors';
 
 // Configuration constants
@@ -216,7 +216,6 @@ export async function uploadToR2(
     await bucket.put(key, arrayBuffer, {
       httpMetadata: {
         contentType: file.type,
-        contentLength: file.size,
       },
       customMetadata: objectMetadata,
     });
@@ -382,7 +381,7 @@ export async function movePhotosToArtwork(
         if (originalObject) {
           // Copy to new location with updated metadata
           await bucket.put(newKey, originalObject.body, {
-            httpMetadata: originalObject.httpMetadata,
+            ...(originalObject.httpMetadata && { httpMetadata: originalObject.httpMetadata }),
             customMetadata: {
               ...originalObject.customMetadata,
               'Artwork-ID': artworkId,

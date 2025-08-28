@@ -28,6 +28,8 @@ const mockDB = {
     return statements.map(() => ({ success: true, meta: { changes: 1 } }));
   },
   exec: async (_query: string): Promise<{ results: unknown[] }> => ({ results: [] }),
+  withSession: async () => mockDB,
+  dump: async () => new Uint8Array(),
 };
 
 describe('Database Service', (): void => {

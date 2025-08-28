@@ -3,7 +3,7 @@
  * Handles bounding box calculations, distance calculations, and coordinate validation
  */
 
-import { DEFAULT_SEARCH_RADIUS, MAX_SEARCH_RADIUS, MIN_SEARCH_RADIUS } from '../../shared/types';
+import { DEFAULT_SEARCH_RADIUS, MAX_SEARCH_RADIUS, MIN_SEARCH_RADIUS } from '../types';
 
 export interface Coordinates {
   lat: number;

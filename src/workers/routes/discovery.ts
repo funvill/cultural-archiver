@@ -10,8 +10,8 @@ import type {
   ArtworkWithPhotos,
   LogbookEntryWithPhotos,
   NearbyArtworksResponse,
-} from '../../shared/types';
-import { DEFAULT_SEARCH_RADIUS } from '../../shared/types';
+} from '../types';
+import { DEFAULT_SEARCH_RADIUS } from '../types';
 import { createDatabaseService } from '../lib/database';
 import { createSuccessResponse, NotFoundError } from '../lib/errors';
 import { getValidatedData } from '../middleware/validation';
@@ -167,7 +167,7 @@ export async function getArtworkStats(db: D1Database): Promise<{
   recent_submissions: number;
 }> {
   try {
-    const artworkStmt = db.db.prepare(`
+    const artworkStmt = db.prepare(`
       SELECT 
         COUNT(*) as total_artworks,
         SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_artworks,
@@ -175,7 +175,7 @@ export async function getArtworkStats(db: D1Database): Promise<{
       FROM artwork
     `);
 
-    const submissionStmt = db.db.prepare(`
+    const submissionStmt = db.prepare(`
       SELECT 
         COUNT(*) as total_submissions,
         SUM(CASE WHEN created_at > datetime('now', '-7 days') THEN 1 ELSE 0 END) as recent_submissions

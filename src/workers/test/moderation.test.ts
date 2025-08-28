@@ -183,8 +183,9 @@ describe('Cultural Archiver Moderation Workflow Tests', (): void => {
       expect(result.artworkId).toBeDefined();
 
       const submission = moderationService.getSubmission(testSubmissionId);
-      expect(submission.status).toBe('approved');
-      expect(submission.artwork_id).toBe(result.artworkId);
+      expect(submission).toBeDefined();
+      expect(submission?.status).toBe('approved');
+      expect(submission?.artwork_id).toBe(result.artworkId);
     });
 
     it('should update submission status after approval', (): void => {
@@ -198,12 +199,14 @@ describe('Cultural Archiver Moderation Workflow Tests', (): void => {
       });
 
       const beforeSubmission = moderationService.getSubmission(testSubmissionId);
-      expect(beforeSubmission.status).toBe('pending');
+      expect(beforeSubmission).toBeDefined();
+      expect(beforeSubmission?.status).toBe('pending');
 
       moderationService.approveSubmission(testSubmissionId, reviewerToken);
 
       const afterSubmission = moderationService.getSubmission(testSubmissionId);
-      expect(afterSubmission.status).toBe('approved');
+      expect(afterSubmission).toBeDefined();
+      expect(afterSubmission?.status).toBe('approved');
     });
 
     it('should not approve already processed submissions', (): void => {
@@ -248,8 +251,9 @@ describe('Cultural Archiver Moderation Workflow Tests', (): void => {
       expect(result.success).toBe(true);
 
       const submission = moderationService.getSubmission(testSubmissionId);
-      expect(submission.status).toBe('rejected');
-      expect(submission.rejection_reason).toBe(rejectionReason);
+      expect(submission).toBeDefined();
+      expect(submission?.status).toBe('rejected');
+      expect(submission?.rejection_reason).toBe(rejectionReason);
     });
 
     it('should track rejection metadata', (): void => {

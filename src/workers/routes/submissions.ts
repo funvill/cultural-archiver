@@ -10,7 +10,7 @@ import type {
   LogbookSubmissionResponse,
   NearbyArtworkInfo,
   CreateLogbookEntryRequest,
-} from '../../shared/types';
+} from '../types';
 import { createDatabaseService } from '../lib/database';
 import { createSuccessResponse, ValidationApiError } from '../lib/errors';
 import { getUserToken } from '../middleware/auth';
@@ -27,7 +27,7 @@ interface UserStatsResult {
   total_submissions: number;
   approved_submissions: number;
   pending_submissions: number;
-  last_submission: string;
+  last_submission: string | null;
 }
 
 /**
@@ -226,14 +226,14 @@ export async function getUserSubmissionStats(
     `);
 
     const result = await stmt.bind(userToken).first();
-    return (
-      (result as UserStatsResult) || {
-        total_submissions: 0,
-        approved_submissions: 0,
-        pending_submissions: 0,
-        last_submission_at: null,
-      }
-    );
+    return result
+      ? (result as unknown as UserStatsResult)
+      : {
+          total_submissions: 0,
+          approved_submissions: 0,
+          pending_submissions: 0,
+          last_submission: null,
+        };
   } catch (error) {
     console.error('Failed to get user submission stats:', error);
     return {

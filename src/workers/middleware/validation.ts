@@ -5,10 +5,10 @@
 
 import type { Context, Next } from 'hono';
 import { z } from 'zod';
-import type { WorkerEnv } from '../../shared/types';
+import type { WorkerEnv } from '../types';
 import { ValidationApiError } from '../lib/errors';
 import { isValidLatitude, isValidLongitude } from '../lib/spatial';
-import { MAX_NOTE_LENGTH, MAX_PHOTOS_PER_SUBMISSION, ARTWORK_TYPES } from '../../shared/types';
+import { MAX_NOTE_LENGTH, MAX_PHOTOS_PER_SUBMISSION, ARTWORK_TYPES } from '../types';
 
 // Extend the Hono context types
 declare module 'hono' {
@@ -130,7 +130,7 @@ export const reviewSubmissionSchema = z.object({
 /**
  * Generic validation middleware factory
  */
-export function validateSchema<T>(
+export function validateSchema<T extends Record<string, unknown>>(
   schema: z.ZodSchema<T>,
   source: 'body' | 'query' | 'params' = 'body'
 ) {

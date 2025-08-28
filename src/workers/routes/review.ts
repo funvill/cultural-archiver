@@ -6,7 +6,7 @@
  */
 
 import type { Context } from 'hono';
-import type { WorkerEnv, AuthContext, ArtworkRecord } from '../../shared/types';
+import type { WorkerEnv, AuthContext, ArtworkRecord } from '../types';
 import {
   insertArtwork,
   updateLogbookStatus,

@@ -4,8 +4,8 @@
  */
 
 import type { Context, Next } from 'hono';
-import type { WorkerEnv } from '../../shared/types';
-import { RATE_LIMIT_SUBMISSIONS_PER_DAY, RATE_LIMIT_QUERIES_PER_HOUR } from '../../shared/types';
+import type { WorkerEnv } from '../types';
+import { RATE_LIMIT_SUBMISSIONS_PER_DAY, RATE_LIMIT_QUERIES_PER_HOUR } from '../types';
 import { RateLimitError } from '../lib/errors';
 
 export interface RateLimitData {

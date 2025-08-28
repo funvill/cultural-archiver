@@ -5,7 +5,7 @@
  * managing email-based authentication flows.
  */
 
-import type { WorkerEnv } from '../../shared/types';
+import type { WorkerEnv } from '../types';
 import { ApiError } from './errors';
 
 // Configuration constants

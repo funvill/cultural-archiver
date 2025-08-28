@@ -6,7 +6,7 @@
  */
 
 import type { Context } from 'hono';
-import type { WorkerEnv, AuthContext } from '../../shared/types';
+import type { WorkerEnv, AuthContext } from '../types';
 import {
   createMagicLink,
   sendMagicLinkEmail,

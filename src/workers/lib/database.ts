@@ -11,10 +11,11 @@ import type {
   CreateArtworkRequest,
   CreateLogbookEntryRequest,
   CreateTagRequest,
-} from '../../shared/types';
+} from '../types';
 
 // Database result interfaces
 interface ArtworkWithDistance extends ArtworkRecord {
+  type_name: string;
   distance_sq: number;
   distance_km: number;
 }
@@ -45,7 +46,7 @@ export class DatabaseService {
   async getArtworkById(id: string): Promise<ArtworkRecord | null> {
     const stmt = this.db.prepare('SELECT * FROM artwork WHERE id = ?');
     const result = await stmt.bind(id).first();
-    return (result as unknown as ArtworkRecord) || null;
+    return result ? (result as unknown as ArtworkRecord) : null;
   }
 
   async getArtworkWithDetails(id: string): Promise<(ArtworkRecord & { type_name: string }) | null> {
@@ -56,7 +57,7 @@ export class DatabaseService {
       WHERE a.id = ? AND a.status = 'approved'
     `);
     const result = await stmt.bind(id).first();
-    return (result as ArtworkRecord & { type_name: string }) || null;
+    return result ? (result as unknown as ArtworkRecord & { type_name: string }) : null;
   }
 
   async findNearbyArtworks(
@@ -103,7 +104,7 @@ export class DatabaseService {
       .all();
 
     // Convert distance_sq to actual distance and filter by radius
-    return (results.results as ArtworkWithDistance[])
+    return (results.results as unknown as ArtworkWithDistance[])
       .map((artwork: ArtworkWithDistance) => {
         const distanceKm = Math.sqrt(artwork.distance_sq) * 111; // Convert degrees to km
         return {
@@ -151,7 +152,7 @@ export class DatabaseService {
   async getLogbookById(id: string): Promise<LogbookRecord | null> {
     const stmt = this.db.prepare('SELECT * FROM logbook WHERE id = ?');
     const result = await stmt.bind(id).first();
-    return (result as LogbookRecord) || null;
+    return result ? (result as unknown as LogbookRecord) : null;
   }
 
   async getLogbookEntriesForArtwork(artworkId: string): Promise<LogbookRecord[]> {
@@ -161,7 +162,7 @@ export class DatabaseService {
       ORDER BY created_at DESC
     `);
     const results = await stmt.bind(artworkId).all();
-    return results.results as LogbookRecord[];
+    return results.results as unknown as LogbookRecord[];
   }
 
   async getUserSubmissions(
@@ -199,7 +200,7 @@ export class DatabaseService {
     const countResult = await countStmt.bind(userToken).first();
 
     return {
-      submissions: results.results as (LogbookRecord & {
+      submissions: results.results as unknown as (LogbookRecord & {
         artwork_lat?: number;
         artwork_lon?: number;
         artwork_type_name?: string;
@@ -215,7 +216,7 @@ export class DatabaseService {
       ORDER BY created_at ASC
     `);
     const results = await stmt.bind().all();
-    return results.results as LogbookRecord[];
+    return results.results as unknown as LogbookRecord[];
   }
 
   async updateLogbookStatus(id: string, status: LogbookRecord['status']): Promise<void> {
@@ -240,19 +241,19 @@ export class DatabaseService {
   async getAllArtworkTypes(): Promise<ArtworkTypeRecord[]> {
     const stmt = this.db.prepare('SELECT * FROM artwork_types ORDER BY name');
     const results = await stmt.bind().all();
-    return results.results as ArtworkTypeRecord[];
+    return results.results as unknown as ArtworkTypeRecord[];
   }
 
   async getArtworkTypeById(id: string): Promise<ArtworkTypeRecord | null> {
     const stmt = this.db.prepare('SELECT * FROM artwork_types WHERE id = ?');
     const result = await stmt.bind(id).first();
-    return (result as ArtworkTypeRecord) || null;
+    return result ? (result as unknown as ArtworkTypeRecord) : null;
   }
 
   async getArtworkTypeByName(name: string): Promise<ArtworkTypeRecord | null> {
     const stmt = this.db.prepare('SELECT * FROM artwork_types WHERE name = ?');
     const result = await stmt.bind(name).first();
-    return result as ArtworkTypeRecord | null;
+    return result ? (result as unknown as ArtworkTypeRecord) : null;
   }
 
   // ================================
@@ -285,13 +286,13 @@ export class DatabaseService {
   async getTagsForArtwork(artworkId: string): Promise<TagRecord[]> {
     const stmt = this.db.prepare('SELECT * FROM tags WHERE artwork_id = ?');
     const results = await stmt.bind(artworkId).all();
-    return results.results as TagRecord[];
+    return results.results as unknown as TagRecord[];
   }
 
   async getTagsForLogbook(logbookId: string): Promise<TagRecord[]> {
     const stmt = this.db.prepare('SELECT * FROM tags WHERE logbook_id = ?');
     const results = await stmt.bind(logbookId).all();
-    return results.results as TagRecord[];
+    return results.results as unknown as TagRecord[];
   }
 
   // ================================
