@@ -6,6 +6,8 @@
  * permalink injection for the Cultural Archiver system.
  */
 
+import exifr from 'exifr';
+import * as piexif from 'piexifjs';
 import { ApiError } from './errors';
 
 /**
@@ -56,31 +58,102 @@ export interface ExifProcessingOptions {
 }
 
 /**
- * Extract EXIF data from image buffer
- * 
- * For MVP, this is a basic implementation that focuses on GPS data extraction.
- * Future enhancement: integrate with a full EXIF library like exifr or piexifjs
+ * Extract EXIF data from image buffer using exifr library
  */
 export async function extractExifData(buffer: ArrayBuffer): Promise<ExifData> {
   try {
-    // Basic EXIF header detection for JPEG files
-    const view = new DataView(buffer);
-    
+    // Validate buffer
+    if (!buffer || buffer.byteLength === 0) {
+      console.warn('Empty buffer provided for EXIF extraction');
+      return {};
+    }
+
     // Check for JPEG magic number (0xFFD8)
-    if (view.getUint16(0) !== 0xFFD8) {
+    const view = new DataView(buffer);
+    if (view.byteLength < 2 || view.getUint16(0) !== 0xFFD8) {
+      console.info('Non-JPEG file provided for EXIF extraction');
       return {}; // Not a JPEG file, return empty EXIF data
     }
 
-    // For MVP, return basic structure
-    // TODO: Implement full EXIF parsing with external library
-    const exifData: ExifData = {
-      comment: 'Cultural Archiver photo submission'
-    };
+    // Try using exifr library for full EXIF extraction
+    try {
+      // Simple options for exifr compatibility
+      const rawExif = await exifr.parse(buffer, ['GPSLatitude', 'GPSLongitude', 'Make', 'Model', 'DateTime']);
+      
+      if (!rawExif) {
+        console.info('No EXIF data found in image');
+        return {
+          comment: 'Cultural Archiver photo submission'
+        };
+      }
 
-    return exifData;
+      // Transform raw EXIF to our structured format
+      const exifData: ExifData = {};
+
+      // Process GPS data
+      if (rawExif.GPSLatitude && rawExif.GPSLongitude) {
+        exifData.gps = {
+          latitude: rawExif.GPSLatitude,
+          longitude: rawExif.GPSLongitude,
+          altitude: rawExif.GPSAltitude,
+          timestamp: rawExif.GPSTimeStamp || rawExif.GPSDateStamp
+        };
+      }
+
+      // Process camera data
+      if (rawExif.Make || rawExif.Model) {
+        const cameraData: ExifCameraData = {
+          make: rawExif.Make,
+          model: rawExif.Model,
+          software: rawExif.Software,
+          dateTime: rawExif.DateTime || rawExif.DateTimeOriginal,
+          orientation: rawExif.Orientation,
+          iso: rawExif.ISO
+        };
+        
+        // Only add optional fields if they have valid values
+        if (rawExif.FocalLength) {
+          cameraData.focalLength = `${rawExif.FocalLength}mm`;
+        }
+        if (rawExif.FNumber) {
+          cameraData.aperture = `f/${rawExif.FNumber}`;
+        }
+        if (rawExif.ExposureTime) {
+          cameraData.shutterSpeed = `1/${Math.round(1 / rawExif.ExposureTime)}s`;
+        }
+        
+        exifData.camera = cameraData;
+      }
+
+      // Process comments
+      exifData.comment = rawExif.ImageDescription || 'Cultural Archiver photo submission';
+      exifData.userComment = rawExif.UserComment;
+
+      console.info('EXIF data extracted successfully', {
+        hasGPS: !!exifData.gps,
+        hasCamera: !!exifData.camera,
+        gpsCoords: exifData.gps ? `${exifData.gps.latitude}, ${exifData.gps.longitude}` : null,
+        cameraMake: exifData.camera?.make,
+        cameraModel: exifData.camera?.model
+      });
+
+      return exifData;
+      
+    } catch (exifrError) {
+      console.warn('exifr library error, falling back to basic extraction:', exifrError);
+      
+      // Fallback to basic implementation for backwards compatibility
+      return {
+        comment: 'Cultural Archiver photo submission'
+      };
+    }
+    
   } catch (error) {
     console.warn('Failed to extract EXIF data:', error);
-    return {};
+    // Return basic data instead of throwing to maintain backwards compatibility
+    return {
+      comment: 'Cultural Archiver photo submission'
+    };
   }
 }
 
@@ -90,7 +163,7 @@ export async function extractExifData(buffer: ArrayBuffer): Promise<ExifData> {
 export async function injectPermalink(
   buffer: ArrayBuffer,
   artworkId: string,
-  _options: ExifProcessingOptions = {}
+  options: ExifProcessingOptions = {}
 ): Promise<ArrayBuffer> {
   try {
     // Validate input buffer
@@ -98,16 +171,83 @@ export async function injectPermalink(
       throw new Error('Invalid buffer for EXIF processing');
     }
 
+    // Check if it's a JPEG file
+    const view = new DataView(buffer);
+    if (view.byteLength < 2 || view.getUint16(0) !== 0xFFD8) {
+      console.info('Non-JPEG file, skipping EXIF permalink injection');
+      return buffer;
+    }
+
     const permalink = `/p/artwork/${artworkId}`;
-    const comment = `Cultural Archiver: ${permalink} - Archived ${new Date().toISOString()}`;
+    const timestamp = new Date().toISOString();
+    const comment = `Cultural Archiver: ${permalink} - Archived ${timestamp}`;
 
-    // For MVP, return original buffer with metadata preserved
-    // Future enhancement: implement actual EXIF modification
-    // This would involve using a library like piexifjs to modify the EXIF comment field
+    try {
+      // Convert ArrayBuffer to base64 for piexifjs
+      const uint8Array = new Uint8Array(buffer);
+      const binary = Array.from(uint8Array).map(byte => String.fromCharCode(byte)).join('');
+      const base64 = btoa(binary);
+      const dataUrl = `data:image/jpeg;base64,${base64}`;
 
-    console.info('Permalink prepared for injection:', { artworkId, permalink, comment });
+      // Load existing EXIF data or create new structure
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let exifData: Record<string, any>;
+      try {
+        exifData = piexif.load(dataUrl);
+      } catch {
+        // No existing EXIF data, create new structure
+        exifData = { "0th": {}, "Exif": {}, "GPS": {}, "1st": {}, "thumbnail": undefined };
+      }
+
+      // Set Image Description (comment) in IFD0
+      if (!exifData["0th"]) exifData["0th"] = {};
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (exifData["0th"] as Record<string, any>)[piexif.ImageIFD.ImageDescription] = comment;
+
+      // Also set UserComment in EXIF IFD for broader compatibility
+      if (!exifData["Exif"]) exifData["Exif"] = {};
+      const userCommentBytes = new TextEncoder().encode(`UNICODE\0${comment}`);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (exifData["Exif"] as Record<string, any>)[piexif.ExifIFD.UserComment] = Array.from(userCommentBytes);
+
+      // Preserve existing GPS data if requested
+      if (options.preserveGPS && exifData.GPS) {
+        console.info('Preserving existing GPS data in permalink injection');
+      }
+
+      // Generate new EXIF binary
+      const newExifBinary = piexif.dump(exifData);
+      
+      // Insert EXIF into image
+      const newDataUrl = piexif.insert(newExifBinary, dataUrl);
+      
+      // Convert back to ArrayBuffer
+      const base64Data = newDataUrl.replace(/^data:image\/jpeg;base64,/, '');
+      const binaryString = atob(base64Data);
+      const newBuffer = new ArrayBuffer(binaryString.length);
+      const newView = new Uint8Array(newBuffer);
+      
+      for (let i = 0; i < binaryString.length; i++) {
+        newView[i] = binaryString.charCodeAt(i);
+      }
+
+      console.info('Permalink injected into EXIF successfully:', { 
+        artworkId, 
+        permalink, 
+        originalSize: buffer.byteLength,
+        newSize: newBuffer.byteLength
+      });
+      
+      return newBuffer;
+      
+    } catch (exifError) {
+      console.warn('Failed to modify EXIF data with piexifjs, returning original buffer:', exifError);
+      
+      // Fallback: return original buffer with logged intention
+      console.info('Permalink prepared for injection (fallback mode):', { artworkId, permalink, comment });
+      return buffer;
+    }
     
-    return buffer;
   } catch (error) {
     console.error('Failed to inject permalink into EXIF:', error);
     throw new ApiError('EXIF permalink injection failed', 'EXIF_PROCESSING_ERROR', 500);
