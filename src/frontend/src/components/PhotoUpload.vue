@@ -324,13 +324,13 @@ function generateId(): string {
 </script>
 
 <template>
-  <div class="photo-upload bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
+  <div class="photo-upload bg-white rounded-lg shadow-lg p-4 sm:p-6 max-w-2xl mx-auto">
     <!-- Header -->
-    <div class="mb-6">
-      <h2 class="text-2xl font-bold text-gray-900 mb-2">
+    <div class="mb-4 sm:mb-6">
+      <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
         Upload Photos
       </h2>
-      <p class="text-gray-600">
+      <p class="text-sm sm:text-base text-gray-600">
         Share photos of public art to contribute to the cultural archive.
         You can upload up to 3 photos per submission.
       </p>
@@ -418,7 +418,7 @@ function generateId(): string {
           Selected Photos ({{ selectedFiles.length }}/3)
         </h3>
         
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div
             v-for="(file, index) in selectedFiles"
             :key="file.id"
@@ -434,8 +434,8 @@ function generateId(): string {
             </div>
             
             <!-- File Info -->
-            <div class="p-3">
-              <p class="text-sm font-medium text-gray-900 truncate">
+            <div class="p-2 sm:p-3">
+              <p class="text-xs sm:text-sm font-medium text-gray-900 truncate">
                 {{ file.name }}
               </p>
               <p class="text-xs text-gray-600">

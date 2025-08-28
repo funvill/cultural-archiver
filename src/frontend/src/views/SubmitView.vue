@@ -1,11 +1,11 @@
 <template>
   <div class="submit-view">
     <!-- Page Header -->
-    <div class="bg-white border-b border-gray-200 py-6">
+    <div class="bg-white border-b border-gray-200 py-4 sm:py-6">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center">
-          <h1 class="text-3xl font-bold text-gray-900">Submit Artwork</h1>
-          <p class="mt-2 text-lg text-gray-600">
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Submit Artwork</h1>
+          <p class="mt-2 text-base sm:text-lg text-gray-600">
             Share photos of public art to contribute to the cultural archive
           </p>
         </div>
@@ -13,30 +13,30 @@
     </div>
 
     <!-- Main Content -->
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <!-- Progress Indicator -->
       <div class="mb-8" role="progressbar" :aria-valuenow="currentStep" aria-valuemin="1" aria-valuemax="2" :aria-valuetext="`Step ${currentStep} of 2`">
-        <div class="flex items-center justify-center space-x-4">
-          <div class="flex items-center space-x-2">
+        <div class="flex items-center justify-center space-x-2 sm:space-x-4">
+          <div class="flex items-center space-x-1 sm:space-x-2">
             <div 
-              class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
+              class="w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium"
               :class="currentStep >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'"
               v-bind="currentStep === 1 ? { 'aria-current': 'step' } : {}"
             >
               1
             </div>
-            <span class="text-sm font-medium text-gray-600">Upload Photos</span>
+            <span class="text-xs sm:text-sm font-medium text-gray-600">Upload Photos</span>
           </div>
-          <div class="w-16 h-0.5" :class="currentStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'" aria-hidden="true"></div>
-          <div class="flex items-center space-x-2">
+          <div class="w-8 sm:w-16 h-0.5" :class="currentStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'" aria-hidden="true"></div>
+          <div class="flex items-center space-x-1 sm:space-x-2">
             <div 
-              class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
+              class="w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium"
               :class="currentStep >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'"
               v-bind="currentStep === 2 ? { 'aria-current': 'step' } : {}"
             >
               2
             </div>
-            <span class="text-sm font-medium text-gray-600">Verify & Submit</span>
+            <span class="text-xs sm:text-sm font-medium text-gray-600">Verify & Submit</span>
           </div>
         </div>
       </div>

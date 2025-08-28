@@ -2,23 +2,23 @@
   <div class="about-view">
     <!-- Hero Section -->
     <div class="hero bg-gradient-to-r from-blue-500 to-purple-600 text-white">
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
         <div class="text-center">
-          <h1 class="text-5xl font-bold mb-6">Cultural Archiver</h1>
-          <p class="text-xl mb-8 max-w-2xl mx-auto">
+          <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 sm:mb-6">Cultural Archiver</h1>
+          <p class="text-base sm:text-lg lg:text-xl mb-6 sm:mb-8 max-w-2xl mx-auto">
             Discover, document, and celebrate public art in your community. 
             Join our crowdsourced mapping initiative to preserve cultural heritage for future generations.
           </p>
-          <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
             <button
               @click="$router.push('/submit')"
-              class="px-8 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 transition-colors"
+              class="px-6 sm:px-8 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 focus:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
             >
               Submit Artwork
             </button>
             <button
               @click="$router.push('/')"
-              class="px-8 py-3 bg-transparent border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-blue-600 transition-colors"
+              class="px-6 sm:px-8 py-3 bg-transparent border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-blue-600 focus:bg-white focus:text-blue-600 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
             >
               Explore Map
             </button>

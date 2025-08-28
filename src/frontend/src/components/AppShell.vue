@@ -12,9 +12,9 @@
     <header class="app-header bg-blue-600 text-white shadow-md" role="banner">
       <div class="flex items-center justify-between h-16 px-4">
         <!-- Left side: Logo and Title -->
-        <div class="flex items-center space-x-3">
-          <div class="text-2xl" role="img" aria-label="Cultural Archiver logo">🎨</div>
-          <h1 class="text-xl font-semibold truncate">Cultural Archiver</h1>
+        <div class="flex items-center space-x-2 sm:space-x-3 min-w-0">
+          <div class="text-xl sm:text-2xl" role="img" aria-label="Cultural Archiver logo">🎨</div>
+          <h1 class="text-lg sm:text-xl font-semibold truncate">Cultural Archiver</h1>
         </div>
 
         <!-- Right side: Navigation (Desktop) -->
@@ -39,7 +39,7 @@
 
         <!-- Mobile menu button -->
         <button
-          class="md:hidden p-2 rounded-md hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
+          class="md:hidden p-3 rounded-md hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
           @click="toggleDrawer"
           @keydown.escape="closeDrawer"
           :aria-expanded="showDrawer"
@@ -95,7 +95,7 @@
           :key="item.path"
           v-bind="index === 0 ? { ref: 'firstNavLink' } : {}"
           :to="item.path"
-          class="drawer-link flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 focus:bg-blue-50 focus:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
+          class="drawer-link flex items-center px-4 py-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 focus:bg-blue-50 focus:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
           :class="{ 'bg-blue-100 text-blue-600 border-r-4 border-blue-600': $route.path === item.path }"
           :aria-current="$route.path === item.path ? 'page' : undefined"
           @click="closeDrawer"
