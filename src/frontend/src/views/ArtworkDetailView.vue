@@ -36,8 +36,8 @@
         <div v-if="artwork.photos && artwork.photos.length > 0" class="relative h-96 md:h-[500px] bg-gray-900">
           <!-- Main Photo -->
           <img
-            :src="artwork.photos[currentPhotoIndex]"
-            :alt="artwork.title || 'Artwork photo'"
+            :src="artwork.photos[currentPhotoIndex] || ''"
+            :alt="(artwork.tags_parsed?.title as string) || 'Artwork photo'"
             class="w-full h-full object-cover"
           />
           
@@ -73,7 +73,7 @@
             <svg class="w-16 h-16 mx-auto mb-4 opacity-70" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clip-rule="evenodd" />
             </svg>
-            <p class="text-lg opacity-90">{{ getArtworkTypeEmoji(artwork.type) }} {{ getArtworkTypeName(artwork.type) }}</p>
+            <p class="text-lg opacity-90">{{ getArtworkTypeEmoji(artwork.type_name) }} {{ getArtworkTypeName(artwork.type_name) }}</p>
           </div>
         </div>
 
@@ -96,23 +96,23 @@
             <!-- Title and Type -->
             <div class="mb-6">
               <div class="flex items-center gap-3 mb-2">
-                <span class="text-3xl">{{ getArtworkTypeEmoji(artwork.type) }}</span>
+                <span class="text-3xl">{{ getArtworkTypeEmoji(artwork.type_name) }}</span>
                 <span class="text-sm font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                  {{ getArtworkTypeName(artwork.type) }}
+                  {{ getArtworkTypeName(artwork.type_name) }}
                 </span>
               </div>
               <h1 class="text-3xl font-bold text-gray-900 mb-2">
-                {{ artwork.title || 'Untitled Artwork' }}
+                {{ (artwork.tags_parsed?.title as string) || 'Untitled Artwork' }}
               </h1>
-              <p v-if="artwork.artist" class="text-lg text-gray-600">
-                by {{ artwork.artist }}
+              <p v-if="artwork.tags_parsed?.artist" class="text-lg text-gray-600">
+                by {{ artwork.tags_parsed?.artist }}
               </p>
             </div>
 
             <!-- Description -->
-            <div v-if="artwork.description" class="mb-8">
+            <div v-if="artwork.tags_parsed?.description" class="mb-8">
               <h2 class="text-xl font-semibold text-gray-900 mb-3">Description</h2>
-              <p class="text-gray-700 leading-relaxed">{{ artwork.description }}</p>
+              <p class="text-gray-700 leading-relaxed">{{ artwork.tags_parsed?.description }}</p>
             </div>
 
             <!-- Tags -->

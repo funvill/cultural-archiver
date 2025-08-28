@@ -202,6 +202,105 @@ export interface UseAuthReturn {
   verifyEmail: (token: string) => Promise<void>
 }
 
+// Additional API-specific types
+export interface LogbookSubmission {
+  lat: number
+  lon: number
+  note?: string
+  type?: string
+  artworkId?: string
+  photos: File[]
+}
+
+export interface ArtworkDetails {
+  id: string
+  lat: number
+  lon: number
+  type_id: string
+  created_at: string
+  status: 'pending' | 'approved' | 'removed'
+  tags: string | null
+  photos: string[]
+  type_name: string
+  logbook_entries: LogbookEntryWithPhotos[]
+  tags_parsed: Record<string, string>
+}
+
+export interface LogbookEntryWithPhotos {
+  id: string
+  artwork_id: string | null
+  user_token: string
+  note: string | null
+  photos: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  photos_parsed: string[]
+}
+
+export interface UserSubmission {
+  id: string
+  artwork_id: string | null
+  user_token: string
+  note: string | null
+  photos: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  artwork_lat?: number
+  artwork_lon?: number
+  artwork_type_name?: string
+  photos_parsed: string[]
+}
+
+export interface UserProfile {
+  user_token: string
+  total_submissions: number
+  approved_submissions: number
+  pending_submissions: number
+  rejected_submissions: number
+  created_at: string
+  email_verified: boolean
+  email?: string
+}
+
+export interface ReviewQueueItem {
+  id: string
+  lat: number
+  lon: number
+  note: string | null
+  photos: string[]
+  type?: string
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  user_token: string
+  nearby_artworks?: ArtworkPin[]
+}
+
+export interface ReviewStats {
+  total_pending: number
+  total_approved: number
+  total_rejected: number
+  pending_by_type: Record<string, number>
+  recent_activity: Array<{
+    date: string
+    approved: number
+    rejected: number
+  }>
+}
+
+export interface MagicLinkRequest {
+  email: string
+}
+
+export interface MagicLinkConsumeRequest {
+  token: string
+}
+
+export interface VerificationStatus {
+  email_verified: boolean
+  email?: string
+  verification_sent_at?: string
+}
+
 // Component prop types
 export interface AppShellProps {
   title?: string

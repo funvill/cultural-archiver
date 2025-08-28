@@ -232,17 +232,18 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { apiService, getErrorMessage } from '../services/api'
 
 const isLoading = ref(true)
 const status = ref<string>('')
 
 const checkWorkerStatus = async (): Promise<void> => {
   try {
-    const response = await fetch('/api/status')
-    const data = await response.json()
-    status.value = data.message || 'API connected successfully'
+    const response = await apiService.getStatus()
+    status.value = response.message || 'API connected successfully'
   } catch (error) {
-    status.value = 'API connection failed - this is expected in development mode'
+    status.value = `API connection failed: ${getErrorMessage(error)}`
+    console.warn('API status check failed:', error)
   } finally {
     isLoading.value = false
   }

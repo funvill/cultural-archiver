@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { User } from '../types'
+import type { User, MagicLinkRequest, MagicLinkConsumeRequest } from '../types'
+import { apiService, getErrorMessage, isUnauthorized } from '../services/api'
 
 /**
  * Authentication store for managing user state and tokens
@@ -53,71 +54,77 @@ export const useAuthStore = defineStore('auth', () => {
     const storedToken = localStorage.getItem('user-token')
     if (storedToken) {
       token.value = storedToken
-      // TODO: Validate token with backend and load user data
+      // Load user verification status
+      loadUserProfile()
+    }
+  }
+
+  // Load user profile and verification status
+  async function loadUserProfile(): Promise<void> {
+    try {
+      const response = await apiService.getVerificationStatus()
+      if (response.data) {
+        // Create user object from verification status
+        const userData: User = {
+          id: token.value || 'anonymous',
+          emailVerified: response.data.email_verified,
+          isReviewer: false, // TODO: Get from user profile endpoint
+          createdAt: new Date().toISOString()
+        }
+        
+        if (response.data.email) {
+          userData.email = response.data.email
+        }
+        
+        setUser(userData)
+      }
+    } catch (err) {
+      if (isUnauthorized(err)) {
+        clearAuth()
+      }
     }
   }
 
   // Login flow
   async function login(email: string): Promise<void> {
-    isLoading.value = true
-    error.value = null
+    setLoading(true)
+    clearError()
     
     try {
-      // TODO: Implement actual API call to request magic link
-      const response = await fetch('/api/auth/magic-link', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Failed to send magic link')
-      }
-
+      const request: MagicLinkRequest = { email }
+      await apiService.requestMagicLink(request)
+      
       // Magic link sent successfully
       // User will receive email and click link to complete login
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Login failed'
+      const message = getErrorMessage(err)
       setError(message)
       throw err
     } finally {
-      isLoading.value = false
+      setLoading(false)
     }
   }
 
   // Verify email and complete login
   async function verifyEmail(verificationToken: string): Promise<void> {
-    isLoading.value = true
-    error.value = null
+    setLoading(true)
+    clearError()
 
     try {
-      // TODO: Implement actual API call to verify token
-      const response = await fetch('/api/auth/consume', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ token: verificationToken }),
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.message || 'Email verification failed')
-      }
-
-      const { user: userData, token: userToken } = await response.json()
+      const request: MagicLinkConsumeRequest = { token: verificationToken }
+      const response = await apiService.consumeMagicLink(request)
       
-      setUser(userData)
-      setToken(userToken)
+      if (response.success) {
+        // Token is automatically updated by the API service
+        // Load user profile
+        await loadUserProfile()
+      }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Email verification failed'
+      const message = getErrorMessage(err)
       setError(message)
       throw err
     } finally {
-      isLoading.value = false
+      setLoading(false)
     }
   }
 
@@ -126,62 +133,62 @@ export const useAuthStore = defineStore('auth', () => {
     clearAuth()
   }
 
+  // Resend verification email
+  async function resendVerificationEmail(email: string): Promise<void> {
+    setLoading(true)
+    clearError()
+
+    try {
+      const request: MagicLinkRequest = { email }
+      await apiService.resendVerificationEmail(request)
+    } catch (err) {
+      const message = getErrorMessage(err)
+      setError(message)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Remove email verification
+  async function removeEmailVerification(): Promise<void> {
+    setLoading(true)
+    clearError()
+
+    try {
+      await apiService.removeEmailVerification()
+      // Update user state
+      if (user.value) {
+        const userData: User = {
+          ...user.value,
+          emailVerified: false
+        }
+        // Don't set email to undefined - just omit it
+        delete userData.email
+        setUser(userData)
+      }
+    } catch (err) {
+      const message = getErrorMessage(err)
+      setError(message)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Generate or get user token (for anonymous submissions)
   function ensureUserToken(): string {
     if (token.value) {
       return token.value
     }
 
-    // Generate anonymous user token
-    const anonymousToken = generateAnonymousToken()
-    setToken(anonymousToken)
-    return anonymousToken
+    // Generate new anonymous token
+    const newToken = crypto.randomUUID()
+    setToken(newToken)
+    return newToken
   }
 
-  // Generate anonymous user token (UUID v4)
-  function generateAnonymousToken(): string {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0
-      const v = c == 'x' ? r : (r & 0x3 | 0x8)
-      return v.toString(16)
-    })
-  }
-
-  // Load user data from token
-  async function loadUserData(): Promise<void> {
-    if (!token.value) return
-
-    isLoading.value = true
-    error.value = null
-
-    try {
-      // TODO: Implement actual API call to get user data
-      const response = await fetch('/api/me', {
-        headers: {
-          'X-User-Token': token.value,
-        },
-      })
-
-      if (!response.ok) {
-        if (response.status === 401) {
-          // Token is invalid, clear auth
-          clearAuth()
-          return
-        }
-        throw new Error('Failed to load user data')
-      }
-
-      const userData = await response.json()
-      setUser(userData)
-    } catch (err) {
-      console.error('Error loading user data:', err)
-      // Don't clear auth on network errors, only on 401
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  // Initialize auth when store is created
+  // Initialize store
   initializeAuth()
 
   return {
@@ -203,10 +210,13 @@ export const useAuthStore = defineStore('auth', () => {
     setError,
     clearError,
     setLoading,
+    initializeAuth,
+    loadUserProfile,
     login,
     verifyEmail,
     logout,
-    ensureUserToken,
-    loadUserData,
+    resendVerificationEmail,
+    removeEmailVerification,
+    ensureUserToken
   }
 })

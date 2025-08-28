@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { ArtworkPin, Coordinates, MapBounds } from '../types'
+import type { ArtworkPin, Coordinates, MapBounds, ArtworkDetails } from '../types'
+import { apiService, getErrorMessage, isNetworkError } from '../services/api'
 
 /**
  * Artwork and map state management store
@@ -18,7 +19,7 @@ export const useArtworksStore = defineStore('artworks', () => {
   const fetchRadius = ref(500) // 500 meters default
 
   // Cache for individual artworks
-  const artworkCache = ref<Map<string, any>>(new Map())
+  const artworkCache = ref<Map<string, ArtworkDetails>>(new Map())
 
   // Computed getters
   const nearbyArtworks = computed(() => {
@@ -96,7 +97,7 @@ export const useArtworksStore = defineStore('artworks', () => {
   }
 
   // Cache individual artwork details
-  function cacheArtwork(id: string, artwork: any) {
+  function cacheArtwork(id: string, artwork: ArtworkDetails) {
     artworkCache.value.set(id, artwork)
   }
 
@@ -114,114 +115,143 @@ export const useArtworksStore = defineStore('artworks', () => {
       return
     }
 
-    isLoading.value = true
+    setLoading(true)
     clearError()
 
     try {
-      const params = new URLSearchParams({
-        lat: targetLocation.latitude.toString(),
-        lon: targetLocation.longitude.toString(),
-        radius: fetchRadius.value.toString()
-      })
+      const response = await apiService.getNearbyArtworks(
+        targetLocation.latitude,
+        targetLocation.longitude,
+        fetchRadius.value
+      )
 
-      const response = await fetch(`/api/artworks/nearby?${params}`)
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch nearby artworks')
-      }
+      // Convert the API response to ArtworkPin format
+      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: any) => ({
+        id: artwork.id,
+        latitude: artwork.lat,
+        longitude: artwork.lon,
+        type: artwork.type_name || 'unknown',
+        title: artwork.tags_parsed?.title || undefined,
+        photos: artwork.photos || []
+      }))
 
-      const data = await response.json()
-      setArtworks(data.artworks || [])
+      setArtworks(artworkPins)
       lastFetchLocation.value = targetLocation
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch artworks'
+      const message = getErrorMessage(err)
       setError(message)
       console.error('Error fetching nearby artworks:', err)
+      
+      // If it's a network error, retry once
+      if (isNetworkError(err)) {
+        setTimeout(() => {
+          fetchNearbyArtworks(location)
+        }, 2000)
+      }
     } finally {
-      isLoading.value = false
+      setLoading(false)
     }
   }
 
   // Fetch individual artwork details
-  async function fetchArtwork(id: string): Promise<any> {
+  async function fetchArtwork(id: string): Promise<ArtworkDetails | null> {
     // Return cached if available
     if (artworkCache.value.has(id)) {
-      return artworkCache.value.get(id)
+      return artworkCache.value.get(id) || null
     }
 
-    isLoading.value = true
+    setLoading(true)
     clearError()
 
     try {
-      const response = await fetch(`/api/artworks/${id}`)
+      const response = await apiService.getArtworkDetails(id)
+      const artwork = response.data
       
-      if (!response.ok) {
-        if (response.status === 404) {
-          throw new Error('Artwork not found')
-        }
-        throw new Error('Failed to fetch artwork details')
+      if (artwork) {
+        cacheArtwork(id, artwork)
+        return artwork
       }
-
-      const artwork = await response.json()
-      cacheArtwork(id, artwork)
-      return artwork
+      
+      return null
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch artwork'
+      const message = getErrorMessage(err)
       setError(message)
+      console.error('Error fetching artwork details:', err)
       throw err
     } finally {
-      isLoading.value = false
+      setLoading(false)
     }
   }
 
   // Search artworks by bounds (for map view)
   async function fetchArtworksInBounds(bounds: MapBounds): Promise<void> {
-    isLoading.value = true
+    setLoading(true)
     clearError()
 
     try {
-      const params = new URLSearchParams({
-        north: bounds.north.toString(),
-        south: bounds.south.toString(),
-        east: bounds.east.toString(),
-        west: bounds.west.toString()
-      })
-
-      const response = await fetch(`/api/artworks/bounds?${params}`)
+      // Use center point of bounds for nearby search
+      const centerLat = (bounds.north + bounds.south) / 2
+      const centerLon = (bounds.east + bounds.west) / 2
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch artworks in area')
-      }
+      // Calculate approximate radius from bounds
+      const radius = Math.min(
+        calculateDistance(
+          { latitude: bounds.north, longitude: centerLon },
+          { latitude: bounds.south, longitude: centerLon }
+        ) / 2,
+        calculateDistance(
+          { latitude: centerLat, longitude: bounds.east },
+          { latitude: centerLat, longitude: bounds.west }
+        ) / 2
+      )
 
-      const data = await response.json()
-      setArtworks(data.artworks || [])
+      const response = await apiService.getNearbyArtworks(
+        centerLat,
+        centerLon,
+        Math.max(radius, 500) // Minimum 500m radius
+      )
+
+      // Convert the API response to ArtworkPin format
+      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: any) => ({
+        id: artwork.id,
+        latitude: artwork.lat,
+        longitude: artwork.lon,
+        type: artwork.type_name || 'unknown',
+        title: artwork.tags_parsed?.title || undefined,
+        photos: artwork.photos || []
+      }))
+
+      setArtworks(artworkPins)
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to fetch artworks'
+      const message = getErrorMessage(err)
       setError(message)
       console.error('Error fetching artworks in bounds:', err)
     } finally {
-      isLoading.value = false
+      setLoading(false)
     }
   }
 
   // Get artworks for submission (nearby list)
   async function getArtworksForSubmission(location: Coordinates): Promise<ArtworkPin[]> {
     try {
-      const params = new URLSearchParams({
-        lat: location.latitude.toString(),
-        lon: location.longitude.toString(),
-        radius: '100' // Smaller radius for submission
-      })
+      const response = await apiService.getNearbyArtworks(
+        location.latitude,
+        location.longitude,
+        100, // Smaller radius for submission
+        10   // Limit results
+      )
 
-      const response = await fetch(`/api/artworks/nearby?${params}`)
-      
-      if (!response.ok) {
-        console.warn('Failed to fetch nearby artworks for submission')
-        return []
-      }
+      // Convert the API response to ArtworkPin format
+      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: any) => ({
+        id: artwork.id,
+        latitude: artwork.lat,
+        longitude: artwork.lon,
+        type: artwork.type_name || 'unknown',
+        title: artwork.tags_parsed?.title || undefined,
+        photos: artwork.photos || []
+      }))
 
-      const data = await response.json()
-      return data.artworks || []
+      return artworkPins
     } catch (err) {
       console.warn('Error fetching artworks for submission:', err)
       return []
