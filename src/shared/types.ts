@@ -74,6 +74,126 @@ export interface CreateLogbookEntryRequest {
 }
 
 // ================================
+// MVP Worker API Types
+// ================================
+
+// Submission Endpoints
+export interface LogbookSubmissionRequest {
+  lat: number;
+  lon: number;
+  note?: string;
+  type?: string;
+  photos?: File[];
+}
+
+export interface LogbookSubmissionResponse {
+  id: string;
+  status: 'pending';
+  message: string;
+  nearby_artworks?: NearbyArtworkInfo[];
+}
+
+export interface NearbyArtworkInfo {
+  id: string;
+  lat: number;
+  lon: number;
+  type_name: string;
+  distance_meters: number;
+  photos: string[];
+}
+
+// Discovery Endpoints
+export interface NearbyArtworksRequest {
+  lat: number;
+  lon: number;
+  radius?: number;
+  limit?: number;
+}
+
+export interface NearbyArtworksResponse {
+  artworks: ArtworkWithPhotos[];
+  total: number;
+  search_center: { lat: number; lon: number };
+  search_radius: number;
+}
+
+export interface ArtworkWithPhotos extends ArtworkRecord {
+  type_name: string;
+  recent_photo?: string;
+  photo_count: number;
+}
+
+export interface ArtworkDetailResponse extends ArtworkRecord {
+  type_name: string;
+  photos: string[];
+  logbook_entries: LogbookEntryWithPhotos[];
+  tags_parsed: Record<string, string>;
+}
+
+export interface LogbookEntryWithPhotos extends LogbookRecord {
+  photos_parsed: string[];
+}
+
+// User Management Endpoints
+export interface UserSubmissionsResponse {
+  submissions: UserSubmissionInfo[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export interface UserSubmissionInfo extends LogbookRecord {
+  artwork_lat?: number;
+  artwork_lon?: number;
+  artwork_type_name?: string;
+  photos_parsed: string[];
+}
+
+// Authentication Endpoints
+export interface MagicLinkRequest {
+  email: string;
+}
+
+export interface MagicLinkResponse {
+  message: string;
+  success: boolean;
+}
+
+export interface ConsumeMagicLinkRequest {
+  token: string;
+}
+
+export interface ConsumeMagicLinkResponse {
+  success: boolean;
+  message: string;
+  user_token?: string;
+}
+
+// Moderation Endpoints
+export interface ReviewSubmissionRequest {
+  submission_id: string;
+  action: 'approve' | 'reject';
+  rejection_reason?: string;
+  artwork_overrides?: Partial<CreateArtworkRequest>;
+  link_to_existing_artwork?: string;
+}
+
+export interface ReviewSubmissionResponse {
+  success: boolean;
+  message: string;
+  artwork_id?: string;
+  submission_status: LogbookRecord['status'];
+}
+
+// Rate Limiting Types
+export interface RateLimitInfo {
+  submissions_remaining: number;
+  submissions_reset_at: string;
+  queries_remaining: number;
+  queries_reset_at: string;
+}
+
+// ================================
 // API Response Types
 // ================================
 
@@ -159,6 +279,19 @@ export interface AppConfig {
   log_level: 'trace' | 'debug' | 'info' | 'warn' | 'error';
 }
 
+// Cloudflare Workers Environment
+export interface WorkerEnv {
+  DB: any; // D1Database - use any for compatibility
+  SESSIONS: any; // KVNamespace 
+  CACHE: any; // KVNamespace
+  RATE_LIMITS: any; // KVNamespace
+  MAGIC_LINKS: any; // KVNamespace
+  PHOTOS: any; // R2Bucket
+  ENVIRONMENT: string;
+  FRONTEND_URL: string;
+  LOG_LEVEL: string;
+}
+
 // ================================
 // Utility Types
 // ================================
@@ -191,11 +324,22 @@ export interface ValidationError {
 }
 
 export interface ApiError {
-  code: string;
+  error: string;
   message: string;
-  details?: Record<string, unknown>;
-  validation_errors?: ValidationError[];
+  details?: {
+    validation_errors?: ValidationError[];
+    [key: string]: unknown;
+  };
+  show_details?: boolean;
 }
+
+// Success response format - returns data directly
+export interface ApiSuccessResponse<T = unknown> {
+  [key: string]: T;
+}
+
+// Error response uses progressive disclosure
+export interface ApiErrorResponse extends ApiError {}
 
 // ================================
 // Authentication Types (for future use)
@@ -261,3 +405,17 @@ export const ARTWORK_TYPES = [
 export const DEFAULT_SEARCH_RADIUS = 500;
 export const MAX_SEARCH_RADIUS = 10000; // 10km
 export const MIN_SEARCH_RADIUS = 50; // 50m
+
+// Rate limiting constants
+export const RATE_LIMIT_SUBMISSIONS_PER_DAY = 10;
+export const RATE_LIMIT_QUERIES_PER_HOUR = 60;
+export const MAX_NOTE_LENGTH = 500;
+export const MAX_PHOTOS_PER_SUBMISSION = 3;
+export const MAX_PHOTO_SIZE = 15 * 1024 * 1024; // 15MB
+
+// Photo processing constants
+export const THUMBNAIL_MAX_SIZE = 800; // pixels
+export const PHOTO_BUCKET_STRUCTURE = {
+  ORIGINALS: 'originals',
+  THUMBS: 'thumbs',
+} as const;

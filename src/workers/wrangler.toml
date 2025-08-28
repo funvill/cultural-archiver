@@ -37,6 +37,16 @@ id = "c991e608759d45bdae4198b72955da5f"
 binding = "CACHE"
 id = "91052eaeeef24b6fab6ac2b3c75b8b0b"
 
+# Rate limiting KV namespace for MVP
+[[env.development.kv_namespaces]]
+binding = "RATE_LIMITS"
+id = "rate-limits-dev-placeholder"
+
+# Magic links KV namespace for MVP
+[[env.development.kv_namespaces]]
+binding = "MAGIC_LINKS"
+id = "magic-links-dev-placeholder"
+
 [[env.staging.kv_namespaces]]
 binding = "SESSIONS"
 id = "c991e608759d45bdae4198b72955da5f"  # Fill in from Cloudflare dashboard
@@ -45,6 +55,14 @@ id = "c991e608759d45bdae4198b72955da5f"  # Fill in from Cloudflare dashboard
 binding = "CACHE"
 id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Fill in from Cloudflare dashboard
 
+[[env.staging.kv_namespaces]]
+binding = "RATE_LIMITS"
+id = ""  # Fill in from Cloudflare dashboard
+
+[[env.staging.kv_namespaces]]
+binding = "MAGIC_LINKS"
+id = ""  # Fill in from Cloudflare dashboard
+
 [[env.production.kv_namespaces]]
 binding = "SESSIONS"
 id = "c991e608759d45bdae4198b72955da5f"  # Fill in from Cloudflare dashboard
@@ -52,6 +70,14 @@ id = "c991e608759d45bdae4198b72955da5f"  # Fill in from Cloudflare dashboard
 [[env.production.kv_namespaces]]
 binding = "CACHE"
 id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Fill in from Cloudflare dashboard
+
+[[env.production.kv_namespaces]]
+binding = "RATE_LIMITS"
+id = ""  # Fill in from Cloudflare dashboard
+
+[[env.production.kv_namespaces]]
+binding = "MAGIC_LINKS"
+id = ""  # Fill in from Cloudflare dashboard
 
 # R2 bucket bindings
 [[env.development.r2_buckets]]

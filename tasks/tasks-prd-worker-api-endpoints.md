@@ -50,13 +50,13 @@
 
 ## Tasks
 
-- [ ] 1.0 Set up Core Infrastructure and Utilities
-  - [ ] 1.1 Update shared types (`src/shared/types.ts`) with MVP-specific API request/response interfaces
-  - [ ] 1.2 Create database utilities (`src/workers/lib/database.ts`) with prepared statements for artwork, logbook, and tag operations
-  - [ ] 1.3 Create spatial utilities (`src/workers/lib/spatial.ts`) for bounding box calculations and coordinate validation
-  - [ ] 1.4 Create error handling utilities (`src/workers/lib/errors.ts`) with consistent response formatting and progressive disclosure
-  - [ ] 1.5 Update Cloudflare configuration (`src/workers/wrangler.toml`) with KV namespaces for rate limiting and magic links
-  - [ ] 1.6 Set up testing infrastructure with Jest configuration for worker environment
+- [x] 1.0 Set up Core Infrastructure and Utilities
+  - [x] 1.1 Update shared types (`src/shared/types.ts`) with MVP-specific API request/response interfaces
+  - [x] 1.2 Create database utilities (`src/workers/lib/database.ts`) with prepared statements for artwork, logbook, and tag operations
+  - [x] 1.3 Create spatial utilities (`src/workers/lib/spatial.ts`) for bounding box calculations and coordinate validation
+  - [x] 1.4 Create error handling utilities (`src/workers/lib/errors.ts`) with consistent response formatting and progressive disclosure
+  - [x] 1.5 Update Cloudflare configuration (`src/workers/wrangler.toml`) with KV namespaces for rate limiting and magic links
+  - [x] 1.6 Set up testing infrastructure with Jest configuration for worker environment
 
 - [ ] 2.0 Implement Authentication and Rate Limiting Middleware
   - [ ] 2.1 Create authentication middleware (`src/workers/middleware/auth.ts`) for user token generation and validation
