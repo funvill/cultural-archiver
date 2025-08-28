@@ -158,6 +158,8 @@ watch(() => formData.value.freedomOfPanorama, (newValue) => {
             type="checkbox"
             class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             :class="{ 'border-red-500': errors.ageVerification }"
+            v-bind="errors.ageVerification ? { 'aria-describedby': 'age-verification-error' } : {}"
+            :aria-invalid="!!errors.ageVerification"
           />
           <div class="flex-1">
             <label for="age-verification" class="block text-sm font-medium text-gray-900">
@@ -167,7 +169,7 @@ watch(() => formData.value.freedomOfPanorama, (newValue) => {
               I confirm that I am 18 years of age or older and legally able to
               provide consent for photo submissions.
             </p>
-            <p v-if="errors.ageVerification" class="text-red-600 text-sm mt-1">
+            <p v-if="errors.ageVerification" class="text-red-600 text-sm mt-1" id="age-verification-error" role="alert">
               {{ errors.ageVerification }}
             </p>
           </div>

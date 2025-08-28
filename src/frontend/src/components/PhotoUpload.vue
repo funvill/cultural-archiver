@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, withDefaults, defineProps, defineEmits } from 'vue'
 import ConsentForm from './ConsentForm.vue'
+import { useAnnouncer } from '../composables/useAnnouncer'
 
 // File interface
 interface PhotoFile {
@@ -32,6 +33,9 @@ interface Emits {
 }
 
 const emit = defineEmits<Emits>()
+
+// Announcer for screen reader feedback
+const { announceSuccess, announceError, announceInfo } = useAnnouncer()
 
 // State
 const selectedFiles = ref<PhotoFile[]>([])
@@ -132,21 +136,34 @@ async function addFiles(files: File[]) {
     
     selectedFiles.value.push(photoFile)
   }
+  
+  // Announce to screen readers when files are added
+  if (files.length > 0) {
+    const fileCount = files.length
+    const totalFiles = selectedFiles.value.length
+    announceSuccess(`${fileCount} photo${fileCount > 1 ? 's' : ''} added. Total: ${totalFiles} of ${MAX_FILES} photos.`)
+  }
 }
 
 function validateFile(file: File): boolean {
   if (!SUPPORTED_TYPES.includes(file.type)) {
-    errors.value.push(`Unsupported file type: ${file.name}`)
+    const errorMsg = `Unsupported file type: ${file.name}`
+    errors.value.push(errorMsg)
+    announceError(errorMsg)
     return false
   }
   
   if (file.size > MAX_FILE_SIZE) {
-    errors.value.push(`File too large: ${file.name} (max ${formatFileSize(MAX_FILE_SIZE)})`)
+    const errorMsg = `File too large: ${file.name} (max ${formatFileSize(MAX_FILE_SIZE)})`
+    errors.value.push(errorMsg)
+    announceError(errorMsg)
     return false
   }
   
   if (file.size === 0) {
-    errors.value.push(`File is empty: ${file.name}`)
+    const errorMsg = `File is empty: ${file.name}`
+    errors.value.push(errorMsg)
+    announceError(errorMsg)
     return false
   }
   
@@ -157,8 +174,12 @@ function removeFile(index: number) {
   const file = selectedFiles.value[index]
   if (file) {
     URL.revokeObjectURL(file.preview)
+    selectedFiles.value.splice(index, 1)
+    
+    // Announce to screen readers when file is removed
+    const remainingFiles = selectedFiles.value.length
+    announceInfo(`Photo "${file.name}" removed. ${remainingFiles} photo${remainingFiles !== 1 ? 's' : ''} remaining.`)
   }
-  selectedFiles.value.splice(index, 1)
 }
 
 async function createPreview(file: File): Promise<string> {
@@ -346,6 +367,7 @@ function generateId(): string {
         tabindex="0"
         role="button"
         aria-label="Upload photos by clicking or pressing Enter/Space"
+        aria-describedby="upload-help"
         class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 focus:border-blue-500 focus:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors cursor-pointer"
         :class="{ 'border-blue-500 bg-blue-50': isDragging }"
       >
@@ -353,6 +375,7 @@ function generateId(): string {
           class="mx-auto h-12 w-12 text-gray-400"
           stroke="currentColor"
           fill="none"
+          aria-hidden="true"
           viewBox="0 0 48 48"
         >
           <path
@@ -373,8 +396,8 @@ function generateId(): string {
               browse
             </button>
           </p>
-          <p class="text-sm text-gray-600 mt-2" id="file-help">
-            Supports JPEG, PNG, WebP, and HEIC files up to 15MB each
+          <p class="text-sm text-gray-600 mt-2" id="file-help upload-help">
+            Supports JPEG, PNG, WebP, and HEIC files up to 15MB each. You can drag and drop files or use keyboard navigation to select files.
           </p>
         </div>
       </div>
@@ -405,7 +428,7 @@ function generateId(): string {
             <div class="aspect-w-16 aspect-h-9">
               <img
                 :src="file.preview"
-                :alt="file.name"
+                :alt="`Preview of ${file.name} - uploaded photo`"
                 class="w-full h-32 object-cover"
               />
             </div>

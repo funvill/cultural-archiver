@@ -5,15 +5,23 @@
       ref="mapContainer" 
       class="h-full w-full"
       :class="{ 'opacity-50': isLoading }"
+      role="application"
+      aria-label="Interactive map showing public artwork locations"
+      :aria-busy="isLoading"
     />
     
     <!-- Loading Overlay -->
     <div 
       v-if="isLoading" 
       class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10"
+      role="status"
+      aria-live="polite"
     >
       <div class="flex flex-col items-center space-y-2">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div 
+          class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
+          aria-hidden="true"
+        ></div>
         <p class="text-sm text-gray-600">Loading map...</p>
       </div>
     </div>
@@ -22,6 +30,8 @@
     <div 
       v-if="showLocationNotice" 
       class="absolute top-4 left-4 right-4 bg-yellow-100 border border-yellow-300 rounded-lg p-3 z-20"
+      role="alert"
+      aria-live="assertive"
     >
       <div class="flex items-start space-x-2">
         <ExclamationTriangleIcon class="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
@@ -87,6 +97,8 @@
     <div 
       v-if="error" 
       class="absolute top-4 left-4 right-4 bg-red-100 border border-red-300 rounded-lg p-3 z-20"
+      role="alert"
+      aria-live="assertive"
     >
       <div class="flex items-start space-x-2">
         <ExclamationCircleIcon class="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />

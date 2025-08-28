@@ -122,6 +122,9 @@
     <main id="main-content" class="app-main" role="main">
       <RouterView />
     </main>
+
+    <!-- Global Live Region for Screen Reader Announcements -->
+    <LiveRegion />
   </div>
 </template>
 
@@ -130,6 +133,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { Bars3Icon, XMarkIcon, PlusIcon, UserIcon, InformationCircleIcon, QuestionMarkCircleIcon, ClipboardDocumentListIcon, MapIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/auth'
+import LiveRegion from './LiveRegion.vue'
 import type { NavigationItem } from '../types'
 
 // Props

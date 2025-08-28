@@ -15,22 +15,24 @@
     <!-- Main Content -->
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Progress Indicator -->
-      <div class="mb-8">
+      <div class="mb-8" role="progressbar" :aria-valuenow="currentStep" aria-valuemin="1" aria-valuemax="2" :aria-valuetext="`Step ${currentStep} of 2`">
         <div class="flex items-center justify-center space-x-4">
           <div class="flex items-center space-x-2">
             <div 
               class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
               :class="currentStep >= 1 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'"
+              v-bind="currentStep === 1 ? { 'aria-current': 'step' } : {}"
             >
               1
             </div>
             <span class="text-sm font-medium text-gray-600">Upload Photos</span>
           </div>
-          <div class="w-16 h-0.5" :class="currentStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'"></div>
+          <div class="w-16 h-0.5" :class="currentStep >= 2 ? 'bg-blue-600' : 'bg-gray-200'" aria-hidden="true"></div>
           <div class="flex items-center space-x-2">
             <div 
               class="w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium"
               :class="currentStep >= 2 ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'"
+              v-bind="currentStep === 2 ? { 'aria-current': 'step' } : {}"
             >
               2
             </div>
@@ -40,10 +42,10 @@
       </div>
 
       <!-- Error Messages -->
-      <div v-if="error" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+      <div v-if="error" class="mb-6 bg-red-50 border border-red-200 rounded-lg p-4" role="alert" aria-live="assertive">
         <div class="flex">
           <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
             </svg>
           </div>
