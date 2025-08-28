@@ -66,33 +66,33 @@
   - [x] 2.5 Create input validation middleware (`src/workers/middleware/validation.ts`) using Zod schemas
   - [x] 2.6 Write comprehensive tests for all middleware components
 
-- [ ] 3.0 Implement Submission Endpoints (POST /api/logbook)
-  - [ ] 3.1 Create submission route handler (`src/workers/routes/submissions.ts`) with multipart form data support
-  - [ ] 3.2 Implement coordinate validation (lat/lon bounds checking)
-  - [ ] 3.3 Add photo file validation (type, size limits, max 3 photos per submission)
-  - [ ] 3.4 Integrate with photo processing pipeline for immediate upload to R2
-  - [ ] 3.5 Create logbook database entry with 'pending' status
-  - [ ] 3.6 Implement nearby artwork detection and user confirmation UI logic
-  - [ ] 3.7 Add rate limiting integration for submission endpoints
-  - [ ] 3.8 Write unit tests for submission validation and database operations
+- [x] 3.0 Implement Submission Endpoints (POST /api/logbook)
+  - [x] 3.1 Create submission route handler (`src/workers/routes/submissions.ts`) with multipart form data support
+  - [x] 3.2 Implement coordinate validation (lat/lon bounds checking)
+  - [x] 3.3 Add photo file validation (type, size limits, max 3 photos per submission)
+  - [x] 3.4 Integrate with photo processing pipeline for immediate upload to R2
+  - [x] 3.5 Create logbook database entry with 'pending' status
+  - [x] 3.6 Implement nearby artwork detection and user confirmation UI logic
+  - [x] 3.7 Add rate limiting integration for submission endpoints
+  - [x] 3.8 Write unit tests for submission validation and database operations
 
-- [ ] 4.0 Implement Discovery Endpoints (GET /api/artworks/nearby, GET /api/artworks/:id)
-  - [ ] 4.1 Create discovery route handler (`src/workers/routes/discovery.ts`) with geospatial query support
-  - [ ] 4.2 Implement nearby artworks endpoint with bounding box spatial queries
-  - [ ] 4.3 Add query parameter validation (lat, lon, radius, limit) with defaults
-  - [ ] 4.4 Implement artwork detail endpoint with logbook timeline aggregation
-  - [ ] 4.5 Add photo URL inclusion from R2 bucket for approved artwork
-  - [ ] 4.6 Implement configurable result limits (default 20, max 100)
-  - [ ] 4.7 Add rate limiting integration for discovery endpoints
-  - [ ] 4.8 Write unit tests for spatial queries and response formatting
+- [x] 4.0 Implement Discovery Endpoints (GET /api/artworks/nearby, GET /api/artworks/:id)
+  - [x] 4.1 Create discovery route handler (`src/workers/routes/discovery.ts`) with geospatial query support
+  - [x] 4.2 Implement nearby artworks endpoint with bounding box spatial queries
+  - [x] 4.3 Add query parameter validation (lat, lon, radius, limit) with defaults
+  - [x] 4.4 Implement artwork detail endpoint with logbook timeline aggregation
+  - [x] 4.5 Add photo URL inclusion from R2 bucket for approved artwork
+  - [x] 4.6 Implement configurable result limits (default 20, max 100)
+  - [x] 4.7 Add rate limiting integration for discovery endpoints
+  - [x] 4.8 Write unit tests for spatial queries and response formatting
 
-- [ ] 5.0 Implement User Management Endpoints (GET /api/me/submissions)
-  - [ ] 5.1 Create user route handler (`src/workers/routes/user.ts`) with token-based user identification
-  - [ ] 5.2 Implement user submissions listing with status filtering (exclude rejected)
-  - [ ] 5.3 Add pagination support with default limit of 20 items
-  - [ ] 5.4 Include submission timestamps and status information
-  - [ ] 5.5 Add rate limiting integration for user endpoints
-  - [ ] 5.6 Write unit tests for user data retrieval and privacy compliance
+- [x] 5.0 Implement User Management Endpoints (GET /api/me/submissions)
+  - [x] 5.1 Create user route handler (`src/workers/routes/user.ts`) with token-based user identification
+  - [x] 5.2 Implement user submissions listing with status filtering (exclude rejected)
+  - [x] 5.3 Add pagination support with default limit of 20 items
+  - [x] 5.4 Include submission timestamps and status information
+  - [x] 5.5 Add rate limiting integration for user endpoints
+  - [x] 5.6 Write unit tests for user data retrieval and privacy compliance
 
 - [ ] 6.0 Implement Authentication Endpoints (Magic Links)
   - [ ] 6.1 Create authentication route handler (`src/workers/routes/auth.ts`) for magic link workflow

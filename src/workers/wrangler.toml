@@ -97,13 +97,16 @@ bucket_name = "cultural-archiver-photos"
 ENVIRONMENT = "development"
 FRONTEND_URL = "http://localhost:5173"
 LOG_LEVEL = "debug"
+API_VERSION = "1.0.0"
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
 FRONTEND_URL = "https://staging-art.abluestar.com"
 LOG_LEVEL = "info"
+API_VERSION = "1.0.0"
 
 [env.production.vars]
 ENVIRONMENT = "production"
 FRONTEND_URL = "https://art.abluestar.com"
 LOG_LEVEL = "warn"
+API_VERSION = "1.0.0"
