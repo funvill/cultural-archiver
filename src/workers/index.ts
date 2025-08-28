@@ -62,10 +62,6 @@ app.use('/api/*', async (c, next) => {
   return corsOptions(c, next);
 });
 
-// User token middleware for all API routes
-app.use('/api/*', ensureUserToken);
-app.use('/api/*', checkEmailVerification);
-
 // Health check endpoint
 app.get('/health', c => {
   return c.json({
@@ -76,15 +72,35 @@ app.get('/health', c => {
   });
 });
 
-// API status endpoint
+// Simple test endpoint
+app.get('/test', c => {
+  console.log('Test endpoint called');
+  return c.json({ message: 'Test endpoint working' });
+});
+
+// API status endpoint (no auth required)
 app.get('/api/status', c => {
+  console.log('API status endpoint called'); // Add logging
   return c.json({
     message: 'Cultural Archiver API is running',
-    environment: c.env.ENVIRONMENT,
+    environment: c.env.ENVIRONMENT || 'development',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
+    debug: 'This is the API status endpoint',
   });
 });
+
+// User token middleware for authenticated API routes
+app.use('/api/logbook', ensureUserToken);
+app.use('/api/logbook', checkEmailVerification);
+app.use('/api/artworks/*', ensureUserToken);
+app.use('/api/artworks/*', checkEmailVerification);
+app.use('/api/me/*', ensureUserToken);
+app.use('/api/me/*', checkEmailVerification);
+app.use('/api/auth/*', ensureUserToken);
+app.use('/api/auth/*', checkEmailVerification);
+app.use('/api/review/*', ensureUserToken);
+app.use('/api/review/*', checkEmailVerification);
 
 // ================================
 // Submission Endpoints
