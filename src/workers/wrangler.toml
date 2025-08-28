@@ -1,0 +1,83 @@
+name = "cultural-archiver-workers"
+main = "index.ts"
+compatibility_date = "2024-11-06"
+compatibility_flags = ["nodejs_compat"]
+
+[env.development]
+name = "cultural-archiver-workers-dev"
+
+[env.staging]
+name = "cultural-archiver-workers-staging"
+
+[env.production]
+name = "cultural-archiver-workers-prod"
+
+# D1 Database bindings
+[[env.development.d1_databases]]
+binding = "DB"
+database_name = "cultural-archiver"
+database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "cultural-archiver-staging"
+database_id = ""  # Fill in from Cloudflare dashboard
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "cultural-archiver-prod"
+database_id = ""  # Fill in from Cloudflare dashboard
+
+# KV namespace bindings
+[[env.development.kv_namespaces]]
+binding = "SESSIONS"
+id = "c991e608759d45bdae4198b72955da5f"
+
+[[env.development.kv_namespaces]]
+binding = "CACHE"
+id = "91052eaeeef24b6fab6ac2b3c75b8b0b"
+
+[[env.staging.kv_namespaces]]
+binding = "SESSIONS"
+id = "c991e608759d45bdae4198b72955da5f"  # Fill in from Cloudflare dashboard
+
+[[env.staging.kv_namespaces]]
+binding = "CACHE"
+id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Fill in from Cloudflare dashboard
+
+[[env.production.kv_namespaces]]
+binding = "SESSIONS"
+id = "c991e608759d45bdae4198b72955da5f"  # Fill in from Cloudflare dashboard
+
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Fill in from Cloudflare dashboard
+
+# R2 bucket bindings
+[[env.development.r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "cultural-archiver-photos"
+
+[[env.staging.r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "cultural-archiver-photos-staging"
+
+[[env.production.r2_buckets]]
+binding = "PHOTOS"
+bucket_name = "cultural-archiver-photos"
+
+# Environment variables
+[env.development.vars]
+ENVIRONMENT = "development"
+FRONTEND_URL = "http://localhost:5173"
+LOG_LEVEL = "debug"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+FRONTEND_URL = "https://staging-art.abluestar.com"
+LOG_LEVEL = "info"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+FRONTEND_URL = "https://art.abluestar.com"
+LOG_LEVEL = "warn"

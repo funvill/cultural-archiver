@@ -1,26 +1,36 @@
 # Cultural Archiver
 
-**Cultural Archiver** is a community-driven project that empowers people to become Citizen Cultural Archivists. The goal is to document, preserve, and share public and cultural artworks so they remain accessible to everyone, forever.
+**Cultural Archiver** is a community-driven project that empowers people to
+become Citizen Cultural Archivists. The goal is to document, preserve, and share
+public and cultural artworks so they remain accessible to everyone, forever.
 
 ## 🌍 Project Vision
 
-Cities are filled with cultural landmarks—murals, sculptures, mosaics, tiny libraries, installations, and more. Too often, these works fade away, get demolished, or disappear when privately managed websites go offline. Cultural Archiver provides a public, open platform to:
+Cities are filled with cultural landmarks—murals, sculptures, mosaics, tiny
+libraries, installations, and more. Too often, these works fade away, get
+demolished, or disappear when privately managed websites go offline. Cultural
+Archiver provides a public, open platform to:
 
 - **Discover** public art near you on an interactive map.
 - **Document** artworks by uploading photos, notes, and details.
-- **Preserve** submissions by contributing metadata under CC0 to the open commons.
-- **Contribute** to long-lived open datasets such as OpenStreetMap and Wikidata (future phases).
+- **Preserve** submissions by contributing metadata under CC0 to the open
+  commons.
+- **Contribute** to long-lived open datasets such as OpenStreetMap and Wikidata
+  (future phases).
 
-This ensures that the cultural history of our cities outlives any single platform or institution.
+This ensures that the cultural history of our cities outlives any single
+platform or institution.
 
 ## 🎯 MVP Goals
 
 Phase 0 and 1 focus on delivering a simple, accessible web app where users can:
 
 - Upload photos (auto-geolocated) and notes about artworks.
-- See their own submissions immediately, with public visibility after moderator approval.
+- See their own submissions immediately, with public visibility after moderator
+  approval.
 - Browse artworks on a Leaflet + OpenStreetMap powered map.
-- Store data and images safely in a serverless Cloudflare stack (Pages, Workers, D1, KV, R2).
+- Store data and images safely in a serverless Cloudflare stack (Pages, Workers,
+  D1, KV, R2).
 
 ## 🛠 Tech Stack
 
@@ -70,7 +80,8 @@ Phase 0 and 1 focus on delivering a simple, accessible web app where users can:
    npm run dev
    ```
 
-   This starts both the frontend (Vite) and workers (Wrangler) with hot reloading.
+   This starts both the frontend (Vite) and workers (Wrangler) with hot
+   reloading.
 
 ### Available Scripts
 
@@ -104,10 +115,12 @@ cultural-archiver/
 
 ### Development Features
 
-- **Native TypeScript**: Uses Node.js v23+ native TypeScript support (no compilation needed)
+- **Native TypeScript**: Uses Node.js v23+ native TypeScript support (no
+  compilation needed)
 - **Hot Reloading**: Frontend and workers restart automatically on changes
 - **Shared Types**: Common TypeScript interfaces between frontend and backend
-- **Database Migrations**: Version-controlled schema changes with TypeScript runner
+- **Database Migrations**: Version-controlled schema changes with TypeScript
+  runner
 - **CI/CD**: Automated testing and deployment workflows
 
 ### Cloudflare Resources
@@ -127,7 +140,9 @@ The project uses these Cloudflare services:
 
 ## 🤝 Contributing
 
-Everyone is welcome to contribute to this project. See the CONTRIBUTING.md for guidelines. All metadata is licensed CC0, making it freely reusable for the commons.
+Everyone is welcome to contribute to this project. See the CONTRIBUTING.md for
+guidelines. All metadata is licensed CC0, making it freely reusable for the
+commons.
 
 ### Development Workflow
 

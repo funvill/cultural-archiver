@@ -1,0 +1,95 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build outputs
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# Frontend build outputs
+src/frontend/dist/
+src/frontend/.vite/
+
+# Workers build outputs
+src/workers/dist/
+src/workers/.wrangler/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output/
+
+# Temporary files
+.tmp/
+temp/
+tmp/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.eslintcache
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Cloudflare specific
+.dev.vars
+wrangler.toml.bak
+
+# Database files (if using local SQLite for development)
+*.db
+*.sqlite
+*.sqlite3
+
+# Migration temporary files
+migrations/temp_*.sql
+
+# Package manager lock files (keep package-lock.json, exclude others)
+yarn.lock
+pnpm-lock.yaml
+
+# TypeScript
+*.tsbuildinfo
+
+# Optional: Exclude specific config files with sensitive data
+# wrangler.toml  # Uncomment if you want to exclude this

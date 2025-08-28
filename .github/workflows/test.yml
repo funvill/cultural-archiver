@@ -1,0 +1,67 @@
+name: Test
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [23.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm run setup --if-present
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Check TypeScript types
+        run: npm run type-check
+
+      - name: Check code formatting
+        run: npm run format:check
+
+      - name: Validate package.json files
+        run: |
+          npm run type-check:frontend --if-present
+          npm run type-check:workers --if-present
+          npm run type-check:shared --if-present
+
+      - name: Test migration runner
+        run: |
+          node migrations/migrate.ts list
+
+      - name: Validate TypeScript compilation
+        run: |
+          # Test that TypeScript files can be executed with Node.js v23+
+          cd src/workers && node --check index.ts
+          cd ../.. && node --check migrations/migrate.ts
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.npm
+            node_modules
+            src/frontend/node_modules
+            src/workers/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
