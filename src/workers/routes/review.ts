@@ -6,7 +6,7 @@
  */
 
 import type { Context } from 'hono';
-import type { WorkerEnv, AuthContext, ArtworkRecord } from '../types';
+import type { WorkerEnv, AuthContext, ArtworkRecord, LogbookRecord } from '../types';
 import {
   insertArtwork,
   updateLogbookStatus,
@@ -22,11 +22,10 @@ import { calculateDistance } from '../lib/spatial';
 // Interfaces for database results
 interface SubmissionRow {
   id: string;
+  artwork_id: string | null;
   user_token: string;
-  lat: number;
-  lon: number;
-  note: string;
-  photos: string;
+  note: string | null;
+  photos: string | null;
   created_at: string;
   status: string;
   total_count: number;
@@ -37,9 +36,13 @@ interface StatusRow {
   count: number;
 }
 
-interface ParsedSubmissionData extends SubmissionRow {
+interface ParsedSubmissionData extends LogbookRecord {
+  total_count: number;
+  lat: number;
+  lon: number;
   type_id: string;
   tags: string;
+  artwork_type_name?: string;
 }
 import { ApiError } from '../lib/errors';
 
@@ -71,10 +74,8 @@ export async function getReviewQueue(
     const stmt = c.env.DB.prepare(`
       SELECT 
         l.*,
-        at.name as artwork_type_name,
         COUNT(*) OVER() as total_count
       FROM logbook l
-      JOIN artwork_types at ON l.type_id = at.id
       WHERE l.status = ?
       ORDER BY l.created_at ASC
       LIMIT ? OFFSET ?
@@ -87,26 +88,35 @@ export async function getReviewQueue(
     }
 
     const totalCount =
-      results.results.length > 0 ? (results.results[0] as SubmissionRow).total_count : 0;
+      results.results.length > 0 ? (results.results[0] as unknown as SubmissionRow).total_count : 0;
 
     // Format submissions for review
-    const submissions = results.results.map((row: SubmissionRow) => {
-      const submission = {
-        id: row.id,
-        type: row.artwork_type_name,
-        lat: row.lat,
-        lon: row.lon,
-        note: row.note,
-        photos: row.photos ? JSON.parse(row.photos) : [],
-        tags: row.tags ? JSON.parse(row.tags) : {},
-        status: row.status,
-        created_at: row.created_at,
-        user_token: row.user_token,
-        artwork_id: row.artwork_id,
+    const submissions = results.results.map((row: unknown) => {
+      const submissionRow = row as SubmissionRow;
+      // Convert SubmissionRow to LogbookRecord for parsing
+      const logbookRecord: LogbookRecord = {
+        id: submissionRow.id,
+        artwork_id: submissionRow.artwork_id,
+        user_token: submissionRow.user_token,
+        note: submissionRow.note,
+        photos: submissionRow.photos,
+        status: submissionRow.status as 'pending' | 'approved' | 'rejected',
+        created_at: submissionRow.created_at,
       };
+      const parsedData = parseSubmissionData(logbookRecord);
 
-      // Remove sensitive data
-      delete submission.user_token;
+      const submission = {
+        id: parsedData.id,
+        type: parsedData.artwork_type_name || 'Unknown',
+        lat: parsedData.lat,
+        lon: parsedData.lon,
+        note: parsedData.note || '',
+        photos: parsedData.photos ? JSON.parse(parsedData.photos) : [],
+        tags: parsedData.tags ? JSON.parse(parsedData.tags) : {},
+        status: parsedData.status,
+        created_at: parsedData.created_at,
+        artwork_id: parsedData.artwork_id,
+      };
 
       return submission;
     });
@@ -135,18 +145,20 @@ export async function getReviewQueue(
  * For MVP: Extract submission coordinates and type from logbook note field
  * Format: { note: "user note", _submission: { lat: 49.123, lon: -123.456, type_id: "public_art", tags: {} } }
  */
-function parseSubmissionData(logbookEntry: SubmissionRow): ParsedSubmissionData {
+function parseSubmissionData(logbookEntry: LogbookRecord): ParsedSubmissionData {
   try {
     if (logbookEntry.note) {
       const noteData = JSON.parse(logbookEntry.note);
       if (noteData._submission) {
         return {
           ...logbookEntry,
+          total_count: 0, // Add missing field
           lat: noteData._submission.lat,
           lon: noteData._submission.lon,
           type_id: noteData._submission.type_id,
-          tags: noteData._submission.tags || '{}',
+          tags: JSON.stringify(noteData._submission.tags || {}),
           note: noteData.note || null, // Extract the actual user note
+          artwork_type_name: noteData._submission.type_name || 'Unknown',
         };
       }
     }
@@ -156,10 +168,12 @@ function parseSubmissionData(logbookEntry: SubmissionRow): ParsedSubmissionData 
 
   return {
     ...logbookEntry,
+    total_count: 0, // Add missing field
     lat: 49.2827, // Default Vancouver coordinates for testing
     lon: -123.1207,
     type_id: 'other',
     tags: '{}',
+    artwork_type_name: 'Other',
   };
 }
 export async function getSubmissionForReview(
@@ -491,11 +505,12 @@ export async function getReviewStats(
 
     // Format statistics
     const statusCounts = statusResults.results.reduce(
-      (acc: Record<string, number>, row: StatusRow) => {
-        acc[row.status] = row.count;
+      (acc: Record<string, number>, row: unknown) => {
+        const statusRow = row as StatusRow;
+        acc[statusRow.status] = statusRow.count;
         return acc;
       },
-      {}
+      {} as Record<string, number>
     );
 
     const recentActivity = recentResults.success ? recentResults.results : [];
@@ -553,7 +568,7 @@ export async function processBatchReview(
     const results = {
       approved: 0,
       rejected: 0,
-      errors: [] as string[],
+      errors: [] as Array<{ submission_id: unknown; error: string }>,
     };
 
     // Process each submission

@@ -1,30 +1,100 @@
 /**
  * Basic unit tests for database utilities
  */
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { describe, it, expect, beforeAll } from 'vitest';
 import { createDatabaseService } from '../lib/database';
 
 // Mock Cloudflare D1 database for testing
-const mockDB: Partial<D1Database> = {
-  prepare: (_query: string): any => ({
-    bind: (..._params: unknown[]): any => ({
-      first: async (): Promise<unknown> => null,
-      all: async (): Promise<any> => ({ results: [] }),
-      run: async (): Promise<any> => ({ success: true, meta: { changes: 1 } }),
-    }),
+const mockDB = {
+  prepare: (_query: string) => ({
+    bind: (..._params: unknown[]) => mockStatement,
     first: async (): Promise<unknown> => null,
-    all: async (): Promise<any> => ({ results: [] }),
-    run: async (): Promise<any> => ({ success: true, meta: { changes: 1 } }),
+    all: async () => ({
+      results: [],
+      success: true,
+      meta: {
+        changes: 1,
+        duration: 0,
+        size_after: 0,
+        rows_read: 0,
+        rows_written: 0,
+        last_row_id: 0,
+        changed_db: false,
+      },
+    }),
+    run: async () => ({
+      success: true,
+      results: [],
+      meta: {
+        changes: 1,
+        duration: 0,
+        size_after: 0,
+        rows_read: 0,
+        rows_written: 0,
+        last_row_id: 0,
+        changed_db: false,
+      },
+    }),
+    raw: async (): Promise<unknown[]> => [],
   }),
-  batch: async (_statements: any[]): Promise<any[]> => {
-    return _statements.map(() => ({ success: true, meta: { changes: 1 } }));
+  batch: async (_statements: unknown[]) => {
+    return _statements.map(() => ({
+      success: true,
+      results: [],
+      meta: {
+        changes: 1,
+        duration: 0,
+        size_after: 0,
+        rows_read: 0,
+        rows_written: 0,
+        last_row_id: 0,
+        changed_db: false,
+      },
+    }));
   },
-  exec: async (_query: string): Promise<any> => ({
+  exec: async (_query: string) => ({
     count: 0,
     duration: 0,
   }),
-  withSession: (_constraintOrBookmark?: string): any => mockDB,
+  withSession: (_constraintOrBookmark?: string) => ({
+    getBookmark: (): null => null,
+    ...mockDB,
+  }),
   dump: async (): Promise<ArrayBuffer> => new ArrayBuffer(0),
+} as unknown as D1Database;
+
+// Helper variable for statement reference
+const mockStatement = {
+  bind: (..._params: unknown[]) => typeof mockStatement,
+  first: async (): Promise<unknown> => null,
+  all: async () => ({
+    results: [],
+    success: true,
+    meta: {
+      changes: 1,
+      duration: 0,
+      size_after: 0,
+      rows_read: 0,
+      rows_written: 0,
+      last_row_id: 0,
+      changed_db: false,
+    },
+  }),
+  run: async () => ({
+    success: true,
+    results: [],
+    meta: {
+      changes: 1,
+      duration: 0,
+      size_after: 0,
+      rows_read: 0,
+      rows_written: 0,
+      last_row_id: 0,
+      changed_db: false,
+    },
+  }),
+  raw: async (): Promise<unknown[]> => [],
 };
 
 describe('Database Service', (): void => {
