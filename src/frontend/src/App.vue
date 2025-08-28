@@ -1,10 +1,26 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import AppShell from './components/AppShell.vue'
+import ErrorBoundary from './components/ErrorBoundary.vue'
+import { useAuth } from './composables/useAuth'
+
+const { initAuth } = useAuth()
+
+// Initialize authentication on app startup
+onMounted(async () => {
+  try {
+    await initAuth()
+  } catch (error) {
+    console.error('Failed to initialize authentication:', error)
+  }
+})
 </script>
 
 <template>
   <div id="app">
-    <AppShell />
+    <ErrorBoundary>
+      <AppShell />
+    </ErrorBoundary>
   </div>
 </template>
 

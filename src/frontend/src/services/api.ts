@@ -222,6 +222,13 @@ export const apiService = {
     return client.get('/status')
   },
 
+  /**
+   * Generate anonymous user token
+   */
+  async generateToken(): Promise<ApiResponse<{ token: string }>> {
+    return client.post('/auth/token', {})
+  },
+
   // ================================
   // Submission Endpoints
   // ================================

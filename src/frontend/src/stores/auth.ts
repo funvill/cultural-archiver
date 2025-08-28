@@ -67,13 +67,10 @@ export const useAuthStore = defineStore('auth', () => {
         // Create user object from verification status
         const userData: User = {
           id: token.value || 'anonymous',
+          email: response.data.email || '',
           emailVerified: response.data.email_verified,
           isReviewer: false, // TODO: Get from user profile endpoint
           createdAt: new Date().toISOString()
-        }
-        
-        if (response.data.email) {
-          userData.email = response.data.email
         }
         
         setUser(userData)
@@ -161,10 +158,9 @@ export const useAuthStore = defineStore('auth', () => {
       if (user.value) {
         const userData: User = {
           ...user.value,
+          email: '',
           emailVerified: false
         }
-        // Don't set email to undefined - just omit it
-        delete userData.email
         setUser(userData)
       }
     } catch (err) {

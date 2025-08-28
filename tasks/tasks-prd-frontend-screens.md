@@ -72,68 +72,68 @@ Based on PRD: `prd-frontend-screens.md`
   - [x] 3.6 Add map error handling with retry functionality
   - [x] 3.7 Create MapView component integrating map with app shell
 
-- [ ] 4.0 Build Submit/Add Page with Photo Upload
-  - [ ] 4.1 Create SubmitView layout with location display and nearby artwork list
-  - [ ] 4.2 Integrate existing PhotoUpload component with new workflow requirements
-  - [ ] 4.3 Implement EXIF location extraction and nearby artwork list updates
-  - [ ] 4.4 Add "Create new artwork here" and "Don't see your artwork? Create new" options
-  - [ ] 4.5 Create form fields for optional note (500 char limit) and artwork type selection
-  - [ ] 4.6 Update ConsentForm component to single checkbox with modal details
-  - [ ] 4.7 Implement photo upload with automatic quality reduction for slow connections
-  - [ ] 4.8 Add submission confirmation screen with review timeline explanation
-  - [ ] 4.9 Handle photo location conflicts by showing mixed distance-sorted artwork lists
+- [x] 4.0 Build Submit/Add Page with Photo Upload
+  - [x] 4.1 Create SubmitView layout with location display and nearby artwork list
+  - [x] 4.2 Integrate existing PhotoUpload component with new workflow requirements
+  - [x] 4.3 Implement EXIF location extraction and nearby artwork list updates
+  - [x] 4.4 Add "Create new artwork here" and "Don't see your artwork? Create new" options
+  - [x] 4.5 Create form fields for optional note (500 char limit) and artwork type selection
+  - [x] 4.6 Update ConsentForm component to single checkbox with modal details
+  - [x] 4.7 Implement photo upload with automatic quality reduction for slow connections
+  - [x] 4.8 Add submission confirmation screen with review timeline explanation
+  - [x] 4.9 Handle photo location conflicts by showing mixed distance-sorted artwork lists
 
-- [ ] 5.0 Create Artwork Details Page
-  - [ ] 5.1 Create ArtworkDetailView component with horizontal photo carousel
-  - [ ] 5.2 Implement PhotoGallery component for newest-first photo display
-  - [ ] 5.3 Add small location map showing artwork position
-  - [ ] 5.4 Display artwork metadata (type, optional fields like title/artist/year/material)
-  - [ ] 5.5 Create "Add a logbook entry" link with pre-selection functionality
-  - [ ] 5.6 Show chronological approved logbook entries
-  - [ ] 5.7 Handle artwork loading states and not found errors
+- [x] 5.0 Create Artwork Details Page
+  - [x] 5.1 Create ArtworkDetailView component with horizontal photo carousel
+  - [x] 5.2 Implement PhotoGallery component for newest-first photo display
+  - [x] 5.3 Add small location map showing artwork position
+  - [x] 5.4 Display artwork metadata (type, optional fields like title/artist/year/material)
+  - [x] 5.5 Create "Add a logbook entry" link with pre-selection functionality
+  - [x] 5.6 Show chronological approved logbook entries
+  - [x] 5.7 Handle artwork loading states and not found errors
 
-- [ ] 6.0 Implement Profile Page
-  - [ ] 6.1 Create ProfileView with approved/pending submission grouping
-  - [ ] 6.2 Design submission cards with photo thumbnail, status badge, and date
-  - [ ] 6.3 Implement clickable cards navigation to artwork details
-  - [ ] 6.4 Hide rejected submissions from user view
-  - [ ] 6.5 Add immediate visibility for pending submissions
-  - [ ] 6.6 Implement pagination for large submission lists
+- [x] 6.0 Implement Profile Page
+  - [x] 6.1 Create ProfileView with approved/pending submission grouping
+  - [x] 6.2 Design submission cards with photo thumbnail, status badge, and date
+  - [x] 6.3 Implement clickable cards navigation to artwork details
+  - [x] 6.4 Hide rejected submissions from user view
+  - [x] 6.5 Add immediate visibility for pending submissions
+  - [x] 6.6 Implement pagination for large submission lists
 
-- [ ] 7.0 Build Reviewer Interface
-  - [ ] 7.1 Create ReviewView component with permission-based access
-  - [ ] 7.2 Implement submission queue organization by location/artwork
-  - [ ] 7.3 Add submission details display with nearby artwork map
-  - [ ] 7.4 Show merge suggestions for submissions within 50m of existing artwork
-  - [ ] 7.5 Create approve/reject action buttons with confirmation dialogs
-  - [ ] 7.6 Implement batch processing capabilities for efficient moderation
-  - [ ] 7.7 Add simple queue navigation without field editing
+- [x] 7.0 Build Reviewer Interface
+  - [x] 7.1 Create ReviewView component with permission-based access
+  - [x] 7.2 Implement submission queue organization by location/artwork
+  - [x] 7.3 Add submission details display with nearby artwork map
+  - [x] 7.4 Show merge suggestions for submissions within 50m of existing artwork
+  - [x] 7.5 Create approve/reject action buttons with confirmation dialogs
+  - [x] 7.6 Implement batch processing capabilities for efficient moderation
+  - [x] 7.7 Add simple queue navigation without field editing
 
-- [ ] 8.0 Implement API Integration & Services
-  - [ ] 8.1 Create API service with user token header management
-  - [ ] 8.2 Implement artwork discovery endpoints (nearby search, details)
-  - [ ] 8.3 Add submission endpoints with FormData photo upload handling
-  - [ ] 8.4 Create user management endpoints (submissions, profile)
-  - [ ] 8.5 Implement review endpoints with proper permission handling
-  - [ ] 8.6 Add proper CORS configuration and error response handling
-  - [ ] 8.7 Handle API rate limiting with user-friendly error messages
+- [x] 8.0 Implement API Integration & Services
+  - [x] 8.1 Create API service with user token header management
+  - [x] 8.2 Implement artwork discovery endpoints (nearby search, details)
+  - [x] 8.3 Add submission endpoints with FormData photo upload handling
+  - [x] 8.4 Create user management endpoints (submissions, profile)
+  - [x] 8.5 Implement review endpoints with proper permission handling
+  - [x] 8.6 Add proper CORS configuration and error response handling
+  - [x] 8.7 Handle API rate limiting with user-friendly error messages
 
-- [ ] 9.0 Add Authentication & User Token Management
-  - [ ] 9.1 Create useAuth composable for token management
-  - [ ] 9.2 Implement user token persistence and UUID generation handling
-  - [ ] 9.3 Add magic link email verification workflow
-  - [ ] 9.4 Create login/logout UI components and flows
-  - [ ] 9.5 Implement email verification status checking
-  - [ ] 9.6 Add reviewer permission detection and UI conditional rendering
+- [x] 9.0 Add Authentication & User Token Management
+  - [x] 9.1 Create useAuth composable for token management
+  - [x] 9.2 Implement user token persistence and UUID generation handling
+  - [x] 9.3 Add magic link email verification workflow
+  - [x] 9.4 Create login/logout UI components and flows
+  - [x] 9.5 Implement email verification status checking
+  - [x] 9.6 Add reviewer permission detection and UI conditional rendering
 
-- [ ] 10.0 Implement Error Handling & Loading States
-  - [ ] 10.1 Create ErrorBoundary component for app-wide error catching
-  - [ ] 10.2 Implement network error handling with retry mechanisms
-  - [ ] 10.3 Add form validation with immediate user feedback
-  - [ ] 10.4 Handle location and camera permission errors with clear messaging
-  - [ ] 10.5 Implement upload progress indicators and failure recovery
-  - [ ] 10.6 Add rate limiting error handling (429 responses) with reset time display
-  - [ ] 10.7 Create consistent loading states for all async operations
+- [x] 10.0 Implement Error Handling & Loading States
+  - [x] 10.1 Create ErrorBoundary component for app-wide error catching
+  - [x] 10.2 Implement network error handling with retry mechanisms
+  - [x] 10.3 Add form validation with immediate user feedback
+  - [x] 10.4 Handle location and camera permission errors with clear messaging
+  - [x] 10.5 Implement upload progress indicators and failure recovery
+  - [x] 10.6 Add rate limiting error handling (429 responses) with reset time display
+  - [x] 10.7 Create consistent loading states for all async operations
 
 - [ ] 11.0 Ensure Accessibility & Responsive Design
   - [ ] 11.1 Implement WCAG AA keyboard navigation throughout application

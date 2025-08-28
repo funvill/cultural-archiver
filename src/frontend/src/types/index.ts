@@ -7,9 +7,9 @@
 export * from '../../../shared/types'
 
 // Frontend-specific interfaces
-export interface User {
+  export interface User {
   id: string
-  email?: string
+  email: string
   emailVerified: boolean
   isReviewer: boolean
   createdAt: string
