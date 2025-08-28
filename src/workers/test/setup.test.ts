@@ -2,7 +2,15 @@
  * Basic setup test to verify testing infrastructure
  */
 
-// Note: Testing setup is ready but tests are disabled until types are stabilized
-// TODO: Re-enable when Cloudflare Workers types are properly configured
+import { describe, it, expect } from 'vitest';
 
-export const testPlaceholder = true;
+describe('Testing Infrastructure', () => {
+  it('should have basic testing setup working', () => {
+    expect(true).toBe(true);
+  });
+
+  it('should be able to run async tests', async () => {
+    const result = await Promise.resolve('test');
+    expect(result).toBe('test');
+  });
+});
