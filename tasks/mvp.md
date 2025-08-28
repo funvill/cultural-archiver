@@ -1,12 +1,14 @@
 # MVP
 
-## Phase 0 - Set up project and resources
+## [x] Phase 0 - Set up project and resources
 
-- [x] Done. See tasks\done\prd-phase0.md, and tasks\done\tasks-phase0.md
+- Done. See tasks\done\prd-phase0.md, and tasks\done\tasks-phase0.md
 
 ## Phase 1 — Core MVP (submission + map + moderation)
 
-### Step 1 — Finalize DB for MVP
+### [x] Step 1 — Finalize DB for MVP
+
+Done. See tasks\done\prd-mvp-database-migration.md and tasks\done\tasks-prd-mvp-database-migration.md
 
 - Migrations: ensure the three tables match decisions
   - artwork (id, lat, lon, type, created_at, status, tags JSON)
