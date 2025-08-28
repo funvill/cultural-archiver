@@ -58,13 +58,13 @@
   - [x] 1.5 Update Cloudflare configuration (`src/workers/wrangler.toml`) with KV namespaces for rate limiting and magic links
   - [x] 1.6 Set up testing infrastructure with Jest configuration for worker environment
 
-- [ ] 2.0 Implement Authentication and Rate Limiting Middleware
-  - [ ] 2.1 Create authentication middleware (`src/workers/middleware/auth.ts`) for user token generation and validation
-  - [ ] 2.2 Implement reviewer permission checking using database `is_reviewer` flag
-  - [ ] 2.3 Create rate limiting middleware (`src/workers/middleware/rateLimit.ts`) using KV counters for per-user-token limits
-  - [ ] 2.4 Implement rate limit enforcement (10 submissions/day, 60 queries/hour per user token)
-  - [ ] 2.5 Create input validation middleware (`src/workers/middleware/validation.ts`) using Zod schemas
-  - [ ] 2.6 Write comprehensive tests for all middleware components
+- [x] 2.0 Implement Authentication and Rate Limiting Middleware
+  - [x] 2.1 Create authentication middleware (`src/workers/middleware/auth.ts`) for user token generation and validation
+  - [x] 2.2 Implement reviewer permission checking using database `is_reviewer` flag
+  - [x] 2.3 Create rate limiting middleware (`src/workers/middleware/rateLimit.ts`) using KV counters for per-user-token limits
+  - [x] 2.4 Implement rate limit enforcement (10 submissions/day, 60 queries/hour per user token)
+  - [x] 2.5 Create input validation middleware (`src/workers/middleware/validation.ts`) using Zod schemas
+  - [x] 2.6 Write comprehensive tests for all middleware components
 
 - [ ] 3.0 Implement Submission Endpoints (POST /api/logbook)
   - [ ] 3.1 Create submission route handler (`src/workers/routes/submissions.ts`) with multipart form data support
