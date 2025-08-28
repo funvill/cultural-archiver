@@ -1,0 +1,108 @@
+# GitHub Copilot Instructions
+
+## Project Overview
+
+Cultural Archiver is a crowdsourced public art mapping application built with:
+- **Frontend**: Vue 3 + TypeScript + Tailwind CSS + Vite
+- **Backend**: Cloudflare Workers + TypeScript
+- **Database**: SQLite (Cloudflare D1)
+- **Storage**: Cloudflare R2
+
+## Database Schema
+
+**Important**: Always refer to `/docs/database.md` for the complete database schema documentation.
+
+The database uses four main tables:
+- `artwork_types` - Predefined artwork categories (public_art, street_art, monument, sculpture, other)
+- `artwork` - Core artwork locations with lat/lon coordinates and status workflow
+- `logbook` - Community submissions and entries linked to artworks
+- `tags` - Flexible key-value tagging system
+
+### Key Relationships
+- artwork.type_id → artwork_types.id (required foreign key)
+- logbook.artwork_id → artwork.id (optional foreign key for new submissions)
+- tags can link to either artwork OR logbook entries
+
+### Status Workflows
+- **Artwork**: pending → approved → removed
+- **Logbook**: pending → approved/rejected
+
+## Development Guidelines
+
+### TypeScript Types
+- All database interfaces are defined in `src/shared/types.ts`
+- Use the provided type guards for status validation
+- Follow the existing naming conventions (Record suffix for DB types)
+
+### Database Queries
+- Use the spatial index for lat/lon queries: `WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?`
+- Always filter by status for public-facing queries: `WHERE status = 'approved'`
+- JSON fields (tags, photos) are stored as TEXT - parse at application level
+
+### API Design
+- Follow RESTful conventions
+- Return consistent error responses with proper HTTP status codes
+- Rate limit submissions (10/day per user token, 60/hour for lookups)
+- Validate coordinates and enforce 500-character note limits
+
+### Security & Privacy
+- Use anonymous user tokens (UUIDs) for submissions
+- Support optional email verification via magic links
+- Implement age gates and content consent workflows
+- Store original photos + generate 800px thumbnails
+
+### Spatial Queries
+- Use ±0.0045 degrees (~500m) for initial filtering
+- Implement haversine formula for precise distance calculations
+- Default radius is 500 meters for nearby artwork searches
+
+## File Structure
+- `/src/frontend/` - Vue 3 application
+- `/src/workers/` - Cloudflare Workers API
+- `/src/shared/` - Shared TypeScript types and utilities
+- `/migrations/` - Database migration files
+- `/docs/` - Project documentation
+
+## Testing
+- Test functions should validate CRUD operations on all tables
+- Include foreign key relationship integrity tests
+- Test spatial query functionality with sample coordinates
+- Validate JSON field parsing for tags and photos
+
+## Common Patterns
+
+### Creating Artwork from Logbook Submission
+```typescript
+// When approving a logbook entry, either:
+// 1. Link to existing artwork if coordinates match (~100m)
+// 2. Create new artwork and link the logbook entry
+```
+
+### Handling Photos
+```typescript
+// Photos array format in logbook.photos:
+["https://r2-url/original-photo1.jpg", "https://r2-url/original-photo2.jpg"]
+```
+
+### Tagging Structure
+```typescript
+// artwork.tags format (JSON object):
+{"material": "bronze", "style": "modern", "condition": "good"}
+
+// tags table (relational, for flexibility):
+{label: "material", value: "bronze", artwork_id: "..."}
+```
+
+## Migration Notes
+- Current migration (002_mvp_schema.sql) completely replaces the legacy schema
+- Includes sample data labeled with "SAMPLE" prefix
+- Uses realistic Vancouver coordinates for testing
+- Foreign key constraints must be enabled in SQLite configuration
+
+When working on this project, always consider the MVP requirements: simple submission workflow, efficient spatial queries, and moderation-friendly status management.
+
+
+## Other instructions
+
+- Steven's Rules - .github\instructions\steven.instructions.md
+- Typescript's Best pratices - .github\instructions\typescript.instructions.md
