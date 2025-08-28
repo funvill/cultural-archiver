@@ -251,6 +251,57 @@ export interface LogbookFilters {
 }
 
 // ================================
+// EXIF and Metadata Types
+// ================================
+
+export interface ExifGPSData {
+  latitude: number;
+  longitude: number;
+  altitude?: number;
+  timestamp?: string;
+}
+
+export interface ExifCameraData {
+  make?: string;
+  model?: string;
+  software?: string;
+  dateTime?: string;
+  orientation?: number;
+  focalLength?: string;
+  aperture?: string;
+  shutterSpeed?: string;
+  iso?: number;
+}
+
+export interface ExifData {
+  gps?: ExifGPSData;
+  camera?: ExifCameraData;
+  comment?: string;
+  userComment?: string;
+  permalink?: string;
+}
+
+// ================================
+// Consent Management Types
+// ================================
+
+export interface ConsentData {
+  ageVerification: boolean;
+  cc0Licensing: boolean;
+  publicCommons: boolean;
+  freedomOfPanorama: boolean;
+  consentVersion: string;
+  consentedAt: string;
+  userToken: string;
+}
+
+export interface ConsentValidationResult {
+  isValid: boolean;
+  missingConsents: string[];
+  errors: string[];
+}
+
+// ================================
 // File Upload Types
 // ================================
 
@@ -273,6 +324,8 @@ export interface PhotoRecord {
   logbook_entry_id?: string;
   metadata?: Record<string, unknown>;
   uploaded_at: string;
+  exif_processed?: boolean;
+  permalink_injected?: boolean;
 }
 
 // ================================

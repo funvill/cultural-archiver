@@ -7,6 +7,7 @@
 
 import type { WorkerEnv } from '../types';
 import { ApiError } from './errors';
+import { processExifData, getDefaultExifOptions, type ExifProcessingOptions } from './exif';
 
 // Configuration constants
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
@@ -41,6 +42,8 @@ export interface PhotoUploadResult {
   size: number;
   mimeType: string;
   uploadedAt: string;
+  exifProcessed?: boolean;
+  permalinkInjected?: boolean;
 }
 
 /**
@@ -51,6 +54,8 @@ export interface PhotoProcessingOptions {
   preserveExif?: boolean;
   addWatermark?: boolean;
   quality?: number; // JPEG quality 1-100
+  artworkId?: string; // For permalink injection
+  exifOptions?: ExifProcessingOptions;
 }
 
 /**
@@ -296,6 +301,39 @@ export async function processAndUploadPhotos(
       const filename = generateSecureFilename(file.name, file.type);
       const originalKey = generateR2Key(filename, 'originals');
 
+      // Process EXIF data if enabled
+      let processedBuffer: ArrayBuffer = await file.arrayBuffer();
+      let exifProcessed = false;
+      let permalinkInjected = false;
+
+      if (options.preserveExif !== false && file.type.includes('jpeg') && options.artworkId) {
+        try {
+          const exifOptions = {
+            ...getDefaultExifOptions(),
+            ...options.exifOptions,
+            injectPermalink: true,
+            permalink: options.artworkId
+          };
+
+          const exifResult = await processExifData(processedBuffer, exifOptions);
+          processedBuffer = exifResult.buffer;
+          exifProcessed = true;
+          permalinkInjected = exifOptions.injectPermalink;
+
+          console.info('EXIF processing completed for photo:', {
+            filename,
+            hasGPS: !!exifResult.exifData.gps,
+            permalinkInjected
+          });
+        } catch (error) {
+          console.warn('EXIF processing failed, continuing with original:', error);
+          // Continue with original buffer - don't fail the upload
+        }
+      }
+
+      // Create processed file for upload
+      const processedFile = new File([processedBuffer], file.name, { type: file.type });
+
       // Prepare metadata
       const metadata: Record<string, string> = {
         'Submission-ID': submissionId,
@@ -308,8 +346,16 @@ export async function processAndUploadPhotos(
         metadata['Preserve-EXIF'] = 'true';
       }
 
-      // Upload original
-      const uploadPromise = uploadToR2(env, file, originalKey, metadata);
+      if (exifProcessed) {
+        metadata['EXIF-Processed'] = 'true';
+      }
+
+      if (permalinkInjected && options.artworkId) {
+        metadata['Permalink-Injected'] = options.artworkId;
+      }
+
+      // Upload processed file
+      const uploadPromise = uploadToR2(env, processedFile, originalKey, metadata);
       uploadPromises.push(uploadPromise);
 
       // Prepare result
@@ -319,6 +365,8 @@ export async function processAndUploadPhotos(
         size: file.size,
         mimeType: file.type,
         uploadedAt: new Date().toISOString(),
+        exifProcessed,
+        permalinkInjected,
       };
 
       // TODO: Implement thumbnail generation

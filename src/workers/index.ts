@@ -20,7 +20,7 @@ import {
   validateSchema,
   consumeMagicLinkSchema,
 } from './middleware/validation';
-import { withErrorHandling, sendErrorResponse } from './lib/errors';
+import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
 // Import route handlers
 import { createLogbookSubmission } from './routes/submissions';
@@ -197,6 +197,28 @@ app.post('/api/review/reject/:id', validateUUID('id'), withErrorHandling(rejectS
 app.get('/api/review/stats', withErrorHandling(getReviewStats));
 
 app.put('/api/review/batch', withErrorHandling(processBatchReview));
+
+// ================================
+// Permalink Redirects
+// ================================
+
+// Permalink redirect for shared artwork URLs
+app.get('/p/artwork/:id', validateUUID('id'), async c => {
+  try {
+    const artworkId = c.req.param('id');
+    const frontendUrl = c.env.FRONTEND_URL || 'http://localhost:5173';
+    
+    // Redirect to frontend artwork detail page
+    const redirectUrl = `${frontendUrl}/artwork/${artworkId}`;
+    
+    console.info('Permalink redirect:', { artworkId, redirectUrl });
+    
+    return c.redirect(redirectUrl, 302);
+  } catch (error) {
+    console.error('Permalink redirect error:', error);
+    return sendErrorResponse(c, new ApiError('INVALID_PERMALINK', 'Invalid permalink', 400));
+  }
+});
 
 // ================================
 // Legacy/Compatibility Endpoints
