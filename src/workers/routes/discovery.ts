@@ -15,7 +15,7 @@ import type {
 import { DEFAULT_SEARCH_RADIUS } from '../types';
 import { createDatabaseService } from '../lib/database';
 import { createSuccessResponse, NotFoundError } from '../lib/errors';
-import { getValidatedData, validateBoundsQuery } from '../middleware/validation';
+import { getValidatedData } from '../middleware/validation';
 import { safeJsonParse } from '../lib/errors';
 
 // Database result interfaces

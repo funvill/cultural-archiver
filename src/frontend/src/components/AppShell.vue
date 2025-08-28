@@ -93,7 +93,7 @@
         <RouterLink
           v-for="(item, index) in visibleNavItems"
           :key="item.path"
-          :ref="index === 0 ? 'firstNavLink' : undefined"
+          v-bind="index === 0 ? { ref: 'firstNavLink' } : {}"
           :to="item.path"
           class="drawer-link flex items-center px-4 py-3 text-gray-700 hover:bg-blue-50 hover:text-blue-600 focus:bg-blue-50 focus:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
           :class="{ 'bg-blue-100 text-blue-600 border-r-4 border-blue-600': $route.path === item.path }"
@@ -126,7 +126,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { Bars3Icon, XMarkIcon, PlusIcon, UserIcon, InformationCircleIcon, QuestionMarkCircleIcon, ClipboardDocumentListIcon, MapIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/auth'
@@ -200,17 +200,71 @@ const visibleNavItems = computed(() => {
 // Methods
 function toggleDrawer() {
   showDrawer.value = !showDrawer.value
+  
+  // Focus management when opening/closing drawer
+  if (showDrawer.value) {
+    focusFirstDrawerElement()
+  }
 }
 
 function closeDrawer() {
+  const wasOpen = showDrawer.value
   showDrawer.value = false
+  
+  // Return focus to mobile menu button when closing drawer
+  if (wasOpen) {
+    nextTick(() => {
+      const menuButton = document.querySelector('[aria-label="Open navigation menu"]') as HTMLElement
+      menuButton?.focus()
+    })
+  }
 }
 
-// Close drawer on escape key
+// Enhanced keyboard navigation
 function handleKeydown(event: KeyboardEvent) {
   if (event.key === 'Escape' && showDrawer.value) {
     closeDrawer()
+    return
   }
+  
+  // Handle tab trapping in drawer when open
+  if (showDrawer.value && event.key === 'Tab') {
+    handleTabTrapping(event)
+  }
+}
+
+// Tab trapping for modal accessibility
+function handleTabTrapping(event: KeyboardEvent) {
+  const drawer = document.querySelector('[role="dialog"]') as HTMLElement
+  if (!drawer) return
+  
+  const focusableElements = drawer.querySelectorAll(
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+  )
+  const firstElement = focusableElements[0] as HTMLElement
+  const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
+  
+  if (event.shiftKey) {
+    // Shift+Tab: moving backwards
+    if (document.activeElement === firstElement) {
+      event.preventDefault()
+      lastElement.focus()
+    }
+  } else {
+    // Tab: moving forwards
+    if (document.activeElement === lastElement) {
+      event.preventDefault()
+      firstElement.focus()
+    }
+  }
+}
+
+// Focus management for drawer
+function focusFirstDrawerElement() {
+  nextTick(() => {
+    const firstNavLink = document.querySelector('.drawer-link') as HTMLElement
+    firstNavLink?.focus()
+  })
 }
 
 // Close drawer on route change

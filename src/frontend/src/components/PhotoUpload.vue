@@ -341,7 +341,12 @@ function generateId(): string {
         @drop="handleDrop"
         @dragover.prevent
         @dragenter.prevent
-        class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors"
+        @keydown.enter="triggerFileInput"
+        @keydown.space.prevent="triggerFileInput"
+        tabindex="0"
+        role="button"
+        aria-label="Upload photos by clicking or pressing Enter/Space"
+        class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 focus:border-blue-500 focus:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors cursor-pointer"
         :class="{ 'border-blue-500 bg-blue-50': isDragging }"
       >
         <svg
@@ -362,12 +367,13 @@ function generateId(): string {
             Drop your photos here, or
             <button
               @click="triggerFileInput"
-              class="text-blue-600 hover:text-blue-800 underline"
+              class="text-blue-600 hover:text-blue-800 focus:text-blue-800 underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+              aria-describedby="file-help"
             >
               browse
             </button>
           </p>
-          <p class="text-sm text-gray-600 mt-2">
+          <p class="text-sm text-gray-600 mt-2" id="file-help">
             Supports JPEG, PNG, WebP, and HEIC files up to 15MB each
           </p>
         </div>
@@ -427,9 +433,10 @@ function generateId(): string {
             <!-- Remove Button -->
             <button
               @click="removeFile(index)"
-              class="absolute top-2 right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-700 transition-colors"
+              :aria-label="`Remove photo ${file.name}`"
+              class="absolute top-2 right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-700 focus:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
             >
-              ×
+              <span aria-hidden="true">×</span>
             </button>
             
             <!-- Upload Progress -->

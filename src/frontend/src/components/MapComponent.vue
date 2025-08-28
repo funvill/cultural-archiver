@@ -32,17 +32,17 @@
           </p>
           <button 
             @click="requestLocation"
-            class="mt-2 text-xs bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 transition-colors"
+            class="mt-2 text-xs bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 focus:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors"
           >
             Enable Location
           </button>
         </div>
         <button 
           @click="dismissLocationNotice"
-          class="text-yellow-600 hover:text-yellow-800"
+          class="text-yellow-600 hover:text-yellow-800 focus:text-yellow-800 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded"
           aria-label="Dismiss location notice"
         >
-          <XMarkIcon class="w-4 h-4" />
+          <XMarkIcon class="w-4 h-4" aria-hidden="true" />
         </button>
       </div>
     </div>
@@ -54,8 +54,9 @@
         v-if="hasGeolocation"
         @click="centerOnUserLocation"
         :disabled="isLocating"
-        class="bg-white shadow-md rounded-full p-3 hover:bg-gray-50 transition-colors disabled:opacity-50"
+        class="bg-white shadow-md rounded-full p-3 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
         :title="isLocating ? 'Getting location...' : 'Center on current location'"
+        :aria-label="isLocating ? 'Getting current location...' : 'Center map on current location'"
       >
         <MapPinIcon v-if="!isLocating" class="w-5 h-5 text-gray-700" />
         <div v-else class="w-5 h-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
@@ -65,17 +66,19 @@
       <div class="bg-white shadow-md rounded-lg overflow-hidden">
         <button 
           @click="zoomIn"
-          class="block w-full px-3 py-2 text-gray-700 hover:bg-gray-50 transition-colors border-b border-gray-200"
+          class="block w-full px-3 py-2 text-gray-700 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors border-b border-gray-200"
           title="Zoom in"
+          aria-label="Zoom in on map"
         >
-          <PlusIcon class="w-4 h-4 mx-auto" />
+          <PlusIcon class="w-4 h-4 mx-auto" aria-hidden="true" />
         </button>
         <button 
           @click="zoomOut"
-          class="block w-full px-3 py-2 text-gray-700 hover:bg-gray-50 transition-colors"
+          class="block w-full px-3 py-2 text-gray-700 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
           title="Zoom out"
+          aria-label="Zoom out on map"
         >
-          <MinusIcon class="w-4 h-4 mx-auto" />
+          <MinusIcon class="w-4 h-4 mx-auto" aria-hidden="true" />
         </button>
       </div>
     </div>
