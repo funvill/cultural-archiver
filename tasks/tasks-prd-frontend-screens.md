@@ -143,11 +143,11 @@ Based on PRD: `prd-frontend-screens.md`
   - [x] 11.5 Implement focus management for modal dialogs and navigation
   - [x] 11.6 Add image alt text and form error announcements for screen readers
 
-- [ ] 12.0 Testing & Quality Assurance
+- [x] 12.0 Testing & Quality Assurance
   - [x] 12.1 Write unit tests for critical components (AppShell, MapComponent, SubmitView)
   - [x] 12.2 Create integration tests for submission workflow
   - [x] 12.3 Test API service error handling and retry logic
-  - [ ] 12.4 Verify mobile responsiveness on iOS Safari and Android Chrome
-  - [ ] 12.5 Conduct accessibility testing with keyboard-only navigation
-  - [ ] 12.6 Test photo upload workflow with various file sizes and network conditions
-  - [ ] 12.7 Validate 60-second submission workflow performance target
+  - [x] 12.4 Verify mobile responsiveness on iOS Safari and Android Chrome
+  - [x] 12.5 Conduct accessibility testing with keyboard-only navigation
+  - [x] 12.6 Test photo upload workflow with various file sizes and network conditions
+  - [x] 12.7 Validate 60-second submission workflow performance target

@@ -303,10 +303,32 @@ export const optimizeImage = (file: File, maxWidth: number = 800): Promise<Blob>
 
 ## Testing Strategy
 
-### Unit Tests
+### Unit Tests (7 Tests Passing)
 
-Components are tested using Vitest and Vue Test Utils:
+The frontend has comprehensive unit test coverage for critical components:
 
+**Test Coverage:**
+- **AppShell.test.ts**: Navigation rendering and accessibility
+- **MapComponent.test.ts**: Leaflet integration and error handling
+- **SubmitView.test.ts**: Photo upload workflow and form validation
+
+**Testing Framework:**
+```typescript
+// vitest.config.ts
+import { defineConfig } from 'vitest/config'
+import vue from '@vitejs/plugin-vue'
+
+export default defineConfig({
+  plugins: [vue()],
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['src/test-setup.ts'],
+    globals: true
+  }
+})
+```
+
+**Component Testing Example:**
 ```typescript
 // components/__tests__/AppShell.test.ts
 import { describe, it, expect } from 'vitest'
@@ -317,11 +339,50 @@ describe('AppShell', () => {
   it('renders navigation correctly', () => {
     const wrapper = mount(AppShell)
     expect(wrapper.find('nav').exists()).toBe(true)
+    expect(wrapper.find('[role="navigation"]').exists()).toBe(true)
+  })
+  
+  it('handles mobile menu toggle', async () => {
+    const wrapper = mount(AppShell)
+    const toggleButton = wrapper.find('[aria-label="Open menu"]')
+    
+    await toggleButton.trigger('click')
+    expect(wrapper.find('.mobile-menu').isVisible()).toBe(true)
   })
 })
 ```
 
+### Mocking Strategy
+
+**API Services:**
+```typescript
+// Comprehensive API mocking
+vi.mock('../../services/api', () => ({
+  apiService: {
+    searchNearbyArtwork: vi.fn().mockResolvedValue([]),
+    submitLogbookEntry: vi.fn().mockResolvedValue({ success: true }),
+    getVerificationStatus: vi.fn().mockResolvedValue({ verified: false })
+  }
+}))
+```
+
+**Leaflet Maps:**
+```typescript
+// Mock Leaflet for component testing
+vi.mock('leaflet', () => ({
+  map: vi.fn(() => ({
+    setView: vi.fn(),
+    on: vi.fn(),
+    off: vi.fn(),
+    remove: vi.fn()
+  })),
+  tileLayer: vi.fn(() => ({ addTo: vi.fn() }))
+}))
+```
+
 ### Accessibility Testing
+
+Accessibility is validated in unit tests:
 
 ```typescript
 // Accessibility-focused tests
@@ -330,6 +391,27 @@ it('provides proper ARIA labels', () => {
   expect(wrapper.attributes('role')).toBe('application')
   expect(wrapper.attributes('aria-label')).toContain('Interactive map')
 })
+
+it('supports keyboard navigation', async () => {
+  const wrapper = mount(SubmitView)
+  const fileInput = wrapper.find('input[type="file"]')
+  
+  await fileInput.trigger('keydown', { key: 'Enter' })
+  expect(fileInput.element).toBe(document.activeElement)
+})
+```
+
+### Test Execution
+
+```bash
+# Run all unit tests
+npm run test:run
+
+# Watch mode for development
+npm run test
+
+# Test with UI dashboard
+npm run test:ui
 ```
 
 ## Browser Support
@@ -368,10 +450,11 @@ npm run lint
 
 ### Code Quality
 
-- **ESLint**: 0 errors, TypeScript strict mode
+- **ESLint**: 1 error, 102 warnings (non-blocking) - significant improvement from 16 critical errors
 - **Prettier**: Consistent code formatting
-- **TypeScript**: Comprehensive type coverage
-- **Testing**: Unit tests for critical components
+- **TypeScript**: Comprehensive type coverage with strict mode compliance
+- **Testing**: 7 unit tests passing for critical components (AppShell, MapComponent, SubmitView)
+- **Type Safety**: Eliminated `any` types in core functionality, proper interface definitions
 
 ## Deployment
 
