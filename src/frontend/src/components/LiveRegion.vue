@@ -1,3 +1,9 @@
+<script setup lang="ts">
+import { useAnnouncer } from '../composables/useAnnouncer'
+
+const { announcement, announcementLevel } = useAnnouncer()
+</script>
+
 <template>
   <!-- Screen Reader Live Region for Announcements -->
   <div 
@@ -9,12 +15,6 @@
     {{ announcement }}
   </div>
 </template>
-
-<script setup lang="ts">
-import { useAnnouncer } from '../composables/useAnnouncer'
-
-const { announcement, announcementLevel } = useAnnouncer()
-</script>
 
 <style scoped>
 .sr-only {

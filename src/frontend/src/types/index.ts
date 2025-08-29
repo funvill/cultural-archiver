@@ -15,7 +15,7 @@ export * from '../../../shared/types'
   createdAt: string
 }
 
-export interface ApiResponse<T = any> {
+export interface ApiResponse<T = unknown> {
   success: boolean
   data?: T
   error?: string
@@ -73,7 +73,7 @@ export interface ExifData {
     model?: string
   }
   dateTime?: string
-  [key: string]: any
+  [key: string]: unknown
 }
 
 // Form and validation types
@@ -111,7 +111,7 @@ export interface SubmissionFormData {
 export interface NavigationItem {
   name: string
   path: string
-  icon?: any // Vue component or string
+  icon?: unknown // Vue component or string
   requiresAuth?: boolean
   requiresReviewer?: boolean
 }
@@ -315,7 +315,7 @@ export interface MapComponentProps {
 }
 
 export interface ArtworkCardProps {
-  artwork: any // TODO: Use proper artwork type from shared types
+  artwork: unknown // TODO: Use proper artwork type from shared types
   compact?: boolean
   clickable?: boolean
 }

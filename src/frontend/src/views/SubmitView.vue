@@ -1,3 +1,68 @@
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import PhotoUpload from '../components/PhotoUpload.vue'
+import { useAuthStore } from '../stores/auth'
+
+// Store
+const authStore = useAuthStore()
+const router = useRouter()
+
+// State
+const currentStep = ref(1)
+const isSubmitting = ref(false)
+const error = ref<string | null>(null)
+const success = ref(false)
+const submissionData = ref<any>(null)
+
+// Configuration
+const apiBaseUrl = computed(() => '/api')
+
+// Methods
+function handleUploadSuccess(data: any) {
+  submissionData.value = data
+  currentStep.value = 2
+  error.value = null
+}
+
+function handleUploadError(errorMessage: string) {
+  error.value = errorMessage
+  success.value = false
+}
+
+function handleCancel() {
+  router.push('/')
+}
+
+async function submitForReview() {
+  if (!submissionData.value) return
+  
+  isSubmitting.value = true
+  error.value = null
+  
+  try {
+    // This would normally make an API call to finalize the submission
+    // For now, we'll simulate success
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    
+    success.value = true
+    currentStep.value = 1
+    
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to submit for review'
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+function startNewSubmission() {
+  success.value = false
+  currentStep.value = 1
+  submissionData.value = null
+  error.value = null
+}
+</script>
+
 <template>
   <div class="submit-view">
     <!-- Page Header -->
@@ -178,71 +243,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed } from 'vue'
-import { useRouter } from 'vue-router'
-import PhotoUpload from '../components/PhotoUpload.vue'
-import { useAuthStore } from '../stores/auth'
-
-// Store
-const authStore = useAuthStore()
-const router = useRouter()
-
-// State
-const currentStep = ref(1)
-const isSubmitting = ref(false)
-const error = ref<string | null>(null)
-const success = ref(false)
-const submissionData = ref<any>(null)
-
-// Configuration
-const apiBaseUrl = computed(() => '/api')
-
-// Methods
-function handleUploadSuccess(data: any) {
-  submissionData.value = data
-  currentStep.value = 2
-  error.value = null
-}
-
-function handleUploadError(errorMessage: string) {
-  error.value = errorMessage
-  success.value = false
-}
-
-function handleCancel() {
-  router.push('/')
-}
-
-async function submitForReview() {
-  if (!submissionData.value) return
-  
-  isSubmitting.value = true
-  error.value = null
-  
-  try {
-    // This would normally make an API call to finalize the submission
-    // For now, we'll simulate success
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
-    success.value = true
-    currentStep.value = 1
-    
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to submit for review'
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
-function startNewSubmission() {
-  success.value = false
-  currentStep.value = 1
-  submissionData.value = null
-  error.value = null
-}
-</script>
 
 <style scoped>
 .submit-view {

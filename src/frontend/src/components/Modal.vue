@@ -1,82 +1,3 @@
-<template>
-  <teleport to="body">
-    <div
-      v-if="isOpen"
-      class="fixed inset-0 z-50 overflow-y-auto"
-      @keydown.escape="handleEscape"
-      @click="handleBackdropClick"
-      role="dialog"
-      :aria-modal="true"
-      :aria-labelledby="titleId"
-      :aria-describedby="descriptionId"
-    >
-      <!-- Backdrop -->
-      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
-      
-      <!-- Modal Panel -->
-      <div class="flex min-h-full items-center justify-center p-4">
-        <div
-          ref="modalPanel"
-          class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform transition-all"
-          @click.stop
-        >
-          <!-- Header -->
-          <div v-if="title || $slots.header" class="mb-4">
-            <div v-if="$slots.header">
-              <slot name="header" />
-            </div>
-            <div v-else class="flex items-center justify-between">
-              <h3 :id="titleId" class="text-lg font-semibold text-gray-900">
-                {{ title }}
-              </h3>
-              <button
-                v-if="showCloseButton"
-                ref="closeButton"
-                @click="close"
-                class="text-gray-400 hover:text-gray-600 focus:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md p-1"
-                aria-label="Close modal"
-              >
-                <XMarkIcon class="w-6 h-6" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-
-          <!-- Content -->
-          <div :id="descriptionId" class="mb-6">
-            <slot name="content">
-              <p v-if="message" class="text-gray-600">{{ message }}</p>
-            </slot>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex justify-end space-x-3">
-            <slot name="actions">
-              <button
-                v-if="showCancel"
-                ref="cancelButton"
-                @click="cancel"
-                type="button"
-                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-              >
-                {{ cancelText }}
-              </button>
-              <button
-                ref="confirmButton"
-                @click="confirm"
-                type="button"
-                class="px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors"
-                :class="confirmButtonClass"
-              >
-                {{ confirmText }}
-              </button>
-            </slot>
-          </div>
-        </div>
-      </div>
-    </div>
-  </teleport>
-</template>
-
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
@@ -272,6 +193,85 @@ onUnmounted(() => {
   }
 })
 </script>
+
+<template>
+  <teleport to="body">
+    <div
+      v-if="isOpen"
+      class="fixed inset-0 z-50 overflow-y-auto"
+      @keydown.escape="handleEscape"
+      @click="handleBackdropClick"
+      role="dialog"
+      :aria-modal="true"
+      :aria-labelledby="titleId"
+      :aria-describedby="descriptionId"
+    >
+      <!-- Backdrop -->
+      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
+      
+      <!-- Modal Panel -->
+      <div class="flex min-h-full items-center justify-center p-4">
+        <div
+          ref="modalPanel"
+          class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform transition-all"
+          @click.stop
+        >
+          <!-- Header -->
+          <div v-if="title || $slots.header" class="mb-4">
+            <div v-if="$slots.header">
+              <slot name="header" />
+            </div>
+            <div v-else class="flex items-center justify-between">
+              <h3 :id="titleId" class="text-lg font-semibold text-gray-900">
+                {{ title }}
+              </h3>
+              <button
+                v-if="showCloseButton"
+                ref="closeButton"
+                @click="close"
+                class="text-gray-400 hover:text-gray-600 focus:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md p-1"
+                aria-label="Close modal"
+              >
+                <XMarkIcon class="w-6 h-6" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Content -->
+          <div :id="descriptionId" class="mb-6">
+            <slot name="content">
+              <p v-if="message" class="text-gray-600">{{ message }}</p>
+            </slot>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex justify-end space-x-3">
+            <slot name="actions">
+              <button
+                v-if="showCancel"
+                ref="cancelButton"
+                @click="cancel"
+                type="button"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+              >
+                {{ cancelText }}
+              </button>
+              <button
+                ref="confirmButton"
+                @click="confirm"
+                type="button"
+                class="px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors"
+                :class="confirmButtonClass"
+              >
+                {{ confirmText }}
+              </button>
+            </slot>
+          </div>
+        </div>
+      </div>
+    </div>
+  </teleport>
+</template>
 
 <style scoped>
 /* Ensure modal is above everything */

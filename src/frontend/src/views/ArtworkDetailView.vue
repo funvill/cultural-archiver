@@ -1,3 +1,159 @@
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue'
+import { useArtworksStore } from '../stores/artworks'
+import { globalModal } from '../composables/useModal'
+
+// Props
+interface Props {
+  id: string
+}
+
+const props = defineProps<Props>()
+
+// Stores and routing
+const artworksStore = useArtworksStore()
+
+// State
+const loading = ref(true)
+const error = ref<string | null>(null)
+const currentPhotoIndex = ref(0)
+
+// Computed
+const artwork = computed(() => {
+  return artworksStore.artworkById(props.id)
+})
+
+// Lifecycle
+onMounted(async () => {
+  try {
+    loading.value = true
+    error.value = null
+    
+    // Try to load artwork from store first
+    let artworkData = artworksStore.artworkById(props.id)
+    
+    if (!artworkData) {
+      // If not in store, fetch from API
+      await artworksStore.fetchArtwork(props.id)
+      artworkData = artworksStore.artworkById(props.id)
+      
+      if (!artworkData) {
+        error.value = `Artwork with ID "${props.id}" was not found.`
+        return
+      }
+    }
+    
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to load artwork'
+  } finally {
+    loading.value = false
+  }
+})
+
+// Methods
+function previousPhoto() {
+  if (artwork.value?.photos && artwork.value.photos.length > 1) {
+    currentPhotoIndex.value = 
+      currentPhotoIndex.value === 0 
+        ? artwork.value.photos.length - 1 
+        : currentPhotoIndex.value - 1
+  }
+}
+
+function nextPhoto() {
+  if (artwork.value?.photos && artwork.value.photos.length > 1) {
+    currentPhotoIndex.value = 
+      currentPhotoIndex.value === artwork.value.photos.length - 1 
+        ? 0 
+        : currentPhotoIndex.value + 1
+  }
+}
+
+function getArtworkTypeEmoji(type: string): string {
+  const typeMap: Record<string, string> = {
+    'public_art': '🎨',
+    'street_art': '🎭',
+    'monument': '🗿',
+    'sculpture': '⚱️',
+    'other': '🏛️'
+  }
+  return typeMap[type] || '🏛️'
+}
+
+function getArtworkTypeName(type: string): string {
+  const typeMap: Record<string, string> = {
+    'public_art': 'Public Art',
+    'street_art': 'Street Art',
+    'monument': 'Monument',
+    'sculpture': 'Sculpture',
+    'other': 'Other'
+  }
+  return typeMap[type] || 'Unknown'
+}
+
+function getPhotoAltText(photoIndex: number): string {
+  if (!artwork.value) return 'Artwork photo'
+  
+  const title = artwork.value.tags_parsed?.title as string
+  const artist = artwork.value.tags_parsed?.artist as string
+  const type = getArtworkTypeName(artwork.value.type_name)
+  const photoNumber = photoIndex + 1
+  const totalPhotos = artwork.value.photos?.length || 1
+  
+  let altText = ''
+  
+  if (title) {
+    altText = `Photo ${photoNumber} of ${totalPhotos} of "${title}"`
+    if (artist) {
+      altText += ` by ${artist}`
+    }
+    altText += ` (${type})`
+  } else if (artist) {
+    altText = `Photo ${photoNumber} of ${totalPhotos} of ${type} by ${artist}`
+  } else {
+    altText = `Photo ${photoNumber} of ${totalPhotos} of ${type}`
+  }
+  
+  return altText
+}
+
+function getStatusBadgeClass(status: string): string {
+  const statusMap: Record<string, string> = {
+    'approved': 'bg-green-100 text-green-800 border border-green-200',
+    'pending': 'bg-yellow-100 text-yellow-900 border border-yellow-200',
+    'removed': 'bg-red-100 text-red-800 border border-red-200'
+  }
+  return statusMap[status] || 'bg-gray-100 text-gray-900 border border-gray-200'
+}
+
+function formatDate(dateString: string): string {
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    })
+  } catch {
+    return 'Unknown'
+  }
+}
+
+function openInMaps() {
+  if (artwork.value?.lat && artwork.value?.lon) {
+    const url = `https://www.google.com/maps?q=${artwork.value.lat},${artwork.value.lon}`
+    window.open(url, '_blank')
+  }
+}
+
+async function reportIssue() {
+  await globalModal.showAlert(
+    'Issue reporting functionality will be implemented in a future update. If you need to report a problem with this artwork, please contact us directly.',
+    'Feature Coming Soon'
+  )
+}
+</script>
+
 <template>
   <div class="artwork-detail-view">
     <!-- Loading State -->
@@ -215,162 +371,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useArtworksStore } from '../stores/artworks'
-import { globalModal } from '../composables/useModal'
-
-// Props
-interface Props {
-  id: string
-}
-
-const props = defineProps<Props>()
-
-// Stores and routing
-const artworksStore = useArtworksStore()
-
-// State
-const loading = ref(true)
-const error = ref<string | null>(null)
-const currentPhotoIndex = ref(0)
-
-// Computed
-const artwork = computed(() => {
-  return artworksStore.artworkById(props.id)
-})
-
-// Lifecycle
-onMounted(async () => {
-  try {
-    loading.value = true
-    error.value = null
-    
-    // Try to load artwork from store first
-    let artworkData = artworksStore.artworkById(props.id)
-    
-    if (!artworkData) {
-      // If not in store, fetch from API
-      await artworksStore.fetchArtwork(props.id)
-      artworkData = artworksStore.artworkById(props.id)
-      
-      if (!artworkData) {
-        error.value = `Artwork with ID "${props.id}" was not found.`
-        return
-      }
-    }
-    
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load artwork'
-  } finally {
-    loading.value = false
-  }
-})
-
-// Methods
-function previousPhoto() {
-  if (artwork.value?.photos && artwork.value.photos.length > 1) {
-    currentPhotoIndex.value = 
-      currentPhotoIndex.value === 0 
-        ? artwork.value.photos.length - 1 
-        : currentPhotoIndex.value - 1
-  }
-}
-
-function nextPhoto() {
-  if (artwork.value?.photos && artwork.value.photos.length > 1) {
-    currentPhotoIndex.value = 
-      currentPhotoIndex.value === artwork.value.photos.length - 1 
-        ? 0 
-        : currentPhotoIndex.value + 1
-  }
-}
-
-function getArtworkTypeEmoji(type: string): string {
-  const typeMap: Record<string, string> = {
-    'public_art': '🎨',
-    'street_art': '🎭',
-    'monument': '🗿',
-    'sculpture': '⚱️',
-    'other': '🏛️'
-  }
-  return typeMap[type] || '🏛️'
-}
-
-function getArtworkTypeName(type: string): string {
-  const typeMap: Record<string, string> = {
-    'public_art': 'Public Art',
-    'street_art': 'Street Art',
-    'monument': 'Monument',
-    'sculpture': 'Sculpture',
-    'other': 'Other'
-  }
-  return typeMap[type] || 'Unknown'
-}
-
-function getPhotoAltText(photoIndex: number): string {
-  if (!artwork.value) return 'Artwork photo'
-  
-  const title = artwork.value.tags_parsed?.title as string
-  const artist = artwork.value.tags_parsed?.artist as string
-  const type = getArtworkTypeName(artwork.value.type_name)
-  const photoNumber = photoIndex + 1
-  const totalPhotos = artwork.value.photos?.length || 1
-  
-  let altText = ''
-  
-  if (title) {
-    altText = `Photo ${photoNumber} of ${totalPhotos} of "${title}"`
-    if (artist) {
-      altText += ` by ${artist}`
-    }
-    altText += ` (${type})`
-  } else if (artist) {
-    altText = `Photo ${photoNumber} of ${totalPhotos} of ${type} by ${artist}`
-  } else {
-    altText = `Photo ${photoNumber} of ${totalPhotos} of ${type}`
-  }
-  
-  return altText
-}
-
-function getStatusBadgeClass(status: string): string {
-  const statusMap: Record<string, string> = {
-    'approved': 'bg-green-100 text-green-800 border border-green-200',
-    'pending': 'bg-yellow-100 text-yellow-900 border border-yellow-200',
-    'removed': 'bg-red-100 text-red-800 border border-red-200'
-  }
-  return statusMap[status] || 'bg-gray-100 text-gray-900 border border-gray-200'
-}
-
-function formatDate(dateString: string): string {
-  try {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    })
-  } catch {
-    return 'Unknown'
-  }
-}
-
-function openInMaps() {
-  if (artwork.value?.lat && artwork.value?.lon) {
-    const url = `https://www.google.com/maps?q=${artwork.value.lat},${artwork.value.lon}`
-    window.open(url, '_blank')
-  }
-}
-
-async function reportIssue() {
-  await globalModal.showAlert(
-    'Issue reporting functionality will be implemented in a future update. If you need to report a problem with this artwork, please contact us directly.',
-    'Feature Coming Soon'
-  )
-}
-</script>
 
 <style scoped>
 .artwork-detail-view {

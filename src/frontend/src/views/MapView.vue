@@ -1,16 +1,3 @@
-<template>
-  <div class="map-view h-full w-full">
-    <MapComponent 
-      :center="mapCenter"
-      :zoom="mapZoom"
-      :artworks="artworks"
-      @artwork-click="handleArtworkClick"
-      @map-move="handleMapMove"
-      @location-found="handleLocationFound"
-    />
-  </div>
-</template>
-
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -51,6 +38,19 @@ onMounted(() => {
   }
 })
 </script>
+
+<template>
+  <div class="map-view h-full w-full">
+    <MapComponent 
+      :center="mapCenter"
+      :zoom="mapZoom"
+      :artworks="artworks"
+      @artwork-click="handleArtworkClick"
+      @map-move="handleMapMove"
+      @location-found="handleLocationFound"
+    />
+  </div>
+</template>
 
 <style scoped>
 .map-view {

@@ -1,81 +1,3 @@
-<template>
-  <div v-if="hasError" class="error-boundary">
-    <div class="min-h-screen flex items-center justify-center bg-gray-50">
-      <div class="max-w-md w-full mx-auto p-6">
-        <div class="bg-white rounded-lg shadow-lg p-8 text-center">
-          <!-- Error Icon -->
-          <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-6">
-            <svg class="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-            </svg>
-          </div>
-
-          <!-- Error Message -->
-          <h1 class="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h1>
-          
-          <p class="text-gray-600 mb-6">
-            {{ isProduction ? 
-              'An unexpected error occurred. Please try again or contact support if the problem persists.' :
-              error?.message || 'An unknown error occurred'
-            }}
-          </p>
-
-          <!-- Error Details (Development Only) -->
-          <div v-if="!isProduction && error" class="mb-6 p-4 bg-gray-100 rounded-lg text-left">
-            <details>
-              <summary class="font-medium text-gray-700 cursor-pointer mb-2">
-                Error Details
-              </summary>
-              <div class="text-sm text-gray-600 font-mono">
-                <p class="mb-2"><strong>Message:</strong> {{ error.message }}</p>
-                <p class="mb-2"><strong>Component:</strong> {{ errorInfo?.componentName || 'Unknown' }}</p>
-                <div v-if="error.stack" class="whitespace-pre-wrap">
-                  <strong>Stack Trace:</strong>
-                  {{ error.stack }}
-                </div>
-              </div>
-            </details>
-          </div>
-
-          <!-- Action Buttons -->
-          <div class="flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              @click="reload"
-              class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-              Reload Page
-            </button>
-            
-            <button
-              @click="goHome"
-              class="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-            >
-              Go to Home
-            </button>
-          </div>
-
-          <!-- Report Issue Link -->
-          <div class="mt-6 pt-6 border-t border-gray-200">
-            <p class="text-sm text-gray-500 mb-2">
-              If this error persists, please report it to help us improve the app.
-            </p>
-            <button
-              @click="reportError"
-              class="text-blue-600 hover:text-blue-700 text-sm font-medium"
-            >
-              Report this issue
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  
-  <div v-else>
-    <slot />
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, computed, onErrorCaptured, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -214,6 +136,84 @@ defineExpose({
   reset
 })
 </script>
+
+<template>
+  <div v-if="hasError" class="error-boundary">
+    <div class="min-h-screen flex items-center justify-center bg-gray-50">
+      <div class="max-w-md w-full mx-auto p-6">
+        <div class="bg-white rounded-lg shadow-lg p-8 text-center">
+          <!-- Error Icon -->
+          <div class="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-6">
+            <svg class="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+            </svg>
+          </div>
+
+          <!-- Error Message -->
+          <h1 class="text-2xl font-bold text-gray-900 mb-4">Something went wrong</h1>
+          
+          <p class="text-gray-600 mb-6">
+            {{ isProduction ? 
+              'An unexpected error occurred. Please try again or contact support if the problem persists.' :
+              error?.message || 'An unknown error occurred'
+            }}
+          </p>
+
+          <!-- Error Details (Development Only) -->
+          <div v-if="!isProduction && error" class="mb-6 p-4 bg-gray-100 rounded-lg text-left">
+            <details>
+              <summary class="font-medium text-gray-700 cursor-pointer mb-2">
+                Error Details
+              </summary>
+              <div class="text-sm text-gray-600 font-mono">
+                <p class="mb-2"><strong>Message:</strong> {{ error.message }}</p>
+                <p class="mb-2"><strong>Component:</strong> {{ errorInfo?.componentName || 'Unknown' }}</p>
+                <div v-if="error.stack" class="whitespace-pre-wrap">
+                  <strong>Stack Trace:</strong>
+                  {{ error.stack }}
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              @click="reload"
+              class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              Reload Page
+            </button>
+            
+            <button
+              @click="goHome"
+              class="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+            >
+              Go to Home
+            </button>
+          </div>
+
+          <!-- Report Issue Link -->
+          <div class="mt-6 pt-6 border-t border-gray-200">
+            <p class="text-sm text-gray-500 mb-2">
+              If this error persists, please report it to help us improve the app.
+            </p>
+            <button
+              @click="reportError"
+              class="text-blue-600 hover:text-blue-700 text-sm font-medium"
+            >
+              Report this issue
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div v-else>
+    <slot />
+  </div>
+</template>
 
 <style scoped>
 .error-boundary {

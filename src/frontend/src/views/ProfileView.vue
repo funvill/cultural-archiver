@@ -1,3 +1,197 @@
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { useAuthStore } from '../stores/auth'
+
+// Types
+interface Submission {
+  id: string
+  title?: string
+  note?: string
+  photos: string[]
+  latitude: number
+  longitude: number
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  artwork_id?: string
+}
+
+// Store and router
+const authStore = useAuthStore()
+
+// State
+const loading = ref(true)
+const error = ref<string | null>(null)
+const submissions = ref<Submission[]>([])
+const activeTab = ref('overview')
+const sortBy = ref('created_at')
+const sortOrder = ref<'asc' | 'desc'>('desc')
+const currentPage = ref(1)
+const pageSize = 10
+
+// Tab configuration
+const tabs = computed(() => [
+  {
+    id: 'overview',
+    name: 'Overview',
+    icon: 'svg',
+    count: submissions.value.length
+  },
+  {
+    id: 'pending',
+    name: 'Pending',
+    icon: 'svg',
+    count: pendingCount.value
+  },
+  {
+    id: 'approved',
+    name: 'Approved',
+    icon: 'svg',
+    count: approvedCount.value
+  },
+  {
+    id: 'rejected',
+    name: 'Rejected',
+    icon: 'svg',
+    count: rejectedCount.value
+  }
+])
+
+// Computed
+const approvedCount = computed(() => 
+  submissions.value.filter(s => s.status === 'approved').length
+)
+
+const pendingCount = computed(() => 
+  submissions.value.filter(s => s.status === 'pending').length
+)
+
+const rejectedCount = computed(() => 
+  submissions.value.filter(s => s.status === 'rejected').length
+)
+
+const filteredSubmissions = computed(() => {
+  let filtered = submissions.value
+
+  // Filter by tab
+  if (activeTab.value !== 'overview') {
+    filtered = filtered.filter(s => s.status === activeTab.value)
+  }
+
+  // Sort
+  filtered.sort((a, b) => {
+    let aVal: any = a[sortBy.value as keyof Submission]
+    let bVal: any = b[sortBy.value as keyof Submission]
+
+    if (sortBy.value === 'created_at') {
+      aVal = new Date(aVal).getTime()
+      bVal = new Date(bVal).getTime()
+    }
+
+    if (sortOrder.value === 'asc') {
+      return aVal > bVal ? 1 : -1
+    } else {
+      return aVal < bVal ? 1 : -1
+    }
+  })
+
+  return filtered
+})
+
+const totalPages = computed(() => 
+  Math.ceil(filteredSubmissions.value.length / pageSize)
+)
+
+const startIndex = computed(() => 
+  (currentPage.value - 1) * pageSize
+)
+
+const endIndex = computed(() => 
+  startIndex.value + pageSize
+)
+
+const paginatedSubmissions = computed(() => 
+  filteredSubmissions.value.slice(startIndex.value, endIndex.value)
+)
+
+// Lifecycle
+onMounted(() => {
+  loadSubmissions()
+})
+
+// Methods
+async function loadSubmissions() {
+  if (!authStore.token) {
+    error.value = 'Please log in to view your submissions'
+    loading.value = false
+    return
+  }
+
+  loading.value = true
+  error.value = null
+
+  try {
+    const response = await fetch('/api/user/submissions', {
+      headers: {
+        'Authorization': `Bearer ${authStore.token}`
+      }
+    })
+
+    if (!response.ok) {
+      throw new Error('Failed to load submissions')
+    }
+
+    const data = await response.json()
+    submissions.value = data.submissions || []
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to load submissions'
+  } finally {
+    loading.value = false
+  }
+}
+
+function getTabTitle(tabId: string): string {
+  const titleMap: Record<string, string> = {
+    'overview': 'All Submissions',
+    'pending': 'Pending Review',
+    'approved': 'Approved Submissions',
+    'rejected': 'Rejected Submissions'
+  }
+  return titleMap[tabId] || 'Submissions'
+}
+
+function getStatusBadgeClass(status: string): string {
+  const statusMap: Record<string, string> = {
+    'approved': 'bg-green-100 text-green-800 border border-green-200',
+    'pending': 'bg-yellow-100 text-yellow-900 border border-yellow-200',
+    'rejected': 'bg-red-100 text-red-800 border border-red-200'
+  }
+  return statusMap[status] || 'bg-gray-100 text-gray-900 border border-gray-200'
+}
+
+function formatDate(dateString: string): string {
+  try {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    })
+  } catch {
+    return 'Unknown'
+  }
+}
+
+function viewSubmissionDetails(submission: Submission) {
+  // TODO: Implement submission details modal or page
+  console.log('View submission details:', submission)
+}
+
+function editSubmission(submission: Submission) {
+  // TODO: Implement submission editing
+  console.log('Edit submission:', submission)
+}
+</script>
+
 <template>
   <div class="profile-view">
     <!-- Page Header -->
@@ -285,200 +479,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useAuthStore } from '../stores/auth'
-
-// Types
-interface Submission {
-  id: string
-  title?: string
-  note?: string
-  photos: string[]
-  latitude: number
-  longitude: number
-  status: 'pending' | 'approved' | 'rejected'
-  created_at: string
-  artwork_id?: string
-}
-
-// Store and router
-const authStore = useAuthStore()
-
-// State
-const loading = ref(true)
-const error = ref<string | null>(null)
-const submissions = ref<Submission[]>([])
-const activeTab = ref('overview')
-const sortBy = ref('created_at')
-const sortOrder = ref<'asc' | 'desc'>('desc')
-const currentPage = ref(1)
-const pageSize = 10
-
-// Tab configuration
-const tabs = computed(() => [
-  {
-    id: 'overview',
-    name: 'Overview',
-    icon: 'svg',
-    count: submissions.value.length
-  },
-  {
-    id: 'pending',
-    name: 'Pending',
-    icon: 'svg',
-    count: pendingCount.value
-  },
-  {
-    id: 'approved',
-    name: 'Approved',
-    icon: 'svg',
-    count: approvedCount.value
-  },
-  {
-    id: 'rejected',
-    name: 'Rejected',
-    icon: 'svg',
-    count: rejectedCount.value
-  }
-])
-
-// Computed
-const approvedCount = computed(() => 
-  submissions.value.filter(s => s.status === 'approved').length
-)
-
-const pendingCount = computed(() => 
-  submissions.value.filter(s => s.status === 'pending').length
-)
-
-const rejectedCount = computed(() => 
-  submissions.value.filter(s => s.status === 'rejected').length
-)
-
-const filteredSubmissions = computed(() => {
-  let filtered = submissions.value
-
-  // Filter by tab
-  if (activeTab.value !== 'overview') {
-    filtered = filtered.filter(s => s.status === activeTab.value)
-  }
-
-  // Sort
-  filtered.sort((a, b) => {
-    let aVal: any = a[sortBy.value as keyof Submission]
-    let bVal: any = b[sortBy.value as keyof Submission]
-
-    if (sortBy.value === 'created_at') {
-      aVal = new Date(aVal).getTime()
-      bVal = new Date(bVal).getTime()
-    }
-
-    if (sortOrder.value === 'asc') {
-      return aVal > bVal ? 1 : -1
-    } else {
-      return aVal < bVal ? 1 : -1
-    }
-  })
-
-  return filtered
-})
-
-const totalPages = computed(() => 
-  Math.ceil(filteredSubmissions.value.length / pageSize)
-)
-
-const startIndex = computed(() => 
-  (currentPage.value - 1) * pageSize
-)
-
-const endIndex = computed(() => 
-  startIndex.value + pageSize
-)
-
-const paginatedSubmissions = computed(() => 
-  filteredSubmissions.value.slice(startIndex.value, endIndex.value)
-)
-
-// Lifecycle
-onMounted(() => {
-  loadSubmissions()
-})
-
-// Methods
-async function loadSubmissions() {
-  if (!authStore.token) {
-    error.value = 'Please log in to view your submissions'
-    loading.value = false
-    return
-  }
-
-  loading.value = true
-  error.value = null
-
-  try {
-    const response = await fetch('/api/user/submissions', {
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to load submissions')
-    }
-
-    const data = await response.json()
-    submissions.value = data.submissions || []
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load submissions'
-  } finally {
-    loading.value = false
-  }
-}
-
-function getTabTitle(tabId: string): string {
-  const titleMap: Record<string, string> = {
-    'overview': 'All Submissions',
-    'pending': 'Pending Review',
-    'approved': 'Approved Submissions',
-    'rejected': 'Rejected Submissions'
-  }
-  return titleMap[tabId] || 'Submissions'
-}
-
-function getStatusBadgeClass(status: string): string {
-  const statusMap: Record<string, string> = {
-    'approved': 'bg-green-100 text-green-800 border border-green-200',
-    'pending': 'bg-yellow-100 text-yellow-900 border border-yellow-200',
-    'rejected': 'bg-red-100 text-red-800 border border-red-200'
-  }
-  return statusMap[status] || 'bg-gray-100 text-gray-900 border border-gray-200'
-}
-
-function formatDate(dateString: string): string {
-  try {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    })
-  } catch {
-    return 'Unknown'
-  }
-}
-
-function viewSubmissionDetails(submission: Submission) {
-  // TODO: Implement submission details modal or page
-  console.log('View submission details:', submission)
-}
-
-function editSubmission(submission: Submission) {
-  // TODO: Implement submission editing
-  console.log('Edit submission:', submission)
-}
-</script>
 
 <style scoped>
 .profile-view {

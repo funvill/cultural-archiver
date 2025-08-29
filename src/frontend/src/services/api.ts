@@ -30,7 +30,7 @@ export class ApiError extends Error {
     public code: string,
     public status: number,
     message: string,
-    public details?: any
+    public details?: Record<string, unknown>
   ) {
     super(message)
     this.name = 'ApiError'
@@ -94,7 +94,7 @@ class ApiClient {
     const isJson = contentType?.includes('application/json')
 
     if (!response.ok) {
-      let errorData: any = { message: response.statusText }
+      let errorData: Record<string, unknown> = { message: response.statusText }
       
       if (isJson) {
         try {
@@ -455,17 +455,17 @@ export const apiService = {
   /**
    * Process batch review
    */
-  async processBatchReview(batch: any[]): Promise<ApiResponse<any>> {
+  async processBatchReview(batch: unknown[]): Promise<ApiResponse<any>> {
     return client.put('/review/batch', { batch })
   }
 }
 
 // Utility functions for error handling
-export function isApiError(error: any): error is ApiError {
+export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError
 }
 
-export function getErrorMessage(error: any): string {
+export function getErrorMessage(error: unknown): string {
   if (isApiError(error)) {
     return error.message
   }
@@ -477,14 +477,14 @@ export function getErrorMessage(error: any): string {
   return 'An unexpected error occurred'
 }
 
-export function isNetworkError(error: any): boolean {
+export function isNetworkError(error: unknown): boolean {
   return isApiError(error) && (error.code === 'NETWORK_ERROR' || error.code === 'TIMEOUT')
 }
 
-export function isUnauthorized(error: any): boolean {
+export function isUnauthorized(error: unknown): boolean {
   return isApiError(error) && error.status === 401
 }
 
-export function isRateLimited(error: any): boolean {
+export function isRateLimited(error: unknown): boolean {
   return isApiError(error) && error.status === 429
 }

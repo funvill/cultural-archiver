@@ -1,129 +1,3 @@
-<template>
-  <div class="map-component h-full w-full relative">
-    <!-- Map Container -->
-    <div 
-      ref="mapContainer" 
-      class="h-full w-full"
-      :class="{ 'opacity-50': isLoading }"
-      role="application"
-      aria-label="Interactive map showing public artwork locations"
-      :aria-busy="isLoading"
-    />
-    
-    <!-- Loading Overlay -->
-    <div 
-      v-if="isLoading" 
-      class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10"
-      role="status"
-      aria-live="polite"
-    >
-      <div class="flex flex-col items-center space-y-2">
-        <div 
-          class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
-          aria-hidden="true"
-        ></div>
-        <p class="text-sm text-gray-600">Loading map...</p>
-      </div>
-    </div>
-
-    <!-- Location Permission Notice -->
-    <div 
-      v-if="showLocationNotice" 
-      class="absolute top-4 left-4 right-4 bg-yellow-100 border border-yellow-300 rounded-lg p-3 z-20"
-      role="alert"
-      aria-live="assertive"
-    >
-      <div class="flex items-start space-x-2">
-        <ExclamationTriangleIcon class="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-        <div class="flex-1">
-          <p class="text-sm text-yellow-800 font-medium">Location Access Needed</p>
-          <p class="text-xs text-yellow-700">
-            Enable location access to see nearby artworks and improve your experience.
-          </p>
-          <button 
-            @click="requestLocation"
-            class="mt-2 text-xs bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 focus:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors"
-          >
-            Enable Location
-          </button>
-        </div>
-        <button 
-          @click="dismissLocationNotice"
-          class="text-yellow-600 hover:text-yellow-800 focus:text-yellow-800 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded"
-          aria-label="Dismiss location notice"
-        >
-          <XMarkIcon class="w-4 h-4" aria-hidden="true" />
-        </button>
-      </div>
-    </div>
-
-    <!-- Map Controls -->
-    <div class="absolute bottom-4 right-4 flex flex-col space-y-2 z-20">
-      <!-- Current Location Button -->
-      <button 
-        v-if="hasGeolocation"
-        @click="centerOnUserLocation"
-        :disabled="isLocating"
-        class="bg-white shadow-md rounded-full p-3 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
-        :title="isLocating ? 'Getting location...' : 'Center on current location'"
-        :aria-label="isLocating ? 'Getting current location...' : 'Center map on current location'"
-      >
-        <MapPinIcon v-if="!isLocating" class="w-5 h-5 text-gray-700" />
-        <div v-else class="w-5 h-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
-      </button>
-
-      <!-- Zoom Controls -->
-      <div class="bg-white shadow-md rounded-lg overflow-hidden">
-        <button 
-          @click="zoomIn"
-          class="block w-full px-3 py-2 text-gray-700 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors border-b border-gray-200"
-          title="Zoom in"
-          aria-label="Zoom in on map"
-        >
-          <PlusIcon class="w-4 h-4 mx-auto" aria-hidden="true" />
-        </button>
-        <button 
-          @click="zoomOut"
-          class="block w-full px-3 py-2 text-gray-700 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
-          title="Zoom out"
-          aria-label="Zoom out on map"
-        >
-          <MinusIcon class="w-4 h-4 mx-auto" aria-hidden="true" />
-        </button>
-      </div>
-    </div>
-
-    <!-- Error Message -->
-    <div 
-      v-if="error" 
-      class="absolute top-4 left-4 right-4 bg-red-100 border border-red-300 rounded-lg p-3 z-20"
-      role="alert"
-      aria-live="assertive"
-    >
-      <div class="flex items-start space-x-2">
-        <ExclamationCircleIcon class="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
-        <div class="flex-1">
-          <p class="text-sm text-red-800 font-medium">Map Error</p>
-          <p class="text-xs text-red-700">{{ error }}</p>
-          <button 
-            @click="retryMapLoad"
-            class="mt-2 text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-        <button 
-          @click="clearError"
-          class="text-red-600 hover:text-red-800"
-          aria-label="Dismiss error"
-        >
-          <XMarkIcon class="w-4 h-4" />
-        </button>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { ExclamationTriangleIcon, ExclamationCircleIcon, XMarkIcon, MapPinIcon, PlusIcon, MinusIcon } from '@heroicons/vue/24/outline'
@@ -504,6 +378,132 @@ onUnmounted(() => {
   }
 })
 </script>
+
+<template>
+  <div class="map-component h-full w-full relative">
+    <!-- Map Container -->
+    <div 
+      ref="mapContainer" 
+      class="h-full w-full"
+      :class="{ 'opacity-50': isLoading }"
+      role="application"
+      aria-label="Interactive map showing public artwork locations"
+      :aria-busy="isLoading"
+    />
+    
+    <!-- Loading Overlay -->
+    <div 
+      v-if="isLoading" 
+      class="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-10"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="flex flex-col items-center space-y-2">
+        <div 
+          class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
+          aria-hidden="true"
+        ></div>
+        <p class="text-sm text-gray-600">Loading map...</p>
+      </div>
+    </div>
+
+    <!-- Location Permission Notice -->
+    <div 
+      v-if="showLocationNotice" 
+      class="absolute top-4 left-4 right-4 bg-yellow-100 border border-yellow-300 rounded-lg p-3 z-20"
+      role="alert"
+      aria-live="assertive"
+    >
+      <div class="flex items-start space-x-2">
+        <ExclamationTriangleIcon class="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+        <div class="flex-1">
+          <p class="text-sm text-yellow-800 font-medium">Location Access Needed</p>
+          <p class="text-xs text-yellow-700">
+            Enable location access to see nearby artworks and improve your experience.
+          </p>
+          <button 
+            @click="requestLocation"
+            class="mt-2 text-xs bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 focus:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors"
+          >
+            Enable Location
+          </button>
+        </div>
+        <button 
+          @click="dismissLocationNotice"
+          class="text-yellow-600 hover:text-yellow-800 focus:text-yellow-800 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded"
+          aria-label="Dismiss location notice"
+        >
+          <XMarkIcon class="w-4 h-4" aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+
+    <!-- Map Controls -->
+    <div class="absolute bottom-4 right-4 flex flex-col space-y-2 z-20">
+      <!-- Current Location Button -->
+      <button 
+        v-if="hasGeolocation"
+        @click="centerOnUserLocation"
+        :disabled="isLocating"
+        class="bg-white shadow-md rounded-full p-3 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+        :title="isLocating ? 'Getting location...' : 'Center on current location'"
+        :aria-label="isLocating ? 'Getting current location...' : 'Center map on current location'"
+      >
+        <MapPinIcon v-if="!isLocating" class="w-5 h-5 text-gray-700" />
+        <div v-else class="w-5 h-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
+      </button>
+
+      <!-- Zoom Controls -->
+      <div class="bg-white shadow-md rounded-lg overflow-hidden">
+        <button 
+          @click="zoomIn"
+          class="block w-full px-3 py-2 text-gray-700 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors border-b border-gray-200"
+          title="Zoom in"
+          aria-label="Zoom in on map"
+        >
+          <PlusIcon class="w-4 h-4 mx-auto" aria-hidden="true" />
+        </button>
+        <button 
+          @click="zoomOut"
+          class="block w-full px-3 py-2 text-gray-700 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
+          title="Zoom out"
+          aria-label="Zoom out on map"
+        >
+          <MinusIcon class="w-4 h-4 mx-auto" aria-hidden="true" />
+        </button>
+      </div>
+    </div>
+
+    <!-- Error Message -->
+    <div 
+      v-if="error" 
+      class="absolute top-4 left-4 right-4 bg-red-100 border border-red-300 rounded-lg p-3 z-20"
+      role="alert"
+      aria-live="assertive"
+    >
+      <div class="flex items-start space-x-2">
+        <ExclamationCircleIcon class="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+        <div class="flex-1">
+          <p class="text-sm text-red-800 font-medium">Map Error</p>
+          <p class="text-xs text-red-700">{{ error }}</p>
+          <button 
+            @click="retryMapLoad"
+            class="mt-2 text-xs bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+        <button 
+          @click="clearError"
+          class="text-red-600 hover:text-red-800"
+          aria-label="Dismiss error"
+        >
+          <XMarkIcon class="w-4 h-4" />
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
 
 <style>
 /* Custom marker styles */

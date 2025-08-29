@@ -1,126 +1,3 @@
-<template>
-  <teleport to="body">
-    <div
-      v-if="isOpen"
-      class="fixed inset-0 z-50 overflow-y-auto"
-      @keydown.escape="handleEscape"
-      @click="handleBackdropClick"
-      role="dialog"
-      :aria-modal="true"
-      :aria-labelledby="titleId"
-      :aria-describedby="descriptionId"
-    >
-      <!-- Backdrop -->
-      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
-      
-      <!-- Modal Panel -->
-      <div class="flex min-h-full items-center justify-center p-4">
-        <div
-          ref="modalPanel"
-          class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform transition-all"
-          @click.stop
-        >
-          <!-- Header -->
-          <div class="mb-4">
-            <div class="flex items-center justify-between">
-              <h3 :id="titleId" class="text-lg font-semibold text-gray-900">
-                {{ title }}
-              </h3>
-              <button
-                v-if="showCloseButton"
-                @click="cancel"
-                class="text-gray-400 hover:text-gray-600 focus:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md p-1"
-                aria-label="Close modal"
-              >
-                <XMarkIcon class="w-6 h-6" aria-hidden="true" />
-              </button>
-            </div>
-          </div>
-
-          <!-- Content -->
-          <div :id="descriptionId" class="mb-6">
-            <p v-if="message" class="text-gray-600 mb-4">{{ message }}</p>
-            
-            <!-- Input Field -->
-            <div>
-              <label v-if="inputLabel" :for="inputId" class="block text-sm font-medium text-gray-700 mb-2">
-                {{ inputLabel }}
-              </label>
-              <textarea
-                v-if="multiline"
-                :id="inputId"
-                ref="inputElement"
-                v-model="inputValue"
-                v-bind="{
-                  ...(placeholder ? { placeholder } : {}),
-                  ...(maxLength ? { maxlength: maxLength } : {}),
-                  ...(required ? { required: true } : {})
-                }"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': hasError }"
-                rows="3"
-                :aria-describedby="hasError ? `${inputId}-error` : undefined"
-                :aria-invalid="hasError"
-                @keydown.ctrl.enter="confirm"
-                @keydown.meta.enter="confirm"
-              />
-              <input
-                v-else
-                :id="inputId"
-                ref="inputElement"
-                v-model="inputValue"
-                type="text"
-                v-bind="{
-                  ...(placeholder ? { placeholder } : {}),
-                  ...(maxLength ? { maxlength: maxLength } : {}),
-                  ...(required ? { required: true } : {})
-                }"
-                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': hasError }"
-                :aria-describedby="hasError ? `${inputId}-error` : undefined"
-                :aria-invalid="hasError"
-                @keydown.enter="confirm"
-              />
-              
-              <!-- Character count -->
-              <div v-if="maxLength" class="flex justify-between items-center mt-1">
-                <p v-if="hasError" :id="`${inputId}-error`" class="text-sm text-red-600" role="alert">
-                  {{ errorMessage }}
-                </p>
-                <span v-else class="text-sm text-gray-500">
-                  {{ inputValue.length }}/{{ maxLength }}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Actions -->
-          <div class="flex justify-end space-x-3">
-            <button
-              ref="cancelButton"
-              @click="cancel"
-              type="button"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-            >
-              {{ cancelText }}
-            </button>
-            <button
-              ref="confirmButton"
-              @click="confirm"
-              type="button"
-              :disabled="!canConfirm"
-              class="px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              :class="confirmButtonClass"
-            >
-              {{ confirmText }}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </teleport>
-</template>
-
 <script setup lang="ts">
 import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue'
 import { XMarkIcon } from '@heroicons/vue/24/outline'
@@ -337,6 +214,129 @@ onUnmounted(() => {
   }
 })
 </script>
+
+<template>
+  <teleport to="body">
+    <div
+      v-if="isOpen"
+      class="fixed inset-0 z-50 overflow-y-auto"
+      @keydown.escape="handleEscape"
+      @click="handleBackdropClick"
+      role="dialog"
+      :aria-modal="true"
+      :aria-labelledby="titleId"
+      :aria-describedby="descriptionId"
+    >
+      <!-- Backdrop -->
+      <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
+      
+      <!-- Modal Panel -->
+      <div class="flex min-h-full items-center justify-center p-4">
+        <div
+          ref="modalPanel"
+          class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 transform transition-all"
+          @click.stop
+        >
+          <!-- Header -->
+          <div class="mb-4">
+            <div class="flex items-center justify-between">
+              <h3 :id="titleId" class="text-lg font-semibold text-gray-900">
+                {{ title }}
+              </h3>
+              <button
+                v-if="showCloseButton"
+                @click="cancel"
+                class="text-gray-400 hover:text-gray-600 focus:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md p-1"
+                aria-label="Close modal"
+              >
+                <XMarkIcon class="w-6 h-6" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
+
+          <!-- Content -->
+          <div :id="descriptionId" class="mb-6">
+            <p v-if="message" class="text-gray-600 mb-4">{{ message }}</p>
+            
+            <!-- Input Field -->
+            <div>
+              <label v-if="inputLabel" :for="inputId" class="block text-sm font-medium text-gray-700 mb-2">
+                {{ inputLabel }}
+              </label>
+              <textarea
+                v-if="multiline"
+                :id="inputId"
+                ref="inputElement"
+                v-model="inputValue"
+                v-bind="{
+                  ...(placeholder ? { placeholder } : {}),
+                  ...(maxLength ? { maxlength: maxLength } : {}),
+                  ...(required ? { required: true } : {})
+                }"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': hasError }"
+                rows="3"
+                :aria-describedby="hasError ? `${inputId}-error` : undefined"
+                :aria-invalid="hasError"
+                @keydown.ctrl.enter="confirm"
+                @keydown.meta.enter="confirm"
+              />
+              <input
+                v-else
+                :id="inputId"
+                ref="inputElement"
+                v-model="inputValue"
+                type="text"
+                v-bind="{
+                  ...(placeholder ? { placeholder } : {}),
+                  ...(maxLength ? { maxlength: maxLength } : {}),
+                  ...(required ? { required: true } : {})
+                }"
+                class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': hasError }"
+                :aria-describedby="hasError ? `${inputId}-error` : undefined"
+                :aria-invalid="hasError"
+                @keydown.enter="confirm"
+              />
+              
+              <!-- Character count -->
+              <div v-if="maxLength" class="flex justify-between items-center mt-1">
+                <p v-if="hasError" :id="`${inputId}-error`" class="text-sm text-red-600" role="alert">
+                  {{ errorMessage }}
+                </p>
+                <span v-else class="text-sm text-gray-500">
+                  {{ inputValue.length }}/{{ maxLength }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex justify-end space-x-3">
+            <button
+              ref="cancelButton"
+              @click="cancel"
+              type="button"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+            >
+              {{ cancelText }}
+            </button>
+            <button
+              ref="confirmButton"
+              @click="confirm"
+              type="button"
+              :disabled="!canConfirm"
+              class="px-4 py-2 text-sm font-medium text-white rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              :class="confirmButtonClass"
+            >
+              {{ confirmText }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </teleport>
+</template>
 
 <style scoped>
 /* Ensure modal is above everything */

@@ -25,7 +25,7 @@ export function useApi() {
     isLoading.value = true
     error.value = null
 
-    let lastError: any = null
+    let lastError: Error | null = null
     
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
@@ -141,7 +141,7 @@ export function useApi() {
       )
 
       if (result) {
-        allItems.value = [...allItems.value, ...(result.items as any[])]
+        allItems.value = [...allItems.value, ...result.items]
         total.value = result.total
         hasMore.value = result.hasMore
         currentPage.value++
@@ -173,9 +173,9 @@ export function useApi() {
   /**
    * File upload with progress tracking
    */
-  const uploadFile = async (
+  const uploadFile = async <T>(
     file: File,
-    uploadFunction: (file: File, onProgress?: (progress: number) => void) => Promise<any>,
+    uploadFunction: (file: File, onProgress?: (progress: number) => void) => Promise<T>,
     options: {
       onProgress?: (progress: number) => void
       maxSize?: number // in bytes
@@ -230,7 +230,7 @@ export function useApi() {
   /**
    * Check if error is retryable
    */
-  const isRetryableError = (err: any): boolean => {
+  const isRetryableError = (err: unknown): boolean => {
     return isNetworkError(err) || (err instanceof ApiError && err.status >= 500)
   }
 
