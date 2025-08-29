@@ -70,11 +70,24 @@ const createUserLocationIcon = () => {
 
 // Initialize map
 async function initializeMap() {
-  if (!mapContainer.value) return
+  if (!mapContainer.value) {
+    console.error('Map container not found')
+    return
+  }
+
+  console.log('Initializing map with container:', mapContainer.value)
+  console.log('Container dimensions:', {
+    offsetWidth: mapContainer.value.offsetWidth,
+    offsetHeight: mapContainer.value.offsetHeight,
+    clientWidth: mapContainer.value.clientWidth,
+    clientHeight: mapContainer.value.clientHeight
+  })
 
   try {
     isLoading.value = true
     error.value = null
+
+    console.log('Creating Leaflet map...')
 
     // Create map
     map.value = L.map(mapContainer.value, {
@@ -84,11 +97,76 @@ async function initializeMap() {
       attributionControl: true
     })
 
-    // Add tile layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    console.log('Map created successfully:', map.value)
+
+    // Add tile layer with error handling
+    const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 19
+      maxZoom: 19,
+      errorTileUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' // Transparent 1x1 pixel
     }).addTo(map.value)
+
+    // Add error handling for tile loading
+    tileLayer.on('tileerror', (e) => {
+      console.error('Tile loading error:', e)
+      console.error('Tile error details:', {
+        coords: e.coords,
+        error: e.error,
+        tile: e.tile
+      })
+    })
+
+    tileLayer.on('tileload', (e) => {
+      console.log('Tile loaded successfully:', e.coords)
+    })
+
+    tileLayer.on('tileloadstart', (e) => {
+      console.log('Tile load started:', e.coords)
+    })
+
+    console.log('Tile layer added to map')
+
+    // Debug: Check if Leaflet styles are applied
+    setTimeout(() => {
+      if (mapContainer.value) {
+        const leafletContainer = mapContainer.value.querySelector('.leaflet-container')
+        console.log('Leaflet container found:', leafletContainer)
+        if (leafletContainer) {
+          const styles = (leafletContainer as HTMLElement).style
+          console.log('Leaflet container styles:', {
+            position: styles.position,
+            width: styles.width,
+            height: styles.height,
+            zIndex: styles.zIndex
+          })
+        }
+        
+        // Check for tile layers
+        const tileLayers = mapContainer.value.querySelectorAll('.leaflet-tile-pane img')
+        console.log('Tile images found:', tileLayers.length)
+        if (tileLayers.length > 0) {
+          const firstTile = tileLayers[0] as HTMLImageElement
+          console.log('First tile image:', {
+            src: firstTile.src,
+            width: firstTile.width,
+            height: firstTile.height,
+            naturalWidth: firstTile.naturalWidth,
+            naturalHeight: firstTile.naturalHeight
+          })
+        }
+      }
+    }, 500)
+
+    // Force map to resize after initialization
+    setTimeout(() => {
+      if (map.value) {
+        console.log('Forcing map resize...')
+        map.value.invalidateSize()
+        console.log('Map bounds after resize:', map.value.getBounds())
+        console.log('Map center after resize:', map.value.getCenter())
+        console.log('Map zoom after resize:', map.value.getZoom())
+      }
+    }, 100)
 
     // Initialize marker cluster group
     // Note: We would need to install leaflet.markercluster for this
@@ -110,6 +188,11 @@ async function initializeMap() {
       if (map.value) {
         map.value.setView([DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude], props.zoom)
       }
+      
+      // Auto-dismiss location notice after 10 seconds to show the map
+      setTimeout(() => {
+        showLocationNotice.value = false
+      }, 10000)
     }
 
     // Load initial artworks
@@ -118,6 +201,8 @@ async function initializeMap() {
   } catch (err) {
     console.error('Map initialization error:', err)
     error.value = 'Failed to initialize map. Please check your internet connection and try again.'
+    // Dismiss location notice on error to show map
+    showLocationNotice.value = false
   } finally {
     isLoading.value = false
   }
@@ -330,6 +415,15 @@ function requestLocation() {
 
 function dismissLocationNotice() {
   showLocationNotice.value = false
+  console.log('Location notice dismissed')
+  
+  // Force map refresh after dismissing notice
+  if (map.value) {
+    setTimeout(() => {
+      map.value?.invalidateSize()
+      console.log('Map size invalidated after notice dismissal')
+    }, 100)
+  }
 }
 
 function clearError() {
@@ -366,13 +460,37 @@ watch(() => props.center, (newCenter) => {
   }
 })
 
+// Handle window resize
+const handleResize = () => {
+  if (map.value) {
+    console.log('Window resized, invalidating map size')
+    map.value.invalidateSize()
+  }
+}
+
+// Watch for container size changes
+watch(() => mapContainer.value, (newContainer) => {
+  if (newContainer && map.value) {
+    console.log('Map container changed, invalidating size')
+    nextTick(() => {
+      map.value?.invalidateSize()
+    })
+  }
+})
+
 // Lifecycle
 onMounted(async () => {
   await nextTick()
   await initializeMap()
+  
+  // Add window resize listener
+  window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
+  // Remove window resize listener
+  window.removeEventListener('resize', handleResize)
+  
   if (map.value) {
     map.value.remove()
   }
@@ -384,7 +502,7 @@ onUnmounted(() => {
     <!-- Map Container -->
     <div 
       ref="mapContainer" 
-      class="h-full w-full"
+      class="h-full w-full relative z-0"
       :class="{ 'opacity-50': isLoading }"
       role="application"
       aria-label="Interactive map showing public artwork locations"
@@ -410,7 +528,7 @@ onUnmounted(() => {
     <!-- Location Permission Notice -->
     <div 
       v-if="showLocationNotice" 
-      class="absolute top-4 left-4 right-4 bg-yellow-100 border border-yellow-300 rounded-lg p-3 z-20"
+      class="absolute top-4 left-4 right-4 bg-yellow-100 border border-yellow-300 rounded-lg p-3 z-30"
       role="alert"
       aria-live="assertive"
     >

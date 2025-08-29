@@ -292,232 +292,47 @@ watch(() => route.path, handleRouteChange)
     <LiveRegion />
   </div>
 </template>
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { Bars3Icon, XMarkIcon, PlusIcon, UserIcon, InformationCircleIcon, QuestionMarkCircleIcon, ClipboardDocumentListIcon, MapIcon } from '@heroicons/vue/24/outline'
-import { useAuthStore } from '../stores/auth'
-import LiveRegion from './LiveRegion.vue'
-import type { NavigationItem } from '../types'
-
-// Props
-interface Props {
-  title?: string
-}
-
-defineProps<Props>()
-
-// State
-const showDrawer = ref(false)
-const route = useRoute()
-const authStore = useAuthStore()
-
-// Refs for focus management
-const drawerCloseButton = ref<HTMLElement>()
-// Note: firstNavLink ref is defined but not used - keeping for future drawer focus enhancement
-
-// Navigation items
-const navigationItems: NavigationItem[] = [
-  {
-    name: 'Map',
-    path: '/',
-    icon: MapIcon
-  },
-  {
-    name: 'Add',
-    path: '/submit',
-    icon: PlusIcon
-  },
-  {
-    name: 'Profile',
-    path: '/profile',
-    icon: UserIcon,
-    requiresAuth: true
-  },
-  {
-    name: 'Review',
-    path: '/review',
-    icon: ClipboardDocumentListIcon,
-    requiresReviewer: true
-  },
-  {
-    name: 'About',
-    path: '/home',
-    icon: InformationCircleIcon
-  },
-  {
-    name: 'Help',
-    path: '/help',
-    icon: QuestionMarkCircleIcon
-  }
-]
-
-// Computed
-const visibleNavItems = computed(() => {
-  return navigationItems.filter(item => {
-    // Hide auth-required items if not authenticated
-    if (item.requiresAuth && !authStore.isAuthenticated) {
-      return false
-    }
-    
-    // Hide reviewer-only items if not a reviewer
-    if (item.requiresReviewer && !authStore.isReviewer) {
-      return false
-    }
-    
-    return true
-  })
-})
-
-// Methods
-function toggleDrawer() {
-  showDrawer.value = !showDrawer.value
-  
-  // Focus management when opening/closing drawer
-  if (showDrawer.value) {
-    focusFirstDrawerElement()
-  }
-}
-
-function closeDrawer() {
-  const wasOpen = showDrawer.value
-  showDrawer.value = false
-  
-  // Return focus to mobile menu button when closing drawer
-  if (wasOpen) {
-    nextTick(() => {
-      const menuButton = document.querySelector('[aria-label="Open navigation menu"]') as HTMLElement
-      menuButton?.focus()
-    })
-  }
-}
-
-// Enhanced keyboard navigation
-function handleKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape' && showDrawer.value) {
-    closeDrawer()
-    return
-  }
-  
-  // Handle tab trapping in drawer when open
-  if (showDrawer.value && event.key === 'Tab') {
-    handleTabTrapping(event)
-  }
-}
-
-// Tab trapping for modal accessibility
-function handleTabTrapping(event: KeyboardEvent) {
-  const drawer = document.querySelector('[role="dialog"]') as HTMLElement
-  if (!drawer) return
-  
-  const focusableElements = drawer.querySelectorAll(
-    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-  )
-  const firstElement = focusableElements[0] as HTMLElement
-  const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
-  
-  if (event.shiftKey) {
-    // Shift+Tab: moving backwards
-    if (document.activeElement === firstElement) {
-      event.preventDefault()
-      lastElement.focus()
-    }
-  } else {
-    // Tab: moving forwards
-    if (document.activeElement === lastElement) {
-      event.preventDefault()
-      firstElement.focus()
-    }
-  }
-}
-
-// Focus management for drawer
-function focusFirstDrawerElement() {
-  nextTick(() => {
-    const firstNavLink = document.querySelector('.drawer-link') as HTMLElement
-    firstNavLink?.focus()
-  })
-}
-
-// Close drawer on route change
-function handleRouteChange() {
-  closeDrawer()
-}
-
-// Lifecycle
-onMounted(() => {
-  document.addEventListener('keydown', handleKeydown)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
-})
-
-// Watch route changes
-import { watch } from 'vue'
-watch(() => route.path, handleRouteChange)
-</script>
 
 <style scoped>
 .app-shell {
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
+  height: 100vh;
 }
 
 .app-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 30;
+  flex-shrink: 0;
 }
 
 .app-main {
   flex: 1;
-  margin-top: 4rem; /* Account for fixed header */
-  min-height: calc(100vh - 4rem);
+  overflow: hidden;
 }
 
+/* Navigation link styles */
 .nav-link {
-  display: flex;
-  align-items: center;
-  text-decoration: none;
-}
-
-.nav-link:hover {
-  text-decoration: none;
+  transition: all 0.2s ease-in-out;
 }
 
 .drawer-link {
-  display: flex;
-  align-items: center;
-  text-decoration: none;
+  transition: all 0.2s ease-in-out;
 }
 
-.drawer-link:hover {
-  text-decoration: none;
-}
-
-/* Ensure drawer is above everything */
-.drawer-overlay {
-  z-index: 40;
-}
-
-.drawer-panel {
-  z-index: 50;
-}
-
-/* Focus styles for accessibility */
+/* Focus styles for better accessibility */
 .nav-link:focus,
-.drawer-link:focus,
-button:focus {
-  outline: 2px solid #3b82f6;
-  outline-offset: 2px;
+.drawer-link:focus {
+  box-shadow: 0 0 0 2px currentColor;
 }
 
-/* Smooth transitions */
-.drawer-panel {
+/* Mobile drawer animation */
+.drawer-enter-active,
+.drawer-leave-active {
   transition: transform 0.3s ease-in-out;
+}
+
+.drawer-enter-from,
+.drawer-leave-to {
+  transform: translateX(-100%);
 }
 
 /* Mobile responsive adjustments */

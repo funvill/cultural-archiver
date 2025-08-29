@@ -1,6 +1,24 @@
 /* Import Leaflet CSS first */
 @import 'leaflet/dist/leaflet.css';
 
+/* Leaflet map z-index fixes */
+.leaflet-container {
+  z-index: 1 !important;
+}
+
+.leaflet-tile-pane {
+  z-index: 1 !important;
+}
+
+.leaflet-control-container {
+  z-index: 1000 !important;
+}
+
+/* Ensure map tiles are visible */
+.leaflet-tile {
+  opacity: 1 !important;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
