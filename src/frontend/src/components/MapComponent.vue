@@ -374,7 +374,7 @@ function updateArtworkMarkers() {
   if (!map.value || !markerClusterGroup.value) return
 
   // Clear existing markers
-  artworkMarkers.value.forEach((marker: L.Marker) => {
+  artworkMarkers.value.forEach((marker) => {
     if (markerClusterGroup.value) {
       markerClusterGroup.value.removeLayer(marker as any)
     }

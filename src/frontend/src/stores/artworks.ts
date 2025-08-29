@@ -126,14 +126,22 @@ export const useArtworksStore = defineStore('artworks', () => {
       )
 
       // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: ArtworkApiResponse) => ({
-        id: artwork.id,
-        latitude: artwork.lat,
-        longitude: artwork.lon,
-        type: artwork.type_name || 'unknown',
-        title: artwork.tags_parsed?.title || undefined,
-        photos: artwork.photos || []
-      }))
+      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: ArtworkApiResponse) => {
+        const pin: ArtworkPin = {
+          id: artwork.id,
+          latitude: artwork.lat,
+          longitude: artwork.lon,
+          type: artwork.type_name || 'unknown',
+          photos: artwork.photos || []
+        }
+        
+        // Only set title if it's a string
+        if (typeof artwork.tags_parsed?.title === 'string') {
+          pin.title = artwork.tags_parsed.title
+        }
+        
+        return pin
+      })
 
       setArtworks(artworkPins)
       lastFetchLocation.value = targetLocation
@@ -212,14 +220,22 @@ export const useArtworksStore = defineStore('artworks', () => {
       )
 
       // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: ArtworkApiResponse) => ({
-        id: artwork.id,
-        latitude: artwork.lat,
-        longitude: artwork.lon,
-        type: artwork.type_name || 'unknown',
-        title: artwork.tags_parsed?.title || undefined,
-        photos: artwork.photos || []
-      }))
+      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: ArtworkApiResponse) => {
+        const pin: ArtworkPin = {
+          id: artwork.id,
+          latitude: artwork.lat,
+          longitude: artwork.lon,
+          type: artwork.type_name || 'unknown',
+          photos: artwork.photos || []
+        }
+        
+        // Only set title if it's a string
+        if (typeof artwork.tags_parsed?.title === 'string') {
+          pin.title = artwork.tags_parsed.title
+        }
+        
+        return pin
+      })
 
       setArtworks(artworkPins)
     } catch (err) {
@@ -242,14 +258,22 @@ export const useArtworksStore = defineStore('artworks', () => {
       )
 
       // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: ArtworkApiResponse) => ({
-        id: artwork.id,
-        latitude: artwork.lat,
-        longitude: artwork.lon,
-        type: artwork.type_name || 'unknown',
-        title: artwork.tags_parsed?.title || undefined,
-        photos: artwork.photos || []
-      }))
+      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: ArtworkApiResponse) => {
+        const pin: ArtworkPin = {
+          id: artwork.id,
+          latitude: artwork.lat,
+          longitude: artwork.lon,
+          type: artwork.type_name || 'unknown',
+          photos: artwork.photos || []
+        }
+        
+        // Only set title if it's a string
+        if (typeof artwork.tags_parsed?.title === 'string') {
+          pin.title = artwork.tags_parsed.title
+        }
+        
+        return pin
+      })
 
       return artworkPins
     } catch (err) {

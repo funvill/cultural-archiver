@@ -271,12 +271,12 @@ onUnmounted(() => {
                 v-bind="{
                   ...(placeholder ? { placeholder } : {}),
                   ...(maxLength ? { maxlength: maxLength } : {}),
-                  ...(required ? { required: true } : {})
+                  ...(required ? { required: true } : {}),
+                  ...(hasError ? { 'aria-describedby': `${inputId}-error` } : {})
                 }"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                 :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': hasError }"
-                rows="3"
-                :aria-describedby="hasError ? `${inputId}-error` : undefined"
+                :rows="3"
                 :aria-invalid="hasError"
                 @keydown.ctrl.enter="confirm"
                 @keydown.meta.enter="confirm"
@@ -290,11 +290,11 @@ onUnmounted(() => {
                 v-bind="{
                   ...(placeholder ? { placeholder } : {}),
                   ...(maxLength ? { maxlength: maxLength } : {}),
-                  ...(required ? { required: true } : {})
+                  ...(required ? { required: true } : {}),
+                  ...(hasError ? { 'aria-describedby': `${inputId}-error` } : {})
                 }"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': hasError }"
-                :aria-describedby="hasError ? `${inputId}-error` : undefined"
                 :aria-invalid="hasError"
                 @keydown.enter="confirm"
               />

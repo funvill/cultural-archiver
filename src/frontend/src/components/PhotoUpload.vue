@@ -2,15 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import ConsentForm from './ConsentForm.vue'
 import { useAnnouncer } from '../composables/useAnnouncer'
-
-// EXIF data interface
-interface ExifData {
-  latitude?: number
-  longitude?: number
-  dateTime?: string
-  camera?: string
-  [key: string]: unknown
-}
+import { extractExifData } from '../utils/image'
+import type { ExifData } from '../utils/image'
 
 // File interface
 interface PhotoFile {
@@ -43,8 +36,8 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Component emits
 interface Emits {
-  (e: 'upload-success', data: SubmissionResponse): void
-  (e: 'upload-error', error: string): void
+  (e: 'uploadSuccess', data: SubmissionResponse): void
+  (e: 'uploadError', error: string): void
   (e: 'cancel'): void
   (e: 'error', error: string): void
 }
@@ -232,21 +225,6 @@ async function createPreview(file: File): Promise<string> {
   })
 }
 
-async function extractExifData(_file: File): Promise<any> {
-  // This would use an EXIF library like exifr
-  // For now, return mock data
-  return {
-    gps: {
-      latitude: 49.2827,
-      longitude: -123.1207
-    },
-    camera: {
-      make: 'Apple',
-      model: 'iPhone 12 Pro'
-    }
-  }
-}
-
 function getCurrentLocation() {
   if (!navigator.geolocation) {
     errors.value.push('Geolocation is not supported by this browser')
@@ -324,13 +302,13 @@ async function handleSubmit() {
     }
     
     const result = await response.json()
-    emit('success', result)
+    emit('uploadSuccess', result)
     
   } catch (error) {
     console.error('Upload error:', error)
     const errorMessage = error instanceof Error ? error.message : 'Upload failed'
     errors.value.push(errorMessage)
-    emit('error', errorMessage)
+    emit('uploadError', errorMessage)
   } finally {
     isSubmitting.value = false
   }
@@ -488,11 +466,11 @@ function generateId(): string {
               
               <!-- EXIF Info -->
               <div v-if="file.exifData" class="mt-2 text-xs text-gray-600">
-                <p v-if="file.exifData.gps">
-                  📍 GPS: {{ file.exifData.gps.latitude?.toFixed(4) }}, {{ file.exifData.gps.longitude?.toFixed(4) }}
+                <p v-if="file.exifData.latitude && file.exifData.longitude">
+                  📍 GPS: {{ file.exifData.latitude.toFixed(4) }}, {{ file.exifData.longitude.toFixed(4) }}
                 </p>
-                <p v-if="file.exifData.camera?.make">
-                  📷 {{ file.exifData.camera.make }} {{ file.exifData.camera.model }}
+                <p v-if="file.exifData.make">
+                  📷 {{ file.exifData.make }} {{ file.exifData.model || '' }}
                 </p>
               </div>
             </div>

@@ -1,5 +1,5 @@
 import { config } from '@vue/test-utils'
-import { vi } from 'vitest'
+import { vi, beforeEach } from 'vitest'
 
 // Mock Vue Router
 config.global.mocks = {
