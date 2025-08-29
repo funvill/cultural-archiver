@@ -45,7 +45,6 @@ const props = withDefaults(defineProps<Props>(), {
 interface Emits {
   (e: 'upload-success', data: SubmissionResponse): void
   (e: 'upload-error', error: string): void
-}
   (e: 'cancel'): void
   (e: 'error', error: string): void
 }
