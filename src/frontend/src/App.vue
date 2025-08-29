@@ -56,8 +56,10 @@ onMounted(async () => {
       :variant="globalModal.promptState.config.variant || 'primary'"
       :required="globalModal.promptState.config.required || false"
       :multiline="globalModal.promptState.config.multiline || false"
-      :max-length="globalModal.promptState.config.maxLength"
-      :validator="globalModal.promptState.config.validator"
+      v-bind="{ 
+        ...(globalModal.promptState.config.maxLength !== undefined ? { maxLength: globalModal.promptState.config.maxLength } : {}),
+        ...(globalModal.promptState.config.validator !== undefined ? { validator: globalModal.promptState.config.validator } : {})
+      }"
       @update:is-open="globalModal.updatePromptOpen"
       @confirm="globalModal.handlePromptConfirm"
       @cancel="globalModal.handlePromptCancel"

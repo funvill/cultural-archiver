@@ -33,7 +33,7 @@ export function useApi() {
         isLoading.value = false
         return result
       } catch (err) {
-        lastError = err
+        lastError = err instanceof Error ? err : new Error('Unknown error')
         
         // If network error and we have retries left, try again
         if (isNetworkError(err) && attempt < retries) {
@@ -141,7 +141,7 @@ export function useApi() {
       )
 
       if (result) {
-        allItems.value = [...allItems.value, ...result.items]
+        allItems.value = [...(allItems.value as T[]), ...result.items]
         total.value = result.total
         hasMore.value = result.hasMore
         currentPage.value++

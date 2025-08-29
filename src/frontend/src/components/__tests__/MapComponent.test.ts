@@ -51,7 +51,7 @@ describe('MapComponent', () => {
         },
       },
       props: {
-        center: [49.2827, -123.1207],
+        center: { latitude: 49.2827, longitude: -123.1207 },
         zoom: 13,
         height: '400px',
       },
