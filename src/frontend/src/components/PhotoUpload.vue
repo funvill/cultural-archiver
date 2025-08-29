@@ -76,12 +76,28 @@ onMounted(() => {
 // Methods
 async function checkConsentStatus() {
   try {
-    // Check if user has valid consent
-    // This would typically call an API endpoint
-    // For now, we'll assume consent is needed
-    hasValidConsent.value = false
+    if (!props.userToken) {
+      hasValidConsent.value = false
+      return
+    }
+    
+    const response = await fetch(`${props.apiBaseUrl}/consent`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${props.userToken}`
+      }
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      hasValidConsent.value = data.hasConsent || false
+    } else {
+      hasValidConsent.value = false
+    }
   } catch (error) {
     console.error('Failed to check consent status:', error)
+    hasValidConsent.value = false
   }
 }
 
@@ -388,29 +404,19 @@ function generateId(): string {
         <div class="mt-4">
           <p class="text-lg font-medium text-gray-900">
             Drop your photos here, or
-            <button
-              @click="triggerFileInput"
-              class="text-blue-600 hover:text-blue-800 focus:text-blue-800 underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+            <label
+              for="fileInput"
+              class="text-blue-600 hover:text-blue-800 focus:text-blue-800 underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded cursor-pointer"
               aria-describedby="file-help"
             >
               browse
-            </button>
+            </label>
           </p>
           <p class="text-sm text-gray-600 mt-2" id="file-help upload-help">
             Supports JPEG, PNG, WebP, and HEIC files up to 15MB each. You can drag and drop files or use keyboard navigation to select files.
           </p>
         </div>
       </div>
-
-      <!-- Hidden File Input -->
-      <input
-        ref="fileInput"
-        type="file"
-        multiple
-        accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
-        @change="handleFileSelect"
-        class="hidden"
-      />
 
       <!-- Selected Files Preview -->
       <div v-if="selectedFiles.length > 0" class="space-y-4">
@@ -576,6 +582,17 @@ function generateId(): string {
         </button>
       </div>
     </div>
+
+    <!-- Hidden File Input -->
+    <input
+      id="fileInput"
+      ref="fileInput"
+      type="file"
+      multiple
+      accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
+      @change="handleFileSelect"
+      style="position: absolute; left: -9999px; opacity: 0; width: 1px; height: 1px;"
+    />
 
     <!-- Consent Form Modal -->
     <div

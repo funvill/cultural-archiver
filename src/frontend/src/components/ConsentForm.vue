@@ -313,7 +313,7 @@ watch(() => formData.value.freedomOfPanorama, (newValue) => {
             </svg>
             Submitting...
           </span>
-          <span v-else">
+          <span v-else>
             Provide Consent
           </span>
         </button>
