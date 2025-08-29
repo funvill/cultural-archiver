@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { ArtworkPin, Coordinates, MapBounds, ArtworkDetails } from '../types'
+import type { ArtworkPin, Coordinates, MapBounds, ArtworkDetails, ArtworkApiResponse } from '../types'
 import { apiService, getErrorMessage, isNetworkError } from '../services/api'
 
 /**
@@ -126,7 +126,7 @@ export const useArtworksStore = defineStore('artworks', () => {
       )
 
       // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: any) => ({
+      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: ArtworkApiResponse) => ({
         id: artwork.id,
         latitude: artwork.lat,
         longitude: artwork.lon,
@@ -212,7 +212,7 @@ export const useArtworksStore = defineStore('artworks', () => {
       )
 
       // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: any) => ({
+      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: ArtworkApiResponse) => ({
         id: artwork.id,
         latitude: artwork.lat,
         longitude: artwork.lon,
@@ -242,7 +242,7 @@ export const useArtworksStore = defineStore('artworks', () => {
       )
 
       // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: any) => ({
+      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: ArtworkApiResponse) => ({
         id: artwork.id,
         latitude: artwork.lat,
         longitude: artwork.lon,

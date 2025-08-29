@@ -20,6 +20,19 @@ export interface ArtworkRecord {
   photos: string | null; // JSON array of R2 URLs like ["url1", "url2", "url3"]
 }
 
+export interface ArtworkApiResponse {
+  id: string;
+  lat: number;
+  lon: number;
+  type_id: string;
+  created_at: string;
+  status: 'pending' | 'approved' | 'removed';
+  tags: string | null;
+  photos: string[] | null; // Already parsed as array
+  type_name?: string;
+  tags_parsed?: Record<string, unknown>;
+}
+
 export interface LogbookRecord {
   id: string;
   artwork_id: string | null;
@@ -219,6 +232,19 @@ export interface PaginatedResponse<T> {
   page: number;
   per_page: number;
   has_more: boolean;
+}
+
+export interface StatusResponse {
+  status: 'ok' | 'error';
+  version?: string;
+  timestamp: string;
+}
+
+export interface SubmissionResponse {
+  id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  message?: string;
 }
 
 export interface ArtworkListResponse extends PaginatedResponse<ArtworkRecord> {}

@@ -15,7 +15,9 @@ import type {
   MagicLinkConsumeRequest,
   VerificationStatus,
   ApiResponse,
-  PaginatedResponse
+  PaginatedResponse,
+  StatusResponse,
+  SubmissionResponse,
 } from '../types'
 
 // Configuration
@@ -206,7 +208,7 @@ class ApiClient {
   /**
    * POST request
    */
-  async post<T>(endpoint: string, data?: any, customHeaders?: Record<string, string>): Promise<T> {
+  async post<T>(endpoint: string, data?: unknown, customHeaders?: Record<string, string>): Promise<T> {
     const headers = data instanceof FormData 
       ? (customHeaders || {})
       : { ...customHeaders }
@@ -221,7 +223,7 @@ class ApiClient {
   /**
    * PUT request
    */
-  async put<T>(endpoint: string, data?: any): Promise<T> {
+  async put<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
       body: JSON.stringify(data)
@@ -252,7 +254,7 @@ export const apiService = {
   /**
    * Check API health status
    */
-  async getStatus(): Promise<ApiResponse<any>> {
+  async getStatus(): Promise<ApiResponse<StatusResponse>> {
     return client.get('/status')
   },
 
@@ -270,7 +272,7 @@ export const apiService = {
   /**
    * Create new logbook submission
    */
-  async createSubmission(submission: LogbookSubmission): Promise<ApiResponse<any>> {
+  async createSubmission(submission: LogbookSubmission): Promise<ApiResponse<SubmissionResponse>> {
     const formData = new FormData()
     
     // Add form fields
@@ -363,14 +365,14 @@ export const apiService = {
   /**
    * Request magic link for email verification
    */
-  async requestMagicLink(request: MagicLinkRequest): Promise<ApiResponse<any>> {
+  async requestMagicLink(request: MagicLinkRequest): Promise<ApiResponse<{ message: string }>> {
     return client.post('/auth/magic-link', request)
   },
 
   /**
    * Consume magic link token
    */
-  async consumeMagicLink(request: MagicLinkConsumeRequest): Promise<ApiResponse<any>> {
+  async consumeMagicLink(request: MagicLinkConsumeRequest): Promise<ApiResponse<VerificationStatus>> {
     return client.post('/auth/consume', request)
   },
 
@@ -384,14 +386,14 @@ export const apiService = {
   /**
    * Remove email verification
    */
-  async removeEmailVerification(): Promise<ApiResponse<any>> {
+  async removeEmailVerification(): Promise<ApiResponse<{ message: string }>> {
     return client.delete('/auth/unverify')
   },
 
   /**
    * Resend verification email
    */
-  async resendVerificationEmail(request: MagicLinkRequest): Promise<ApiResponse<any>> {
+  async resendVerificationEmail(request: MagicLinkRequest): Promise<ApiResponse<{ message: string }>> {
     return client.post('/auth/resend', request)
   },
 
@@ -427,21 +429,21 @@ export const apiService = {
   /**
    * Get submission for review
    */
-  async getSubmissionForReview(id: string): Promise<ApiResponse<any>> {
+  async getSubmissionForReview(id: string): Promise<ApiResponse<ReviewQueueItem>> {
     return client.get(`/review/submission/${id}`)
   },
 
   /**
    * Approve submission
    */
-  async approveSubmission(id: string, reason?: string): Promise<ApiResponse<any>> {
+  async approveSubmission(id: string, reason?: string): Promise<ApiResponse<{ message: string }>> {
     return client.post(`/review/approve/${id}`, { reason })
   },
 
   /**
    * Reject submission
    */
-  async rejectSubmission(id: string, reason?: string): Promise<ApiResponse<any>> {
+  async rejectSubmission(id: string, reason?: string): Promise<ApiResponse<{ message: string }>> {
     return client.post(`/review/reject/${id}`, { reason })
   },
 
@@ -455,7 +457,7 @@ export const apiService = {
   /**
    * Process batch review
    */
-  async processBatchReview(batch: unknown[]): Promise<ApiResponse<any>> {
+  async processBatchReview(batch: unknown[]): Promise<ApiResponse<{ processed: number; message: string }>> {
     return client.put('/review/batch', { batch })
   }
 }
