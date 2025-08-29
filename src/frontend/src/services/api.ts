@@ -128,20 +128,43 @@ class ApiClient {
   ): Promise<T> {
     const url = `${this.baseURL}${endpoint}`
     
+    // Enhanced diagnostic logging
+    console.log('[ApiClient.request] Constructing URL:', {
+      baseURL: this.baseURL,
+      endpoint: endpoint,
+      fullURL: url,
+      method: options.method || 'GET'
+    })
+    
     const controller = new AbortController()
     const timeoutId = setTimeout(() => controller.abort(), this.timeout)
 
     try {
+      console.log('[ApiClient.request] Making fetch request to:', url)
       const response = await fetch(url, {
         ...options,
         headers: this.createHeaders(options.headers as Record<string, string>),
         signal: controller.signal
       })
 
+      console.log('[ApiClient.request] Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        url: response.url,
+        headers: Object.fromEntries(response.headers.entries())
+      })
+
       clearTimeout(timeoutId)
       return this.handleResponse<T>(response)
     } catch (error) {
       clearTimeout(timeoutId)
+      
+      console.error('[ApiClient.request] Fetch error:', {
+        error: error,
+        url: url,
+        isNetworkError: error instanceof TypeError,
+        isAbortError: error instanceof DOMException && error.name === 'AbortError'
+      })
       
       if (error instanceof ApiError) {
         throw error
@@ -159,14 +182,25 @@ class ApiClient {
    * GET request
    */
   async get<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
-    const url = new URL(endpoint, this.baseURL)
-    if (params) {
-      Object.entries(params).forEach(([key, value]) => {
-        url.searchParams.set(key, value)
-      })
+    // Log the .env value at runtime
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // eslint-disable-next-line no-console
+      console.log('[ApiClient.get] VITE_API_BASE_URL from env:', import.meta.env.VITE_API_BASE_URL);
     }
-
-    return this.request<T>(url.pathname + url.search)
+    // Fallback log if debug logs are not visible
+    // eslint-disable-next-line no-console
+    console.log('[ApiClient.get] baseURL:', this.baseURL, 'endpoint:', endpoint, 'params:', params);
+    
+    let requestEndpoint = endpoint;
+    if (params) {
+      const url = new URL(endpoint, 'http://dummy.com');
+      Object.entries(params).forEach(([key, value]) => {
+        url.searchParams.set(key, value);
+      });
+      requestEndpoint = url.pathname + url.search;
+    }
+    
+    return this.request<T>(requestEndpoint);
   }
 
   /**

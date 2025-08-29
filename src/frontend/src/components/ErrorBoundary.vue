@@ -127,12 +127,21 @@ onMounted(() => {
   // Catch unhandled promise rejections
   window.addEventListener('unhandledrejection', (event) => {
     console.error('Unhandled promise rejection:', event.reason)
-    
     hasError.value = true
-    error.value = new Error(event.reason?.message || 'Unhandled promise rejection')
+    let errObj: Error
+    if (event.reason instanceof Error) {
+      errObj = event.reason
+    } else if (typeof event.reason === 'object' && event.reason !== null && 'message' in event.reason) {
+      errObj = new Error(String(event.reason.message))
+      // Optionally attach stack if present
+      if ('stack' in event.reason) (errObj as any).stack = event.reason.stack
+    } else {
+      errObj = new Error(typeof event.reason === 'string' ? event.reason : JSON.stringify(event.reason))
+    }
+    error.value = errObj
     errorInfo.value = {
       componentName: 'Global',
-      trace: event.reason?.stack || 'No stack trace available'
+      trace: (errObj.stack || 'No stack trace available')
     }
   })
 
@@ -190,7 +199,7 @@ Please describe what you were doing when this error occurred:
 [Your description here]
   `.trim())
 
-  window.open(`mailto:support@example.com?subject=${subject}&body=${body}`)
+  window.open(`mailto:support@abluestar.com?subject=${subject}&body=${body}`)
 }
 
 // Reset error state (can be called from parent)

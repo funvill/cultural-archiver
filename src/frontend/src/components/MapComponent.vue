@@ -140,9 +140,9 @@ const props = withDefaults(defineProps<MapComponentProps>(), {
 
 // Emits
 interface Emits {
-  (e: 'artwork-click', artwork: ArtworkPin): void
-  (e: 'map-move', data: { center: Coordinates; zoom: number }): void
-  (e: 'location-found', location: Coordinates): void
+  (e: 'artworkClick', artwork: ArtworkPin): void
+  (e: 'mapMove', data: { center: Coordinates; zoom: number }): void
+  (e: 'locationFound', location: Coordinates): void
 }
 
 const emit = defineEmits<Emits>()
@@ -225,11 +225,17 @@ async function initializeMap() {
     map.value.on('moveend', handleMapMove)
     map.value.on('zoomend', handleMapMove)
 
-    // Request user location if enabled
+
+    // Request user location if enabled, otherwise use default
     if (props.showUserLocation && hasGeolocation.value) {
       await requestUserLocation()
-    } else if (!hasGeolocation.value) {
+    } else {
+      // No geolocation: show notice, but set default location and allow map to work
       showLocationNotice.value = true
+      artworksStore.setCurrentLocation(DEFAULT_CENTER)
+      if (map.value) {
+        map.value.setView([DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude], props.zoom)
+      }
     }
 
     // Load initial artworks
@@ -245,7 +251,18 @@ async function initializeMap() {
 
 // Request user location
 async function requestUserLocation() {
-  if (!hasGeolocation.value) return
+
+  if (!hasGeolocation.value) {
+    // No geolocation: set default location, show notice, allow map to work
+    artworksStore.setCurrentLocation(DEFAULT_CENTER)
+    if (map.value) {
+      map.value.setView([DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude], props.zoom)
+    }
+    addUserLocationMarker(DEFAULT_CENTER)
+  emit('locationFound', DEFAULT_CENTER)
+    showLocationNotice.value = true
+    return
+  }
 
   isLocating.value = true
   
@@ -275,13 +292,20 @@ async function requestUserLocation() {
     addUserLocationMarker(userLocation)
     
     // Emit location found event
-    emit('location-found', userLocation)
+  emit('locationFound', userLocation)
     
     // Hide location notice
     showLocationNotice.value = false
 
   } catch (err) {
+    // On error (denied, unavailable, etc): set default location, show notice, allow map to work
     console.warn('Geolocation error:', err)
+    artworksStore.setCurrentLocation(DEFAULT_CENTER)
+    if (map.value) {
+      map.value.setView([DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude], props.zoom)
+    }
+    addUserLocationMarker(DEFAULT_CENTER)
+  emit('locationFound', DEFAULT_CENTER)
     showLocationNotice.value = true
   } finally {
     isLocating.value = false
@@ -301,7 +325,7 @@ function addUserLocationMarker(location: Coordinates) {
   userLocationMarker.value = L.marker(
     [location.latitude, location.longitude],
     { icon: createUserLocationIcon() }
-  ).addTo(map.value)
+  ).addTo(map.value!)
     .bindPopup('Your current location')
 }
 
@@ -335,7 +359,7 @@ function updateArtworkMarkers() {
   if (!map.value || !markerClusterGroup.value) return
 
   // Clear existing markers
-  artworkMarkers.value.forEach(marker => {
+  artworkMarkers.value.forEach((marker: L.Marker) => {
     if (markerClusterGroup.value) {
       markerClusterGroup.value.removeLayer(marker as any)
     }
@@ -343,7 +367,7 @@ function updateArtworkMarkers() {
   artworkMarkers.value = []
 
   // Add new markers
-  artworksStore.artworks.forEach(artwork => {
+  artworksStore.artworks.forEach((artwork: ArtworkPin) => {
     const marker = L.marker(
       [artwork.latitude, artwork.longitude],
       { icon: createArtworkIcon(artwork.type) }
@@ -365,7 +389,7 @@ function updateArtworkMarkers() {
 
     marker.bindPopup(popupContent)
     marker.on('click', () => {
-      emit('artwork-click', artwork)
+      emit('artworkClick', artwork)
     })
 
     if (markerClusterGroup.value) {
@@ -392,7 +416,7 @@ function handleMapMove() {
   artworksStore.setMapZoom(zoom)
 
   // Emit map move event
-  emit('map-move', { center: coordinates, zoom })
+  emit('mapMove', { center: coordinates, zoom })
 
   // Debounced artwork loading to prevent infinite loops
   debounceLoadArtworks()
@@ -457,7 +481,14 @@ watch(() => props.artworks, () => {
 
 watch(() => props.center, (newCenter) => {
   if (newCenter && map.value) {
-    map.value.setView([newCenter.latitude, newCenter.longitude], map.value.getZoom())
+    const current = map.value.getCenter();
+    // Only update if the new center is different (avoid recursive updates)
+    if (
+      Math.abs(current.lat - newCenter.latitude) > 1e-6 ||
+      Math.abs(current.lng - newCenter.longitude) > 1e-6
+    ) {
+      map.value.setView([newCenter.latitude, newCenter.longitude], map.value.getZoom());
+    }
   }
 })
 
