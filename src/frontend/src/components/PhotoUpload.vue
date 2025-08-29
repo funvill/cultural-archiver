@@ -1,7 +1,16 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, withDefaults, defineProps, defineEmits } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ConsentForm from './ConsentForm.vue'
 import { useAnnouncer } from '../composables/useAnnouncer'
+
+// EXIF data interface
+interface ExifData {
+  latitude?: number
+  longitude?: number
+  dateTime?: string
+  camera?: string
+  [key: string]: unknown
+}
 
 // File interface
 interface PhotoFile {
@@ -11,8 +20,15 @@ interface PhotoFile {
   type: string
   file: File
   preview: string
-  exifData?: any
+  exifData?: ExifData
   uploading?: boolean
+}
+
+// Submission response interface
+interface SubmissionResponse {
+  submission_id: string
+  photos: string[]
+  message?: string
 }
 
 // Component props
@@ -27,7 +43,9 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Component emits
 interface Emits {
-  (e: 'success', data: any): void
+  (e: 'upload-success', data: SubmissionResponse): void
+  (e: 'upload-error', error: string): void
+}
   (e: 'cancel'): void
   (e: 'error', error: string): void
 }
