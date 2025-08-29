@@ -306,7 +306,7 @@ watch(() => route.path, handleRouteChange)
 
 .app-main {
   flex: 1;
-  overflow: hidden;
+  min-height: calc(100vh - 4rem);
 }
 
 /* Navigation link styles */

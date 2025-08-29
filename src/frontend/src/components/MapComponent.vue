@@ -99,6 +99,13 @@ async function initializeMap() {
 
     console.log('Map created successfully:', map.value)
 
+    // Ensure the container has the proper Leaflet classes
+    if (mapContainer.value) {
+      mapContainer.value.classList.add('leaflet-container')
+      mapContainer.value.style.position = 'relative'
+      console.log('Added leaflet-container class to map container')
+    }
+
     // Add tile layer with error handling
     const tileLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -118,6 +125,10 @@ async function initializeMap() {
 
     tileLayer.on('tileload', (e) => {
       console.log('Tile loaded successfully:', e.coords)
+      // Apply fixes whenever a tile loads
+      nextTick(() => {
+        forceMapDimensions()
+      })
     })
 
     tileLayer.on('tileloadstart', (e) => {
@@ -125,6 +136,51 @@ async function initializeMap() {
     })
 
     console.log('Tile layer added to map')
+
+    // Force Leaflet containers to have proper classes and dimensions
+    const forceMapDimensions = () => {
+      if (mapContainer.value) {
+        // Ensure container has leaflet-container class
+        mapContainer.value.classList.add('leaflet-container')
+        
+        // Force dimensions on all Leaflet elements
+        const mapPanes = mapContainer.value.querySelectorAll('.leaflet-pane')
+        mapPanes.forEach(pane => {
+          if (pane.classList.contains('leaflet-map-pane')) {
+            ;(pane as HTMLElement).style.width = '100%'
+            ;(pane as HTMLElement).style.height = '100%'
+            ;(pane as HTMLElement).style.position = 'absolute'
+            ;(pane as HTMLElement).style.left = '0px'
+            ;(pane as HTMLElement).style.top = '0px'
+          }
+          if (pane.classList.contains('leaflet-tile-pane')) {
+            ;(pane as HTMLElement).style.width = '100%'
+            ;(pane as HTMLElement).style.height = '100%'
+            ;(pane as HTMLElement).style.position = 'absolute'
+            ;(pane as HTMLElement).style.left = '0px'
+            ;(pane as HTMLElement).style.top = '0px'
+            ;(pane as HTMLElement).style.zIndex = '200'
+            
+            // Force tile images to display
+            const tileImages = pane.querySelectorAll('img')
+            tileImages.forEach(img => {
+              ;(img as HTMLImageElement).style.width = '256px'
+              ;(img as HTMLImageElement).style.height = '256px'
+              ;(img as HTMLImageElement).style.display = 'block'
+              ;(img as HTMLImageElement).style.visibility = 'visible'
+              ;(img as HTMLImageElement).style.opacity = '1'
+            })
+          }
+        })
+        console.log('Applied dimension fixes to Leaflet containers')
+      }
+    }
+
+    // Apply fixes immediately and after a delay
+    forceMapDimensions()
+    setTimeout(forceMapDimensions, 100)
+    setTimeout(forceMapDimensions, 500)
+    setTimeout(forceMapDimensions, 1000)
 
     // Debug: Check if Leaflet styles are applied
     setTimeout(() => {
@@ -665,5 +721,70 @@ onUnmounted(() => {
 /* Fix Leaflet icon paths */
 .leaflet-default-icon-path {
   background-image: url('https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png');
+}
+
+/* Ensure Leaflet containers have proper dimensions */
+.leaflet-container {
+  height: 100% !important;
+  width: 100% !important;
+  position: relative !important;
+}
+
+.leaflet-map-pane {
+  height: 100% !important;
+  width: 100% !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+}
+
+.leaflet-tile-pane {
+  height: 100% !important;
+  width: 100% !important;
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  z-index: 200 !important;
+}
+
+.leaflet-pane {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Force Leaflet tiles to display properly */
+.leaflet-tile {
+  width: 256px !important;
+  height: 256px !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  position: absolute !important;
+}
+
+.leaflet-tile-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Map container specific overrides */
+.map-component .leaflet-container {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.map-component [role="application"] {
+  height: 100% !important;
+  width: 100% !important;
+  position: relative !important;
+}
+
+/* Ensure tiles are always visible */
+.map-component .leaflet-tile-pane img {
+  width: 256px !important;
+  height: 256px !important;
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
 }
 </style>
