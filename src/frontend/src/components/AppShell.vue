@@ -148,6 +148,10 @@ const showDrawer = ref(false)
 const route = useRoute()
 const authStore = useAuthStore()
 
+// Refs for focus management
+const drawerCloseButton = ref<HTMLElement>()
+// Note: firstNavLink ref is defined but not used - keeping for future drawer focus enhancement
+
 // Navigation items
 const navigationItems: NavigationItem[] = [
   {

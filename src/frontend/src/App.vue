@@ -2,7 +2,10 @@
 import { onMounted } from 'vue'
 import AppShell from './components/AppShell.vue'
 import ErrorBoundary from './components/ErrorBoundary.vue'
+import Modal from './components/Modal.vue'
+import PromptModal from './components/PromptModal.vue'
 import { useAuth } from './composables/useAuth'
+import { globalModal } from './composables/useModal'
 
 const { initAuth } = useAuth()
 
@@ -21,6 +24,45 @@ onMounted(async () => {
     <ErrorBoundary>
       <AppShell />
     </ErrorBoundary>
+    
+    <!-- Global Modal -->
+    <Modal
+      :is-open="globalModal.modalState.isOpen"
+      :title="globalModal.modalState.config.title || ''"
+      :message="globalModal.modalState.config.message || ''"
+      :confirm-text="globalModal.modalState.config.confirmText || 'OK'"
+      :cancel-text="globalModal.modalState.config.cancelText || 'Cancel'"
+      :show-cancel="globalModal.modalState.config.showCancel ?? true"
+      :variant="globalModal.modalState.config.variant || 'primary'"
+      :prevent-escape-close="globalModal.modalState.config.preventEscapeClose || false"
+      :prevent-backdrop-close="globalModal.modalState.config.preventBackdropClose || false"
+      :focus-on-open="globalModal.modalState.config.focusOnOpen || 'confirm'"
+      @update:is-open="globalModal.updateModalOpen"
+      @confirm="globalModal.handleConfirm"
+      @cancel="globalModal.handleCancel"
+      @close="globalModal.handleCancel"
+    />
+    
+    <!-- Global Prompt Modal -->
+    <PromptModal
+      :is-open="globalModal.promptState.isOpen"
+      :title="globalModal.promptState.config.title || ''"
+      :message="globalModal.promptState.config.message || ''"
+      :input-label="globalModal.promptState.config.inputLabel || ''"
+      :placeholder="globalModal.promptState.config.placeholder || ''"
+      :default-value="globalModal.promptState.config.defaultValue || ''"
+      :confirm-text="globalModal.promptState.config.confirmText || 'OK'"
+      :cancel-text="globalModal.promptState.config.cancelText || 'Cancel'"
+      :variant="globalModal.promptState.config.variant || 'primary'"
+      :required="globalModal.promptState.config.required || false"
+      :multiline="globalModal.promptState.config.multiline || false"
+      :max-length="globalModal.promptState.config.maxLength || undefined"
+      :validator="globalModal.promptState.config.validator"
+      @update:is-open="globalModal.updatePromptOpen"
+      @confirm="globalModal.handlePromptConfirm"
+      @cancel="globalModal.handlePromptCancel"
+      @close="globalModal.handlePromptCancel"
+    />
   </div>
 </template>
 

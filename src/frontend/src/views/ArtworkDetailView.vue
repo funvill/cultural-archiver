@@ -37,7 +37,7 @@
           <!-- Main Photo -->
           <img
             :src="artwork.photos[currentPhotoIndex] || ''"
-            :alt="(artwork.tags_parsed?.title as string) || 'Artwork photo'"
+            :alt="getPhotoAltText(currentPhotoIndex)"
             class="w-full h-full object-cover"
           />
           
@@ -147,7 +147,7 @@
                 >
                   <img
                     :src="photo"
-                    :alt="`Photo ${index + 1}`"
+                    :alt="getPhotoAltText(index)"
                     class="w-full h-full object-cover"
                   />
                 </button>
@@ -219,6 +219,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
 import { useArtworksStore } from '../stores/artworks'
+import { globalModal } from '../composables/useModal'
 
 // Props
 interface Props {
@@ -308,6 +309,32 @@ function getArtworkTypeName(type: string): string {
   return typeMap[type] || 'Unknown'
 }
 
+function getPhotoAltText(photoIndex: number): string {
+  if (!artwork.value) return 'Artwork photo'
+  
+  const title = artwork.value.tags_parsed?.title as string
+  const artist = artwork.value.tags_parsed?.artist as string
+  const type = getArtworkTypeName(artwork.value.type_name)
+  const photoNumber = photoIndex + 1
+  const totalPhotos = artwork.value.photos?.length || 1
+  
+  let altText = ''
+  
+  if (title) {
+    altText = `Photo ${photoNumber} of ${totalPhotos} of "${title}"`
+    if (artist) {
+      altText += ` by ${artist}`
+    }
+    altText += ` (${type})`
+  } else if (artist) {
+    altText = `Photo ${photoNumber} of ${totalPhotos} of ${type} by ${artist}`
+  } else {
+    altText = `Photo ${photoNumber} of ${totalPhotos} of ${type}`
+  }
+  
+  return altText
+}
+
 function getStatusBadgeClass(status: string): string {
   const statusMap: Record<string, string> = {
     'approved': 'bg-green-100 text-green-800 border border-green-200',
@@ -337,9 +364,11 @@ function openInMaps() {
   }
 }
 
-function reportIssue() {
-  // TODO: Implement issue reporting
-  alert('Issue reporting functionality will be implemented in a future update.')
+async function reportIssue() {
+  await globalModal.showAlert(
+    'Issue reporting functionality will be implemented in a future update. If you need to report a problem with this artwork, please contact us directly.',
+    'Feature Coming Soon'
+  )
 }
 </script>
 

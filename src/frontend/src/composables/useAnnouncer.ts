@@ -60,6 +60,74 @@ export function useAnnouncer() {
     announce(`Information: ${message}`, 'polite')
   }
 
+  /**
+   * Announce form validation errors
+   */
+  function announceFormErrors(errors: string[] | string) {
+    const errorList = Array.isArray(errors) ? errors : [errors]
+    const errorCount = errorList.length
+    
+    if (errorCount === 0) return
+    
+    let message = ''
+    if (errorCount === 1) {
+      message = `Form error: ${errorList[0]}`
+    } else {
+      message = `Form has ${errorCount} errors: ${errorList.join(', ')}`
+    }
+    
+    announce(message, 'assertive')
+  }
+
+  /**
+   * Announce field-specific error
+   */
+  function announceFieldError(fieldName: string, error: string) {
+    announce(`${fieldName} error: ${error}`, 'assertive')
+  }
+
+  /**
+   * Announce form submission status
+   */
+  function announceFormSubmission(status: 'submitting' | 'success' | 'error', message?: string) {
+    switch (status) {
+      case 'submitting':
+        announce('Form is being submitted...', 'polite')
+        break
+      case 'success':
+        announceSuccess(message || 'Form submitted successfully')
+        break
+      case 'error':
+        announceError(message || 'Form submission failed')
+        break
+    }
+  }
+
+  /**
+   * Announce navigation change
+   */
+  function announceNavigation(pageName: string) {
+    announce(`Navigated to ${pageName}`, 'polite')
+  }
+
+  /**
+   * Announce loading state changes
+   */
+  function announceLoading(isLoading: boolean, context = '') {
+    if (isLoading) {
+      announce(`Loading ${context}...`.trim(), 'polite')
+    } else {
+      announce(`Finished loading ${context}`.trim(), 'polite')
+    }
+  }
+
+  /**
+   * Announce content updates
+   */
+  function announceUpdate(message: string) {
+    announce(`Updated: ${message}`, 'polite')
+  }
+
   return {
     announcement,
     announcementLevel,
@@ -68,6 +136,12 @@ export function useAnnouncer() {
     announceSuccess,
     announceError,
     announceWarning,
-    announceInfo
+    announceInfo,
+    announceFormErrors,
+    announceFieldError,
+    announceFormSubmission,
+    announceNavigation,
+    announceLoading,
+    announceUpdate
   }
 }

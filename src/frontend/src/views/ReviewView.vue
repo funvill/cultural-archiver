@@ -281,6 +281,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { globalModal } from '../composables/useModal'
 
 // Types
 interface ReviewSubmission {
@@ -471,7 +472,20 @@ async function approveSubmission(submission: ReviewSubmission) {
 }
 
 async function rejectSubmission(submission: ReviewSubmission) {
-  const reason = prompt('Please provide a reason for rejection (optional):')
+  const reason = await globalModal.showPrompt({
+    title: 'Reject Submission',
+    message: 'Please provide a reason for rejection (optional):',
+    inputLabel: 'Reason',
+    placeholder: 'Enter rejection reason...',
+    multiline: true,
+    maxLength: 500,
+    variant: 'warning',
+    confirmText: 'Reject',
+    cancelText: 'Cancel'
+  })
+  
+  // User cancelled
+  if (reason === null) return
   
   processingId.value = submission.id
   action.value = 'reject'
@@ -508,7 +522,20 @@ function viewOnMap(submission: ReviewSubmission) {
 }
 
 async function flagForReview(submission: ReviewSubmission) {
-  const reason = prompt('Please provide a reason for flagging:')
+  const reason = await globalModal.showPrompt({
+    title: 'Flag for Senior Review',
+    message: 'Please provide a reason for flagging this submission:',
+    inputLabel: 'Reason',
+    placeholder: 'Enter flag reason...',
+    multiline: true,
+    maxLength: 500,
+    required: true,
+    variant: 'warning',
+    confirmText: 'Flag',
+    cancelText: 'Cancel'
+  })
+  
+  // User cancelled or no reason provided
   if (!reason) return
 
   try {
@@ -526,7 +553,12 @@ async function flagForReview(submission: ReviewSubmission) {
     }
 
     submission.priority = 'high'
-    alert('Submission flagged for senior review')
+    
+    // Show success message
+    await globalModal.showAlert(
+      'Submission has been flagged for senior review and moved to high priority.',
+      'Flagged Successfully'
+    )
 
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to flag submission'
