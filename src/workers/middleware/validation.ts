@@ -260,6 +260,84 @@ export async function validateNearbyArtworksQuery(
   await next();
 }
 
+// Custom validation for bounds query parameters
+export async function validateBoundsQuery(
+  c: Context<{ Bindings: WorkerEnv }>,
+  next: Next
+): Promise<void | Response> {
+  const url = new URL(c.req.url);
+  const north = url.searchParams.get('north');
+  const south = url.searchParams.get('south');
+  const east = url.searchParams.get('east');
+  const west = url.searchParams.get('west');
+
+  const validationErrors = [];
+
+  // Validate required bounds
+  if (!north) {
+    validationErrors.push({ field: 'north', message: 'North bound is required', code: 'REQUIRED' });
+  } else {
+    const northNum = parseFloat(north);
+    if (isNaN(northNum) || !isValidLatitude(northNum)) {
+      validationErrors.push({ field: 'north', message: 'Invalid north latitude', code: 'INVALID' });
+    }
+  }
+
+  if (!south) {
+    validationErrors.push({ field: 'south', message: 'South bound is required', code: 'REQUIRED' });
+  } else {
+    const southNum = parseFloat(south);
+    if (isNaN(southNum) || !isValidLatitude(southNum)) {
+      validationErrors.push({ field: 'south', message: 'Invalid south latitude', code: 'INVALID' });
+    }
+  }
+
+  if (!east) {
+    validationErrors.push({ field: 'east', message: 'East bound is required', code: 'REQUIRED' });
+  } else {
+    const eastNum = parseFloat(east);
+    if (isNaN(eastNum) || !isValidLongitude(eastNum)) {
+      validationErrors.push({ field: 'east', message: 'Invalid east longitude', code: 'INVALID' });
+    }
+  }
+
+  if (!west) {
+    validationErrors.push({ field: 'west', message: 'West bound is required', code: 'REQUIRED' });
+  } else {
+    const westNum = parseFloat(west);
+    if (isNaN(westNum) || !isValidLongitude(westNum)) {
+      validationErrors.push({ field: 'west', message: 'Invalid west longitude', code: 'INVALID' });
+    }
+  }
+
+  // Validate bounds make sense (north > south, east != west)
+  if (north && south) {
+    const northNum = parseFloat(north);
+    const southNum = parseFloat(south);
+    if (northNum <= southNum) {
+      validationErrors.push({ 
+        field: 'bounds', 
+        message: 'North bound must be greater than south bound', 
+        code: 'INVALID' 
+      });
+    }
+  }
+
+  if (validationErrors.length > 0) {
+    throw new ValidationApiError(validationErrors);
+  }
+
+  // Store parsed values
+  c.set('validated_query', {
+    north: parseFloat(north!),
+    south: parseFloat(south!),
+    east: parseFloat(east!),
+    west: parseFloat(west!),
+  });
+
+  await next();
+}
+
 export const validateArtworkId = validateSchema(artworkIdSchema, 'params');
 
 // Custom validation for user submissions query
@@ -420,6 +498,81 @@ export function getValidatedFiles(c: Context): File[] {
 /**
  * Validate UUID parameter
  */
+/**
+ * Validate logbook submission from form data (for file uploads)
+ */
+export async function validateLogbookFormData(
+  c: Context<{ Bindings: WorkerEnv }>,
+  next: Next
+): Promise<void | Response> {
+  try {
+    const contentType = c.req.header('Content-Type');
+    
+    // Only validate if it's multipart form data
+    if (!contentType?.includes('multipart/form-data')) {
+      await next();
+      return;
+    }
+
+    const formData = await c.req.formData();
+    const validationErrors = [];
+
+    // Extract and validate latitude
+    const latValue = formData.get('latitude')?.toString();
+    if (!latValue) {
+      validationErrors.push({ field: 'latitude', message: 'Latitude is required', code: 'REQUIRED' });
+    } else {
+      const lat = parseFloat(latValue);
+      if (isNaN(lat) || lat < -90 || lat > 90) {
+        validationErrors.push({ field: 'latitude', message: 'Latitude must be between -90 and 90', code: 'INVALID' });
+      }
+    }
+
+    // Extract and validate longitude
+    const lonValue = formData.get('longitude')?.toString();
+    if (!lonValue) {
+      validationErrors.push({ field: 'longitude', message: 'Longitude is required', code: 'REQUIRED' });
+    } else {
+      const lon = parseFloat(lonValue);
+      if (isNaN(lon) || lon < -180 || lon > 180) {
+        validationErrors.push({ field: 'longitude', message: 'Longitude must be between -180 and 180', code: 'INVALID' });
+      }
+    }
+
+    // Extract and validate optional note
+    const note = formData.get('note')?.toString();
+    if (note && note.length > MAX_NOTE_LENGTH) {
+      validationErrors.push({ 
+        field: 'note', 
+        message: `Note must be ${MAX_NOTE_LENGTH} characters or less`, 
+        code: 'TOO_LONG' 
+      });
+    }
+
+    if (validationErrors.length > 0) {
+      throw new ValidationApiError(validationErrors);
+    }
+
+    // Store validated data in context for later use
+    const validatedData = {
+      lat: parseFloat(latValue!),
+      lon: parseFloat(lonValue!),
+      ...(note && { note })
+    };
+    
+    c.set('validated_body', validatedData);
+
+    await next();
+  } catch (error) {
+    if (error instanceof ValidationApiError) {
+      throw error;
+    }
+    throw new ValidationApiError([
+      { field: 'form', message: 'Form data validation failed', code: 'FORM_VALIDATION_ERROR' },
+    ]);
+  }
+}
+
 export function validateUUID(paramName: string = 'id') {
   return async (c: Context<{ Bindings: WorkerEnv }>, next: Next): Promise<void | Response> => {
     const value = c.req.param(paramName);

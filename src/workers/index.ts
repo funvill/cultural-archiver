@@ -11,8 +11,9 @@ import type { WorkerEnv } from './types';
 import { ensureUserToken, addUserTokenToResponse, checkEmailVerification } from './middleware/auth';
 import { rateLimitSubmissions, rateLimitQueries, addRateLimitStatus } from './middleware/rateLimit';
 import {
-  validateLogbookSubmission,
+  validateLogbookFormData,
   validateNearbyArtworksQuery,
+  validateBoundsQuery,
   validateUserSubmissionsQuery,
   validateFileUploads,
   validateUUID,
@@ -24,7 +25,7 @@ import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
 // Import route handlers
 import { createLogbookSubmission } from './routes/submissions';
-import { getNearbyArtworks, getArtworkDetails } from './routes/discovery';
+import { getNearbyArtworks, getArtworkDetails, getArtworksInBounds } from './routes/discovery';
 import { getUserSubmissions, getUserProfile } from './routes/user';
 import {
   requestMagicLink,
@@ -42,6 +43,12 @@ import {
   getReviewStats,
   processBatchReview,
 } from './routes/review';
+import {
+  submitConsent,
+  getConsentStatus,
+  getConsentFormData,
+  revokeConsent,
+} from './routes/consent';
 
 // Initialize Hono app
 const app = new Hono<{ Bindings: WorkerEnv }>();
@@ -62,10 +69,6 @@ app.use('/api/*', async (c, next) => {
   return corsOptions(c, next);
 });
 
-// User token middleware for all API routes
-app.use('/api/*', ensureUserToken);
-app.use('/api/*', checkEmailVerification);
-
 // Health check endpoint
 app.get('/health', c => {
   return c.json({
@@ -76,15 +79,35 @@ app.get('/health', c => {
   });
 });
 
-// API status endpoint
+// Simple test endpoint
+app.get('/test', c => {
+  console.log('Test endpoint called');
+  return c.json({ message: 'Test endpoint working' });
+});
+
+// API status endpoint (no auth required)
 app.get('/api/status', c => {
+  console.log('API status endpoint called'); // Add logging
   return c.json({
     message: 'Cultural Archiver API is running',
-    environment: c.env.ENVIRONMENT,
+    environment: c.env.ENVIRONMENT || 'development',
     timestamp: new Date().toISOString(),
     version: '1.0.0',
+    debug: 'This is the API status endpoint',
   });
 });
+
+// User token middleware for authenticated API routes
+app.use('/api/logbook', ensureUserToken);
+app.use('/api/logbook', checkEmailVerification);
+app.use('/api/me/*', ensureUserToken);
+app.use('/api/me/*', checkEmailVerification);
+app.use('/api/auth/*', ensureUserToken);
+app.use('/api/auth/*', checkEmailVerification);
+app.use('/api/review/*', ensureUserToken);
+app.use('/api/review/*', checkEmailVerification);
+app.use('/api/consent', ensureUserToken);
+app.use('/api/consent', addUserTokenToResponse);
 
 // ================================
 // Submission Endpoints
@@ -94,7 +117,7 @@ app.post(
   '/api/logbook',
   rateLimitSubmissions,
   validateFileUploads,
-  validateLogbookSubmission,
+  validateLogbookFormData,
   addUserTokenToResponse,
   withErrorHandling(createLogbookSubmission)
 );
@@ -108,6 +131,13 @@ app.get(
   rateLimitQueries,
   validateNearbyArtworksQuery,
   withErrorHandling(getNearbyArtworks)
+);
+
+app.get(
+  '/api/artworks/bounds',
+  rateLimitQueries,
+  validateBoundsQuery,
+  withErrorHandling(getArtworksInBounds)
 );
 
 app.get(
@@ -134,6 +164,34 @@ app.get(
   addRateLimitStatus,
   addUserTokenToResponse,
   withErrorHandling(getUserProfile)
+);
+
+// ================================
+// Consent Management Endpoints
+// ================================
+
+app.post(
+  '/api/consent',
+  rateLimitSubmissions,
+  withErrorHandling(submitConsent)
+);
+
+app.get(
+  '/api/consent',
+  rateLimitQueries,
+  withErrorHandling(getConsentStatus)
+);
+
+app.get(
+  '/api/consent/form-data',
+  rateLimitQueries,
+  withErrorHandling(getConsentFormData)
+);
+
+app.delete(
+  '/api/consent',
+  rateLimitQueries,
+  withErrorHandling(revokeConsent)
 );
 
 // ================================
@@ -259,6 +317,10 @@ app.notFound(c => {
         'GET /api/artworks/:id',
         'GET /api/me/submissions',
         'GET /api/me/profile',
+        'POST /api/consent',
+        'GET /api/consent',
+        'GET /api/consent/form-data',
+        'DELETE /api/consent',
         'POST /api/auth/magic-link',
         'POST /api/auth/consume',
         'GET /api/auth/verify-status',

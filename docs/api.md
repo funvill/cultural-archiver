@@ -5,7 +5,7 @@ The Cultural Archiver Worker API provides a comprehensive backend for crowdsourc
 ## Base URL
 
 ```
-https://api.cultural-archiver.example.com
+https://art-api.abluestar.com
 ```
 
 ## Authentication
@@ -150,7 +150,7 @@ GET /api/artworks/nearby
         "type_name": "Public Art",
         "status": "approved",
         "distance_km": 0.15,
-        "photos": ["https://photos.cultural-archiver.com/2024/01/15/photo.jpg"],
+        "photos": ["https://art-photos.abluestar.com/2024/01/15/photo.jpg"],
         "recent_submissions": 3,
         "created_at": "2024-01-15T10:30:00Z"
       }
@@ -594,7 +594,7 @@ LOG_LEVEL=debug
 
 ```bash
 # Submit artwork
-curl -X POST https://api.cultural-archiver.com/api/logbook \
+curl -X POST https://art-api.abluestar.com/api/logbook \
   -H "Authorization: Bearer your-token" \
   -F "lat=49.2827" \
   -F "lon=-123.1207" \
@@ -602,11 +602,11 @@ curl -X POST https://api.cultural-archiver.com/api/logbook \
   -F "photos=@photo.jpg"
 
 # Search nearby
-curl "https://api.cultural-archiver.com/api/artworks/nearby?lat=49.2827&lon=-123.1207&radius=1000"
+curl "https://art-api.abluestar.com/api/artworks/nearby?lat=49.2827&lon=-123.1207&radius=1000"
 
 # Get user submissions
 curl -H "Authorization: Bearer your-token" \
-  https://api.cultural-archiver.com/api/me/submissions
+  https://art-api.abluestar.com/api/me/submissions
 ```
 
 ### Rate Limit Testing
@@ -633,5 +633,3 @@ for (let i = 0; i < 12; i++) {
 
 - **GitHub Repository**: https://github.com/funvill/cultural-archiver
 - **Issue Tracker**: https://github.com/funvill/cultural-archiver/issues
-- **API Status**: https://status.cultural-archiver.com
-- **Documentation**: https://docs.cultural-archiver.com

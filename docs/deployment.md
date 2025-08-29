@@ -56,7 +56,7 @@ name = "cultural-archiver-api-staging"
 # Variables will be set via CLI
 [vars]
 ENVIRONMENT = "production"
-FRONTEND_URL = "https://cultural-archiver.com"
+FRONTEND_URL = "https://art.abluestar.com"
 LOG_LEVEL = "info"
 ```
 
@@ -153,7 +153,7 @@ Create `cors.json`:
 ```json
 [
   {
-    "AllowedOrigins": ["https://cultural-archiver.com", "http://localhost:3000"],
+    "AllowedOrigins": ["https://art.abluestar.com", "http://localhost:3000"],
     "AllowedMethods": ["GET", "PUT", "POST"],
     "AllowedHeaders": ["*"],
     "ExposeHeaders": ["ETag"],
@@ -192,7 +192,7 @@ wrangler secret put ENVIRONMENT --name cultural-archiver-api
 # Enter: production
 
 wrangler secret put FRONTEND_URL --name cultural-archiver-api
-# Enter: https://cultural-archiver.com
+# Enter: https://art.abluestar.com
 
 wrangler secret put LOG_LEVEL --name cultural-archiver-api
 # Enter: info
@@ -253,14 +253,14 @@ In Cloudflare Dashboard:
 1. Go to Workers & Pages
 2. Select your worker
 3. Go to Custom Domains
-4. Add `api.cultural-archiver.com`
+4. Add `art-api.abluestar.com`
 
 ### 2. Update DNS
 
 Add CNAME record:
 
 ```
-api.cultural-archiver.com -> cultural-archiver-api.your-subdomain.workers.dev
+art-api.abluestar.com -> cultural-archiver-api.your-subdomain.workers.dev
 ```
 
 ### 3. Update Frontend Configuration
@@ -268,7 +268,7 @@ api.cultural-archiver.com -> cultural-archiver-api.your-subdomain.workers.dev
 Update your frontend to use the custom domain:
 
 ```javascript
-const API_BASE_URL = 'https://api.cultural-archiver.com';
+const API_BASE_URL = 'https://art-api.abluestar.com';
 ```
 
 ## Monitoring and Logging

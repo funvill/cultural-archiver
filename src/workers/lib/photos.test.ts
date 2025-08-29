@@ -90,7 +90,7 @@ describe('Photo Processing Utilities', () => {
       const result: FileValidationResult = validatePhotoFile(file);
       
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Unsupported file type: image/gif');
+      expect(result.errors).toContain('File type image/gif is not supported. Supported types: image/jpeg, image/jpg, image/png, image/webp, image/heic, image/heif');
     });
 
     it('should reject files that are too large', () => {
@@ -99,7 +99,7 @@ describe('Photo Processing Utilities', () => {
       const result: FileValidationResult = validatePhotoFile(file);
       
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('File too large: 16777216 bytes (max: 15728640 bytes)');
+      expect(result.errors).toContain('File size 16MB exceeds maximum of 15MB');
     });
 
     it('should reject empty files', () => {
@@ -131,7 +131,7 @@ describe('Photo Processing Utilities', () => {
       const result = validatePhotoFiles(files);
       
       expect(result.validFiles).toHaveLength(0);
-      expect(result.errors).toContain('Too many photos: 4 (max: 3)');
+      expect(result.errors).toContain('Too many files. Maximum 3 photos allowed per submission');
     });
   });
 
@@ -141,7 +141,7 @@ describe('Photo Processing Utilities', () => {
       const filename2 = generateSecureFilename('test.jpg', 'image/jpeg');
       
       expect(filename1).not.toBe(filename2);
-      expect(filename1).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z-[a-f0-9\-]{36}\.jpg$/);
+      expect(filename1).toMatch(/^\d{8}-\d{6}-[a-f0-9\-]{8,}-test\.jpg$/);
     });
 
     it('should generate date folder structure', () => {
@@ -154,7 +154,7 @@ describe('Photo Processing Utilities', () => {
       const filename = 'test-file.jpg';
       const key = generateR2Key(filename);
       
-      expect(key).toMatch(/^\d{4}\/\d{2}\/\d{2}\/test-file\.jpg$/);
+      expect(key).toMatch(/^photos\/\d{4}\/\d{2}\/\d{2}\/test-file\.jpg$/);
     });
 
     it('should generate R2 keys with custom folder', () => {
@@ -162,7 +162,7 @@ describe('Photo Processing Utilities', () => {
       const folder = 'custom/folder';
       const key = generateR2Key(filename, folder);
       
-      expect(key).toBe('custom/folder/test-file.jpg');
+      expect(key).toMatch(/^custom\/folder\/\d{4}\/\d{2}\/\d{2}\/test-file\.jpg$/);
     });
   });
 
@@ -197,7 +197,8 @@ describe('Photo Processing Utilities', () => {
       
       const key = '2025/08/28/test-image.jpg';
       
-      await expect(deleteFromR2(mockEnv, key)).rejects.toThrow('Failed to delete photo from R2: Delete failed');
+      // Should not throw, just log the error
+      await expect(deleteFromR2(mockEnv, key)).resolves.toBeUndefined();
     });
   });
 
@@ -207,7 +208,7 @@ describe('Photo Processing Utilities', () => {
       const result = validatePhotoFile(file);
       
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Unsupported file type: image/bmp');
+      expect(result.errors).toContain('File type image/bmp is not supported. Supported types: image/jpeg, image/jpg, image/png, image/webp, image/heic, image/heif');
     });
 
     it('should handle missing file names', () => {

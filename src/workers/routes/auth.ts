@@ -82,7 +82,7 @@ export async function requestMagicLink(
     );
 
     // Generate magic link URL
-    const baseUrl = c.env.FRONTEND_URL || 'https://cultural-archiver.com';
+    const baseUrl = c.env.FRONTEND_URL || 'https://art.abluestar.com';
     const magicLinkUrl = `${baseUrl}/auth/verify?token=${token}`;
 
     // Send email
@@ -340,7 +340,7 @@ export async function resendVerificationEmail(
     );
 
     // Generate magic link URL
-    const baseUrl = c.env.FRONTEND_URL || 'https://cultural-archiver.com';
+    const baseUrl = c.env.FRONTEND_URL || 'https://art.abluestar.com';
     const magicLinkUrl = `${baseUrl}/auth/verify?token=${token}`;
 
     // Send email

@@ -6,6 +6,7 @@
 import type { Context } from 'hono';
 import type {
   WorkerEnv,
+  ArtworkRecord,
   ArtworkDetailResponse,
   ArtworkWithPhotos,
   LogbookEntryWithPhotos,
@@ -367,5 +368,70 @@ export async function getRecentArtworks(
   } catch (error) {
     console.error('Failed to get recent artworks:', error);
     return [];
+  }
+}
+
+/**
+ * GET /api/artworks/bounds - Find Artworks in Bounds
+ * Returns approved artworks within specified geographic bounds
+ */
+export async function getArtworksInBounds(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  const validatedQuery = getValidatedData<{
+    north: number;
+    south: number;
+    east: number;
+    west: number;
+  }>(c, 'query');
+
+  const db = createDatabaseService(c.env.DB);
+
+  try {
+    // Find artworks in bounds
+    const artworks = await db.findArtworksInBounds(
+      validatedQuery.north,
+      validatedQuery.south,
+      validatedQuery.east,
+      validatedQuery.west
+    );
+
+    // Format response with photos and additional info
+    const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
+      artworks.map(async (artwork: ArtworkRecord & { type_name: string; distance_km: number }) => {
+        // Get logbook entries for this artwork to find photos
+        const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
+
+        // Extract photos from logbook entries
+        const allPhotos: string[] = [];
+        logbookEntries.forEach(entry => {
+          if (entry.photos) {
+            const photos = safeJsonParse<string[]>(entry.photos, []);
+            allPhotos.push(...photos);
+          }
+        });
+
+        return {
+          ...artwork,
+          type_name: artwork.type_name,
+          recent_photo: allPhotos.length > 0 ? allPhotos[0] : undefined,
+          photo_count: allPhotos.length,
+          distance_km: 0, // Not applicable for bounds queries
+        } as ArtworkWithPhotos;
+      })
+    );
+
+    const responseData: NearbyArtworksResponse = {
+      artworks: artworksWithPhotos,
+      total: artworks.length,
+      search_center: {
+        lat: (validatedQuery.north + validatedQuery.south) / 2,
+        lon: (validatedQuery.east + validatedQuery.west) / 2,
+      },
+      search_radius: 0, // Not applicable for bounds
+    };
+
+    return c.json(createSuccessResponse(responseData));
+  } catch (error) {
+    console.error('Error getting artworks in bounds:', error);
+    throw error;
   }
 }

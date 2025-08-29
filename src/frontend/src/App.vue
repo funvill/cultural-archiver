@@ -1,34 +1,87 @@
 <script setup lang="ts">
-import { RouterView } from 'vue-router';
+import { onMounted } from 'vue'
+import AppShell from './components/AppShell.vue'
+import ErrorBoundary from './components/ErrorBoundary.vue'
+import Modal from './components/Modal.vue'
+import PromptModal from './components/PromptModal.vue'
+import { useAuth } from './composables/useAuth'
+import { globalModal } from './composables/useModal'
+
+const { initAuth } = useAuth()
+
+// Initialize authentication on app startup
+onMounted(async () => {
+  try {
+    await initAuth()
+  } catch (error) {
+    console.error('Failed to initialize authentication:', error)
+  }
+})
 </script>
 
 <template>
   <div id="app">
-    <header class="bg-blue-600 text-white p-4">
-      <h1 class="text-2xl font-bold">Cultural Archiver</h1>
-      <p class="text-blue-100">Digital archiving system for cultural events and artifacts</p>
-    </header>
-
-    <main class="container mx-auto p-4">
-      <RouterView />
-    </main>
-
-    <footer class="bg-gray-100 text-gray-600 p-4 mt-8">
-      <div class="container mx-auto text-center">
-        <p>&copy; 2024 Cultural Archiver. Built with Vue 3, TypeScript, and Cloudflare.</p>
-      </div>
-    </footer>
+    <ErrorBoundary>
+      <AppShell />
+    </ErrorBoundary>
+    
+    <!-- Global Modal -->
+    <Modal
+      :is-open="globalModal.modalState.isOpen"
+      :title="globalModal.modalState.config.title || ''"
+      :message="globalModal.modalState.config.message || ''"
+      :confirm-text="globalModal.modalState.config.confirmText || 'OK'"
+      :cancel-text="globalModal.modalState.config.cancelText || 'Cancel'"
+      :show-cancel="globalModal.modalState.config.showCancel ?? true"
+      :variant="globalModal.modalState.config.variant || 'primary'"
+      :prevent-escape-close="globalModal.modalState.config.preventEscapeClose || false"
+      :prevent-backdrop-close="globalModal.modalState.config.preventBackdropClose || false"
+      :focus-on-open="globalModal.modalState.config.focusOnOpen || 'confirm'"
+      @update:is-open="globalModal.updateModalOpen"
+      @confirm="globalModal.handleConfirm"
+      @cancel="globalModal.handleCancel"
+      @close="globalModal.handleCancel"
+    />
+    
+    <!-- Global Prompt Modal -->
+    <PromptModal
+      :is-open="globalModal.promptState.isOpen"
+      :title="globalModal.promptState.config.title || ''"
+      :message="globalModal.promptState.config.message || ''"
+      :input-label="globalModal.promptState.config.inputLabel || ''"
+      :placeholder="globalModal.promptState.config.placeholder || ''"
+      :default-value="globalModal.promptState.config.defaultValue || ''"
+      :confirm-text="globalModal.promptState.config.confirmText || 'OK'"
+      :cancel-text="globalModal.promptState.config.cancelText || 'Cancel'"
+      :variant="globalModal.promptState.config.variant || 'primary'"
+      :required="globalModal.promptState.config.required || false"
+      :multiline="globalModal.promptState.config.multiline || false"
+      :max-length="globalModal.promptState.config.maxLength"
+      :validator="globalModal.promptState.config.validator"
+      @update:is-open="globalModal.updatePromptOpen"
+      @confirm="globalModal.handlePromptConfirm"
+      @cancel="globalModal.handlePromptCancel"
+      @close="globalModal.handlePromptCancel"
+    />
   </div>
 </template>
 
-<style scoped>
+<style>
 #app {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-main {
-  flex: 1;
+/* Ensure full height */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Override any default margins */
+* {
+  box-sizing: border-box;
 }
 </style>

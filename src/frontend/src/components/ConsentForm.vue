@@ -158,6 +158,8 @@ watch(() => formData.value.freedomOfPanorama, (newValue) => {
             type="checkbox"
             class="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
             :class="{ 'border-red-500': errors.ageVerification }"
+            v-bind="errors.ageVerification ? { 'aria-describedby': 'age-verification-error' } : {}"
+            :aria-invalid="!!errors.ageVerification"
           />
           <div class="flex-1">
             <label for="age-verification" class="block text-sm font-medium text-gray-900">
@@ -167,7 +169,7 @@ watch(() => formData.value.freedomOfPanorama, (newValue) => {
               I confirm that I am 18 years of age or older and legally able to
               provide consent for photo submissions.
             </p>
-            <p v-if="errors.ageVerification" class="text-red-600 text-sm mt-1">
+            <p v-if="errors.ageVerification" class="text-red-600 text-sm mt-1" id="age-verification-error" role="alert">
               {{ errors.ageVerification }}
             </p>
           </div>
@@ -311,7 +313,7 @@ watch(() => formData.value.freedomOfPanorama, (newValue) => {
             </svg>
             Submitting...
           </span>
-          <span v-else">
+          <span v-else>
             Provide Consent
           </span>
         </button>
@@ -324,8 +326,8 @@ watch(() => formData.value.freedomOfPanorama, (newValue) => {
         By providing consent, you agree to our terms of service and confirm
         that you have the legal right to submit these photos. For questions
         about consent or data handling, please contact us at
-        <a href="mailto:privacy@cultural-archiver.com" class="text-blue-600 hover:text-blue-800">
-          privacy@cultural-archiver.com
+        <a href="mailto:privacy@abluestar.com" class="text-blue-600 hover:text-blue-800">
+          privacy@abluestar.com
         </a>.
       </p>
     </div>
@@ -376,7 +378,11 @@ a {
 
 /* Error state styling */
 .border-red-500 {
-  @apply border-red-500 ring-1 ring-red-500;
+  border-color: #ef4444;
+  --tw-ring-color: #ef4444;
+  --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+  --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(1px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+  box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
 }
 
 /* Disabled button styling */

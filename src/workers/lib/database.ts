@@ -115,6 +115,42 @@ export class DatabaseService {
       .filter((artwork: ArtworkWithDistance) => artwork.distance_km <= radius / 1000);
   }
 
+  async findArtworksInBounds(
+    north: number,
+    south: number,
+    east: number,
+    west: number,
+    limit: number = 100
+  ): Promise<(ArtworkRecord & { type_name: string; distance_km: number })[]> {
+    const stmt = this.db.prepare(`
+      SELECT a.*, at.name as type_name
+      FROM artwork a
+      JOIN artwork_types at ON a.type_id = at.id
+      WHERE a.status = 'approved'
+        AND a.lat BETWEEN ? AND ?
+        AND a.lon BETWEEN ? AND ?
+      ORDER BY a.created_at DESC
+      LIMIT ?
+    `);
+
+    const results = await stmt
+      .bind(
+        south,  // min lat
+        north,  // max lat
+        west,   // min lon
+        east,   // max lon
+        limit
+      )
+      .all();
+
+    // For bounds queries, we don't calculate distance, so set to 0
+    return (results.results as unknown as (ArtworkRecord & { type_name: string })[])
+      .map(artwork => ({
+        ...artwork,
+        distance_km: 0,
+      }));
+  }
+
   async updateArtworkStatus(id: string, status: ArtworkRecord['status']): Promise<void> {
     const stmt = this.db.prepare('UPDATE artwork SET status = ? WHERE id = ?');
     await stmt.bind(status, id).run();

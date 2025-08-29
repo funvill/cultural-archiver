@@ -36,7 +36,7 @@ Implement minimal, typed JSON APIs:
 
 AC: All routes return typed responses; errors are consistent; rate limits applied.
 
-### [ ] Step 3 — Image handling
+### [x] Step 3 — Image handling
 
 - Client: resize to 800px long edge before upload (serve this size); allow up to 3 photos.
 - Server: keep originals in R2; convert to a “known good” format for thumbs/ (start with JPEG ~q0.82; detect transparency → PNG).
@@ -45,7 +45,7 @@ AC: All routes return typed responses; errors are consistent; rate limits applie
 
 AC: Uploads succeed on mobile; R2 shows originals+thumbs; metadata stored.
 
-### [ ] Step 4 — Rate limiting & abuse protection
+### [x] Step 4 — Rate limiting & abuse protection
 
 - KV counters: /nearby 60 req/hour per IP; /submit 10/day per token+IP.
 - Age gate & consent (checkboxes): “I am 18+”, CC0 for metadata, public-commons consent, FoP tip.

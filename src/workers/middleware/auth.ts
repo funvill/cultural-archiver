@@ -127,13 +127,18 @@ export async function checkEmailVerification(
 
   if (userToken) {
     try {
-      // Check if user has verified email stored in KV
-      const emailData = await c.env.SESSIONS.get(`email:${userToken}`);
+      // Skip email verification check in development if KV namespace is not available
+      if (!c.env.SESSIONS) {
+        console.warn('Email verification disabled: SESSIONS KV namespace not available');
+      } else {
+        // Check if user has verified email stored in KV
+        const emailData = await c.env.SESSIONS.get(`email:${userToken}`);
 
-      if (emailData) {
-        const authContext = c.get('authContext');
-        authContext.isVerifiedEmail = true;
-        c.set('authContext', authContext);
+        if (emailData) {
+          const authContext = c.get('authContext');
+          authContext.isVerifiedEmail = true;
+          c.set('authContext', authContext);
+        }
       }
     } catch (error) {
       // Email verification check failed - continue without verification

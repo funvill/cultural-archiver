@@ -156,6 +156,13 @@ export async function rateLimitSubmissions(
     return;
   }
 
+  // Skip rate limiting in development if KV namespace is not available
+  if (!c.env.RATE_LIMITS || c.env.ENVIRONMENT === 'development') {
+    console.warn('Rate limiting disabled: KV namespace not available or development mode');
+    await next();
+    return;
+  }
+
   try {
     const data = await getRateLimitData(c.env.RATE_LIMITS, userToken, 'submissions');
 
@@ -208,6 +215,13 @@ export async function rateLimitQueries(
   const userToken = c.get('userToken');
 
   if (!userToken) {
+    await next();
+    return;
+  }
+
+  // Skip rate limiting in development if KV namespace is not available
+  if (!c.env.RATE_LIMITS || c.env.ENVIRONMENT === 'development') {
+    console.warn('Rate limiting disabled: KV namespace not available or development mode');
     await next();
     return;
   }

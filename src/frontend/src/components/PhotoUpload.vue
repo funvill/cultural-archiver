@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, withDefaults, defineProps, defineEmits } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import ConsentForm from './ConsentForm.vue'
+import { useAnnouncer } from '../composables/useAnnouncer'
+import { extractExifData } from '../utils/image'
+import type { ExifData } from '../utils/image'
 
 // File interface
 interface PhotoFile {
@@ -10,8 +13,15 @@ interface PhotoFile {
   type: string
   file: File
   preview: string
-  exifData?: any
+  exifData?: ExifData
   uploading?: boolean
+}
+
+// Submission response interface
+interface SubmissionResponse {
+  submission_id: string
+  photos: string[]
+  message?: string
 }
 
 // Component props
@@ -26,12 +36,16 @@ const props = withDefaults(defineProps<Props>(), {
 
 // Component emits
 interface Emits {
-  (e: 'success', data: any): void
+  (e: 'uploadSuccess', data: SubmissionResponse): void
+  (e: 'uploadError', error: string): void
   (e: 'cancel'): void
   (e: 'error', error: string): void
 }
 
 const emit = defineEmits<Emits>()
+
+// Announcer for screen reader feedback
+const { announceSuccess, announceError, announceInfo } = useAnnouncer()
 
 // State
 const selectedFiles = ref<PhotoFile[]>([])
@@ -55,11 +69,20 @@ const MAX_FILES = 3
 const MAX_FILE_SIZE = 15 * 1024 * 1024 // 15MB
 const SUPPORTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic']
 
+// Helper functions for validation
+const isValidLatitude = (lat: number | null): boolean => {
+  return lat !== null && !isNaN(lat) && lat >= -90 && lat <= 90
+}
+
+const isValidLongitude = (lon: number | null): boolean => {
+  return lon !== null && !isNaN(lon) && lon >= -180 && lon <= 180
+}
+
 // Computed properties
 const canSubmit = computed(() => {
   return selectedFiles.value.length > 0 &&
-         locationData.value.latitude !== null &&
-         locationData.value.longitude !== null &&
+         isValidLatitude(locationData.value.latitude) &&
+         isValidLongitude(locationData.value.longitude) &&
          hasValidConsent.value &&
          !isSubmitting.value
 })
@@ -72,12 +95,28 @@ onMounted(() => {
 // Methods
 async function checkConsentStatus() {
   try {
-    // Check if user has valid consent
-    // This would typically call an API endpoint
-    // For now, we'll assume consent is needed
-    hasValidConsent.value = false
+    if (!props.userToken) {
+      hasValidConsent.value = false
+      return
+    }
+    
+    const response = await fetch(`${props.apiBaseUrl}/consent`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${props.userToken}`
+      }
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      hasValidConsent.value = data.hasConsent || false
+    } else {
+      hasValidConsent.value = false
+    }
   } catch (error) {
     console.error('Failed to check consent status:', error)
+    hasValidConsent.value = false
   }
 }
 
@@ -132,21 +171,34 @@ async function addFiles(files: File[]) {
     
     selectedFiles.value.push(photoFile)
   }
+  
+  // Announce to screen readers when files are added
+  if (files.length > 0) {
+    const fileCount = files.length
+    const totalFiles = selectedFiles.value.length
+    announceSuccess(`${fileCount} photo${fileCount > 1 ? 's' : ''} added. Total: ${totalFiles} of ${MAX_FILES} photos.`)
+  }
 }
 
 function validateFile(file: File): boolean {
   if (!SUPPORTED_TYPES.includes(file.type)) {
-    errors.value.push(`Unsupported file type: ${file.name}`)
+    const errorMsg = `Unsupported file type: ${file.name}`
+    errors.value.push(errorMsg)
+    announceError(errorMsg)
     return false
   }
   
   if (file.size > MAX_FILE_SIZE) {
-    errors.value.push(`File too large: ${file.name} (max ${formatFileSize(MAX_FILE_SIZE)})`)
+    const errorMsg = `File too large: ${file.name} (max ${formatFileSize(MAX_FILE_SIZE)})`
+    errors.value.push(errorMsg)
+    announceError(errorMsg)
     return false
   }
   
   if (file.size === 0) {
-    errors.value.push(`File is empty: ${file.name}`)
+    const errorMsg = `File is empty: ${file.name}`
+    errors.value.push(errorMsg)
+    announceError(errorMsg)
     return false
   }
   
@@ -157,8 +209,12 @@ function removeFile(index: number) {
   const file = selectedFiles.value[index]
   if (file) {
     URL.revokeObjectURL(file.preview)
+    selectedFiles.value.splice(index, 1)
+    
+    // Announce to screen readers when file is removed
+    const remainingFiles = selectedFiles.value.length
+    announceInfo(`Photo "${file.name}" removed. ${remainingFiles} photo${remainingFiles !== 1 ? 's' : ''} remaining.`)
   }
-  selectedFiles.value.splice(index, 1)
 }
 
 async function createPreview(file: File): Promise<string> {
@@ -167,21 +223,6 @@ async function createPreview(file: File): Promise<string> {
     reader.onload = (e) => resolve(e.target?.result as string)
     reader.readAsDataURL(file)
   })
-}
-
-async function extractExifData(_file: File): Promise<any> {
-  // This would use an EXIF library like exifr
-  // For now, return mock data
-  return {
-    gps: {
-      latitude: 49.2827,
-      longitude: -123.1207
-    },
-    camera: {
-      make: 'Apple',
-      model: 'iPhone 12 Pro'
-    }
-  }
 }
 
 function getCurrentLocation() {
@@ -215,6 +256,18 @@ async function handleSubmit() {
   if (!canSubmit.value) return
   
   errors.value = []
+  
+  // Additional client-side validation
+  if (!isValidLatitude(locationData.value.latitude)) {
+    errors.value.push('Invalid latitude. Must be between -90 and 90.')
+    return
+  }
+  
+  if (!isValidLongitude(locationData.value.longitude)) {
+    errors.value.push(`Invalid longitude: ${locationData.value.longitude}. Must be between -180 and 180.`)
+    return
+  }
+  
   isSubmitting.value = true
   
   try {
@@ -249,13 +302,13 @@ async function handleSubmit() {
     }
     
     const result = await response.json()
-    emit('success', result)
+    emit('uploadSuccess', result)
     
   } catch (error) {
     console.error('Upload error:', error)
     const errorMessage = error instanceof Error ? error.message : 'Upload failed'
     errors.value.push(errorMessage)
-    emit('error', errorMessage)
+    emit('uploadError', errorMessage)
   } finally {
     isSubmitting.value = false
   }
@@ -303,13 +356,13 @@ function generateId(): string {
 </script>
 
 <template>
-  <div class="photo-upload bg-white rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
+  <div class="photo-upload bg-white rounded-lg shadow-lg p-4 sm:p-6 max-w-2xl mx-auto">
     <!-- Header -->
-    <div class="mb-6">
-      <h2 class="text-2xl font-bold text-gray-900 mb-2">
+    <div class="mb-4 sm:mb-6">
+      <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
         Upload Photos
       </h2>
-      <p class="text-gray-600">
+      <p class="text-sm sm:text-base text-gray-600">
         Share photos of public art to contribute to the cultural archive.
         You can upload up to 3 photos per submission.
       </p>
@@ -341,13 +394,20 @@ function generateId(): string {
         @drop="handleDrop"
         @dragover.prevent
         @dragenter.prevent
-        class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 transition-colors"
+        @keydown.enter="triggerFileInput"
+        @keydown.space.prevent="triggerFileInput"
+        tabindex="0"
+        role="button"
+        aria-label="Upload photos by clicking or pressing Enter/Space"
+        aria-describedby="upload-help"
+        class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 focus:border-blue-500 focus:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors cursor-pointer"
         :class="{ 'border-blue-500 bg-blue-50': isDragging }"
       >
         <svg
           class="mx-auto h-12 w-12 text-gray-400"
           stroke="currentColor"
           fill="none"
+          aria-hidden="true"
           viewBox="0 0 48 48"
         >
           <path
@@ -360,28 +420,19 @@ function generateId(): string {
         <div class="mt-4">
           <p class="text-lg font-medium text-gray-900">
             Drop your photos here, or
-            <button
-              @click="triggerFileInput"
-              class="text-blue-600 hover:text-blue-800 underline"
+            <label
+              for="fileInput"
+              class="text-blue-600 hover:text-blue-800 focus:text-blue-800 underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded cursor-pointer"
+              aria-describedby="file-help"
             >
               browse
-            </button>
+            </label>
           </p>
-          <p class="text-sm text-gray-600 mt-2">
-            Supports JPEG, PNG, WebP, and HEIC files up to 15MB each
+          <p class="text-sm text-gray-600 mt-2" id="file-help upload-help">
+            Supports JPEG, PNG, WebP, and HEIC files up to 15MB each. You can drag and drop files or use keyboard navigation to select files.
           </p>
         </div>
       </div>
-
-      <!-- Hidden File Input -->
-      <input
-        ref="fileInput"
-        type="file"
-        multiple
-        accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
-        @change="handleFileSelect"
-        class="hidden"
-      />
 
       <!-- Selected Files Preview -->
       <div v-if="selectedFiles.length > 0" class="space-y-4">
@@ -389,7 +440,7 @@ function generateId(): string {
           Selected Photos ({{ selectedFiles.length }}/3)
         </h3>
         
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div
             v-for="(file, index) in selectedFiles"
             :key="file.id"
@@ -399,14 +450,14 @@ function generateId(): string {
             <div class="aspect-w-16 aspect-h-9">
               <img
                 :src="file.preview"
-                :alt="file.name"
+                :alt="`Preview of ${file.name} - uploaded photo`"
                 class="w-full h-32 object-cover"
               />
             </div>
             
             <!-- File Info -->
-            <div class="p-3">
-              <p class="text-sm font-medium text-gray-900 truncate">
+            <div class="p-2 sm:p-3">
+              <p class="text-xs sm:text-sm font-medium text-gray-900 truncate">
                 {{ file.name }}
               </p>
               <p class="text-xs text-gray-600">
@@ -415,11 +466,11 @@ function generateId(): string {
               
               <!-- EXIF Info -->
               <div v-if="file.exifData" class="mt-2 text-xs text-gray-600">
-                <p v-if="file.exifData.gps">
-                  📍 GPS: {{ file.exifData.gps.latitude?.toFixed(4) }}, {{ file.exifData.gps.longitude?.toFixed(4) }}
+                <p v-if="file.exifData.latitude && file.exifData.longitude">
+                  📍 GPS: {{ file.exifData.latitude.toFixed(4) }}, {{ file.exifData.longitude.toFixed(4) }}
                 </p>
-                <p v-if="file.exifData.camera?.make">
-                  📷 {{ file.exifData.camera.make }} {{ file.exifData.camera.model }}
+                <p v-if="file.exifData.make">
+                  📷 {{ file.exifData.make }} {{ file.exifData.model || '' }}
                 </p>
               </div>
             </div>
@@ -427,9 +478,10 @@ function generateId(): string {
             <!-- Remove Button -->
             <button
               @click="removeFile(index)"
-              class="absolute top-2 right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-700 transition-colors"
+              :aria-label="`Remove photo ${file.name}`"
+              class="absolute top-2 right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-700 focus:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
             >
-              ×
+              <span aria-hidden="true">×</span>
             </button>
             
             <!-- Upload Progress -->
@@ -463,8 +515,15 @@ function generateId(): string {
               type="number"
               step="any"
               placeholder="49.2827"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              :class="[
+                'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:border-transparent',
+                isValidLatitude(locationData.latitude) ? 'border-gray-300 focus:ring-blue-500' : 'border-red-300 focus:ring-red-500'
+              ]"
             />
+            <p v-if="locationData.latitude !== null && !isValidLatitude(locationData.latitude)" 
+               class="mt-1 text-sm text-red-600">
+              Latitude must be between -90 and 90
+            </p>
           </div>
           
           <div>
@@ -477,8 +536,15 @@ function generateId(): string {
               type="number"
               step="any"
               placeholder="-123.1207"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              :class="[
+                'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:border-transparent',
+                isValidLongitude(locationData.longitude) ? 'border-gray-300 focus:ring-blue-500' : 'border-red-300 focus:ring-red-500'
+              ]"
             />
+            <p v-if="locationData.longitude !== null && !isValidLongitude(locationData.longitude)" 
+               class="mt-1 text-sm text-red-600">
+              Longitude must be between -180 and 180 (current: {{locationData.longitude}})
+            </p>
           </div>
         </div>
         
@@ -546,6 +612,17 @@ function generateId(): string {
         </button>
       </div>
     </div>
+
+    <!-- Hidden File Input -->
+    <input
+      id="fileInput"
+      ref="fileInput"
+      type="file"
+      multiple
+      accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
+      @change="handleFileSelect"
+      style="position: absolute; left: -9999px; opacity: 0; width: 1px; height: 1px;"
+    />
 
     <!-- Consent Form Modal -->
     <div
