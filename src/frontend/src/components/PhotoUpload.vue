@@ -59,11 +59,20 @@ const MAX_FILES = 3
 const MAX_FILE_SIZE = 15 * 1024 * 1024 // 15MB
 const SUPPORTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic']
 
+// Helper functions for validation
+const isValidLatitude = (lat: number | null): boolean => {
+  return lat !== null && !isNaN(lat) && lat >= -90 && lat <= 90
+}
+
+const isValidLongitude = (lon: number | null): boolean => {
+  return lon !== null && !isNaN(lon) && lon >= -180 && lon <= 180
+}
+
 // Computed properties
 const canSubmit = computed(() => {
   return selectedFiles.value.length > 0 &&
-         locationData.value.latitude !== null &&
-         locationData.value.longitude !== null &&
+         isValidLatitude(locationData.value.latitude) &&
+         isValidLongitude(locationData.value.longitude) &&
          hasValidConsent.value &&
          !isSubmitting.value
 })
@@ -252,6 +261,18 @@ async function handleSubmit() {
   if (!canSubmit.value) return
   
   errors.value = []
+  
+  // Additional client-side validation
+  if (!isValidLatitude(locationData.value.latitude)) {
+    errors.value.push('Invalid latitude. Must be between -90 and 90.')
+    return
+  }
+  
+  if (!isValidLongitude(locationData.value.longitude)) {
+    errors.value.push(`Invalid longitude: ${locationData.value.longitude}. Must be between -180 and 180.`)
+    return
+  }
+  
   isSubmitting.value = true
   
   try {
@@ -499,8 +520,15 @@ function generateId(): string {
               type="number"
               step="any"
               placeholder="49.2827"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              :class="[
+                'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:border-transparent',
+                isValidLatitude(locationData.latitude) ? 'border-gray-300 focus:ring-blue-500' : 'border-red-300 focus:ring-red-500'
+              ]"
             />
+            <p v-if="locationData.latitude !== null && !isValidLatitude(locationData.latitude)" 
+               class="mt-1 text-sm text-red-600">
+              Latitude must be between -90 and 90
+            </p>
           </div>
           
           <div>
@@ -513,8 +541,15 @@ function generateId(): string {
               type="number"
               step="any"
               placeholder="-123.1207"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              :class="[
+                'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:border-transparent',
+                isValidLongitude(locationData.longitude) ? 'border-gray-300 focus:ring-blue-500' : 'border-red-300 focus:ring-red-500'
+              ]"
             />
+            <p v-if="locationData.longitude !== null && !isValidLongitude(locationData.longitude)" 
+               class="mt-1 text-sm text-red-600">
+              Longitude must be between -180 and 180 (current: {{locationData.longitude}})
+            </p>
           </div>
         </div>
         

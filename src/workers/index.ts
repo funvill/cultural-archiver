@@ -11,7 +11,7 @@ import type { WorkerEnv } from './types';
 import { ensureUserToken, addUserTokenToResponse, checkEmailVerification } from './middleware/auth';
 import { rateLimitSubmissions, rateLimitQueries, addRateLimitStatus } from './middleware/rateLimit';
 import {
-  validateLogbookSubmission,
+  validateLogbookFormData,
   validateNearbyArtworksQuery,
   validateBoundsQuery,
   validateUserSubmissionsQuery,
@@ -117,7 +117,7 @@ app.post(
   '/api/logbook',
   rateLimitSubmissions,
   validateFileUploads,
-  validateLogbookSubmission,
+  validateLogbookFormData,
   addUserTokenToResponse,
   withErrorHandling(createLogbookSubmission)
 );
