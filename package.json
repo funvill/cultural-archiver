@@ -18,7 +18,7 @@
     "build": "npm run build:frontend && npm run build:workers",
     "build:frontend": "cd src/frontend && npm run build",
     "build:workers": "cd src/workers && npm run build",
-    "deploy:frontend": "npm run build:frontend && cd src/frontend && npx wrangler versions upload --name cultural-archiver-frontend --compatibility-date 2023-08-29 --assets=./dist",
+    "deploy:frontend": "npm run build:frontend && cd src/frontend && npx wrangler versions upload --assets=./dist",
     "deploy:frontend-worker": "npm run build:frontend && cd src/pages && npx wrangler deploy",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
