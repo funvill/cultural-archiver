@@ -43,6 +43,12 @@ import {
   getReviewStats,
   processBatchReview,
 } from './routes/review';
+import {
+  submitConsent,
+  getConsentStatus,
+  getConsentFormData,
+  revokeConsent,
+} from './routes/consent';
 
 // Initialize Hono app
 const app = new Hono<{ Bindings: WorkerEnv }>();
@@ -100,6 +106,8 @@ app.use('/api/auth/*', ensureUserToken);
 app.use('/api/auth/*', checkEmailVerification);
 app.use('/api/review/*', ensureUserToken);
 app.use('/api/review/*', checkEmailVerification);
+app.use('/api/consent', ensureUserToken);
+app.use('/api/consent', addUserTokenToResponse);
 
 // ================================
 // Submission Endpoints
@@ -156,6 +164,34 @@ app.get(
   addRateLimitStatus,
   addUserTokenToResponse,
   withErrorHandling(getUserProfile)
+);
+
+// ================================
+// Consent Management Endpoints
+// ================================
+
+app.post(
+  '/api/consent',
+  rateLimitSubmissions,
+  withErrorHandling(submitConsent)
+);
+
+app.get(
+  '/api/consent',
+  rateLimitQueries,
+  withErrorHandling(getConsentStatus)
+);
+
+app.get(
+  '/api/consent/form-data',
+  rateLimitQueries,
+  withErrorHandling(getConsentFormData)
+);
+
+app.delete(
+  '/api/consent',
+  rateLimitQueries,
+  withErrorHandling(revokeConsent)
 );
 
 // ================================
@@ -281,6 +317,10 @@ app.notFound(c => {
         'GET /api/artworks/:id',
         'GET /api/me/submissions',
         'GET /api/me/profile',
+        'POST /api/consent',
+        'GET /api/consent',
+        'GET /api/consent/form-data',
+        'DELETE /api/consent',
         'POST /api/auth/magic-link',
         'POST /api/auth/consume',
         'GET /api/auth/verify-status',
