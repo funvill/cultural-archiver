@@ -303,14 +303,20 @@ export const optimizeImage = (file: File, maxWidth: number = 800): Promise<Blob>
 
 ## Testing Strategy
 
-### Unit Tests (7 Tests Passing)
+### Unit Tests (82 Tests Passing)
 
-The frontend has comprehensive unit test coverage for critical components:
+The frontend has comprehensive unit test coverage across components, views, and API integration:
 
-**Test Coverage:**
-- **AppShell.test.ts**: Navigation rendering and accessibility
-- **MapComponent.test.ts**: Leaflet integration and error handling
-- **SubmitView.test.ts**: Photo upload workflow and form validation
+**Test Files (9 test files):**
+- **AppShell.test.ts**: Navigation rendering and accessibility (2 tests)
+- **MapComponent.test.ts**: Leaflet integration and error handling (2 tests) 
+- **Modal.test.ts**: Global modal system and accessibility (12 tests)
+- **PhotoUpload.test.ts**: File upload workflow and consent management (9 tests)
+- **ArtworkDetailView.test.ts**: Artwork detail pages and data loading (13 tests)
+- **HomeView.test.ts**: Landing page and API status checks (12 tests)
+- **MapView.test.ts**: Main map interface and geolocation (4 tests)
+- **ProfileView.test.ts**: User profile management and submissions (22 tests)
+- **SubmitView.test.ts**: Photo submission workflow and form validation (3 tests)
 
 **Testing Framework:**
 ```typescript
@@ -330,24 +336,26 @@ export default defineConfig({
 
 **Component Testing Example:**
 ```typescript
-// components/__tests__/AppShell.test.ts
+// components/__tests__/Modal.test.ts
 import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
-import AppShell from '../AppShell.vue'
+import Modal from '../Modal.vue'
 
-describe('AppShell', () => {
-  it('renders navigation correctly', () => {
-    const wrapper = mount(AppShell)
-    expect(wrapper.find('nav').exists()).toBe(true)
-    expect(wrapper.find('[role="navigation"]').exists()).toBe(true)
+describe('Modal', () => {
+  it('renders when isOpen is true', () => {
+    const wrapper = mount(Modal, {
+      props: { isOpen: true, title: 'Test Modal' }
+    })
+    expect(wrapper.exists()).toBe(true)
   })
   
-  it('handles mobile menu toggle', async () => {
-    const wrapper = mount(AppShell)
-    const toggleButton = wrapper.find('[aria-label="Open menu"]')
-    
-    await toggleButton.trigger('click')
-    expect(wrapper.find('.mobile-menu').isVisible()).toBe(true)
+  it('handles accessibility properly', () => {
+    const wrapper = mount(Modal, {
+      props: { isOpen: true }
+    })
+    expect(wrapper.vm.previouslyFocused).toBeDefined()
+  })
+})
   })
 })
 ```

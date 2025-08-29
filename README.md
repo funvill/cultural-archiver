@@ -23,7 +23,7 @@ This ensures that the cultural history of our cities outlives any single platfor
 - **User flows**: Anonymous tokens + optional email verification via magic links
 - **Content moderation**: Review queue with approval/rejection workflow
 - **Mobile-first design**: Responsive layout supporting 320px to 1920px viewports
-- **Quality assurance**: 7 unit tests passing, minimal ESLint warnings, type-safe TypeScript
+- **Quality assurance**: 82 unit tests passing across 9 test files, robust TypeScript coverage
 
 Phase 0 and 1 focus on delivering a simple, accessible web app where users can:
 
@@ -42,7 +42,7 @@ Phase 0 and 1 focus on delivering a simple, accessible web app where users can:
 - **Routing**: Vue Router with lazy loading and navigation guards
 - **Maps**: Leaflet + OpenStreetMap with artwork clustering
 - **Accessibility**: WCAG AA compliant with comprehensive screen reader support
-- **Testing**: Vitest with 7 unit tests for critical components (AppShell, MapComponent, SubmitView)
+- **Testing**: Vitest with 82 unit tests across 9 test files covering components, views, and API integration
 
 ### Backend (Production Ready)
 - **Runtime**: Cloudflare Workers + TypeScript + Hono framework

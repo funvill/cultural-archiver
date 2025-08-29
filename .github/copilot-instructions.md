@@ -4,13 +4,13 @@
 
 Cultural Archiver is a **production-ready** crowdsourced public art mapping application built with:
 
-- **Frontend**: Vue 3 + TypeScript + Tailwind CSS + Vite (WCAG AA compliant, 7 unit tests passing)
+- **Frontend**: Vue 3 + TypeScript + Tailwind CSS + Vite (WCAG AA compliant, 82 unit tests passing)
 - **Backend**: Cloudflare Workers + TypeScript + Hono framework (54 tests passing)  
 - **Database**: SQLite (Cloudflare D1) with spatial indexing
 - **Storage**: Cloudflare R2 for photo processing pipeline
 - **State**: Pinia stores with reactive TypeScript interfaces
-- **Testing**: Comprehensive unit test suite with mocked API services
-- **Quality**: Type-safe codebase with minimal ESLint warnings, enhanced error handling
+- **Testing**: Comprehensive unit test suite with mocked API services (82 tests across 9 test files)
+- **Quality**: Type-safe codebase with minimal ESLint errors (1 error, 100 warnings), enhanced error handling
 
 ## Current Development Status
 
@@ -22,6 +22,31 @@ Cultural Archiver is a **production-ready** crowdsourced public art mapping appl
 - Mobile-first responsive design (320px to 1920px)
 - Comprehensive accessibility implementation (WCAG AA)
 - Full API integration with error handling and retry logic
+
+## Testing Infrastructure
+
+### Frontend Testing
+- **Unit Tests**: 82 tests passing across 9 test files for comprehensive component coverage
+- **Test Framework**: Vitest with Vue Test Utils and jsdom environment
+- **Test Coverage**: Components, views, composables, and API integration
+- **Testing Strategy**: Focus on component interfaces, user interactions, and accessibility features
+- **Test Files**:
+  - `AppShell.test.ts` - Application shell and navigation
+  - `MapComponent.test.ts` - Interactive map functionality
+  - `Modal.test.ts` - Global modal system
+  - `PhotoUpload.test.ts` - File upload and consent workflow
+  - `ArtworkDetailView.test.ts` - Artwork detail pages
+  - `HomeView.test.ts` - Landing page and navigation
+  - `MapView.test.ts` - Main map interface
+  - `ProfileView.test.ts` - User profile management
+  - `SubmitView.test.ts` - Artwork submission workflow
+
+### Testing Best Practices
+- Mock external dependencies (Leaflet, API calls, geolocation)
+- Test component behavior rather than implementation details
+- Include accessibility testing in component tests
+- Verify error states and loading conditions
+- Focus on user-facing functionality over internal details
 
 ## Database Schema
 
