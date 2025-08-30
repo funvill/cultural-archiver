@@ -19,6 +19,7 @@
     "build:frontend": "cd src/frontend && npm run build",
     "build:workers": "cd src/workers && npm run build",
     "deploy:frontend": "npm run build:frontend && cd src/frontend && npx wrangler versions upload",
+    "deploy": "npm run build:frontend && npx wrangler versions upload",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
