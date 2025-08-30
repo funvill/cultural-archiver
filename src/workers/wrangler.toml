@@ -57,11 +57,11 @@ id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Fill in from Cloudflare dashboard
 
 [[env.staging.kv_namespaces]]
 binding = "RATE_LIMITS"
-id = ""  # Fill in from Cloudflare dashboard
+id = "staging-rate-limits-placeholder"  # Fill in from Cloudflare dashboard
 
 [[env.staging.kv_namespaces]]
 binding = "MAGIC_LINKS"
-id = ""  # Fill in from Cloudflare dashboard
+id = "staging-magic-links-placeholder"  # Fill in from Cloudflare dashboard
 
 [[env.production.kv_namespaces]]
 binding = "SESSIONS"
@@ -73,11 +73,11 @@ id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Fill in from Cloudflare dashboard
 
 [[env.production.kv_namespaces]]
 binding = "RATE_LIMITS"
-id = ""  # Fill in from Cloudflare dashboard
+id = "prod-rate-limits-placeholder"  # Fill in from Cloudflare dashboard
 
 [[env.production.kv_namespaces]]
 binding = "MAGIC_LINKS"
-id = ""  # Fill in from Cloudflare dashboard
+id = "prod-magic-links-placeholder"  # Fill in from Cloudflare dashboard
 
 # R2 bucket bindings
 [[env.development.r2_buckets]]

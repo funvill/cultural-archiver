@@ -110,13 +110,15 @@ export function useAuth() {
       const response = await apiService.consumeMagicLink(request)
       
       // Update auth state with verified user
-      authStore.setToken(response.data.userToken)
-      if (authStore.user) {
-        authStore.setUser({
-          ...authStore.user,
-          email: response.data.email,
-          emailVerified: true
-        })
+      if (response.data && response.data.user_token) {
+        authStore.setToken(response.data.user_token)
+        if (authStore.user) {
+          authStore.setUser({
+            ...authStore.user,
+            email: authStore.user.email || 'verified@email.com', // Keep existing email or placeholder
+            emailVerified: true
+          })
+        }
       }
       
       return true

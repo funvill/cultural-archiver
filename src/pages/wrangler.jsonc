@@ -1,9 +1,0 @@
-{
-  "name": "cultural-archiver",
-  "compatibility_date": "2024-09-23",
-  "assets": {
-    "directory": "./src/frontend/dist",
-    "binding": "ASSETS"
-  },
-  "main": "./static-assets.ts"
-}

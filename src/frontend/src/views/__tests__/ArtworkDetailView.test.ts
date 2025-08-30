@@ -131,7 +131,7 @@ describe('ArtworkDetailView', () => {
       await new Promise(resolve => setTimeout(resolve, 100))
       await errorWrapper.vm.$nextTick()
       
-      expect(errorWrapper.vm.error).toBeTruthy()
+      expect(errorWrapper.text()).toContain('was not found')
     })
   })
 

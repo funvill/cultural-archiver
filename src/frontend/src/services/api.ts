@@ -5,7 +5,7 @@
 
 import type {
   LogbookSubmission,
-  ArtworkPin,
+  ArtworkApiResponse,
   ArtworkDetails,
   UserSubmission,
   UserProfile,
@@ -13,6 +13,7 @@ import type {
   ReviewStats,
   MagicLinkRequest,
   MagicLinkConsumeRequest,
+  ConsumeMagicLinkResponse,
   VerificationStatus,
   ApiResponse,
   PaginatedResponse,
@@ -107,9 +108,9 @@ class ApiClient {
       }
 
       throw new ApiError(
-        errorData.code || 'API_ERROR',
+        String(errorData.code || 'API_ERROR'),
         response.status,
-        errorData.message || `HTTP ${response.status}: ${response.statusText}`,
+        String(errorData.message || `HTTP ${response.status}: ${response.statusText}`),
         errorData
       )
     }
@@ -311,7 +312,7 @@ export const apiService = {
     lon: number,
     radius: number = 500,
     limit: number = 50
-  ): Promise<ApiResponse<ArtworkPin[]>> {
+  ): Promise<ApiResponse<ArtworkApiResponse[]>> {
     return client.get('/artworks/nearby', {
       lat: lat.toString(),
       lon: lon.toString(),
@@ -372,7 +373,7 @@ export const apiService = {
   /**
    * Consume magic link token
    */
-  async consumeMagicLink(request: MagicLinkConsumeRequest): Promise<ApiResponse<VerificationStatus>> {
+  async consumeMagicLink(request: MagicLinkConsumeRequest): Promise<ApiResponse<ConsumeMagicLinkResponse>> {
     return client.post('/auth/consume', request)
   },
 

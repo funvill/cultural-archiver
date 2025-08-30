@@ -28,30 +28,30 @@ const createMockRouter = (): Router => {
   })
 }
 
-// Mock submission data
-const _mockSubmissions = [
-  {
-    id: 'submission-1',
-    title: 'Street Art',
-    note: 'Beautiful mural downtown',
-    photos: ['photo1.jpg'],
-    latitude: 49.2827,
-    longitude: -123.1207,
-    status: 'approved' as const,
-    created_at: '2024-01-01T00:00:00Z',
-    artwork_id: 'artwork-1',
-  },
-  {
-    id: 'submission-2',
-    title: 'Sculpture',
-    note: 'Modern sculpture in park',
-    photos: ['photo2.jpg', 'photo3.jpg'],
-    latitude: 49.2800,
-    longitude: -123.1200,
-    status: 'pending' as const,
-    created_at: '2024-01-02T00:00:00Z',
-  },
-]
+// Mock submission data - currently unused but available for future tests
+// const _mockSubmissions = [
+//   {
+//     id: 'submission-1',
+//     title: 'Street Art',
+//     note: 'Beautiful mural downtown',
+//     photos: ['photo1.jpg'],
+//     latitude: 49.2827,
+//     longitude: -123.1207,
+//     status: 'approved' as const,
+//     created_at: '2024-01-01T00:00:00Z',
+//     artwork_id: 'artwork-1',
+//   },
+//   {
+//     id: 'submission-2',
+//     title: 'Sculpture',
+//     note: 'Modern sculpture in park',
+//     photos: ['photo2.jpg', 'photo3.jpg'],
+//     latitude: 49.2800,
+//     longitude: -123.1200,
+//     status: 'pending' as const,
+//     created_at: '2024-01-02T00:00:00Z',
+//   },
+// ]
 
 describe('ProfileView', () => {
   let wrapper: VueWrapper<any>

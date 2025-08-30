@@ -90,7 +90,7 @@ describe('HomeView', () => {
       await new Promise(resolve => setTimeout(resolve, 100))
       await errorWrapper.vm.$nextTick()
       
-      expect(errorWrapper.vm.status).toContain('API connection failed')
+      expect(errorWrapper.text()).toContain('API connection failed')
     })
   })
 

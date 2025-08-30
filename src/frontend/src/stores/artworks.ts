@@ -126,7 +126,7 @@ export const useArtworksStore = defineStore('artworks', () => {
       )
 
       // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: ArtworkApiResponse) => {
+      const artworkPins: ArtworkPin[] = ((response.data || []) as ArtworkApiResponse[]).map((artwork: ArtworkApiResponse): ArtworkPin => {
         const pin: ArtworkPin = {
           id: artwork.id,
           latitude: artwork.lat,
@@ -220,7 +220,7 @@ export const useArtworksStore = defineStore('artworks', () => {
       )
 
       // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: ArtworkApiResponse) => {
+      const artworkPins: ArtworkPin[] = ((response.data || []) as ArtworkApiResponse[]).map((artwork: ArtworkApiResponse): ArtworkPin => {
         const pin: ArtworkPin = {
           id: artwork.id,
           latitude: artwork.lat,
@@ -258,7 +258,7 @@ export const useArtworksStore = defineStore('artworks', () => {
       )
 
       // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = (response.data || []).map((artwork: ArtworkApiResponse) => {
+      const artworkPins: ArtworkPin[] = ((response.data || []) as ArtworkApiResponse[]).map((artwork: ArtworkApiResponse): ArtworkPin => {
         const pin: ArtworkPin = {
           id: artwork.id,
           latitude: artwork.lat,
