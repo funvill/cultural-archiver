@@ -1,18 +1,7 @@
 {
-  "name": "cultural-archiver-frontend",
+  "name": "cultural-archiver-frontend-prod",
   "compatibility_date": "2024-08-29",
   "assets": {
     "directory": "./dist"
-  },
-  "env": {
-    "production": {
-      "name": "cultural-archiver-frontend-prod"
-    },
-    "staging": {
-      "name": "cultural-archiver-frontend-staging"
-    },
-    "development": {
-      "name": "cultural-archiver-frontend-dev"
-    }
   }
 }
