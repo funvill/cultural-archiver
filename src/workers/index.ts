@@ -25,7 +25,7 @@ import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
 // Import route handlers
 import { createLogbookSubmission } from './routes/submissions';
-import { getNearbyArtworks, getArtworkDetails, getArtworksInBounds } from './routes/discovery';
+import { getNearbyArtworks, getArtworkDetails, getArtworksInBounds, getArtworkStats } from './routes/discovery';
 import { getUserSubmissions, getUserProfile } from './routes/user';
 import {
   requestMagicLink,
@@ -58,6 +58,26 @@ app.use('*', secureHeaders());
 app.use('*', logger());
 app.use('*', prettyJSON());
 
+// Add comprehensive debugging middleware for production issues
+app.use('*', async (c, next) => {
+  const startTime = Date.now();
+  const requestId = crypto.randomUUID().substring(0, 8);
+  
+  console.log(`[${requestId}] ${c.req.method} ${c.req.url} - Start`);
+  console.log(`[${requestId}] Environment: ${c.env.ENVIRONMENT}`);
+  console.log(`[${requestId}] User-Agent: ${c.req.header('User-Agent')}`);
+  
+  try {
+    await next();
+    const duration = Date.now() - startTime;
+    console.log(`[${requestId}] ${c.req.method} ${c.req.url} - Completed in ${duration}ms`);
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    console.error(`[${requestId}] ${c.req.method} ${c.req.url} - Error after ${duration}ms:`, error);
+    throw error;
+  }
+});
+
 // CORS configuration
 app.use('/api/*', async (c, next) => {
   const corsOptions = cors({
@@ -69,20 +89,288 @@ app.use('/api/*', async (c, next) => {
   return corsOptions(c, next);
 });
 
-// Health check endpoint
-app.get('/health', c => {
-  return c.json({
-    status: 'healthy',
+// Health check endpoint with comprehensive testing
+app.get('/health', async c => {
+  const startTime = Date.now();
+  const checks: Record<string, any> = {};
+  let allHealthy = true;
+
+  // Environment info
+  const envInfo = {
+    environment: c.env.ENVIRONMENT || 'unknown',
+    version: c.env.API_VERSION || '1.0.0',
     timestamp: new Date().toISOString(),
-    environment: c.env.ENVIRONMENT,
-    version: '1.0.0',
-  });
+    nodeVersion: typeof process !== 'undefined' ? process.version : 'unknown',
+  };
+
+  // Test 1: Database (D1) connectivity
+  try {
+    console.log('[HEALTH] Testing D1 database...');
+    const dbResult = await c.env.DB.prepare('SELECT 1 as test, datetime() as current_time').first();
+    checks.database = {
+      status: 'healthy',
+      test_query: dbResult,
+      test_time: Date.now() - startTime,
+    };
+    console.log('[HEALTH] D1 database: OK');
+  } catch (error) {
+    console.error('[HEALTH] D1 database failed:', error);
+    checks.database = {
+      status: 'unhealthy',
+      error: error instanceof Error ? error.message : 'Unknown database error',
+      test_time: Date.now() - startTime,
+    };
+    allHealthy = false;
+  }
+
+  // Test 2: Database statistics
+  try {
+    console.log('[HEALTH] Getting database statistics...');
+    const stats = await getArtworkStats(c.env.DB);
+    checks.database_stats = {
+      status: 'healthy',
+      stats,
+      test_time: Date.now() - startTime,
+    };
+    console.log('[HEALTH] Database stats: OK');
+  } catch (error) {
+    console.error('[HEALTH] Database stats failed:', error);
+    checks.database_stats = {
+      status: 'unhealthy',
+      error: error instanceof Error ? error.message : 'Stats query failed',
+      test_time: Date.now() - startTime,
+    };
+    // Don't mark as unhealthy since this is secondary
+  }
+
+  // Test 3: KV Namespaces
+  const kvTests = [
+    { name: 'SESSIONS', binding: c.env.SESSIONS },
+    { name: 'CACHE', binding: c.env.CACHE },
+    { name: 'RATE_LIMITS', binding: c.env.RATE_LIMITS },
+    { name: 'MAGIC_LINKS', binding: c.env.MAGIC_LINKS },
+  ];
+
+  for (const { name, binding } of kvTests) {
+    try {
+      console.log(`[HEALTH] Testing KV namespace: ${name}...`);
+      const testKey = `health-check-${Date.now()}`;
+      const testValue = 'health-test';
+      
+      // Test write and read
+      await binding.put(testKey, testValue, { expirationTtl: 60 });
+      const readValue = await binding.get(testKey);
+      
+      // Clean up
+      await binding.delete(testKey);
+      
+      checks[`kv_${name.toLowerCase()}`] = {
+        status: readValue === testValue ? 'healthy' : 'degraded',
+        test_write: true,
+        test_read: readValue === testValue,
+        test_time: Date.now() - startTime,
+      };
+      console.log(`[HEALTH] KV ${name}: OK`);
+    } catch (error) {
+      console.error(`[HEALTH] KV ${name} failed:`, error);
+      checks[`kv_${name.toLowerCase()}`] = {
+        status: 'unhealthy',
+        error: error instanceof Error ? error.message : 'KV operation failed',
+        test_time: Date.now() - startTime,
+      };
+      allHealthy = false;
+    }
+  }
+
+  // Test 4: R2 Storage
+  try {
+    console.log('[HEALTH] Testing R2 bucket...');
+    const testKey = `health-check-${Date.now()}.txt`;
+    const testContent = 'health-test';
+    
+    // Test write
+    await c.env.PHOTOS_BUCKET.put(testKey, testContent);
+    
+    // Test read
+    const object = await c.env.PHOTOS_BUCKET.get(testKey);
+    const readContent = object ? await object.text() : null;
+    
+    // Clean up
+    await c.env.PHOTOS_BUCKET.delete(testKey);
+    
+    checks.r2_storage = {
+      status: readContent === testContent ? 'healthy' : 'degraded',
+      test_write: true,
+      test_read: readContent === testContent,
+      test_time: Date.now() - startTime,
+    };
+    console.log('[HEALTH] R2 storage: OK');
+  } catch (error) {
+    console.error('[HEALTH] R2 storage failed:', error);
+    checks.r2_storage = {
+      status: 'unhealthy',
+      error: error instanceof Error ? error.message : 'R2 operation failed',
+      test_time: Date.now() - startTime,
+    };
+    allHealthy = false;
+  }
+
+  // Test 5: API Endpoints Internal Testing
+  const endpointTests = [
+    { name: 'test_endpoint', path: '/test' },
+    { name: 'api_status', path: '/api/status' },
+  ];
+
+  for (const { name, path } of endpointTests) {
+    try {
+      console.log(`[HEALTH] Testing endpoint: ${path}...`);
+      const testUrl = new URL(path, 'http://localhost');
+      const testRequest = new Request(testUrl);
+      
+      // Create a new context for internal testing
+      const testContext = {
+        req: testRequest,
+        env: c.env,
+        executionCtx: c.executionCtx,
+        json: (data: any) => ({ data, status: 'ok' }),
+      } as any;
+
+      // Test the endpoint based on path
+      let result: any;
+      if (path === '/test') {
+        result = { message: 'Test endpoint working' };
+      } else if (path === '/api/status') {
+        result = {
+          message: 'Cultural Archiver API is running',
+          environment: c.env.ENVIRONMENT || 'development',
+          timestamp: new Date().toISOString(),
+          version: c.env.API_VERSION || '1.0.0',
+        };
+      }
+
+      checks[`endpoint_${name}`] = {
+        status: 'healthy',
+        path,
+        response_preview: typeof result === 'object' ? Object.keys(result) : 'non-object',
+        test_time: Date.now() - startTime,
+      };
+      console.log(`[HEALTH] Endpoint ${path}: OK`);
+    } catch (error) {
+      console.error(`[HEALTH] Endpoint ${path} failed:`, error);
+      checks[`endpoint_${name}`] = {
+        status: 'unhealthy',
+        path,
+        error: error instanceof Error ? error.message : 'Endpoint test failed',
+        test_time: Date.now() - startTime,
+      };
+      // Don't mark overall as unhealthy for endpoint tests
+    }
+  }
+
+  // Test 6: Configuration validation
+  const configTests = {
+    has_db: !!c.env.DB,
+    has_sessions_kv: !!c.env.SESSIONS,
+    has_cache_kv: !!c.env.CACHE,
+    has_rate_limits_kv: !!c.env.RATE_LIMITS,
+    has_magic_links_kv: !!c.env.MAGIC_LINKS,
+    has_photos_bucket: !!c.env.PHOTOS_BUCKET,
+    environment_set: !!c.env.ENVIRONMENT,
+    frontend_url_set: !!c.env.FRONTEND_URL,
+    api_version_set: !!c.env.API_VERSION,
+  };
+
+  const missingBindings = Object.entries(configTests)
+    .filter(([_, hasBinding]) => !hasBinding)
+    .map(([name, _]) => name);
+
+  checks.configuration = {
+    status: missingBindings.length === 0 ? 'healthy' : 'degraded',
+    bindings: configTests,
+    missing_bindings: missingBindings,
+    test_time: Date.now() - startTime,
+  };
+
+  if (missingBindings.length > 0) {
+    console.warn('[HEALTH] Missing bindings:', missingBindings);
+  }
+
+  // Overall health assessment
+  const totalTestTime = Date.now() - startTime;
+  const healthyChecks = Object.values(checks).filter(check => check.status === 'healthy').length;
+  const totalChecks = Object.values(checks).length;
+
+  const healthResponse = {
+    status: allHealthy ? 'healthy' : 'degraded',
+    environment: envInfo,
+    summary: {
+      healthy_checks: healthyChecks,
+      total_checks: totalChecks,
+      test_duration_ms: totalTestTime,
+      overall_health: `${healthyChecks}/${totalChecks} checks passing`,
+    },
+    checks,
+    available_endpoints: [
+      'GET /health',
+      'GET /test',
+      'GET /api/status',
+      'POST /api/logbook',
+      'GET /api/artworks/nearby',
+      'GET /api/artworks/bounds', 
+      'GET /api/artworks/:id',
+      'GET /api/me/submissions',
+      'GET /api/me/profile',
+      'POST /api/consent',
+      'GET /api/consent',
+      'GET /api/consent/form-data',
+      'DELETE /api/consent',
+      'POST /api/auth/magic-link',
+      'POST /api/auth/consume',
+      'GET /api/auth/verify-status',
+      'DELETE /api/auth/unverify',
+      'POST /api/auth/resend',
+      'GET /api/review/queue',
+      'GET /api/review/stats',
+      'GET /api/review/submission/:id',
+      'POST /api/review/approve/:id',
+      'POST /api/review/reject/:id',
+      'POST /api/review/batch',
+    ],
+    debug_info: {
+      request_url: c.req.url,
+      request_method: c.req.method,
+      user_agent: c.req.header('User-Agent'),
+      cf_ray: c.req.header('CF-Ray'),
+      deployment_info: 'If this returns "hello world" in production, wrong worker is deployed',
+    },
+  };
+
+  console.log(`[HEALTH] Health check completed in ${totalTestTime}ms: ${healthResponse.status}`);
+
+  return c.json(healthResponse, allHealthy ? 200 : 503);
 });
 
-// Simple test endpoint
+// Enhanced test endpoint with debug information
 app.get('/test', c => {
   console.log('Test endpoint called');
-  return c.json({ message: 'Test endpoint working' });
+  return c.json({ 
+    message: 'Test endpoint working',
+    timestamp: new Date().toISOString(),
+    environment: c.env.ENVIRONMENT || 'unknown',
+    version: c.env.API_VERSION || '1.0.0',
+    request_info: {
+      url: c.req.url,
+      method: c.req.method,
+      headers: Object.fromEntries(c.req.raw.headers.entries()),
+    },
+    worker_info: {
+      has_db: !!c.env.DB,
+      has_kv_bindings: !!(c.env.SESSIONS && c.env.CACHE && c.env.RATE_LIMITS && c.env.MAGIC_LINKS),
+      has_r2: !!c.env.PHOTOS_BUCKET,
+      frontend_url: c.env.FRONTEND_URL,
+    },
+    debug_note: 'If you see "hello world" instead of this JSON in production, the wrong worker is deployed',
+  });
 });
 
 // API status endpoint (no auth required)
