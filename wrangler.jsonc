@@ -1,7 +1,0 @@
-{
-  "name": "cultural-archiver",
-  "compatibility_date": "2025-04-01",
-  "assets": {
-    "directory": "./src/frontend/dist"
-  }
-}

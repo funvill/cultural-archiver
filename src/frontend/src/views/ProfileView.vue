@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { createApiUrl } from '../utils/api-config'
 
 // Types
 interface Submission {
@@ -130,7 +131,7 @@ async function loadSubmissions() {
   error.value = null
 
   try {
-    const response = await fetch('/api/user/submissions', {
+    const response = await fetch(createApiUrl('/user/submissions'), {
       headers: {
         'Authorization': `Bearer ${authStore.token}`
       }

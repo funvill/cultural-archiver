@@ -336,6 +336,7 @@ export interface WorkerEnv
   RATE_LIMITS: KVNamespace;
   MAGIC_LINKS: KVNamespace;
   PHOTOS_BUCKET: R2Bucket;
+  CORS_ORIGINS?: string; // comma-separated origins from env
 }
 
 // ================================

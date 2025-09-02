@@ -1,9 +1,16 @@
 <script setup lang="ts">
+
 import { ref, onMounted } from 'vue'
 import { apiService, getErrorMessage } from '../services/api'
+import { getApiBaseUrl } from '../utils/api-config'
+
 
 const isLoading = ref(true)
 const status = ref<string>('')
+// Expose API base URL and build date for debug
+const apiBaseUrl = getApiBaseUrl()
+// Use the build timestamp injected at build time, fallback to current date if not set
+const buildDate = import.meta.env.VITE_BUILD_DATE || new Date().toISOString()
 
 const checkWorkerStatus = async (): Promise<void> => {
   try {
@@ -51,6 +58,7 @@ onMounted(() => {
       </div>
     </div>
 
+
     <!-- Status Section -->
     <div class="bg-blue-50 border-b border-blue-200">
       <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -69,6 +77,10 @@ onMounted(() => {
             Checking API connection...
           </p>
           <p v-else class="text-gray-700">{{ status }}</p>
+          <div class="mt-4 text-xs text-gray-500">
+            <div><strong>API Base URL:</strong> {{ apiBaseUrl }}</div>
+            <div><strong>Build Date:</strong> {{ buildDate }}</div>
+          </div>
         </div>
       </div>
     </div>

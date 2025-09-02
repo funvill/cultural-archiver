@@ -130,10 +130,25 @@ app.use('*', async (c, next) => {
   }
 });
 
-// CORS configuration
-app.use('/api/*', async (c, next) => {
+// CORS configuration (applies to all routes)
+app.use('*', async (c, next) => {
+  // Support both comma-separated string and array for origins
+  let origins: string[] = [];
+  if (typeof c.env.CORS_ORIGINS === 'string') {
+    origins = c.env.CORS_ORIGINS.split(',').map((o: string) => o.trim()).filter(Boolean);
+  } else if (Array.isArray(c.env.CORS_ORIGINS)) {
+    origins = c.env.CORS_ORIGINS;
+  } else {
+    // Default to production origins if not set
+    origins = [
+      'https://art.abluestar.com',
+      'https://art-api.abluestar.com',
+      'https://art-photos.abluestar.com',
+      'https://cultural-archiver.broad-bird-0934.workers.dev'
+    ];
+  }
   const corsOptions = cors({
-    origin: [c.env.FRONTEND_URL, 'http://localhost:5173'],
+    origin: origins,
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-User-Token'],
     credentials: true,

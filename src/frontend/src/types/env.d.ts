@@ -1,0 +1,11 @@
+/// <reference types="vite/client" />
+
+declare interface ImportMetaEnv {
+  readonly VITE_API_BASE_URL?: string;
+  readonly VITE_BUILD_DATE?: string;
+  [key: string]: any;
+}
+
+declare interface ImportMeta {
+  readonly env: ImportMetaEnv;
+}

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import PhotoUpload from '../components/PhotoUpload.vue'
 import { useAuthStore } from '../stores/auth'
@@ -14,9 +14,6 @@ const isSubmitting = ref(false)
 const error = ref<string | null>(null)
 const success = ref(false)
 const submissionData = ref<any>(null)
-
-// Configuration
-const apiBaseUrl = computed(() => '/api')
 
 // Methods
 function handleUploadSuccess(data: any) {
@@ -149,7 +146,6 @@ function startNewSubmission() {
       <!-- Upload Step -->
       <div v-if="currentStep === 1 && !success">
         <PhotoUpload
-          :api-base-url="apiBaseUrl"
           :user-token="authStore.ensureUserToken()"
           @success="handleUploadSuccess"
           @error="handleUploadError"

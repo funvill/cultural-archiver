@@ -3,16 +3,10 @@ import vue from '@vitejs/plugin-vue';
 import { resolve } from 'path';
 
 export default defineConfig(({ mode }) => {
-  // Automatically set API URL based on environment
-  const isProduction = mode === 'production';
-  const apiBaseUrl = isProduction 
-    ? 'https://art-api.abluestar.com' 
-    : '/api'; // Use proxy in development
-  
   // Enable debug mode in development unless explicitly disabled
-  const debugMode = isProduction ? false : true;
+  const debugMode = mode !== 'production';
   
-  console.log(`[Vite Config] Mode: ${mode}, API Base URL: ${apiBaseUrl}, Debug Mode: ${debugMode}`);
+  console.log(`[Vite Config] Mode: ${mode}, Debug Mode: ${debugMode}`);
   
   return {
     plugins: [vue()],
@@ -70,8 +64,6 @@ export default defineConfig(({ mode }) => {
     define: {
       __VUE_OPTIONS_API__: false,
       __VUE_PROD_DEVTOOLS__: false,
-      // Override VITE_API_BASE_URL and VITE_DEBUG_MODE based on build mode
-      'import.meta.env.VITE_API_BASE_URL': JSON.stringify(apiBaseUrl),
       'import.meta.env.VITE_DEBUG_MODE': JSON.stringify(debugMode.toString()),
     },
     optimizeDeps: {
