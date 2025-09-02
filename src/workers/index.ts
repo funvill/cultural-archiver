@@ -89,10 +89,18 @@ app.use('/api/*', async (c, next) => {
   return corsOptions(c, next);
 });
 
+// Health check result interface
+interface HealthCheckResult {
+  status: 'healthy' | 'unhealthy' | 'degraded';
+  error?: string;
+  test_time: number;
+  [key: string]: unknown;
+}
+
 // Health check endpoint with comprehensive testing
 app.get('/health', async c => {
   const startTime = Date.now();
-  const checks: Record<string, any> = {};
+  const checks: Record<string, HealthCheckResult> = {};
   let allHealthy = true;
 
   // Environment info
@@ -224,19 +232,9 @@ app.get('/health', async c => {
   for (const { name, path } of endpointTests) {
     try {
       console.log(`[HEALTH] Testing endpoint: ${path}...`);
-      const testUrl = new URL(path, 'http://localhost');
-      const testRequest = new Request(testUrl);
       
-      // Create a new context for internal testing
-      const testContext = {
-        req: testRequest,
-        env: c.env,
-        executionCtx: c.executionCtx,
-        json: (data: any) => ({ data, status: 'ok' }),
-      } as any;
-
       // Test the endpoint based on path
-      let result: any;
+      let result: Record<string, unknown>;
       if (path === '/test') {
         result = { message: 'Test endpoint working' };
       } else if (path === '/api/status') {
@@ -246,6 +244,8 @@ app.get('/health', async c => {
           timestamp: new Date().toISOString(),
           version: c.env.API_VERSION || '1.0.0',
         };
+      } else {
+        result = { message: 'Unknown endpoint' };
       }
 
       checks[`endpoint_${name}`] = {
