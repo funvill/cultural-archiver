@@ -53,6 +53,58 @@ import {
 // Initialize Hono app
 const app = new Hono<{ Bindings: WorkerEnv }>();
 
+// Add binding validation middleware - CRITICAL for deployment diagnosis
+app.use('*', async (c, next) => {
+  const missingBindings = [];
+  
+  // Check critical bindings
+  if (!c.env.DB) missingBindings.push('DB (D1 Database)');
+  if (!c.env.SESSIONS) missingBindings.push('SESSIONS (KV)');
+  if (!c.env.CACHE) missingBindings.push('CACHE (KV)');
+  if (!c.env.RATE_LIMITS) missingBindings.push('RATE_LIMITS (KV)');
+  if (!c.env.MAGIC_LINKS) missingBindings.push('MAGIC_LINKS (KV)');
+  if (!c.env.PHOTOS_BUCKET) missingBindings.push('PHOTOS_BUCKET (R2)');
+  
+  // If critical bindings are missing, return a helpful error instead of "hello world"
+  if (missingBindings.length > 0) {
+    console.error('❌ CRITICAL: Missing Cloudflare bindings:', missingBindings);
+    
+    // Return a helpful error response instead of failing silently
+    return c.json({
+      error: 'Deployment Configuration Error',
+      message: 'Cultural Archiver API worker is deployed but missing critical Cloudflare bindings',
+      missing_bindings: missingBindings,
+      environment: c.env.ENVIRONMENT || 'unknown',
+      worker_name: 'cultural-archiver-workers',
+      timestamp: new Date().toISOString(),
+      diagnosis: {
+        issue: 'The worker is deployed correctly but missing required Cloudflare bindings',
+        likely_cause: 'Placeholder values in wrangler.toml or incomplete deployment configuration',
+        solution: [
+          '1. Check wrangler.toml for placeholder values (PLACEHOLDER_*)',
+          '2. Fill in actual resource IDs from Cloudflare dashboard',
+          '3. Redeploy with: wrangler deploy --env production',
+          '4. Verify custom domain points to correct worker'
+        ],
+        next_steps: [
+          'Run: node verify-deployment.js production',
+          'Check Cloudflare Dashboard > Workers & Pages',
+          'Verify D1, KV, and R2 resource configurations'
+        ]
+      },
+      debug_info: {
+        note: 'This error proves the Cultural Archiver worker is deployed, not a "hello world" worker',
+        request_url: c.req.url,
+        user_agent: c.req.header('User-Agent'),
+        cf_ray: c.req.header('CF-Ray')
+      }
+    }, 500);
+  }
+  
+  // Continue to next middleware if all bindings are present
+  return await next();
+});
+
 // Global middleware
 app.use('*', secureHeaders());
 app.use('*', logger());

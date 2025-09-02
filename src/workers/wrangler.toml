@@ -26,7 +26,7 @@ database_id = ""  # Fill in from Cloudflare dashboard
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "cultural-archiver-prod"
-database_id = ""  # Fill in from Cloudflare dashboard
+database_id = "PLACEHOLDER_PROD_DB_ID"  # Must be filled with actual database ID before production deployment
 
 # KV namespace bindings
 [[env.development.kv_namespaces]]
@@ -65,19 +65,19 @@ id = "staging-magic-links-placeholder"  # Fill in from Cloudflare dashboard
 
 [[env.production.kv_namespaces]]
 binding = "SESSIONS"
-id = "c991e608759d45bdae4198b72955da5f"  # Fill in from Cloudflare dashboard
+id = "PLACEHOLDER_PROD_SESSIONS_ID"  # Must be filled with actual KV namespace ID
 
 [[env.production.kv_namespaces]]
 binding = "CACHE"
-id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Fill in from Cloudflare dashboard
+id = "PLACEHOLDER_PROD_CACHE_ID"  # Must be filled with actual KV namespace ID
 
 [[env.production.kv_namespaces]]
 binding = "RATE_LIMITS"
-id = "prod-rate-limits-placeholder"  # Fill in from Cloudflare dashboard
+id = "PLACEHOLDER_PROD_RATE_LIMITS_ID"  # Must be filled with actual KV namespace ID
 
 [[env.production.kv_namespaces]]
 binding = "MAGIC_LINKS"
-id = "prod-magic-links-placeholder"  # Fill in from Cloudflare dashboard
+id = "PLACEHOLDER_PROD_MAGIC_LINKS_ID"  # Must be filled with actual KV namespace ID
 
 # R2 bucket bindings
 [[env.development.r2_buckets]]
