@@ -18,7 +18,9 @@ const submissionData = ref<any>(null)
 // Methods
 function handleUploadSuccess(data: any) {
   submissionData.value = data
-  currentStep.value = 2
+  // Show success immediately since the submission is already complete
+  success.value = true
+  currentStep.value = 1
   error.value = null
 }
 
@@ -38,10 +40,9 @@ async function submitForReview() {
   error.value = null
   
   try {
-    // This would normally make an API call to finalize the submission
-    // For now, we'll simulate success
-    await new Promise(resolve => setTimeout(resolve, 2000))
-    
+    // The submission already happened in PhotoUpload component
+    // This step is now just for user confirmation/review
+    // Show success immediately
     success.value = true
     currentStep.value = 1
     
@@ -119,10 +120,10 @@ function startNewSubmission() {
       </div>
 
       <!-- Success Message -->
-      <div v-if="success" class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4">
+      <div v-if="success" class="mb-6 bg-green-50 border border-green-200 rounded-lg p-4" role="alert" aria-live="polite">
         <div class="flex">
           <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+            <svg class="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
             </svg>
           </div>
@@ -134,7 +135,7 @@ function startNewSubmission() {
             <div class="mt-3">
               <button
                 @click="startNewSubmission"
-                class="text-sm font-medium text-green-800 hover:text-green-900 underline"
+                class="text-sm font-medium text-green-800 hover:text-green-900 underline focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
               >
                 Submit another artwork →
               </button>
@@ -147,8 +148,8 @@ function startNewSubmission() {
       <div v-if="currentStep === 1 && !success">
         <PhotoUpload
           :user-token="authStore.ensureUserToken()"
-          @success="handleUploadSuccess"
-          @error="handleUploadError"
+          @uploadSuccess="handleUploadSuccess"
+          @uploadError="handleUploadError"
           @cancel="handleCancel"
         />
       </div>
