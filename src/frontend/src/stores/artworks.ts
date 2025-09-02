@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { ArtworkPin, Coordinates, MapBounds, ArtworkDetails, ArtworkApiResponse } from '../types'
+import type { ArtworkPin, Coordinates, MapBounds, ArtworkDetails, ArtworkWithPhotos } from '../types'
 import { apiService, getErrorMessage, isNetworkError } from '../services/api'
 
 /**
@@ -125,19 +125,34 @@ export const useArtworksStore = defineStore('artworks', () => {
         fetchRadius.value
       )
 
+      // The API now returns a NearbyArtworksResponse object with an artworks array
+      const apiArtworks = response.artworks || [];
+
       // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = ((response.data || []) as ArtworkApiResponse[]).map((artwork: ArtworkApiResponse): ArtworkPin => {
+      const artworkPins: ArtworkPin[] = apiArtworks.map((artwork: ArtworkWithPhotos): ArtworkPin => {
         const pin: ArtworkPin = {
           id: artwork.id,
           latitude: artwork.lat,
           longitude: artwork.lon,
           type: artwork.type_name || 'unknown',
-          photos: artwork.photos || []
+          photos: []
         }
         
-        // Only set title if it's a string
-        if (typeof artwork.tags_parsed?.title === 'string') {
-          pin.title = artwork.tags_parsed.title
+        // Handle photos from recent_photo
+        if (artwork.recent_photo) {
+          pin.photos = [artwork.recent_photo];
+        }
+        
+        // Only set title if it's available in tags
+        if (artwork.tags) {
+          try {
+            const parsedTags = typeof artwork.tags === 'string' ? JSON.parse(artwork.tags) : artwork.tags;
+            if (typeof parsedTags?.title === 'string') {
+              pin.title = parsedTags.title;
+            }
+          } catch (e) {
+            console.warn('Failed to parse artwork tags:', e);
+          }
         }
         
         return pin
@@ -219,25 +234,56 @@ export const useArtworksStore = defineStore('artworks', () => {
         Math.max(radius, 500) // Minimum 500m radius
       )
 
-      // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = ((response.data || []) as ArtworkApiResponse[]).map((artwork: ArtworkApiResponse): ArtworkPin => {
+      console.log('[DEBUG] API response received:', response);
+      console.log('[DEBUG] Response structure:', {
+        hasArtworks: !!response.artworks,
+        artworksLength: response.artworks ? response.artworks.length : 0,
+        responseKeys: Object.keys(response),
+        responseType: typeof response
+      });
+      
+      // The API now returns a NearbyArtworksResponse object with an artworks array
+      console.log('[DEBUG] response.artworks type:', typeof response.artworks);
+      console.log('[DEBUG] response.artworks value:', response.artworks);
+      console.log('[DEBUG] response.artworks array check:', Array.isArray(response.artworks));
+      const apiArtworks = response.artworks || [];
+      console.log('[DEBUG] Extracted artworks:', apiArtworks.length, 'artworks found');
+      console.log('[DEBUG] First artwork if any:', apiArtworks[0]);      // Convert the API response to ArtworkPin format
+      const artworkPins: ArtworkPin[] = apiArtworks.map((artwork: ArtworkWithPhotos): ArtworkPin => {
+        console.log('[DEBUG] Converting artwork to pin:', artwork);
         const pin: ArtworkPin = {
           id: artwork.id,
           latitude: artwork.lat,
           longitude: artwork.lon,
           type: artwork.type_name || 'unknown',
-          photos: artwork.photos || []
+          photos: []
         }
         
-        // Only set title if it's a string
-        if (typeof artwork.tags_parsed?.title === 'string') {
-          pin.title = artwork.tags_parsed.title
+        // Handle photos from recent_photo or extract from API response
+        if (artwork.recent_photo) {
+          pin.photos = [artwork.recent_photo];
+        }
+        
+        // Only set title if it's available in tags
+        if (artwork.tags) {
+          try {
+            const parsedTags = typeof artwork.tags === 'string' ? JSON.parse(artwork.tags) : artwork.tags;
+            if (typeof parsedTags?.title === 'string') {
+              pin.title = parsedTags.title;
+            }
+          } catch (e) {
+            console.warn('Failed to parse artwork tags:', e);
+          }
         }
         
         return pin
       })
 
+      console.log('[DEBUG] Converted to ArtworkPin format:', artworkPins.length, 'pins');
+      console.log('[DEBUG] Pin details:', artworkPins);
+
       setArtworks(artworkPins)
+      console.log('[DEBUG] Artworks set in store. Total count:', artworks.value.length);
     } catch (err) {
       const message = getErrorMessage(err)
       setError(message)
@@ -257,19 +303,34 @@ export const useArtworksStore = defineStore('artworks', () => {
         10   // Limit results
       )
 
+      // The API now returns a NearbyArtworksResponse object with an artworks array
+      const apiArtworks = response.artworks || [];
+
       // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = ((response.data || []) as ArtworkApiResponse[]).map((artwork: ArtworkApiResponse): ArtworkPin => {
+      const artworkPins: ArtworkPin[] = apiArtworks.map((artwork: ArtworkWithPhotos): ArtworkPin => {
         const pin: ArtworkPin = {
           id: artwork.id,
           latitude: artwork.lat,
           longitude: artwork.lon,
           type: artwork.type_name || 'unknown',
-          photos: artwork.photos || []
+          photos: []
         }
         
-        // Only set title if it's a string
-        if (typeof artwork.tags_parsed?.title === 'string') {
-          pin.title = artwork.tags_parsed.title
+        // Handle photos from recent_photo
+        if (artwork.recent_photo) {
+          pin.photos = [artwork.recent_photo];
+        }
+        
+        // Only set title if it's available in tags
+        if (artwork.tags) {
+          try {
+            const parsedTags = typeof artwork.tags === 'string' ? JSON.parse(artwork.tags) : artwork.tags;
+            if (typeof parsedTags?.title === 'string') {
+              pin.title = parsedTags.title;
+            }
+          } catch (e) {
+            console.warn('Failed to parse artwork tags:', e);
+          }
         }
         
         return pin

@@ -5,7 +5,6 @@
 
 import type {
   LogbookSubmission,
-  ArtworkApiResponse,
   ArtworkDetails,
   UserSubmission,
   UserProfile,
@@ -19,6 +18,7 @@ import type {
   PaginatedResponse,
   StatusResponse,
   SubmissionResponse,
+  NearbyArtworksResponse,
 } from '../types'
 import { getApiBaseUrl } from '../utils/api-config'
 
@@ -315,7 +315,7 @@ export const apiService = {
     lon: number,
     radius: number = 500,
     limit: number = 50
-  ): Promise<ApiResponse<ArtworkApiResponse[]>> {
+  ): Promise<NearbyArtworksResponse> {
     return client.get('/artworks/nearby', {
       lat: lat.toString(),
       lon: lon.toString(),
