@@ -1,16 +1,13 @@
-name = "cultural-archiver-workers"
+name = "cultural-archiver-api"
 main = "index.ts"
 compatibility_date = "2024-11-06"
 compatibility_flags = ["nodejs_compat"]
 
 [env.development]
-name = "cultural-archiver-workers-dev"
-
-[env.staging]
-name = "cultural-archiver-workers-staging"
+name = "cultural-archiver-api"
 
 [env.production]
-name = "cultural-archiver-workers-prod"
+name = "cultural-archiver-api"
 
 # D1 Database bindings
 [[env.development.d1_databases]]
@@ -18,15 +15,10 @@ binding = "DB"
 database_name = "cultural-archiver"
 database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"
 
-[[env.staging.d1_databases]]
-binding = "DB"
-database_name = "cultural-archiver-staging"
-database_id = ""  # Fill in from Cloudflare dashboard
-
 [[env.production.d1_databases]]
 binding = "DB"
-database_name = "cultural-archiver-prod"
-database_id = ""  # Fill in from Cloudflare dashboard
+database_name = "cultural-archiver"
+database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"  # Must be filled with actual database ID before production deployment
 
 # KV namespace bindings
 [[env.development.kv_namespaces]]
@@ -37,56 +29,36 @@ id = "c991e608759d45bdae4198b72955da5f"
 binding = "CACHE"
 id = "91052eaeeef24b6fab6ac2b3c75b8b0b"
 
-# Rate limiting KV namespace for MVP
+# Rate limiting KV namespace for MVP. 'cultural-archiver-rate_limits'
 [[env.development.kv_namespaces]]
 binding = "RATE_LIMITS"
-id = "rate-limits-dev-placeholder"
+id = "81aa51ca054d46b18977670c3dff6c04"
 
-# Magic links KV namespace for MVP
+# Magic links KV namespace for MVP. 'cultural-archiver-magic-links'
 [[env.development.kv_namespaces]]
 binding = "MAGIC_LINKS"
-id = "magic-links-dev-placeholder"
-
-[[env.staging.kv_namespaces]]
-binding = "SESSIONS"
-id = "c991e608759d45bdae4198b72955da5f"  # Fill in from Cloudflare dashboard
-
-[[env.staging.kv_namespaces]]
-binding = "CACHE"
-id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Fill in from Cloudflare dashboard
-
-[[env.staging.kv_namespaces]]
-binding = "RATE_LIMITS"
-id = "staging-rate-limits-placeholder"  # Fill in from Cloudflare dashboard
-
-[[env.staging.kv_namespaces]]
-binding = "MAGIC_LINKS"
-id = "staging-magic-links-placeholder"  # Fill in from Cloudflare dashboard
+id = "5b69d7c338734f3aa56cea9c1f3930f7"
 
 [[env.production.kv_namespaces]]
 binding = "SESSIONS"
-id = "c991e608759d45bdae4198b72955da5f"  # Fill in from Cloudflare dashboard
+id = "c991e608759d45bdae4198b72955da5f"  # Must be filled with actual KV namespace ID
 
 [[env.production.kv_namespaces]]
 binding = "CACHE"
-id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Fill in from Cloudflare dashboard
+id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Must be filled with actual KV namespace ID
 
 [[env.production.kv_namespaces]]
 binding = "RATE_LIMITS"
-id = "prod-rate-limits-placeholder"  # Fill in from Cloudflare dashboard
+id = "81aa51ca054d46b18977670c3dff6c04"  # Must be filled with actual KV namespace ID
 
 [[env.production.kv_namespaces]]
 binding = "MAGIC_LINKS"
-id = "prod-magic-links-placeholder"  # Fill in from Cloudflare dashboard
+id = "5b69d7c338734f3aa56cea9c1f3930f7"  # Must be filled with actual KV namespace ID
 
 # R2 bucket bindings
 [[env.development.r2_buckets]]
 binding = "PHOTOS_BUCKET"
-bucket_name = "cultural-archiver-photos-dev"
-
-[[env.staging.r2_buckets]]
-binding = "PHOTOS_BUCKET"
-bucket_name = "cultural-archiver-photos-staging"
+bucket_name = "cultural-archiver-photos"
 
 [[env.production.r2_buckets]]
 binding = "PHOTOS_BUCKET"
@@ -108,20 +80,6 @@ CLOUDFLARE_ACCOUNT_ID = "development"
 CLOUDFLARE_IMAGES_ENABLED = "false"
 CLOUDFLARE_IMAGES_HASH = ""
 
-[env.staging.vars]
-ENVIRONMENT = "staging"
-FRONTEND_URL = "https://staging-art.abluestar.com"
-LOG_LEVEL = "info"
-API_VERSION = "1.0.0"
-# Email configuration (set via secrets)
-EMAIL_FROM = "Cultural Archiver Staging <noreply@art-staging.abluestar.com>"
-PHOTOS_BASE_URL = "https://art-photos.abluestar.com"
-# EMAIL_API_KEY set via `wrangler secret put EMAIL_API_KEY`
-# CLOUDFLARE_ACCOUNT_ID set via `wrangler secret put CLOUDFLARE_ACCOUNT_ID`
-# Cloudflare Images configuration
-CLOUDFLARE_IMAGES_ENABLED = "true"
-# CLOUDFLARE_IMAGES_HASH set via `wrangler secret put CLOUDFLARE_IMAGES_HASH`
-
 [env.production.vars]
 ENVIRONMENT = "production"
 FRONTEND_URL = "https://art.abluestar.com"
@@ -133,5 +91,5 @@ PHOTOS_BASE_URL = "https://art-photos.abluestar.com"
 # EMAIL_API_KEY set via `wrangler secret put EMAIL_API_KEY`
 # CLOUDFLARE_ACCOUNT_ID set via `wrangler secret put CLOUDFLARE_ACCOUNT_ID`
 # Cloudflare Images configuration  
-CLOUDFLARE_IMAGES_ENABLED = "true"
+CLOUDFLARE_IMAGES_ENABLED = "false"
 # CLOUDFLARE_IMAGES_HASH set via `wrangler secret put CLOUDFLARE_IMAGES_HASH`

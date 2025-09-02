@@ -1,12 +1,13 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import type { Component } from 'vue'
 
 // Lazy load components for better performance
-const HomeView = () => import('../views/HomeView.vue')
-const MapView = () => import('../views/MapView.vue')
-const SubmitView = () => import('../views/SubmitView.vue')
-const ArtworkDetailView = () => import('../views/ArtworkDetailView.vue')
-const ProfileView = () => import('../views/ProfileView.vue')
-const ReviewView = () => import('../views/ReviewView.vue')
+const HomeView = (): Promise<Component> => import('../views/HomeView.vue')
+const MapView = (): Promise<Component> => import('../views/MapView.vue')
+const SubmitView = (): Promise<Component> => import('../views/SubmitView.vue')
+const ArtworkDetailView = (): Promise<Component> => import('../views/ArtworkDetailView.vue')
+const ProfileView = (): Promise<Component> => import('../views/ProfileView.vue')
+const ReviewView = (): Promise<Component> => import('../views/ReviewView.vue')
 
 const router = createRouter({
   history: createWebHistory(),

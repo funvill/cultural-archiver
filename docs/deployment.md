@@ -435,31 +435,145 @@ if (!allowedTypes.includes(file.type)) {
 
 ### Common Issues
 
-1. **Database Connection Errors**
+1. **"Hello World" Response Instead of JSON**
+
+   This is the most common deployment issue and indicates the wrong worker is deployed:
+
+   ```bash
+   # Test the current deployment
+   curl https://art-api.abluestar.com/test
+   
+   # Should return JSON like:
+   # {"message":"Test endpoint working","timestamp":"...","environment":"production"}
+   # 
+   # If it returns just "hello world", the wrong worker is deployed
+   ```
+
+   **Solutions:**
+   
+   ```bash
+   # 1. Check which worker is deployed
+   wrangler whoami
+   wrangler list
+   
+   # 2. Check if you're deploying to the correct name
+   grep "name.*=" src/workers/wrangler.toml
+   
+   # 3. Deploy with explicit environment
+   cd src/workers
+   wrangler deploy --env production --name cultural-archiver-workers-prod
+   
+   # 4. Verify deployment
+   curl https://art-api.abluestar.com/health | jq .status
+   ```
+
+   **Root Cause Check:**
+   
+   ```bash
+   # Check the custom domain mapping in Cloudflare Dashboard:
+   # Workers & Pages > cultural-archiver-workers-prod > Custom Domains
+   # Ensure art-api.abluestar.com points to the correct worker
+   ```
+
+2. **Database Connection Errors**
 
    ```bash
    # Check D1 binding
    wrangler d1 info cultural-archiver-db
+   
+   # Test health endpoint to verify database connection
+   curl https://art-api.abluestar.com/health | jq .checks.database
    ```
 
-2. **KV Namespace Issues**
+3. **KV Namespace Issues**
 
    ```bash
    # List namespaces
    wrangler kv:namespace list
+   
+   # Test health endpoint to verify KV connections
+   curl https://art-api.abluestar.com/health | jq '.checks | keys | map(select(startswith("kv_")))'
    ```
 
-3. **R2 Access Issues**
+4. **R2 Access Issues**
 
    ```bash
    # Test R2 access
    wrangler r2 bucket list
+   
+   # Test health endpoint to verify R2 connection
+   curl https://art-api.abluestar.com/health | jq .checks.r2_storage
    ```
 
-4. **Worker CPU/Memory Limits**
+5. **Worker CPU/Memory Limits**
    - Monitor usage in Cloudflare Dashboard
    - Optimize heavy operations
    - Consider splitting into multiple workers
+
+### Deployment Verification
+
+After deploying, run these verification steps:
+
+```bash
+# 1. Test basic endpoints
+curl https://art-api.abluestar.com/test
+curl https://art-api.abluestar.com/health
+
+# 2. Comprehensive health check
+curl https://art-api.abluestar.com/health | jq .summary
+
+# 3. Test API endpoints
+curl "https://art-api.abluestar.com/api/artworks/nearby?lat=49.2827&lon=-123.1207"
+
+# 4. Check frontend integration
+curl https://art.abluestar.com/ | grep -o "System Status.*failed\|API.*OK"
+```
+
+Expected health check response:
+```json
+{
+  "status": "healthy",
+  "summary": {
+    "healthy_checks": 10,
+    "total_checks": 10,
+    "overall_health": "10/10 checks passing"
+  }
+}
+```
+
+### Debug Mode
+
+Enable comprehensive debug logging:
+
+```bash
+# 1. Set debug environment variables
+wrangler secret put LOG_LEVEL --name cultural-archiver-workers-prod
+# Enter: debug
+
+# 2. Watch live logs
+wrangler tail --name cultural-archiver-workers-prod --format pretty
+
+# 3. Test with logging
+curl https://art-api.abluestar.com/test
+# Check logs for debug output
+```
+
+### Emergency Rollback
+
+If deployment is broken:
+
+```bash
+# 1. Rollback to previous version
+wrangler rollback --name cultural-archiver-workers-prod
+
+# 2. Or deploy a known good version
+git checkout main~1  # Go back one commit
+cd src/workers
+wrangler deploy --env production
+
+# 3. Verify rollback
+curl https://art-api.abluestar.com/health
+```
 
 ### Debug Mode
 

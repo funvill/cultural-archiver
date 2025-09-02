@@ -1,6 +1,6 @@
 {
-  "name": "cultural-archiver-frontend-prod",
-  "compatibility_date": "2024-08-29",
+  "name": "cultural-archiver",
+  "compatibility_date": "2025-04-01",
   "assets": {
     "directory": "./dist"
   }

@@ -11,7 +11,7 @@ vi.mock('../../components/PhotoUpload.vue', () => ({
     template: '<div data-testid="photo-upload"><button @click="$emit(\'upload-success\', mockData)">Upload Photos</button></div>',
     props: ['maxFiles', 'acceptedTypes', 'maxSize'],
     emits: ['upload-success', 'upload-error'],
-    setup(): { mockData: any } {
+    setup(): { mockData: any } { // eslint-disable-line @typescript-eslint/no-explicit-any
       const mockData = {
         submission_id: 'test-submission-id',
         photos: ['photo1.jpg', 'photo2.jpg']
@@ -32,7 +32,7 @@ const createMockRouter = (): Router => {
 }
 
 describe('SubmitView', () => {
-  let wrapper: VueWrapper<any>
+  let wrapper: VueWrapper<any> // eslint-disable-line @typescript-eslint/no-explicit-any
   let router: Router
   let pinia: Pinia
 

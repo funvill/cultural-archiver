@@ -13,7 +13,13 @@ vi.mock('../ConsentForm.vue', () => ({
 }))
 
 // Mock useAnnouncer
-vi.mock('../../composables/useAnnouncer', () => ({
+vi.mock('../../composables/useAnnouncer', (): {
+  useAnnouncer: () => {
+    announceSuccess: ReturnType<typeof vi.fn>
+    announceError: ReturnType<typeof vi.fn>
+    announceInfo: ReturnType<typeof vi.fn>
+  }
+} => ({
   useAnnouncer: () => ({
     announceSuccess: vi.fn(),
     announceError: vi.fn(),
@@ -31,7 +37,7 @@ const mockFetch = vi.fn()
 global.fetch = mockFetch
 
 describe('PhotoUpload', () => {
-  let wrapper: VueWrapper<any>
+  let wrapper: VueWrapper<any> // eslint-disable-line @typescript-eslint/no-explicit-any
   let pinia: Pinia
 
   beforeEach(async (): Promise<void> => {

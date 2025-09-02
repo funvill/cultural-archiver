@@ -39,7 +39,24 @@ export interface PromptState {
   resolve?: (result: string | null) => void
 }
 
-export function useModal() {
+export function useModal(): {
+  modalState: ModalState
+  promptState: PromptState
+  showConfirmModal: (config?: ModalConfig) => Promise<boolean>
+  showPrompt: (config?: PromptConfig) => Promise<string | null>
+  showAlert: (message: string, title?: string, variant?: 'primary' | 'danger' | 'warning') => Promise<boolean>
+  showError: (message: string, title?: string) => Promise<boolean>
+  showWarning: (message: string, title?: string) => Promise<boolean>
+  showDeleteConfirm: (itemName?: string) => Promise<boolean>
+  handleConfirm: () => void
+  handleCancel: () => void
+  handlePromptConfirm: (value: string) => void
+  handlePromptCancel: () => void
+  closeModal: () => void
+  closePrompt: () => void
+  updateModalOpen: (isOpen: boolean) => void
+  updatePromptOpen: (isOpen: boolean) => void
+} {
   const modalState = reactive<ModalState>({
     isOpen: false,
     config: {}
@@ -117,45 +134,45 @@ export function useModal() {
   }
 
   // Handle modal confirm
-  function handleConfirm() {
+  function handleConfirm(): void {
     const { resolve } = modalState
     modalState.isOpen = false
     resolve?.(true)
   }
 
   // Handle modal cancel/close
-  function handleCancel() {
+  function handleCancel(): void {
     const { resolve } = modalState
     modalState.isOpen = false
     resolve?.(false)
   }
 
   // Handle prompt confirm
-  function handlePromptConfirm(value: string) {
+  function handlePromptConfirm(value: string): void {
     const { resolve } = promptState
     promptState.isOpen = false
     resolve?.(value)
   }
 
   // Handle prompt cancel/close
-  function handlePromptCancel() {
+  function handlePromptCancel(): void {
     const { resolve } = promptState
     promptState.isOpen = false
     resolve?.(null)
   }
 
   // Close modal programmatically
-  function closeModal() {
+  function closeModal(): void {
     handleCancel()
   }
 
   // Close prompt programmatically
-  function closePrompt() {
+  function closePrompt(): void {
     handlePromptCancel()
   }
 
   // Update modal open state
-  function updateModalOpen(isOpen: boolean) {
+  function updateModalOpen(isOpen: boolean): void {
     modalState.isOpen = isOpen
     if (!isOpen) {
       handleCancel()
@@ -163,7 +180,7 @@ export function useModal() {
   }
 
   // Update prompt open state
-  function updatePromptOpen(isOpen: boolean) {
+  function updatePromptOpen(isOpen: boolean): void {
     promptState.isOpen = isOpen
     if (!isOpen) {
       handlePromptCancel()

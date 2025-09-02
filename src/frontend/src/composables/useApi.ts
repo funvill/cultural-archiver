@@ -5,7 +5,7 @@
 import { ref } from 'vue'
 import { getErrorMessage, isNetworkError, ApiError } from '../services/api'
 
-export function useApi() {
+export function useApi() { // eslint-disable-line @typescript-eslint/explicit-function-return-type
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
@@ -115,14 +115,14 @@ export function useApi() {
   /**
    * Paginated API call helper
    */
-  const executePaginated = async <T>(
+  const executePaginated = async <T>( // eslint-disable-line @typescript-eslint/explicit-function-return-type
     apiCall: (page: number, limit: number) => Promise<{ items: T[], total: number, hasMore: boolean }>,
     options: {
       initialPage?: number
       pageSize?: number
       maxPages?: number
     } = {}
-  ) => {
+  ): Promise<any> => { // eslint-disable-line @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-explicit-any
     const { initialPage = 1, pageSize = 20, maxPages = 10 } = options
     
     const allItems = ref<T[]>([])
@@ -151,7 +151,7 @@ export function useApi() {
       return false
     }
 
-    const reset = () => {
+    const reset = (): void => {
       allItems.value = []
       currentPage.value = initialPage
       hasMore.value = true
@@ -181,7 +181,7 @@ export function useApi() {
       maxSize?: number // in bytes
       allowedTypes?: string[]
     } = {}
-  ) => {
+  ): Promise<T | null> => {
     const { onProgress, maxSize, allowedTypes } = options
     const uploadProgress = ref(0)
     const uploadError = ref<string | null>(null)
@@ -223,7 +223,7 @@ export function useApi() {
   /**
    * Clear error state
    */
-  const clearError = () => {
+  const clearError = (): void => {
     error.value = null
   }
 

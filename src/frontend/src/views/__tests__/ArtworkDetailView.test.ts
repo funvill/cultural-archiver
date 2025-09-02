@@ -47,10 +47,10 @@ const mockArtwork = {
 }
 
 describe('ArtworkDetailView', () => {
-  let wrapper: VueWrapper<any>
+  let wrapper: VueWrapper<any> // eslint-disable-line @typescript-eslint/no-explicit-any
   let router: Router
   let pinia: Pinia
-  let mockStore: any
+  let mockStore: any // eslint-disable-line @typescript-eslint/no-explicit-any
 
   beforeEach(async (): Promise<void> => {
     pinia = createPinia()

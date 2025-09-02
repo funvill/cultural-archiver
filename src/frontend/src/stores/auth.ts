@@ -19,38 +19,38 @@ export const useAuthStore = defineStore('auth', () => {
   const isEmailVerified = computed(() => user.value?.emailVerified ?? false)
 
   // Actions
-  function setUser(userData: User) {
+  function setUser(userData: User): void {
     user.value = userData
     error.value = null
   }
 
-  function setToken(tokenValue: string) {
+  function setToken(tokenValue: string): void {
     token.value = tokenValue
     // Store token in localStorage for persistence
     localStorage.setItem('user-token', tokenValue)
   }
 
-  function clearAuth() {
+  function clearAuth(): void {
     user.value = null
     token.value = null
     localStorage.removeItem('user-token')
     error.value = null
   }
 
-  function setError(message: string) {
+  function setError(message: string): void {
     error.value = message
   }
 
-  function clearError() {
+  function clearError(): void {
     error.value = null
   }
 
-  function setLoading(loading: boolean) {
+  function setLoading(loading: boolean): void {
     isLoading.value = loading
   }
 
   // Initialize auth from localStorage on store creation
-  function initializeAuth() {
+  function initializeAuth(): void {
     const storedToken = localStorage.getItem('user-token')
     if (storedToken) {
       token.value = storedToken
