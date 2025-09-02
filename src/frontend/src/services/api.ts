@@ -255,11 +255,18 @@ export const apiService = {
   },
 
   /**
-   * Generate anonymous user token (using magic link endpoint)
+   * Generate anonymous user token (using status endpoint)
    */
   async generateToken(): Promise<ApiResponse<{ token: string }>> {
-    // Use the magic link endpoint for token generation
-    return client.post('/auth/magic-link', {})
+    // Call the status endpoint to trigger token generation
+    // The token will be automatically extracted and stored by handleResponse
+    await client.get('/status')
+    const token = localStorage.getItem('user-token') || ''
+    return {
+      data: { token },
+      message: 'Token generated successfully',
+      success: true
+    }
   },
 
   // ================================

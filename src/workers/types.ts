@@ -450,7 +450,7 @@ export const ARTWORK_TYPES = [
 
 // Default search radius in meters
 export const DEFAULT_SEARCH_RADIUS = 500;
-export const MAX_SEARCH_RADIUS = 10000; // 10km
+export const MAX_SEARCH_RADIUS = 50000; // 50km - allows metropolitan area searches
 export const MIN_SEARCH_RADIUS = 50; // 50m
 
 // Rate limiting constants

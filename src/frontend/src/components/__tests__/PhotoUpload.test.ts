@@ -48,7 +48,6 @@ describe('PhotoUpload', () => {
         plugins: [pinia],
       },
       props: {
-        apiBaseUrl: '/api',
         userToken: 'test-token',
       },
     })
@@ -71,7 +70,6 @@ describe('PhotoUpload', () => {
     })
 
     it('has correct props interface', (): void => {
-      expect(wrapper.props('apiBaseUrl')).toBe('/api')
       expect(wrapper.props('userToken')).toBe('test-token')
     })
   })
@@ -105,7 +103,6 @@ describe('PhotoUpload', () => {
 
   describe('Props and Configuration', (): void => {
     it('accepts configuration props', (): void => {
-      expect(wrapper.props('apiBaseUrl')).toBeDefined()
       expect(wrapper.props('userToken')).toBeDefined()
     })
   })

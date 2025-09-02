@@ -441,7 +441,7 @@ app.get('/test', c => {
 });
 
 // API status endpoint (no auth required)
-app.get('/api/status', c => {
+app.get('/api/status', ensureUserToken, addUserTokenToResponse, c => {
   console.log('API status endpoint called'); // Add logging
   return c.json({
     message: 'Cultural Archiver API is running',

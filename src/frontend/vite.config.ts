@@ -25,7 +25,7 @@ export default defineConfig(({ mode }) => {
           target: 'http://127.0.0.1:8787',
           changeOrigin: true,
           secure: false,
-          configure: (proxy, _options) => {
+          configure: (proxy, _options): void => {
             proxy.on('error', (err, _req, _res) => {
               console.log('[Vite Proxy] Error:', err);
             });

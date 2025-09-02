@@ -8,7 +8,7 @@ import { z } from 'zod';
 import type { WorkerEnv } from '../types';
 import { ValidationApiError } from '../lib/errors';
 import { isValidLatitude, isValidLongitude } from '../lib/spatial';
-import { MAX_NOTE_LENGTH, MAX_PHOTOS_PER_SUBMISSION, ARTWORK_TYPES } from '../types';
+import { MAX_NOTE_LENGTH, MAX_PHOTOS_PER_SUBMISSION, ARTWORK_TYPES, MIN_SEARCH_RADIUS, MAX_SEARCH_RADIUS } from '../types';
 
 // Extend the Hono context types
 declare module 'hono' {
@@ -224,10 +224,10 @@ export async function validateNearbyArtworksQuery(
   // Validate optional radius
   if (radius) {
     const radiusNum = parseFloat(radius);
-    if (isNaN(radiusNum) || radiusNum < 50 || radiusNum > 10000) {
+    if (isNaN(radiusNum) || radiusNum < MIN_SEARCH_RADIUS || radiusNum > MAX_SEARCH_RADIUS) {
       validationErrors.push({
         field: 'radius',
-        message: 'Radius must be between 50 and 10000 meters',
+        message: `Radius must be between ${MIN_SEARCH_RADIUS} and ${MAX_SEARCH_RADIUS} meters`,
         code: 'INVALID',
       });
     }
