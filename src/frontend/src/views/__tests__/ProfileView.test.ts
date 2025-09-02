@@ -54,10 +54,10 @@ const createMockRouter = (): Router => {
 // ]
 
 describe('ProfileView', () => {
-  let wrapper: VueWrapper<any>
+  let wrapper: VueWrapper<any> // eslint-disable-line @typescript-eslint/no-explicit-any
   let router: Router
   let pinia: Pinia
-  let mockAuthStore: any
+  let mockAuthStore: any // eslint-disable-line @typescript-eslint/no-explicit-any
 
   beforeEach(async (): Promise<void> => {
     pinia = createPinia()

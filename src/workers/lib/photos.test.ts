@@ -26,16 +26,16 @@ const mockEnv: WorkerEnv = {
     delete: vi.fn().mockResolvedValue(undefined),
     head: vi.fn().mockResolvedValue(null),
     list: vi.fn().mockResolvedValue({ objects: [] })
-  } as any,
+  } as any, // eslint-disable-line @typescript-eslint/no-explicit-any
   CLOUDFLARE_IMAGES_ENABLED: 'false',
   CLOUDFLARE_ACCOUNT_ID: 'test-account',
   R2_PUBLIC_URL: 'https://test.r2.dev',
   PHOTOS_BASE_URL: 'https://test.photos.com',
-  DB: {} as any,
-  SESSIONS: {} as any,
-  CACHE: {} as any,
-  RATE_LIMITS: {} as any,
-  MAGIC_LINKS: {} as any,
+  DB: {} as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  SESSIONS: {} as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  CACHE: {} as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  RATE_LIMITS: {} as any, // eslint-disable-line @typescript-eslint/no-explicit-any
+  MAGIC_LINKS: {} as any, // eslint-disable-line @typescript-eslint/no-explicit-any
   ENVIRONMENT: 'test',
   FRONTEND_URL: 'http://localhost:3000',
   LOG_LEVEL: 'debug',

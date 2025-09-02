@@ -5,7 +5,7 @@
 import { ref, computed } from 'vue'
 import type { Coordinates } from '../types'
 
-export function useGeolocation() {
+export function useGeolocation() { // eslint-disable-line @typescript-eslint/explicit-function-return-type
   const position = ref<Coordinates | null>(null)
   const error = ref<string | null>(null)
   const isLoading = ref(false)
@@ -78,7 +78,7 @@ export function useGeolocation() {
   /**
    * Watch user's position changes
    */
-  const watchPosition = () => {
+  const watchPosition = (): void => {
     if (!navigator.geolocation || isWatching.value) {
       return
     }
@@ -122,7 +122,7 @@ export function useGeolocation() {
   /**
    * Stop watching position changes
    */
-  const stopWatching = () => {
+  const stopWatching = (): void => {
     if (watchId.value !== null) {
       navigator.geolocation.clearWatch(watchId.value)
       watchId.value = null
@@ -187,7 +187,7 @@ export function useGeolocation() {
   /**
    * Clear error state
    */
-  const clearError = () => {
+  const clearError = (): void => {
     error.value = null
   }
 

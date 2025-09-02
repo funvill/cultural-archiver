@@ -34,14 +34,14 @@ export const useArtworksStore = defineStore('artworks', () => {
     })
   })
 
-  const artworkById = computed(() => {
+  const artworkById = computed((): ((id: string) => ArtworkDetails | undefined) => {
     return (id: string) => artworkCache.value.get(id)
   })
 
   const hasLocationPermission = computed(() => !!currentLocation.value)
 
   // Actions
-  function setCurrentLocation(location: Coordinates) {
+  function setCurrentLocation(location: Coordinates): void {
     currentLocation.value = location
     
     // Update map center to user location if not manually moved
@@ -50,24 +50,24 @@ export const useArtworksStore = defineStore('artworks', () => {
     }
   }
 
-  function setMapCenter(center: Coordinates) {
+  function setMapCenter(center: Coordinates): void {
     mapCenter.value = center
   }
 
-  function setMapZoom(zoom: number) {
+  function setMapZoom(zoom: number): void {
     mapZoom.value = zoom
   }
 
-  function setMapBounds(bounds: MapBounds) {
+  function setMapBounds(bounds: MapBounds): void {
     mapBounds.value = bounds
   }
 
-  function setArtworks(artworkList: ArtworkPin[]) {
+  function setArtworks(artworkList: ArtworkPin[]): void {
     artworks.value = artworkList
     error.value = null
   }
 
-  function addArtwork(artwork: ArtworkPin) {
+  function addArtwork(artwork: ArtworkPin): void {
     const existingIndex = artworks.value.findIndex(a => a.id === artwork.id)
     if (existingIndex >= 0) {
       artworks.value[existingIndex] = artwork
@@ -76,7 +76,7 @@ export const useArtworksStore = defineStore('artworks', () => {
     }
   }
 
-  function removeArtwork(artworkId: string) {
+  function removeArtwork(artworkId: string): void {
     const index = artworks.value.findIndex(a => a.id === artworkId)
     if (index >= 0) {
       artworks.value.splice(index, 1)
@@ -84,20 +84,20 @@ export const useArtworksStore = defineStore('artworks', () => {
     artworkCache.value.delete(artworkId)
   }
 
-  function setLoading(loading: boolean) {
+  function setLoading(loading: boolean): void {
     isLoading.value = loading
   }
 
-  function setError(errorMessage: string | null) {
+  function setError(errorMessage: string | null): void {
     error.value = errorMessage
   }
 
-  function clearError() {
+  function clearError(): void {
     error.value = null
   }
 
   // Cache individual artwork details
-  function cacheArtwork(id: string, artwork: ArtworkDetails) {
+  function cacheArtwork(id: string, artwork: ArtworkDetails): void {
     artworkCache.value.set(id, artwork)
   }
 
@@ -299,7 +299,7 @@ export const useArtworksStore = defineStore('artworks', () => {
   }
 
   // Reset store state
-  function reset() {
+  function reset(): void {
     artworks.value = []
     artworkCache.value.clear()
     lastFetchLocation.value = null

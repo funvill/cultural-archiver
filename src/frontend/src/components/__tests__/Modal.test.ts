@@ -11,7 +11,7 @@ vi.mock('@heroicons/vue/24/outline', () => ({
 }))
 
 describe('Modal', () => {
-  let wrapper: VueWrapper<any>
+  let wrapper: VueWrapper<any> // eslint-disable-line @typescript-eslint/no-explicit-any
 
   beforeEach(async (): Promise<void> => {
     wrapper = mount(Modal, {

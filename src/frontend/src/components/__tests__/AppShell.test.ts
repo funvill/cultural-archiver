@@ -23,7 +23,7 @@ const createMockRouter = (): Router => {
 }
 
 describe('AppShell', () => {
-  let wrapper: VueWrapper<any>
+  let wrapper: VueWrapper<any> // eslint-disable-line @typescript-eslint/no-explicit-any
   let router: Router
   let pinia: Pinia
 

@@ -28,7 +28,11 @@ vi.mock('@vue-leaflet/vue-leaflet', () => ({
 
 // Mock useAnnouncer
 vi.mock('../../composables/useAnnouncer', () => ({
-  useAnnouncer: () => ({
+  useAnnouncer: (): {
+    announceToScreenReader: ReturnType<typeof vi.fn>
+    announceMapUpdate: ReturnType<typeof vi.fn>
+    announceError: ReturnType<typeof vi.fn>
+  } => ({
     announceToScreenReader: vi.fn(),
     announceMapUpdate: vi.fn(),
     announceError: vi.fn(),
@@ -36,7 +40,7 @@ vi.mock('../../composables/useAnnouncer', () => ({
 }))
 
 describe('MapComponent', () => {
-  let wrapper: VueWrapper<any>
+  let wrapper: VueWrapper<any> // eslint-disable-line @typescript-eslint/no-explicit-any
   let pinia: Pinia
 
   beforeEach(async (): Promise<void> => {

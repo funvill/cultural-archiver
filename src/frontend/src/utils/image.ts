@@ -118,7 +118,7 @@ export async function resizeImage(
       return
     }
 
-    img.onload = () => {
+    img.onload = (): void => {
       // Calculate new dimensions
       let { width, height } = img
       
@@ -153,20 +153,20 @@ export async function resizeImage(
       )
     }
 
-    img.onerror = () => {
+    img.onerror = (): void => {
       reject(new Error('Failed to load image'))
     }
 
     // Load image from file
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = (e): void => {
       if (e.target?.result) {
         img.src = e.target.result as string
       } else {
         reject(new Error('Failed to read file'))
       }
     }
-    reader.onerror = () => {
+    reader.onerror = (): void => {
       reject(new Error('Failed to read file'))
     }
     reader.readAsDataURL(file)
@@ -202,23 +202,23 @@ export async function getImageDimensions(file: File): Promise<{ width: number, h
   return new Promise((resolve, reject) => {
     const img = new Image()
     
-    img.onload = () => {
+    img.onload = (): void => {
       resolve({ width: img.naturalWidth, height: img.naturalHeight })
     }
     
-    img.onerror = () => {
+    img.onerror = (): void => {
       reject(new Error('Failed to load image'))
     }
     
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = (e): void => {
       if (e.target?.result) {
         img.src = e.target.result as string
       } else {
         reject(new Error('Failed to read file'))
       }
     }
-    reader.onerror = () => {
+    reader.onerror = (): void => {
       reject(new Error('Failed to read file'))
     }
     reader.readAsDataURL(file)
@@ -243,7 +243,7 @@ export async function convertImageFormat(
       return
     }
 
-    img.onload = () => {
+    img.onload = (): void => {
       canvas.width = img.naturalWidth
       canvas.height = img.naturalHeight
       
@@ -272,19 +272,19 @@ export async function convertImageFormat(
       )
     }
 
-    img.onerror = () => {
+    img.onerror = (): void => {
       reject(new Error('Failed to load image'))
     }
 
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = (e): void => {
       if (e.target?.result) {
         img.src = e.target.result as string
       } else {
         reject(new Error('Failed to read file'))
       }
     }
-    reader.onerror = () => {
+    reader.onerror = (): void => {
       reject(new Error('Failed to read file'))
     }
     reader.readAsDataURL(file)
@@ -359,7 +359,7 @@ export function createImagePreview(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
     
-    reader.onload = (e) => {
+    reader.onload = (e): void => {
       if (e.target?.result) {
         resolve(e.target.result as string)
       } else {
@@ -367,7 +367,7 @@ export function createImagePreview(file: File): Promise<string> {
       }
     }
     
-    reader.onerror = () => {
+    reader.onerror = (): void => {
       reject(new Error('Failed to read file'))
     }
     

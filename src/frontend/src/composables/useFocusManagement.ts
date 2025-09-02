@@ -6,20 +6,20 @@ export interface FocusableElement {
   tabIndex?: number
 }
 
-export function useFocusManagement() {
+export function useFocusManagement() { // eslint-disable-line @typescript-eslint/explicit-function-return-type
   const previouslyFocused = ref<HTMLElement | null>(null)
 
   /**
    * Save the currently focused element
    */
-  function saveFocus() {
+  function saveFocus(): void {
     previouslyFocused.value = document.activeElement as HTMLElement
   }
 
   /**
    * Restore focus to the previously focused element
    */
-  function restoreFocus() {
+  function restoreFocus(): void {
     nextTick(() => {
       if (previouslyFocused.value && typeof previouslyFocused.value.focus === 'function') {
         previouslyFocused.value.focus()
@@ -130,7 +130,7 @@ export function useFocusManagement() {
    * Create a focus guard for preventing focus from leaving a specific area
    */
   function createFocusGuard(container: HTMLElement): () => void {
-    const handleFocusIn = (event: FocusEvent) => {
+    const handleFocusIn = (event: FocusEvent): void => {
       const target = event.target as HTMLElement
       if (!container.contains(target)) {
         event.preventDefault()
@@ -175,18 +175,18 @@ export function useFocusManagement() {
   /**
    * Manage body scroll (prevent background scrolling when modal is open)
    */
-  function disableBodyScroll() {
+  function disableBodyScroll(): void {
     document.body.style.overflow = 'hidden'
   }
 
-  function enableBodyScroll() {
+  function enableBodyScroll(): void {
     document.body.style.overflow = ''
   }
 
   /**
    * Announce content to screen readers
    */
-  function announceToScreenReader(message: string, priority: 'polite' | 'assertive' = 'polite') {
+  function announceToScreenReader(message: string, priority: 'polite' | 'assertive' = 'polite'): void {
     const announcement = document.createElement('div')
     announcement.setAttribute('aria-live', priority)
     announcement.setAttribute('aria-atomic', 'true')

@@ -7,7 +7,7 @@ import { useAuthStore } from '../stores/auth'
 import { apiService, getErrorMessage } from '../services/api'
 import type { MagicLinkRequest, MagicLinkConsumeRequest, User } from '../types'
 
-export function useAuth() {
+export function useAuth() { // eslint-disable-line @typescript-eslint/explicit-function-return-type
   const authStore = useAuthStore()
 
   // Reactive auth state
@@ -22,7 +22,7 @@ export function useAuth() {
   /**
    * Initialize authentication on app startup
    */
-  const initAuth = async () => {
+  const initAuth = async (): Promise<void> => {
     try {
       authStore.setLoading(true)
       
@@ -59,7 +59,7 @@ export function useAuth() {
   /**
    * Generate and set anonymous user token
    */
-  const generateAnonymousToken = async () => {
+  const generateAnonymousToken = async (): Promise<void> => {
     try {
       const response = await apiService.generateToken()
       if (response.data) {
@@ -81,7 +81,7 @@ export function useAuth() {
   /**
    * Request magic link for email verification
    */
-  const requestMagicLink = async (email: string) => {
+  const requestMagicLink = async (email: string): Promise<boolean> => {
     try {
       authStore.setLoading(true)
       authStore.clearError()
@@ -101,7 +101,7 @@ export function useAuth() {
   /**
    * Consume magic link token from email
    */
-  const consumeMagicLink = async (magicToken: string) => {
+  const consumeMagicLink = async (magicToken: string): Promise<boolean> => {
     try {
       authStore.setLoading(true)
       authStore.clearError()
@@ -133,7 +133,7 @@ export function useAuth() {
   /**
    * Check verification status
    */
-  const checkVerificationStatus = async () => {
+  const checkVerificationStatus = async (): Promise<boolean> => {
     try {
       const response = await apiService.getVerificationStatus()
       
@@ -155,7 +155,7 @@ export function useAuth() {
   /**
    * Sign out and clear authentication
    */
-  const signOut = () => {
+  const signOut = (): void => {
     authStore.clearAuth()
     // Generate new anonymous token
     generateAnonymousToken()
@@ -164,7 +164,7 @@ export function useAuth() {
   /**
    * Refresh user profile data
    */
-  const refreshProfile = async () => {
+  const refreshProfile = async (): Promise<void> => {
     try {
       const profile = await apiService.getUserProfile()
       if (profile.data) {

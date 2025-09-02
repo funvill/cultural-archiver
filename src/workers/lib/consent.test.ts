@@ -201,7 +201,7 @@ describe('Consent Retrieval', () => {
       storedAt: new Date().toISOString()
     });
 
-    vi.spyOn(mockEnv.SESSIONS!, 'get').mockResolvedValue(storedData as any);
+    vi.spyOn(mockEnv.SESSIONS!, 'get').mockResolvedValue(storedData as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const result = await getConsentData(mockEnv as WorkerEnv, consentData.userToken);
 
@@ -212,7 +212,7 @@ describe('Consent Retrieval', () => {
   });
 
   it('should return null for non-existent consent', async () => {
-    vi.spyOn(mockEnv.SESSIONS!, 'get').mockResolvedValue(null as any);
+    vi.spyOn(mockEnv.SESSIONS!, 'get').mockResolvedValue(null as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const result = await getConsentData(mockEnv as WorkerEnv, 'non-existent-user');
 
@@ -244,7 +244,7 @@ describe('Consent Validation Checks', () => {
       consentedAt: new Date().toISOString()
     };
 
-    vi.spyOn(mockEnv.SESSIONS!, 'get').mockResolvedValue(JSON.stringify(validConsentData) as any);
+    vi.spyOn(mockEnv.SESSIONS!, 'get').mockResolvedValue(JSON.stringify(validConsentData) as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const result = await hasValidConsent(mockEnv as WorkerEnv, 'valid-user');
 
@@ -252,7 +252,7 @@ describe('Consent Validation Checks', () => {
   });
 
   it('should detect missing consent', async () => {
-    vi.spyOn(mockEnv.SESSIONS!, 'get').mockResolvedValue(null as any);
+    vi.spyOn(mockEnv.SESSIONS!, 'get').mockResolvedValue(null as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const result = await hasValidConsent(mockEnv as WorkerEnv, 'no-consent-user');
 
@@ -270,7 +270,7 @@ describe('Consent Validation Checks', () => {
       consentedAt: new Date().toISOString()
     };
 
-    vi.spyOn(mockEnv.SESSIONS!, 'get').mockResolvedValue(JSON.stringify(outdatedConsentData) as any);
+    vi.spyOn(mockEnv.SESSIONS!, 'get').mockResolvedValue(JSON.stringify(outdatedConsentData) as any); // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const result = await needsReConsent(mockEnv as WorkerEnv, 'outdated-user');
 
