@@ -12,7 +12,6 @@ import type {
   // ReviewStats,
   MagicLinkRequest,
   // MagicLinkConsumeRequest,
-  ConsumeMagicLinkResponse,
   // VerificationStatus,
   ApiResponse,
   PaginatedResponse,
@@ -478,7 +477,7 @@ export const apiService = {
   /**
    * Verify and consume magic link token
    */
-  async verifyMagicLink(request: MagicLinkConsumeRequest): Promise<ApiResponse<{
+  async verifyMagicLink(request: MagicLinkConsumeRequest): Promise<{
     success: boolean;
     message: string;
     user: {
@@ -493,7 +492,7 @@ export const apiService = {
     };
     uuid_replaced: boolean;
     is_new_account: boolean;
-  }>> {
+  }> {
     return client.post('/auth/verify-magic-link', request)
   },
 
@@ -536,7 +535,22 @@ export const apiService = {
   /**
    * @deprecated Use verifyMagicLink instead
    */
-  async consumeMagicLink(request: MagicLinkConsumeRequest): Promise<ApiResponse<ConsumeMagicLinkResponse>> {
+  async consumeMagicLink(request: MagicLinkConsumeRequest): Promise<{
+    success: boolean;
+    message: string;
+    user: {
+      uuid: string;
+      email: string;
+      created_at: string;
+      email_verified_at: string;
+    };
+    session: {
+      token: string;
+      expires_at: string;
+    };
+    uuid_replaced: boolean;
+    is_new_account: boolean;
+  }> {
     return this.verifyMagicLink(request)
   },
 

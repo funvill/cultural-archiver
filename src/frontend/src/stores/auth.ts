@@ -189,21 +189,19 @@ export const useAuthStore = defineStore('auth', () => {
       const request: MagicLinkConsumeRequest = { token: magicToken }
       const response = await apiService.verifyMagicLink(request)
       
-      if (response.data?.success) {
-        const verifyResponse = response.data
-        
+      if (response.success) {
         // Update token if it was replaced (cross-device login)
-        if (verifyResponse.user.uuid) {
-          setToken(verifyResponse.user.uuid)
+        if (response.user.uuid) {
+          setToken(response.user.uuid)
         }
         
         // Update user state with verified user
         const userData: User = {
-          id: verifyResponse.user.uuid,
-          email: verifyResponse.user.email,
+          id: response.user.uuid,
+          email: response.user.email,
           emailVerified: true,
           isReviewer: false, // Will be determined by permissions
-          createdAt: verifyResponse.user.created_at
+          createdAt: response.user.created_at
         }
         setUser(userData)
         
@@ -212,8 +210,8 @@ export const useAuthStore = defineStore('auth', () => {
         
         return {
           success: true,
-          message: verifyResponse.message,
-          isNewAccount: verifyResponse.is_new_account
+          message: response.message,
+          isNewAccount: response.is_new_account
         }
       }
       

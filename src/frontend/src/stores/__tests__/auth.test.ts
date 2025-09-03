@@ -9,11 +9,10 @@ vi.mock('../../services/api', () => ({
       data: { token: 'test-uuid-token', isNew: true }
     }),
     verifyMagicLink: vi.fn().mockResolvedValue({
-      data: {
-        success: true,
-        user: { uuid: 'test-uuid', email: 'test@example.com', created_at: '2025-01-01' },
-        message: 'Login successful'
-      }
+      success: true,
+      user: { uuid: 'test-uuid', email: 'test@example.com', created_at: '2025-01-01' },
+      message: 'Login successful',
+      is_new_account: false
     }),
     requestMagicLink: vi.fn().mockResolvedValue({
       data: {
@@ -361,15 +360,11 @@ describe('Auth Store', () => {
       const mockApi = await import('../../services/api')
       vi.mocked(mockApi.apiService.verifyMagicLink).mockResolvedValue({
         success: true,
-        timestamp: new Date().toISOString(),
-        data: {
-          success: true,
-          user: { uuid: 'account-uuid', email: 'test@example.com', created_at: '2025-01-01', email_verified_at: '2025-01-01' },
-          message: 'Login successful',
-          session: { token: 'session-token', expires_at: '2025-01-02' },
-          uuid_replaced: true,
-          is_new_account: false
-        }
+        user: { uuid: 'account-uuid', email: 'test@example.com', created_at: '2025-01-01', email_verified_at: '2025-01-01' },
+        message: 'Login successful',
+        session: { token: 'session-token', expires_at: '2025-01-02' },
+        uuid_replaced: true,
+        is_new_account: false
       })
       
       const store = useAuthStore()

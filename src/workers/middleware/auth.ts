@@ -44,6 +44,12 @@ export async function ensureUserToken(
   let isNewToken = false;
 
   if (!userToken) {
+    // Check for X-User-Token header (used by frontend)
+    userToken = c.req.header('X-User-Token');
+    console.log(`[AUTH DEBUG] X-User-Token header token: ${userToken}`);
+  }
+
+  if (!userToken) {
     // Check for token in cookie (for browser requests)
     const cookieHeader = c.req.header('Cookie');
     console.log(`[AUTH DEBUG] Cookie header: ${cookieHeader}`);

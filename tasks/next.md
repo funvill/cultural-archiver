@@ -84,3 +84,11 @@ Example data sets:
 Find people that would be willing to partner with me on this project. Be specific and say that you are NOT looking for monetary support but are looking for in-kind support. Advertisement, recommendations, etc.
 
 - Burrard Arts Foundation, Centre for Digital Media students. They spondered a simlare project in the past. https://intergalactic.com/content/muse-public-art-app?utm_source=chatgpt.com
+
+## Use a subdomain for email
+
+Use `art.abluestar.com` domain for sending the emails instead of `funvill.com`
+
+Update instructions in `docs\mailchannels-setup.md` for using `art.abluestar.com` subdomain.
+
+Include testing steps
