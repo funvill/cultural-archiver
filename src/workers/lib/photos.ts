@@ -66,6 +66,11 @@ export interface PhotoProcessingOptions {
 export function validatePhotoFile(file: File): FileValidationResult {
   const errors: string[] = [];
 
+  // Check file name
+  if (!file.name || file.name.trim().length === 0) {
+    errors.push('File name is required');
+  }
+
   // Check file size
   if (file.size > MAX_FILE_SIZE) {
     errors.push(
