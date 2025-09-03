@@ -408,6 +408,8 @@ function updateArtworkMarkers() {
 
     marker.bindPopup(popupContent)
     marker.on('click', () => {
+      // Navigate directly to artwork details page on marker click
+      router.push(`/artwork/${artwork.id}`)
       emit('artworkClick', artwork)
     })
 
