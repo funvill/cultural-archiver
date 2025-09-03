@@ -5,7 +5,21 @@ import type {
   AuditLogsResponse,
   AuditLogEntry,
   AuditLogQuery,
+  ModerationDecision,
+  AdminActionType,
 } from '../../../shared/types'
+
+// Local interface for form binding that allows undefined values
+interface AuditLogFilters {
+  type: 'moderation' | 'admin' | undefined;
+  actor: string;
+  decision: ModerationDecision | undefined;
+  action_type: AdminActionType | undefined;
+  startDate: string;
+  endDate: string;
+  page: number;
+  limit: number;
+}
 
 /**
  * Audit Log Viewer Component
@@ -22,9 +36,12 @@ const selectedLog = ref<AuditLogEntry | null>(null)
 const currentPage = ref(1)
 const pageSize = ref(25)
 
-// Filter state
-const filters = ref<AuditLogQuery>({
+// Filter state - using local interface that allows undefined for form binding
+const filters = ref<AuditLogFilters>({
+  type: undefined,
   actor: '',
+  decision: undefined,
+  action_type: undefined,
   startDate: '',
   endDate: '',
   page: 1,
@@ -43,26 +60,30 @@ async function loadAuditLogs(): Promise<void> {
   error.value = null
   
   try {
-    // Prepare query, removing empty values
-    const query: Partial<AuditLogQuery> = { ...filters.value }
-    Object.keys(query).forEach(key => {
-      const value = query[key as keyof AuditLogQuery]
-      // Only remove empty strings and undefined values, keep numbers and non-empty strings
-      if (value === '' || value === undefined || value === null) {
-        delete query[key as keyof AuditLogQuery]
-      }
-    })
-    
-    // Always include pagination
-    query.page = currentPage.value
-    query.limit = pageSize.value
-    
-    // Convert date-time inputs to ISO strings
-    if (query.startDate) {
-      query.startDate = new Date(query.startDate).toISOString()
+    // Convert local filters to AuditLogQuery format, removing empty values
+    const query: AuditLogQuery = {
+      page: currentPage.value,
+      limit: pageSize.value,
     }
-    if (query.endDate) {
-      query.endDate = new Date(query.endDate).toISOString()
+    
+    // Add optional fields only if they have values
+    if (filters.value.type) {
+      query.type = filters.value.type
+    }
+    if (filters.value.actor && filters.value.actor.trim()) {
+      query.actor = filters.value.actor.trim()
+    }
+    if (filters.value.decision) {
+      query.decision = filters.value.decision
+    }
+    if (filters.value.action_type) {
+      query.action_type = filters.value.action_type
+    }
+    if (filters.value.startDate && filters.value.startDate.trim()) {
+      query.startDate = new Date(filters.value.startDate).toISOString()
+    }
+    if (filters.value.endDate && filters.value.endDate.trim()) {
+      query.endDate = new Date(filters.value.endDate).toISOString()
     }
     
     const response = await adminService.getAuditLogs(query)
@@ -75,9 +96,16 @@ async function loadAuditLogs(): Promise<void> {
   }
 }
 
-// Apply filters (debounced)
-let filterTimeout: ReturnType<typeof setTimeout> | null = null
+// Apply filters immediately (for select dropdowns)
 function applyFilters(): void {
+  filters.value.page = 1
+  currentPage.value = 1
+  loadAuditLogs()
+}
+
+// Apply filters with debounce (for text inputs)
+let filterTimeout: ReturnType<typeof setTimeout> | null = null
+function applyFiltersDebounced(): void {
   if (filterTimeout) {
     clearTimeout(filterTimeout)
   }
@@ -89,21 +117,13 @@ function applyFilters(): void {
   }, 500)
 }
 
-// Debounced filter for text inputs
-function debouncedFilter(): void {
-  if (filterTimeout) {
-    clearTimeout(filterTimeout)
-  }
-  
-  filterTimeout = setTimeout(() => {
-    applyFilters()
-  }, 500)
-}
-
 // Reset filters
 function resetFilters(): void {
   filters.value = {
+    type: undefined,
     actor: '',
+    decision: undefined,
+    action_type: undefined,
     startDate: '',
     endDate: '',
     page: 1,
@@ -250,7 +270,7 @@ function getActionColor(action: string): string {
             type="text"
             placeholder="User UUID..."
             class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            @input="debouncedFilter"
+            @input="applyFiltersDebounced"
           />
         </div>
       </div>
