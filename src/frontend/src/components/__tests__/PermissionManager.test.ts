@@ -149,9 +149,12 @@ describe('PermissionManager', () => {
       const searchInput = wrapper.find('input[placeholder*="Search"]')
       await searchInput.setValue('test')
       
-      const resetButton = wrapper.find('button').filter((btn: any) => 
-        btn.text().includes('Reset')
-      )[0]
+      const buttons = wrapper.findAll('button')
+      const resetButton = buttons.find(btn => btn.text().includes('Reset'))
+      
+      if (!resetButton) {
+        throw new Error('Reset button not found')
+      }
       await resetButton.trigger('click')
 
       expect(wrapper.vm.searchQuery).toBe('')
@@ -167,9 +170,12 @@ describe('PermissionManager', () => {
     })
 
     it('should open grant permission dialog', async () => {
-      const grantButton = wrapper.find('button').filter((btn: any) => 
-        btn.text().includes('Grant Permission')
-      )[0]
+      const buttons = wrapper.findAll('button')
+      const grantButton = buttons.find(btn => btn.text().includes('Grant Permission'))
+      
+      if (!grantButton) {
+        throw new Error('Grant Permission button not found')
+      }
       
       await grantButton.trigger('click')
 
@@ -179,9 +185,12 @@ describe('PermissionManager', () => {
 
     it('should validate required fields in grant form', async () => {
       // Open dialog
-      const grantButton = wrapper.find('button').filter((btn: any) => 
-        btn.text().includes('Grant Permission')
-      )[0]
+      const buttons = wrapper.findAll('button')
+      const grantButton = buttons.find(btn => btn.text().includes('Grant Permission'))
+      
+      if (!grantButton) {
+        throw new Error('Grant Permission button not found')
+      }
       await grantButton.trigger('click')
 
       // Try to submit without filling required fields
@@ -199,9 +208,12 @@ describe('PermissionManager', () => {
       })
 
       // Open dialog
-      const grantButton = wrapper.find('button').filter((btn: any) => 
-        btn.text().includes('Grant Permission')
-      )[0]
+      const buttons = wrapper.findAll('button')
+      const grantButton = buttons.find(btn => btn.text().includes('Grant Permission'))
+      
+      if (!grantButton) {
+        throw new Error('Grant Permission button not found')
+      }
       await grantButton.trigger('click')
 
       // Fill form
@@ -227,15 +239,20 @@ describe('PermissionManager', () => {
 
     it('should close dialog on cancel', async () => {
       // Open dialog
-      const grantButton = wrapper.find('button').filter((btn: any) => 
-        btn.text().includes('Grant Permission')
-      )[0]
+      const buttons = wrapper.findAll('button')
+      const grantButton = buttons.find(btn => btn.text().includes('Grant Permission'))
+      
+      if (!grantButton) {
+        throw new Error('Grant Permission button not found')
+      }
       await grantButton.trigger('click')
 
       // Click cancel
-      const cancelButton = wrapper.find('button').filter((btn: any) => 
-        btn.text() === 'Cancel'
-      )[0]
+      const cancelButton = buttons.find(btn => btn.text() === 'Cancel')
+      
+      if (!cancelButton) {
+        throw new Error('Cancel button not found')
+      }
       await cancelButton.trigger('click')
 
       expect(wrapper.vm.showGrantDialog).toBe(false)

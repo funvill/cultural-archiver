@@ -134,7 +134,7 @@ describe('AdminService', () => {
         permission: 'moderator' as const,
       };
 
-      vi.mocked(apiService.grantAdminPermission).mockResolvedValue(mockResponse);
+      vi.mocked(apiService.revokeAdminPermission).mockResolvedValue(mockResponse);
 
       const request: RevokePermissionRequest = {
         userUuid: 'user-1',
@@ -150,7 +150,7 @@ describe('AdminService', () => {
 
     it('should handle errors when revoking permission', async () => {
       const mockError = new Error('Permission not found');
-      vi.mocked(apiService.grantAdminPermission).mockRejectedValue(mockError);
+      vi.mocked(apiService.revokeAdminPermission).mockRejectedValue(mockError);
 
       const request: RevokePermissionRequest = {
         userUuid: 'user-1',
@@ -183,7 +183,7 @@ describe('AdminService', () => {
         has_more: false,
       };
 
-      vi.mocked(apiService.getAdminPermissions).mockResolvedValue(mockResponse);
+      vi.mocked(apiService.getAdminAuditLogs).mockResolvedValue(mockResponse);
 
       const result = await adminService.getAuditLogs();
 
@@ -288,17 +288,17 @@ describe('AdminService', () => {
         },
       };
 
-      vi.mocked(apiService.getAdminPermissions).mockResolvedValue(mockResponse);
+      vi.mocked(apiService.getAdminStatistics).mockResolvedValue(mockResponse);
 
       const result = await adminService.getStatistics(90);
 
-      expect(apiService.getAdminPermissions).toHaveBeenCalledWith('/api/admin/statistics?days=90');
+      expect(apiService.getAdminStatistics).toHaveBeenCalledWith(90);
       expect(result).toEqual(mockResponse);
     });
 
     it('should handle errors when fetching statistics', async () => {
       const mockError = new Error('Statistics unavailable');
-      vi.mocked(apiService.getAdminPermissions).mockRejectedValue(mockError);
+      vi.mocked(apiService.getAdminStatistics).mockRejectedValue(mockError);
 
       await expect(adminService.getStatistics()).rejects.toThrow('Statistics unavailable');
     });
