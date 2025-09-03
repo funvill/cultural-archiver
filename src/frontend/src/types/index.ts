@@ -316,6 +316,64 @@ export interface MagicLinkConsumeRequest {
   token: string
 }
 
+export interface MagicLinkResponse {
+  success: boolean;
+  message: string;
+  email: string;
+  is_signup: boolean;
+  rate_limit_remaining?: number;
+  rate_limit_reset_at?: string;
+}
+
+export interface VerifyMagicLinkResponse {
+  success: boolean;
+  message: string;
+  user: {
+    uuid: string;
+    email: string;
+    created_at: string;
+    email_verified_at: string;
+  };
+  session: {
+    token: string;
+    expires_at: string;
+  };
+  uuid_replaced: boolean;
+  is_new_account: boolean;
+}
+
+export interface AuthStatusResponse {
+  user_token: string;
+  is_authenticated: boolean;
+  is_anonymous: boolean;
+  user?: {
+    uuid: string;
+    email: string;
+    created_at: string;
+    last_login?: string | null;
+    email_verified_at?: string | null;
+    status: string;
+  } | null;
+  session?: {
+    token: string;
+    expires_at: string;
+    created_at: string;
+  } | null;
+}
+
+export interface LogoutResponse {
+  success: boolean;
+  message: string;
+  new_user_token: string;
+}
+
+export interface ConsumeMagicLinkResponse {
+  success: boolean;
+  message: string;
+  user_token?: string;
+  is_new_account?: boolean;
+}
+
 export interface VerificationStatus {
   email_verified: boolean
   email?: string

@@ -8,6 +8,7 @@ const SubmitView = (): Promise<Component> => import('../views/SubmitView.vue')
 const ArtworkDetailView = (): Promise<Component> => import('../views/ArtworkDetailView.vue')
 const ProfileView = (): Promise<Component> => import('../views/ProfileView.vue')
 const ReviewView = (): Promise<Component> => import('../views/ReviewView.vue')
+const VerifyView = (): Promise<Component> => import('../views/VerifyView.vue')
 
 const router = createRouter({
   history: createWebHistory(),
@@ -51,6 +52,14 @@ const router = createRouter({
       component: ProfileView,
       meta: {
         title: 'My Submissions - Cultural Archiver'
+      }
+    },
+    {
+      path: '/verify',
+      name: 'Verify',
+      component: VerifyView,
+      meta: {
+        title: 'Email Verification - Cultural Archiver'
       }
     },
     {
