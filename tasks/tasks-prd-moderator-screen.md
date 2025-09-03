@@ -75,8 +75,8 @@
   - [x] 5.5 Add searchable and filterable audit log display with pagination
   - [x] 5.6 Create `src/frontend/src/services/admin.ts` for admin API service layer
   - [x] 5.7 Update auth store to handle admin permissions and role checking
-  - [ ] 5.8 Add admin route to router with proper permission guards
-  - [ ] 5.9 Implement responsive design for admin interface components
+  - [x] 5.8 Add admin route to router with proper permission guards
+  - [x] 5.9 Implement responsive design for admin interface components
   - [x] 5.10 Write unit tests for all new admin components and services
 
 - [ ] 6.0 Integration and Testing

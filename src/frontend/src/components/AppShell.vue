@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { Bars3Icon, XMarkIcon, PlusIcon, UserIcon, InformationCircleIcon, QuestionMarkCircleIcon, ClipboardDocumentListIcon, MapIcon, ArrowLeftOnRectangleIcon } from '@heroicons/vue/24/outline'
+import { Bars3Icon, XMarkIcon, PlusIcon, UserIcon, InformationCircleIcon, QuestionMarkCircleIcon, ClipboardDocumentListIcon, MapIcon, ArrowLeftOnRectangleIcon, ShieldCheckIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/auth'
 import AuthModal from './AuthModal.vue'
 import LiveRegion from './LiveRegion.vue'
@@ -50,6 +50,12 @@ const navigationItems: NavigationItem[] = [
     requiresReviewer: true
   },
   {
+    name: 'Admin',
+    path: '/admin',
+    icon: ShieldCheckIcon,
+    requiresAdmin: true
+  },
+  {
     name: 'About',
     path: '/home',
     icon: InformationCircleIcon
@@ -71,6 +77,11 @@ const visibleNavItems = computed(() => {
     
     // Hide reviewer-only items if not a reviewer
     if (item.requiresReviewer && !authStore.isReviewer) {
+      return false
+    }
+    
+    // Hide admin-only items if not an admin
+    if (item.requiresAdmin && !authStore.isAdmin) {
       return false
     }
     

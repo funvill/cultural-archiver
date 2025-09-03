@@ -9,6 +9,7 @@ const SubmitView = (): Promise<Component> => import('../views/SubmitView.vue')
 const ArtworkDetailView = (): Promise<Component> => import('../views/ArtworkDetailView.vue')
 const ProfileView = (): Promise<Component> => import('../views/ProfileView.vue')
 const ReviewView = (): Promise<Component> => import('../views/ReviewView.vue')
+const AdminView = (): Promise<Component> => import('../views/AdminView.vue')
 const VerifyView = (): Promise<Component> => import('../views/VerifyView.vue')
 
 const router = createRouter({
@@ -74,6 +75,15 @@ const router = createRouter({
       }
     },
     {
+      path: '/admin',
+      name: 'Admin',
+      component: AdminView,
+      meta: {
+        title: 'Admin Dashboard - Cultural Archiver',
+        requiresAdmin: true
+      }
+    },
+    {
       path: '/help',
       name: 'Help',
       component: HomeView, // Temporarily use HomeView for help
@@ -128,6 +138,18 @@ router.beforeEach(async (to, _from, next) => {
       path: '/',
       query: { 
         error: 'reviewer_required'
+      }
+    })
+    return
+  }
+  
+  // Check if route requires admin permissions
+  if (to.meta.requiresAdmin && !authStore.isAdmin) {
+    // Redirect to home page for non-admins
+    next({
+      path: '/',
+      query: { 
+        error: 'admin_required'
       }
     })
     return
