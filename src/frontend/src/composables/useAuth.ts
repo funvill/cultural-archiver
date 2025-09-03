@@ -1,17 +1,17 @@
 /**
  * Authentication composable for managing user state and auth flows
+ * Updated to work with the new UUID-based authentication system
  */
 
 import { computed, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
-import { apiService, getErrorMessage } from '../services/api'
-import type { MagicLinkRequest, MagicLinkConsumeRequest, User } from '../types'
 
 export function useAuth() { // eslint-disable-line @typescript-eslint/explicit-function-return-type
   const authStore = useAuthStore()
 
   // Reactive auth state
   const isAuthenticated = computed(() => authStore.isAuthenticated)
+  const isAnonymous = computed(() => authStore.isAnonymous)
   const isReviewer = computed(() => authStore.isReviewer)
   const isEmailVerified = computed(() => authStore.isEmailVerified)
   const user = computed(() => authStore.user)
@@ -23,180 +23,68 @@ export function useAuth() { // eslint-disable-line @typescript-eslint/explicit-f
    * Initialize authentication on app startup
    */
   const initAuth = async (): Promise<void> => {
-    try {
-      authStore.setLoading(true)
-      
-      // Check for existing token in localStorage first
-      let savedToken = localStorage.getItem('user-token')
-      
-      // If no localStorage token, check for cookie token
-      if (!savedToken) {
-        const cookieToken = document.cookie
-          .split(';')
-          .find(cookie => cookie.trim().startsWith('user_token='))
-          ?.split('=')[1]
-        
-        if (cookieToken) {
-          console.log(`[AUTH] Found token in cookie: ${cookieToken}`)
-          savedToken = cookieToken
-          // Store in localStorage so it persists
-          localStorage.setItem('user-token', cookieToken)
-        }
-      }
-      
-      if (savedToken) {
-        authStore.setToken(savedToken)
-        
-        // Verify token and get user profile
-        const profile = await apiService.getUserProfile()
-        if (profile.data) {
-          const userData: User = {
-            id: profile.data.user_token,
-            email: profile.data.email || '',
-            emailVerified: profile.data.email_verified,
-            isReviewer: false, // TODO: Add reviewer field to backend
-            createdAt: profile.data.created_at
-          }
-          authStore.setUser(userData)
-        }
-      } else {
-        // Generate anonymous token
-        await generateAnonymousToken()
-      }
-    } catch (error) {
-      console.error('Auth initialization failed:', error)
-      // Fall back to anonymous token
-      await generateAnonymousToken()
-    } finally {
-      authStore.setLoading(false)
-    }
+    await authStore.initializeAuth()
   }
 
   /**
-   * Generate and set anonymous user token
+   * Request magic link for account creation or login
    */
-  const generateAnonymousToken = async (): Promise<void> => {
-    try {
-      const response = await apiService.generateToken()
-      if (response.data) {
-        authStore.setToken(response.data.token)
-        authStore.setUser({
-          id: response.data.token,
-          email: '',
-          emailVerified: false,
-          isReviewer: false,
-          createdAt: new Date().toISOString()
-        })
-      }
-    } catch (error) {
-      authStore.setError(getErrorMessage(error))
-      throw error
-    }
+  const requestMagicLink = async (email: string): Promise<{ success: boolean; message: string; isSignup?: boolean }> => {
+    return authStore.requestMagicLink(email)
   }
 
   /**
-   * Request magic link for email verification
+   * Verify and consume magic link token
    */
-  const requestMagicLink = async (email: string): Promise<boolean> => {
-    try {
-      authStore.setLoading(true)
-      authStore.clearError()
-
-      const request: MagicLinkRequest = { email }
-      await apiService.requestMagicLink(request)
-      
-      return true
-    } catch (error) {
-      authStore.setError(getErrorMessage(error))
-      return false
-    } finally {
-      authStore.setLoading(false)
-    }
+  const verifyMagicLink = async (magicToken: string): Promise<{ success: boolean; message: string; isNewAccount?: boolean }> => {
+    return authStore.verifyMagicLink(magicToken)
   }
 
   /**
-   * Consume magic link token from email
+   * Sign out and get new anonymous token
    */
-  const consumeMagicLink = async (magicToken: string): Promise<boolean> => {
-    try {
-      authStore.setLoading(true)
-      authStore.clearError()
-
-      const request: MagicLinkConsumeRequest = { token: magicToken }
-      const response = await apiService.consumeMagicLink(request)
-      
-      // Update auth state with verified user
-      if (response.data && response.data.user_token) {
-        authStore.setToken(response.data.user_token)
-        if (authStore.user) {
-          authStore.setUser({
-            ...authStore.user,
-            email: authStore.user.email || 'verified@email.com', // Keep existing email or placeholder
-            emailVerified: true
-          })
-        }
-      }
-      
-      return true
-    } catch (error) {
-      authStore.setError(getErrorMessage(error))
-      return false
-    } finally {
-      authStore.setLoading(false)
-    }
+  const signOut = async (): Promise<void> => {
+    await authStore.logout()
   }
 
   /**
-   * Check verification status
+   * Get current user token for API requests
    */
-  const checkVerificationStatus = async (): Promise<boolean> => {
-    try {
-      const response = await apiService.getVerificationStatus()
-      
-      if (authStore.user && response.data) {
-        authStore.setUser({
-          ...authStore.user,
-          emailVerified: response.data.email_verified,
-          email: response.data.email || authStore.user.email || ''
-        })
-      }
-      
-      return response.data?.email_verified || false
-    } catch (error) {
-      console.error('Failed to check verification status:', error)
-      return false
-    }
+  const getUserToken = (): string => {
+    return authStore.getUserToken()
   }
 
   /**
-   * Sign out and clear authentication
+   * Ensure user has a token (generates one if needed)
    */
-  const signOut = (): void => {
-    authStore.clearAuth()
-    // Generate new anonymous token
-    generateAnonymousToken()
+  const ensureUserToken = async (): Promise<string> => {
+    return authStore.ensureUserToken()
   }
 
   /**
-   * Refresh user profile data
+   * Refresh authentication status from backend
    */
-  const refreshProfile = async (): Promise<void> => {
-    try {
-      const profile = await apiService.getUserProfile()
-      if (profile.data) {
-        const userData: User = {
-          id: profile.data.user_token,
-          email: profile.data.email || '',
-          emailVerified: profile.data.email_verified,
-          isReviewer: false, // TODO: Add reviewer field to backend
-          createdAt: profile.data.created_at
-        }
-        authStore.setUser(userData)
-      }
-    } catch (error) {
-      console.error('Failed to refresh profile:', error)
-    }
+  const refreshAuthStatus = async (): Promise<void> => {
+    await authStore.refreshAuthStatus()
   }
+
+  /**
+   * Check if user can perform authenticated actions
+   */
+  const canPerformAuthenticatedActions = computed(() => {
+    return isAuthenticated.value || isAnonymous.value
+  })
+
+  /**
+   * Get user display name
+   */
+  const userDisplayName = computed(() => {
+    if (!user.value) return 'Anonymous'
+    if (user.value.emailVerified && user.value.email) {
+      return user.value.email
+    }
+    return `Anonymous (${user.value.id.slice(0, 8)}...)`
+  })
 
   // Watch for token changes and persist to localStorage
   watch(token, (newToken) => {
@@ -210,6 +98,7 @@ export function useAuth() { // eslint-disable-line @typescript-eslint/explicit-f
   return {
     // State
     isAuthenticated,
+    isAnonymous,
     isReviewer,
     isEmailVerified,
     user,
@@ -217,14 +106,18 @@ export function useAuth() { // eslint-disable-line @typescript-eslint/explicit-f
     isLoading,
     error,
 
+    // Computed
+    canPerformAuthenticatedActions,
+    userDisplayName,
+
     // Actions
     initAuth,
-    generateAnonymousToken,
     requestMagicLink,
-    consumeMagicLink,
-    checkVerificationStatus,
+    verifyMagicLink,
     signOut,
-    refreshProfile,
+    getUserToken,
+    ensureUserToken,
+    refreshAuthStatus,
 
     // Utilities
     clearError: authStore.clearError

@@ -119,7 +119,7 @@ describe('ProfileView', () => {
       })
       
       await unauthWrapper.vm.$nextTick()
-      expect(unauthWrapper.text()).toContain('Please log in')
+      expect(unauthWrapper.text()).toContain('Please sign in')
     })
 
     it('shows verification status', (): void => {

@@ -164,14 +164,19 @@ export class DatabaseService {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 
-    const stmt = this.db.prepare(`
-      INSERT INTO logbook (id, artwork_id, user_token, lat, lon, note, photos, status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
-    `);
+    // First try with lat/lon columns, fallback to basic columns if they don't exist
+    let stmt;
+    let bindParams;
+    
+    try {
+      // Try the full schema with lat/lon columns
+      stmt = this.db.prepare(`
+        INSERT INTO logbook (id, artwork_id, user_token, lat, lon, note, photos, status, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+      `);
 
-    const photosJson = data.photos ? JSON.stringify(data.photos) : null;
-    await stmt
-      .bind(
+      const photosJson = data.photos ? JSON.stringify(data.photos) : null;
+      bindParams = [
         id, 
         data.artwork_id || null, 
         data.user_token, 
@@ -180,9 +185,33 @@ export class DatabaseService {
         data.note || null, 
         photosJson, 
         now
-      )
-      .run();
+      ];
+      
+      await stmt.bind(...bindParams).run();
+    } catch (error) {
+      console.log('[DATABASE] lat/lon columns not found, trying fallback schema...', error);
+      
+      // Fallback to basic schema without lat/lon columns
+      stmt = this.db.prepare(`
+        INSERT INTO logbook (id, artwork_id, user_token, note, photos, status, created_at)
+        VALUES (?, ?, ?, ?, ?, 'pending', ?)
+      `);
 
+      const photosJson = data.photos ? JSON.stringify(data.photos) : null;
+      bindParams = [
+        id, 
+        data.artwork_id || null, 
+        data.user_token, 
+        data.note || null, 
+        photosJson, 
+        now
+      ];
+      
+      await stmt.bind(...bindParams).run();
+    }
+
+    const photosJson = data.photos ? JSON.stringify(data.photos) : null;
+    
     return {
       id,
       artwork_id: data.artwork_id || null,

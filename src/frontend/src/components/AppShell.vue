@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { Bars3Icon, XMarkIcon, PlusIcon, UserIcon, InformationCircleIcon, QuestionMarkCircleIcon, ClipboardDocumentListIcon, MapIcon } from '@heroicons/vue/24/outline'
+import { Bars3Icon, XMarkIcon, PlusIcon, UserIcon, InformationCircleIcon, QuestionMarkCircleIcon, ClipboardDocumentListIcon, MapIcon, ArrowLeftOnRectangleIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/auth'
+import AuthModal from './AuthModal.vue'
 import LiveRegion from './LiveRegion.vue'
 import type { NavigationItem } from '../types'
 
@@ -15,6 +16,8 @@ defineProps<Props>()
 
 // State
 const showDrawer = ref(false)
+const showAuthModal = ref(false)
+const authMode = ref<'login' | 'signup'>('login')
 const route = useRoute()
 const authStore = useAuthStore()
 
@@ -75,6 +78,32 @@ const visibleNavItems = computed(() => {
   })
 })
 
+const userDisplayName = computed(() => {
+  if (!authStore.user) return 'Anonymous'
+  if (authStore.user.emailVerified && authStore.user.email) {
+    return authStore.user.email
+  }
+  return `Anonymous (${authStore.user.id.slice(0, 8)}...)`
+})
+
+const authStatusBadge = computed(() => {
+  if (authStore.isAuthenticated) {
+    return {
+      text: 'Verified',
+      class: 'bg-green-100 text-green-800 border-green-200'
+    }
+  } else if (authStore.isAnonymous) {
+    return {
+      text: 'Anonymous',
+      class: 'bg-gray-100 text-gray-800 border-gray-200'
+    }
+  }
+  return {
+    text: 'Unknown',
+    class: 'bg-red-100 text-red-800 border-red-200'
+  }
+})
+
 // Methods
 function toggleDrawer(): void {
   showDrawer.value = !showDrawer.value
@@ -95,6 +124,31 @@ function closeDrawer(): void {
       const menuButton = document.querySelector('[aria-label="Open navigation menu"]') as HTMLElement
       menuButton?.focus()
     })
+  }
+}
+
+// Authentication methods
+function openAuthModal(mode: 'login' | 'signup' = 'login'): void {
+  authMode.value = mode
+  showAuthModal.value = true
+}
+
+function closeAuthModal(): void {
+  showAuthModal.value = false
+}
+
+function handleAuthSuccess(payload: { isNewAccount: boolean; email: string }): void {
+  closeAuthModal()
+  // Could show success toast here if needed
+  console.log('Authentication successful:', payload)
+}
+
+async function handleLogout(): Promise<void> {
+  try {
+    await authStore.logout()
+    // Could show logout success message here
+  } catch (error) {
+    console.error('Logout failed:', error)
   }
 }
 
@@ -183,24 +237,73 @@ watch(() => route.path, handleRouteChange)
         </div>
 
         <!-- Right side: Navigation (Desktop) -->
-        <nav class="hidden md:flex items-center space-x-4" role="navigation" aria-label="Main navigation">
-          <RouterLink
-            v-for="item in visibleNavItems"
-            :key="item.path"
-            :to="item.path"
-            class="nav-link px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
-            :class="{ 'bg-blue-800': $route.path === item.path }"
-            :aria-current="$route.path === item.path ? 'page' : undefined"
-          >
-            <component
-              v-if="item.icon"
-              :is="item.icon"
-              class="w-5 h-5 inline-block mr-1"
-              aria-hidden="true"
-            />
-            {{ item.name }}
-          </RouterLink>
-        </nav>
+        <div class="hidden md:flex items-center space-x-4">
+          <!-- Navigation Links -->
+          <nav class="flex items-center space-x-4" role="navigation" aria-label="Main navigation">
+            <RouterLink
+              v-for="item in visibleNavItems"
+              :key="item.path"
+              :to="item.path"
+              class="nav-link px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
+              :class="{ 'bg-blue-800': $route.path === item.path }"
+              :aria-current="$route.path === item.path ? 'page' : undefined"
+            >
+              <component
+                v-if="item.icon"
+                :is="item.icon"
+                class="w-5 h-5 inline-block mr-1"
+                aria-hidden="true"
+              />
+              {{ item.name }}
+            </RouterLink>
+          </nav>
+          
+          <!-- User Menu -->
+          <div class="flex items-center space-x-3 border-l border-blue-500 pl-4">
+            <!-- User Status -->
+            <div class="text-right">
+              <div class="text-sm font-medium text-white">
+                {{ userDisplayName }}
+              </div>
+              <div class="text-xs text-blue-200">
+                <span 
+                  class="inline-block px-1.5 py-0.5 text-xs rounded-full border"
+                  :class="authStatusBadge.class"
+                >
+                  {{ authStatusBadge.text }}
+                </span>
+              </div>
+            </div>
+            
+            <!-- Auth Actions -->
+            <div class="flex items-center space-x-2">
+              <template v-if="!authStore.isAuthenticated">
+                <button
+                  @click="openAuthModal('login')"
+                  class="px-3 py-2 text-sm font-medium text-blue-100 hover:text-white hover:bg-blue-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600"
+                >
+                  Sign In
+                </button>
+                <button
+                  @click="openAuthModal('signup')"
+                  class="px-3 py-2 text-sm font-medium bg-white text-blue-600 hover:bg-blue-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600"
+                >
+                  Sign Up
+                </button>
+              </template>
+              <template v-else>
+                <button
+                  @click="handleLogout"
+                  class="p-2 text-blue-100 hover:text-white hover:bg-blue-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600"
+                  :title="`Sign out ${userDisplayName}`"
+                >
+                  <ArrowLeftOnRectangleIcon class="w-5 h-5" aria-hidden="true" />
+                  <span class="sr-only">Sign out</span>
+                </button>
+              </template>
+            </div>
+          </div>
+        </div>
 
         <!-- Mobile menu button -->
         <button
@@ -273,6 +376,47 @@ watch(() => route.path, handleRouteChange)
           />
           <span class="font-medium">{{ item.name }}</span>
         </RouterLink>
+        
+        <!-- Authentication Section in Mobile Drawer -->
+        <div class="border-t border-gray-200 mt-4 pt-4">
+          <!-- User Status -->
+          <div class="px-4 py-2">
+            <div class="text-sm font-medium text-gray-900">{{ userDisplayName }}</div>
+            <div class="text-xs text-gray-500 mt-1">
+              <span 
+                class="inline-block px-2 py-0.5 text-xs rounded-full border"
+                :class="authStatusBadge.class"
+              >
+                {{ authStatusBadge.text }}
+              </span>
+            </div>
+          </div>
+          
+          <!-- Auth Actions -->
+          <div v-if="!authStore.isAuthenticated" class="px-4 py-2 space-y-2">
+            <button
+              @click="openAuthModal('login'); closeDrawer()"
+              class="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+            >
+              Sign In
+            </button>
+            <button
+              @click="openAuthModal('signup'); closeDrawer()"
+              class="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+              Sign Up
+            </button>
+          </div>
+          <div v-else class="px-4 py-2">
+            <button
+              @click="handleLogout(); closeDrawer()"
+              class="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-inset"
+            >
+              <ArrowLeftOnRectangleIcon class="w-4 h-4 mr-2" aria-hidden="true" />
+              Sign Out
+            </button>
+          </div>
+        </div>
       </nav>
 
       <!-- Drawer Footer -->
@@ -290,6 +434,14 @@ watch(() => route.path, handleRouteChange)
 
     <!-- Global Live Region for Screen Reader Announcements -->
     <LiveRegion />
+    
+    <!-- Authentication Modal -->
+    <AuthModal
+      :is-open="showAuthModal"
+      :mode="authMode"
+      @close="closeAuthModal"
+      @success="handleAuthSuccess"
+    />
   </div>
 </template>
 

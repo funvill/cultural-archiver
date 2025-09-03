@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import type { Component } from 'vue'
+import { useAuthStore } from '../stores/auth'
 
 // Lazy load components for better performance
 const HomeView = (): Promise<Component> => import('../views/HomeView.vue')
@@ -8,6 +9,7 @@ const SubmitView = (): Promise<Component> => import('../views/SubmitView.vue')
 const ArtworkDetailView = (): Promise<Component> => import('../views/ArtworkDetailView.vue')
 const ProfileView = (): Promise<Component> => import('../views/ProfileView.vue')
 const ReviewView = (): Promise<Component> => import('../views/ReviewView.vue')
+const VerifyView = (): Promise<Component> => import('../views/VerifyView.vue')
 
 const router = createRouter({
   history: createWebHistory(),
@@ -50,7 +52,16 @@ const router = createRouter({
       name: 'Profile',
       component: ProfileView,
       meta: {
-        title: 'My Submissions - Cultural Archiver'
+        title: 'My Submissions - Cultural Archiver',
+        requiresAuth: true
+      }
+    },
+    {
+      path: '/verify',
+      name: 'Verify',
+      component: VerifyView,
+      meta: {
+        title: 'Email Verification - Cultural Archiver'
       }
     },
     {
@@ -78,15 +89,51 @@ const router = createRouter({
   ]
 })
 
-// Set page titles and handle reviewer permissions
-router.beforeEach((to, _from, next) => {
+// Set page titles and handle authentication/reviewer permissions
+router.beforeEach(async (to, _from, next) => {
   // Set page title
   if (to.meta.title) {
     document.title = to.meta.title as string
   }
   
-  // TODO: Add reviewer permission check when auth is implemented
-  // For now, allow all routes
+  // Get auth store - ensure it's initialized
+  const authStore = useAuthStore()
+  
+  // Wait for auth initialization if needed
+  if (!authStore.user && !authStore.isLoading) {
+    try {
+      await authStore.initializeAuth()
+    } catch (error) {
+      console.error('Failed to initialize auth in router guard:', error)
+    }
+  }
+  
+  // Check if route requires authentication
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    // Redirect to home with query parameter indicating login needed
+    next({
+      path: '/',
+      query: { 
+        login: 'required',
+        redirect: to.fullPath
+      }
+    })
+    return
+  }
+  
+  // Check if route requires reviewer permissions
+  if (to.meta.requiresReviewer && !authStore.isReviewer) {
+    // Redirect to home page for non-reviewers
+    next({
+      path: '/',
+      query: { 
+        error: 'reviewer_required'
+      }
+    })
+    return
+  }
+  
+  // Allow navigation
   next()
 })
 

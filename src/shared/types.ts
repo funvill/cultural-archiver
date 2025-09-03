@@ -170,21 +170,21 @@ export interface UserSubmissionInfo extends LogbookRecord {
   photos_parsed: string[];
 }
 
-// Authentication Endpoints
-export interface MagicLinkRequest {
+// Legacy Authentication Endpoints (deprecated - use types from Authentication System Types section)
+export interface LegacyMagicLinkRequest {
   email: string;
 }
 
-export interface MagicLinkResponse {
+export interface LegacyMagicLinkResponse {
   message: string;
   success: boolean;
 }
 
-export interface ConsumeMagicLinkRequest {
+export interface LegacyConsumeMagicLinkRequest {
   token: string;
 }
 
-export interface ConsumeMagicLinkResponse {
+export interface LegacyConsumeMagicLinkResponse {
   success: boolean;
   message: string;
   user_token?: string;
@@ -426,13 +426,148 @@ export interface AppConfig {
 }
 
 // ================================
-// Authentication Context
+// Authentication System Types
 // ================================
 
+// Database Record Types
+export interface UserRecord {
+  uuid: string;
+  email: string;
+  created_at: string;
+  last_login: string | null;
+  email_verified_at: string | null;
+  status: 'active' | 'suspended';
+}
+
+export interface MagicLinkRecord {
+  token: string;
+  email: string;
+  user_uuid: string | null;
+  created_at: string;
+  expires_at: string;
+  used_at: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  is_signup: boolean;
+}
+
+export interface RateLimitRecord {
+  identifier: string;
+  identifier_type: 'email' | 'ip';
+  request_count: number;
+  window_start: string;
+  last_request_at: string;
+  blocked_until: string | null;
+}
+
+export interface AuthSessionRecord {
+  id: string;
+  user_uuid: string;
+  token_hash: string;
+  created_at: string;
+  last_accessed_at: string;
+  expires_at: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  is_active: boolean;
+  device_info: string | null;
+}
+
+// API Request/Response Types
+export interface MagicLinkRequest {
+  email: string;
+}
+
+export interface MagicLinkResponse {
+  success: boolean;
+  message: string;
+  rate_limit_remaining?: number;
+  rate_limit_reset_at?: string;
+}
+
+export interface ConsumeMagicLinkRequest {
+  token: string;
+}
+
+export interface ConsumeMagicLinkResponse {
+  success: boolean;
+  message: string;
+  user_token?: string;
+  is_new_account?: boolean;
+}
+
+export interface AuthStatusRequest {}
+
+export interface AuthStatusResponse {
+  user_token: string;
+  is_authenticated: boolean;
+  is_anonymous: boolean;
+  user?: {
+    uuid: string;
+    email: string;
+    created_at: string;
+    last_login?: string | null;
+    email_verified_at?: string | null;
+    status: string;
+  } | null;
+  session?: {
+    token: string;
+    expires_at: string;
+    created_at: string;
+  } | null;
+}
+
+export interface LogoutRequest {}
+
+export interface LogoutResponse {
+  success: boolean;
+  message: string;
+  new_anonymous_token: string;
+}
+
+// Authentication Context for Middleware
 export interface AuthContext {
   userToken: string;
   isVerifiedEmail: boolean;
   isReviewer: boolean;
+  user?: UserRecord;  // Full user record for authenticated users
+}
+
+// Rate Limiting Types
+export interface RateLimitInfo {
+  identifier: string;
+  identifier_type: 'email' | 'ip';
+  requests_remaining: number;
+  window_reset_at: string;
+  is_blocked: boolean;
+  blocked_until?: string;
+}
+
+// Session Management Types  
+export interface SessionInfo {
+  id: string;
+  user_uuid: string;
+  created_at: string;
+  last_accessed_at: string;
+  ip_address?: string;
+  user_agent?: string;
+  is_current: boolean;
+}
+
+export interface CreateSessionRequest {
+  user_uuid: string;
+  ip_address?: string;
+  user_agent?: string;
+  device_info?: Record<string, unknown>;
+}
+
+// UUID Management Types
+export interface UUIDClaimInfo {
+  anonymous_uuid: string;
+  email: string;
+  can_claim: boolean;
+  existing_submissions_count: number;
+  claim_window_expires_at?: string;
 }
 
 // Cloudflare Workers Environment (generic interface)
@@ -504,10 +639,10 @@ export interface ApiSuccessResponse<T = unknown> {
 export interface ApiErrorResponse extends ApiError {}
 
 // ================================
-// Authentication Types (for future use)
+// Legacy Types (for future use or compatibility)
 // ================================
 
-export interface User {
+export interface LegacyUser {
   id: string;
   email: string;
   name: string;
@@ -516,7 +651,7 @@ export interface User {
   last_login: string | null;
 }
 
-export interface Session {
+export interface LegacySession {
   id: string;
   user_id: string;
   token: string;
@@ -542,6 +677,29 @@ export const isValidArtworkType = (type: string): type is ArtworkTypeRecord['nam
 
 export const isValidSortDirection = (direction: string): direction is SortDirection => {
   return ['asc', 'desc'].includes(direction);
+};
+
+// Authentication validators
+export const isValidUserStatus = (status: string): status is UserRecord['status'] => {
+  return ['active', 'suspended'].includes(status);
+};
+
+export const isValidRateLimitIdentifierType = (type: string): type is RateLimitRecord['identifier_type'] => {
+  return ['email', 'ip'].includes(type);
+};
+
+export const isValidUUID = (uuid: string): boolean => {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  return uuidRegex.test(uuid);
+};
+
+export const isValidEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email) && email.length <= 254; // RFC 5321 limit
+};
+
+export const isValidMagicLinkToken = (token: string): boolean => {
+  return token.length >= MAGIC_LINK_TOKEN_LENGTH && /^[a-f0-9]+$/i.test(token);
 };
 
 // ================================
@@ -571,6 +729,13 @@ export const MIN_SEARCH_RADIUS = 50; // 50m
 // Rate limiting constants
 export const RATE_LIMIT_SUBMISSIONS_PER_DAY = 10;
 export const RATE_LIMIT_QUERIES_PER_HOUR = 60;
+
+// Authentication rate limiting constants  
+export const RATE_LIMIT_MAGIC_LINKS_PER_EMAIL_PER_HOUR = 10;
+export const RATE_LIMIT_MAGIC_LINKS_PER_IP_PER_HOUR = 20;
+export const MAGIC_LINK_EXPIRY_HOURS = 1;
+export const MAGIC_LINK_TOKEN_LENGTH = 64; // 32 bytes as hex string
+
 export const MAX_NOTE_LENGTH = 500;
 export const MAX_PHOTOS_PER_SUBMISSION = 3;
 export const MAX_PHOTO_SIZE = 15 * 1024 * 1024; // 15MB

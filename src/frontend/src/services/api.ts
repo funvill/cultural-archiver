@@ -342,7 +342,7 @@ export const apiService = {
     status?: string,
     page: number = 1,
     limit: number = 20
-  ): Promise<PaginatedResponse<UserSubmission[]>> {
+  ): Promise<PaginatedResponse<UserSubmission>> {
     const params: Record<string, string> = {
       page: page.toString(),
       limit: limit.toString()
@@ -363,42 +363,105 @@ export const apiService = {
   },
 
   // ================================
-  // Authentication Endpoints
+  // Authentication Endpoints (Updated for new backend API)
   // ================================
 
   /**
-   * Request magic link for email verification
+   * Request magic link for email verification or login
    */
-  async requestMagicLink(request: MagicLinkRequest): Promise<ApiResponse<{ message: string }>> {
-    return client.post('/auth/magic-link', request)
+  async requestMagicLink(request: MagicLinkRequest): Promise<ApiResponse<{ 
+    message: string; 
+    email: string;
+    is_signup: boolean;
+    rate_limit_remaining?: number;
+    rate_limit_reset_at?: string;
+  }>> {
+    return client.post('/auth/request-magic-link', request)
   },
 
   /**
-   * Consume magic link token
+   * Verify and consume magic link token
+   */
+  async verifyMagicLink(request: MagicLinkConsumeRequest): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    user: {
+      uuid: string;
+      email: string;
+      created_at: string;
+      email_verified_at: string;
+    };
+    session: {
+      token: string;
+      expires_at: string;
+    };
+    uuid_replaced: boolean;
+    is_new_account: boolean;
+  }>> {
+    return client.post('/auth/verify-magic-link', request)
+  },
+
+  /**
+   * Get current authentication status
+   */
+  async getAuthStatus(): Promise<ApiResponse<{
+    user_token: string;
+    is_authenticated: boolean;
+    is_anonymous: boolean;
+    user?: {
+      uuid: string;
+      email: string;
+      created_at: string;
+      last_login?: string | null;
+      email_verified_at?: string | null;
+      status: string;
+    } | null;
+    session?: {
+      token: string;
+      expires_at: string;
+      created_at: string;
+    } | null;
+  }>> {
+    return client.get('/auth/status')
+  },
+
+  /**
+   * Logout and get new anonymous token
+   */
+  async logout(): Promise<ApiResponse<{
+    success: boolean;
+    message: string;
+    new_user_token: string;
+  }>> {
+    return client.post('/auth/logout')
+  },
+
+  // Legacy endpoints for backward compatibility (deprecated)
+  /**
+   * @deprecated Use verifyMagicLink instead
    */
   async consumeMagicLink(request: MagicLinkConsumeRequest): Promise<ApiResponse<ConsumeMagicLinkResponse>> {
-    return client.post('/auth/consume', request)
+    return this.verifyMagicLink(request)
   },
 
   /**
-   * Get email verification status
+   * @deprecated Use getAuthStatus instead
    */
   async getVerificationStatus(): Promise<ApiResponse<VerificationStatus>> {
-    return client.get('/auth/verify-status')
-  },
-
-  /**
-   * Remove email verification
-   */
-  async removeEmailVerification(): Promise<ApiResponse<{ message: string }>> {
-    return client.delete('/auth/unverify')
-  },
-
-  /**
-   * Resend verification email
-   */
-  async resendVerificationEmail(request: MagicLinkRequest): Promise<ApiResponse<{ message: string }>> {
-    return client.post('/auth/resend', request)
+    const status = await this.getAuthStatus()
+    const userData = status.data?.user
+    const verificationStatus: VerificationStatus = {
+      email_verified: status.data?.is_authenticated || false
+    }
+    
+    if (userData?.email) {
+      verificationStatus.email = userData.email
+    }
+    
+    return {
+      success: true,
+      data: verificationStatus
+    }
   },
 
   // ================================

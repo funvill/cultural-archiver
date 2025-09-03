@@ -209,9 +209,16 @@ For complete API documentation with examples and error codes, see [`docs/api.md`
    ```bash
    cp .env.example .env
    # Edit .env with your Cloudflare credentials
+   # Required for migrations: D1_DATABASE_ID and CLOUDFLARE_API_TOKEN
    ```
 
-4. **Start development servers**
+4. **Run database migrations**
+
+   ```bash
+   npm run migrate
+   ```
+
+5. **Start development servers**
 
    ```bash
    npm run dev
@@ -227,7 +234,9 @@ For complete API documentation with examples and error codes, see [`docs/api.md`
 - `npm run lint` - Run ESLint on all TypeScript files
 - `npm run format` - Format code with Prettier
 - `npm run type-check` - Run TypeScript compiler checks
-- `npm run migrate` - Run database migrations using native TypeScript execution
+- `npm run migrate` - Run database migrations against Cloudflare D1 (requires .env setup)
+- `npm run migrate:list` - List all available migration files  
+- `npm run migrate:help` - Show migration help and setup instructions
 - `npm run deploy:frontend` - Deploy frontend to Cloudflare Pages
 - `npm run deploy:workers` - Deploy workers to Cloudflare
 

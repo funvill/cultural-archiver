@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import AppShell from './components/AppShell.vue'
 import ErrorBoundary from './components/ErrorBoundary.vue'
 import Modal from './components/Modal.vue'
@@ -8,6 +9,7 @@ import { useAuth } from './composables/useAuth'
 import { globalModal } from './composables/useModal'
 
 const { initAuth } = useAuth()
+const route = useRoute()
 
 // Initialize authentication on app startup
 onMounted(async () => {
@@ -17,6 +19,21 @@ onMounted(async () => {
     console.error('Failed to initialize authentication:', error)
   }
 })
+
+// Watch for query parameters that might trigger authentication
+watch(() => route.query, (newQuery) => {
+  // Handle login requirement from router guard
+  if (newQuery.login === 'required') {
+    console.log('Authentication required for this route')
+    // Could trigger auth modal here if needed
+  }
+  
+  // Handle errors from router guard
+  if (newQuery.error === 'reviewer_required') {
+    console.log('Reviewer access required for this route')
+    // Could show error message here if needed
+  }
+}, { immediate: true })
 </script>
 
 <template>

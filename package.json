@@ -29,7 +29,12 @@
     "type-check:frontend": "cd src/frontend && npm run type-check",
     "type-check:workers": "cd src/workers && npm run type-check",
     "type-check:shared": "tsc --noEmit --project src/shared/tsconfig.json",
-    "migrate": "tsx migrations/migrate.ts",
+    "migrate": "npx tsx migrations/migrate.ts",
+    "migrate:list": "npx tsx migrations/migrate.ts list",
+    "migrate:help": "npx tsx migrations/migrate.ts help",
+    "migrate:remote": "cross-env MIGRATE_REMOTE=true npx tsx migrations/migrate.ts",
+    "migrate:up": "npx tsx migrations/migrate.ts up",
+    "log": "npx wrangler tail cultural-archiver-api",
     "test": "npm run lint && npm run type-check",
     "setup": "npm install && npm run build"
   },
@@ -38,6 +43,7 @@
     "@typescript-eslint/parser": "^7.0.0",
     "@vue/eslint-config-typescript": "^13.0.0",
     "concurrently": "^9.0.0",
+    "cross-env": "^10.0.0",
     "eslint": "^8.57.0",
     "eslint-plugin-vue": "^9.0.0",
     "prettier": "^3.0.0",
@@ -63,5 +69,8 @@
   "bugs": {
     "url": "https://github.com/funvill/cultural-archiver/issues"
   },
-  "homepage": "https://github.com/funvill/cultural-archiver#readme"
+  "homepage": "https://github.com/funvill/cultural-archiver#readme",
+  "dependencies": {
+    "dotenv": "^17.2.2"
+  }
 }
