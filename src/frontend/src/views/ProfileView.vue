@@ -120,7 +120,7 @@ async function loadSubmissions() {
 
   try {
     const response = await apiService.getUserSubmissions()
-    submissions.value = response.data || []
+    submissions.value = response.items || []
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load submissions'
   } finally {

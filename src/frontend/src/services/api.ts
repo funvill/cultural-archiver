@@ -22,10 +22,12 @@ import type {
   GrantPermissionRequest,
   RevokePermissionRequest,
   PermissionResponse,
-  // AuditLogQuery,
+  AuditLogQuery,
   AuditLogsResponse,
   AuditStatistics,
   NearbyArtworksResponse,
+  LogbookEntryWithPhotos,
+  NearbyArtworkInfo,
 } from '../../../shared/types'
 import { getApiBaseUrl } from '../utils/api-config'
 
@@ -49,7 +51,7 @@ interface ArtworkDetails {
   tags: string | null
   photos: string[]
   type_name: string
-  logbook_entries: Array<any>
+  logbook_entries: LogbookEntryWithPhotos[]
   tags_parsed: Record<string, string>
 }
 
@@ -88,7 +90,7 @@ interface ReviewQueueItem {
   status: 'pending' | 'approved' | 'rejected'
   created_at: string
   user_token: string
-  nearby_artworks?: Array<any>
+  nearby_artworks?: NearbyArtworkInfo[]
 }
 
 interface ReviewStats {
@@ -113,16 +115,7 @@ interface VerificationStatus {
   verification_sent_at?: string
 }
 
-interface AuditLogQuery {
-  type?: 'moderation' | 'admin'
-  actor?: string
-  decision?: string
-  action_type?: string
-  startDate?: string
-  endDate?: string
-  page?: number
-  limit?: number
-}
+
 
 // Configuration
 const API_BASE_URL = getApiBaseUrl()
@@ -664,8 +657,19 @@ export const apiService = {
   /**
    * Get audit logs
    */
-  async getAdminAuditLogs(filters: Record<string, string>): Promise<ApiResponse<AuditLogsResponse>> {
-    return client.get('/admin/audit', filters)
+  async getAdminAuditLogs(filters: AuditLogQuery): Promise<ApiResponse<AuditLogsResponse>> {
+    const params: Record<string, string> = {}
+    
+    if (filters.type) params.type = filters.type
+    if (filters.actor) params.actor = filters.actor
+    if (filters.decision) params.decision = filters.decision
+    if (filters.action_type) params.action_type = filters.action_type
+    if (filters.startDate) params.startDate = filters.startDate
+    if (filters.endDate) params.endDate = filters.endDate
+    if (filters.page) params.page = filters.page.toString()
+    if (filters.limit) params.limit = filters.limit.toString()
+    
+    return client.get('/admin/audit', params)
   },
 
   /**

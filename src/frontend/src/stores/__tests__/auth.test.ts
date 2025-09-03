@@ -178,6 +178,7 @@ describe('Auth Store', () => {
       const mockApi = await import('../../services/api')
       vi.mocked(mockApi.apiService.getAuthStatus).mockResolvedValue({
         success: true,
+        timestamp: new Date().toISOString(),
         data: {
           is_authenticated: true,
           is_anonymous: false,
@@ -360,6 +361,7 @@ describe('Auth Store', () => {
       const mockApi = await import('../../services/api')
       vi.mocked(mockApi.apiService.verifyMagicLink).mockResolvedValue({
         success: true,
+        timestamp: new Date().toISOString(),
         data: {
           success: true,
           user: { uuid: 'account-uuid', email: 'test@example.com', created_at: '2025-01-01', email_verified_at: '2025-01-01' },

@@ -24,10 +24,7 @@ const pageSize = ref(25)
 
 // Filter state
 const filters = ref<AuditLogQuery>({
-  type: undefined,
   actor: '',
-  decision: undefined,
-  action_type: undefined,
   startDate: '',
   endDate: '',
   page: 1,
@@ -106,10 +103,7 @@ function debouncedFilter(): void {
 // Reset filters
 function resetFilters(): void {
   filters.value = {
-    type: undefined,
     actor: '',
-    decision: undefined,
-    action_type: undefined,
     startDate: '',
     endDate: '',
     page: 1,
