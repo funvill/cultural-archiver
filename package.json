@@ -34,6 +34,7 @@
     "migrate:help": "npx tsx migrations/migrate.ts help",
     "migrate:remote": "cross-env MIGRATE_REMOTE=true npx tsx migrations/migrate.ts",
     "migrate:up": "npx tsx migrations/migrate.ts up",
+    "log": "npx wrangler tail cultural-archiver-api",
     "test": "npm run lint && npm run type-check",
     "setup": "npm install && npm run build"
   },

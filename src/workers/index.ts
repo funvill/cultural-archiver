@@ -35,6 +35,7 @@ import {
   // Legacy endpoints for backward compatibility
   consumeMagicLinkToken,
   getVerificationStatus,
+  getDevMagicLink,
 } from './routes/auth';
 import {
   getReviewQueue,
@@ -666,6 +667,12 @@ app.get(
   '/api/auth/verify-status',
   addUserTokenToResponse,
   withErrorHandling(getVerificationStatus)
+);
+
+// Development helper endpoint (MailChannels fallback)
+app.get(
+  '/api/auth/dev-magic-link',
+  withErrorHandling(getDevMagicLink)
 );
 
 // ================================

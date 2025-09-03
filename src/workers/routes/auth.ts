@@ -343,3 +343,47 @@ export async function getVerificationStatus(
   // Redirect to new endpoint
   return getAuthStatus(c);
 }
+
+/**
+ * Development helper: Get magic link for email when MailChannels fails
+ * GET /api/auth/dev-magic-link?email=user@example.com
+ */
+export async function getDevMagicLink(
+  c: Context<{ Bindings: WorkerEnv }>
+): Promise<Response> {
+  try {
+    if (c.env.ENVIRONMENT === 'production') {
+      // Only allow in development or when MailChannels is failing
+      const email = c.req.query('email');
+      if (!email) {
+        throw new ApiError('Email parameter required', 'MISSING_EMAIL', 400);
+      }
+
+      // Check if we have a stored magic link for this email
+      const storedLink = await c.env.SESSIONS.get(`dev-magic-link:${email}`);
+      if (!storedLink) {
+        return c.json({ error: 'No magic link found for this email' }, 404);
+      }
+
+      const linkData = JSON.parse(storedLink);
+      return c.json({
+        message: 'Development magic link (MailChannels fallback)',
+        email: email,
+        magic_link: linkData.magicLink,
+        token: linkData.token,
+        expires_at: linkData.expiresAt,
+        created_at: linkData.created
+      });
+    }
+
+    throw new ApiError('Development endpoint not available', 'FORBIDDEN', 403);
+  } catch (error) {
+    console.error('Dev magic link error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to retrieve development magic link', 'DEV_MAGIC_LINK_ERROR', 500);
+  }
+}

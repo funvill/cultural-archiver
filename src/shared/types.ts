@@ -731,8 +731,8 @@ export const RATE_LIMIT_SUBMISSIONS_PER_DAY = 10;
 export const RATE_LIMIT_QUERIES_PER_HOUR = 60;
 
 // Authentication rate limiting constants  
-export const RATE_LIMIT_MAGIC_LINKS_PER_EMAIL_PER_HOUR = 5;
-export const RATE_LIMIT_MAGIC_LINKS_PER_IP_PER_HOUR = 10;
+export const RATE_LIMIT_MAGIC_LINKS_PER_EMAIL_PER_HOUR = 10;
+export const RATE_LIMIT_MAGIC_LINKS_PER_IP_PER_HOUR = 20;
 export const MAGIC_LINK_EXPIRY_HOURS = 1;
 export const MAGIC_LINK_TOKEN_LENGTH = 64; // 32 bytes as hex string
 

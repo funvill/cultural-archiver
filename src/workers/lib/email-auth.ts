@@ -406,7 +406,7 @@ export async function sendMagicLinkEmail(
   frontendUrl: string,
   anonymousSubmissions?: number
 ): Promise<void> {
-  const magicLink = `${frontendUrl}/auth/verify?token=${magicLinkRecord.token}`;
+  const magicLink = `${frontendUrl}/verify?token=${magicLinkRecord.token}`;
   const expiresAt = new Date(magicLinkRecord.expires_at).toLocaleString();
   
   const htmlContent = generateMagicLinkEmailTemplate(
@@ -422,13 +422,16 @@ export async function sendMagicLinkEmail(
     : 'Sign in to Cultural Archiver';
   
   try {
-    if (env.EMAIL_API_KEY && env.EMAIL_FROM) {
-      // Use MailChannels or external email service
+    if (env.EMAIL_FROM && env.ENVIRONMENT === 'production') {
+      // Use MailChannels with fallback to development mode if it fails
       const emailPayload = {
         personalizations: [{
           to: [{ email: magicLinkRecord.email }]
         }],
-        from: { email: env.EMAIL_FROM, name: 'Cultural Archiver' },
+        from: { 
+          email: env.EMAIL_FROM.includes('<') ? env.EMAIL_FROM.match(/<(.+)>/)?.[1] || env.EMAIL_FROM : env.EMAIL_FROM,
+          name: 'Cultural Archiver' 
+        },
         subject: subject,
         content: [{
           type: 'text/html',
@@ -436,23 +439,68 @@ export async function sendMagicLinkEmail(
         }]
       };
       
-      // MailChannels API endpoint (modify based on your email service)
-      const response = await fetch('https://api.mailchannels.net/tx/v1/send', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(env.EMAIL_API_KEY && { 'Authorization': `Bearer ${env.EMAIL_API_KEY}` })
-        },
-        body: JSON.stringify(emailPayload)
+      console.log('Sending email via MailChannels:', {
+        to: magicLinkRecord.email,
+        from: emailPayload.from,
+        subject: subject
       });
       
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Email sending failed:', errorText);
-        throw new Error(`Email delivery failed: ${response.status}`);
+      try {
+        const response = await fetch('https://api.mailchannels.net/tx/v1/send', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-MC-Tags': 'magic-link,cultural-archiver'
+          },
+          body: JSON.stringify(emailPayload)
+        });
+        
+        const responseText = await response.text();
+        
+        if (!response.ok) {
+          console.error('MailChannels API Error:', {
+            status: response.status,
+            statusText: response.statusText,
+            body: responseText,
+            email: magicLinkRecord.email,
+            payload: emailPayload
+          });
+          
+          // If MailChannels fails, fall back to development mode logging
+          console.warn('MailChannels failed, falling back to development mode');
+          throw new Error(`MailChannels delivery failed: ${response.status}`);
+        }
+        
+        console.info(`Magic link email sent via MailChannels to: ${magicLinkRecord.email}`, responseText);
+      } catch (mailChannelsError) {
+        console.error('MailChannels failed, using development fallback:', mailChannelsError);
+        
+        // Fallback: Log the magic link for manual access
+        console.log('=== DEVELOPMENT FALLBACK: MAGIC LINK EMAIL ===');
+        console.log('To:', magicLinkRecord.email);
+        console.log('Subject:', subject);
+        console.log('Magic Link:', magicLink);
+        console.log('Expires:', expiresAt);
+        console.log('Is Signup:', magicLinkRecord.is_signup);
+        if (anonymousSubmissions) {
+          console.log('Anonymous Submissions:', anonymousSubmissions);
+        }
+        console.log('============================================');
+        
+        // Store the magic link in KV for development access
+        await env.SESSIONS.put(
+          `dev-magic-link:${magicLinkRecord.email}`,
+          JSON.stringify({
+            token: magicLinkRecord.token,
+            magicLink,
+            expiresAt,
+            created: new Date().toISOString()
+          }),
+          { expirationTtl: MAGIC_LINK_EXPIRY_HOURS * 60 * 60 }
+        );
+        
+        console.info('Magic link stored in development mode for manual access');
       }
-      
-      console.info(`Magic link email sent to: ${magicLinkRecord.email}`);
     } else {
       // Development mode: log email content
       console.log('=== DEVELOPMENT MAGIC LINK EMAIL ===');
@@ -501,6 +549,13 @@ export async function requestMagicLink(
     const emailRateLimit = await checkRateLimit(env, email, 'email');
     const ipRateLimit = ipAddress ? await checkRateLimit(env, ipAddress, 'ip') : null;
     
+    console.log('Rate limit check passed:', { 
+      emailBlocked: emailRateLimit.is_blocked, 
+      ipBlocked: ipRateLimit?.is_blocked,
+      emailRemaining: emailRateLimit.requests_remaining,
+      ipRemaining: ipRateLimit?.requests_remaining
+    });
+    
     if (emailRateLimit.is_blocked) {
       return {
         success: false,
@@ -526,7 +581,10 @@ export async function requestMagicLink(
     const submissionsResult = await submissionsStmt.bind(anonymousUUID).first();
     const anonymousSubmissions = (submissionsResult as { count: number } | null)?.count || 0;
     
+    console.log('Anonymous submissions count:', anonymousSubmissions);
+    
     // Create magic link record
+    console.log('Creating magic link record for:', email);
     const magicLinkRecord = await createMagicLinkRecord(
       env,
       email,
@@ -535,8 +593,13 @@ export async function requestMagicLink(
       userAgent
     );
     
+    console.log('Magic link record created successfully:', magicLinkRecord.token);
+    
     // Send email
+    console.log('Attempting to send email...');
     await sendMagicLinkEmail(env, magicLinkRecord, env.FRONTEND_URL, anonymousSubmissions);
+    
+    console.log('Email sent successfully!');
     
     return {
       success: true,
