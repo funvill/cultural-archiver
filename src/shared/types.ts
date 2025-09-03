@@ -564,6 +564,8 @@ export interface AuthContext {
   userToken: string;
   isVerifiedEmail: boolean;
   isReviewer: boolean;
+  isAdmin?: boolean;
+  permissions?: Permission[];
   user?: UserRecord;  // Full user record for authenticated users
 }
 
@@ -780,3 +782,176 @@ export const PHOTO_BUCKET_STRUCTURE = {
   ORIGINALS: 'originals',
   THUMBS: 'thumbs',
 } as const;
+
+// ================================
+// Permission Management Types
+// ================================
+
+export type Permission = 'moderator' | 'admin';
+
+export interface UserPermissionRecord {
+  id: string;
+  user_uuid: string;
+  permission: Permission;
+  granted_by: string; // admin user_uuid who granted this permission
+  granted_at: string;
+  revoked_at: string | null;
+  revoked_by: string | null;
+  is_active: boolean;
+  notes: string | null; // reason for granting/revoking
+}
+
+export interface PermissionCheckResult {
+  hasPermission: boolean;
+  permission?: Permission;
+  grantedAt?: string;
+  grantedBy?: string;
+}
+
+export interface UserWithPermissions {
+  user_uuid: string;
+  email?: string;
+  permissions: {
+    permission: Permission;
+    granted_at: string;
+    granted_by: string;
+    notes?: string;
+  }[];
+}
+
+// API Request/Response Types for Permissions
+export interface GrantPermissionRequest {
+  userUuid: string;
+  permission: Permission;
+  reason?: string;
+}
+
+export interface RevokePermissionRequest {
+  userUuid: string;
+  permission: Permission;
+  reason?: string;
+}
+
+export interface PermissionResponse {
+  success: boolean;
+  message: string;
+  user_uuid?: string;
+  permission?: Permission;
+  granted_by?: string;
+}
+
+export interface GetPermissionsResponse {
+  users: UserWithPermissions[];
+  total: number;
+  page?: number;
+  per_page?: number;
+}
+
+// ================================
+// Audit Trail Types
+// ================================
+
+export type ModerationDecision = 'approved' | 'rejected' | 'skipped';
+export type AdminActionType = 'grant_permission' | 'revoke_permission' | 'view_audit_logs';
+
+export interface ModerationDecisionRecord {
+  id: string;
+  submission_id: string; // logbook entry ID
+  moderator_uuid: string; // who made the decision
+  decision: ModerationDecision;
+  reason: string | null; // reason for rejection or notes
+  metadata: string | null; // JSON: IP, user agent, session info
+  artwork_id: string | null; // created or linked artwork ID (for approvals)
+  action_taken: string | null; // 'create_new', 'link_existing', or NULL for rejections
+  photos_processed: number; // number of photos migrated
+  created_at: string;
+}
+
+export interface AdminActionRecord {
+  id: string;
+  admin_uuid: string; // admin performing the action
+  action_type: AdminActionType;
+  target_uuid: string | null; // user being affected (for permission changes)
+  permission_type: Permission | null; // 'moderator' or 'admin' (for permission actions)
+  old_value: string | null; // previous state (JSON for complex changes)
+  new_value: string | null; // new state (JSON for complex changes)
+  reason: string | null; // reason for the action
+  metadata: string | null; // JSON: IP, user agent, session info
+  created_at: string;
+}
+
+export interface AuditLogEntry {
+  id: string;
+  type: 'moderation' | 'admin';
+  actor_uuid: string;
+  actor_email?: string;
+  action: string;
+  target?: string;
+  details: Record<string, unknown>;
+  metadata?: {
+    ip?: string;
+    userAgent?: string;
+    sessionId?: string;
+    [key: string]: unknown;
+  };
+  created_at: string;
+}
+
+export interface AuditLogQuery {
+  type?: 'moderation' | 'admin';
+  actor?: string;
+  decision?: ModerationDecision;
+  action_type?: AdminActionType;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
+}
+
+export interface AuditLogsResponse {
+  logs: AuditLogEntry[];
+  total: number;
+  page: number;
+  limit: number;
+  has_more: boolean;
+}
+
+export interface AuditStatistics {
+  total_decisions: number;
+  decisions_by_type: Record<ModerationDecision, number>;
+  total_admin_actions: number;
+  admin_actions_by_type: Record<AdminActionType, number>;
+  active_moderators: number;
+  active_admins: number;
+  date_range: {
+    start: string;
+    end: string;
+    days: number;
+  };
+}
+
+export interface SessionMetadata {
+  ip?: string;
+  userAgent?: string;
+  sessionId?: string;
+  referrer?: string;
+  [key: string]: unknown;
+}
+
+// Type guards for permissions and audit
+export const isValidPermission = (permission: string): permission is Permission => {
+  return ['moderator', 'admin'].includes(permission);
+};
+
+export const isValidModerationDecision = (decision: string): decision is ModerationDecision => {
+  return ['approved', 'rejected', 'skipped'].includes(decision);
+};
+
+export const isValidAdminActionType = (action: string): action is AdminActionType => {
+  return ['grant_permission', 'revoke_permission', 'view_audit_logs'].includes(action);
+};
+
+// Permission constants
+export const PERMISSIONS = ['moderator', 'admin'] as const;
+export const MODERATION_DECISIONS = ['approved', 'rejected', 'skipped'] as const;
+export const ADMIN_ACTION_TYPES = ['grant_permission', 'revoke_permission', 'view_audit_logs'] as const;
