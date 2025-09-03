@@ -97,4 +97,3 @@ function handleSignIn() {
     <!-- The PRD specifies no dismissal option for anonymous warnings -->
   </div>
 </template>
-</script>
