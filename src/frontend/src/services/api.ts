@@ -342,7 +342,7 @@ export const apiService = {
     status?: string,
     page: number = 1,
     limit: number = 20
-  ): Promise<PaginatedResponse<UserSubmission[]>> {
+  ): Promise<PaginatedResponse<UserSubmission>> {
     const params: Record<string, string> = {
       page: page.toString(),
       limit: limit.toString()
@@ -449,13 +449,18 @@ export const apiService = {
    */
   async getVerificationStatus(): Promise<ApiResponse<VerificationStatus>> {
     const status = await this.getAuthStatus()
+    const userData = status.data?.user
+    const verificationStatus: VerificationStatus = {
+      email_verified: status.data?.is_authenticated || false
+    }
+    
+    if (userData?.email) {
+      verificationStatus.email = userData.email
+    }
+    
     return {
       success: true,
-      data: {
-        email_verified: status.data?.is_authenticated || false,
-        email: status.data?.user?.email || undefined,
-        verification_sent_at: undefined
-      }
+      data: verificationStatus
     }
   },
 

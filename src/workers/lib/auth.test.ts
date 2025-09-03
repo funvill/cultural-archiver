@@ -27,8 +27,21 @@ import {
   getAuthStats
 } from './auth';
 
+// Mock objects interfaces for testing
+interface MockDBStatement {
+  bind: ReturnType<typeof vi.fn>;
+  first: ReturnType<typeof vi.fn>;
+  all: ReturnType<typeof vi.fn>;
+  run: ReturnType<typeof vi.fn>;
+}
+
+interface MockDBResult {
+  changes?: number;
+  results?: unknown[];
+}
+
 // Mock environment
-const mockEnv: WorkerEnv = {
+const mockEnv = {
   DB: {
     prepare: vi.fn(),
   },
@@ -42,10 +55,10 @@ const mockEnv: WorkerEnv = {
   LOG_LEVEL: 'debug',
   API_VERSION: '1.0.0',
   EMAIL_FROM: 'test@example.com'
-} as any;
+} as unknown as WorkerEnv;
 
 // Mock database statement
-const createMockStatement = (result: any = null, runResult: any = { changes: 1 }) => ({
+const createMockStatement = (result: unknown = null, runResult: MockDBResult = { changes: 1 }): MockDBStatement => ({
   bind: vi.fn().mockReturnThis(),
   first: vi.fn().mockResolvedValue(result),
   all: vi.fn().mockResolvedValue({ results: Array.isArray(result) ? result : [result] }),

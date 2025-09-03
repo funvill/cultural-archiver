@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import AnonymousUserWarning from '../AnonymousUserWarning.vue'
 
@@ -68,22 +68,22 @@ describe('AnonymousUserWarning', () => {
   })
 
   describe('User Interactions', () => {
-    it('emits sign-in event when button is clicked', async () => {
+    it('emits signIn event when button is clicked', async () => {
       const wrapper = mount(AnonymousUserWarning)
       
       await wrapper.find('button').trigger('click')
       
-      expect(wrapper.emitted('sign-in')).toBeTruthy()
-      expect(wrapper.emitted('sign-in')).toHaveLength(1)
+      expect(wrapper.emitted('signIn')).toBeTruthy()
+      expect(wrapper.emitted('signIn')).toHaveLength(1)
     })
 
-    it('does not emit sign-in when button is not shown', () => {
+    it('does not emit signIn when button is not shown', () => {
       const wrapper = mount(AnonymousUserWarning, {
         props: { showSignIn: false }
       })
       
       expect(wrapper.find('button').exists()).toBe(false)
-      expect(wrapper.emitted('sign-in')).toBeFalsy()
+      expect(wrapper.emitted('signIn')).toBeFalsy()
     })
   })
 

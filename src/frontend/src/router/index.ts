@@ -90,7 +90,7 @@ const router = createRouter({
 })
 
 // Set page titles and handle authentication/reviewer permissions
-router.beforeEach(async (to, from, next) => {
+router.beforeEach(async (to, _from, next) => {
   // Set page title
   if (to.meta.title) {
     document.title = to.meta.title as string

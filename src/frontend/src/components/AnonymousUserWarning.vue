@@ -8,7 +8,7 @@ interface Props {
 }
 
 interface Emits {
-  (e: 'sign-in'): void
+  (e: 'signIn'): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -38,7 +38,7 @@ const warningIcon = computed(() => {
 })
 
 function handleSignIn() {
-  emit('sign-in')
+  emit('signIn')
 }
 </script>
 

@@ -20,17 +20,14 @@ const statusIcon = computed(() => {
   switch (verificationStatus.value) {
     case 'success':
       return {
-        svg: `<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />`,
         class: 'text-green-600 bg-green-100'
       }
     case 'error':
       return {
-        svg: `<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />`,
         class: 'text-red-600 bg-red-100'
       }
     default:
       return {
-        svg: `<path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />`,
         class: 'text-blue-600 bg-blue-100'
       }
   }
@@ -138,15 +135,31 @@ function redirectToSubmit(): void {
         <div class="text-center">
           <!-- Status Icon -->
           <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full mb-6" :class="statusIcon.class">
+            <!-- Success Icon -->
             <svg 
-              v-if="verificationStatus !== 'pending'" 
+              v-if="verificationStatus === 'success'" 
               class="h-8 w-8" 
               fill="none" 
               viewBox="0 0 24 24" 
               stroke-width="1.5" 
               stroke="currentColor"
-              v-html="statusIcon.svg"
-            ></svg>
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            
+            <!-- Error Icon -->
+            <svg 
+              v-else-if="verificationStatus === 'error'" 
+              class="h-8 w-8" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke-width="1.5" 
+              stroke="currentColor"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            
+            <!-- Loading Icon -->
             <svg 
               v-else
               class="h-8 w-8 animate-spin" 

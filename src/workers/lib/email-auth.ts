@@ -524,7 +524,7 @@ export async function requestMagicLink(
       SELECT COUNT(*) as count FROM logbook WHERE user_token = ?
     `);
     const submissionsResult = await submissionsStmt.bind(anonymousUUID).first();
-    const anonymousSubmissions = (submissionsResult as any)?.count || 0;
+    const anonymousSubmissions = (submissionsResult as { count: number } | null)?.count || 0;
     
     // Create magic link record
     const magicLinkRecord = await createMagicLinkRecord(
@@ -695,8 +695,8 @@ export async function cleanupExpiredMagicLinks(env: WorkerEnv): Promise<{
     `);
     const rateLimitResult = await rateLimitStmt.bind(oneDayAgo, now).run();
     
-    const magicLinksDeleted = (magicLinkResult as any).changes || 0;
-    const rateLimitsDeleted = (rateLimitResult as any).changes || 0;
+    const magicLinksDeleted = (magicLinkResult as { changes?: number }).changes || 0;
+    const rateLimitsDeleted = (rateLimitResult as { changes?: number }).changes || 0;
     
     console.info(`Cleaned up ${magicLinksDeleted} magic links and ${rateLimitsDeleted} rate limit records`);
     

@@ -2,20 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { apiService } from '../services/api'
-
-// Types
-interface Submission {
-  id: string
-  title?: string
-  note?: string
-  photos: string[]
-  photos_parsed?: string[]
-  latitude: number
-  longitude: number
-  status: 'pending' | 'approved' | 'rejected'
-  created_at: string
-  artwork_id?: string
-}
+import type { UserSubmission } from '../types'
 
 // Store and router
 const authStore = useAuthStore()
@@ -23,7 +10,7 @@ const authStore = useAuthStore()
 // State
 const loading = ref(true)
 const error = ref<string | null>(null)
-const submissions = ref<Submission[]>([])
+const submissions = ref<UserSubmission[]>([])
 const activeTab = ref('overview')
 const sortBy = ref('created_at')
 const sortOrder = ref<'asc' | 'desc'>('desc')
@@ -81,8 +68,8 @@ const filteredSubmissions = computed(() => {
 
   // Sort
   filtered.sort((a, b) => {
-    let aVal: any = a[sortBy.value as keyof Submission]
-    let bVal: any = b[sortBy.value as keyof Submission]
+    let aVal: any = a[sortBy.value as keyof UserSubmission]
+    let bVal: any = b[sortBy.value as keyof UserSubmission]
 
     if (sortBy.value === 'created_at') {
       aVal = new Date(aVal).getTime()
@@ -133,7 +120,7 @@ async function loadSubmissions() {
 
   try {
     const response = await apiService.getUserSubmissions()
-    submissions.value = response.items || []
+    submissions.value = response.data || []
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load submissions'
   } finally {
@@ -359,7 +346,7 @@ function formatDate(dateString: string): string {
                     <div class="flex items-center justify-between mb-2">
                       <div class="flex items-center space-x-3">
                         <h3 class="text-lg font-medium text-gray-900">
-                          {{ submission.title || 'Untitled Submission' }}
+                          {{ submission.artwork_type_name || 'Artwork Submission' }}
                         </h3>
                         <span 
                           class="inline-block px-2 py-1 text-xs font-medium rounded-full"
@@ -393,7 +380,7 @@ function formatDate(dateString: string): string {
                       <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                         <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
                       </svg>
-                      {{ submission.latitude?.toFixed(4) }}, {{ submission.longitude?.toFixed(4) }}
+                      {{ submission.artwork_lat?.toFixed(4) }}, {{ submission.artwork_lon?.toFixed(4) }}
                     </div>
 
                     <!-- Actions -->

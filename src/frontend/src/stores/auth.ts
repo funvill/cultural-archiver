@@ -3,12 +3,9 @@ import { defineStore } from 'pinia'
 import type { 
   User, 
   MagicLinkRequest, 
-  MagicLinkConsumeRequest,
-  AuthStatusResponse,
-  VerifyMagicLinkResponse,
-  LogoutResponse
+  MagicLinkConsumeRequest
 } from '../types'
-import { apiService, getErrorMessage, isUnauthorized } from '../services/api'
+import { apiService, getErrorMessage } from '../services/api'
 
 /**
  * Authentication store for managing user state and tokens

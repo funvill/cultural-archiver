@@ -45,7 +45,9 @@ const localStorageMock = {
   getItem: vi.fn(),
   setItem: vi.fn(),
   removeItem: vi.fn(),
-  clear: vi.fn()
+  clear: vi.fn(),
+  length: 0,
+  key: vi.fn().mockReturnValue(null)
 }
 global.localStorage = localStorageMock
 
@@ -70,7 +72,7 @@ describe('Auth Store', () => {
     it('loads user token from localStorage', () => {
       localStorageMock.getItem.mockReturnValue('stored-token')
       
-      const store = useAuthStore()
+      useAuthStore()
       
       // Token should be loaded during initializeAuth
       expect(localStorageMock.getItem).toHaveBeenCalledWith('user-token')
@@ -168,9 +170,11 @@ describe('Auth Store', () => {
     it('refreshes authentication status', async () => {
       const mockApi = await import('../../services/api')
       vi.mocked(mockApi.apiService.getAuthStatus).mockResolvedValue({
+        success: true,
         data: {
           is_authenticated: true,
-          user: { uuid: 'test-uuid', email: 'test@example.com', created_at: '2025-01-01' },
+          is_anonymous: false,
+          user: { uuid: 'test-uuid', email: 'test@example.com', created_at: '2025-01-01', status: 'active' },
           user_token: 'test-token'
         }
       })
@@ -338,11 +342,14 @@ describe('Auth Store', () => {
     it('handles cross-device login with token replacement', async () => {
       const mockApi = await import('../../services/api')
       vi.mocked(mockApi.apiService.verifyMagicLink).mockResolvedValue({
+        success: true,
         data: {
           success: true,
-          user: { uuid: 'account-uuid', email: 'test@example.com', created_at: '2025-01-01' },
+          user: { uuid: 'account-uuid', email: 'test@example.com', created_at: '2025-01-01', email_verified_at: '2025-01-01' },
           message: 'Login successful',
-          uuid_replaced: true
+          session: { token: 'session-token', expires_at: '2025-01-02' },
+          uuid_replaced: true,
+          is_new_account: false
         }
       })
       

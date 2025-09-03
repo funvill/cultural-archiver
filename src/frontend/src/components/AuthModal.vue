@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useAuth } from '../composables/useAuth'
-import { useModal } from '../composables/useModal'
 
 interface Props {
   isOpen: boolean
@@ -21,7 +20,6 @@ const emit = defineEmits<Emits>()
 
 // Composables
 const { requestMagicLink, isLoading, error, clearError } = useAuth()
-const { trapFocus } = useModal()
 
 // State
 const email = ref('')
@@ -134,7 +132,7 @@ function handleKeydown(event: KeyboardEvent): void {
       <!-- Modal -->
       <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
         <div
-          ref="trapFocus"
+          ref="modalDialog"
           class="relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-md sm:p-6"
         >
           <!-- Close button -->

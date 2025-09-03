@@ -364,15 +364,25 @@ export async function getUserSessions(env: WorkerEnv, userUUID: string): Promise
   
   const results = await stmt.bind(userUUID).all();
   
-  return (results.results || []).map((row: any) => ({
-    id: row.id,
-    user_uuid: row.user_uuid,
-    created_at: row.created_at,
-    last_accessed_at: row.last_accessed_at,
-    ip_address: row.ip_address,
-    user_agent: row.user_agent,
-    is_current: false // Will be set by caller based on current session
-  }));
+  return (results.results || []).map((row: Record<string, unknown>): SessionInfo => {
+    const session: SessionInfo = {
+      id: row.id as string,
+      user_uuid: row.user_uuid as string,
+      created_at: row.created_at as string,
+      last_accessed_at: row.last_accessed_at as string,
+      is_current: false // Will be set by caller based on current session
+    };
+    
+    if (row.ip_address && row.ip_address !== null) {
+      session.ip_address = row.ip_address as string;
+    }
+    
+    if (row.user_agent && row.user_agent !== null) {
+      session.user_agent = row.user_agent as string;
+    }
+    
+    return session;
+  });
 }
 
 // ================================
@@ -424,7 +434,7 @@ export async function cleanupExpiredSessions(env: WorkerEnv): Promise<number> {
   
   const result = await stmt.bind(thirtyDaysAgo.toISOString()).run();
   
-  const changes = (result as any).changes || 0;
+  const changes = (result as { changes?: number }).changes || 0;
   console.info(`Cleaned up ${changes} expired sessions`);
   return changes;
 }
@@ -447,10 +457,12 @@ export async function getAuthStats(env: WorkerEnv): Promise<{
     env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE created_at LIKE ?').bind(`${today}%`).first()
   ]);
   
+  type CountResult = { count: number } | null;
+  
   return {
-    total_users: (queries[0] as any)?.count || 0,
-    verified_users: (queries[1] as any)?.count || 0,
-    active_sessions: (queries[2] as any)?.count || 0,
-    users_created_today: (queries[3] as any)?.count || 0
+    total_users: (queries[0] as CountResult)?.count || 0,
+    verified_users: (queries[1] as CountResult)?.count || 0,
+    active_sessions: (queries[2] as CountResult)?.count || 0,
+    users_created_today: (queries[3] as CountResult)?.count || 0
   };
 }

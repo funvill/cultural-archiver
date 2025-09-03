@@ -4,17 +4,16 @@ import AuthModal from '../AuthModal.vue'
 
 // Mock the composables
 vi.mock('../../composables/useAuth', () => ({
-  useAuth: () => ({
+  useAuth: (): {
+    requestMagicLink: ReturnType<typeof vi.fn>;
+    isLoading: { value: boolean };
+    error: { value: null };
+    clearError: ReturnType<typeof vi.fn>;
+  } => ({
     requestMagicLink: vi.fn().mockResolvedValue({ success: true }),
     isLoading: { value: false },
     error: { value: null },
     clearError: vi.fn()
-  })
-}))
-
-vi.mock('../../composables/useModal', () => ({
-  useModal: () => ({
-    trapFocus: vi.fn()
   })
 }))
 

@@ -5,7 +5,6 @@
 
 import { computed, watch } from 'vue'
 import { useAuthStore } from '../stores/auth'
-import type { User } from '../types'
 
 export function useAuth() { // eslint-disable-line @typescript-eslint/explicit-function-return-type
   const authStore = useAuthStore()

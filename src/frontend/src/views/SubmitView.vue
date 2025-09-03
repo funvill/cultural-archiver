@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import PhotoUpload from '../components/PhotoUpload.vue'
 import { useAuthStore } from '../stores/auth'
@@ -14,6 +14,12 @@ const isSubmitting = ref(false)
 const error = ref<string | null>(null)
 const success = ref(false)
 const submissionData = ref<any>(null)
+const userToken = ref<string>('')
+
+// Lifecycle
+onMounted(async () => {
+  userToken.value = await authStore.ensureUserToken()
+})
 
 // Methods
 function handleUploadSuccess(data: any) {
@@ -147,7 +153,7 @@ function startNewSubmission() {
       <!-- Upload Step -->
       <div v-if="currentStep === 1 && !success">
         <PhotoUpload
-          :user-token="authStore.ensureUserToken()"
+          :user-token="userToken"
           @uploadSuccess="handleUploadSuccess"
           @uploadError="handleUploadError"
           @cancel="handleCancel"
