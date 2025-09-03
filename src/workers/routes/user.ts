@@ -52,27 +52,14 @@ export async function getUserSubmissions(c: Context<{ Bindings: WorkerEnv }>): P
   const perPage = validatedQuery.per_page || 20;
 
   try {
-    console.log(`[SUBMISSIONS DEBUG] Starting getUserSubmissions for token: ${userToken}`);
-    console.log(`[SUBMISSIONS DEBUG] Page: ${page}, Per Page: ${perPage}`);
-    
     // Get user submissions (excludes rejected)
     const result = await db.getUserSubmissions(userToken, page, perPage);
-    console.log(`[SUBMISSIONS DEBUG] Database returned ${result.submissions.length} submissions, total: ${result.total}`);
-    console.log(`[SUBMISSIONS DEBUG] Raw submissions data:`, JSON.stringify(result.submissions, null, 2));
 
     // Format submissions with parsed photos
     const submissions: UserSubmissionInfo[] = result.submissions.map(submission => ({
       ...submission,
       photos_parsed: safeJsonParse<string[]>(submission.photos, []),
     }));
-
-    console.log(`[SUBMISSIONS DEBUG] Formatted submissions:`, submissions.map(s => ({ 
-      id: s.id, 
-      user_token: s.user_token,
-      photos: s.photos_parsed,
-      status: s.status,
-      created_at: s.created_at
-    })));
 
     const response: UserSubmissionsResponse = {
       submissions,

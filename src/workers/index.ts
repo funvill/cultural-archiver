@@ -110,26 +110,6 @@ app.use('*', secureHeaders());
 app.use('*', logger());
 app.use('*', prettyJSON());
 
-// Add comprehensive debugging middleware for production issues
-app.use('*', async (c, next) => {
-  const startTime = Date.now();
-  const requestId = crypto.randomUUID().substring(0, 8);
-  
-  console.log(`[${requestId}] ${c.req.method} ${c.req.url} - Start`);
-  console.log(`[${requestId}] Environment: ${c.env.ENVIRONMENT}`);
-  console.log(`[${requestId}] User-Agent: ${c.req.header('User-Agent')}`);
-  
-  try {
-    await next();
-    const duration = Date.now() - startTime;
-    console.log(`[${requestId}] ${c.req.method} ${c.req.url} - Completed in ${duration}ms`);
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    console.error(`[${requestId}] ${c.req.method} ${c.req.url} - Error after ${duration}ms:`, error);
-    throw error;
-  }
-});
-
 // CORS configuration (applies to all routes)
 app.use('*', async (c, next) => {
   // Support both comma-separated string and array for origins
@@ -164,7 +144,7 @@ interface HealthCheckResult {
   [key: string]: unknown;
 }
 
-// Health check endpoint with comprehensive testing
+// Health check endpoint
 app.get('/health', async c => {
   const startTime = Date.now();
   const checks: Record<string, HealthCheckResult> = {};

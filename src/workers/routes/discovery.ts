@@ -57,13 +57,6 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
       limit
     );
 
-    console.log(`[DEBUG] Found ${artworks.length} artworks in nearby search`, {
-      lat: validatedQuery.lat,
-      lon: validatedQuery.lon,
-      radius,
-      artworks: artworks.map(a => ({ id: a.id, lat: a.lat, lon: a.lon, type_name: a.type_name }))
-    });
-
     // Format response with photos and additional info
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       artworks.map(async artwork => {
@@ -98,8 +91,6 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
       },
       search_radius: radius,
     };
-
-    console.log(`[DEBUG] Returning response with ${response.artworks.length} artworks`);
 
     return c.json(createSuccessResponse(response));
   } catch (error) {

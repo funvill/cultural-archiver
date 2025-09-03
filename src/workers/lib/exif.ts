@@ -278,15 +278,6 @@ export async function processExifData(
       processedBuffer = await injectPermalink(buffer, options.permalink, options);
     }
 
-    // Log processing for debugging
-    console.info('EXIF processing completed:', {
-      hasGPS: !!exifData.gps,
-      hasCamera: !!exifData.camera,
-      permalinkInjected: options.injectPermalink,
-      originalSize: buffer.byteLength,
-      processedSize: processedBuffer.byteLength
-    });
-
     return {
       buffer: processedBuffer,
       exifData
