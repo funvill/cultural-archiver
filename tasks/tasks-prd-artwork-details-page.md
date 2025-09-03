@@ -31,14 +31,14 @@
 
 ## Tasks
 
-- [ ] 1.0 Database Schema Extension for Creator Management
-  - [ ] 1.1 Create migration file `005_add_creators_table.sql` with creators table (id, name, bio, created_at)
-  - [ ] 1.2 Create artwork_creators junction table (artwork_id, creator_id, role, created_at)
-  - [ ] 1.3 Add indexes for creator queries (creator name, artwork-creator relationships)
-  - [ ] 1.4 Update database utility functions in `src/workers/lib/database.ts` for creator CRUD operations
-  - [ ] 1.5 Add creator-related TypeScript interfaces to `src/shared/types.ts`
-  - [ ] 1.6 Write unit tests for creator database functions
-  - [ ] 1.7 Run migration and test with sample creator data
+- [x] 1.0 Database Schema Extension for Creator Management
+  - [x] 1.1 Create migration file `006_add_creators_table.sql` with creators table (id, name, bio, created_at)
+  - [x] 1.2 Create artwork_creators junction table (artwork_id, creator_id, role, created_at)
+  - [x] 1.3 Add indexes for creator queries (creator name, artwork-creator relationships)
+  - [x] 1.4 Update database utility functions in `src/workers/lib/database.ts` for creator CRUD operations
+  - [x] 1.5 Add creator-related TypeScript interfaces to `src/shared/types.ts`
+  - [x] 1.6 Write unit tests for creator database functions
+  - [x] 1.7 Run migration and test with sample creator data
 
 - [ ] 2.0 Backend API Enhancement for Artwork Details
   - [ ] 2.1 Extend `ArtworkDetailResponse` type to include creator information and parsed metadata
