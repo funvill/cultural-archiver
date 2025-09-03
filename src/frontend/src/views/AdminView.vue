@@ -180,7 +180,7 @@ and viewing audit logs with responsive design and accessibility features.
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300',
                 'whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
               ]"
-              :aria-current="activeTab === tab.id ? 'page' : undefined"
+              v-bind="activeTab === tab.id ? { 'aria-current': 'page' } : {}"
             >
               {{ tab.name }}
             </button>

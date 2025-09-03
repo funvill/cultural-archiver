@@ -32,21 +32,32 @@ export class AdminService {
   }): Promise<GetPermissionsResponse> {
     const permissionFilter = filters?.permission;
     const result = await apiService.getAdminPermissions(permissionFilter);
-    return result;
+    if (!result.success || !result.data) {
+      throw new Error(result.error || 'Failed to get permissions');
+    }
+    return result.data as GetPermissionsResponse;
   }
 
   /**
    * Grant permission to a user
    */
   async grantPermission(request: GrantPermissionRequest): Promise<PermissionResponse> {
-    return await apiService.grantAdminPermission(request);
+    const result = await apiService.grantAdminPermission(request);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to grant permission');
+    }
+    return result.data as PermissionResponse;
   }
 
   /**
    * Revoke permission from a user
    */
   async revokePermission(request: RevokePermissionRequest): Promise<PermissionResponse> {
-    return await apiService.revokeAdminPermission(request);
+    const result = await apiService.revokeAdminPermission(request);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to revoke permission');
+    }
+    return result.data as PermissionResponse;
   }
 
   /**
@@ -80,14 +91,22 @@ export class AdminService {
       filters.limit = query.limit.toString();
     }
 
-    return await apiService.getAdminAuditLogs(filters);
+    const result = await apiService.getAdminAuditLogs(filters);
+    if (!result.success || !result.data) {
+      throw new Error(result.error || 'Failed to get audit logs');
+    }
+    return result.data as AuditLogsResponse;
   }
 
   /**
    * Get system and audit statistics
    */
   async getStatistics(days = 30): Promise<AuditStatistics> {
-    return await apiService.getAdminStatistics(days);
+    const result = await apiService.getAdminStatistics(days);
+    if (!result.success || !result.data) {
+      throw new Error(result.error || 'Failed to get statistics');
+    }
+    return result.data as AuditStatistics;
   }
 }
 

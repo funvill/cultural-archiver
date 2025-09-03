@@ -150,7 +150,7 @@ describe('PermissionManager', () => {
       await searchInput.setValue('test')
       
       const buttons = wrapper.findAll('button')
-      const resetButton = buttons.find(btn => btn.text().includes('Reset'))
+      const resetButton = buttons.find((btn: any) => btn.text().includes('Reset'))
       
       if (!resetButton) {
         throw new Error('Reset button not found')
@@ -171,7 +171,7 @@ describe('PermissionManager', () => {
 
     it('should open grant permission dialog', async () => {
       const buttons = wrapper.findAll('button')
-      const grantButton = buttons.find(btn => btn.text().includes('Grant Permission'))
+      const grantButton = buttons.find((btn: any) => btn.text().includes('Grant Permission'))
       
       if (!grantButton) {
         throw new Error('Grant Permission button not found')
@@ -186,7 +186,7 @@ describe('PermissionManager', () => {
     it('should validate required fields in grant form', async () => {
       // Open dialog
       const buttons = wrapper.findAll('button')
-      const grantButton = buttons.find(btn => btn.text().includes('Grant Permission'))
+      const grantButton = buttons.find((btn: any) => btn.text().includes('Grant Permission'))
       
       if (!grantButton) {
         throw new Error('Grant Permission button not found')
@@ -209,7 +209,7 @@ describe('PermissionManager', () => {
 
       // Open dialog
       const buttons = wrapper.findAll('button')
-      const grantButton = buttons.find(btn => btn.text().includes('Grant Permission'))
+      const grantButton = buttons.find((btn: any) => btn.text().includes('Grant Permission'))
       
       if (!grantButton) {
         throw new Error('Grant Permission button not found')
@@ -240,7 +240,7 @@ describe('PermissionManager', () => {
     it('should close dialog on cancel', async () => {
       // Open dialog
       const buttons = wrapper.findAll('button')
-      const grantButton = buttons.find(btn => btn.text().includes('Grant Permission'))
+      const grantButton = buttons.find((btn: any) => btn.text().includes('Grant Permission'))
       
       if (!grantButton) {
         throw new Error('Grant Permission button not found')
@@ -250,7 +250,7 @@ describe('PermissionManager', () => {
 
       // Click cancel - need to re-query buttons after dialog opens
       const updatedButtons = wrapper.findAll('button')
-      const cancelButton = updatedButtons.find(btn => btn.text() === 'Cancel')
+      const cancelButton = updatedButtons.find((btn: any) => btn.text() === 'Cancel')
       
       if (!cancelButton) {
         throw new Error('Cancel button not found')

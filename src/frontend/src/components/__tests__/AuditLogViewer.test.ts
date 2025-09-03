@@ -154,10 +154,14 @@ describe('AuditLogViewer', () => {
       await startDate.setValue('2025-01-01T00:00')
       await endDate.setValue('2025-01-03T23:59')
 
-      expect(adminService.getAuditLogs).toHaveBeenCalledWith(
+      // Wait for the component to process both date changes
+      await wrapper.vm.$nextTick()
+
+      // Check that the final call contains both dates (converted to ISO strings)
+      expect(adminService.getAuditLogs).toHaveBeenLastCalledWith(
         expect.objectContaining({
-          startDate: expect.stringContaining('2025-01-01'),
-          endDate: expect.stringContaining('2025-01-03')
+          startDate: expect.stringMatching(/2025-01-01.*Z$/),
+          endDate: expect.stringMatching(/2025-01-04.*Z$/)
         })
       )
     })
@@ -424,7 +428,7 @@ describe('AuditLogViewer', () => {
     it('should update count when filters change', async () => {
       const filteredResponse = {
         ...mockAuditLogs,
-        logs: [mockAuditLogs.logs[0]],
+        logs: [mockAuditLogs.logs[0]!], // Non-null assertion since we know logs[0] exists
         total: 1,
       }
       vi.mocked(adminService.getAuditLogs).mockResolvedValue(filteredResponse)

@@ -417,13 +417,13 @@ function applyFilters(): void {
 }
 
 // Debounced filter for text inputs
-let filterTimeout: number | null = null
+let filterTimeout: ReturnType<typeof setTimeout> | null = null
 function debouncedFilter(): void {
   if (filterTimeout) {
     clearTimeout(filterTimeout)
   }
   
-  filterTimeout = window.setTimeout(() => {
+  filterTimeout = setTimeout(() => {
     applyFilters()
   }, 500)
 }
@@ -431,10 +431,7 @@ function debouncedFilter(): void {
 // Reset filters
 function resetFilters(): void {
   filters.value = {
-    type: undefined,
     actor: '',
-    decision: undefined,
-    action_type: undefined,
     startDate: '',
     endDate: '',
     page: 1,

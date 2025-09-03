@@ -226,8 +226,8 @@ describe('Audit Logging', () => {
       const result = await getAuditLogs(db, query);
 
       expect(result.records).toHaveLength(1);
-      expect(result.records[0].type).toBe('moderation');
-      expect(result.records[0].decision).toBe('approved');
+      expect(result.records[0]?.type).toBe('moderation');
+      expect(result.records[0]?.decision).toBe('approved');
       expect(result.pagination.total).toBe(1);
       expect(result.pagination.page).toBe(1);
     });
@@ -273,8 +273,8 @@ describe('Audit Logging', () => {
       const result = await getAuditLogs(db, query);
 
       expect(result.records).toHaveLength(1);
-      expect(result.records[0].type).toBe('admin');
-      expect(result.records[0].action_type).toBe('grant_permission');
+      expect(result.records[0]?.type).toBe('admin');
+      expect(result.records[0]?.action_type).toBe('grant_permission');
       expect(result.pagination.total).toBe(1);
     });
 
@@ -319,8 +319,8 @@ describe('Audit Logging', () => {
       const result = await getAuditLogs(db, { page: 1, limit: 10 });
 
       expect(result.records).toHaveLength(2);
-      expect(result.records[0].type).toBe('moderation');
-      expect(result.records[1].type).toBe('admin');
+      expect(result.records[0]?.type).toBe('moderation');
+      expect(result.records[1]?.type).toBe('admin');
       expect(result.pagination.total).toBe(2);
     });
 

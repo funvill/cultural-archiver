@@ -173,10 +173,10 @@ describe('AdminView', () => {
 
     it('should switch to audit logs tab when clicked', async () => {
       const buttons = wrapper.findAll('button')
-      const auditTab = buttons.find(button => button.text().includes('Audit Logs'))
+      const auditTab = buttons.find((button: any) => button.text().includes('Audit Logs'))
       
       if (!auditTab) {
-        console.log('Available buttons:', buttons.map(b => b.text()))
+        console.log('Available buttons:', buttons.map((b: any) => b.text()))
         throw new Error('Audit Logs tab not found')
       }
       
@@ -190,13 +190,13 @@ describe('AdminView', () => {
     it('should switch back to permissions tab', async () => {
       // First switch to audit tab
       const buttons = wrapper.findAll('button')
-      const auditTab = buttons.find(button => button.text().includes('Audit Logs'))
+      const auditTab = buttons.find((button: any) => button.text().includes('Audit Logs'))
       if (auditTab) {
         await auditTab.trigger('click')
       }
 
       // Then switch back to permissions
-      const permissionsTab = buttons.find(button => button.text().includes('Permission Management'))
+      const permissionsTab = buttons.find((button: any) => button.text().includes('Permission Management'))
       if (!permissionsTab) {
         throw new Error('Permission Management tab not found')
       }
@@ -218,7 +218,7 @@ describe('AdminView', () => {
       vi.clearAllMocks()
 
       const buttons = wrapper.findAll('button')
-      const refreshButton = buttons.find(button => button.text().includes('Refresh'))
+      const refreshButton = buttons.find((button: any) => button.text().includes('Refresh'))
       
       if (!refreshButton) {
         throw new Error('Refresh button not found')
@@ -236,7 +236,7 @@ describe('AdminView', () => {
       )
 
       const buttons = wrapper.findAll('button')
-      const refreshButton = buttons.find(button => button.text().includes('Refresh'))
+      const refreshButton = buttons.find((button: any) => button.text().includes('Refresh'))
       
       if (!refreshButton) {
         throw new Error('Refresh button not found')

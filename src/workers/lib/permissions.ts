@@ -5,17 +5,23 @@
  * with database-backed role management and caching for performance.
  */
 
-import type { WorkerEnv, AuthContext } from '../types';
+import type { AuthContext } from '../types';
 
 // Permission types that can be granted
 export type Permission = 'moderator' | 'admin';
 
+// Enhanced auth context with permissions
+export interface EnhancedAuthContext extends AuthContext {
+  permissions: Permission[];
+  isAdmin: boolean;
+}
+
 // Permission check result
 export interface PermissionCheckResult {
   hasPermission: boolean;
-  permission?: Permission;
-  grantedAt?: string;
-  grantedBy?: string;
+  permission?: Permission | undefined;
+  grantedAt?: string | undefined;
+  grantedBy?: string | undefined;
 }
 
 // Cache for permission lookups to reduce database queries
@@ -232,7 +238,7 @@ export async function revokePermission(
     const revokeReason = reason || 'Permission revoked';
     const result = await stmt.bind(revokedBy, revokeReason, userUuid, permission).run();
 
-    if (result.success && result.changes > 0) {
+    if (result.success && result.meta.changes > 0) {
       // Clear cache for this user
       clearUserPermissionCache(userUuid);
       
@@ -258,7 +264,7 @@ export async function listUsersWithPermissions(
     permission: Permission;
     granted_at: string;
     granted_by: string;
-    notes?: string;
+    notes?: string | undefined;
   }>;
 }>> {
   try {
@@ -313,7 +319,7 @@ export async function listUsersWithPermissions(
         permission: record.permission,
         granted_at: record.granted_at,
         granted_by: record.granted_by,
-        notes: record.notes || undefined,
+        ...(record.notes && { notes: record.notes }),
       });
     }
 
@@ -349,7 +355,7 @@ export async function isModerator(db: D1Database, userUuid: string): Promise<boo
 export async function enhanceAuthContext(
   db: D1Database,
   authContext: AuthContext
-): Promise<AuthContext & { permissions: Permission[] }> {
+): Promise<EnhancedAuthContext> {
   const permissions = await getUserPermissions(db, authContext.userToken);
   
   return {

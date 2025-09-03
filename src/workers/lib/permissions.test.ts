@@ -15,7 +15,6 @@ import {
   enhanceAuthContext,
   clearPermissionCache,
   isValidPermission,
-  type Permission,
 } from './permissions';
 import type { AuthContext } from '../types';
 
@@ -262,10 +261,10 @@ describe('Permission Management', () => {
 
       const users = await listUsersWithPermissions(db);
       expect(users).toHaveLength(2);
-      expect(users[0].user_uuid).toBe('user-1');
-      expect(users[0].permissions[0].permission).toBe('moderator');
-      expect(users[1].user_uuid).toBe('user-2');
-      expect(users[1].permissions[0].permission).toBe('admin');
+      expect(users[0]?.user_uuid).toBe('user-1');
+      expect(users[0]?.permissions[0]?.permission).toBe('moderator');
+      expect(users[1]?.user_uuid).toBe('user-2');
+      expect(users[1]?.permissions[0]?.permission).toBe('admin');
     });
   });
 
@@ -285,6 +284,7 @@ describe('Permission Management', () => {
         userToken: 'auth-user-1',
         isReviewer: false,
         isVerifiedEmail: false,
+        isAdmin: false,
       };
 
       const enhanced = await enhanceAuthContext(db, baseContext);
@@ -308,6 +308,7 @@ describe('Permission Management', () => {
         userToken: 'auth-user-2',
         isReviewer: false,
         isVerifiedEmail: false,
+        isAdmin: false,
       };
 
       const enhanced = await enhanceAuthContext(db, baseContext);

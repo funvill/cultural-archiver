@@ -13,6 +13,16 @@ import {
 } from './admin';
 import type { WorkerEnv, AuthContext } from '../types';
 import { ApiError } from '../lib/errors';
+import { hasPermission } from '../lib/permissions';
+
+// Mock the permission functions
+vi.mock('../lib/permissions', () => ({
+  hasPermission: vi.fn(),
+  listUsersWithPermissions: vi.fn(),
+  grantPermission: vi.fn(),
+  revokePermission: vi.fn(),
+  isValidPermission: vi.fn(),
+}));
 
 // Helper to create mock context
 const createMockContext = (
@@ -60,6 +70,9 @@ describe('Admin Route Handlers', () => {
         isVerifiedEmail: true,
         isAdmin: false,
       };
+
+      // Mock hasPermission to return false (not admin)
+      vi.mocked(hasPermission).mockResolvedValue({ hasPermission: false });
 
       const { mockContext } = createMockContext(authContext);
 

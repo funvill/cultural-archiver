@@ -5,7 +5,6 @@
  * for transparency, accountability, and security monitoring.
  */
 
-import type { WorkerEnv } from '../types';
 import type { Context } from 'hono';
 
 // Audit decision types
@@ -17,15 +16,15 @@ export interface ModerationAuditData {
   submissionId: string;
   moderatorUuid: string;
   decision: ModerationDecision;
-  reason?: string;
-  artworkId?: string;
-  actionTaken?: 'create_new' | 'link_existing';
-  photosProcessed?: number;
+  reason?: string | undefined;
+  artworkId?: string | undefined;
+  actionTaken?: 'create_new' | 'link_existing' | undefined;
+  photosProcessed?: number | undefined;
   metadata?: {
-    ip?: string;
-    userAgent?: string;
-    sessionId?: string;
-    referrer?: string;
+    ip?: string | undefined;
+    userAgent?: string | undefined;
+    sessionId?: string | undefined;
+    referrer?: string | undefined;
     [key: string]: unknown;
   };
 }
@@ -33,15 +32,15 @@ export interface ModerationAuditData {
 export interface AdminAuditData {
   adminUuid: string;
   actionType: AdminActionType;
-  targetUuid?: string;
-  permissionType?: 'moderator' | 'admin';
-  oldValue?: string; // JSON string for complex changes
-  newValue?: string; // JSON string for complex changes
-  reason?: string;
+  targetUuid?: string | undefined;
+  permissionType?: 'moderator' | 'admin' | undefined;
+  oldValue?: string | undefined; // JSON string for complex changes
+  newValue?: string | undefined; // JSON string for complex changes
+  reason?: string | undefined;
   metadata?: {
-    ip?: string;
-    userAgent?: string;
-    sessionId?: string;
+    ip?: string | undefined;
+    userAgent?: string | undefined;
+    sessionId?: string | undefined;
     [key: string]: unknown;
   };
 }
@@ -52,28 +51,28 @@ export interface AuditLogRecord {
   type: 'moderation' | 'admin';
   created_at: string;
   // Union of both types - fields will be null if not applicable
-  submission_id?: string;
-  moderator_uuid?: string;
-  admin_uuid?: string;
-  decision?: ModerationDecision;
-  action_type?: AdminActionType;
-  reason?: string;
-  metadata?: string; // JSON string
-  artwork_id?: string;
-  target_uuid?: string;
-  permission_type?: string;
+  submission_id?: string | undefined;
+  moderator_uuid?: string | undefined;
+  admin_uuid?: string | undefined;
+  decision?: ModerationDecision | undefined;
+  action_type?: AdminActionType | undefined;
+  reason?: string | undefined;
+  metadata?: string | undefined; // JSON string
+  artwork_id?: string | undefined;
+  target_uuid?: string | undefined;
+  permission_type?: string | undefined;
 }
 
 export interface AuditLogQuery {
-  type?: 'moderation' | 'admin';
-  userUuid?: string; // Filter by moderator or admin
-  targetUuid?: string; // For admin actions
-  decision?: ModerationDecision;
-  actionType?: AdminActionType;
-  startDate?: string; // ISO date string
-  endDate?: string; // ISO date string
-  page?: number;
-  limit?: number;
+  type?: 'moderation' | 'admin' | undefined;
+  userUuid?: string | undefined; // Filter by moderator or admin
+  targetUuid?: string | undefined; // For admin actions
+  decision?: ModerationDecision | undefined;
+  actionType?: AdminActionType | undefined;
+  startDate?: string | undefined; // ISO date string
+  endDate?: string | undefined; // ISO date string
+  page?: number | undefined;
+  limit?: number | undefined;
 }
 
 export interface AuditLogResult {
@@ -547,12 +546,26 @@ export function extractSessionMetadata(c: Context): {
   try {
     const headers = c.req.header();
     
-    return {
-      ip: headers['cf-connecting-ip'] || headers['x-forwarded-for'] || headers['x-real-ip'],
-      userAgent: headers['user-agent'],
-      referrer: headers['referer'] || headers['referrer'],
-      sessionId: headers['x-session-id'], // If available from frontend
-    };
+    const result: {
+      ip?: string;
+      userAgent?: string;
+      referrer?: string;
+      sessionId?: string;
+    } = {};
+    
+    const ip = headers['cf-connecting-ip'] || headers['x-forwarded-for'] || headers['x-real-ip'];
+    if (ip) result.ip = ip;
+    
+    const userAgent = headers['user-agent'];
+    if (userAgent) result.userAgent = userAgent;
+    
+    const referrer = headers['referer'] || headers['referrer'];
+    if (referrer) result.referrer = referrer;
+    
+    const sessionId = headers['x-session-id'];
+    if (sessionId) result.sessionId = sessionId;
+    
+    return result;
   } catch (error) {
     console.warn('Failed to extract session metadata:', error);
     return {};

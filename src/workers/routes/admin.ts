@@ -13,6 +13,7 @@ import {
   grantPermission,
   revokePermission,
   isValidPermission,
+  hasPermission,
   type Permission,
 } from '../lib/permissions';
 import {
@@ -42,18 +43,6 @@ interface RevokePermissionRequest {
   reason?: string;
 }
 
-interface AuditLogRequest {
-  type?: 'moderation' | 'admin';
-  userUuid?: string;
-  targetUuid?: string;
-  decision?: 'approved' | 'rejected' | 'skipped';
-  actionType?: AdminActionType;
-  startDate?: string;
-  endDate?: string;
-  page?: number;
-  limit?: number;
-}
-
 /**
  * GET /api/admin/permissions
  * List all users with permissions (admin only)
@@ -63,9 +52,11 @@ export async function getUserPermissions(
 ): Promise<Response> {
   try {
     const authContext = c.get('authContext');
+    const db = c.env.DB;
 
     // Check admin permissions
-    if (!authContext.isAdmin) {
+    const adminCheck = await hasPermission(db, authContext.userToken, 'admin');
+    if (!adminCheck.hasPermission) {
       throw new ApiError('Administrator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
@@ -131,9 +122,11 @@ export async function grantUserPermission(
 ): Promise<Response> {
   try {
     const authContext = c.get('authContext');
+    const db = c.env.DB;
 
     // Check admin permissions
-    if (!authContext.isAdmin) {
+    const adminCheck = await hasPermission(db, authContext.userToken, 'admin');
+    if (!adminCheck.hasPermission) {
       throw new ApiError('Administrator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
@@ -180,7 +173,7 @@ export async function grantUserPermission(
 
     // Grant the permission
     const result = await grantPermission(
-      c.env.DB,
+      db,
       userUuid,
       permission,
       authContext.userToken,
@@ -245,9 +238,11 @@ export async function revokeUserPermission(
 ): Promise<Response> {
   try {
     const authContext = c.get('authContext');
+    const db = c.env.DB;
 
     // Check admin permissions
-    if (!authContext.isAdmin) {
+    const adminCheck = await hasPermission(db, authContext.userToken, 'admin');
+    if (!adminCheck.hasPermission) {
       throw new ApiError('Administrator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
@@ -294,7 +289,7 @@ export async function revokeUserPermission(
 
     // Revoke the permission
     const result = await revokePermission(
-      c.env.DB,
+      db,
       userUuid,
       permission,
       authContext.userToken,
@@ -358,9 +353,11 @@ export async function getAuditLogsEndpoint(
 ): Promise<Response> {
   try {
     const authContext = c.get('authContext');
+    const db = c.env.DB;
 
     // Check admin permissions
-    if (!authContext.isAdmin) {
+    const adminCheck = await hasPermission(db, authContext.userToken, 'admin');
+    if (!adminCheck.hasPermission) {
       throw new ApiError('Administrator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
@@ -434,7 +431,7 @@ export async function getAuditLogsEndpoint(
     };
 
     // Get audit logs
-    const result = await getAuditLogs(c.env.DB, auditQuery);
+    const result = await getAuditLogs(db, auditQuery);
 
     // Log admin action for audit trail
     const auditContext = createAdminAuditContext(
@@ -488,9 +485,11 @@ export async function getAdminStatistics(
 ): Promise<Response> {
   try {
     const authContext = c.get('authContext');
+    const db = c.env.DB;
 
     // Check admin permissions
-    if (!authContext.isAdmin) {
+    const adminCheck = await hasPermission(db, authContext.userToken, 'admin');
+    if (!adminCheck.hasPermission) {
       throw new ApiError('Administrator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
@@ -499,7 +498,7 @@ export async function getAdminStatistics(
     const days = daysStr ? Math.max(1, Math.min(365, parseInt(daysStr))) : 30;
 
     // Get audit statistics
-    const auditStats = await getAuditStatistics(c.env.DB, days);
+    const auditStats = await getAuditStatistics(db, days);
 
     // Get permission statistics
     const users = await listUsersWithPermissions(c.env.DB);

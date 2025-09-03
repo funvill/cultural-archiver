@@ -12,7 +12,7 @@ import type {
   GrantPermissionRequest,
   RevokePermissionRequest,
   AuditLogQuery,
-} from '../../../../shared/types';
+} from '../../../shared/types';
 
 // Mock the API service
 vi.mock('./api', () => ({
@@ -33,21 +33,25 @@ describe('AdminService', () => {
   describe('getUserPermissions', () => {
     it('should fetch users with permissions without filters', async () => {
       const mockResponse = {
-        users: [
-          {
-            user_uuid: 'user-1',
-            email: 'user1@example.com',
-            permissions: [
-              {
-                permission: 'moderator' as const,
-                granted_at: '2025-01-03T10:00:00Z',
-                granted_by: 'admin-1',
-                notes: 'Initial moderator',
-              },
-            ],
-          },
-        ],
-        total: 1,
+        success: true,
+        data: {
+          users: [
+            {
+              user_uuid: 'user-1',
+              email: 'user1@example.com',
+              permissions: [
+                {
+                  permission: 'moderator' as const,
+                  granted_at: '2025-01-03T10:00:00Z',
+                  granted_by: 'admin-1',
+                  notes: 'Initial moderator',
+                },
+              ],
+            },
+          ],
+          total: 1,
+        },
+        timestamp: new Date().toISOString(),
       };
 
       vi.mocked(apiService.getAdminPermissions).mockResolvedValue(mockResponse);
@@ -55,15 +59,19 @@ describe('AdminService', () => {
       const result = await adminService.getUserPermissions();
 
       expect(apiService.getAdminPermissions).toHaveBeenCalledWith(undefined);
-      expect(result).toEqual(mockResponse);
+      expect(result).toEqual(mockResponse.data);
     });
 
     it('should fetch users with permissions with filters', async () => {
       const mockResponse = {
-        users: [],
-        total: 0,
-        page: 1,
-        per_page: 20,
+        success: true,
+        data: {
+          users: [],
+          total: 0,
+          page: 1,
+          per_page: 20,
+        },
+        timestamp: new Date().toISOString(),
       };
 
       vi.mocked(apiService.getAdminPermissions).mockResolvedValue(mockResponse);
@@ -92,10 +100,14 @@ describe('AdminService', () => {
     it('should grant permission to a user', async () => {
       const mockResponse = {
         success: true,
-        message: 'Permission granted successfully',
-        user_uuid: 'user-1',
-        permission: 'moderator' as const,
-        granted_by: 'admin-1',
+        data: {
+          success: true,
+          message: 'Permission granted successfully',
+          user_uuid: 'user-1',
+          permission: 'moderator' as const,
+          granted_by: 'admin-1',
+        },
+        timestamp: new Date().toISOString(),
       };
 
       vi.mocked(apiService.grantAdminPermission).mockResolvedValue(mockResponse);
@@ -109,7 +121,7 @@ describe('AdminService', () => {
       const result = await adminService.grantPermission(request);
 
       expect(apiService.grantAdminPermission).toHaveBeenCalledWith(request);
-      expect(result).toEqual(mockResponse);
+      expect(result).toEqual(mockResponse.data);
     });
 
     it('should handle validation errors when granting permission', async () => {
@@ -129,9 +141,13 @@ describe('AdminService', () => {
     it('should revoke permission from a user', async () => {
       const mockResponse = {
         success: true,
-        message: 'Permission revoked successfully',
-        user_uuid: 'user-1',
-        permission: 'moderator' as const,
+        data: {
+          success: true,
+          message: 'Permission revoked successfully',
+          user_uuid: 'user-1',
+          permission: 'moderator' as const,
+        },
+        timestamp: new Date().toISOString(),
       };
 
       vi.mocked(apiService.revokeAdminPermission).mockResolvedValue(mockResponse);
@@ -145,7 +161,7 @@ describe('AdminService', () => {
       const result = await adminService.revokePermission(request);
 
       expect(apiService.revokeAdminPermission).toHaveBeenCalledWith(request);
-      expect(result).toEqual(mockResponse);
+      expect(result).toEqual(mockResponse.data);
     });
 
     it('should handle errors when revoking permission', async () => {
@@ -165,22 +181,26 @@ describe('AdminService', () => {
   describe('getAuditLogs', () => {
     it('should fetch audit logs without filters', async () => {
       const mockResponse = {
-        logs: [
-          {
-            id: 'audit-1',
-            type: 'moderation' as const,
-            actor_uuid: 'user-1',
-            actor_email: 'moderator@example.com',
-            action: 'approved',
-            target: 'submission-1',
-            details: { decision: 'approved', reason: 'Good quality' },
-            created_at: '2025-01-03T10:00:00Z',
-          },
-        ],
-        total: 1,
-        page: 1,
-        limit: 50,
-        has_more: false,
+        success: true,
+        data: {
+          logs: [
+            {
+              id: 'audit-1',
+              type: 'moderation' as const,
+              actor_uuid: 'user-1',
+              actor_email: 'moderator@example.com',
+              action: 'approved',
+              target: 'submission-1',
+              details: { decision: 'approved', reason: 'Good quality' },
+              created_at: '2025-01-03T10:00:00Z',
+            },
+          ],
+          total: 1,
+          page: 1,
+          limit: 50,
+          has_more: false,
+        },
+        timestamp: new Date().toISOString(),
       };
 
       vi.mocked(apiService.getAdminAuditLogs).mockResolvedValue(mockResponse);
@@ -188,19 +208,23 @@ describe('AdminService', () => {
       const result = await adminService.getAuditLogs();
 
       expect(apiService.getAdminAuditLogs).toHaveBeenCalledWith({});
-      expect(result).toEqual(mockResponse);
+      expect(result).toEqual(mockResponse.data);
     });
 
     it('should fetch audit logs with filters', async () => {
       const mockResponse = {
-        logs: [],
-        total: 0,
-        page: 1,
-        limit: 25,
-        has_more: false,
+        success: true,
+        data: {
+          logs: [],
+          total: 0,
+          page: 1,
+          limit: 25,
+          has_more: false,
+        },
+        timestamp: new Date().toISOString(),
       };
 
-      vi.mocked(apiService.getAdminPermissions).mockResolvedValue(mockResponse);
+      vi.mocked(apiService.getAdminAuditLogs).mockResolvedValue(mockResponse);
 
       const query: AuditLogQuery = {
         type: 'admin',
@@ -236,25 +260,29 @@ describe('AdminService', () => {
   describe('getStatistics', () => {
     it('should fetch statistics with default timeframe', async () => {
       const mockResponse = {
-        total_decisions: 150,
-        decisions_by_type: {
-          approved: 120,
-          rejected: 20,
-          skipped: 10,
+        success: true,
+        data: {
+          total_decisions: 150,
+          decisions_by_type: {
+            approved: 120,
+            rejected: 20,
+            skipped: 10,
+          },
+          total_admin_actions: 25,
+          admin_actions_by_type: {
+            grant_permission: 15,
+            revoke_permission: 5,
+            view_audit_logs: 5,
+          },
+          active_moderators: 3,
+          active_admins: 2,
+          date_range: {
+            start: '2024-12-04T00:00:00Z',
+            end: '2025-01-03T23:59:59Z',
+            days: 30,
+          },
         },
-        total_admin_actions: 25,
-        admin_actions_by_type: {
-          grant_permission: 15,
-          revoke_permission: 5,
-          view_audit_logs: 5,
-        },
-        active_moderators: 3,
-        active_admins: 2,
-        date_range: {
-          start: '2024-12-04T00:00:00Z',
-          end: '2025-01-03T23:59:59Z',
-          days: 30,
-        },
+        timestamp: new Date().toISOString(),
       };
 
       vi.mocked(apiService.getAdminStatistics).mockResolvedValue(mockResponse);
@@ -262,30 +290,34 @@ describe('AdminService', () => {
       const result = await adminService.getStatistics();
 
       expect(apiService.getAdminStatistics).toHaveBeenCalledWith(30);
-      expect(result).toEqual(mockResponse);
+      expect(result).toEqual(mockResponse.data);
     });
 
     it('should fetch statistics with custom timeframe', async () => {
       const mockResponse = {
-        total_decisions: 500,
-        decisions_by_type: {
-          approved: 400,
-          rejected: 70,
-          skipped: 30,
+        success: true,
+        data: {
+          total_decisions: 500,
+          decisions_by_type: {
+            approved: 400,
+            rejected: 70,
+            skipped: 30,
+          },
+          total_admin_actions: 50,
+          admin_actions_by_type: {
+            grant_permission: 30,
+            revoke_permission: 10,
+            view_audit_logs: 10,
+          },
+          active_moderators: 5,
+          active_admins: 3,
+          date_range: {
+            start: '2024-10-05T00:00:00Z',
+            end: '2025-01-03T23:59:59Z',
+            days: 90,
+          },
         },
-        total_admin_actions: 50,
-        admin_actions_by_type: {
-          grant_permission: 30,
-          revoke_permission: 10,
-          view_audit_logs: 10,
-        },
-        active_moderators: 5,
-        active_admins: 3,
-        date_range: {
-          start: '2024-10-05T00:00:00Z',
-          end: '2025-01-03T23:59:59Z',
-          days: 90,
-        },
+        timestamp: new Date().toISOString(),
       };
 
       vi.mocked(apiService.getAdminStatistics).mockResolvedValue(mockResponse);
@@ -293,7 +325,7 @@ describe('AdminService', () => {
       const result = await adminService.getStatistics(90);
 
       expect(apiService.getAdminStatistics).toHaveBeenCalledWith(90);
-      expect(result).toEqual(mockResponse);
+      expect(result).toEqual(mockResponse.data);
     });
 
     it('should handle errors when fetching statistics', async () => {
