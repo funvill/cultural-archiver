@@ -3,13 +3,17 @@
  * Database Migration Runner for Cultural Archiver
  * Uses Node.js v23+ native TypeScript support
  *
- * Run with: node migrate.ts
- * Usage: node migrate.ts [up|down] [migration-number]
+ * Run with: npm run migrate
+ * Usage: npm run migrate [up|down] [migration-number]
  */
 
 import { readFile, readdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { config } from 'dotenv';
+
+// Load environment variables from .env file
+config();
 
 // Get current directory for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -23,10 +27,10 @@ interface MigrationInfo {
 }
 
 interface DatabaseConfig {
-  databaseId?: string;
-  databaseName?: string;
-  accountId?: string;
-  apiToken?: string;
+  databaseId: string | undefined;
+  databaseName: string;
+  accountId: string | undefined;
+  apiToken: string | undefined;
 }
 
 class MigrationRunner {
@@ -40,12 +44,25 @@ class MigrationRunner {
 
   private loadConfig(): DatabaseConfig {
     // Load configuration from environment variables
-    return {
-      databaseId: process.env.D1_DATABASE_ID ?? undefined,
-      databaseName: process.env.D1_DATABASE_NAME ?? 'cultural-archiver-dev',
-      accountId: process.env.CLOUDFLARE_ACCOUNT_ID ?? undefined,
-      apiToken: process.env.CLOUDFLARE_API_TOKEN ?? undefined,
+    const config: DatabaseConfig = {
+      databaseId: process.env.D1_DATABASE_ID,
+      databaseName: process.env.D1_DATABASE_NAME || 'cultural-archiver-dev',
+      accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
+      apiToken: process.env.CLOUDFLARE_API_TOKEN,
     };
+
+    // Validate required environment variables for production migrations
+    if (!config.databaseId) {
+      console.warn('⚠️  D1_DATABASE_ID not set in environment variables');
+    }
+    if (!config.accountId) {
+      console.warn('⚠️  CLOUDFLARE_ACCOUNT_ID not set in environment variables');
+    }
+    if (!config.apiToken) {
+      console.warn('⚠️  CLOUDFLARE_API_TOKEN not set in environment variables');
+    }
+
+    return config;
   }
 
   private async getMigrations(): Promise<MigrationInfo[]> {
@@ -87,16 +104,23 @@ class MigrationRunner {
     console.log(`Executing migration: ${migrationName}`);
 
     if (!this.config.databaseId) {
-      console.warn('⚠️  D1_DATABASE_ID not configured. Cannot execute migration.');
+      console.error('❌ D1_DATABASE_ID not configured. Cannot execute migration.');
       console.log('💡 To run migrations against Cloudflare D1:');
-      console.log('   1. Set D1_DATABASE_ID environment variable');
-      console.log('   2. Ensure wrangler is configured with your API token');
-      console.log('   3. Run: wrangler d1 execute [database-name] --file=<migration-file>');
+      console.log('   1. Set D1_DATABASE_ID environment variable in .env file');
+      console.log('   2. Set CLOUDFLARE_API_TOKEN environment variable in .env file');
+      console.log('   3. Ensure wrangler is configured with your API token');
+      console.log('   4. Run: npm run migrate');
+      return false;
+    }
+
+    if (!this.config.apiToken) {
+      console.error('❌ CLOUDFLARE_API_TOKEN not configured. Cannot execute migration.');
+      console.log('💡 Set CLOUDFLARE_API_TOKEN in your .env file');
       return false;
     }
 
     try {
-      // For development, we'll use wrangler CLI to execute migrations
+      // For production, we'll use wrangler CLI to execute migrations
       const { spawn } = await import('child_process');
 
       // Create temporary file for migration
@@ -105,20 +129,38 @@ class MigrationRunner {
 
       await writeFile(tempFile, sql);
 
-      // Execute with wrangler
+      // Prepare wrangler command for production database
+      const wranglerArgs = [
+        'd1',
+        'execute',
+        this.config.databaseName, // Use database name from wrangler.toml
+        '--file',
+        tempFile,
+        '--env',
+        'development', // Use development environment
+      ];
+
+      // Add remote flag to ensure we're hitting the actual database
+      if (process.env.NODE_ENV === 'production' || process.env.MIGRATE_REMOTE === 'true') {
+        wranglerArgs.push('--remote');
+      }
+
+      console.log(`🔧 Running: npx wrangler ${wranglerArgs.join(' ')}`);
+
+      // Execute with wrangler using npx to ensure it's found
+      // Change to workers directory where wrangler.toml is located
+      const workersDir = join(dirname(this.migrationsDir), 'src', 'workers');
+      
       const result = await new Promise<boolean>((resolve, reject) => {
-        const wrangler = spawn(
-          'wrangler',
-          [
-            'd1',
-            'execute',
-            this.config.databaseName!,
-            '--file',
-            tempFile,
-            '--local', // Remove this flag for production database
-          ],
-          { stdio: 'inherit' }
-        );
+        const wrangler = spawn('npx', ['wrangler', ...wranglerArgs], { 
+          stdio: 'inherit',
+          cwd: workersDir, // Run from workers directory
+          env: {
+            ...process.env,
+            CLOUDFLARE_API_TOKEN: this.config.apiToken,
+          },
+          shell: true, // Use shell for Windows compatibility
+        });
 
         wrangler.on('close', code => {
           unlink(tempFile).catch(console.warn); // Clean up temp file
@@ -185,8 +227,12 @@ class MigrationRunner {
         // Choose execution method based on configuration
         let success: boolean;
         if (this.config.databaseId && this.config.apiToken) {
+          // Execute directly with wrangler if we have database ID and API token
           success = await this.executeSqlWithWrangler(sql, migration.name);
         } else {
+          // Fall back to showing SQL for manual execution
+          console.warn('⚠️  Missing required environment variables for automatic execution.');
+          console.log('💡 Either set D1_DATABASE_ID and CLOUDFLARE_API_TOKEN in .env, or copy the SQL below:');
           success = await this.executeSqlDirect(sql, migration.name);
         }
 
@@ -230,22 +276,31 @@ class MigrationRunner {
     console.log('Cultural Archiver Migration Runner');
     console.log('');
     console.log('Usage:');
-    console.log('  node migrate.ts                    Run all migrations');
-    console.log('  node migrate.ts up                 Run all migrations (alias)');
-    console.log('  node migrate.ts up 001             Run specific migration');
-    console.log('  node migrate.ts list               List all migrations');
-    console.log('  node migrate.ts help               Show this help');
+    console.log('  npm run migrate                    Run all migrations');
+    console.log('  npm run migrate up                 Run all migrations (alias)');
+    console.log('  npm run migrate up 001             Run specific migration');
+    console.log('  npm run migrate list               List all migrations');
+    console.log('  npm run migrate help               Show this help');
     console.log('');
-    console.log('Environment Variables:');
+    console.log('Required Environment Variables (.env file):');
     console.log('  D1_DATABASE_ID         Cloudflare D1 Database ID');
+    console.log('  CLOUDFLARE_API_TOKEN   Cloudflare API Token with D1:Edit permission');
+    console.log('');
+    console.log('Optional Environment Variables:');
     console.log('  D1_DATABASE_NAME       Database name (default: cultural-archiver-dev)');
     console.log('  CLOUDFLARE_ACCOUNT_ID  Cloudflare Account ID');
-    console.log('  CLOUDFLARE_API_TOKEN   Cloudflare API Token');
+    console.log('  NODE_ENV              Set to "production" for remote database');
+    console.log('  MIGRATE_REMOTE        Set to "true" to force remote execution');
     console.log('');
     console.log('Examples:');
-    console.log('  D1_DATABASE_ID=abc123 node migrate.ts');
-    console.log('  node migrate.ts up 001');
-    console.log('  node migrate.ts list');
+    console.log('  npm run migrate                    # Run all migrations with .env config');
+    console.log('  npm run migrate up 001             # Run specific migration');
+    console.log('  npm run migrate list               # List available migrations');
+    console.log('');
+    console.log('Setup:');
+    console.log('  1. Copy .env.example to .env');
+    console.log('  2. Fill in your Cloudflare credentials');
+    console.log('  3. Run: npm run migrate');
   }
 }
 

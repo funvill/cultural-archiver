@@ -376,7 +376,7 @@ export const apiService = {
     rate_limit_remaining?: number;
     rate_limit_reset_at?: string;
   }>> {
-    return client.post('/api/auth/request-magic-link', request)
+    return client.post('/auth/request-magic-link', request)
   },
 
   /**
@@ -398,7 +398,7 @@ export const apiService = {
     uuid_replaced: boolean;
     is_new_account: boolean;
   }>> {
-    return client.post('/api/auth/verify-magic-link', request)
+    return client.post('/auth/verify-magic-link', request)
   },
 
   /**
@@ -422,7 +422,7 @@ export const apiService = {
       created_at: string;
     } | null;
   }>> {
-    return client.get('/api/auth/status')
+    return client.get('/auth/status')
   },
 
   /**
@@ -433,7 +433,7 @@ export const apiService = {
     message: string;
     new_user_token: string;
   }>> {
-    return client.post('/api/auth/logout')
+    return client.post('/auth/logout')
   },
 
   // Legacy endpoints for backward compatibility (deprecated)
