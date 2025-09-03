@@ -405,3 +405,154 @@ Should profiles be public by default or private unless toggled?
 - Flagging moderation (to deal with vandalism).
 - Basic search/filter (otherwise the archive quickly becomes unusable).
 - Upload = CC0 agreement (legal + philosophical backbone)
+
+
+
+## Session 6 - Login and accounts
+
+Based on the instructions and the feature description you've provided, I need to ask some clarifying questions to create a comprehensive PRD for the authentication system. Let me ask these questions to better understand the requirements:
+
+Clarifying Questions for the Authentication System PRD
+
+### 1. User Session Management
+
+When a user logs in with their email and claims their UUID:
+
+> A) The UUID becomes permanently tied to their email and can be recovered later. Only one UUID per email address
+
+### 2. Anonymous User Warning Behavior
+
+For the warning shown to anonymous users when submitting content:
+
+> A) Show the warning on every submission attempt
+
+### 3. Magic Link Functionality
+
+When a user receives a magic link:
+
+> B) It logs them in AND restores their claimed UUID
+
+### 4. Moderator Access Control
+
+Regarding moderator privileges:
+
+> A) Moderators are manually assigned by system administrators
+
+### 5. Session Duration and Security
+
+For login sessions and security:
+
+> B) Sessions are permanent until explicit logout
+
+### 6. Data Recovery Scope
+
+When a user recovers their UUID via magic link:
+
+> C) They can claim ownership of anonymous submissions retroactively. That are associated with that UUID. A user can only have one UUID, they can't merge content from multiple UUIDs
+
+### 7. Logout Behavior Impact
+
+When a user logs out and gets a new UUID:
+
+> B) Their old submissions remain tied to their email (can be recovered)
+
+### 8. Anonymous User Limitations
+
+Should anonymous users have any restrictions compared to logged-in users:
+
+> D) Some features are login-only
+
+### 9. Magic Link Security and Expiration
+
+For the magic links sent via email:
+
+> Links are long lived, 30 days.
+
+### 10. Login-Only Features
+
+You mentioned some features should be login-only. Which features should require authentication:
+
+> Will define later on.
+
+### 11. Retroactive Claim Process
+
+When a logged-in user wants to claim anonymous submissions:
+
+> A) Generated on first page visit
+
+### 12. Anonymous UUID Generation
+
+For anonymous users getting their initial UUID:
+
+> A) Generated on first page visit
+
+### 13. Email Verification Requirements
+
+For the email-based login system:
+
+> To login a magic link is sent to their email. their email must be valid to recive the magic link, thus is already valdiated if they ever click the link in the email.
+
+### 14. Moderator Interface Access
+
+Regarding the moderator interface you mentioned:
+
+> A Moderator only page, that is only accessable to logged in users that are flaged as moderators.
+
+### 15. Error Handling for Auth Issues
+
+When authentication problems occur:
+
+> D) Modal dialogs explaining the issue and next steps
+
+### 16. Cross-Device Experience
+
+If a user logs in on multiple devices:
+
+> B) All devices can be logged in simultaneously
+
+
+### 17. UUID Cookie Management
+For the anonymous UUID cookie:
+
+> D) Persistent cookie that never expires (until manually cleared)
+
+### 18. Email Address Validation
+For email addresses used in the magic link system:
+
+> A) Basic format validation only (contains @ and .)
+
+### 19. Multiple Magic Link Behavior
+If a user requests multiple magic links before using the first one:
+
+> D) All links share the same 30-day expiration from first request
+
+### 20. Moderator Assignment Process
+For assigning moderator status to users:
+
+> C) Special admin interface for managing moderators
+
+### 21. Anonymous Warning Dismissal
+Since anonymous users see the warning on every submission:
+
+> A) No way to dismiss - always shows
+
+### 22. Failed Login Attempts
+When a user tries to access login-only features while anonymous:
+
+> C) Show explanation with "Sign In" button
+
+### 23. Data Migration on Login
+When an anonymous user logs in and claims their UUID:
+
+> A) Instant transition - no loading states needed
+
+### 24. Logout Confirmation
+When a user clicks logout:
+
+> B) Simple "Are you sure?" confirmation
+
+### 25. Account Recovery Edge Cases
+If a user loses access to their email account:
+
+> A) No recovery option - account effectively lost
+
