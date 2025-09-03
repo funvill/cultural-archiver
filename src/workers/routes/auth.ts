@@ -1,100 +1,87 @@
 /**
- * Authentication route handlers for magic link email verification
+ * Authentication route handlers for UUID-based authentication with magic links
  *
- * Provides endpoints for requesting and consuming magic links for email verification.
- * This allows users to verify their email addresses without traditional passwords.
+ * Implements the complete authentication system supporting:
+ * - Anonymous users with UUID-based tokens
+ * - Account creation with UUID claiming
+ * - Magic link authentication for existing users
+ * - Cross-device login with UUID replacement
+ * - Session management and logout
  */
 
 import type { Context } from 'hono';
 import type { WorkerEnv, AuthContext } from '../types';
+import type { 
+  MagicLinkRequest,
+  ConsumeMagicLinkRequest,
+  AuthStatusResponse
+} from '../../shared/types';
 import {
-  createMagicLink,
-  sendMagicLinkEmail,
+  generateUUID,
+  getUserByEmail,
+  createSession,
+  deactivateSession,
+  getUserSessions
+} from '../lib/auth';
+import {
+  requestMagicLink as createMagicLinkForRequest,
   consumeMagicLink,
-  getDevMagicLink,
-} from '../lib/email';
+} from '../lib/email-auth';
 import { ApiError } from '../lib/errors';
 
 /**
- * POST /api/auth/magic-link
- * Request a magic link to be sent to email address
+ * POST /api/auth/request-magic-link
+ * Request a magic link for account creation or login
  */
 export async function requestMagicLink(
   c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
 ): Promise<Response> {
   try {
     const authContext = c.get('authContext');
-    const { email } = await c.req.json();
+    const { email }: MagicLinkRequest = await c.req.json();
 
-    // Validate email format (already validated by middleware, but double-check)
     if (!email || typeof email !== 'string') {
       throw new ApiError('Valid email address is required', 'INVALID_EMAIL', 400);
     }
 
     const normalizedEmail = email.toLowerCase().trim();
-    const userToken = authContext.userToken;
+    const currentUUID = authContext.userToken;
+    const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
 
-    // Check if user already has a verified email
-    const existingEmailData = await c.env.SESSIONS.get(`email:${userToken}`);
-    if (existingEmailData) {
-      const emailData = JSON.parse(existingEmailData);
-      if (emailData.email === normalizedEmail) {
-        return c.json({
-          message: 'Email is already verified for this account',
-          email: normalizedEmail,
-          already_verified: true,
-        });
-      }
-    }
+    // Check if user already exists
+    const existingUser = await getUserByEmail(c.env, normalizedEmail);
+    const isSignup = !existingUser;
 
-    // Check rate limiting for magic link requests (max 3 per hour per email)
-    const rateLimitKey = `magic-rate:${normalizedEmail}`;
-    const currentRequests = await c.env.SESSIONS.get(rateLimitKey);
-    const requestCount = currentRequests ? parseInt(currentRequests) : 0;
+    // Use the existing requestMagicLink function from email-auth
+    const magicLinkResult = await createMagicLinkForRequest(
+      c.env,
+      { email: normalizedEmail }, // Pass as MagicLinkRequest object
+      currentUUID,
+      clientIP
+    );
 
-    if (requestCount >= 3) {
+    // Check if request was successful
+    if (!magicLinkResult.success) {
       throw new ApiError(
-        'Too many verification requests. Please wait before requesting another link.',
-        'RATE_LIMITED',
-        429,
-        {
-          details: {
-            resetTime: 'in 1 hour',
-            maxRequests: 3,
-          },
-        }
+        magicLinkResult.message || 'Failed to create magic link',
+        'MAGIC_LINK_CREATION_FAILED',
+        400
       );
     }
 
-    // Update rate limit counter
-    await c.env.SESSIONS.put(
-      rateLimitKey,
-      (requestCount + 1).toString(),
-      { expirationTtl: 3600 } // 1 hour
-    );
-
-    // Create magic link
-    const { token, expiresAt } = await createMagicLink(
-      c.env,
-      normalizedEmail,
-      userToken,
-      c.req.raw
-    );
-
-    // Generate magic link URL
-    const baseUrl = c.env.FRONTEND_URL || 'https://art.abluestar.com';
-    const magicLinkUrl = `${baseUrl}/auth/verify?token=${token}`;
-
-    // Send email
-    await sendMagicLinkEmail(c.env, normalizedEmail, magicLinkUrl, expiresAt, c.req.raw);
-
-    // Success response (don't expose token or other sensitive data)
+    // The response from requestMagicLink doesn't include token for security
+    // We just return success message
     return c.json({
-      message: 'Verification email sent successfully',
+      success: true,
+      message: isSignup 
+        ? 'Account creation magic link sent successfully' 
+        : 'Login magic link sent successfully',
       email: normalizedEmail,
-      expires_at: expiresAt.toISOString(),
-      expires_in_minutes: 30,
+      is_signup: isSignup,
+      rate_limit_remaining: magicLinkResult.rate_limit_remaining,
+      rate_limit_reset_at: magicLinkResult.rate_limit_reset_at
     });
+
   } catch (error) {
     console.error('Magic link request error:', error);
 
@@ -102,263 +89,257 @@ export async function requestMagicLink(
       throw error;
     }
 
-    throw new ApiError('Failed to send verification email', 'MAGIC_LINK_REQUEST_ERROR', 500);
+    throw new ApiError('Failed to send magic link', 'MAGIC_LINK_REQUEST_ERROR', 500);
   }
 }
 
 /**
+ * POST /api/auth/verify-magic-link
+ * Verify and consume magic link token for authentication
+ */
+export async function verifyMagicLink(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+    const { token }: ConsumeMagicLinkRequest = await c.req.json();
+
+    if (!token || typeof token !== 'string') {
+      throw new ApiError('Valid magic link token is required', 'INVALID_TOKEN', 400);
+    }
+
+    const currentUUID = authContext.userToken;
+
+    // Consume magic link using existing function
+    const authResult = await consumeMagicLink(
+      c.env, 
+      { token }, // Pass as ConsumeMagicLinkRequest object
+      currentUUID
+    );
+
+    // Check if consumption was successful  
+    if (!authResult.success) {
+      throw new ApiError(
+        authResult.message || 'Failed to verify magic link',
+        'MAGIC_LINK_VERIFICATION_FAILED',
+        400
+      );
+    }
+
+    // Create new session using existing function - need to get user UUID from the result
+    const userUUID = authResult.user_token || currentUUID;
+    const sessionInfo = await createSession(c.env, {
+      user_uuid: userUUID,
+      ip_address: c.req.header('CF-Connecting-IP') || 'unknown',
+      user_agent: c.req.header('User-Agent') || 'unknown'
+    });
+
+    // Prepare response data
+    const responseData = {
+      success: true,
+      message: authResult.is_new_account ? 'Account created successfully' : 'Login successful',
+      user: {
+        uuid: userUUID,
+        email: 'placeholder@example.com', // We don't have email in the response
+        created_at: new Date().toISOString(),
+        email_verified_at: new Date().toISOString()
+      },
+      session: {
+        token: sessionInfo.token,
+        expires_at: sessionInfo.session.expires_at
+      },
+      uuid_replaced: currentUUID !== userUUID,
+      is_new_account: authResult.is_new_account || false
+    };
+
+    // Set authentication cookies
+    const response = c.json(responseData);
+    
+    // Set session cookie (httpOnly, secure)
+    response.headers.set(
+      'Set-Cookie',
+      `session_token=${sessionInfo.token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${7 * 24 * 60 * 60}` // 7 days
+    );
+
+    // Set user UUID cookie for frontend
+    response.headers.set(
+      'Set-Cookie',
+      `user_token=${userUUID}; Secure; SameSite=Strict; Path=/; Max-Age=${365 * 24 * 60 * 60}` // 1 year
+    );
+
+    return response;
+
+  } catch (error) {
+    console.error('Magic link verification error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to verify magic link', 'MAGIC_LINK_VERIFY_ERROR', 500);
+  }
+}
+
+/**
+ * POST /api/auth/logout
+ * Log out current user and generate new anonymous UUID
+ */
+export async function logout(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const sessionToken = c.req.header('Authorization')?.replace('Bearer ', '') ||
+                        c.req.header('Cookie')?.match(/session_token=([^;]+)/)?.[1];
+
+    // Deactivate current session if exists
+    if (sessionToken) {
+      try {
+        await deactivateSession(c.env, sessionToken);
+      } catch (error) {
+        console.warn('Failed to deactivate session during logout:', error);
+        // Continue with logout even if session deactivation fails
+      }
+    }
+
+    // Generate new anonymous UUID
+    const newAnonymousUUID = generateUUID();
+
+    const response = c.json({
+      success: true,
+      message: 'Logged out successfully',
+      new_user_token: newAnonymousUUID
+    });
+
+    // Clear authentication cookies
+    response.headers.set(
+      'Set-Cookie',
+      'session_token=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0'
+    );
+
+    response.headers.set(
+      'Set-Cookie', 
+      `user_token=${newAnonymousUUID}; Secure; SameSite=Strict; Path=/; Max-Age=${365 * 24 * 60 * 60}` // 1 year
+    );
+
+    return response;
+
+  } catch (error) {
+    console.error('Logout error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to logout', 'LOGOUT_ERROR', 500);
+  }
+}
+
+/**
+ * GET /api/auth/status
+ * Get current authentication status
+ */
+export async function getAuthStatus(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+    const sessionToken = c.req.header('Authorization')?.replace('Bearer ', '') ||
+                        c.req.header('Cookie')?.match(/session_token=([^;]+)/)?.[1];
+
+    // Simple implementation using available functions
+    let user = null;
+    let session = null;
+    let isAuthenticated = false;
+
+    // Check if user exists
+    if (authContext.userToken) {
+      try {
+        const userRecord = await getUserByEmail(c.env, authContext.userToken);
+        if (userRecord) {
+          isAuthenticated = true;
+          user = {
+            uuid: userRecord.uuid,
+            email: userRecord.email,
+            created_at: userRecord.created_at,
+            last_login: userRecord.last_login,
+            email_verified_at: userRecord.email_verified_at,
+            status: userRecord.status
+          };
+        }
+      } catch (error) {
+        console.warn('Failed to get user info during auth status check:', error);
+      }
+    }
+
+    // Check session if token exists
+    if (sessionToken) {
+      try {
+        const sessionInfo = await getUserSessions(c.env, authContext.userToken);
+        if (sessionInfo && sessionInfo.length > 0) {
+          // Note: SessionInfo doesn't have a token field, so we can't match by token
+          // Just use the first active session
+          const activeSession = sessionInfo[0];
+          if (activeSession) {
+            session = {
+              token: sessionToken, // Use the token we have
+              expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // Default 7 days
+              created_at: activeSession.created_at
+            };
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to get session info during auth status check:', error);
+      }
+    }
+
+    const response: AuthStatusResponse = {
+      user_token: authContext.userToken,
+      is_authenticated: isAuthenticated,
+      is_anonymous: !isAuthenticated,
+      user: user ? {
+        uuid: user.uuid,
+        email: user.email,
+        created_at: user.created_at,
+        last_login: user.last_login,
+        email_verified_at: user.email_verified_at,
+        status: user.status
+      } : null,
+      session: session
+    };
+
+    return c.json(response);
+
+  } catch (error) {
+    console.error('Auth status error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to get authentication status', 'AUTH_STATUS_ERROR', 500);
+  }
+}
+
+// Legacy endpoints for backward compatibility - to be deprecated
+
+/**
+ * @deprecated Use verifyMagicLink instead
  * POST /api/auth/consume
- * Consume a magic link token to verify email
  */
 export async function consumeMagicLinkToken(
   c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
 ): Promise<Response> {
-  try {
-    const { token } = await c.req.json();
-
-    if (!token || typeof token !== 'string') {
-      throw new ApiError('Valid verification token is required', 'INVALID_TOKEN', 400);
-    }
-
-    // Consume the magic link
-    const { userToken, email } = await consumeMagicLink(c.env, token);
-
-    // Verify that the token belongs to the current user
-    const authContext = c.get('authContext');
-    if (userToken !== authContext.userToken) {
-      throw new ApiError(
-        'Verification token does not match current user',
-        'TOKEN_USER_MISMATCH',
-        400
-      );
-    }
-
-    // Success response
-    return c.json({
-      message: 'Email verified successfully',
-      email,
-      verified_at: new Date().toISOString(),
-      user_token: userToken,
-    });
-  } catch (error) {
-    console.error('Magic link consumption error:', error);
-
-    if (error instanceof ApiError) {
-      throw error;
-    }
-
-    throw new ApiError('Failed to verify email', 'MAGIC_LINK_CONSUME_ERROR', 500);
-  }
+  // Redirect to new endpoint
+  return verifyMagicLink(c);
 }
 
 /**
+ * @deprecated Use getAuthStatus instead  
  * GET /api/auth/verify-status
- * Check current email verification status
  */
 export async function getVerificationStatus(
   c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
 ): Promise<Response> {
-  try {
-    const authContext = c.get('authContext');
-    const userToken = authContext.userToken;
-
-    // Check if user has verified email
-    const emailData = await c.env.SESSIONS.get(`email:${userToken}`);
-
-    if (!emailData) {
-      return c.json({
-        verified: false,
-        email: null,
-        verified_at: null,
-      });
-    }
-
-    const data = JSON.parse(emailData);
-
-    return c.json({
-      verified: true,
-      email: data.email,
-      verified_at: data.verifiedAt,
-      verification_method: data.verificationMethod || 'magic_link',
-    });
-  } catch (error) {
-    console.error('Verification status error:', error);
-
-    if (error instanceof ApiError) {
-      throw error;
-    }
-
-    throw new ApiError('Failed to check verification status', 'VERIFICATION_STATUS_ERROR', 500);
-  }
-}
-
-/**
- * DELETE /api/auth/unverify
- * Remove email verification (for testing or user request)
- */
-export async function removeEmailVerification(
-  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
-): Promise<Response> {
-  try {
-    const authContext = c.get('authContext');
-    const userToken = authContext.userToken;
-
-    // Remove email verification from KV
-    await c.env.SESSIONS.delete(`email:${userToken}`);
-
-    return c.json({
-      message: 'Email verification removed successfully',
-      verified: false,
-    });
-  } catch (error) {
-    console.error('Remove verification error:', error);
-
-    if (error instanceof ApiError) {
-      throw error;
-    }
-
-    throw new ApiError('Failed to remove email verification', 'REMOVE_VERIFICATION_ERROR', 500);
-  }
-}
-
-/**
- * GET /api/auth/dev/magic-link
- * Development helper to get magic link for email (development only)
- */
-export async function getDevMagicLinkEndpoint(
-  c: Context<{ Bindings: WorkerEnv }>
-): Promise<Response> {
-  if (c.env.ENVIRONMENT === 'production') {
-    throw new ApiError('Development endpoint not available in production', 'FORBIDDEN', 403);
-  }
-
-  try {
-    const { email } = c.req.query();
-
-    if (!email) {
-      throw new ApiError('Email parameter is required', 'MISSING_EMAIL', 400);
-    }
-
-    const magicLink = await getDevMagicLink(c.env, email);
-
-    if (!magicLink) {
-      return c.json(
-        {
-          message: 'No magic link found for this email',
-          email,
-          magic_link: null,
-        },
-        404
-      );
-    }
-
-    return c.json({
-      message: 'Magic link found',
-      email,
-      magic_link: magicLink,
-      note: 'This endpoint is only available in development',
-    });
-  } catch (error) {
-    console.error('Dev magic link error:', error);
-
-    if (error instanceof ApiError) {
-      throw error;
-    }
-
-    throw new ApiError('Failed to retrieve development magic link', 'DEV_MAGIC_LINK_ERROR', 500);
-  }
-}
-
-/**
- * POST /api/auth/resend
- * Resend verification email (with rate limiting)
- */
-export async function resendVerificationEmail(
-  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
-): Promise<Response> {
-  try {
-    const authContext = c.get('authContext');
-    const userToken = authContext.userToken;
-
-    // Check if user has a verified email already
-    const emailData = await c.env.SESSIONS.get(`email:${userToken}`);
-    if (emailData) {
-      const data = JSON.parse(emailData);
-      return c.json({
-        message: 'Email is already verified',
-        email: data.email,
-        already_verified: true,
-      });
-    }
-
-    // Get email from request body
-    const { email } = await c.req.json();
-
-    if (!email) {
-      throw new ApiError(
-        'Email address is required for resending verification',
-        'MISSING_EMAIL',
-        400
-      );
-    }
-
-    // Use the same logic as requestMagicLink but with different messaging
-    const normalizedEmail = email.toLowerCase().trim();
-
-    // Check rate limiting (stricter for resends: max 2 per hour)
-    const rateLimitKey = `resend-rate:${normalizedEmail}`;
-    const currentRequests = await c.env.SESSIONS.get(rateLimitKey);
-    const requestCount = currentRequests ? parseInt(currentRequests) : 0;
-
-    if (requestCount >= 2) {
-      throw new ApiError(
-        'Too many resend requests. Please wait before requesting another verification email.',
-        'RATE_LIMITED',
-        429,
-        {
-          details: {
-            resetTime: 'in 1 hour',
-            maxRequests: 2,
-          },
-        }
-      );
-    }
-
-    // Update rate limit counter
-    await c.env.SESSIONS.put(
-      rateLimitKey,
-      (requestCount + 1).toString(),
-      { expirationTtl: 3600 } // 1 hour
-    );
-
-    // Create new magic link
-    const { token, expiresAt } = await createMagicLink(
-      c.env,
-      normalizedEmail,
-      userToken,
-      c.req.raw
-    );
-
-    // Generate magic link URL
-    const baseUrl = c.env.FRONTEND_URL || 'https://art.abluestar.com';
-    const magicLinkUrl = `${baseUrl}/auth/verify?token=${token}`;
-
-    // Send email
-    await sendMagicLinkEmail(c.env, normalizedEmail, magicLinkUrl, expiresAt, c.req.raw);
-
-    return c.json({
-      message: 'Verification email resent successfully',
-      email: normalizedEmail,
-      expires_at: expiresAt.toISOString(),
-      expires_in_minutes: 30,
-    });
-  } catch (error) {
-    console.error('Resend verification error:', error);
-
-    if (error instanceof ApiError) {
-      throw error;
-    }
-
-    throw new ApiError('Failed to resend verification email', 'RESEND_ERROR', 500);
-  }
+  // Redirect to new endpoint
+  return getAuthStatus(c);
 }

@@ -499,13 +499,22 @@ export interface ConsumeMagicLinkResponse {
 export interface AuthStatusRequest {}
 
 export interface AuthStatusResponse {
-  authenticated: boolean;
   user_token: string;
-  email?: string;
-  email_verified?: boolean;
-  is_reviewer?: boolean;
-  created_at?: string;
-  last_login?: string;
+  is_authenticated: boolean;
+  is_anonymous: boolean;
+  user?: {
+    uuid: string;
+    email: string;
+    created_at: string;
+    last_login?: string | null;
+    email_verified_at?: string | null;
+    status: string;
+  } | null;
+  session?: {
+    token: string;
+    expires_at: string;
+    created_at: string;
+  } | null;
 }
 
 export interface LogoutRequest {}

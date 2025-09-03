@@ -29,11 +29,12 @@ import { getNearbyArtworks, getArtworkDetails, getArtworksInBounds, getArtworkSt
 import { getUserSubmissions, getUserProfile } from './routes/user';
 import {
   requestMagicLink,
+  verifyMagicLink,
+  logout,
+  getAuthStatus,
+  // Legacy endpoints for backward compatibility
   consumeMagicLinkToken,
   getVerificationStatus,
-  removeEmailVerification,
-  resendVerificationEmail,
-  getDevMagicLinkEndpoint,
 } from './routes/auth';
 import {
   getReviewQueue,
@@ -371,11 +372,14 @@ app.get('/health', async c => {
       'GET /api/consent',
       'GET /api/consent/form-data',
       'DELETE /api/consent',
+      'POST /api/auth/request-magic-link',
+      'POST /api/auth/verify-magic-link',
+      'POST /api/auth/logout',
+      'GET /api/auth/status',
+      // Legacy auth endpoints
       'POST /api/auth/magic-link',
       'POST /api/auth/consume',
       'GET /api/auth/verify-status',
-      'DELETE /api/auth/unverify',
-      'POST /api/auth/resend',
       'GET /api/review/queue',
       'GET /api/review/stats',
       'GET /api/review/submission/:id',
@@ -607,10 +611,45 @@ app.delete(
 // ================================
 // Authentication Endpoints
 // ================================
+// Authentication Endpoints  
+// UUID-based authentication with magic links
+// ================================
 
+// POST /api/auth/request-magic-link - Request magic link for signup or login
+app.post(
+  '/api/auth/request-magic-link',
+  rateLimitQueries, // Use query rate limit for auth requests
+  validateMagicLinkRequest,
+  addUserTokenToResponse,
+  withErrorHandling(requestMagicLink)
+);
+
+// POST /api/auth/verify-magic-link - Verify magic link token
+app.post(
+  '/api/auth/verify-magic-link',
+  validateSchema(consumeMagicLinkSchema, 'body'),
+  addUserTokenToResponse,
+  withErrorHandling(verifyMagicLink)
+);
+
+// POST /api/auth/logout - Logout and get new anonymous UUID
+app.post(
+  '/api/auth/logout',
+  addUserTokenToResponse,
+  withErrorHandling(logout)
+);
+
+// GET /api/auth/status - Get current authentication status
+app.get(
+  '/api/auth/status',
+  addUserTokenToResponse,
+  withErrorHandling(getAuthStatus)
+);
+
+// Legacy endpoints for backward compatibility
 app.post(
   '/api/auth/magic-link',
-  rateLimitQueries, // Use query rate limit for auth requests
+  rateLimitQueries,
   validateMagicLinkRequest,
   addUserTokenToResponse,
   withErrorHandling(requestMagicLink)
@@ -628,23 +667,6 @@ app.get(
   addUserTokenToResponse,
   withErrorHandling(getVerificationStatus)
 );
-
-app.delete(
-  '/api/auth/unverify',
-  addUserTokenToResponse,
-  withErrorHandling(removeEmailVerification)
-);
-
-app.post(
-  '/api/auth/resend',
-  rateLimitQueries,
-  validateMagicLinkRequest,
-  addUserTokenToResponse,
-  withErrorHandling(resendVerificationEmail)
-);
-
-// Development only - get magic link for email
-app.get('/api/auth/dev/magic-link', withErrorHandling(getDevMagicLinkEndpoint));
 
 // ================================
 // Review/Moderation Endpoints
@@ -732,6 +754,11 @@ app.notFound(c => {
         'GET /api/consent',
         'GET /api/consent/form-data',
         'DELETE /api/consent',
+        'POST /api/auth/request-magic-link',
+        'POST /api/auth/verify-magic-link',
+        'POST /api/auth/logout',
+        'GET /api/auth/status',
+        // Legacy endpoints
         'POST /api/auth/magic-link',
         'POST /api/auth/consume',
         'GET /api/auth/verify-status',
