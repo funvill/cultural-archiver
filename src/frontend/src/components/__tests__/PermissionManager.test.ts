@@ -246,9 +246,11 @@ describe('PermissionManager', () => {
         throw new Error('Grant Permission button not found')
       }
       await grantButton.trigger('click')
+      await wrapper.vm.$nextTick()
 
-      // Click cancel
-      const cancelButton = buttons.find(btn => btn.text() === 'Cancel')
+      // Click cancel - need to re-query buttons after dialog opens
+      const updatedButtons = wrapper.findAll('button')
+      const cancelButton = updatedButtons.find(btn => btn.text() === 'Cancel')
       
       if (!cancelButton) {
         throw new Error('Cancel button not found')
@@ -267,7 +269,7 @@ describe('PermissionManager', () => {
     })
 
     it('should open revoke permission dialog', async () => {
-      const revokeButton = wrapper.find('button').filter((btn: any) => 
+      const revokeButton = wrapper.findAll('button').filter((btn: any) => 
         btn.text() === 'Revoke'
       )[0]
       
@@ -278,7 +280,7 @@ describe('PermissionManager', () => {
     })
 
     it('should show user details in revoke dialog', async () => {
-      const revokeButton = wrapper.find('button').filter((btn: any) => 
+      const revokeButton = wrapper.findAll('button').filter((btn: any) => 
         btn.text() === 'Revoke'
       )[0]
       
@@ -295,7 +297,7 @@ describe('PermissionManager', () => {
       })
 
       // Click revoke button for first user
-      const revokeButton = wrapper.find('button').filter((btn: any) => 
+      const revokeButton = wrapper.findAll('button').filter((btn: any) => 
         btn.text() === 'Revoke'
       )[0]
       await revokeButton.trigger('click')
@@ -343,7 +345,7 @@ describe('PermissionManager', () => {
       await new Promise(resolve => setTimeout(resolve, 0))
 
       // Open grant dialog and submit
-      const grantButton = wrapper.find('button').filter((btn: any) => 
+      const grantButton = wrapper.findAll('button').filter((btn: any) => 
         btn.text().includes('Grant Permission')
       )[0]
       await grantButton.trigger('click')
@@ -378,7 +380,7 @@ describe('PermissionManager', () => {
       await new Promise(resolve => setTimeout(resolve, 0))
 
       // Open grant dialog
-      const grantButton = wrapper.find('button').filter((btn: any) => 
+      const grantButton = wrapper.findAll('button').filter((btn: any) => 
         btn.text().includes('Grant Permission')
       )[0]
       await grantButton.trigger('click')

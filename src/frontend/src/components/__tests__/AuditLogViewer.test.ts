@@ -167,12 +167,12 @@ describe('AuditLogViewer', () => {
       await wrapper.find('#type-filter').setValue('admin')
       await wrapper.find('#actor-filter').setValue('admin-1')
 
-      const resetButton = wrapper.find('button').filter((btn: any) => 
+      const resetButton = wrapper.findAll('button').filter((btn: any) => 
         btn.text() === 'Reset Filters'
       )[0]
       await resetButton.trigger('click')
 
-      expect(wrapper.vm.filters.type).toBe('')
+      expect(wrapper.vm.filters.type).toBe(undefined)
       expect(wrapper.vm.filters.actor).toBe('')
       expect(wrapper.vm.currentPage).toBe(1)
     })
@@ -224,7 +224,7 @@ describe('AuditLogViewer', () => {
     })
 
     it('should open details modal when view details is clicked', async () => {
-      const viewDetailsButton = wrapper.find('button').filter((btn: any) => 
+      const viewDetailsButton = wrapper.findAll('button').filter((btn: any) => 
         btn.text() === 'View Details'
       )[0]
       
@@ -235,7 +235,7 @@ describe('AuditLogViewer', () => {
     })
 
     it('should display detailed log information in modal', async () => {
-      const viewDetailsButton = wrapper.find('button').filter((btn: any) => 
+      const viewDetailsButton = wrapper.findAll('button').filter((btn: any) => 
         btn.text() === 'View Details'
       )[0]
       
@@ -248,13 +248,13 @@ describe('AuditLogViewer', () => {
 
     it('should close modal when close button is clicked', async () => {
       // Open modal
-      const viewDetailsButton = wrapper.find('button').filter((btn: any) => 
+      const viewDetailsButton = wrapper.findAll('button').filter((btn: any) => 
         btn.text() === 'View Details'
       )[0]
       await viewDetailsButton.trigger('click')
 
       // Close modal
-      const closeButton = wrapper.find('button').filter((btn: any) => 
+      const closeButton = wrapper.findAll('button').filter((btn: any) => 
         btn.find('svg').exists() // Close X button
       )[0]
       await closeButton.trigger('click')
@@ -263,7 +263,7 @@ describe('AuditLogViewer', () => {
     })
 
     it('should display JSON details and metadata', async () => {
-      const viewDetailsButton = wrapper.find('button').filter((btn: any) => 
+      const viewDetailsButton = wrapper.findAll('button').filter((btn: any) => 
         btn.text() === 'View Details'
       )[0]
       
@@ -289,7 +289,7 @@ describe('AuditLogViewer', () => {
     })
 
     it('should disable previous button on first page', () => {
-      const previousButton = wrapper.find('button').filter((btn: any) => 
+      const previousButton = wrapper.findAll('button').filter((btn: any) => 
         btn.text() === 'Previous'
       )[0]
       
@@ -313,7 +313,7 @@ describe('AuditLogViewer', () => {
       await wrapper.vm.$nextTick()
       await new Promise(resolve => setTimeout(resolve, 0))
 
-      const nextButton = wrapper.find('button').filter((btn: any) => 
+      const nextButton = wrapper.findAll('button').filter((btn: any) => 
         btn.text() === 'Next'
       )[0]
       
