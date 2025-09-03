@@ -49,20 +49,20 @@
   - [x] 2.6 Handle data conflict resolution (most recent approved entry logic)
   - [x] 2.7 Write integration tests for enhanced artwork detail endpoint
 
-- [ ] 3.0 Frontend Component Development
-  - [ ] 3.1 Create `PhotoCarousel.vue` component with left/right navigation and keyboard support
-  - [ ] 3.2 Add touch/swipe gesture support to PhotoCarousel for mobile devices
-  - [ ] 3.3 Implement dot indicators and photo counter in PhotoCarousel
-  - [ ] 3.4 Add full-screen photo modal functionality to PhotoCarousel
-  - [ ] 3.5 Create CC0 license watermark overlay and submission date display
-  - [ ] 3.6 Build `MiniMap.vue` component using existing Leaflet configuration
-  - [ ] 3.7 Add zoom controls and Google Maps directions link to MiniMap
-  - [ ] 3.8 Create `TagBadge.vue` component with pill-style design
-  - [ ] 3.9 Implement "show more" functionality for TagBadge lists (5 initial, expand option)
-  - [ ] 3.10 Build `LogbookTimeline.vue` component with pagination
-  - [ ] 3.11 Add "Load more" button functionality to LogbookTimeline
-  - [ ] 3.12 Write comprehensive unit tests for all new components
-  - [ ] 3.13 Ensure all components follow WCAG AA accessibility guidelines
+- [x] 3.0 Frontend Component Development
+  - [x] 3.1 Create `PhotoCarousel.vue` component with left/right navigation and keyboard support
+  - [x] 3.2 Add touch/swipe gesture support to PhotoCarousel for mobile devices
+  - [x] 3.3 Implement dot indicators and photo counter in PhotoCarousel
+  - [x] 3.4 Add full-screen photo modal functionality to PhotoCarousel
+  - [x] 3.5 Create CC0 license watermark overlay and submission date display
+  - [x] 3.6 Build `MiniMap.vue` component using existing Leaflet configuration
+  - [x] 3.7 Add zoom controls and Google Maps directions link to MiniMap
+  - [x] 3.8 Create `TagBadge.vue` component with pill-style design
+  - [x] 3.9 Implement "show more" functionality for TagBadge lists (5 initial, expand option)
+  - [x] 3.10 Build `LogbookTimeline.vue` component with pagination
+  - [x] 3.11 Add "Load more" button functionality to LogbookTimeline
+  - [x] 3.12 Write comprehensive unit tests for all new components
+  - [x] 3.13 Ensure all components follow WCAG AA accessibility guidelines
 
 - [ ] 4.0 ArtworkDetailView Page Implementation
   - [ ] 4.1 Refactor existing `ArtworkDetailView.vue` to use new component structure
