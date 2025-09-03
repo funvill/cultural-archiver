@@ -366,6 +366,26 @@ export async function approveSubmission(
     // Update submission status
     await updateLogbookStatus(c.env.DB, submissionId, 'approved', finalArtworkId);
 
+    // Log the moderation decision for audit trail
+    const { logModerationDecision, createModerationAuditContext } = await import('../lib/audit');
+    const auditContext = createModerationAuditContext(
+      c,
+      submissionId,
+      authContext.userToken,
+      'approved',
+      {
+        reason: `Action: ${action}${overrides ? ` with overrides` : ''}`,
+        artworkId: finalArtworkId,
+        actionTaken: action as 'create_new' | 'link_existing',
+        photosProcessed: newPhotoUrls.length,
+      }
+    );
+    
+    const auditResult = await logModerationDecision(c.env.DB, auditContext);
+    if (!auditResult.success) {
+      console.warn('Failed to log moderation decision:', auditResult.error);
+    }
+
     return c.json({
       message: 'Submission approved successfully',
       submission_id: submissionId,
@@ -426,6 +446,24 @@ export async function rejectSubmission(
 
     // Update submission status
     await updateLogbookStatus(c.env.DB, submissionId, 'rejected');
+
+    // Log the moderation decision for audit trail
+    const { logModerationDecision, createModerationAuditContext } = await import('../lib/audit');
+    const auditContext = createModerationAuditContext(
+      c,
+      submissionId,
+      authContext.userToken,
+      'rejected',
+      {
+        reason: reason || 'No reason provided',
+        photosProcessed: cleanup_photos && submission.photos ? JSON.parse(submission.photos).length : 0,
+      }
+    );
+    
+    const auditResult = await logModerationDecision(c.env.DB, auditContext);
+    if (!auditResult.success) {
+      console.warn('Failed to log moderation decision:', auditResult.error);
+    }
 
     return c.json({
       message: 'Submission rejected successfully',
