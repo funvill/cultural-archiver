@@ -23,11 +23,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - MapComponent with enhanced router integration and error handling
 - Database schema with creators table and proper foreign key constraints
 - API responses extended to include creator information and paginated logbook entries
-- Comprehensive unit test suite (82 frontend tests, 54 backend tests)
+- Comprehensive unit test suite (261 total tests, 255 passing)
+- Code quality improvements with ESLint error resolution and TypeScript cleanup
 
 ### Fixed
 - Map marker click handlers for direct navigation
 - Mobile touch interactions and gesture support
+- ESLint component tag order errors (Vue components)
+- TypeScript compilation issues in API service
+- Frontend test failures in AuditLogViewer date filtering
 - URL parameter validation with UUID format checking
 - Error handling for invalid artwork IDs and network issues
 

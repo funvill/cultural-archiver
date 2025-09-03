@@ -24,7 +24,7 @@ This ensures that the cultural history of our cities outlives any single platfor
 - **User flows**: Anonymous tokens + optional email verification via magic links
 - **Content moderation**: Review queue with approval/rejection workflow
 - **Mobile-first design**: Responsive layout supporting 320px to 1920px viewports
-- **Quality assurance**: 82 unit tests passing across 9 test files, robust TypeScript coverage
+- **Quality assurance**: 261 unit tests (255 passing) across 19 test files, robust TypeScript coverage
 - **Enhanced navigation**: Clickable map markers with direct routing to artwork details
 
 **Latest Features (v1.1):**
@@ -54,7 +54,7 @@ Phase 0 and 1 focus on delivering a simple, accessible web app where users can:
 - **Maps**: Leaflet + OpenStreetMap with artwork clustering and clickable markers
 - **Components**: PhotoCarousel, MiniMap, TagBadge, LogbookTimeline for rich artwork details
 - **Accessibility**: WCAG AA compliant with comprehensive screen reader support
-- **Testing**: Vitest with 82 unit tests across 9 test files covering components, views, and API integration
+- **Testing**: Vitest with 261 unit tests across 19 test files covering components, views, and API integration
 
 ### Backend (Production Ready)
 - **Runtime**: Cloudflare Workers + TypeScript + Hono framework
@@ -197,7 +197,7 @@ For complete API documentation with examples and error codes, see [`docs/api.md`
 
 ### Prerequisites
 
-- **Node.js v23+** (required for native TypeScript support)
+- **Node.js >=22.0.0** (required for native TypeScript support)
 - **npm** (comes with Node.js)
 - **Cloudflare account** (for deployment)
 

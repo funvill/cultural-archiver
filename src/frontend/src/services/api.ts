@@ -367,7 +367,8 @@ export const apiService = {
     return {
       data: { token },
       message: 'Token generated successfully',
-      success: true
+      success: true,
+      timestamp: new Date().toISOString()
     }
   },
 
@@ -398,7 +399,7 @@ export const apiService = {
     }
 
     // Add photo files
-    submission.photos.forEach((photo) => {
+    submission.photos.forEach((photo: File) => {
       formData.append(`photos`, photo)
     })
 
@@ -562,7 +563,8 @@ export const apiService = {
     
     return {
       success: true,
-      data: verificationStatus
+      data: verificationStatus,
+      timestamp: new Date().toISOString()
     }
   },
 

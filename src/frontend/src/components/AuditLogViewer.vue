@@ -24,7 +24,10 @@ const pageSize = ref(25)
 
 // Filter state
 const filters = ref<AuditLogQuery>({
+  type: undefined,
   actor: '',
+  decision: undefined,
+  action_type: undefined,
   startDate: '',
   endDate: '',
   page: 1,
@@ -47,10 +50,15 @@ async function loadAuditLogs(): Promise<void> {
     const query: Partial<AuditLogQuery> = { ...filters.value }
     Object.keys(query).forEach(key => {
       const value = query[key as keyof AuditLogQuery]
-      if (value === '' || value === undefined) {
+      // Only remove empty strings and undefined values, keep numbers and non-empty strings
+      if (value === '' || value === undefined || value === null) {
         delete query[key as keyof AuditLogQuery]
       }
     })
+    
+    // Always include pagination
+    query.page = currentPage.value
+    query.limit = pageSize.value
     
     // Convert date-time inputs to ISO strings
     if (query.startDate) {
@@ -98,7 +106,10 @@ function debouncedFilter(): void {
 // Reset filters
 function resetFilters(): void {
   filters.value = {
+    type: undefined,
     actor: '',
+    decision: undefined,
+    action_type: undefined,
     startDate: '',
     endDate: '',
     page: 1,
