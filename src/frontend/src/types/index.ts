@@ -114,6 +114,7 @@ export interface NavigationItem {
   icon?: unknown // Vue component or string
   requiresAuth?: boolean
   requiresReviewer?: boolean
+  requiresAdmin?: boolean
 }
 
 export interface Toast {

@@ -101,6 +101,9 @@ describe('Auth Store', () => {
     })
 
     it('handles token generation failure gracefully', async () => {
+      // Mock console.error to suppress expected error
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      
       const mockApi = await import('../../services/api')
       vi.mocked(mockApi.apiService.generateToken).mockRejectedValue(new Error('Network error'))
       
@@ -110,6 +113,8 @@ describe('Auth Store', () => {
       
       // Should fallback to crypto.randomUUID()
       expect(store.token).toBeTruthy()
+      
+      consoleSpy.mockRestore()
     })
   })
 
@@ -190,6 +195,9 @@ describe('Auth Store', () => {
     })
 
     it('handles authentication status check failure', async () => {
+      // Mock console.error to suppress expected error
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      
       const mockApi = await import('../../services/api')
       vi.mocked(mockApi.apiService.getAuthStatus).mockRejectedValue(new Error('Network error'))
       
@@ -199,6 +207,8 @@ describe('Auth Store', () => {
       
       // Should still have generated an anonymous token
       expect(store.token).toBeTruthy()
+      
+      consoleSpy.mockRestore()
     })
   })
 
@@ -223,6 +233,9 @@ describe('Auth Store', () => {
     })
 
     it('handles logout failure gracefully', async () => {
+      // Mock console.error to suppress expected error
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      
       const mockApi = await import('../../services/api')
       vi.mocked(mockApi.apiService.logout).mockRejectedValue(new Error('Server error'))
       
@@ -232,6 +245,8 @@ describe('Auth Store', () => {
       
       // Should fallback to generating anonymous token
       expect(store.token).toBeTruthy()
+      
+      consoleSpy.mockRestore()
     })
   })
 

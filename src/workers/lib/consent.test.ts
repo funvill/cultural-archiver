@@ -176,7 +176,7 @@ describe('Consent Storage', () => {
     };
 
     await expect(storeConsentData(mockEnv as WorkerEnv, consentData))
-      .rejects.toThrow('CONSENT_STORAGE_ERROR');
+      .rejects.toThrow('Failed to store consent data');
   });
 });
 

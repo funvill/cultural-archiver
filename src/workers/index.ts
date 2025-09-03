@@ -8,7 +8,7 @@ import { secureHeaders } from 'hono/secure-headers';
 import type { WorkerEnv } from './types';
 
 // Import middleware
-import { ensureUserToken, addUserTokenToResponse, checkEmailVerification } from './middleware/auth';
+import { ensureUserToken, addUserTokenToResponse, checkEmailVerification, requireReviewer, requireAdmin } from './middleware/auth';
 import { rateLimitSubmissions, rateLimitQueries, addRateLimitStatus } from './middleware/rateLimit';
 import {
   validateLogbookFormData,
@@ -51,6 +51,13 @@ import {
   getConsentFormData,
   revokeConsent,
 } from './routes/consent';
+import {
+  getUserPermissions,
+  grantUserPermission,
+  revokeUserPermission,
+  getAuditLogsEndpoint,
+  getAdminStatistics,
+} from './routes/admin';
 
 // Initialize Hono app
 const app = new Hono<{ Bindings: WorkerEnv }>();
@@ -446,6 +453,10 @@ app.use('/api/auth/*', ensureUserToken);
 app.use('/api/auth/*', checkEmailVerification);
 app.use('/api/review/*', ensureUserToken);
 app.use('/api/review/*', checkEmailVerification);
+app.use('/api/review/*', requireReviewer);
+app.use('/api/admin/*', ensureUserToken);
+app.use('/api/admin/*', checkEmailVerification);
+app.use('/api/admin/*', requireAdmin);
 app.use('/api/consent', ensureUserToken);
 app.use('/api/consent', addUserTokenToResponse);
 
@@ -696,6 +707,27 @@ app.get('/api/review/stats', withErrorHandling(getReviewStats));
 app.put('/api/review/batch', withErrorHandling(processBatchReview));
 
 // ================================
+// Admin Endpoints
+// ================================
+// Permission management and audit logs for administrators
+// Requires admin permissions for all operations
+
+// GET /api/admin/permissions - List users with permissions
+app.get('/api/admin/permissions', withErrorHandling(getUserPermissions));
+
+// POST /api/admin/permissions/grant - Grant permission to user
+app.post('/api/admin/permissions/grant', withErrorHandling(grantUserPermission));
+
+// POST /api/admin/permissions/revoke - Revoke permission from user
+app.post('/api/admin/permissions/revoke', withErrorHandling(revokeUserPermission));
+
+// GET /api/admin/audit - Get audit logs with filtering
+app.get('/api/admin/audit', withErrorHandling(getAuditLogsEndpoint));
+
+// GET /api/admin/statistics - Get system and audit statistics
+app.get('/api/admin/statistics', withErrorHandling(getAdminStatistics));
+
+// ================================
 // Permalink Redirects
 // ================================
 
@@ -772,6 +804,11 @@ app.notFound(c => {
         'GET /api/review/queue',
         'POST /api/review/approve/:id',
         'POST /api/review/reject/:id',
+        'GET /api/admin/permissions',
+        'POST /api/admin/permissions/grant',
+        'POST /api/admin/permissions/revoke',
+        'GET /api/admin/audit',
+        'GET /api/admin/statistics',
       ],
     },
     404

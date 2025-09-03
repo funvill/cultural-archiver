@@ -33,6 +33,11 @@ watch(() => route.query, (newQuery) => {
     console.log('Reviewer access required for this route')
     // Could show error message here if needed
   }
+  
+  if (newQuery.error === 'admin_required') {
+    console.log('Admin access required for this route')
+    // Could show error message here if needed
+  }
 }, { immediate: true })
 </script>
 

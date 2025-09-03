@@ -11,6 +11,7 @@ export interface AuthContext {
   userToken: string;
   isReviewer: boolean;
   isVerifiedEmail: boolean;
+  isAdmin?: boolean;
 }
 
 // Extend the Hono context types
@@ -86,7 +87,7 @@ export async function ensureUserToken(
 
 /**
  * Middleware to check if user has reviewer permissions
- * Requires a valid user token and reviewer flag in database
+ * Uses database-backed permission system with fallback to legacy logic
  */
 export async function requireReviewer(
   c: Context<{ Bindings: WorkerEnv }>,
@@ -99,17 +100,24 @@ export async function requireReviewer(
   }
 
   try {
-    // For MVP, we'll check if the user token matches a known reviewer token
-    // This is a simplified approach - in production, you'd have a proper user/role system
-    const stmt = c.env.DB.prepare(`
-      SELECT COUNT(*) as count FROM logbook 
-      WHERE user_token = ? AND status = 'approved'
-      HAVING count >= 5
-    `);
-    const result = await stmt.bind(userToken).first();
-    const isReviewer = (result as { count: number } | null)?.count
-      ? (result as { count: number }).count >= 5
-      : false; // Users with 5+ approved submissions can review
+    // First, check database-backed permissions
+    const { isModerator } = await import('../lib/permissions');
+    const hasModeratorPermission = await isModerator(c.env.DB, userToken);
+
+    let isReviewer = hasModeratorPermission;
+
+    // Fallback to legacy logic if no database permissions found
+    if (!hasModeratorPermission) {
+      const stmt = c.env.DB.prepare(`
+        SELECT COUNT(*) as count FROM logbook 
+        WHERE user_token = ? AND status = 'approved'
+        HAVING count >= 5
+      `);
+      const result = await stmt.bind(userToken).first();
+      isReviewer = (result as { count: number } | null)?.count
+        ? (result as { count: number }).count >= 5
+        : false; // Users with 5+ approved submissions can review (legacy fallback)
+    }
 
     if (!isReviewer) {
       throw new ForbiddenError('Reviewer permissions required');
@@ -126,6 +134,44 @@ export async function requireReviewer(
       throw error;
     }
     throw new UnauthorizedError('Failed to verify reviewer permissions');
+  }
+}
+
+/**
+ * Middleware to check if user has admin permissions
+ * Requires a valid user token and admin permission in database
+ */
+export async function requireAdmin(
+  c: Context<{ Bindings: WorkerEnv }>,
+  next: Next
+): Promise<void | Response> {
+  const userToken = c.get('userToken');
+
+  if (!userToken) {
+    throw new UnauthorizedError('User token required');
+  }
+
+  try {
+    // Check database-backed admin permissions
+    const { isAdmin } = await import('../lib/permissions');
+    const hasAdminPermission = await isAdmin(c.env.DB, userToken);
+
+    if (!hasAdminPermission) {
+      throw new ForbiddenError('Administrator permissions required');
+    }
+
+    // Update auth context
+    const authContext = c.get('authContext');
+    authContext.isReviewer = true; // Admins are also reviewers
+    authContext.isAdmin = true;
+    c.set('authContext', authContext);
+
+    await next();
+  } catch (error) {
+    if (error instanceof ForbiddenError) {
+      throw error;
+    }
+    throw new UnauthorizedError('Failed to verify admin permissions');
   }
 }
 

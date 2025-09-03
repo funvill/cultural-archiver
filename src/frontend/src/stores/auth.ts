@@ -3,7 +3,8 @@ import { defineStore } from 'pinia'
 import type { 
   User, 
   MagicLinkRequest, 
-  MagicLinkConsumeRequest
+  MagicLinkConsumeRequest,
+  Permission
 } from '../types'
 import { apiService, getErrorMessage } from '../services/api'
 
@@ -15,13 +16,15 @@ export const useAuthStore = defineStore('auth', () => {
   // State
   const user = ref<User | null>(null)
   const token = ref<string | null>(null)
+  const permissions = ref<Permission[]>([])
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 
   // Computed getters
   const isAuthenticated = computed(() => !!user.value && user.value.emailVerified)
   const isAnonymous = computed(() => !!token.value && !isAuthenticated.value)
-  const isReviewer = computed(() => user.value?.isReviewer ?? false)
+  const isReviewer = computed(() => (user.value?.isReviewer ?? false) || permissions.value.includes('moderator') || permissions.value.includes('admin'))
+  const isAdmin = computed(() => permissions.value.includes('admin'))
   const isEmailVerified = computed(() => user.value?.emailVerified ?? false)
 
   // Actions
@@ -36,9 +39,14 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('user-token', tokenValue)
   }
 
+  function setPermissions(userPermissions: Permission[]): void {
+    permissions.value = userPermissions
+  }
+
   function clearAuth(): void {
     user.value = null
     token.value = null
+    permissions.value = []
     localStorage.removeItem('user-token')
     error.value = null
   }
@@ -82,10 +90,14 @@ export const useAuthStore = defineStore('auth', () => {
             id: authStatus.user.uuid,
             email: authStatus.user.email,
             emailVerified: true,
-            isReviewer: false, // TODO: Add reviewer field to backend
+            isReviewer: false, // Will be determined by permissions
             createdAt: authStatus.user.created_at
           }
           setUser(userData)
+          
+          // TODO: Fetch user permissions from backend and set them
+          // This would require a new API endpoint to get current user permissions
+          // For now, we'll rely on the backend auth middleware
         } else {
           // Anonymous user
           const userData: User = {
@@ -190,10 +202,13 @@ export const useAuthStore = defineStore('auth', () => {
           id: verifyResponse.user.uuid,
           email: verifyResponse.user.email,
           emailVerified: true,
-          isReviewer: false, // TODO: Add reviewer field to backend
+          isReviewer: false, // Will be determined by permissions
           createdAt: verifyResponse.user.created_at
         }
         setUser(userData)
+        
+        // TODO: Fetch user permissions after successful verification
+        // This would be done by calling a permissions endpoint
         
         return {
           success: true,
@@ -274,10 +289,12 @@ export const useAuthStore = defineStore('auth', () => {
             id: authStatus.user.uuid,
             email: authStatus.user.email,
             emailVerified: true,
-            isReviewer: false,
+            isReviewer: false, // Will be determined by permissions
             createdAt: authStatus.user.created_at
           }
           setUser(userData)
+          
+          // TODO: Refresh permissions as well
         }
       }
     } catch (err) {
@@ -289,6 +306,7 @@ export const useAuthStore = defineStore('auth', () => {
     // State
     user,
     token,
+    permissions,
     isLoading,
     error,
     
@@ -296,11 +314,13 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     isAnonymous,
     isReviewer,
+    isAdmin,
     isEmailVerified,
     
     // Actions
     setUser,
     setToken,
+    setPermissions,
     clearAuth,
     setError,
     clearError,

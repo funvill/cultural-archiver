@@ -338,6 +338,7 @@ export interface AuthContext {
   userToken: string;
   isVerifiedEmail: boolean;
   isReviewer: boolean;
+  isAdmin: boolean;
 }
 
 // Base Worker Environment interface
