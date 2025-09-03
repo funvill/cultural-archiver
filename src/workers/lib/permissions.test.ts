@@ -193,7 +193,7 @@ describe('Permission Management', () => {
       const mockPrepare = vi.fn().mockImplementation(() => {
         callCount++;
         if (callCount === 1) {
-          // First call - check existing permission
+          // First call - hasPermission check
           return {
             bind: vi.fn().mockReturnValue({
               first: vi.fn().mockResolvedValue({
@@ -204,10 +204,13 @@ describe('Permission Management', () => {
             }),
           };
         } else {
-          // Second call - revoke permission
+          // Second call - revoke permission UPDATE
           return {
             bind: vi.fn().mockReturnValue({
-              run: vi.fn().mockResolvedValue({ success: true, changes: 1 }),
+              run: vi.fn().mockResolvedValue({ 
+                success: true, 
+                meta: { changes: 1 } 
+              }),
             }),
           };
         }

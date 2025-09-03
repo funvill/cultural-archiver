@@ -8,7 +8,7 @@ Use https://domains.cloudflare.com/ to find the domain.
 
 - artfind.net
 
-## User edit artwork fields
+## User Edit Artwork Fields
 
 A artwork has a series of fields and properties.
 
@@ -16,23 +16,21 @@ All artworks have the following fixed fields
 
 - Description - A description of the artwork
 - Title - Title of the artwork
-- Created by - A list of the creators
-- Location - The GPS location of the artwork
-- Created on - The date that the artwork was added (Read only)
-- Photos - A series of photos for this artwork.
+- Created by - A list of the creators, comma separated.
+- Location - The GPS location of the artwork (Can't be edited by users)
+- Created on - The date that the artwork was added (Can't be edited by users)
+- Photos - A series of photos for this artwork. (Can't be edited by users)
+- Tags/keywords - A series of comma separated keywords. That can be used for searching.
 
-An artwork also has variable fields. These fields may or may not exist on each artwork. These fields are Key/Value.
+An artwork also has variable fields. These fields may or may not exist on each artwork. These fields are Key/Value. Some of the key/value variable fields will have enumerated values, while others are text fields. Examples: Artwork type: tiny library, street art, painting, monument, statue, etc...
 
+The user needs a method for updating the information about a artwork. The moderators need the ability to approve or reject these changes to the artwork. Only logged in users only can edit information about artworks.
 
+In this way a artwork details page is like a wiki, allowing for user submitted content and edits. A moderator reviews each edit to reject obvious abuse.
 
+A user should click the "edit mode" button on the artworks details page. This enabled them to edit each field. The edits should happen inline. When the user has made one or more changes to the artwork page. They can click the "Save" button, add a change note. This change is then stored in the moderators queue.
 
-A user should be able to update all the fields on the artwork page. This allows them to add or update information. All updates are moderated.
-
-Each artwork has a series of fixed fields. Location, title, description, created by, etc... These fields are known about. But each artwork also has a variable list of fields (Key values), where the key is not fixed. Users need the ability to add or edit these fields. Many of these custom fields will have enumerations associated with them. (Example: type = {murial, tiny libary, street art, etc..}). The user needs the ability to edit these fields and choose a enumerated value. 
-
-
-
-logged in users only 
+A moderator needs to review all edits to reject the obvious abuse.
 
 ## Mass Export / Import
   
@@ -78,4 +76,8 @@ Example data sets:
 4) The "Location Access Needed" warning should not be dismissible. Add a link into the warning bar to a help page in the FAQ section on "Why Location Access Needed"
 
 5) Add a FAQ section to the help page.
+
+
+
+## Search page
 
