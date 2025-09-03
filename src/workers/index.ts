@@ -465,6 +465,81 @@ app.use('/api/consent', ensureUserToken);
 app.use('/api/consent', addUserTokenToResponse);
 
 // ================================
+// Photo Serving Endpoint
+// ================================
+
+// Serve photos from R2 storage
+app.get('/photos/*', async c => {
+  try {
+    const key = c.req.path.substring(1); // Remove leading slash to get "photos/..."
+    console.log(`[PHOTO DEBUG] Looking for key: ${key}`);
+    
+    // Get object from R2
+    const object = await c.env.PHOTOS_BUCKET.get(key);
+    console.log(`[PHOTO DEBUG] Object found: ${!!object}`);
+    
+    if (!object) {
+      return c.json(
+        {
+          error: 'Photo not found',
+          message: 'The requested photo does not exist',
+          key,
+        },
+        404
+      );
+    }
+
+    // Get the content type based on file extension
+    const getContentType = (filename: string): string => {
+      const ext = filename.split('.').pop()?.toLowerCase();
+      switch (ext) {
+        case 'jpg':
+        case 'jpeg':
+          return 'image/jpeg';
+        case 'png':
+          return 'image/png';
+        case 'webp':
+          return 'image/webp';
+        case 'heic':
+          return 'image/heic';
+        case 'heif':
+          return 'image/heif';
+        default:
+          return 'application/octet-stream';
+      }
+    };
+
+    const contentType = getContentType(key);
+
+    // Set appropriate headers
+    c.header('Content-Type', contentType);
+    c.header('Cache-Control', 'public, max-age=31536000, immutable'); // Cache for 1 year
+    c.header('ETag', object.etag || 'unknown');
+    
+    // Add object metadata as headers if available
+    if (object.customMetadata) {
+      for (const [metaKey, metaValue] of Object.entries(object.customMetadata)) {
+        c.header(`X-Photo-${metaKey}`, metaValue);
+      }
+    }
+
+    // Return the image
+    return new Response(object.body, {
+      headers: c.res.headers,
+    });
+  } catch (error) {
+    console.error('Photo serving error:', error);
+    return c.json(
+      {
+        error: 'Photo serving failed',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    );
+  }
+});
+
+// ================================
 // Submission Endpoints
 // ================================
 
@@ -667,6 +742,7 @@ app.notFound(c => {
       message: 'The requested resource was not found',
       path: c.req.path,
       available_endpoints: [
+        'GET /photos/*',
         'POST /api/logbook',
         'GET /api/artworks/nearby',
         'GET /api/artworks/:id',

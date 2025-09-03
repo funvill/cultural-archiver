@@ -28,6 +28,8 @@ export interface LogbookRecord {
   id: string;
   artwork_id: string | null;
   user_token: string;
+  lat: number | null;
+  lon: number | null;
   note: string | null;
   photos: string | null; // JSON array of R2 URLs like ["url1", "url2", "url3"]
   status: 'pending' | 'approved' | 'rejected';
@@ -75,6 +77,8 @@ export interface CreateTagRequest {
 export interface CreateLogbookEntryRequest {
   artwork_id?: string;
   user_token: string;
+  lat?: number;
+  lon?: number;
   note?: string;
   photos?: string[];
 }

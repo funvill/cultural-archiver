@@ -18,6 +18,7 @@ declare module 'hono' {
   interface ContextVariableMap {
     userToken: string;
     authContext: AuthContext;
+    isNewToken: boolean;
   }
 }
 
@@ -38,29 +39,42 @@ export async function ensureUserToken(
   next: Next
 ): Promise<void | Response> {
   let userToken = c.req.header('Authorization')?.replace('Bearer ', '');
+  console.log(`[AUTH DEBUG] Authorization header token: ${userToken}`);
+  let isNewToken = false;
 
   if (!userToken) {
     // Check for token in cookie (for browser requests)
-    userToken = c.req
-      .header('Cookie')
+    const cookieHeader = c.req.header('Cookie');
+    console.log(`[AUTH DEBUG] Cookie header: ${cookieHeader}`);
+    
+    userToken = cookieHeader
       ?.split(';')
       .find(cookie => cookie.trim().startsWith('user_token='))
       ?.split('=')[1];
+    
+    console.log(`[AUTH DEBUG] Extracted token from cookie: ${userToken}`);
   }
 
-  if (!userToken) {
-    // Generate new anonymous token
-    userToken = generateUserToken();
-  }
-
-  // Validate token format (should be UUID)
+  // Validate token format if we have one (should be UUID)
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  if (!uuidRegex.test(userToken)) {
+  
+  if (userToken && !uuidRegex.test(userToken)) {
+    console.log(`[AUTH DEBUG] Token failed UUID validation: ${userToken}, generating new one`);
+    userToken = undefined; // Clear invalid token
+  } else if (userToken) {
+    console.log(`[AUTH DEBUG] Token passed UUID validation: ${userToken}`);
+  }
+
+  // Only generate new token if we don't have a valid one
+  if (!userToken) {
     userToken = generateUserToken();
+    isNewToken = true;
+    console.log(`[AUTH DEBUG] Generated new token: ${userToken}`);
   }
 
   // Store in context for use by route handlers
   c.set('userToken', userToken);
+  c.set('isNewToken', isNewToken); // Track if this is a new token
   c.set('authContext', {
     userToken,
     isReviewer: false,
@@ -160,22 +174,29 @@ export async function addUserTokenToResponse(
   await next();
 
   const userToken = c.get('userToken');
+  const isNewToken = c.get('isNewToken');
 
   if (userToken) {
     // Add token to response headers
     c.res.headers.set('X-User-Token', userToken);
 
-    // Add as secure cookie for browser requests
-    const isProduction = c.env.ENVIRONMENT === 'production';
-    const cookieOptions = [
-      'HttpOnly',
-      'SameSite=Strict',
-      'Path=/',
-      'Max-Age=31536000', // 1 year
-      ...(isProduction ? ['Secure'] : []),
-    ].join('; ');
+    // Only set cookie if this is a new token (not when using existing token)
+    if (isNewToken) {
+      // Add as secure cookie for browser requests
+      const isProduction = c.env.ENVIRONMENT === 'production';
+      const cookieOptions = [
+        'HttpOnly',
+        'SameSite=Strict',
+        'Path=/',
+        'Max-Age=31536000', // 1 year
+        ...(isProduction ? ['Secure'] : []),
+      ].join('; ');
 
-    c.res.headers.set('Set-Cookie', `user_token=${userToken}; ${cookieOptions}`);
+      c.res.headers.set('Set-Cookie', `user_token=${userToken}; ${cookieOptions}`);
+      console.log(`[AUTH DEBUG] Set cookie for new token: ${userToken}`);
+    } else {
+      console.log(`[AUTH DEBUG] Preserving existing token, not setting cookie: ${userToken}`);
+    }
   }
 }
 

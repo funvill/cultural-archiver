@@ -26,8 +26,24 @@ export function useAuth() { // eslint-disable-line @typescript-eslint/explicit-f
     try {
       authStore.setLoading(true)
       
-      // Check for existing token in localStorage
-      const savedToken = localStorage.getItem('user-token')
+      // Check for existing token in localStorage first
+      let savedToken = localStorage.getItem('user-token')
+      
+      // If no localStorage token, check for cookie token
+      if (!savedToken) {
+        const cookieToken = document.cookie
+          .split(';')
+          .find(cookie => cookie.trim().startsWith('user_token='))
+          ?.split('=')[1]
+        
+        if (cookieToken) {
+          console.log(`[AUTH] Found token in cookie: ${cookieToken}`)
+          savedToken = cookieToken
+          // Store in localStorage so it persists
+          localStorage.setItem('user-token', cookieToken)
+        }
+      }
+      
       if (savedToken) {
         authStore.setToken(savedToken)
         

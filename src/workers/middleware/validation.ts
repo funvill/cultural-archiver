@@ -499,7 +499,7 @@ export function getValidatedFiles(c: Context): File[] {
  * Validate UUID parameter
  */
 /**
- * Validate logbook submission from form data (for file uploads)
+ * Validate logbook submission from form data (for file uploads) or JSON (for text-only submissions)
  */
 export async function validateLogbookFormData(
   c: Context<{ Bindings: WorkerEnv }>,
@@ -508,59 +508,126 @@ export async function validateLogbookFormData(
   try {
     const contentType = c.req.header('Content-Type');
     
-    // Only validate if it's multipart form data
-    if (!contentType?.includes('multipart/form-data')) {
-      await next();
-      return;
-    }
+    // Handle multipart form data (with files)
+    if (contentType?.includes('multipart/form-data')) {
+      const formData = await c.req.formData();
+      const validationErrors = [];
 
-    const formData = await c.req.formData();
-    const validationErrors = [];
-
-    // Extract and validate latitude
-    const latValue = formData.get('latitude')?.toString();
-    if (!latValue) {
-      validationErrors.push({ field: 'latitude', message: 'Latitude is required', code: 'REQUIRED' });
-    } else {
-      const lat = parseFloat(latValue);
-      if (isNaN(lat) || lat < -90 || lat > 90) {
-        validationErrors.push({ field: 'latitude', message: 'Latitude must be between -90 and 90', code: 'INVALID' });
+      // Extract and validate latitude
+      const latValue = formData.get('latitude')?.toString();
+      if (!latValue) {
+        validationErrors.push({ field: 'latitude', message: 'Latitude is required', code: 'REQUIRED' });
+      } else {
+        const lat = parseFloat(latValue);
+        if (isNaN(lat) || lat < -90 || lat > 90) {
+          validationErrors.push({ field: 'latitude', message: 'Latitude must be between -90 and 90', code: 'INVALID' });
+        }
       }
-    }
 
-    // Extract and validate longitude
-    const lonValue = formData.get('longitude')?.toString();
-    if (!lonValue) {
-      validationErrors.push({ field: 'longitude', message: 'Longitude is required', code: 'REQUIRED' });
-    } else {
-      const lon = parseFloat(lonValue);
-      if (isNaN(lon) || lon < -180 || lon > 180) {
-        validationErrors.push({ field: 'longitude', message: 'Longitude must be between -180 and 180', code: 'INVALID' });
+      // Extract and validate longitude
+      const lonValue = formData.get('longitude')?.toString();
+      if (!lonValue) {
+        validationErrors.push({ field: 'longitude', message: 'Longitude is required', code: 'REQUIRED' });
+      } else {
+        const lon = parseFloat(lonValue);
+        if (isNaN(lon) || lon < -180 || lon > 180) {
+          validationErrors.push({ field: 'longitude', message: 'Longitude must be between -180 and 180', code: 'INVALID' });
+        }
       }
-    }
 
-    // Extract and validate optional note
-    const note = formData.get('note')?.toString();
-    if (note && note.length > MAX_NOTE_LENGTH) {
-      validationErrors.push({ 
-        field: 'note', 
-        message: `Note must be ${MAX_NOTE_LENGTH} characters or less`, 
-        code: 'TOO_LONG' 
-      });
-    }
+      // Extract and validate optional note
+      const note = formData.get('note')?.toString();
+      if (note && note.length > MAX_NOTE_LENGTH) {
+        validationErrors.push({ 
+          field: 'note', 
+          message: `Note must be ${MAX_NOTE_LENGTH} characters or less`, 
+          code: 'TOO_LONG' 
+        });
+      }
 
-    if (validationErrors.length > 0) {
-      throw new ValidationApiError(validationErrors);
-    }
+      if (validationErrors.length > 0) {
+        throw new ValidationApiError(validationErrors);
+      }
 
-    // Store validated data in context for later use
-    const validatedData = {
-      lat: parseFloat(latValue!),
-      lon: parseFloat(lonValue!),
-      ...(note && { note })
-    };
-    
-    c.set('validated_body', validatedData);
+      // Store validated data in context for later use
+      const validatedData = {
+        lat: parseFloat(latValue!),
+        lon: parseFloat(lonValue!),
+        ...(note && { note })
+      };
+      
+      c.set('validated_body', validatedData);
+    }
+    // Handle JSON data (text-only submissions)
+    else if (contentType?.includes('application/json')) {
+      const jsonData = await c.req.json();
+      
+      // Validate using Zod schema
+      const result = logbookSubmissionSchema.parse(jsonData);
+      
+      // Store validated data in context
+      c.set('validated_body', result);
+    }
+    // Handle URL-encoded form data (simple form submissions)
+    else if (contentType?.includes('application/x-www-form-urlencoded')) {
+      const formData = await c.req.parseBody();
+      const validationErrors = [];
+
+      // Extract and validate latitude
+      const latValue = formData.latitude?.toString();
+      if (!latValue) {
+        validationErrors.push({ field: 'latitude', message: 'Latitude is required', code: 'REQUIRED' });
+      } else {
+        const lat = parseFloat(latValue);
+        if (isNaN(lat) || lat < -90 || lat > 90) {
+          validationErrors.push({ field: 'latitude', message: 'Latitude must be between -90 and 90', code: 'INVALID' });
+        }
+      }
+
+      // Extract and validate longitude
+      const lonValue = formData.longitude?.toString();
+      if (!lonValue) {
+        validationErrors.push({ field: 'longitude', message: 'Longitude is required', code: 'REQUIRED' });
+      } else {
+        const lon = parseFloat(lonValue);
+        if (isNaN(lon) || lon < -180 || lon > 180) {
+          validationErrors.push({ field: 'longitude', message: 'Longitude must be between -180 and 180', code: 'INVALID' });
+        }
+      }
+
+      // Extract and validate optional note
+      const note = formData.note?.toString();
+      if (note && note.length > MAX_NOTE_LENGTH) {
+        validationErrors.push({ 
+          field: 'note', 
+          message: `Note must be ${MAX_NOTE_LENGTH} characters or less`, 
+          code: 'TOO_LONG' 
+        });
+      }
+
+      if (validationErrors.length > 0) {
+        throw new ValidationApiError(validationErrors);
+      }
+
+      // Store validated data in context
+      const validatedData = {
+        lat: parseFloat(latValue!),
+        lon: parseFloat(lonValue!),
+        ...(note && { note })
+      };
+      
+      c.set('validated_body', validatedData);
+    }
+    else {
+      // Unsupported content type
+      throw new ValidationApiError([
+        { 
+          field: 'content-type', 
+          message: 'Content-Type must be multipart/form-data, application/json, or application/x-www-form-urlencoded', 
+          code: 'UNSUPPORTED_CONTENT_TYPE' 
+        }
+      ]);
+    }
 
     await next();
   } catch (error) {

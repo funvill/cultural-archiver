@@ -1,6 +1,8 @@
 # GitHub Copilot Instructions
 
-Devloped on a windows computer using powershell. The commands should be powershell compliant.
+- Devloped on a windows computer using powershell. The commands should be powershell compliant.
+- Use Playwright-MCP over simple brower
+
 
 ## Project Overview
 

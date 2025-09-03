@@ -165,19 +165,30 @@ export class DatabaseService {
     const now = new Date().toISOString();
 
     const stmt = this.db.prepare(`
-      INSERT INTO logbook (id, artwork_id, user_token, note, photos, status, created_at)
-      VALUES (?, ?, ?, ?, ?, 'pending', ?)
+      INSERT INTO logbook (id, artwork_id, user_token, lat, lon, note, photos, status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)
     `);
 
     const photosJson = data.photos ? JSON.stringify(data.photos) : null;
     await stmt
-      .bind(id, data.artwork_id || null, data.user_token, data.note || null, photosJson, now)
+      .bind(
+        id, 
+        data.artwork_id || null, 
+        data.user_token, 
+        data.lat || null,
+        data.lon || null,
+        data.note || null, 
+        photosJson, 
+        now
+      )
       .run();
 
     return {
       id,
       artwork_id: data.artwork_id || null,
       user_token: data.user_token,
+      lat: data.lat || null,
+      lon: data.lon || null,
       note: data.note || null,
       photos: photosJson,
       status: 'pending',
@@ -213,10 +224,11 @@ export class DatabaseService {
     })[];
     total: number;
   }> {
+    console.log(`[DB DEBUG] getUserSubmissions called with token: ${userToken}, page: ${page}, perPage: ${perPage}`);
     const offset = (page - 1) * perPage;
 
     // Get submissions (exclude rejected)
-    const stmt = this.db.prepare(`
+    const query = `
       SELECT l.*, a.lat as artwork_lat, a.lon as artwork_lon, at.name as artwork_type_name
       FROM logbook l
       LEFT JOIN artwork a ON l.artwork_id = a.id
@@ -224,16 +236,24 @@ export class DatabaseService {
       WHERE l.user_token = ? AND l.status != 'rejected'
       ORDER BY l.created_at DESC
       LIMIT ? OFFSET ?
-    `);
-
+    `;
+    console.log(`[DB DEBUG] Executing query: ${query}`);
+    console.log(`[DB DEBUG] Query parameters: [${userToken}, ${perPage}, ${offset}]`);
+    
+    const stmt = this.db.prepare(query);
     const results = await stmt.bind(userToken, perPage, offset).all();
+    console.log(`[DB DEBUG] Query returned ${results.results?.length || 0} results`);
+    console.log(`[DB DEBUG] Raw results:`, JSON.stringify(results.results, null, 2));
 
     // Get total count
-    const countStmt = this.db.prepare(`
+    const countQuery = `
       SELECT COUNT(*) as total FROM logbook 
       WHERE user_token = ? AND status != 'rejected'
-    `);
+    `;
+    console.log(`[DB DEBUG] Executing count query: ${countQuery}`);
+    const countStmt = this.db.prepare(countQuery);
     const countResult = await countStmt.bind(userToken).first();
+    console.log(`[DB DEBUG] Count result:`, countResult);
 
     return {
       submissions: results.results as unknown as (LogbookRecord & {

@@ -24,6 +24,8 @@ interface SubmissionRow {
   id: string;
   artwork_id: string | null;
   user_token: string;
+  lat: number | null;
+  lon: number | null;
   note: string | null;
   photos: string | null;
   created_at: string;
@@ -98,6 +100,8 @@ export async function getReviewQueue(
         id: submissionRow.id,
         artwork_id: submissionRow.artwork_id,
         user_token: submissionRow.user_token,
+        lat: submissionRow.lat,
+        lon: submissionRow.lon,
         note: submissionRow.note,
         photos: submissionRow.photos,
         status: submissionRow.status as 'pending' | 'approved' | 'rejected',

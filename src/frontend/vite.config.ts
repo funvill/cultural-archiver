@@ -46,6 +46,31 @@ export default defineConfig(({ mode }) => {
           },
           // Don't rewrite the path - keep /api prefix
         },
+        '/photos': {
+          target: 'http://127.0.0.1:8787',
+          changeOrigin: true,
+          secure: false,
+          configure: (proxy, _options): void => {
+            proxy.on('error', (err, _req, _res) => {
+              console.log('[Vite Proxy] Photos Error:', err);
+            });
+            proxy.on('proxyReq', (proxyReq, req, _res) => {
+              console.log('[Vite Proxy] Proxying photo request:', {
+                from: req.url,
+                to: proxyReq.getHeader('host') + proxyReq.path,
+                method: req.method
+              });
+            });
+            proxy.on('proxyRes', (proxyRes, req, _res) => {
+              console.log('[Vite Proxy] Photo proxy response:', {
+                from: req.url,
+                status: proxyRes.statusCode,
+                contentType: proxyRes.headers['content-type']
+              });
+            });
+          },
+          // Don't rewrite the path - keep /photos prefix
+        },
       },
     },
     build: {
