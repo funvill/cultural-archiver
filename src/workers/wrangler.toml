@@ -2,7 +2,6 @@ name = "cultural-archiver-api"
 main = "index.ts"
 compatibility_date = "2024-11-06"
 compatibility_flags = ["nodejs_compat"]
-migrations_dir = "../../migrations"
 
 [env.development]
 name = "cultural-archiver-api"
