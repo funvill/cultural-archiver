@@ -150,10 +150,12 @@ The authentication system uses four main tables:
 
 ### Rate Limiting
 
-- **Email Limits**: 5 magic link requests per email per hour
-- **IP Limits**: 10 magic link requests per IP per hour
-- **Sliding Windows**: Rate limits reset progressively
+- **Email Limits**: 10 magic link requests per email per hour
+- **IP Limits**: 20 magic link requests per IP per hour
+- **Sliding Windows**: Rate limits reset progressively (1-hour rolling windows)
 - **Abuse Prevention**: Blocked identifiers until window reset
+- **Database Storage**: Rate limits stored in D1 database with automatic cleanup
+- **Per-Window Tracking**: Precise request counting with window_start timestamps
 
 ### Session Management
 
@@ -162,23 +164,178 @@ The authentication system uses four main tables:
 - **Automatic Cleanup**: Expired session removal
 - **Session Validation**: Token verification on each request
 
-## Configuration
+## Email System and MailChannels Integration
 
-### Environment Variables
+### MailChannels Configuration
+
+The Cultural Archiver uses **MailChannels** for sending magic link emails through Cloudflare Workers. MailChannels provides a free email service specifically designed for Cloudflare Workers with no API keys required.
+
+
+#### Cloudflare Email Routing
+
+**Email Routing must be enabled** in your Cloudflare dashboard for MailChannels authorization to work properly. Even if you don't use it for receiving emails, the service must be active.
+
+### Email Templates
+
+#### Magic Link Email Structure
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Cultural Archiver - Magic Link</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h1>Cultural Archiver</h1>
+    
+    <!-- Account Creation vs Login -->
+    <h2>{{ is_signup ? "Verify your email" : "Sign in to your account" }}</h2>
+    
+    <!-- Magic Link Button -->
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="{{ magicLink }}" 
+         style="background: #0066cc; color: white; padding: 15px 30px; 
+                text-decoration: none; border-radius: 5px; font-weight: bold;">
+        {{ is_signup ? "Complete Account Setup" : "Sign In Now" }}
+      </a>
+    </div>
+    
+    <!-- Security Information -->
+    <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+      <p><strong>Security Information:</strong></p>
+      <ul>
+        <li>This link expires at: {{ expiresAt }}</li>
+        <li>This link can only be used once</li>
+        <li>If you didn't request this, you can safely ignore this email</li>
+      </ul>
+    </div>
+    
+    <!-- Anonymous Submissions Count (for signup) -->
+    {{#if anonymousSubmissions}}
+    <p>You currently have <strong>{{ anonymousSubmissions }}</strong> anonymous submissions 
+       that will be linked to your account.</p>
+    {{/if}}
+    
+    <!-- Manual Link -->
+    <p style="font-size: 12px; color: #666;">
+      If the button doesn't work, copy and paste this link:<br>
+      {{ magicLink }}
+    </p>
+  </div>
+</body>
+</html>
+```
+
+#### Email Content Variations
+
+**Account Creation (is_signup: true):**
+- Subject: "Verify your email - Cultural Archiver"
+- Shows anonymous submission count if applicable
+- Emphasizes account creation benefits
+- Button text: "Complete Account Setup"
+
+**Existing User Login (is_signup: false):**
+- Subject: "Sign in to Cultural Archiver"
+- Focuses on sign-in process
+- Button text: "Sign In Now"
+
+### MailChannels Implementation
+
+#### API Integration
+
+```typescript
+// Email payload for MailChannels API
+const emailPayload = {
+  personalizations: [{
+    to: [{ email: recipient }]
+  }],
+  from: { 
+    email: "noreply@yourdomain.com",
+    name: "Cultural Archiver" 
+  },
+  subject: subject,
+  content: [{
+    type: 'text/html',
+    value: htmlContent
+  }]
+};
+
+// Send via MailChannels
+const response = await fetch('https://api.mailchannels.net/tx/v1/send', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-MC-Tags': 'magic-link,cultural-archiver'
+  },
+  body: JSON.stringify(emailPayload)
+});
+```
+
+#### Fallback System
+
+When MailChannels fails (401 Unauthorized or network issues), the system automatically falls back to development mode:
+
+```typescript
+// Development Fallback
+if (mailChannelsError) {
+  console.log('=== DEVELOPMENT FALLBACK: MAGIC LINK EMAIL ===');
+  console.log('To:', email);
+  console.log('Magic Link:', magicLink);
+  console.log('Expires:', expiresAt);
+  
+  // Store in KV for manual access
+  await env.SESSIONS.put(
+    `dev-magic-link:${email}`,
+    JSON.stringify({ token, magicLink, expiresAt }),
+    { expirationTtl: MAGIC_LINK_EXPIRY_HOURS * 60 * 60 }
+  );
+}
+```
+
+### Email Delivery Monitoring
+
+#### Success Indicators
+
+- MailChannels returns HTTP 200/202
+- No rate limiting errors
+- No DNS authentication failures
+
+#### Common Issues
+
+**401 Unauthorized from MailChannels:**
+- DNS records not properly configured
+- Email Routing not enabled in Cloudflare
+- Domain verification record missing
+- DKIM signature validation failed
+
+**Rate Limiting:**
+- Too many requests from same IP/email
+- Current limits: 10/hour per email, 20/hour per IP
+- Blocked until rate limit window resets
+
+**DNS Issues:**
+- SPF record doesn't include MailChannels
+- DKIM record missing or malformed
+- Domain verification record incorrect
+
+#### Troubleshooting Commands
 
 ```bash
-# MailChannels Configuration (Workers)
-MAILCHANNELS_API_TOKEN=your_api_token  # Optional: For advanced features
-MAILCHANNELS_FROM_EMAIL=noreply@yourdomain.com
-MAILCHANNELS_FROM_NAME="Cultural Archiver"
+# Check DNS records
+nslookup -type=TXT yourdomain.com
+nslookup -type=TXT mailchannels._domainkey.yourdomain.com
+nslookup -type=TXT _mailchannels.yourdomain.com
 
-# Database Configuration
-DATABASE_URL=your_d1_database_url
-
-# Rate Limiting
-MAGIC_LINK_EMAIL_RATE_LIMIT=5  # Per hour
-MAGIC_LINK_IP_RATE_LIMIT=10    # Per hour
+# Test MailChannels connectivity
+curl -X POST https://api.mailchannels.net/tx/v1/send \
+  -H "Content-Type: application/json" \
+  -d '{"personalizations":[{"to":[{"email":"test@example.com"}]}],"from":{"email":"noreply@yourdomain.com"},"subject":"Test","content":[{"type":"text/plain","value":"Test message"}]}'
 ```
+
+## Configuration
 
 ### Magic Link Email Template
 
@@ -191,10 +348,12 @@ The system sends HTML emails with:
 
 ## API Reference
 
-### Request Magic Link
+### Magic Link Endpoints
+
+#### Request Magic Link
 
 ```http
-POST /api/auth/request-magic-link
+POST /api/auth/magic-link
 Content-Type: application/json
 
 {
@@ -202,40 +361,122 @@ Content-Type: application/json
 }
 ```
 
-**Response**:
+**Response (Success)**:
 ```json
 {
   "success": true,
-  "isSignup": false,
-  "message": "Magic link sent to your email"
+  "message": "Account creation magic link sent successfully",
+  "email": "user@example.com", 
+  "is_signup": true,
+  "rate_limit_remaining": 9,
+  "rate_limit_reset_at": "2025-09-03T07:35:57.354Z"
 }
 ```
 
-### Verify Magic Link
+**Response (Rate Limited)**:
+```json
+{
+  "error": "Too many requests from this IP address. Please try again at 6:36:38 AM.",
+  "message": "MAGIC_LINK_CREATION_FAILED",
+  "details": {
+    "correlation_id": "abc123"
+  },
+  "show_details": true
+}
+```
+
+#### Consume Magic Link
 
 ```http
-POST /api/auth/verify-magic-link
+POST /api/auth/consume
 Content-Type: application/json
 
 {
-  "token": "64-character-hex-token"
+  "token": "59d43b84a0fef00fac697f653591dc5abe91935551bbbd0933e5f1b70fcad321"
 }
 ```
 
-**Response**:
+**Response (Account Creation)**:
 ```json
 {
   "success": true,
+  "message": "Account created successfully",
   "user": {
-    "uuid": "user-uuid",
-    "email": "user@example.com",
-    "emailVerified": true
+    "uuid": "4571d949-6497-4894-9c42-5258a20b2b58",
+    "email": "placeholder@example.com",
+    "created_at": "2025-09-03T06:36:33.314Z",
+    "email_verified_at": "2025-09-03T06:36:33.314Z"
   },
-  "uuidReplaced": false
+  "session": {
+    "token": "ee791a3255cb21ae5996430b0e9830fb597441232231aaea4cfe1d59c7a4e880",
+    "expires_at": ""
+  },
+  "uuid_replaced": false,
+  "is_new_account": true
 }
 ```
 
-### Logout
+**Response (Login)**:
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "user": {
+    "uuid": "existing-user-uuid",
+    "email": "user@example.com",
+    "created_at": "2025-09-01T12:00:00.000Z",
+    "last_login": "2025-09-03T06:36:33.314Z",
+    "email_verified_at": "2025-09-01T12:05:00.000Z"
+  },
+  "session": {
+    "token": "session-token-hash",
+    "expires_at": "2025-09-10T06:36:33.314Z"
+  },
+  "uuid_replaced": true,
+  "is_new_account": false
+}
+```
+
+#### Authentication Status
+
+```http
+GET /api/auth/status
+```
+
+**Response (Authenticated)**:
+```json
+{
+  "user_token": "4571d949-6497-4894-9c42-5258a20b2b58",
+  "is_authenticated": true,
+  "is_anonymous": false,
+  "user": {
+    "uuid": "4571d949-6497-4894-9c42-5258a20b2b58",
+    "email": "user@example.com",
+    "created_at": "2025-09-03T06:36:33.314Z",
+    "last_login": "2025-09-03T06:36:33.314Z",
+    "email_verified_at": "2025-09-03T06:36:33.314Z",
+    "status": "active"
+  },
+  "session": {
+    "token": "session-token-hash",
+    "expires_at": "2025-09-10T06:36:33.314Z",
+    "created_at": "2025-09-03T06:36:33.314Z"
+  }
+}
+```
+
+**Response (Anonymous)**:
+```json
+{
+  "user_token": "d063bcd3-6901-4b14-a2b1-1657bba2238a",
+  "is_authenticated": false,
+  "is_anonymous": true,
+  "user": null,
+  "session": null
+}
+```
+
+#### Logout
 
 ```http
 POST /api/auth/logout
@@ -245,27 +486,232 @@ POST /api/auth/logout
 ```json
 {
   "success": true,
-  "newToken": "new-anonymous-uuid"
+  "message": "Logged out successfully",
+  "new_anonymous_token": "new-uuid-v4-token"
 }
 ```
 
-### Authentication Status
+### Error Response Format
 
-```http
-GET /api/auth/status
-```
+All authentication endpoints use progressive error disclosure:
 
-**Response**:
 ```json
 {
-  "isAuthenticated": true,
-  "user": {
-    "uuid": "user-uuid",
-    "email": "user@example.com",
-    "emailVerified": true
-  }
+  "error": "Human-readable error message",
+  "message": "ERROR_CODE_FOR_PROGRAMMATIC_HANDLING", 
+  "details": {
+    "correlation_id": "unique-request-id",
+    "additional_context": "if_applicable"
+  },
+  "show_details": true
 }
 ```
+
+### Frontend URL Integration
+
+Magic links are generated with the correct frontend path:
+
+```
+https://art.abluestar.com/verify?token={64-character-hex-token}
+```
+
+The frontend Vue router handles the `/verify` route to process magic link tokens.
+
+## Database Schema and Migrations
+
+### Current Schema (Migration 005)
+
+The authentication system uses the following tables in the Cloudflare D1 database:
+
+#### `users` Table
+```sql
+CREATE TABLE users (
+    uuid TEXT PRIMARY KEY,              -- User's claimed UUID token (UUID v4)
+    email TEXT UNIQUE NOT NULL,         -- User's email address
+    created_at TEXT NOT NULL,           -- Account creation timestamp (ISO 8601)
+    last_login TEXT,                    -- Last login timestamp
+    email_verified_at TEXT,             -- Email verification timestamp
+    status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'suspended'))
+);
+
+-- Indexes for efficient queries
+CREATE UNIQUE INDEX idx_users_email ON users(email);
+CREATE INDEX idx_users_status ON users(status);
+CREATE INDEX idx_users_created_at ON users(created_at);
+```
+
+#### `magic_links` Table
+```sql
+CREATE TABLE magic_links (
+    token TEXT PRIMARY KEY,             -- 64-character hex token (32 secure bytes)
+    email TEXT NOT NULL,                -- Target email address
+    user_uuid TEXT,                     -- Associated user UUID (NULL for signup)
+    created_at TEXT NOT NULL,           -- Token generation timestamp
+    expires_at TEXT NOT NULL,           -- Token expiration (1 hour from creation)
+    used_at TEXT,                       -- Token consumption timestamp (NULL if unused)
+    ip_address TEXT,                    -- Client IP address for audit
+    user_agent TEXT,                    -- Client user agent for audit
+    is_signup BOOLEAN NOT NULL DEFAULT 0,  -- Account creation vs login flag
+    
+    -- Constraints
+    CONSTRAINT magic_link_token_length CHECK (length(token) >= 64),
+    CONSTRAINT magic_link_expires_valid CHECK (expires_at > created_at),
+    CONSTRAINT magic_link_used_valid CHECK (used_at IS NULL OR used_at >= created_at),
+    
+    -- Foreign key relationship
+    FOREIGN KEY (user_uuid) REFERENCES users(uuid) ON DELETE CASCADE
+);
+
+-- Indexes for queries and cleanup
+CREATE INDEX idx_magic_links_email ON magic_links(email);
+CREATE INDEX idx_magic_links_expires_at ON magic_links(expires_at);
+CREATE INDEX idx_magic_links_used_at ON magic_links(used_at);
+CREATE INDEX idx_magic_links_created_at ON magic_links(created_at);
+```
+
+#### `rate_limiting` Table
+```sql
+CREATE TABLE rate_limiting (
+    identifier TEXT NOT NULL,           -- Email address or IP address
+    identifier_type TEXT NOT NULL CHECK (identifier_type IN ('email', 'ip')),
+    request_count INTEGER NOT NULL DEFAULT 0,      -- Requests in current window
+    window_start TEXT NOT NULL,         -- Rate limit window start timestamp
+    last_request_at TEXT NOT NULL,      -- Last request timestamp
+    blocked_until TEXT,                 -- Block expiration time (NULL if not blocked)
+    
+    -- Composite primary key for identifier + type
+    PRIMARY KEY (identifier, identifier_type)
+);
+
+-- Indexes for rate limit queries
+CREATE INDEX idx_rate_limiting_blocked_until ON rate_limiting(blocked_until);
+CREATE INDEX idx_rate_limiting_window_start ON rate_limiting(window_start);
+```
+
+#### `auth_sessions` Table
+```sql
+CREATE TABLE auth_sessions (
+    id TEXT PRIMARY KEY,                -- Session UUID
+    user_uuid TEXT NOT NULL,            -- Associated user UUID
+    token_hash TEXT NOT NULL UNIQUE,    -- SHA-256 hash of session token
+    created_at TEXT NOT NULL,           -- Session creation timestamp
+    last_accessed_at TEXT NOT NULL,     -- Last access timestamp
+    expires_at TEXT,                    -- Session expiration (NULL = no expiry)
+    ip_address TEXT,                    -- Client IP address
+    user_agent TEXT,                    -- Client user agent
+    is_active BOOLEAN NOT NULL DEFAULT 1,   -- Session status
+    device_info TEXT,                   -- JSON device information
+    
+    -- Foreign key relationship
+    FOREIGN KEY (user_uuid) REFERENCES users(uuid) ON DELETE CASCADE,
+    
+    -- Constraints
+    CONSTRAINT session_expires_valid CHECK (expires_at IS NULL OR expires_at > created_at)
+);
+
+-- Indexes for session management
+CREATE INDEX idx_auth_sessions_user_uuid ON auth_sessions(user_uuid);
+CREATE INDEX idx_auth_sessions_token_hash ON auth_sessions(token_hash);
+CREATE INDEX idx_auth_sessions_expires_at ON auth_sessions(expires_at);
+CREATE INDEX idx_auth_sessions_is_active ON auth_sessions(is_active);
+```
+
+### Migration Commands
+
+To apply the authentication schema:
+
+```bash
+# Apply the authentication migration
+cd migrations
+npx wrangler d1 execute cultural-archiver --remote --file=005_authentication_tables.sql
+
+# Verify tables were created
+npx wrangler d1 execute cultural-archiver --remote --command="SELECT name FROM sqlite_master WHERE type='table' AND name LIKE 'auth_%' OR name IN ('users', 'magic_links', 'rate_limiting');"
+```
+
+### Data Relationships
+
+```
+users (1) ←→ (many) magic_links
+users (1) ←→ (many) auth_sessions
+rate_limiting (independent)
+```
+
+**Key Relationships:**
+- One user can have multiple magic links (for login attempts)
+- One user can have multiple active sessions (cross-device)
+- Rate limiting is independent and tracks by email/IP
+- Magic links reference users for existing accounts (user_uuid NOT NULL)
+- Magic links for signup have user_uuid = NULL initially
+
+### Data Cleanup
+
+The system includes automatic cleanup for:
+
+**Expired Magic Links:**
+```sql
+DELETE FROM magic_links 
+WHERE expires_at < datetime('now') 
+   OR used_at IS NOT NULL;
+```
+
+**Expired Sessions:**
+```sql
+DELETE FROM auth_sessions 
+WHERE expires_at IS NOT NULL 
+  AND expires_at < datetime('now');
+```
+
+**Old Rate Limit Records:**
+```sql
+DELETE FROM rate_limiting 
+WHERE window_start < datetime('now', '-2 hours')
+  AND blocked_until IS NULL;
+```
+
+### Recent Changes (September 2025)
+
+**Rate Limits Doubled:**
+- Email rate limit: 5 → 10 requests per hour
+- IP rate limit: 10 → 20 requests per hour
+- Deployed successfully with Version ID: `edd24938-2238-495c-95d7-4bd2c6ca6031`
+
+**URL Path Fixed:**
+- Magic link URLs now use `/verify` instead of `/auth/verify`
+- Matches Vue.js frontend router configuration
+- Eliminates 404 errors on magic link clicks
+
+**MailChannels Integration:**
+- DNS records configured on `funvill.com`
+- Email Routing enabled in Cloudflare dashboard
+- Fallback system logs to console when MailChannels fails
+- Production deployment successful with Version ID: `8754c89d-039a-4d8e-a86d-71215e83ffe5`
+
+### Monitoring and Maintenance
+
+**Key Metrics to Monitor:**
+- Magic link delivery success rate (MailChannels API responses)
+- Token verification success rate
+- Rate limiting effectiveness (blocked vs allowed requests)
+- Session creation and cleanup rates
+- Authentication error rates and correlation IDs
+
+**Regular Maintenance:**
+- Clean up expired magic links and sessions
+- Monitor rate limiting patterns for abuse
+- Review authentication logs for anomalies
+- Update DNS records if domain changes
+- Test magic link flow after deployments
+
+### Security Considerations
+
+- Never log magic link tokens in production
+- Use HTTPS for all authentication endpoints
+- Implement proper CORS policies for frontend integration
+- Monitor for authentication anomalies and suspicious patterns
+- Regular security audits of token generation and validation
+- Email provider security is dependent on user's email service
+- MailChannels provides transport security but email content security varies by recipient
 
 ## Testing
 
