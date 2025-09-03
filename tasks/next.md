@@ -22,7 +22,7 @@ All artworks have the following fixed fields
 - Photos - A series of photos for this artwork. (Can't be edited by users)
 - Tags/keywords - A series of comma separated keywords. That can be used for searching.
 
-An artwork also has variable fields. These fields may or may not exist on each artwork. These fields are Key/Value. Some of the key/value variable fields will have enumerated values, while others are text fields. Examples: Artwork type: tiny library, street art, painting, monument, statue, etc...
+An artwork also has variable fields. These fields may or may not exist on each artwork. These fields are Key/Value. Some of the key/value variable fields will have enumerated values, while others are text fields. Examples: Artwork type: murals, sculptures, memorials, mosaics, tapestries, paintings, etc...
 
 The user needs a method for updating the information about a artwork. The moderators need the ability to approve or reject these changes to the artwork. Only logged in users only can edit information about artworks.
 
@@ -77,7 +77,10 @@ Example data sets:
 
 5) Add a FAQ section to the help page.
 
-
-
 ## Search page
 
+## Find partners
+
+Find people that would be willing to partner with me on this project. Be specific and say that you are NOT looking for monetary support but are looking for in-kind support. Advertisement, recommendations, etc.
+
+- Burrard Arts Foundation, Centre for Digital Media students. They spondered a simlare project in the past. https://intergalactic.com/content/muse-public-art-app?utm_source=chatgpt.com
