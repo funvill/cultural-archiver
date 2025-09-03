@@ -18,7 +18,7 @@ import {
 } from './audit';
 
 // Mock D1Database for testing
-const createMockDB = () => {
+const createMockDB = (): D1Database => {
   const mockDB = {
     prepare: vi.fn(),
   };
@@ -26,7 +26,7 @@ const createMockDB = () => {
 };
 
 // Mock Hono Context for testing
-const createMockContext = (headers: Record<string, string> = {}) => {
+const createMockContext = (headers: Record<string, string> = {}): Context => {
   return {
     req: {
       header: vi.fn().mockReturnValue(headers),

@@ -4,7 +4,7 @@ import AuthModal from '../AuthModal.vue'
 
 // Mock the composables
 vi.mock('../../composables/useAuth', () => ({
-  useAuth: () => ({
+  useAuth: (): any => ({
     requestMagicLink: vi.fn().mockResolvedValue({ success: true }),
     isLoading: { value: false },
     error: { value: null },
