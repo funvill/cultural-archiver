@@ -73,15 +73,23 @@ describe('AdminView', () => {
   })
 
   const createWrapper = (adminAccess = true) => {
-    // Mock admin access
-    authStore.isAdmin = adminAccess
+    // Mock admin access by setting permissions
+    if (adminAccess) {
+      authStore.permissions = ['admin', 'moderator']
+    } else {
+      authStore.permissions = []
+    }
     
     return mount(AdminView, {
       global: {
         plugins: [pinia],
         stubs: {
-          PermissionManager: true,
-          AuditLogViewer: true,
+          PermissionManager: {
+            template: '<div data-testid="permission-manager">Permission Manager</div>'
+          },
+          AuditLogViewer: {
+            template: '<div data-testid="audit-log-viewer">Audit Log Viewer</div>'
+          },
         },
       },
     })
@@ -134,6 +142,9 @@ describe('AdminView', () => {
     })
 
     it('should handle loading errors gracefully', async () => {
+      // Mock console.error to suppress expected error
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      
       const mockError = new Error('Failed to load statistics')
       vi.mocked(adminService.getStatistics).mockRejectedValue(mockError)
 
@@ -143,6 +154,8 @@ describe('AdminView', () => {
 
       expect(wrapper.text()).toContain('Error loading admin dashboard')
       expect(wrapper.text()).toContain('Failed to load statistics')
+      
+      consoleSpy.mockRestore()
     })
   })
 
@@ -159,11 +172,16 @@ describe('AdminView', () => {
     })
 
     it('should switch to audit logs tab when clicked', async () => {
-      const auditTab = wrapper.find('button').filter((button: any) => 
-        button.text() === 'Audit Logs'
-      )[0]
+      const buttons = wrapper.findAll('button')
+      const auditTab = buttons.find(button => button.text().includes('Audit Logs'))
+      
+      if (!auditTab) {
+        console.log('Available buttons:', buttons.map(b => b.text()))
+        throw new Error('Audit Logs tab not found')
+      }
       
       await auditTab.trigger('click')
+      await wrapper.vm.$nextTick()
 
       expect(wrapper.vm.activeTab).toBe('audit')
       expect(wrapper.find('[data-testid="audit-log-viewer"]').exists()).toBe(true)
@@ -171,15 +189,17 @@ describe('AdminView', () => {
 
     it('should switch back to permissions tab', async () => {
       // First switch to audit tab
-      const auditTab = wrapper.find('button').filter((button: any) => 
-        button.text() === 'Audit Logs'
-      )[0]
-      await auditTab.trigger('click')
+      const buttons = wrapper.findAll('button')
+      const auditTab = buttons.find(button => button.text().includes('Audit Logs'))
+      if (auditTab) {
+        await auditTab.trigger('click')
+      }
 
       // Then switch back to permissions
-      const permissionsTab = wrapper.find('button').filter((button: any) => 
-        button.text() === 'Permission Management'
-      )[0]
+      const permissionsTab = buttons.find(button => button.text().includes('Permission Management'))
+      if (!permissionsTab) {
+        throw new Error('Permission Management tab not found')
+      }
       await permissionsTab.trigger('click')
 
       expect(wrapper.vm.activeTab).toBe('permissions')
@@ -197,9 +217,12 @@ describe('AdminView', () => {
     it('should refresh data when refresh button is clicked', async () => {
       vi.clearAllMocks()
 
-      const refreshButton = wrapper.find('button').filter((button: any) => 
-        button.text().includes('Refresh')
-      )[0]
+      const buttons = wrapper.findAll('button')
+      const refreshButton = buttons.find(button => button.text().includes('Refresh'))
+      
+      if (!refreshButton) {
+        throw new Error('Refresh button not found')
+      }
       
       await refreshButton.trigger('click')
 
@@ -212,9 +235,12 @@ describe('AdminView', () => {
         () => new Promise(resolve => setTimeout(() => resolve(mockStatistics), 100))
       )
 
-      const refreshButton = wrapper.find('button').filter((button: any) => 
-        button.text().includes('Refresh')
-      )[0]
+      const buttons = wrapper.findAll('button')
+      const refreshButton = buttons.find(button => button.text().includes('Refresh'))
+      
+      if (!refreshButton) {
+        throw new Error('Refresh button not found')
+      }
       
       await refreshButton.trigger('click')
 
@@ -278,6 +304,9 @@ describe('AdminView', () => {
 
   describe('Error Handling', () => {
     it('should display network error messages', async () => {
+      // Mock console.error to suppress expected error
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      
       const networkError = new Error('Network request failed')
       vi.mocked(adminService.getStatistics).mockRejectedValue(networkError)
 
@@ -286,9 +315,14 @@ describe('AdminView', () => {
       await new Promise(resolve => setTimeout(resolve, 0))
 
       expect(wrapper.text()).toContain('Network request failed')
+      
+      consoleSpy.mockRestore()
     })
 
     it('should display generic error for unknown errors', async () => {
+      // Mock console.error to suppress expected error
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      
       vi.mocked(adminService.getStatistics).mockRejectedValue('Unknown error')
 
       wrapper = createWrapper(true)
@@ -296,6 +330,8 @@ describe('AdminView', () => {
       await new Promise(resolve => setTimeout(resolve, 0))
 
       expect(wrapper.text()).toContain('Failed to load admin dashboard')
+      
+      consoleSpy.mockRestore()
     })
   })
 });

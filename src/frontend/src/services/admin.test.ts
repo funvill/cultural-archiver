@@ -77,9 +77,7 @@ describe('AdminService', () => {
 
       await adminService.getUserPermissions(filters);
 
-      expect(apiService.getAdminPermissions).toHaveBeenCalledWith(
-        '/api/admin/permissions?permission=admin&search=test%40example.com&page=1&per_page=20'
-      );
+      expect(apiService.getAdminPermissions).toHaveBeenCalledWith('admin');
     });
 
     it('should handle API errors when fetching permissions', async () => {
@@ -110,7 +108,7 @@ describe('AdminService', () => {
 
       const result = await adminService.grantPermission(request);
 
-      expect(apiService.grantAdminPermission).toHaveBeenCalledWith('/api/admin/permissions/grant', request);
+      expect(apiService.grantAdminPermission).toHaveBeenCalledWith(request);
       expect(result).toEqual(mockResponse);
     });
 
@@ -146,7 +144,7 @@ describe('AdminService', () => {
 
       const result = await adminService.revokePermission(request);
 
-      expect(apiService.grantAdminPermission).toHaveBeenCalledWith('/api/admin/permissions/revoke', request);
+      expect(apiService.revokeAdminPermission).toHaveBeenCalledWith(request);
       expect(result).toEqual(mockResponse);
     });
 
@@ -189,7 +187,7 @@ describe('AdminService', () => {
 
       const result = await adminService.getAuditLogs();
 
-      expect(apiService.getAdminPermissions).toHaveBeenCalledWith('/api/admin/audit');
+      expect(apiService.getAdminAuditLogs).toHaveBeenCalledWith({});
       expect(result).toEqual(mockResponse);
     });
 
@@ -216,14 +214,20 @@ describe('AdminService', () => {
 
       await adminService.getAuditLogs(query);
 
-      expect(apiService.getAdminPermissions).toHaveBeenCalledWith(
-        '/api/admin/audit?type=admin&actor=admin-1&action_type=grant_permission&start_date=2025-01-01T00%3A00%3A00Z&end_date=2025-01-03T23%3A59%3A59Z&page=1&limit=25'
-      );
+      expect(apiService.getAdminAuditLogs).toHaveBeenCalledWith({
+        type: 'admin',
+        actor: 'admin-1',
+        action_type: 'grant_permission',
+        start_date: '2025-01-01T00:00:00Z',
+        end_date: '2025-01-03T23:59:59Z',
+        page: '1',
+        limit: '25'
+      });
     });
 
     it('should handle errors when fetching audit logs', async () => {
       const mockError = new Error('Access denied');
-      vi.mocked(apiService.getAdminPermissions).mockRejectedValue(mockError);
+      vi.mocked(apiService.getAdminAuditLogs).mockRejectedValue(mockError);
 
       await expect(adminService.getAuditLogs()).rejects.toThrow('Access denied');
     });
@@ -253,11 +257,11 @@ describe('AdminService', () => {
         },
       };
 
-      vi.mocked(apiService.getAdminPermissions).mockResolvedValue(mockResponse);
+      vi.mocked(apiService.getAdminStatistics).mockResolvedValue(mockResponse);
 
       const result = await adminService.getStatistics();
 
-      expect(apiService.getAdminPermissions).toHaveBeenCalledWith('/api/admin/statistics?days=30');
+      expect(apiService.getAdminStatistics).toHaveBeenCalledWith(30);
       expect(result).toEqual(mockResponse);
     });
 
