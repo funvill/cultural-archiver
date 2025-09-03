@@ -61,3 +61,42 @@ global.ResizeObserver = vi.fn().mockImplementation(() => ({
   disconnect: vi.fn(),
   unobserve: vi.fn(),
 }))
+
+// Mock fetch API for API service tests
+global.fetch = vi.fn().mockImplementation((url: string) => {
+  // Return different responses based on URL
+  if (url.includes('/status')) {
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      statusText: 'OK',
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: vi.fn().mockResolvedValue({ token: 'mock-token-123' }),
+      text: vi.fn().mockResolvedValue('{"token":"mock-token-123"}'),
+      url: url,
+      clone: vi.fn()
+    } as unknown as Response)
+  }
+  
+  // Default response
+  return Promise.resolve({
+    ok: true,
+    status: 200,
+    statusText: 'OK',
+    headers: new Headers({ 'content-type': 'application/json' }),
+    json: vi.fn().mockResolvedValue({}),
+    text: vi.fn().mockResolvedValue('{}'),
+    url: url,
+    clone: vi.fn()
+  } as unknown as Response)
+})
+
+// Mock import.meta.env for API configuration
+Object.defineProperty(import.meta, 'env', {
+  value: {
+    PROD: false,
+    MODE: 'test',
+    VITE_API_TIMEOUT: '30000'
+  },
+  writable: true
+})

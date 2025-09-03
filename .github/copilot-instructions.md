@@ -1,7 +1,12 @@
 # GitHub Copilot Instructions
 
+## Very important, Read and understand these first. 
+
 - Developed on a Windows computer using PowerShell. Commands should be PowerShell compliant.
 - Use Playwright-MCP over simple browser tools when available.
+- When starting a devlopment server for testing, use `npm run dev` in the project root to start the frontend and backend test servers. 
+- All unit tests must pass. Run `npm run test` in the project root.
+- Build must work `npm run build`. 
 
 ## Project Overview
 
@@ -462,7 +467,3 @@ The database uses four main tables:
 
 When working on this project, always consider the MVP requirements: simple submission workflow, efficient spatial queries, and moderation-friendly status management.
 
-## Other instructions
-
-- Steven's Rules - .github\instructions\steven.instructions.md
-- Typescript's Best pratices - .github\instructions\typescript.instructions.md

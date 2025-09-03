@@ -327,7 +327,7 @@ export const apiService = {
   /**
    * Get artwork details by ID
    */
-  async getArtworkDetails(id: string): Promise<ApiResponse<ArtworkDetails>> {
+  async getArtworkDetails(id: string): Promise<ArtworkDetails> {
     return client.get(`/artworks/${id}`)
   },
 
