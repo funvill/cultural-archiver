@@ -19,7 +19,7 @@ import {
 import type { AuthContext } from '../types';
 
 // Mock D1Database for testing
-const createMockDB = () => {
+const createMockDB = (): D1Database => {
   const mockDB = {
     prepare: vi.fn(),
     exec: vi.fn(),

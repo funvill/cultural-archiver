@@ -12,12 +12,13 @@
 
 Cultural Archiver is a **production-ready** crowdsourced public art mapping application built with:
 
+
 - **Frontend**: Vue 3 + TypeScript + Tailwind CSS + Vite deployed as Cloudflare Worker with static assets (WCAG AA compliant, 82 unit tests passing)
 - **Backend**: Cloudflare Workers + TypeScript + Hono framework (170+ tests with some failures)  
 - **Database**: SQLite (Cloudflare D1) with spatial indexing
 - **Storage**: Cloudflare R2 for photo processing pipeline
 - **State**: Pinia stores with reactive TypeScript interfaces
-- **Testing**: Comprehensive unit test suite with mocked API services (82 frontend tests across 9 test files)
+- **Testing**: Comprehensive unit test suite with mocked API services (261 total tests across 19 test files)
 - **Quality**: Type-safe codebase with active ESLint configuration, enhanced error handling
 
 ## Deployment Architecture

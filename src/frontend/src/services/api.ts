@@ -4,23 +4,118 @@
  */
 
 import type {
-  LogbookSubmission,
-  ArtworkDetails,
-  UserSubmission,
-  UserProfile,
-  ReviewQueueItem,
-  ReviewStats,
+  // LogbookSubmission,
+  // ArtworkDetails,
+  // UserSubmission,
+  // UserProfile,
+  // ReviewQueueItem,
+  // ReviewStats,
   MagicLinkRequest,
-  MagicLinkConsumeRequest,
+  // MagicLinkConsumeRequest,
   ConsumeMagicLinkResponse,
-  VerificationStatus,
+  // VerificationStatus,
   ApiResponse,
   PaginatedResponse,
   StatusResponse,
   SubmissionResponse,
+  GetPermissionsResponse,
+  GrantPermissionRequest,
+  RevokePermissionRequest,
+  PermissionResponse,
+  AuditLogQuery,
+  AuditLogsResponse,
+  AuditStatistics,
   NearbyArtworksResponse,
-} from '../types'
+  LogbookEntryWithPhotos,
+  NearbyArtworkInfo,
+} from '../../../shared/types'
 import { getApiBaseUrl } from '../utils/api-config'
+
+// Local type definitions for missing shared types
+interface LogbookSubmission {
+  lat: number
+  lon: number
+  note?: string
+  type?: string
+  artworkId?: string
+  photos: File[]
+}
+
+interface ArtworkDetails {
+  id: string
+  lat: number
+  lon: number
+  type_id: string
+  created_at: string
+  status: 'pending' | 'approved' | 'removed'
+  tags: string | null
+  photos: string[]
+  type_name: string
+  logbook_entries: LogbookEntryWithPhotos[]
+  tags_parsed: Record<string, string>
+}
+
+interface UserSubmission {
+  id: string
+  artwork_id: string | null
+  user_token: string
+  note: string | null
+  photos: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  artwork_lat?: number
+  artwork_lon?: number
+  artwork_type_name?: string
+  photos_parsed: string[]
+}
+
+interface UserProfile {
+  user_token: string
+  total_submissions: number
+  approved_submissions: number
+  pending_submissions: number
+  rejected_submissions: number
+  created_at: string
+  email_verified: boolean
+  email?: string
+}
+
+interface ReviewQueueItem {
+  id: string
+  lat: number
+  lon: number
+  note: string | null
+  photos: string[]
+  type?: string
+  status: 'pending' | 'approved' | 'rejected'
+  created_at: string
+  user_token: string
+  nearby_artworks?: NearbyArtworkInfo[]
+}
+
+interface ReviewStats {
+  total_pending: number
+  total_approved: number
+  total_rejected: number
+  pending_by_type: Record<string, number>
+  recent_activity: Array<{
+    date: string
+    approved: number
+    rejected: number
+  }>
+}
+
+interface MagicLinkConsumeRequest {
+  token: string
+}
+
+interface VerificationStatus {
+  email_verified: boolean
+  email?: string
+  verification_sent_at?: string
+}
+
+
 
 // Configuration
 const API_BASE_URL = getApiBaseUrl()
@@ -265,7 +360,8 @@ export const apiService = {
     return {
       data: { token },
       message: 'Token generated successfully',
-      success: true
+      success: true,
+      timestamp: new Date().toISOString()
     }
   },
 
@@ -296,7 +392,7 @@ export const apiService = {
     }
 
     // Add photo files
-    submission.photos.forEach((photo) => {
+    submission.photos.forEach((photo: File) => {
       formData.append(`photos`, photo)
     })
 
@@ -460,7 +556,8 @@ export const apiService = {
     
     return {
       success: true,
-      data: verificationStatus
+      data: verificationStatus,
+      timestamp: new Date().toISOString()
     }
   },
 
@@ -535,7 +632,7 @@ export const apiService = {
   /**
    * Get users with permissions
    */
-  async getAdminPermissions(permission?: string): Promise<ApiResponse<any>> {
+  async getAdminPermissions(permission?: string): Promise<ApiResponse<GetPermissionsResponse>> {
     const params: Record<string, string> = {}
     if (permission) {
       params.permission = permission
@@ -546,28 +643,39 @@ export const apiService = {
   /**
    * Grant permission to user
    */
-  async grantAdminPermission(request: any): Promise<ApiResponse<any>> {
+  async grantAdminPermission(request: GrantPermissionRequest): Promise<ApiResponse<PermissionResponse>> {
     return client.post('/admin/permissions/grant', request)
   },
 
   /**
    * Revoke permission from user
    */
-  async revokeAdminPermission(request: any): Promise<ApiResponse<any>> {
+  async revokeAdminPermission(request: RevokePermissionRequest): Promise<ApiResponse<PermissionResponse>> {
     return client.post('/admin/permissions/revoke', request)
   },
 
   /**
    * Get audit logs
    */
-  async getAdminAuditLogs(filters: Record<string, string>): Promise<ApiResponse<any>> {
-    return client.get('/admin/audit', filters)
+  async getAdminAuditLogs(filters: AuditLogQuery): Promise<ApiResponse<AuditLogsResponse>> {
+    const params: Record<string, string> = {}
+    
+    if (filters.type) params.type = filters.type
+    if (filters.actor) params.actor = filters.actor
+    if (filters.decision) params.decision = filters.decision
+    if (filters.action_type) params.action_type = filters.action_type
+    if (filters.startDate) params.startDate = filters.startDate
+    if (filters.endDate) params.endDate = filters.endDate
+    if (filters.page) params.page = filters.page.toString()
+    if (filters.limit) params.limit = filters.limit.toString()
+    
+    return client.get('/admin/audit', params)
   },
 
   /**
    * Get admin statistics
    */
-  async getAdminStatistics(days: number = 30): Promise<ApiResponse<any>> {
+  async getAdminStatistics(days: number = 30): Promise<ApiResponse<AuditStatistics>> {
     return client.get('/admin/statistics', { days: days.toString() })
   }
 }
