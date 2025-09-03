@@ -236,13 +236,14 @@ export class DatabaseService {
     return result ? (result as unknown as LogbookRecord) : null;
   }
 
-  async getLogbookEntriesForArtwork(artworkId: string): Promise<LogbookRecord[]> {
+  async getLogbookEntriesForArtwork(artworkId: string, limit: number = 10, offset: number = 0): Promise<LogbookRecord[]> {
     const stmt = this.db.prepare(`
       SELECT * FROM logbook 
       WHERE artwork_id = ? AND status = 'approved'
       ORDER BY created_at DESC
+      LIMIT ? OFFSET ?
     `);
-    const results = await stmt.bind(artworkId).all();
+    const results = await stmt.bind(artworkId, limit, offset).all();
     return results.results as unknown as LogbookRecord[];
   }
 

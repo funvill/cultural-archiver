@@ -40,14 +40,14 @@
   - [x] 1.6 Write unit tests for creator database functions
   - [x] 1.7 Run migration and test with sample creator data
 
-- [ ] 2.0 Backend API Enhancement for Artwork Details
-  - [ ] 2.1 Extend `ArtworkDetailResponse` type to include creator information and parsed metadata
-  - [ ] 2.2 Update discovery route in `src/workers/routes/discovery.ts` to fetch creator data
-  - [ ] 2.3 Add logic to aggregate logbook entries with pagination support (10 per page)
-  - [ ] 2.4 Implement tag parsing and organization logic for metadata display
-  - [ ] 2.5 Add creator name aggregation for comma-separated display format
-  - [ ] 2.6 Handle data conflict resolution (most recent approved entry logic)
-  - [ ] 2.7 Write integration tests for enhanced artwork detail endpoint
+- [x] 2.0 Backend API Enhancement for Artwork Details
+  - [x] 2.1 Extend `ArtworkDetailResponse` type to include creator information and parsed metadata
+  - [x] 2.2 Update discovery route in `src/workers/routes/discovery.ts` to fetch creator data
+  - [x] 2.3 Add logic to aggregate logbook entries with pagination support (10 per page)
+  - [x] 2.4 Implement tag parsing and organization logic for metadata display
+  - [x] 2.5 Add creator name aggregation for comma-separated display format
+  - [x] 2.6 Handle data conflict resolution (most recent approved entry logic)
+  - [x] 2.7 Write integration tests for enhanced artwork detail endpoint
 
 - [ ] 3.0 Frontend Component Development
   - [ ] 3.1 Create `PhotoCarousel.vue` component with left/right navigation and keyboard support

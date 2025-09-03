@@ -11,6 +11,7 @@ import type {
   ArtworkWithPhotos,
   LogbookEntryWithPhotos,
   NearbyArtworksResponse,
+  ArtworkCreatorInfo,
 } from '../types';
 import { DEFAULT_SEARCH_RADIUS } from '../types';
 import { createDatabaseService } from '../lib/database';
@@ -101,7 +102,7 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
 
 /**
  * GET /api/artworks/:id - Artwork Details
- * Returns complete artwork details with logbook timeline
+ * Returns complete artwork details with creators and paginated logbook timeline
  */
 export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const artworkId = c.req.param('id');
@@ -109,6 +110,11 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
   if (!artworkId) {
     throw new NotFoundError('Artwork', 'ID parameter missing');
   }
+
+  // Get pagination parameters
+  const page = parseInt(c.req.query('page') || '1', 10);
+  const perPage = parseInt(c.req.query('per_page') || '10', 10);
+  const offset = (page - 1) * perPage;
 
   const db = createDatabaseService(c.env.DB);
 
@@ -120,8 +126,11 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       throw new NotFoundError('Artwork', artworkId);
     }
 
-    // Get logbook entries for timeline
-    const logbookEntries = await db.getLogbookEntriesForArtwork(artworkId);
+    // Get creators for this artwork
+    const creators: ArtworkCreatorInfo[] = await db.getCreatorsForArtwork(artworkId);
+
+    // Get logbook entries for timeline with pagination
+    const logbookEntries = await db.getLogbookEntriesForArtwork(artworkId, perPage, offset);
 
     // Format logbook entries with parsed photos
     const logbookEntriesWithPhotos: LogbookEntryWithPhotos[] = logbookEntries.map(entry => ({
@@ -144,6 +153,7 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       photos: allPhotos,
       logbook_entries: logbookEntriesWithPhotos,
       tags_parsed: tagsParsed,
+      creators: creators,
     };
 
     return c.json(createSuccessResponse(response));
