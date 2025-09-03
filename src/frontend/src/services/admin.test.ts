@@ -17,8 +17,11 @@ import type {
 // Mock the API service
 vi.mock('./api', () => ({
   apiService: {
-    get: vi.fn(),
-    post: vi.fn(),
+    getAdminPermissions: vi.fn(),
+    grantAdminPermission: vi.fn(),
+    revokeAdminPermission: vi.fn(),
+    getAdminAuditLogs: vi.fn(),
+    getAdminStatistics: vi.fn(),
   },
 }));
 
@@ -47,11 +50,11 @@ describe('AdminService', () => {
         total: 1,
       };
 
-      vi.mocked(apiService.get).mockResolvedValue(mockResponse);
+      vi.mocked(apiService.getAdminPermissions).mockResolvedValue(mockResponse);
 
       const result = await adminService.getUserPermissions();
 
-      expect(apiService.get).toHaveBeenCalledWith('/api/admin/permissions');
+      expect(apiService.getAdminPermissions).toHaveBeenCalledWith(undefined);
       expect(result).toEqual(mockResponse);
     });
 
@@ -63,7 +66,7 @@ describe('AdminService', () => {
         per_page: 20,
       };
 
-      vi.mocked(apiService.get).mockResolvedValue(mockResponse);
+      vi.mocked(apiService.getAdminPermissions).mockResolvedValue(mockResponse);
 
       const filters = {
         permission: 'admin' as const,
@@ -74,14 +77,14 @@ describe('AdminService', () => {
 
       await adminService.getUserPermissions(filters);
 
-      expect(apiService.get).toHaveBeenCalledWith(
+      expect(apiService.getAdminPermissions).toHaveBeenCalledWith(
         '/api/admin/permissions?permission=admin&search=test%40example.com&page=1&per_page=20'
       );
     });
 
     it('should handle API errors when fetching permissions', async () => {
       const mockError = new Error('Permission denied');
-      vi.mocked(apiService.get).mockRejectedValue(mockError);
+      vi.mocked(apiService.getAdminPermissions).mockRejectedValue(mockError);
 
       await expect(adminService.getUserPermissions()).rejects.toThrow('Permission denied');
     });
@@ -97,7 +100,7 @@ describe('AdminService', () => {
         granted_by: 'admin-1',
       };
 
-      vi.mocked(apiService.post).mockResolvedValue(mockResponse);
+      vi.mocked(apiService.grantAdminPermission).mockResolvedValue(mockResponse);
 
       const request: GrantPermissionRequest = {
         userUuid: 'user-1',
@@ -107,13 +110,13 @@ describe('AdminService', () => {
 
       const result = await adminService.grantPermission(request);
 
-      expect(apiService.post).toHaveBeenCalledWith('/api/admin/permissions/grant', request);
+      expect(apiService.grantAdminPermission).toHaveBeenCalledWith('/api/admin/permissions/grant', request);
       expect(result).toEqual(mockResponse);
     });
 
     it('should handle validation errors when granting permission', async () => {
       const mockError = new Error('Invalid user UUID');
-      vi.mocked(apiService.post).mockRejectedValue(mockError);
+      vi.mocked(apiService.grantAdminPermission).mockRejectedValue(mockError);
 
       const request: GrantPermissionRequest = {
         userUuid: 'invalid-uuid',
@@ -133,7 +136,7 @@ describe('AdminService', () => {
         permission: 'moderator' as const,
       };
 
-      vi.mocked(apiService.post).mockResolvedValue(mockResponse);
+      vi.mocked(apiService.grantAdminPermission).mockResolvedValue(mockResponse);
 
       const request: RevokePermissionRequest = {
         userUuid: 'user-1',
@@ -143,13 +146,13 @@ describe('AdminService', () => {
 
       const result = await adminService.revokePermission(request);
 
-      expect(apiService.post).toHaveBeenCalledWith('/api/admin/permissions/revoke', request);
+      expect(apiService.grantAdminPermission).toHaveBeenCalledWith('/api/admin/permissions/revoke', request);
       expect(result).toEqual(mockResponse);
     });
 
     it('should handle errors when revoking permission', async () => {
       const mockError = new Error('Permission not found');
-      vi.mocked(apiService.post).mockRejectedValue(mockError);
+      vi.mocked(apiService.grantAdminPermission).mockRejectedValue(mockError);
 
       const request: RevokePermissionRequest = {
         userUuid: 'user-1',
@@ -182,11 +185,11 @@ describe('AdminService', () => {
         has_more: false,
       };
 
-      vi.mocked(apiService.get).mockResolvedValue(mockResponse);
+      vi.mocked(apiService.getAdminPermissions).mockResolvedValue(mockResponse);
 
       const result = await adminService.getAuditLogs();
 
-      expect(apiService.get).toHaveBeenCalledWith('/api/admin/audit');
+      expect(apiService.getAdminPermissions).toHaveBeenCalledWith('/api/admin/audit');
       expect(result).toEqual(mockResponse);
     });
 
@@ -199,7 +202,7 @@ describe('AdminService', () => {
         has_more: false,
       };
 
-      vi.mocked(apiService.get).mockResolvedValue(mockResponse);
+      vi.mocked(apiService.getAdminPermissions).mockResolvedValue(mockResponse);
 
       const query: AuditLogQuery = {
         type: 'admin',
@@ -213,14 +216,14 @@ describe('AdminService', () => {
 
       await adminService.getAuditLogs(query);
 
-      expect(apiService.get).toHaveBeenCalledWith(
+      expect(apiService.getAdminPermissions).toHaveBeenCalledWith(
         '/api/admin/audit?type=admin&actor=admin-1&action_type=grant_permission&start_date=2025-01-01T00%3A00%3A00Z&end_date=2025-01-03T23%3A59%3A59Z&page=1&limit=25'
       );
     });
 
     it('should handle errors when fetching audit logs', async () => {
       const mockError = new Error('Access denied');
-      vi.mocked(apiService.get).mockRejectedValue(mockError);
+      vi.mocked(apiService.getAdminPermissions).mockRejectedValue(mockError);
 
       await expect(adminService.getAuditLogs()).rejects.toThrow('Access denied');
     });
@@ -250,11 +253,11 @@ describe('AdminService', () => {
         },
       };
 
-      vi.mocked(apiService.get).mockResolvedValue(mockResponse);
+      vi.mocked(apiService.getAdminPermissions).mockResolvedValue(mockResponse);
 
       const result = await adminService.getStatistics();
 
-      expect(apiService.get).toHaveBeenCalledWith('/api/admin/statistics?days=30');
+      expect(apiService.getAdminPermissions).toHaveBeenCalledWith('/api/admin/statistics?days=30');
       expect(result).toEqual(mockResponse);
     });
 
@@ -281,17 +284,17 @@ describe('AdminService', () => {
         },
       };
 
-      vi.mocked(apiService.get).mockResolvedValue(mockResponse);
+      vi.mocked(apiService.getAdminPermissions).mockResolvedValue(mockResponse);
 
       const result = await adminService.getStatistics(90);
 
-      expect(apiService.get).toHaveBeenCalledWith('/api/admin/statistics?days=90');
+      expect(apiService.getAdminPermissions).toHaveBeenCalledWith('/api/admin/statistics?days=90');
       expect(result).toEqual(mockResponse);
     });
 
     it('should handle errors when fetching statistics', async () => {
       const mockError = new Error('Statistics unavailable');
-      vi.mocked(apiService.get).mockRejectedValue(mockError);
+      vi.mocked(apiService.getAdminPermissions).mockRejectedValue(mockError);
 
       await expect(adminService.getStatistics()).rejects.toThrow('Statistics unavailable');
     });

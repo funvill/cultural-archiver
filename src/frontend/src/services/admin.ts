@@ -30,79 +30,64 @@ export class AdminService {
     page?: number;
     perPage?: number;
   }): Promise<GetPermissionsResponse> {
-    const params = new URLSearchParams();
-    
-    if (filters?.permission) {
-      params.append('permission', filters.permission);
-    }
-    if (filters?.search) {
-      params.append('search', filters.search);
-    }
-    if (filters?.page) {
-      params.append('page', filters.page.toString());
-    }
-    if (filters?.perPage) {
-      params.append('per_page', filters.perPage.toString());
-    }
-
-    const url = params.toString() ? `/api/admin/permissions?${params}` : '/api/admin/permissions';
-    return await apiService.get<GetPermissionsResponse>(url);
+    const permissionFilter = filters?.permission;
+    const result = await apiService.getAdminPermissions(permissionFilter);
+    return result;
   }
 
   /**
    * Grant permission to a user
    */
   async grantPermission(request: GrantPermissionRequest): Promise<PermissionResponse> {
-    return await apiService.post<PermissionResponse>('/api/admin/permissions/grant', request);
+    return await apiService.grantAdminPermission(request);
   }
 
   /**
    * Revoke permission from a user
    */
   async revokePermission(request: RevokePermissionRequest): Promise<PermissionResponse> {
-    return await apiService.post<PermissionResponse>('/api/admin/permissions/revoke', request);
+    return await apiService.revokeAdminPermission(request);
   }
 
   /**
    * Get audit logs with filtering and pagination
    */
   async getAuditLogs(query?: AuditLogQuery): Promise<AuditLogsResponse> {
-    const params = new URLSearchParams();
+    const filters: Record<string, string> = {};
     
     if (query?.type) {
-      params.append('type', query.type);
+      filters.type = query.type;
     }
     if (query?.actor) {
-      params.append('actor', query.actor);
+      filters.actor = query.actor;
     }
     if (query?.decision) {
-      params.append('decision', query.decision);
+      filters.decision = query.decision;
     }
     if (query?.action_type) {
-      params.append('action_type', query.action_type);
+      filters.action_type = query.action_type;
     }
     if (query?.startDate) {
-      params.append('start_date', query.startDate);
+      filters.start_date = query.startDate;
     }
     if (query?.endDate) {
-      params.append('end_date', query.endDate);
+      filters.end_date = query.endDate;
     }
     if (query?.page) {
-      params.append('page', query.page.toString());
+      filters.page = query.page.toString();
     }
     if (query?.limit) {
-      params.append('limit', query.limit.toString());
+      filters.limit = query.limit.toString();
     }
 
-    const url = params.toString() ? `/api/admin/audit?${params}` : '/api/admin/audit';
-    return await apiService.get<AuditLogsResponse>(url);
+    return await apiService.getAdminAuditLogs(filters);
   }
 
   /**
    * Get system and audit statistics
    */
   async getStatistics(days = 30): Promise<AuditStatistics> {
-    return await apiService.get<AuditStatistics>(`/api/admin/statistics?days=${days}`);
+    return await apiService.getAdminStatistics(days);
   }
 }
 

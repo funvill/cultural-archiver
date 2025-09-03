@@ -436,7 +436,7 @@ async function grantPermission(): Promise<void> {
     await adminService.grantPermission({
       userUuid: grantForm.value.userUuid,
       permission: grantForm.value.permission as Permission,
-      reason: grantForm.value.reason || undefined,
+      reason: grantForm.value.reason || '',
     })
     
     closeGrantDialog()
@@ -480,7 +480,7 @@ async function revokePermission(): Promise<void> {
     await adminService.revokePermission({
       userUuid: revokeTarget.value.user_uuid,
       permission: revokeForm.value.permission as Permission,
-      reason: revokeForm.value.reason || undefined,
+      reason: revokeForm.value.reason || '',
     })
     
     closeRevokeDialog()

@@ -347,8 +347,6 @@ import type {
   AuditLogsResponse,
   AuditLogEntry,
   AuditLogQuery,
-  ModerationDecision,
-  AdminActionType,
 } from '../../../shared/types'
 
 // Reactive state
@@ -361,10 +359,7 @@ const pageSize = ref(25)
 
 // Filter state
 const filters = ref<AuditLogQuery>({
-  type: undefined,
   actor: '',
-  decision: undefined,
-  action_type: undefined,
   startDate: '',
   endDate: '',
   page: 1,

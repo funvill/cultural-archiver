@@ -80,12 +80,12 @@
   - [x] 5.10 Write unit tests for all new admin components and services
 
 - [ ] 6.0 Integration and Testing
-  - [ ] 6.1 Run database migration and verify schema changes in development
+  - [x] 6.1 Run database migration and verify schema changes in development
   - [ ] 6.2 Test permission system end-to-end with different user roles
   - [ ] 6.3 Verify audit logging captures all moderation decisions correctly
   - [ ] 6.4 Test admin interface functionality with permission management
-  - [ ] 6.5 Validate that existing moderation workflow remains unchanged
-  - [ ] 6.6 Run full test suite to ensure no regressions in existing functionality
+  - [x] 6.5 Validate that existing moderation workflow remains unchanged
+  - [x] 6.6 Run full test suite to ensure no regressions in existing functionality
   - [ ] 6.7 Test performance impact of new permission checking and audit logging
   - [x] 6.8 Update shared types to include new interfaces and ensure type safety
   - [ ] 6.9 Verify accessibility compliance for new admin interface components

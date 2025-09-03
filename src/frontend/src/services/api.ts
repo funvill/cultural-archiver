@@ -526,6 +526,49 @@ export const apiService = {
    */
   async processBatchReview(batch: unknown[]): Promise<ApiResponse<{ processed: number; message: string }>> {
     return client.put('/review/batch', { batch })
+  },
+
+  // ================================
+  // Admin Endpoints
+  // ================================
+
+  /**
+   * Get users with permissions
+   */
+  async getAdminPermissions(permission?: string): Promise<ApiResponse<any>> {
+    const params: Record<string, string> = {}
+    if (permission) {
+      params.permission = permission
+    }
+    return client.get('/admin/permissions', params)
+  },
+
+  /**
+   * Grant permission to user
+   */
+  async grantAdminPermission(request: any): Promise<ApiResponse<any>> {
+    return client.post('/admin/permissions/grant', request)
+  },
+
+  /**
+   * Revoke permission from user
+   */
+  async revokeAdminPermission(request: any): Promise<ApiResponse<any>> {
+    return client.post('/admin/permissions/revoke', request)
+  },
+
+  /**
+   * Get audit logs
+   */
+  async getAdminAuditLogs(filters: Record<string, string>): Promise<ApiResponse<any>> {
+    return client.get('/admin/audit', filters)
+  },
+
+  /**
+   * Get admin statistics
+   */
+  async getAdminStatistics(days: number = 30): Promise<ApiResponse<any>> {
+    return client.get('/admin/statistics', { days: days.toString() })
   }
 }
 
