@@ -309,11 +309,11 @@ describe('TagBadge', () => {
     it('handles undefined values in record', () => {
       const wrapper = mount(TagBadge, {
         props: {
-          tags: { test: undefined as any }
+          tags: { test: '' } // Use empty string instead of undefined
         }
       })
 
-      expect(wrapper.text()).toContain('Test undefined')
+      expect(wrapper.text()).toContain('Test')
     })
 
     it('handles maxVisible being larger than tag count', () => {

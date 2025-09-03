@@ -12,7 +12,6 @@ import type {
   CreateLogbookEntryRequest,
   CreateTagRequest,
   CreatorRecord,
-  ArtworkCreatorRecord,
   CreateCreatorRequest,
   CreateArtworkCreatorRequest,
   ArtworkCreatorInfo,
@@ -465,11 +464,11 @@ export class DatabaseService {
     `);
 
     const results = await stmt.bind(artworkId).all();
-    return results.results.map(row => ({
-      id: (row as any).id,
-      name: (row as any).name,
-      bio: (row as any).bio,
-      role: (row as any).role,
+    return results.results.map((row): ArtworkCreatorInfo => ({
+      id: row.id as string,
+      name: row.name as string,
+      bio: row.bio as string | null,
+      role: row.role as string,
     }));
   }
 

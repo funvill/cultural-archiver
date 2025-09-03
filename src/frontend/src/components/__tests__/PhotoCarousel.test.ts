@@ -4,7 +4,11 @@ import PhotoCarousel from '../PhotoCarousel.vue'
 
 // Mock the announcer composable
 vi.mock('../../composables/useAnnouncer', () => ({
-  useAnnouncer: () => ({
+  useAnnouncer: (): {
+    announceInfo: ReturnType<typeof vi.fn>;
+    announceError: ReturnType<typeof vi.fn>;
+    announceSuccess: ReturnType<typeof vi.fn>;
+  } => ({
     announceInfo: vi.fn(),
     announceError: vi.fn(),
     announceSuccess: vi.fn()
@@ -59,7 +63,7 @@ describe('PhotoCarousel', () => {
     it('hides navigation controls for single photo', () => {
       const wrapper = mount(PhotoCarousel, {
         props: {
-          photos: [mockPhotos[0]]
+          photos: [mockPhotos[0]!] // Use non-null assertion since we know it exists
         }
       })
 
@@ -208,8 +212,8 @@ describe('PhotoCarousel', () => {
         btn.attributes('aria-label')?.includes('Go to photo')
       )
       
-      expect(dots[1].attributes('aria-current')).toBe('true')
-      expect(dots[0].attributes('aria-current')).toBe('false')
+      expect(dots[1]?.attributes('aria-current')).toBe('true')
+      expect(dots[0]?.attributes('aria-current')).toBe('false')
     })
   })
 
