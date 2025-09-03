@@ -72,7 +72,14 @@ export const nearbyArtworksQuerySchema = z.object({
 });
 
 export const artworkIdSchema = z.object({
-  id: z.string().uuid('Artwork ID must be a valid UUID'),
+  id: z.string().refine(
+    (value) => {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const sampleDataRegex = /^SAMPLE-[a-zA-Z0-9-]+$/;
+      return uuidRegex.test(value) || sampleDataRegex.test(value);
+    },
+    'Artwork ID must be a valid UUID or sample data format'
+  ),
 });
 
 // ================================
@@ -651,10 +658,11 @@ export function validateUUID(paramName: string = 'id') {
     }
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const sampleDataRegex = /^SAMPLE-[a-zA-Z0-9-]+$/;
 
-    if (!uuidRegex.test(value)) {
+    if (!uuidRegex.test(value) && !sampleDataRegex.test(value)) {
       throw new ValidationApiError([
-        { field: paramName, message: `${paramName} must be a valid UUID`, code: 'INVALID_UUID' },
+        { field: paramName, message: `${paramName} must be a valid UUID or sample data format`, code: 'INVALID_ID' },
       ]);
     }
 

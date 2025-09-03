@@ -46,6 +46,21 @@ export interface TagRecord {
   created_at: string;
 }
 
+export interface CreatorRecord {
+  id: string;
+  name: string;
+  bio: string | null;
+  created_at: string;
+}
+
+export interface ArtworkCreatorRecord {
+  id: string;
+  artwork_id: string;
+  creator_id: string;
+  role: string;
+  created_at: string;
+}
+
 // ================================
 // API Request/Response Types
 // ================================
@@ -81,6 +96,17 @@ export interface CreateLogbookEntryRequest {
   lon?: number;
   note?: string;
   photos?: string[];
+}
+
+export interface CreateCreatorRequest {
+  name: string;
+  bio?: string;
+}
+
+export interface CreateArtworkCreatorRequest {
+  artwork_id: string;
+  creator_id: string;
+  role?: string;
 }
 
 // ================================
@@ -145,6 +171,14 @@ export interface ArtworkDetailResponse {
   type_name: string;
   logbook_entries: LogbookEntryWithPhotos[];
   tags_parsed: Record<string, string>;
+  creators: ArtworkCreatorInfo[];
+}
+
+export interface ArtworkCreatorInfo {
+  id: string;
+  name: string;
+  bio: string | null;
+  role: string;
 }
 
 export interface LogbookEntryWithPhotos extends LogbookRecord {

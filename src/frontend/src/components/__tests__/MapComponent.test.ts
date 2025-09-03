@@ -14,8 +14,19 @@ vi.mock('leaflet', () => ({
       whenReady: vi.fn((callback: () => void) => callback()),
       invalidateSize: vi.fn(),
     })),
-    tileLayer: vi.fn(() => ({
+    tileLayer: vi.fn(() => {
+      const mockTileLayer = {
+        addTo: vi.fn(() => mockTileLayer), // Return self for chaining
+        on: vi.fn(() => mockTileLayer), // Return self for chaining
+        off: vi.fn(() => mockTileLayer), // Return self for chaining
+      }
+      return mockTileLayer
+    }),
+    layerGroup: vi.fn(() => ({
       addTo: vi.fn(),
+      addLayer: vi.fn(),
+      removeLayer: vi.fn(),
+      clearLayers: vi.fn(),
     })),
   },
 }))

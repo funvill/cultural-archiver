@@ -136,4 +136,53 @@ describe('Database Service', (): void => {
     const result = await dbService.createLogbookEntry(entry);
     expect(result).toBeDefined();
   });
+
+  // Creator-related tests
+  it('should handle createCreator', async () => {
+    const creator = {
+      name: 'Test Artist',
+      bio: 'A test artist for unit testing',
+    };
+
+    const result = await dbService.createCreator(creator);
+    expect(result).toBeDefined();
+    expect(typeof result).toBe('string');
+  });
+
+  it('should handle getCreatorById query', async () => {
+    const mockId = '550e8400-e29b-41d4-a716-446655440000';
+    const result = await dbService.getCreatorById(mockId);
+    expect(result).toBeNull(); // Mock returns null
+  });
+
+  it('should handle getCreatorByName query', async () => {
+    const result = await dbService.getCreatorByName('Test Artist');
+    expect(result).toBeNull(); // Mock returns null
+  });
+
+  it('should handle linkArtworkToCreator', async () => {
+    const link = {
+      artwork_id: '550e8400-e29b-41d4-a716-446655440000',
+      creator_id: '660e8400-e29b-41d4-a716-446655440001',
+      role: 'artist',
+    };
+
+    const result = await dbService.linkArtworkToCreator(link);
+    expect(result).toBeDefined();
+    expect(typeof result).toBe('string');
+  });
+
+  it('should handle getCreatorsForArtwork query', async () => {
+    const mockArtworkId = '550e8400-e29b-41d4-a716-446655440000';
+    const result = await dbService.getCreatorsForArtwork(mockArtworkId);
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toHaveLength(0); // Mock returns empty array
+  });
+
+  it('should handle getArtworksForCreator query', async () => {
+    const mockCreatorId = '660e8400-e29b-41d4-a716-446655440001';
+    const result = await dbService.getArtworksForCreator(mockCreatorId);
+    expect(Array.isArray(result)).toBe(true);
+    expect(result).toHaveLength(0); // Mock returns empty array
+  });
 });

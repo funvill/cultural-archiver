@@ -187,8 +187,7 @@ export const useArtworksStore = defineStore('artworks', () => {
     clearError()
 
     try {
-      const response = await apiService.getArtworkDetails(id)
-      const artwork = response.data
+      const artwork = await apiService.getArtworkDetails(id)
       
       if (artwork) {
         cacheArtwork(id, artwork)

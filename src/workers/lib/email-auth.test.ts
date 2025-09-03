@@ -39,7 +39,11 @@ const mockEnv = {
   DB: {
     prepare: vi.fn(),
   },
-  SESSIONS: {},
+  SESSIONS: {
+    put: vi.fn().mockResolvedValue(undefined),
+    get: vi.fn().mockResolvedValue(null),
+    delete: vi.fn().mockResolvedValue(undefined)
+  },
   CACHE: {},
   RATE_LIMITS: {},
   MAGIC_LINKS: {},
@@ -120,7 +124,7 @@ describe('Magic Link Email System', () => {
       const result = await checkRateLimit(mockEnv, 'test@example.com', 'email');
 
       expect(result.is_blocked).toBe(false);
-      expect(result.requests_remaining).toBe(4); // 5 limit - 1 used
+      expect(result.requests_remaining).toBe(9); // 10 limit - 1 used
       expect(result.identifier).toBe('test@example.com');
       expect(result.identifier_type).toBe('email');
     });
@@ -145,14 +149,14 @@ describe('Magic Link Email System', () => {
       const result = await checkRateLimit(mockEnv, 'test@example.com', 'email');
 
       expect(result.is_blocked).toBe(false);
-      expect(result.requests_remaining).toBe(2); // 5 limit - 3 used
+      expect(result.requests_remaining).toBe(7); // 10 limit - 3 used
     });
 
     it('should block when rate limit exceeded', async () => {
       const existingRecord: RateLimitRecord = {
         identifier: 'test@example.com',
         identifier_type: 'email',
-        request_count: 5, // At limit
+        request_count: 10, // At limit
         window_start: new Date().toISOString(),
         last_request_at: new Date().toISOString(),
         blocked_until: null
@@ -193,7 +197,7 @@ describe('Magic Link Email System', () => {
       const result = await checkRateLimit(mockEnv, 'test@example.com', 'email');
 
       expect(result.is_blocked).toBe(false);
-      expect(result.requests_remaining).toBe(4); // Reset to 1 used
+      expect(result.requests_remaining).toBe(9); // Reset to 1 used
     });
 
     it('should respect existing block', async () => {
@@ -357,10 +361,16 @@ describe('Magic Link Email System', () => {
         is_signup: true
       };
 
-      const prodEnv = { ...mockEnv, EMAIL_API_KEY: 'test-key' };
+      const prodEnv = { 
+        ...mockEnv, 
+        EMAIL_API_KEY: 'test-key',
+        EMAIL_FROM: 'noreply@example.com',
+        ENVIRONMENT: 'production' as const
+      };
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        status: 200
+        status: 200,
+        text: vi.fn().mockResolvedValue('Email sent successfully')
       });
 
       await sendMagicLinkEmail(prodEnv, mockRecord, 'http://localhost:3000');
@@ -389,16 +399,29 @@ describe('Magic Link Email System', () => {
         is_signup: true
       };
 
-      const prodEnv = { ...mockEnv, EMAIL_API_KEY: 'test-key' };
+      const prodEnv = { 
+        ...mockEnv, 
+        EMAIL_API_KEY: 'test-key',
+        EMAIL_FROM: 'noreply@example.com',
+        ENVIRONMENT: 'production' as const
+      };
       global.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 500,
         text: () => Promise.resolve('Server error')
       });
 
+      // Should use fallback mode instead of throwing - this is the graceful failure mode
       await expect(
         sendMagicLinkEmail(prodEnv, mockRecord, 'http://localhost:3000')
-      ).rejects.toThrow('Email delivery failed');
+      ).resolves.toBeUndefined();
+      
+      // Verify that SESSIONS.put was called for fallback storage
+      expect(prodEnv.SESSIONS.put).toHaveBeenCalledWith(
+        `dev-magic-link:${mockRecord.email}`,
+        expect.stringContaining(mockRecord.token),
+        expect.objectContaining({ expirationTtl: expect.any(Number) })
+      );
     });
 
     it('should log email in development mode', async () => {

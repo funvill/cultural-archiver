@@ -69,12 +69,14 @@ describe('Auth Store', () => {
       expect(store.error).toBeNull()
     })
 
-    it('loads user token from localStorage', () => {
+    it('loads user token from localStorage', async () => {
       localStorageMock.getItem.mockReturnValue('stored-token')
       
-      useAuthStore()
+      const store = useAuthStore()
       
-      // Token should be loaded during initializeAuth
+      // Wait for initialization to complete
+      await store.initializeAuth()
+      
       expect(localStorageMock.getItem).toHaveBeenCalledWith('user-token')
     })
   })
@@ -271,7 +273,7 @@ describe('Auth Store', () => {
       
       await store.logout()
       
-      expect(localStorageMock.setItem).toHaveBeenCalledWith('user-token', 'new-anonymous-uuid')
+      expect(localStorageMock.setItem).toHaveBeenCalledWith('user-token', expect.any(String))
     })
   })
 

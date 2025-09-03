@@ -5,6 +5,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Coordinates, ArtworkPin, MapComponentProps } from '../types'
 import { useArtworksStore } from '../stores/artworks'
+import { useRouter } from 'vue-router'
 
 // Props
 const props = withDefaults(defineProps<MapComponentProps>(), {
@@ -36,8 +37,11 @@ const markerClusterGroup = ref<L.LayerGroup | null>(null)
 // Store
 const artworksStore = useArtworksStore()
 
-// Default coordinates (Vancouver)
-const DEFAULT_CENTER = { latitude: 49.2827, longitude: -123.1207 }
+// Router for navigation
+const router = useRouter()
+
+// Default coordinates (Vancouver - near sample data for testing)
+const DEFAULT_CENTER = { latitude: 49.2815, longitude: -123.122 }
 
 // Custom icon for artworks
 const createArtworkIcon = (type: string) => {
@@ -50,7 +54,7 @@ const createArtworkIcon = (type: string) => {
   }
   
   return L.divIcon({
-    html: `<div class="artwork-marker bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm shadow-lg border-2 border-white">${iconMap[type] || '📍'}</div>`,
+    html: `<div class="artwork-marker bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm shadow-lg border-2 border-white cursor-pointer">${iconMap[type] || '📍'}</div>`,
     className: 'custom-artwork-icon',
     iconSize: [32, 32],
     iconAnchor: [16, 16],
@@ -382,28 +386,23 @@ function updateArtworkMarkers() {
   artworkMarkers.value = []
 
   // Add new markers
+  console.log('Creating markers for artworks:', artworksStore.artworks.length)
   artworksStore.artworks.forEach((artwork: ArtworkPin) => {
+    console.log('Creating marker for artwork:', artwork.id, 'at', artwork.latitude, artwork.longitude)
+    
     const marker = L.marker(
       [artwork.latitude, artwork.longitude],
       { icon: createArtworkIcon(artwork.type) }
     )
 
-    // Create popup content
-    const popupContent = `
-      <div class="artwork-popup max-w-xs">
-        <div class="mb-2">
-          ${artwork.photos[0] ? `<img src="${artwork.photos[0]}" alt="Artwork" class="w-full h-24 object-cover rounded" />` : ''}
-        </div>
-        <h3 class="font-semibold text-sm mb-1">${artwork.title || 'Untitled Artwork'}</h3>
-        <p class="text-xs text-gray-600 mb-2">Type: ${artwork.type.replace('_', ' ')}</p>
-        <button onclick="viewArtworkDetails('${artwork.id}')" class="w-full bg-blue-600 text-white text-xs py-1 px-2 rounded hover:bg-blue-700 transition-colors">
-          View Details
-        </button>
-      </div>
-    `
-
-    marker.bindPopup(popupContent)
+    // Remove popup binding - we want direct navigation instead of popups
+    // This prevents the popup pane from interfering with marker clicks
+    
+    // Add click handler to marker itself for direct navigation
     marker.on('click', () => {
+      console.log('Marker clicked for artwork:', artwork.id)
+      // Navigate directly to artwork details page on marker click
+      router.push(`/artwork/${artwork.id}`)
       emit('artworkClick', artwork)
     })
 
@@ -412,6 +411,7 @@ function updateArtworkMarkers() {
     }
     artworkMarkers.value.push(marker)
   })
+  console.log('Created', artworkMarkers.value.length, 'markers')
 }
 
 // Handle map movement
@@ -493,9 +493,7 @@ function retryMapLoad() {
 
 // Global function for popup buttons
 ;(window as any).viewArtworkDetails = (artworkId: string) => {
-  // This would typically use the router
-  console.log('View artwork details:', artworkId)
-  // router.push(`/artwork/${artworkId}`)
+  router.push(`/artwork/${artworkId}`)
 }
 
 // Watch for props changes
@@ -786,5 +784,11 @@ onUnmounted(() => {
   display: block !important;
   visibility: visible !important;
   opacity: 1 !important;
+}
+
+/* Fix marker clicking by disabling pointer events on interfering Leaflet panes */
+.map-component .leaflet-popup-pane,
+.map-component .leaflet-tooltip-pane {
+  pointer-events: none !important;
 }
 </style>
