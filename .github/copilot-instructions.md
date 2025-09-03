@@ -1,5 +1,9 @@
 # GitHub Copilot Instructions
 
+- Devloped on a windows computer using powershell. The commands should be powershell compliant.
+- Use Playwright-MCP over simple brower
+
+
 ## Project Overview
 
 Cultural Archiver is a **production-ready** crowdsourced public art mapping application built with:

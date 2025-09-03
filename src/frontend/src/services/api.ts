@@ -5,7 +5,6 @@
 
 import type {
   LogbookSubmission,
-  ArtworkApiResponse,
   ArtworkDetails,
   UserSubmission,
   UserProfile,
@@ -19,10 +18,12 @@ import type {
   PaginatedResponse,
   StatusResponse,
   SubmissionResponse,
+  NearbyArtworksResponse,
 } from '../types'
+import { getApiBaseUrl } from '../utils/api-config'
 
 // Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api'
+const API_BASE_URL = getApiBaseUrl()
 const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT) || 30000
 
 /**
@@ -185,14 +186,8 @@ class ApiClient {
    * GET request
    */
   async get<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
-    // Log the .env value at runtime
-    if (typeof import.meta !== 'undefined' && import.meta.env) {
-      // eslint-disable-next-line no-console
-      console.log('[ApiClient.get] VITE_API_BASE_URL from env:', import.meta.env.VITE_API_BASE_URL);
-    }
-    // Fallback log if debug logs are not visible
-    // eslint-disable-next-line no-console
-    console.log('[ApiClient.get] baseURL:', this.baseURL, 'endpoint:', endpoint, 'params:', params);
+    // Log the current API configuration
+    console.log('[ApiClient.get] API Base URL:', this.baseURL, 'endpoint:', endpoint, 'params:', params);
     
     let requestEndpoint = endpoint;
     if (params) {
@@ -260,10 +255,18 @@ export const apiService = {
   },
 
   /**
-   * Generate anonymous user token
+   * Generate anonymous user token (using status endpoint)
    */
   async generateToken(): Promise<ApiResponse<{ token: string }>> {
-    return client.post('/auth/token', {})
+    // Call the status endpoint to trigger token generation
+    // The token will be automatically extracted and stored by handleResponse
+    await client.get('/status')
+    const token = localStorage.getItem('user-token') || ''
+    return {
+      data: { token },
+      message: 'Token generated successfully',
+      success: true
+    }
   },
 
   // ================================
@@ -312,7 +315,7 @@ export const apiService = {
     lon: number,
     radius: number = 500,
     limit: number = 50
-  ): Promise<ApiResponse<ArtworkApiResponse[]>> {
+  ): Promise<NearbyArtworksResponse> {
     return client.get('/artworks/nearby', {
       lat: lat.toString(),
       lon: lon.toString(),

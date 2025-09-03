@@ -72,7 +72,7 @@ The Cultural Archiver API provides a comprehensive backend for crowdsourced publ
 #### Production
 
 - Main website: https://art.abluestar.com
-- API: https://art-api.abluestar.com
+- API: https://art-api.abluestar.com/api
 - Photos: https://art-photos.abluestar.com
 
 #### Devlopment

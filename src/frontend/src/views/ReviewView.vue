@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { globalModal } from '../composables/useModal'
+import { createApiUrl } from '../utils/api-config'
 
 // Types
 interface ReviewSubmission {
@@ -109,7 +110,7 @@ async function loadSubmissions() {
 
   try {
     // Load submissions
-    const submissionsResponse = await fetch('/api/review/submissions', {
+    const submissionsResponse = await fetch(createApiUrl('/review/submissions'), {
       headers: {
         'Authorization': `Bearer ${authStore.token}`
       }
@@ -126,7 +127,7 @@ async function loadSubmissions() {
     }))
 
     // Load statistics
-    const statsResponse = await fetch('/api/review/statistics', {
+    const statsResponse = await fetch(createApiUrl('/review/statistics'), {
       headers: {
         'Authorization': `Bearer ${authStore.token}`
       }
@@ -167,7 +168,7 @@ async function approveSubmission(submission: ReviewSubmission) {
   action.value = 'approve'
 
   try {
-    const response = await fetch(`/api/review/submissions/${submission.id}/approve`, {
+    const response = await fetch(createApiUrl(`/review/submissions/${submission.id}/approve`), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authStore.token}`,
@@ -212,7 +213,7 @@ async function rejectSubmission(submission: ReviewSubmission) {
   action.value = 'reject'
 
   try {
-    const response = await fetch(`/api/review/submissions/${submission.id}/reject`, {
+    const response = await fetch(createApiUrl(`/review/submissions/${submission.id}/reject`), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authStore.token}`,
@@ -260,7 +261,7 @@ async function flagForReview(submission: ReviewSubmission) {
   if (!reason) return
 
   try {
-    const response = await fetch(`/api/review/submissions/${submission.id}/flag`, {
+    const response = await fetch(createApiUrl(`/review/submissions/${submission.id}/flag`), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${authStore.token}`,

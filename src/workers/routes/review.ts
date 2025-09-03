@@ -24,6 +24,8 @@ interface SubmissionRow {
   id: string;
   artwork_id: string | null;
   user_token: string;
+  lat: number | null;
+  lon: number | null;
   note: string | null;
   photos: string | null;
   created_at: string;
@@ -98,6 +100,8 @@ export async function getReviewQueue(
         id: submissionRow.id,
         artwork_id: submissionRow.artwork_id,
         user_token: submissionRow.user_token,
+        lat: submissionRow.lat,
+        lon: submissionRow.lon,
         note: submissionRow.note,
         photos: submissionRow.photos,
         status: submissionRow.status as 'pending' | 'approved' | 'rejected',
@@ -169,7 +173,7 @@ function parseSubmissionData(logbookEntry: LogbookRecord): ParsedSubmissionData 
   return {
     ...logbookEntry,
     total_count: 0, // Add missing field
-    lat: 49.2827, // Default Vancouver coordinates for testing
+    lat: 49.2827, // Default Vancouver coordinates
     lon: -123.1207,
     type_id: 'other',
     tags: '{}',
@@ -362,16 +366,6 @@ export async function approveSubmission(
     // Update submission status
     await updateLogbookStatus(c.env.DB, submissionId, 'approved', finalArtworkId);
 
-    // Log approval action
-    console.log('Submission approved:', {
-      submissionId,
-      artworkId: finalArtworkId,
-      action,
-      reviewerId: authContext.userToken,
-      newArtworkCreated,
-      photosMoved: newPhotoUrls.length,
-    });
-
     return c.json({
       message: 'Submission approved successfully',
       submission_id: submissionId,
@@ -432,14 +426,6 @@ export async function rejectSubmission(
 
     // Update submission status
     await updateLogbookStatus(c.env.DB, submissionId, 'rejected');
-
-    // Log rejection action
-    console.log('Submission rejected:', {
-      submissionId,
-      reason,
-      reviewerId: authContext.userToken,
-      photosCleanedUp: cleanup_photos,
-    });
 
     return c.json({
       message: 'Submission rejected successfully',

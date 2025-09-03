@@ -28,6 +28,8 @@ export interface LogbookRecord {
   id: string;
   artwork_id: string | null;
   user_token: string;
+  lat: number | null;
+  lon: number | null;
   note: string | null;
   photos: string | null; // JSON array of R2 URLs like ["url1", "url2", "url3"]
   status: 'pending' | 'approved' | 'rejected';
@@ -75,6 +77,8 @@ export interface CreateTagRequest {
 export interface CreateLogbookEntryRequest {
   artwork_id?: string;
   user_token: string;
+  lat?: number;
+  lon?: number;
   note?: string;
   photos?: string[];
 }
@@ -336,6 +340,7 @@ export interface WorkerEnv
   RATE_LIMITS: KVNamespace;
   MAGIC_LINKS: KVNamespace;
   PHOTOS_BUCKET: R2Bucket;
+  CORS_ORIGINS?: string; // comma-separated origins from env
 }
 
 // ================================
@@ -449,7 +454,7 @@ export const ARTWORK_TYPES = [
 
 // Default search radius in meters
 export const DEFAULT_SEARCH_RADIUS = 500;
-export const MAX_SEARCH_RADIUS = 10000; // 10km
+export const MAX_SEARCH_RADIUS = 50000; // 50km - allows metropolitan area searches
 export const MIN_SEARCH_RADIUS = 50; // 50m
 
 // Rate limiting constants

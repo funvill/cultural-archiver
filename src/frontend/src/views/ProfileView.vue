@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
+import { createApiUrl } from '../utils/api-config'
 
 // Types
 interface Submission {
@@ -8,6 +9,7 @@ interface Submission {
   title?: string
   note?: string
   photos: string[]
+  photos_parsed?: string[]
   latitude: number
   longitude: number
   status: 'pending' | 'approved' | 'rejected'
@@ -130,7 +132,7 @@ async function loadSubmissions() {
   error.value = null
 
   try {
-    const response = await fetch('/api/user/submissions', {
+    const response = await fetch(createApiUrl('/me/submissions'), {
       headers: {
         'Authorization': `Bearer ${authStore.token}`
       }
@@ -179,16 +181,6 @@ function formatDate(dateString: string): string {
   } catch {
     return 'Unknown'
   }
-}
-
-function viewSubmissionDetails(submission: Submission) {
-  // TODO: Implement submission details modal or page
-  console.log('View submission details:', submission)
-}
-
-function editSubmission(submission: Submission) {
-  // TODO: Implement submission editing
-  console.log('Edit submission:', submission)
 }
 </script>
 
@@ -392,20 +384,13 @@ function editSubmission(submission: Submission) {
                     </div>
 
                     <!-- Photos Preview -->
-                    <div v-if="submission.photos && submission.photos.length > 0" class="flex space-x-2 mb-3">
+                    <div v-if="submission.photos_parsed && submission.photos_parsed.length > 0" class="flex space-x-2 mb-3">
                       <img
-                        v-for="(photo, index) in submission.photos.slice(0, 3)"
-                        :key="index"
-                        :src="photo"
-                        :alt="`Photo ${index + 1}`"
+                        v-if="submission.photos_parsed[0]"
+                        :src="submission.photos_parsed[0]"
+                        alt="Submitted photo"
                         class="w-16 h-16 object-cover rounded-lg border border-gray-200"
                       />
-                      <div
-                        v-if="submission.photos.length > 3"
-                        class="w-16 h-16 bg-gray-100 rounded-lg border border-gray-200 flex items-center justify-center text-xs text-gray-600"
-                      >
-                        +{{ submission.photos.length - 3 }}
-                      </div>
                     </div>
 
                     <!-- Description -->
@@ -429,19 +414,6 @@ function editSubmission(submission: Submission) {
                         class="text-sm text-blue-600 hover:text-blue-800 underline"
                       >
                         View Artwork →
-                      </button>
-                      <button
-                        @click="viewSubmissionDetails(submission)"
-                        class="text-sm text-gray-600 hover:text-gray-800 underline"
-                      >
-                        View Details
-                      </button>
-                      <button
-                        v-if="submission.status === 'pending'"
-                        @click="editSubmission(submission)"
-                        class="text-sm text-gray-600 hover:text-gray-800 underline"
-                      >
-                        Edit
                       </button>
                     </div>
                   </div>

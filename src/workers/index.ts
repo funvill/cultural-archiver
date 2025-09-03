@@ -110,30 +110,25 @@ app.use('*', secureHeaders());
 app.use('*', logger());
 app.use('*', prettyJSON());
 
-// Add comprehensive debugging middleware for production issues
+// CORS configuration (applies to all routes)
 app.use('*', async (c, next) => {
-  const startTime = Date.now();
-  const requestId = crypto.randomUUID().substring(0, 8);
-  
-  console.log(`[${requestId}] ${c.req.method} ${c.req.url} - Start`);
-  console.log(`[${requestId}] Environment: ${c.env.ENVIRONMENT}`);
-  console.log(`[${requestId}] User-Agent: ${c.req.header('User-Agent')}`);
-  
-  try {
-    await next();
-    const duration = Date.now() - startTime;
-    console.log(`[${requestId}] ${c.req.method} ${c.req.url} - Completed in ${duration}ms`);
-  } catch (error) {
-    const duration = Date.now() - startTime;
-    console.error(`[${requestId}] ${c.req.method} ${c.req.url} - Error after ${duration}ms:`, error);
-    throw error;
+  // Support both comma-separated string and array for origins
+  let origins: string[] = [];
+  if (typeof c.env.CORS_ORIGINS === 'string') {
+    origins = c.env.CORS_ORIGINS.split(',').map((o: string) => o.trim()).filter(Boolean);
+  } else if (Array.isArray(c.env.CORS_ORIGINS)) {
+    origins = c.env.CORS_ORIGINS;
+  } else {
+    // Default to production origins if not set
+    origins = [
+      'https://art.abluestar.com',
+      'https://art-api.abluestar.com',
+      'https://art-photos.abluestar.com',
+      'https://cultural-archiver.broad-bird-0934.workers.dev'
+    ];
   }
-});
-
-// CORS configuration
-app.use('/api/*', async (c, next) => {
   const corsOptions = cors({
-    origin: [c.env.FRONTEND_URL, 'http://localhost:5173'],
+    origin: origins,
     allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-User-Token'],
     credentials: true,
@@ -149,7 +144,7 @@ interface HealthCheckResult {
   [key: string]: unknown;
 }
 
-// Health check endpoint with comprehensive testing
+// Health check endpoint
 app.get('/health', async c => {
   const startTime = Date.now();
   const checks: Record<string, HealthCheckResult> = {};
@@ -426,7 +421,7 @@ app.get('/test', c => {
 });
 
 // API status endpoint (no auth required)
-app.get('/api/status', c => {
+app.get('/api/status', ensureUserToken, addUserTokenToResponse, c => {
   console.log('API status endpoint called'); // Add logging
   return c.json({
     message: 'Cultural Archiver API is running',
@@ -448,6 +443,81 @@ app.use('/api/review/*', ensureUserToken);
 app.use('/api/review/*', checkEmailVerification);
 app.use('/api/consent', ensureUserToken);
 app.use('/api/consent', addUserTokenToResponse);
+
+// ================================
+// Photo Serving Endpoint
+// ================================
+
+// Serve photos from R2 storage
+app.get('/photos/*', async c => {
+  try {
+    const key = c.req.path.substring(1); // Remove leading slash to get "photos/..."
+    console.log(`[PHOTO DEBUG] Looking for key: ${key}`);
+    
+    // Get object from R2
+    const object = await c.env.PHOTOS_BUCKET.get(key);
+    console.log(`[PHOTO DEBUG] Object found: ${!!object}`);
+    
+    if (!object) {
+      return c.json(
+        {
+          error: 'Photo not found',
+          message: 'The requested photo does not exist',
+          key,
+        },
+        404
+      );
+    }
+
+    // Get the content type based on file extension
+    const getContentType = (filename: string): string => {
+      const ext = filename.split('.').pop()?.toLowerCase();
+      switch (ext) {
+        case 'jpg':
+        case 'jpeg':
+          return 'image/jpeg';
+        case 'png':
+          return 'image/png';
+        case 'webp':
+          return 'image/webp';
+        case 'heic':
+          return 'image/heic';
+        case 'heif':
+          return 'image/heif';
+        default:
+          return 'application/octet-stream';
+      }
+    };
+
+    const contentType = getContentType(key);
+
+    // Set appropriate headers
+    c.header('Content-Type', contentType);
+    c.header('Cache-Control', 'public, max-age=31536000, immutable'); // Cache for 1 year
+    c.header('ETag', object.etag || 'unknown');
+    
+    // Add object metadata as headers if available
+    if (object.customMetadata) {
+      for (const [metaKey, metaValue] of Object.entries(object.customMetadata)) {
+        c.header(`X-Photo-${metaKey}`, metaValue);
+      }
+    }
+
+    // Return the image
+    return new Response(object.body, {
+      headers: c.res.headers,
+    });
+  } catch (error) {
+    console.error('Photo serving error:', error);
+    return c.json(
+      {
+        error: 'Photo serving failed',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      },
+      500
+    );
+  }
+});
 
 // ================================
 // Submission Endpoints
@@ -652,6 +722,7 @@ app.notFound(c => {
       message: 'The requested resource was not found',
       path: c.req.path,
       available_endpoints: [
+        'GET /photos/*',
         'POST /api/logbook',
         'GET /api/artworks/nearby',
         'GET /api/artworks/:id',

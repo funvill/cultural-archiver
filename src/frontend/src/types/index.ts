@@ -251,6 +251,27 @@ export interface UserSubmission {
   photos_parsed: string[]
 }
 
+export interface NearbyArtworksResponse {
+  artworks: ArtworkWithPhotos[];
+  total: number;
+  search_center: { lat: number; lon: number };
+  search_radius: number;
+}
+
+export interface ArtworkWithPhotos {
+  id: string;
+  lat: number;
+  lon: number;
+  type_id: string;
+  created_at: string;
+  status: 'pending' | 'approved' | 'removed';
+  tags: string | null;
+  type_name: string;
+  recent_photo?: string;
+  photo_count: number;
+  distance_km?: number;
+}
+
 export interface UserProfile {
   user_token: string
   total_submissions: number

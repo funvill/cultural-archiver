@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, withDefaults, defineProps, defineEmits } from 'vue'
 import ConsentForm from './ConsentForm.vue'
 import { useAnnouncer } from '../composables/useAnnouncer'
 import { extractExifData } from '../utils/image'
+import { createApiUrl } from '../utils/api-config'
 import type { ExifData } from '../utils/image'
 
 // File interface
@@ -26,13 +27,10 @@ interface SubmissionResponse {
 
 // Component props
 interface Props {
-  apiBaseUrl?: string
   userToken?: string
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  apiBaseUrl: '/api'
-})
+const props = withDefaults(defineProps<Props>(), {})
 
 // Component emits
 interface Emits {
@@ -100,7 +98,7 @@ async function checkConsentStatus() {
       return
     }
     
-    const response = await fetch(`${props.apiBaseUrl}/consent`, {
+    const response = await fetch(createApiUrl('/consent'), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -288,7 +286,7 @@ async function handleSubmit() {
     }
     
     // Submit to API
-    const response = await fetch(`${props.apiBaseUrl}/logbook`, {
+    const response = await fetch(createApiUrl('/logbook'), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${props.userToken}`
@@ -317,7 +315,7 @@ async function handleSubmit() {
 async function handleConsentSubmit(consentData: any) {
   try {
     // Submit consent to API
-    const response = await fetch(`${props.apiBaseUrl}/consent`, {
+    const response = await fetch(createApiUrl('/consent'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

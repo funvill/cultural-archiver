@@ -41,10 +41,10 @@ class MigrationRunner {
   private loadConfig(): DatabaseConfig {
     // Load configuration from environment variables
     return {
-      databaseId: process.env.D1_DATABASE_ID,
-      databaseName: process.env.D1_DATABASE_NAME || 'cultural-archiver-dev',
-      accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
-      apiToken: process.env.CLOUDFLARE_API_TOKEN,
+      databaseId: process.env.D1_DATABASE_ID ?? undefined,
+      databaseName: process.env.D1_DATABASE_NAME ?? 'cultural-archiver-dev',
+      accountId: process.env.CLOUDFLARE_ACCOUNT_ID ?? undefined,
+      apiToken: process.env.CLOUDFLARE_API_TOKEN ?? undefined,
     };
   }
 
@@ -56,7 +56,12 @@ class MigrationRunner {
         .sort();
 
       return migrationFiles.map(filename => {
-        const [number, ...nameParts] = filename.replace('.sql', '').split('_');
+        const parts = filename.replace('.sql', '').split('_');
+        const number = parts[0];
+        if (!number) {
+          throw new Error(`Invalid migration filename format: ${filename}`);
+        }
+        const nameParts = parts.slice(1);
         return {
           number,
           name: nameParts.join('_'),
@@ -277,7 +282,11 @@ async function main(): Promise<void> {
 }
 
 // Only run if this file is executed directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Check if this file is being run directly (not imported)
+const isMainModule = import.meta.url.includes('migrate.ts') && 
+  (process.argv[1]?.includes('migrate.ts') || process.argv[1]?.includes('tsx'));
+
+if (isMainModule) {
   main().catch(error => {
     console.error('Migration runner error:', error);
     process.exit(1);

@@ -63,9 +63,11 @@ export async function createLogbookSubmission(
       photos: safeJsonParse<string[]>(artwork.tags, []), // For now, photos are in tags - this will be improved
     }));
 
-    // Create logbook entry first (without photos)
+    // Create logbook entry first (with location and without photos)
     const logbookEntry: CreateLogbookEntryRequest = {
       user_token: userToken,
+      lat: validatedData.lat,
+      lon: validatedData.lon,
       ...(validatedData.note && { note: validatedData.note }),
       photos: [], // Will be updated after processing
     };
