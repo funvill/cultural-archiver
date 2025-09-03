@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
-import { createApiUrl } from '../utils/api-config'
+import { apiService } from '../services/api'
 
 // Types
 interface Submission {
@@ -123,7 +123,7 @@ onMounted(() => {
 // Methods
 async function loadSubmissions() {
   if (!authStore.token) {
-    error.value = 'Please log in to view your submissions'
+    error.value = 'Please sign in to view your submissions'
     loading.value = false
     return
   }
@@ -132,18 +132,8 @@ async function loadSubmissions() {
   error.value = null
 
   try {
-    const response = await fetch(createApiUrl('/me/submissions'), {
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to load submissions')
-    }
-
-    const data = await response.json()
-    submissions.value = data.submissions || []
+    const response = await apiService.getUserSubmissions()
+    submissions.value = response.items || []
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Failed to load submissions'
   } finally {
