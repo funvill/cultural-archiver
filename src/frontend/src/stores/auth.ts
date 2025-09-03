@@ -23,7 +23,7 @@ export const useAuthStore = defineStore('auth', () => {
   // Computed getters
   const isAuthenticated = computed(() => !!user.value && user.value.emailVerified)
   const isAnonymous = computed(() => !!token.value && !isAuthenticated.value)
-  const isReviewer = computed(() => user.value?.isReviewer ?? false || permissions.value.includes('moderator') || permissions.value.includes('admin'))
+  const isReviewer = computed(() => (user.value?.isReviewer ?? false) || permissions.value.includes('moderator') || permissions.value.includes('admin'))
   const isAdmin = computed(() => permissions.value.includes('admin'))
   const isEmailVerified = computed(() => user.value?.emailVerified ?? false)
 

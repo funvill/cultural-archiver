@@ -84,7 +84,7 @@ describe('Permalink Injection', () => {
     const invalidBuffer = new ArrayBuffer(0);
     const artworkId = 'test-artwork-123';
     
-    await expect(injectPermalink(invalidBuffer, artworkId)).rejects.toThrow('EXIF_PROCESSING_ERROR');
+    await expect(injectPermalink(invalidBuffer, artworkId)).rejects.toThrow('EXIF permalink injection failed');
   });
 });
 
@@ -126,7 +126,7 @@ describe('EXIF Processing', () => {
       permalink: 'test-artwork-789'
     };
     
-    await expect(processExifData(invalidBuffer, options)).rejects.toThrow('EXIF_PROCESSING_ERROR');
+    await expect(processExifData(invalidBuffer, options)).rejects.toThrow('EXIF processing failed');
   });
 });
 

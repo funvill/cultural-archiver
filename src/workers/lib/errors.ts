@@ -23,8 +23,8 @@ export class ApiError extends Error {
   public readonly showDetails: boolean;
 
   constructor(
-    code: string,
     message: string,
+    code: string,
     statusCode: number = 400,
     options: {
       details?: Record<string, unknown>;
