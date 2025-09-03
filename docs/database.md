@@ -2,9 +2,120 @@
 
 ## Overview
 
-The Cultural Archiver MVP uses a SQLite database (Cloudflare D1) with four core tables designed for crowdsourced public art mapping. The schema supports geospatial queries, community submissions, and moderation workflows.
+The Cultural Archiver MVP uses a SQLite database (Cloudflare D1) with core tables for crowdsourced public art mapping and a complete authentication system. The schema supports geospatial queries, community submissions, moderation workflows, and UUID-based authentication with magic link verification.
 
 ## Database Tables
+
+### Authentication System Tables
+
+#### users
+
+Core table for authenticated users with UUID claiming functionality.
+
+| Field              | Type | Constraints                       | Description                              |
+| ------------------ | ---- | --------------------------------- | ---------------------------------------- |
+| `uuid`             | TEXT | PRIMARY KEY                       | User's claimed UUID (same as anonymous token) |
+| `email`            | TEXT | NOT NULL, UNIQUE                  | User's email address                     |
+| `created_at`       | TEXT | NOT NULL, DEFAULT datetime('now') | Account creation timestamp               |
+| `last_login`       | TEXT | NULL                              | Last login timestamp                     |
+| `email_verified_at`| TEXT | NULL                              | When email was verified via magic link  |
+| `status`           | TEXT | CHECK('active','suspended')       | Account status                           |
+
+**Indexes:**
+- `idx_users_email` on `email` for login lookups
+- `idx_users_status` on `status` for filtering  
+- `idx_users_last_login` on `last_login` for analytics
+
+**Status Workflow:**
+- `active` - Normal account in good standing
+- `suspended` - Account temporarily restricted
+
+#### magic_links
+
+Secure tokens for email-based authentication and account creation.
+
+| Field         | Type    | Constraints                       | Description                              |
+| ------------- | ------- | --------------------------------- | ---------------------------------------- |
+| `token`       | TEXT    | PRIMARY KEY                       | Cryptographically secure token (64+ chars) |
+| `email`       | TEXT    | NOT NULL                          | Target email address                     |
+| `user_uuid`   | TEXT    | NULL, FK→users.uuid               | Associated user UUID (NULL for signup)  |
+| `created_at`  | TEXT    | NOT NULL, DEFAULT datetime('now') | Token generation timestamp               |
+| `expires_at`  | TEXT    | NOT NULL                          | Token expiration (1 hour)               |
+| `used_at`     | TEXT    | NULL                              | When token was consumed                  |
+| `ip_address`  | TEXT    | NULL                              | Requesting IP address                    |
+| `user_agent`  | TEXT    | NULL                              | Requesting user agent                    |
+| `is_signup`   | BOOLEAN | NOT NULL, DEFAULT FALSE           | TRUE for account creation                |
+
+**Indexes:**
+- `idx_magic_links_email` on `email` for user lookups
+- `idx_magic_links_expires_at` on `expires_at` for cleanup
+- `idx_magic_links_used_at` on `used_at` for filtering
+- `idx_magic_links_created_at` on `created_at` for analytics
+
+**Foreign Keys:**
+- `user_uuid` → `users.uuid` ON DELETE CASCADE
+
+**Security Features:**
+- Single-use tokens (marked via `used_at`)
+- 1-hour expiration enforced via `expires_at`
+- Minimum 64-character token length (32 secure bytes)
+
+#### rate_limiting
+
+Track request rates for magic link abuse prevention.
+
+| Field              | Type | Constraints                       | Description                              |
+| ------------------ | ---- | --------------------------------- | ---------------------------------------- |
+| `identifier`       | TEXT | NOT NULL                          | Email address or IP address             |
+| `identifier_type`  | TEXT | CHECK('email','ip')               | Type of identifier being limited         |
+| `request_count`    | INT  | NOT NULL, DEFAULT 0               | Requests in current window               |
+| `window_start`     | TEXT | NOT NULL, DEFAULT datetime('now') | Start of rate limit window               |
+| `last_request_at`  | TEXT | NOT NULL, DEFAULT datetime('now') | Most recent request timestamp            |
+| `blocked_until`    | TEXT | NULL                              | Block until this time (NULL if not blocked) |
+
+**Primary Key:** `(identifier, identifier_type)`
+
+**Indexes:**
+- `idx_rate_limiting_identifier` on `identifier`
+- `idx_rate_limiting_window_start` on `window_start` for cleanup
+- `idx_rate_limiting_blocked_until` on `blocked_until` for filtering
+
+**Rate Limits:**
+- **Email**: 5 magic link requests per email per hour
+- **IP**: 10 magic link requests per IP per hour
+
+#### auth_sessions
+
+Track active authentication sessions across devices.
+
+| Field               | Type    | Constraints                       | Description                              |
+| ------------------- | ------- | --------------------------------- | ---------------------------------------- |
+| `id`                | TEXT    | PRIMARY KEY                       | Session identifier (UUID)               |
+| `user_uuid`         | TEXT    | NOT NULL, FK→users.uuid           | Associated user UUID                     |
+| `token_hash`        | TEXT    | NOT NULL                          | SHA-256 hash of session token           |
+| `created_at`        | TEXT    | NOT NULL, DEFAULT datetime('now') | Session creation timestamp               |
+| `last_accessed_at`  | TEXT    | NOT NULL, DEFAULT datetime('now') | Last access timestamp                    |
+| `expires_at`        | TEXT    | NULL                              | Session expiration (NULL = persistent)  |
+| `ip_address`        | TEXT    | NULL                              | Session IP address                       |
+| `user_agent`        | TEXT    | NULL                              | Session user agent                       |
+| `is_active`         | BOOLEAN | NOT NULL, DEFAULT TRUE            | Session active status                    |
+| `device_info`       | TEXT    | NULL                              | Device fingerprint (JSON)               |
+
+**Indexes:**
+- `idx_auth_sessions_user_uuid` on `user_uuid` for user sessions
+- `idx_auth_sessions_token_hash` on `token_hash` for validation
+- `idx_auth_sessions_expires_at` on `expires_at` for cleanup
+- `idx_auth_sessions_last_accessed` on `last_accessed_at` for analytics
+- `idx_auth_sessions_active` on `is_active` for filtering
+
+**Foreign Keys:**
+- `user_uuid` → `users.uuid` ON DELETE CASCADE
+
+**Security Features:**
+- Token hashes stored (never plain tokens)
+- Multi-device support
+- Persistent sessions (NULL expiration)
+- Automatic cleanup of expired sessions
 
 ### artwork_types
 
@@ -118,6 +229,14 @@ Flexible tagging system for additional metadata.
 ## Relationships
 
 ```text
+users ──────┐
+ │          │ 1:N      
+ │ 1:N      ▼          
+ ▼       auth_sessions 
+magic_links              
+ │                      
+ │ rate_limiting (identifier joins)
+ │
 artwork_types ──┐
                 │ 1:N
                 ▼
@@ -129,6 +248,37 @@ artwork_types ──┐
                 ▼
                tags
 ```
+
+## Authentication Workflows
+
+### Account Creation Flow
+
+1. **Anonymous user** gets UUID on first visit (stored in cookie)
+2. **User submits content** using anonymous UUID  
+3. **Account creation**: User enters email → magic link sent
+4. **Magic link clicked** → account created with current UUID claimed
+5. **User authenticated** → can see all content from claimed UUID
+
+### Login Flow
+
+1. **Returning user** enters email → magic link sent
+2. **Magic link clicked** → user authenticated
+3. **Cross-device login**: If different UUID, replace browser UUID with account UUID
+4. **User sees all content** from their account UUID
+
+### Rate Limiting Flow
+
+1. **Magic link request** → check rate limits (email + IP)
+2. **Within limits** → generate token, send email, increment counters
+3. **Rate exceeded** → reject with clear error message and reset time
+4. **Cleanup task** → reset expired rate limit windows
+
+### Session Management Flow
+
+1. **Successful authentication** → create session record
+2. **Session token** → hashed and stored, plain token sent to client
+3. **API requests** → validate session hash, update last_accessed_at
+4. **Logout** → mark session inactive, generate new anonymous UUID
 
 ## Common Queries
 
