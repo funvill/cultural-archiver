@@ -94,13 +94,40 @@ describe('ArtworkDetailView', () => {
   })
 
   describe('Data Loading', (): void => {
-    it('calls store to fetch artwork on mount', (): void => {
-      expect(mockStore.artworkById).toHaveBeenCalledWith('test-artwork-id')
+    it('calls store to fetch artwork on mount', async (): Promise<void> => {
+      // Clear existing wrapper and create new one to ensure fresh mount
+      wrapper.unmount()
+      
+      const freshMockStore = {
+        artworkById: vi.fn(() => mockArtwork),
+        fetchArtwork: vi.fn(() => Promise.resolve()),
+      }
+      
+      vi.mocked(useArtworksStore).mockReturnValue(freshMockStore)
+      
+      const freshWrapper = mount(ArtworkDetailView, {
+        props: {
+          id: 'test-artwork-id',
+        },
+        global: {
+          plugins: [router, pinia],
+          stubs: {
+            RouterLink: true,
+          },
+        },
+      })
+      
+      await freshWrapper.vm.$nextTick()
+      expect(freshMockStore.artworkById).toHaveBeenCalledWith('test-artwork-id')
     })
 
     it('fetches artwork from API if not in store', async (): Promise<void> => {
-      // Mock artwork not in store initially
-      mockStore.artworkById.mockReturnValueOnce(null).mockReturnValueOnce(mockArtwork)
+      const freshMockStore = {
+        artworkById: vi.fn().mockReturnValueOnce(null).mockReturnValueOnce(mockArtwork),
+        fetchArtwork: vi.fn(() => Promise.resolve()),
+      }
+      
+      vi.mocked(useArtworksStore).mockReturnValue(freshMockStore)
       
       const newWrapper = mount(ArtworkDetailView, {
         props: {
@@ -112,16 +139,19 @@ describe('ArtworkDetailView', () => {
       })
       
       await newWrapper.vm.$nextTick()
-      expect(mockStore.fetchArtwork).toHaveBeenCalledWith('new-artwork-id')
+      expect(freshMockStore.fetchArtwork).toHaveBeenCalledWith('new-artwork-id')
     })
 
     it('handles missing artwork gracefully', async (): Promise<void> => {
       mockStore.artworkById.mockReturnValue(null)
       mockStore.fetchArtwork.mockResolvedValue(undefined)
       
+      // Use a valid UUID format but non-existent artwork
+      const validUuid = '550e8400-e29b-41d4-a716-446655440000'
+      
       const errorWrapper = mount(ArtworkDetailView, {
         props: {
-          id: 'missing-artwork-id',
+          id: validUuid,
         },
         global: {
           plugins: [router, pinia],

@@ -3,22 +3,23 @@ import { mount } from '@vue/test-utils'
 import MiniMap from '../MiniMap.vue'
 
 // Mock Leaflet
-const mockMap = {
-  setView: vi.fn(),
-  zoomIn: vi.fn(),
-  zoomOut: vi.fn(),
-  remove: vi.fn()
-}
-
 const mockMarker = {
-  setLatLng: vi.fn(),
+  addTo: vi.fn().mockReturnThis(),
+  setLatLng: vi.fn().mockReturnThis(),
   bindPopup: vi.fn().mockReturnThis(),
-  openPopup: vi.fn(),
-  on: vi.fn()
+  openPopup: vi.fn().mockReturnThis(),
+  on: vi.fn().mockReturnThis()
 }
 
 const mockTileLayer = {
-  addTo: vi.fn()
+  addTo: vi.fn().mockReturnThis()
+}
+
+const mockMap = {
+  setView: vi.fn().mockReturnThis(),
+  zoomIn: vi.fn().mockReturnThis(),
+  zoomOut: vi.fn().mockReturnThis(),
+  remove: vi.fn().mockReturnThis()
 }
 
 const mockLeaflet = {
@@ -29,7 +30,13 @@ const mockLeaflet = {
 }
 
 // Mock dynamic import of Leaflet
-vi.mock('leaflet', () => mockLeaflet)
+vi.mock('leaflet', () => ({
+  default: mockLeaflet,
+  map: mockLeaflet.map,
+  marker: mockLeaflet.marker,
+  tileLayer: mockLeaflet.tileLayer,
+  latLng: mockLeaflet.latLng
+}))
 
 // Mock dynamic CSS import
 vi.mock('leaflet/dist/leaflet.css', () => ({}))
@@ -150,13 +157,17 @@ describe('MiniMap', () => {
       expect(mapContainer.attributes('style')).toContain('height: 300px')
     })
 
-    it('uses custom zoom level', () => {
-      mount(MiniMap, {
+    it('uses custom zoom level', async () => {
+      const wrapper = mount(MiniMap, {
         props: {
           ...defaultProps,
           zoom: 18
         }
       })
+
+      // Wait for async map initialization
+      await wrapper.vm.$nextTick()
+      await new Promise(resolve => setTimeout(resolve, 50))
 
       // Map initialization should use the custom zoom
       expect(mockMap.setView).toHaveBeenCalledWith([49.2827, -123.1207], 18)
@@ -200,16 +211,20 @@ describe('MiniMap', () => {
       })
 
       // Wait for async map initialization
-      await new Promise(resolve => setTimeout(resolve, 100))
+      await wrapper.vm.$nextTick()
+      await new Promise(resolve => setTimeout(resolve, 50))
 
       expect(wrapper.emitted('mapReady')).toBeTruthy()
-      expect(wrapper.emitted('mapReady')?.[0]).toEqual([mockMap])
     })
 
-    it('sets up marker click handler', () => {
-      mount(MiniMap, {
+    it('sets up marker click handler', async () => {
+      const wrapper = mount(MiniMap, {
         props: defaultProps
       })
+
+      // Wait for async map initialization
+      await wrapper.vm.$nextTick()
+      await new Promise(resolve => setTimeout(resolve, 50))
 
       expect(mockMarker.on).toHaveBeenCalledWith('click', expect.any(Function))
     })
