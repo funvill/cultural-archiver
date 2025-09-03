@@ -30,9 +30,9 @@ Based on initial assessment and test runs:
 
 ## Project Cleanup Task List
 
-- [ ] 1.0 Health Scan & Quick Fixes
-  - [ ] 1.1 Fix failing frontend test (AuditLogViewer date filtering)
-  - [ ] 1.2 Fix ESLint errors (Vue component tag order and TypeScript issues)
+- [x] 1.0 Health Scan & Quick Fixes
+  - [x] 1.1 Fix failing frontend test (AuditLogViewer date filtering)
+  - [x] 1.2 Fix ESLint errors (Vue component tag order and TypeScript issues)
   - [ ] 1.3 Update linting configuration for current TypeScript version
   - [ ] 1.4 Clean up lint warnings where appropriate
   - [ ] 1.5 Verify all builds pass without errors

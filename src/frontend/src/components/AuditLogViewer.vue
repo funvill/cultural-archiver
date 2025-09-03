@@ -1,9 +1,170 @@
-<!--
-Audit Log Viewer Component
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
+import { adminService } from '../services/admin'
+import type {
+  AuditLogsResponse,
+  AuditLogEntry,
+  AuditLogQuery,
+} from '../../../shared/types'
 
-Provides a comprehensive interface for viewing and filtering audit logs
-with advanced filtering options, pagination, and responsive design.
--->
+/**
+ * Audit Log Viewer Component
+ * 
+ * Provides a comprehensive interface for viewing and filtering audit logs
+ * with advanced filtering options, pagination, and responsive design.
+ */
+
+// State
+const auditLogs = ref<AuditLogsResponse | null>(null)
+const isLoading = ref(false)
+const error = ref<string | null>(null)
+const selectedLog = ref<AuditLogEntry | null>(null)
+const currentPage = ref(1)
+const pageSize = ref(25)
+
+// Filter state
+const filters = ref<AuditLogQuery>({
+  actor: '',
+  startDate: '',
+  endDate: '',
+  page: 1,
+  limit: 25,
+})
+
+// Computed
+const totalPages = computed(() => {
+  if (!auditLogs.value) return 1
+  return Math.ceil(auditLogs.value.total / pageSize.value)
+})
+
+// Methods
+async function loadAuditLogs(): Promise<void> {
+  isLoading.value = true
+  error.value = null
+  
+  try {
+    // Prepare query, removing empty values
+    const query: Partial<AuditLogQuery> = { ...filters.value }
+    Object.keys(query).forEach(key => {
+      const value = query[key as keyof AuditLogQuery]
+      if (value === '' || value === undefined) {
+        delete query[key as keyof AuditLogQuery]
+      }
+    })
+    
+    // Convert date-time inputs to ISO strings
+    if (query.startDate) {
+      query.startDate = new Date(query.startDate).toISOString()
+    }
+    if (query.endDate) {
+      query.endDate = new Date(query.endDate).toISOString()
+    }
+    
+    const response = await adminService.getAuditLogs(query)
+    auditLogs.value = response
+  } catch (err) {
+    console.error('Failed to load audit logs:', err)
+    error.value = err instanceof Error ? err.message : 'Failed to load audit logs'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Apply filters (debounced)
+let filterTimeout: ReturnType<typeof setTimeout> | null = null
+function applyFilters(): void {
+  if (filterTimeout) {
+    clearTimeout(filterTimeout)
+  }
+  
+  filterTimeout = setTimeout(() => {
+    filters.value.page = 1
+    currentPage.value = 1
+    loadAuditLogs()
+  }, 500)
+}
+
+// Debounced filter for text inputs
+function debouncedFilter(): void {
+  if (filterTimeout) {
+    clearTimeout(filterTimeout)
+  }
+  
+  filterTimeout = setTimeout(() => {
+    applyFilters()
+  }, 500)
+}
+
+// Reset filters
+function resetFilters(): void {
+  filters.value = {
+    actor: '',
+    startDate: '',
+    endDate: '',
+    page: 1,
+    limit: 25,
+  }
+  currentPage.value = 1
+  loadAuditLogs()
+}
+
+// Pagination
+function previousPage(): void {
+  if (currentPage.value > 1) {
+    currentPage.value--
+    filters.value.page = currentPage.value
+    loadAuditLogs()
+  }
+}
+
+function nextPage(): void {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++
+    filters.value.page = currentPage.value
+    loadAuditLogs()
+  }
+}
+
+
+
+// Lifecycle
+onMounted(() => {
+  loadAuditLogs()
+})
+
+// Details modal
+function showDetails(log: AuditLogEntry): void {
+  selectedLog.value = log
+}
+
+function closeDetails(): void {
+  selectedLog.value = null
+}
+
+// Utility functions
+function formatDateTime(dateString: string): string {
+  return new Date(dateString).toLocaleString()
+}
+
+function getActionColor(action: string): string {
+  switch (action) {
+    case 'approved':
+      return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+    case 'rejected':
+      return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+    case 'skipped':
+      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
+    case 'grant_permission':
+      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
+    case 'revoke_permission':
+      return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
+    case 'view_audit_logs':
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+    default:
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+  }
+}
+</script>
 
 <template>
   <div class="space-y-6">
@@ -340,157 +501,3 @@ with advanced filtering options, pagination, and responsive design.
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { adminService } from '../services/admin'
-import type {
-  AuditLogsResponse,
-  AuditLogEntry,
-  AuditLogQuery,
-} from '../../../shared/types'
-
-// Reactive state
-const auditLogs = ref<AuditLogsResponse | null>(null)
-const isLoading = ref(false)
-const error = ref<string | null>(null)
-const selectedLog = ref<AuditLogEntry | null>(null)
-const currentPage = ref(1)
-const pageSize = ref(25)
-
-// Filter state
-const filters = ref<AuditLogQuery>({
-  actor: '',
-  startDate: '',
-  endDate: '',
-  page: 1,
-  limit: 25,
-})
-
-// Computed
-const totalPages = computed(() => {
-  if (!auditLogs.value) return 1
-  return Math.ceil(auditLogs.value.total / pageSize.value)
-})
-
-// Load audit logs
-async function loadAuditLogs(): Promise<void> {
-  try {
-    isLoading.value = true
-    error.value = null
-    
-    const query: AuditLogQuery = {
-      ...filters.value,
-      page: currentPage.value,
-      limit: pageSize.value,
-    }
-    
-    // Clean up empty filters
-    Object.keys(query).forEach(key => {
-      const value = query[key as keyof AuditLogQuery]
-      if (value === '' || value === undefined) {
-        delete query[key as keyof AuditLogQuery]
-      }
-    })
-    
-    // Convert date-time inputs to ISO strings
-    if (query.startDate) {
-      query.startDate = new Date(query.startDate).toISOString()
-    }
-    if (query.endDate) {
-      query.endDate = new Date(query.endDate).toISOString()
-    }
-    
-    const response = await adminService.getAuditLogs(query)
-    auditLogs.value = response
-  } catch (err) {
-    console.error('Failed to load audit logs:', err)
-    error.value = err instanceof Error ? err.message : 'Failed to load audit logs'
-  } finally {
-    isLoading.value = false
-  }
-}
-
-// Apply filters
-function applyFilters(): void {
-  currentPage.value = 1
-  loadAuditLogs()
-}
-
-// Debounced filter for text inputs
-let filterTimeout: ReturnType<typeof setTimeout> | null = null
-function debouncedFilter(): void {
-  if (filterTimeout) {
-    clearTimeout(filterTimeout)
-  }
-  
-  filterTimeout = setTimeout(() => {
-    applyFilters()
-  }, 500)
-}
-
-// Reset filters
-function resetFilters(): void {
-  filters.value = {
-    actor: '',
-    startDate: '',
-    endDate: '',
-    page: 1,
-    limit: 25,
-  }
-  currentPage.value = 1
-  loadAuditLogs()
-}
-
-// Pagination
-function previousPage(): void {
-  if (currentPage.value > 1) {
-    currentPage.value--
-    loadAuditLogs()
-  }
-}
-
-function nextPage(): void {
-  if (currentPage.value < totalPages.value) {
-    currentPage.value++
-    loadAuditLogs()
-  }
-}
-
-// Details modal
-function showDetails(log: AuditLogEntry): void {
-  selectedLog.value = log
-}
-
-function closeDetails(): void {
-  selectedLog.value = null
-}
-
-// Utility functions
-function formatDateTime(dateString: string): string {
-  return new Date(dateString).toLocaleString()
-}
-
-function getActionColor(action: string): string {
-  switch (action) {
-    case 'approved':
-      return 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
-    case 'rejected':
-      return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-    case 'skipped':
-      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-    case 'grant_permission':
-      return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400'
-    case 'revoke_permission':
-      return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400'
-    case 'view_audit_logs':
-      return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-    default:
-      return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
-  }
-}
-
-// Initialize component
-onMounted(async () => {
-  await loadAuditLogs()
-})
-</script>

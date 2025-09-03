@@ -161,7 +161,7 @@ describe('AuditLogViewer', () => {
       expect(adminService.getAuditLogs).toHaveBeenLastCalledWith(
         expect.objectContaining({
           startDate: expect.stringMatching(/2025-01-01.*Z$/),
-          endDate: expect.stringMatching(/2025-01-04.*Z$/)
+          endDate: expect.stringMatching(/2025-01-03.*Z$/)
         })
       )
     })

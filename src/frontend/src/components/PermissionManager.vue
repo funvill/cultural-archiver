@@ -1,9 +1,183 @@
-<!--
-Permission Manager Component
+<script setup lang="ts">
+import { ref, onMounted } from 'vue'
+import { adminService } from '../services/admin'
+import type {
+  GetPermissionsResponse,
+  UserWithPermissions,
+  Permission,
+} from '../../../shared/types'
 
-Provides UI for managing user permissions with grant/revoke functionality,
-search, filtering, and confirmation dialogs for administrative actions.
--->
+/**
+ * Permission Manager Component
+ *
+ * Provides UI for managing user permissions with grant/revoke functionality,
+ * search, filtering, and confirmation dialogs for administrative actions.
+ */
+
+// Events
+const emit = defineEmits<{
+  permissionChanged: []
+}>()
+
+// Reactive state
+const permissions = ref<GetPermissionsResponse | null>(null)
+const isLoading = ref(false)
+const error = ref<string | null>(null)
+const searchQuery = ref('')
+const permissionFilter = ref<Permission | ''>('')
+
+// Dialog state
+const showGrantDialog = ref(false)
+const showRevokeDialog = ref(false)
+const isSubmitting = ref(false)
+const revokeTarget = ref<UserWithPermissions | null>(null)
+
+// Form state
+const grantForm = ref({
+  userUuid: '',
+  permission: '' as Permission | '',
+  reason: '',
+})
+
+const revokeForm = ref({
+  permission: '' as Permission | '',
+  reason: '',
+})
+
+// Load permissions data
+async function loadPermissions(): Promise<void> {
+  try {
+    isLoading.value = true
+    error.value = null
+    
+    const filters: Record<string, unknown> = {}
+    
+    if (searchQuery.value.trim()) {
+      filters.search = searchQuery.value.trim()
+    }
+    
+    if (permissionFilter.value) {
+      filters.permission = permissionFilter.value
+    }
+    
+    const response = await adminService.getUserPermissions(filters)
+    permissions.value = response
+  } catch (err) {
+    console.error('Failed to load permissions:', err)
+    error.value = err instanceof Error ? err.message : 'Failed to load permissions'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Debounced search
+let searchTimeout: number | null = null
+function debouncedSearch(): void {
+  if (searchTimeout) {
+    clearTimeout(searchTimeout)
+  }
+  
+  searchTimeout = window.setTimeout(() => {
+    loadPermissions()
+  }, 500)
+}
+
+// Reset filters
+function resetFilters(): void {
+  searchQuery.value = ''
+  permissionFilter.value = ''
+  loadPermissions()
+}
+
+// Grant permission dialog
+function closeGrantDialog(): void {
+  showGrantDialog.value = false
+  grantForm.value = {
+    userUuid: '',
+    permission: '',
+    reason: '',
+  }
+}
+
+async function grantPermission(): Promise<void> {
+  if (!grantForm.value.userUuid || !grantForm.value.permission) {
+    return
+  }
+  
+  try {
+    isSubmitting.value = true
+    
+    await adminService.grantPermission({
+      userUuid: grantForm.value.userUuid,
+      permission: grantForm.value.permission as Permission,
+      reason: grantForm.value.reason || '',
+    })
+    
+    closeGrantDialog()
+    await loadPermissions()
+    emit('permissionChanged')
+  } catch (err) {
+    console.error('Failed to grant permission:', err)
+    error.value = err instanceof Error ? err.message : 'Failed to grant permission'
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+// Revoke permission dialog
+function openRevokeDialog(user: UserWithPermissions): void {
+  revokeTarget.value = user
+  revokeForm.value = {
+    permission: '',
+    reason: '',
+  }
+  showRevokeDialog.value = true
+}
+
+function closeRevokeDialog(): void {
+  showRevokeDialog.value = false
+  revokeTarget.value = null
+  revokeForm.value = {
+    permission: '',
+    reason: '',
+  }
+}
+
+async function revokePermission(): Promise<void> {
+  if (!revokeTarget.value || !revokeForm.value.permission) {
+    return
+  }
+  
+  try {
+    isSubmitting.value = true
+    
+    await adminService.revokePermission({
+      userUuid: revokeTarget.value.user_uuid,
+      permission: revokeForm.value.permission as Permission,
+      reason: revokeForm.value.reason || '',
+    })
+    
+    closeRevokeDialog()
+    await loadPermissions()
+    emit('permissionChanged')
+  } catch (err) {
+    console.error('Failed to revoke permission:', err)
+    error.value = err instanceof Error ? err.message : 'Failed to revoke permission'
+  } finally {
+    isSubmitting.value = false
+  }
+}
+
+// Utility functions
+function formatDate(dateString: string): string {
+  return new Date(dateString).toLocaleDateString()
+}
+
+// Initialize component
+onMounted(async () => {
+  await loadPermissions()
+})
+</script>
 
 <template>
   <div class="space-y-6">
@@ -331,176 +505,3 @@ search, filtering, and confirmation dialogs for administrative actions.
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { adminService } from '../services/admin'
-import type {
-  GetPermissionsResponse,
-  UserWithPermissions,
-  Permission,
-} from '../../../shared/types'
-
-// Events
-const emit = defineEmits<{
-  permissionChanged: []
-}>()
-
-// Reactive state
-const permissions = ref<GetPermissionsResponse | null>(null)
-const isLoading = ref(false)
-const error = ref<string | null>(null)
-const searchQuery = ref('')
-const permissionFilter = ref<Permission | ''>('')
-
-// Dialog state
-const showGrantDialog = ref(false)
-const showRevokeDialog = ref(false)
-const isSubmitting = ref(false)
-const revokeTarget = ref<UserWithPermissions | null>(null)
-
-// Form state
-const grantForm = ref({
-  userUuid: '',
-  permission: '' as Permission | '',
-  reason: '',
-})
-
-const revokeForm = ref({
-  permission: '' as Permission | '',
-  reason: '',
-})
-
-// Load permissions data
-async function loadPermissions(): Promise<void> {
-  try {
-    isLoading.value = true
-    error.value = null
-    
-    const filters: Record<string, unknown> = {}
-    
-    if (searchQuery.value.trim()) {
-      filters.search = searchQuery.value.trim()
-    }
-    
-    if (permissionFilter.value) {
-      filters.permission = permissionFilter.value
-    }
-    
-    const response = await adminService.getUserPermissions(filters)
-    permissions.value = response
-  } catch (err) {
-    console.error('Failed to load permissions:', err)
-    error.value = err instanceof Error ? err.message : 'Failed to load permissions'
-  } finally {
-    isLoading.value = false
-  }
-}
-
-// Debounced search
-let searchTimeout: number | null = null
-function debouncedSearch(): void {
-  if (searchTimeout) {
-    clearTimeout(searchTimeout)
-  }
-  
-  searchTimeout = window.setTimeout(() => {
-    loadPermissions()
-  }, 500)
-}
-
-// Reset filters
-function resetFilters(): void {
-  searchQuery.value = ''
-  permissionFilter.value = ''
-  loadPermissions()
-}
-
-// Grant permission dialog
-function closeGrantDialog(): void {
-  showGrantDialog.value = false
-  grantForm.value = {
-    userUuid: '',
-    permission: '',
-    reason: '',
-  }
-}
-
-async function grantPermission(): Promise<void> {
-  if (!grantForm.value.userUuid || !grantForm.value.permission) {
-    return
-  }
-  
-  try {
-    isSubmitting.value = true
-    
-    await adminService.grantPermission({
-      userUuid: grantForm.value.userUuid,
-      permission: grantForm.value.permission as Permission,
-      reason: grantForm.value.reason || '',
-    })
-    
-    closeGrantDialog()
-    await loadPermissions()
-    emit('permissionChanged')
-  } catch (err) {
-    console.error('Failed to grant permission:', err)
-    error.value = err instanceof Error ? err.message : 'Failed to grant permission'
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
-// Revoke permission dialog
-function openRevokeDialog(user: UserWithPermissions): void {
-  revokeTarget.value = user
-  revokeForm.value = {
-    permission: '',
-    reason: '',
-  }
-  showRevokeDialog.value = true
-}
-
-function closeRevokeDialog(): void {
-  showRevokeDialog.value = false
-  revokeTarget.value = null
-  revokeForm.value = {
-    permission: '',
-    reason: '',
-  }
-}
-
-async function revokePermission(): Promise<void> {
-  if (!revokeTarget.value || !revokeForm.value.permission) {
-    return
-  }
-  
-  try {
-    isSubmitting.value = true
-    
-    await adminService.revokePermission({
-      userUuid: revokeTarget.value.user_uuid,
-      permission: revokeForm.value.permission as Permission,
-      reason: revokeForm.value.reason || '',
-    })
-    
-    closeRevokeDialog()
-    await loadPermissions()
-    emit('permissionChanged')
-  } catch (err) {
-    console.error('Failed to revoke permission:', err)
-    error.value = err instanceof Error ? err.message : 'Failed to revoke permission'
-  } finally {
-    isSubmitting.value = false
-  }
-}
-
-// Utility functions
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString()
-}
-
-// Initialize component
-onMounted(async () => {
-  await loadPermissions()
-})
-</script>

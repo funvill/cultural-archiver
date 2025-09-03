@@ -1,9 +1,68 @@
-<!--
-Admin View Component
+<script setup lang="ts">
+import { ref, onMounted, computed } from 'vue'
+import { useAuthStore } from '../stores/auth'
+import { adminService } from '../services/admin'
+import PermissionManager from '../components/PermissionManager.vue'
+import AuditLogViewer from '../components/AuditLogViewer.vue'
+import type { AuditStatistics } from '../../../shared/types'
 
-Provides a comprehensive admin dashboard for managing user permissions
-and viewing audit logs with responsive design and accessibility features.
--->
+/**
+ * Admin View Component
+ *
+ * Provides a comprehensive admin dashboard for managing user permissions
+ * and viewing audit logs with responsive design and accessibility features.
+ */
+
+// Auth store
+const authStore = useAuthStore()
+
+// Reactive state
+const statistics = ref<AuditStatistics | null>(null)
+const isLoading = ref(false)
+const error = ref<string | null>(null)
+const activeTab = ref('permissions')
+
+// Tab configuration
+const tabs = [
+  { id: 'permissions', name: 'Permission Management' },
+  { id: 'audit', name: 'Audit Logs' },
+]
+
+// Check admin access
+const hasAdminAccess = computed(() => authStore.isAdmin)
+
+// Load initial data
+async function loadData(): Promise<void> {
+  if (!hasAdminAccess.value) {
+    error.value = 'Access denied. Admin permissions required.'
+    return
+  }
+
+  try {
+    isLoading.value = true
+    error.value = null
+    
+    // Load statistics
+    const stats = await adminService.getStatistics(30)
+    statistics.value = stats
+  } catch (err) {
+    console.error('Failed to load admin data:', err)
+    error.value = err instanceof Error ? err.message : 'Failed to load admin dashboard'
+  } finally {
+    isLoading.value = false
+  }
+}
+
+// Refresh all data
+async function refreshData(): Promise<void> {
+  await loadData()
+}
+
+// Initialize component
+onMounted(async () => {
+  await loadData()
+})
+</script>
 
 <template>
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -204,61 +263,3 @@ and viewing audit logs with responsive design and accessibility features.
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useAuthStore } from '../stores/auth'
-import { adminService } from '../services/admin'
-import PermissionManager from '../components/PermissionManager.vue'
-import AuditLogViewer from '../components/AuditLogViewer.vue'
-import type { AuditStatistics } from '../../../shared/types'
-
-// Auth store
-const authStore = useAuthStore()
-
-// Reactive state
-const statistics = ref<AuditStatistics | null>(null)
-const isLoading = ref(false)
-const error = ref<string | null>(null)
-const activeTab = ref('permissions')
-
-// Tab configuration
-const tabs = [
-  { id: 'permissions', name: 'Permission Management' },
-  { id: 'audit', name: 'Audit Logs' },
-]
-
-// Check admin access
-const hasAdminAccess = computed(() => authStore.isAdmin)
-
-// Load initial data
-async function loadData(): Promise<void> {
-  if (!hasAdminAccess.value) {
-    error.value = 'Access denied. Admin permissions required.'
-    return
-  }
-
-  try {
-    isLoading.value = true
-    error.value = null
-    
-    // Load statistics
-    const stats = await adminService.getStatistics(30)
-    statistics.value = stats
-  } catch (err) {
-    console.error('Failed to load admin data:', err)
-    error.value = err instanceof Error ? err.message : 'Failed to load admin dashboard'
-  } finally {
-    isLoading.value = false
-  }
-}
-
-// Refresh all data
-async function refreshData(): Promise<void> {
-  await loadData()
-}
-
-// Initialize component
-onMounted(async () => {
-  await loadData()
-})
-</script>
