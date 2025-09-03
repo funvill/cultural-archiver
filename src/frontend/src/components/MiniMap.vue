@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
-import type { Map, LatLng, Marker } from 'leaflet'
+import type { Map, Marker } from 'leaflet'
 
 // Props interface
 interface Props {
@@ -202,7 +202,7 @@ import('leaflet/dist/leaflet.css')
       <!-- Map element -->
       <div
         ref="mapContainer"
-        class="w-full focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class="w-full focus:outline-none focus:ring-2 focus:ring-blue-500 touch-manipulation"
         :style="{ height: props.height }"
         tabindex="0"
         role="application"
@@ -212,33 +212,33 @@ import('leaflet/dist/leaflet.css')
     </div>
 
     <!-- Map controls and info -->
-    <div class="mt-3 space-y-2">
+    <div class="mt-2 sm:mt-3 space-y-2">
       <!-- Coordinates display -->
-      <div class="flex items-center text-sm text-gray-600">
-        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+      <div class="flex items-center text-xs sm:text-sm text-gray-600">
+        <svg class="w-3 h-3 sm:w-4 sm:h-4 mr-1 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
           <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
         </svg>
-        <span>{{ props.latitude.toFixed(6) }}, {{ props.longitude.toFixed(6) }}</span>
+        <span class="truncate">{{ props.latitude.toFixed(6) }}, {{ props.longitude.toFixed(6) }}</span>
       </div>
 
       <!-- Directions link -->
       <div v-if="showDirectionsLink" class="flex">
         <button
           @click="openDirections"
-          class="inline-flex items-center text-sm text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+          class="inline-flex items-center text-xs sm:text-sm text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded px-2 py-2 -mx-2 -my-1 min-h-[44px] sm:min-h-[32px]"
         >
-          <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <svg class="w-4 h-4 mr-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-1.447-.894L15 4m0 13V4m0 0L9 7" />
           </svg>
           Get Directions
-          <svg class="w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+          <svg class="w-3 h-3 ml-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
           </svg>
         </button>
       </div>
 
-      <!-- Keyboard shortcuts help -->
-      <div class="text-xs text-gray-500">
+      <!-- Keyboard shortcuts help - hidden on mobile -->
+      <div class="hidden sm:block text-xs text-gray-500">
         <p>Keyboard: Enter/Space for directions, +/- to zoom</p>
       </div>
     </div>

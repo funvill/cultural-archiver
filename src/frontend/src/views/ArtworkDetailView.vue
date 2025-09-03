@@ -6,7 +6,6 @@ import PhotoCarousel from '../components/PhotoCarousel.vue'
 import MiniMap from '../components/MiniMap.vue'
 import TagBadge from '../components/TagBadge.vue'
 import LogbookTimeline from '../components/LogbookTimeline.vue'
-import { globalModal } from '../composables/useModal'
 import { useAnnouncer } from '../composables/useAnnouncer'
 
 // Props
@@ -51,11 +50,11 @@ const artworkDescription = computed(() => {
 })
 
 const artworkCreators = computed(() => {
-  if (!artwork.value?.creators || artwork.value.creators.length === 0) {
+  if (!artwork.value?.tags_parsed?.creator) {
     return 'Unknown'
   }
   
-  return artwork.value.creators.map(creator => creator.name).join(', ')
+  return artwork.value.tags_parsed.creator as string
 })
 
 const artworkTags = computed(() => {
@@ -84,6 +83,21 @@ onMounted(async () => {
     loading.value = true
     error.value = null
     
+    // Validate ID parameter
+    if (!props.id || props.id.trim() === '') {
+      error.value = 'Invalid artwork ID provided.'
+      announceError('Invalid artwork ID')
+      return
+    }
+    
+    // Check if ID is in valid format (UUID pattern)
+    const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    if (!uuidPattern.test(props.id)) {
+      error.value = 'Invalid artwork ID format. Please check the URL and try again.'
+      announceError('Invalid artwork ID format')
+      return
+    }
+    
     // Try to load artwork from store first
     let artworkData = artworksStore.artworkById(props.id)
     
@@ -93,7 +107,7 @@ onMounted(async () => {
       artworkData = artworksStore.artworkById(props.id)
       
       if (!artworkData) {
-        error.value = `Artwork with ID "${props.id}" was not found.`
+        error.value = `Artwork with ID "${props.id}" was not found. It may have been removed or is pending approval.`
         announceError('Artwork not found')
         return
       }
@@ -103,7 +117,13 @@ onMounted(async () => {
     
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to load artwork'
-    error.value = message
+    if (message.includes('404') || message.includes('not found')) {
+      error.value = `Artwork with ID "${props.id}" was not found. It may have been removed or is pending approval.`
+    } else if (message.includes('network') || message.includes('fetch')) {
+      error.value = 'Unable to load artwork details. Please check your internet connection and try again.'
+    } else {
+      error.value = message
+    }
     announceError('Failed to load artwork details')
   } finally {
     loading.value = false
@@ -131,7 +151,7 @@ function handleLogbookEntryClick(entry: any): void {
   console.log('Logbook entry clicked:', entry)
 }
 
-function handleLogbookPhotoClick(photoUrl: string, entry: any): void {
+function handleLogbookPhotoClick(photoUrl: string): void {
   handlePhotoFullscreen(photoUrl)
 }
 
@@ -203,7 +223,29 @@ onUnmounted(() => {
     </div>
 
     <!-- Artwork Content -->
-    <div v-else-if="artwork" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div v-else-if="artwork" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
+      <!-- Breadcrumb Navigation -->
+      <nav aria-label="Breadcrumb" class="mb-4">
+        <ol class="flex items-center space-x-2 text-sm text-gray-500">
+          <li>
+            <button
+              @click="goToMap"
+              class="hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+            >
+              Map
+            </button>
+          </li>
+          <li>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </li>
+          <li class="text-gray-900 font-medium" aria-current="page">
+            {{ artworkTitle }}
+          </li>
+        </ol>
+      </nav>
+
       <!-- Header with back button -->
       <div class="mb-6">
         <button
@@ -217,24 +259,26 @@ onUnmounted(() => {
         </button>
         
         <!-- Title and Type -->
-        <div class="flex items-center gap-3 mb-2">
-          <span class="text-3xl" aria-hidden="true">{{ getArtworkTypeEmoji(artwork.type_name || '') }}</span>
-          <span class="text-sm font-medium text-blue-600 bg-blue-100 px-3 py-1 rounded-full">
-            {{ (artwork.type_name || 'other').replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) }}
-          </span>
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+          <div class="flex items-center gap-2">
+            <span class="text-2xl sm:text-3xl" aria-hidden="true">{{ getArtworkTypeEmoji(artwork.type_name || '') }}</span>
+            <span class="text-xs sm:text-sm font-medium text-blue-600 bg-blue-100 px-2 sm:px-3 py-1 rounded-full">
+              {{ (artwork.type_name || 'other').replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) }}
+            </span>
+          </div>
         </div>
         
-        <h1 class="text-4xl font-bold text-gray-900 mb-2">{{ artworkTitle }}</h1>
+        <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 leading-tight">{{ artworkTitle }}</h1>
         
-        <div v-if="artworkCreators !== 'Unknown'" class="text-lg text-gray-600 mb-4">
+        <div v-if="artworkCreators !== 'Unknown'" class="text-base sm:text-lg text-gray-600 mb-4">
           by {{ artworkCreators }}
         </div>
       </div>
 
       <!-- Main content grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
         <!-- Left column - Main content -->
-        <div class="lg:col-span-2 space-y-8">
+        <div class="lg:col-span-2 space-y-6 lg:space-y-8">
           <!-- Photo Gallery -->
           <section aria-labelledby="photos-heading">
             <h2 id="photos-heading" class="sr-only">Photo Gallery</h2>

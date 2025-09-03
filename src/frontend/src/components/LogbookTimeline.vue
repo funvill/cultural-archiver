@@ -107,7 +107,7 @@ function getUserDisplayName(userToken: string): string {
   return `User ${userToken.slice(0, 4)}...${userToken.slice(-4)}`
 }
 
-function getPhotoAltText(photoUrl: string, entry: LogbookEntry, index: number): string {
+function getPhotoAltText(_photoUrl: string, entry: LogbookEntry, index: number): string {
   const totalPhotos = entry.photos_parsed.length
   const user = getUserDisplayName(entry.user_token)
   const date = formatRelativeDate(entry.created_at)
@@ -296,7 +296,7 @@ function truncateNote(note: string, maxLength: number = 200): { text: string; is
     <div v-if="hasMore && hasEntries" class="mt-6 text-center">
       <button
         @click="handleLoadMore"
-        :disabled="loadingMore || loading"
+        :disabled="!!(loadingMore || loading)"
         class="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <svg

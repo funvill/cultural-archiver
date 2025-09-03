@@ -5,6 +5,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import type { Coordinates, ArtworkPin, MapComponentProps } from '../types'
 import { useArtworksStore } from '../stores/artworks'
+import { useRouter } from 'vue-router'
 
 // Props
 const props = withDefaults(defineProps<MapComponentProps>(), {
@@ -35,6 +36,9 @@ const markerClusterGroup = ref<L.LayerGroup | null>(null)
 
 // Store
 const artworksStore = useArtworksStore()
+
+// Router for navigation
+const router = useRouter()
 
 // Default coordinates (Vancouver)
 const DEFAULT_CENTER = { latitude: 49.2827, longitude: -123.1207 }
@@ -493,9 +497,7 @@ function retryMapLoad() {
 
 // Global function for popup buttons
 ;(window as any).viewArtworkDetails = (artworkId: string) => {
-  // This would typically use the router
-  console.log('View artwork details:', artworkId)
-  // router.push(`/artwork/${artworkId}`)
+  router.push(`/artwork/${artworkId}`)
 }
 
 // Watch for props changes

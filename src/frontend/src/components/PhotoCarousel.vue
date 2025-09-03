@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useAnnouncer } from '../composables/useAnnouncer'
 
 // Props interface
@@ -35,7 +35,6 @@ const carouselRef = ref<HTMLElement>()
 const touchStartX = ref(0)
 const touchStartY = ref(0)
 const isDragging = ref(false)
-const isFullscreen = ref(false)
 
 // Computed
 const currentPhotoIndex = computed({
@@ -99,26 +98,32 @@ function openFullscreen(): void {
 function handleTouchStart(event: TouchEvent): void {
   if (event.touches.length !== 1) return
   
-  touchStartX.value = event.touches[0].clientX
-  touchStartY.value = event.touches[0].clientY
-  isDragging.value = true
+  const touch = event.touches[0]
+  if (touch) {
+    touchStartX.value = touch.clientX
+    touchStartY.value = touch.clientY
+    isDragging.value = true
+  }
 }
 
 function handleTouchEnd(event: TouchEvent): void {
   if (!isDragging.value || event.changedTouches.length !== 1) return
   
-  const touchEndX = event.changedTouches[0].clientX
-  const touchEndY = event.changedTouches[0].clientY
-  
-  const deltaX = touchEndX - touchStartX.value
-  const deltaY = touchEndY - touchStartY.value
-  
-  // Check if horizontal swipe (more horizontal than vertical)
-  if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
-    if (deltaX > 0) {
-      previousPhoto()
-    } else {
-      nextPhoto()
+  const touch = event.changedTouches[0]
+  if (touch) {
+    const touchEndX = touch.clientX
+    const touchEndY = touch.clientY
+    
+    const deltaX = touchEndX - touchStartX.value
+    const deltaY = touchEndY - touchStartY.value
+    
+    // Check if horizontal swipe (more horizontal than vertical)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 50) {
+      if (deltaX > 0) {
+        previousPhoto()
+      } else {
+        nextPhoto()
+      }
     }
   }
   
@@ -185,7 +190,7 @@ onMounted(() => {
       tabindex="0"
       role="img"
       :aria-label="photoAltText"
-      :aria-describedby="hasMultiplePhotos ? 'photo-navigation-help' : undefined"
+      :aria-describedby="hasMultiplePhotos ? 'photo-navigation-help' : ''"
       @keydown="handleKeydown"
       @touchstart="handleTouchStart"
       @touchend="handleTouchEnd"
@@ -203,20 +208,20 @@ onMounted(() => {
       <div v-if="hasMultiplePhotos" class="absolute inset-0 flex items-center justify-between p-4 pointer-events-none">
         <button
           @click.stop="previousPhoto"
-          class="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all pointer-events-auto focus:outline-none focus:ring-2 focus:ring-blue-400"
+          class="bg-black bg-opacity-50 text-white p-2 sm:p-3 rounded-full hover:bg-opacity-70 transition-all pointer-events-auto focus:outline-none focus:ring-2 focus:ring-blue-400 min-w-[44px] min-h-[44px] flex items-center justify-center"
           :aria-label="`Previous photo (${currentPhotoIndex} of ${props.photos.length})`"
         >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
         
         <button
           @click.stop="nextPhoto"
-          class="bg-black bg-opacity-50 text-white p-2 rounded-full hover:bg-opacity-70 transition-all pointer-events-auto focus:outline-none focus:ring-2 focus:ring-blue-400"
+          class="bg-black bg-opacity-50 text-white p-2 sm:p-3 rounded-full hover:bg-opacity-70 transition-all pointer-events-auto focus:outline-none focus:ring-2 focus:ring-blue-400 min-w-[44px] min-h-[44px] flex items-center justify-center"
           :aria-label="`Next photo (${currentPhotoIndex + 2} of ${props.photos.length})`"
         >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
           </svg>
         </button>
@@ -251,7 +256,7 @@ onMounted(() => {
     <!-- Dot indicators (only shown if multiple photos) -->
     <div v-if="hasMultiplePhotos" class="flex justify-center mt-4 space-x-2">
       <button
-        v-for="(photo, index) in props.photos"
+        v-for="(_photo, index) in props.photos"
         :key="index"
         @click="goToPhoto(index)"
         class="w-3 h-3 rounded-full transition-all focus:outline-none focus:ring-2 focus:ring-blue-500"
