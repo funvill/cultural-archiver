@@ -19,17 +19,28 @@ This ensures that the cultural history of our cities outlives any single platfor
 
 - **Frontend**: Vue 3 + TypeScript with comprehensive accessibility (WCAG AA compliant)
 - **Interactive map**: Leaflet + OpenStreetMap with artwork discovery and clustering  
+- **Artwork details**: Rich detail pages with photo carousels, mini-maps, and community timelines
 - **Photo submission**: Drag-and-drop upload with EXIF location extraction
 - **User flows**: Anonymous tokens + optional email verification via magic links
 - **Content moderation**: Review queue with approval/rejection workflow
 - **Mobile-first design**: Responsive layout supporting 320px to 1920px viewports
 - **Quality assurance**: 82 unit tests passing across 9 test files, robust TypeScript coverage
+- **Enhanced navigation**: Clickable map markers with direct routing to artwork details
+
+**Latest Features (v1.1):**
+- 🎨 **PhotoCarousel**: Touch/swipe support with fullscreen modal and keyboard navigation
+- 🗺️ **MiniMap**: Interactive location display with directions integration  
+- 🏷️ **TagBadge**: Smart tag management with expandable display
+- 📖 **LogbookTimeline**: Community journal entries with chronological display
+- 📱 **Mobile optimization**: Touch-friendly 44px buttons and responsive layouts
+- 🧭 **Enhanced routing**: Direct marker clicks navigate to artwork details pages
 
 Phase 0 and 1 focus on delivering a simple, accessible web app where users can:
 
 - Upload photos (auto-geolocated) and notes about artworks.
 - See their own submissions immediately, with public visibility after moderator approval.
-- Browse artworks on a Leaflet + OpenStreetMap powered map.
+- Browse artworks on a Leaflet + OpenStreetMap powered map with clickable markers.
+- View detailed artwork pages with rich photo galleries and community contributions.
 - Store data and images safely in a serverless Cloudflare stack (Pages, Workers, D1, KV, R2).
 
 ## 🛠 Tech Stack
@@ -40,7 +51,8 @@ Phase 0 and 1 focus on delivering a simple, accessible web app where users can:
 - **Build**: Vite with optimized production builds
 - **State**: Pinia stores with reactive TypeScript interfaces
 - **Routing**: Vue Router with lazy loading and navigation guards
-- **Maps**: Leaflet + OpenStreetMap with artwork clustering
+- **Maps**: Leaflet + OpenStreetMap with artwork clustering and clickable markers
+- **Components**: PhotoCarousel, MiniMap, TagBadge, LogbookTimeline for rich artwork details
 - **Accessibility**: WCAG AA compliant with comprehensive screen reader support
 - **Testing**: Vitest with 82 unit tests across 9 test files covering components, views, and API integration
 
