@@ -6,7 +6,8 @@
  */
 
 import type { Context } from 'hono';
-import type { WorkerEnv, AuthContext, GenerateDataDumpRequest, GenerateDataDumpResponse, ListDataDumpsResponse, DataDumpRecord } from '../types';
+import type { WorkerEnv, AuthContext } from '../types';
+import type { GenerateDataDumpRequest, GenerateDataDumpResponse, ListDataDumpsResponse, DataDumpRecord } from '../../shared/types';
 import { ApiError } from '../lib/errors';
 import {
   listUsersWithPermissions,

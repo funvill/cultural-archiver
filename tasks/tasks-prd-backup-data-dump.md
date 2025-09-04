@@ -74,14 +74,14 @@
   - [x] 5.6 Update `.env.example` with any additional environment variables needed for backup script
   - [x] 5.7 Test backup script execution and verify generated backup archive contains expected content
 
-- [ ] 6.0 Integrate Data Dump UI into Admin Interface
-  - [ ] 6.1 Add "Generate Data Dump" button to existing admin panel in `src/frontend/src/views/AdminView.vue`
-  - [ ] 6.2 Implement data dump generation trigger with loading state and progress feedback
-  - [ ] 6.3 Add data dump history section showing previously generated dumps with download links
-  - [ ] 6.4 Update `src/frontend/src/services/admin.ts` with `generateDataDump()` and `getDataDumps()` API methods
-  - [ ] 6.5 Add proper error handling and user notifications for data dump generation success/failure
-  - [ ] 6.6 Ensure admin interface updates are consistent with existing design patterns and accessibility standards
-  - [ ] 6.7 Update `src/frontend/src/services/admin.test.ts` with tests for new data dump service methods
+- [x] 6.0 Integrate Data Dump UI into Admin Interface
+  - [x] 6.1 Add "Generate Data Dump" button to existing admin panel in `src/frontend/src/views/AdminView.vue`
+  - [x] 6.2 Implement data dump generation trigger with loading state and progress feedback
+  - [x] 6.3 Add data dump history section showing previously generated dumps with download links
+  - [x] 6.4 Update `src/frontend/src/services/admin.ts` with `generateDataDump()` and `getDataDumps()` API methods
+  - [x] 6.5 Add proper error handling and user notifications for data dump generation success/failure
+  - [x] 6.6 Ensure admin interface updates are consistent with existing design patterns and accessibility standards
+  - [x] 6.7 Update `src/frontend/src/services/admin.test.ts` with tests for new data dump service methods
 
 - [ ] 7.0 Add Comprehensive Testing and Documentation
   - [ ] 7.1 Run complete test suite to ensure all backup and data dump functionality works correctly

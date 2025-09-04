@@ -18,6 +18,8 @@ import type {
   AuditStatistics,
   NearbyArtworksResponse,
   UserSubmissionInfo,
+  GenerateDataDumpResponse,
+  ListDataDumpsResponse,
 } from '../../../shared/types'
 import type { UserProfile, ReviewQueueItem, ReviewStats, ArtworkDetails } from '../types'
 import { getApiBaseUrl } from '../utils/api-config'
@@ -722,6 +724,20 @@ export const apiService = {
    */
   async getAdminStatistics(days: number = 30): Promise<ApiResponse<AuditStatistics>> {
     return client.get('/admin/statistics', { days: days.toString() })
+  },
+
+  /**
+   * Generate a new data dump
+   */
+  async generateDataDump(): Promise<ApiResponse<GenerateDataDumpResponse>> {
+    return client.post('/admin/data-dump/generate', {})
+  },
+
+  /**
+   * Get list of all generated data dumps
+   */
+  async getDataDumps(): Promise<ApiResponse<ListDataDumpsResponse>> {
+    return client.get('/admin/data-dumps')
   }
 }
 
