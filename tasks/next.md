@@ -83,4 +83,7 @@ Find people that would be willing to partner with me on this project. Be specifi
 
 ## Bug fix
 
-When logged in, I submit a new art work, but the artwork doesn't appear on my profile as pending.
+If a user is logged in and has moderator privlages. Add a link to the app bar that takes them to the moderators page
+
+steven@abluestar.com (UUID: 550e8400-e29b-41d4-a716-446655440001)
+moderator@funvill.com (UUID: 550e8400-e29b-41d4-a716-446655440002)

@@ -39,7 +39,7 @@ const navigationItems: NavigationItem[] = [
     icon: PlusIcon
   },
   {
-    name: 'Review',
+    name: 'Moderate',
     path: '/review',
     icon: ClipboardDocumentListIcon,
     requiresReviewer: true

@@ -99,6 +99,10 @@ export async function getUserProfile(c: Context<{ Bindings: WorkerEnv }>): Promi
     // Get user preferences (if any stored in KV)
     const preferences = await getUserPreferences(c.env.SESSIONS, userToken);
 
+    // Get debug information
+    const userDetailedInfo = await getUserDetailedInfo(c.env, userToken);
+    const userPermissions = await getUserPermissionsInfo(c.env, userToken);
+
     const profile = {
       user_token: userToken,
       is_reviewer: authContext.isReviewer,
@@ -107,6 +111,37 @@ export async function getUserProfile(c: Context<{ Bindings: WorkerEnv }>): Promi
       rate_limits: rateLimitStatus,
       preferences,
       created_at: submissionStats.first_submission_at || new Date().toISOString(),
+      debug: {
+        user_info: userDetailedInfo,
+        permissions: userPermissions.map(p => ({
+          permission: p.permission,
+          granted_at: p.granted_at,
+          granted_by: p.granted_by,
+          granted_by_email: p.granted_by_email,
+          revoked_at: p.revoked_at,
+          notes: p.notes,
+          is_active: !p.revoked_at
+        })),
+        auth_context: {
+          user_token: userToken,
+          is_reviewer: authContext.isReviewer,
+          is_admin: authContext.isAdmin,
+          is_verified_email: authContext.isVerifiedEmail,
+          is_authenticated: !!userDetailedInfo
+        },
+        request_headers: {
+          authorization: c.req.header('authorization') ? '[PRESENT]' : 'None',
+          user_token: c.req.header('x-user-token') ? '[PRESENT]' : 'None',
+          user_agent: c.req.header('user-agent') || 'Unknown'
+        },
+        rate_limits: {
+          email_blocked: 'No', // Rate limit status doesn't track blocked status in current implementation
+          ip_blocked: 'No',
+          submissions_remaining: rateLimitStatus.submissions_remaining,
+          queries_remaining: rateLimitStatus.queries_remaining
+        },
+        timestamp: new Date().toISOString()
+      }
     };
 
     return c.json(createSuccessResponse(profile));
@@ -476,5 +511,80 @@ export async function sendTestEmail(c: Context<{ Bindings: WorkerEnv }>): Promis
       error: error instanceof Error ? error.message : 'Unknown error',
       details: 'Check worker logs for more information'
     }, 500);
+  }
+}
+
+/**
+ * Get detailed user information for debug purposes
+ */
+async function getUserDetailedInfo(env: WorkerEnv, userToken: string): Promise<{
+  uuid: string;
+  email: string | null;
+  email_verified: boolean;
+  status: string;
+  created_at: string;
+  updated_at: string | null;
+} | null> {
+  try {
+    const stmt = env.DB.prepare(`
+      SELECT uuid, email, email_verified_at, status, created_at, last_login
+      FROM users 
+      WHERE uuid = ?
+    `);
+    
+    const result = await stmt.bind(userToken).first();
+    
+    if (!result) {
+      return null;
+    }
+    
+    // Transform the result to match the expected format
+    return {
+      uuid: result.uuid as string,
+      email: result.email as string | null,
+      email_verified: !!(result.email_verified_at as string | null),
+      status: result.status as string,
+      created_at: result.created_at as string,
+      updated_at: result.last_login as string | null
+    };
+  } catch (error) {
+    console.error('Error getting user detailed info:', error);
+    return null;
+  }
+}
+
+/**
+ * Get user permissions information for debug purposes
+ */
+async function getUserPermissionsInfo(env: WorkerEnv, userToken: string): Promise<Array<{
+  permission: string;
+  granted_at: string;
+  granted_by: string;
+  granted_by_email: string | null;
+  revoked_at: string | null;
+  notes: string | null;
+}>> {
+  try {
+    const stmt = env.DB.prepare(`
+      SELECT up.permission, up.granted_at, up.granted_by, up.revoked_at, up.notes,
+             u_granter.email as granted_by_email
+      FROM user_permissions up
+      LEFT JOIN users u_granter ON up.granted_by = u_granter.uuid
+      WHERE up.user_uuid = ?
+      ORDER BY up.granted_at DESC
+    `);
+    
+    const results = await stmt.bind(userToken).all();
+    return results.success ? (results.results as Array<{
+      permission: string;
+      granted_at: string;
+      granted_by: string;
+      granted_by_email: string | null;
+      revoked_at: string | null;
+      notes: string | null;
+    }>) : [];
+  } catch (error) {
+    console.error('Error getting user permissions info:', error);
+    return [];
   }
 }

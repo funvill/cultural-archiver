@@ -1,0 +1,10 @@
+name = "cultural-archiver-management"
+main = "src/workers/index.ts"
+compatibility_date = "2024-11-06"
+compatibility_flags = ["nodejs_compat"]
+
+# D1 Database bindings
+[[d1_databases]]
+binding = "DB"
+database_name = "cultural-archiver"
+database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"

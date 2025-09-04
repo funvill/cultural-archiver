@@ -4,15 +4,7 @@
  */
 
 import type {
-  // LogbookSubmission,
-  // ArtworkDetails,
-  // UserSubmission,
-  // UserProfile,
-  // ReviewQueueItem,
-  // ReviewStats,
   MagicLinkRequest,
-  // MagicLinkConsumeRequest,
-  // VerificationStatus,
   ApiResponse,
   PaginatedResponse,
   StatusResponse,
@@ -26,8 +18,8 @@ import type {
   AuditStatistics,
   NearbyArtworksResponse,
   LogbookEntryWithPhotos,
-  NearbyArtworkInfo,
 } from '../../../shared/types'
+import type { UserProfile, UserSubmission, ReviewQueueItem, ReviewStats } from '../types'
 import { getApiBaseUrl } from '../utils/api-config'
 
 // Local type definitions for missing shared types
@@ -52,56 +44,6 @@ interface ArtworkDetails {
   type_name: string
   logbook_entries: LogbookEntryWithPhotos[]
   tags_parsed: Record<string, string>
-}
-
-interface UserSubmission {
-  id: string
-  artwork_id: string | null
-  user_token: string
-  note: string | null
-  photos: string | null
-  status: 'pending' | 'approved' | 'rejected'
-  created_at: string
-  artwork_lat?: number
-  artwork_lon?: number
-  artwork_type_name?: string
-  photos_parsed: string[]
-}
-
-interface UserProfile {
-  user_token: string
-  total_submissions: number
-  approved_submissions: number
-  pending_submissions: number
-  rejected_submissions: number
-  created_at: string
-  email_verified: boolean
-  email?: string
-}
-
-interface ReviewQueueItem {
-  id: string
-  lat: number
-  lon: number
-  note: string | null
-  photos: string[]
-  type?: string
-  status: 'pending' | 'approved' | 'rejected'
-  created_at: string
-  user_token: string
-  nearby_artworks?: NearbyArtworkInfo[]
-}
-
-interface ReviewStats {
-  total_pending: number
-  total_approved: number
-  total_rejected: number
-  pending_by_type: Record<string, number>
-  recent_activity: Array<{
-    date: string
-    approved: number
-    rejected: number
-  }>
 }
 
 interface MagicLinkConsumeRequest {
