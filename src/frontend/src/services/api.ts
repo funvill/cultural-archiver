@@ -376,7 +376,7 @@ export const apiService = {
     lon: number,
     radius: number = 500,
     limit: number = 50
-  ): Promise<NearbyArtworksResponse> {
+  ): Promise<ApiResponse<NearbyArtworksResponse>> {
     return client.get('/artworks/nearby', {
       lat: lat.toString(),
       lon: lon.toString(),
@@ -596,7 +596,14 @@ export const apiService = {
   },
 
   /**
-   * Approve submission
+   * Approve submission with action
+   */
+  async approveSubmissionWithAction(id: string, body: { action: string; artwork_id?: string; overrides?: Record<string, unknown> }): Promise<ApiResponse<{ message: string }>> {
+    return client.post(`/review/approve/${id}`, body)
+  },
+
+  /**
+   * Approve submission (legacy method)
    */
   async approveSubmission(id: string, reason?: string): Promise<ApiResponse<{ message: string }>> {
     return client.post(`/review/approve/${id}`, { reason })
@@ -612,7 +619,7 @@ export const apiService = {
   /**
    * Get review statistics
    */
-  async getReviewStats(): Promise<ApiResponse<ReviewStats>> {
+  async getReviewStats(): Promise<ReviewStats> {
     return client.get('/review/stats')
   },
 

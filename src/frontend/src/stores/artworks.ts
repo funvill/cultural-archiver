@@ -125,8 +125,8 @@ export const useArtworksStore = defineStore('artworks', () => {
         fetchRadius.value
       )
 
-      // The API now returns a NearbyArtworksResponse object with an artworks array
-      const apiArtworks = response.artworks || [];
+      // The API now returns a full API response with { success: true, data: { artworks: [...] } }
+      const apiArtworks = response.data?.artworks || [];
 
       // Convert the API response to ArtworkPin format
       const artworkPins: ArtworkPin[] = apiArtworks.map((artwork: ArtworkWithPhotos): ArtworkPin => {
@@ -235,17 +235,17 @@ export const useArtworksStore = defineStore('artworks', () => {
 
       console.log('[DEBUG] API response received:', response);
       console.log('[DEBUG] Response structure:', {
-        hasArtworks: !!response.artworks,
-        artworksLength: response.artworks ? response.artworks.length : 0,
+        hasArtworks: !!response.data?.artworks,
+        artworksLength: response.data?.artworks ? response.data.artworks.length : 0,
         responseKeys: Object.keys(response),
         responseType: typeof response
       });
       
-      // The API now returns a NearbyArtworksResponse object with an artworks array
-      console.log('[DEBUG] response.artworks type:', typeof response.artworks);
-      console.log('[DEBUG] response.artworks value:', response.artworks);
-      console.log('[DEBUG] response.artworks array check:', Array.isArray(response.artworks));
-      const apiArtworks = response.artworks || [];
+      // The API now returns a full API response with { success: true, data: { artworks: [...] } }
+      console.log('[DEBUG] response.data.artworks type:', typeof response.data?.artworks);
+      console.log('[DEBUG] response.data.artworks value:', response.data?.artworks);
+      console.log('[DEBUG] response.data.artworks array check:', Array.isArray(response.data?.artworks));
+      const apiArtworks = response.data?.artworks || [];
       console.log('[DEBUG] Extracted artworks:', apiArtworks.length, 'artworks found');
       console.log('[DEBUG] First artwork if any:', apiArtworks[0]);      // Convert the API response to ArtworkPin format
       const artworkPins: ArtworkPin[] = apiArtworks.map((artwork: ArtworkWithPhotos): ArtworkPin => {
@@ -302,8 +302,8 @@ export const useArtworksStore = defineStore('artworks', () => {
         10   // Limit results
       )
 
-      // The API now returns a NearbyArtworksResponse object with an artworks array
-      const apiArtworks = response.artworks || [];
+      // The API now returns a full API response with { success: true, data: { artworks: [...] } }
+      const apiArtworks = response.data?.artworks || [];
 
       // Convert the API response to ArtworkPin format
       const artworkPins: ArtworkPin[] = apiArtworks.map((artwork: ArtworkWithPhotos): ArtworkPin => {

@@ -148,13 +148,22 @@ async function loadSubmissions() {
     // Load statistics (if the stats endpoint exists)
     try {
       const statsResponse = await apiService.getReviewStats()
-      if (statsResponse.data) {
+      if (statsResponse) {
+        // Calculate today's counts from recent activity
+        const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD format
+        const todayActivity = statsResponse.recent_activity?.filter((activity: any) => activity.date === today) || []
+        
+        const approvedToday = todayActivity.find((activity: any) => activity.status === 'approved')?.count || 0
+        const rejectedToday = todayActivity.find((activity: any) => activity.status === 'rejected')?.count || 0
+        
         statistics.value = {
-          pending: statsResponse.data.status_counts.pending || 0,
-          approvedToday: statsResponse.data.status_counts.approved || 0,
-          rejectedToday: statsResponse.data.status_counts.rejected || 0,
-          total: (statsResponse.data.status_counts.pending || 0) + (statsResponse.data.status_counts.approved || 0) + (statsResponse.data.status_counts.rejected || 0)
+          pending: statsResponse.status_counts.pending || 0,
+          approvedToday: approvedToday,
+          rejectedToday: rejectedToday,
+          total: (statsResponse.status_counts.pending || 0) + (statsResponse.status_counts.approved || 0) + (statsResponse.status_counts.rejected || 0)
         }
+        
+        console.log('[ReviewView] Statistics calculated:', statistics.value)
       }
     } catch (statsError) {
       console.warn('[ReviewView] Failed to load statistics:', statsError)
@@ -194,10 +203,40 @@ async function approveSubmission(submission: ReviewSubmission) {
   try {
     console.log('[ReviewView] Approving submission:', submission.id)
     
-    // Use the proper API service method
-    await apiService.approveSubmission(submission.id)
+    let approvalAction = 'create_new'
+    let artworkId: string | undefined = undefined
+
+    // If there are nearby artworks, let the reviewer choose
+    if (submission.nearby_artworks && submission.nearby_artworks.length > 0) {
+      const choice = await globalModal.showConfirmModal({
+        title: 'Approval Decision',
+        message: `This submission has ${submission.nearby_artworks.length} nearby artwork(s). Do you want to create a new artwork or link to an existing one?`,
+        confirmText: 'Create New',
+        cancelText: 'Link to Existing'
+      })
+      
+      if (!choice) {
+        // User chose to link to existing - for now, we'll link to the closest nearby artwork
+        // In a more sophisticated UI, we'd show a list to choose from
+        approvalAction = 'link_existing'
+        artworkId = submission.nearby_artworks[0].id
+      }
+      // If choice is true, we keep 'create_new' as default
+    }
+
+    // Prepare the request body with the action
+    const requestBody: { action: string; artwork_id?: string } = {
+      action: approvalAction
+    }
     
-    console.log('[ReviewView] Submission approved successfully')
+    if (artworkId) {
+      requestBody.artwork_id = artworkId
+    }
+
+    // Use the proper API service method with the action
+    await apiService.approveSubmissionWithAction(submission.id, requestBody)
+    
+    console.log('[ReviewView] Submission approved successfully with action:', approvalAction)
 
     // Remove from list
     submissions.value = submissions.value.filter((s: ReviewSubmission) => s.id !== submission.id)
