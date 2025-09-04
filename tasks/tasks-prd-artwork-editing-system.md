@@ -51,7 +51,7 @@
   - [x] 2.8 Integrate artwork edit routes with main worker routing configuration
   - [x] 2.9 Add comprehensive error handling for invalid artwork IDs and malformed requests
 
-- [ ] 3.0 Frontend Edit Interface Implementation
+- [x] 3.0 Frontend Edit Interface Implementation ✅ (Complete as of commit 4ace215)
   - [x] 3.1 Extend `ArtworkDetailView.vue` to show "Edit" button for logged-in users
   - [x] 3.2 Add edit mode state management with reactive form fields
   - [x] 3.3 Transform title, description, creators, and tags into editable inputs in edit mode
@@ -63,14 +63,14 @@
   - [x] 3.9 Add loading states and error handling for edit operations
   - [x] 3.10 Ensure edit interface works consistently on mobile and desktop
 
-- [ ] 4.0 Moderation Queue Integration
-  - [ ] 4.1 Extend `src/workers/routes/review.ts` to handle artwork edit submissions
-  - [ ] 4.2 Update moderation queue queries to include artwork edits alongside new submissions
-  - [ ] 4.3 Implement diff view generation showing before/after comparison for each field
-  - [ ] 4.4 Add approve/reject functionality for artwork edits with all-or-nothing logic
-  - [ ] 4.5 Enable moderator feedback text input for rejection reasons
-  - [ ] 4.6 Track moderator decisions with audit trail (moderator ID, timestamp, action)
-  - [ ] 4.7 Apply approved changes to original artwork record atomically
+- [x] 4.0 Moderation Queue Integration ✅ (Complete as of commit pending)
+  - [x] 4.1 Extend `src/workers/routes/review.ts` to handle artwork edit submissions
+  - [x] 4.2 Update moderation queue queries to include artwork edits alongside new submissions
+  - [x] 4.3 Implement diff view generation showing before/after comparison for each field
+  - [x] 4.4 Add approve/reject functionality for artwork edits with all-or-nothing logic
+  - [x] 4.5 Enable moderator feedback text input for rejection reasons
+  - [x] 4.6 Track moderator decisions with audit trail (moderator ID, timestamp, action)
+  - [x] 4.7 Apply approved changes to original artwork record atomically
   - [ ] 4.8 Update existing `ReviewView.vue` to display artwork edits with appropriate UI
   - [ ] 4.9 Add visual indicators to distinguish new submissions from edit requests in queue
 

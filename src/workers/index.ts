@@ -46,6 +46,10 @@ import {
   rejectSubmission,
   getReviewStats,
   processBatchReview,
+  getArtworkEditsForReview,
+  getArtworkEditForReview,
+  approveArtworkEdit,
+  rejectArtworkEdit,
 } from './routes/review';
 import {
   submitConsent,
@@ -403,6 +407,10 @@ app.get('/health', async c => {
       'POST /api/review/approve/:id',
       'POST /api/review/reject/:id',
       'POST /api/review/batch',
+      'GET /api/review/artwork-edits',
+      'GET /api/review/artwork-edits/:editId',
+      'POST /api/review/artwork-edits/:editId/approve',
+      'POST /api/review/artwork-edits/:editId/reject',
     ],
     debug_info: {
       request_url: c.req.url,
@@ -764,6 +772,27 @@ app.get('/api/review/stats', withErrorHandling(getReviewStats));
 
 app.put('/api/review/batch', withErrorHandling(processBatchReview));
 
+// Artwork Edit Review Endpoints
+app.get('/api/review/artwork-edits', withErrorHandling(getArtworkEditsForReview));
+
+app.get(
+  '/api/review/artwork-edits/:editId',
+  validateUUID('editId'),
+  withErrorHandling(getArtworkEditForReview)
+);
+
+app.post(
+  '/api/review/artwork-edits/:editId/approve',
+  validateUUID('editId'),
+  withErrorHandling(approveArtworkEdit)
+);
+
+app.post(
+  '/api/review/artwork-edits/:editId/reject',
+  validateUUID('editId'),
+  withErrorHandling(rejectArtworkEdit)
+);
+
 // ================================
 // Admin Endpoints
 // ================================
@@ -876,6 +905,10 @@ app.notFound(c => {
         'GET /api/review/queue',
         'POST /api/review/approve/:id',
         'POST /api/review/reject/:id',
+        'GET /api/review/artwork-edits',
+        'GET /api/review/artwork-edits/:editId',
+        'POST /api/review/artwork-edits/:editId/approve',
+        'POST /api/review/artwork-edits/:editId/reject',
         'GET /api/admin/permissions',
         'POST /api/admin/permissions/grant',
         'POST /api/admin/permissions/revoke',

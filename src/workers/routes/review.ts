@@ -19,6 +19,8 @@ import {
 } from '../lib/database';
 import { movePhotosToArtwork, cleanupRejectedPhotos } from '../lib/photos';
 import { calculateDistance } from '../lib/spatial';
+import { ArtworkEditsService } from '../lib/artwork-edits';
+import type { ArtworkEditReviewData } from '../../shared/types';
 
 // Interfaces for database results
 interface SubmissionRow {
@@ -645,5 +647,266 @@ export async function processBatchReview(
     }
 
     throw new ApiError('Failed to process batch review', 'BATCH_REVIEW_ERROR', 500);
+  }
+}
+
+/**
+ * GET /api/review/artwork-edits
+ * Get pending artwork edits for moderation queue
+ */
+export async function getArtworkEditsForReview(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+
+    // Check reviewer permissions
+    if (!authContext.isReviewer) {
+      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    const limit = parseInt(c.req.query('limit') || '50');
+    const offset = parseInt(c.req.query('offset') || '0');
+
+    const editsService = new ArtworkEditsService(c.env.DB);
+    const pendingEdits: ArtworkEditReviewData[] = await editsService.getPendingEditsForReview(limit, offset);
+
+    // Enrich with artwork details
+    const enrichedEdits = [];
+    for (const edit of pendingEdits) {
+      const artwork = await findArtworkById(c.env.DB, edit.artwork_id);
+      if (artwork) {
+        // Parse the tags to get display values
+        const tagsParsed = JSON.parse(artwork.tags || '{}') as Record<string, string>;
+        
+        enrichedEdits.push({
+          ...edit,
+          artwork_title: tagsParsed.title || 'Unknown Artwork',
+          artwork_status: artwork.status,
+        });
+      } else {
+        enrichedEdits.push({
+          ...edit,
+          artwork_title: 'Unknown Artwork',
+          artwork_status: 'unknown' as const,
+        });
+      }
+    }
+
+    return c.json({
+      edits: enrichedEdits,
+      pagination: {
+        limit,
+        offset,
+        total_items: enrichedEdits.length,
+        has_more: enrichedEdits.length === limit
+      }
+    });
+  } catch (error) {
+    console.error('Get artwork edits error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to get artwork edits', 'ARTWORK_EDITS_ERROR', 500);
+  }
+}
+
+/**
+ * GET /api/review/artwork-edits/:editId
+ * Get specific artwork edit submission for detailed review
+ */
+export async function getArtworkEditForReview(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+
+    // Check reviewer permissions
+    if (!authContext.isReviewer) {
+      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    const editId = c.req.param('editId');
+    const editsService = new ArtworkEditsService(c.env.DB);
+    
+    const editSubmission: ArtworkEditReviewData | null = await editsService.getEditSubmissionForReview(editId);
+    if (!editSubmission) {
+      throw new ApiError('Edit submission not found', 'EDIT_NOT_FOUND', 404);
+    }
+
+    // Get artwork details
+    const artwork = await findArtworkById(c.env.DB, editSubmission.artwork_id);
+    if (!artwork) {
+      throw new ApiError('Associated artwork not found', 'ARTWORK_NOT_FOUND', 404);
+    }
+
+    // Parse the tags to get current field values
+    const tagsParsed = JSON.parse(artwork.tags || '{}') as Record<string, string>;
+
+    return c.json({
+      edit_submission: editSubmission,
+      artwork: {
+        id: artwork.id,
+        title: tagsParsed.title || '',
+        description: tagsParsed.description || '',
+        created_by: tagsParsed.creator || '',
+        tags: tagsParsed,
+        status: artwork.status,
+        lat: artwork.lat,
+        lon: artwork.lon,
+      }
+    });
+  } catch (error) {
+    console.error('Get artwork edit error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to get artwork edit', 'ARTWORK_EDIT_ERROR', 500);
+  }
+}
+
+/**
+ * POST /api/review/artwork-edits/:editId/approve
+ * Approve artwork edit submission (all-or-nothing)
+ */
+export async function approveArtworkEdit(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+
+    // Check reviewer permissions
+    if (!authContext.isReviewer) {
+      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    const editId = c.req.param('editId');
+    const { apply_to_artwork = true } = await c.req.json();
+
+    const editsService = new ArtworkEditsService(c.env.DB);
+    
+    // Get the full edit submission
+    const editSubmission: ArtworkEditReviewData | null = await editsService.getEditSubmissionForReview(editId);
+    if (!editSubmission) {
+      throw new ApiError('Edit submission not found', 'EDIT_NOT_FOUND', 404);
+    }
+
+    // Approve all edits in the submission group
+    await editsService.approveEditSubmission(
+      editSubmission.edit_ids,
+      authContext.userToken,
+      apply_to_artwork
+    );
+
+    // Log the moderation decision for audit trail
+    const { logModerationDecision, createModerationAuditContext } = await import('../lib/audit');
+    const auditContext = createModerationAuditContext(
+      c,
+      editId,
+      authContext.userToken,
+      'approved',
+      {
+        reason: `Approved ${editSubmission.edit_ids.length} field edits`,
+        artworkId: editSubmission.artwork_id,
+        // Note: edit_count and fields_changed are custom metadata that may not be stored
+      }
+    );
+    
+    const auditResult = await logModerationDecision(c.env.DB, auditContext);
+    if (!auditResult.success) {
+      console.warn('Failed to log artwork edit approval:', auditResult.error);
+    }
+
+    return c.json({
+      message: 'Artwork edit approved successfully',
+      edit_id: editId,
+      edit_count: editSubmission.edit_ids.length,
+      artwork_id: editSubmission.artwork_id,
+      applied_to_artwork: apply_to_artwork,
+      approved_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Approve artwork edit error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to approve artwork edit', 'ARTWORK_EDIT_APPROVAL_ERROR', 500);
+  }
+}
+
+/**
+ * POST /api/review/artwork-edits/:editId/reject
+ * Reject artwork edit submission with reason
+ */
+export async function rejectArtworkEdit(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+
+    // Check reviewer permissions
+    if (!authContext.isReviewer) {
+      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    const editId = c.req.param('editId');
+    const { reason } = await c.req.json();
+
+    const editsService = new ArtworkEditsService(c.env.DB);
+    
+    // Get the full edit submission
+    const editSubmission: ArtworkEditReviewData | null = await editsService.getEditSubmissionForReview(editId);
+    if (!editSubmission) {
+      throw new ApiError('Edit submission not found', 'EDIT_NOT_FOUND', 404);
+    }
+
+    // Reject all edits in the submission group
+    await editsService.rejectEditSubmission(
+      editSubmission.edit_ids,
+      authContext.userToken,
+      reason
+    );
+
+    // Log the moderation decision for audit trail
+    const { logModerationDecision, createModerationAuditContext } = await import('../lib/audit');
+    const auditContext = createModerationAuditContext(
+      c,
+      editId,
+      authContext.userToken,
+      'rejected',
+      {
+        reason: reason || `Rejected ${editSubmission.edit_ids.length} field edits`,
+        artworkId: editSubmission.artwork_id,
+        // Note: edit_count and fields_rejected are custom metadata that may not be stored
+      }
+    );
+    
+    const auditResult = await logModerationDecision(c.env.DB, auditContext);
+    if (!auditResult.success) {
+      console.warn('Failed to log artwork edit rejection:', auditResult.error);
+    }
+
+    return c.json({
+      message: 'Artwork edit rejected successfully',
+      edit_id: editId,
+      edit_count: editSubmission.edit_ids.length,
+      artwork_id: editSubmission.artwork_id,
+      reason: reason || 'No reason provided',
+      rejected_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Reject artwork edit error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to reject artwork edit', 'ARTWORK_EDIT_REJECTION_ERROR', 500);
   }
 }
