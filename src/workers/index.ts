@@ -26,6 +26,7 @@ import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 // Import route handlers
 import { createLogbookSubmission } from './routes/submissions';
 import { getNearbyArtworks, getArtworkDetails, getArtworksInBounds, getArtworkStats } from './routes/discovery';
+import { submitArtworkEdit, getUserPendingEdits, validateArtworkEdit } from './routes/artwork';
 import { getUserSubmissions, getUserProfile, sendTestEmail } from './routes/user';
 import { handleSearchRequest, handleSearchSuggestions } from './routes/search';
 import {
@@ -377,6 +378,9 @@ app.get('/health', async c => {
       'GET /api/artworks/nearby',
       'GET /api/artworks/bounds', 
       'GET /api/artworks/:id',
+      'POST /api/artwork/:id/edit',
+      'GET /api/artwork/:id/pending-edits',
+      'POST /api/artwork/:id/edit/validate',
       'GET /api/search',
       'GET /api/search/suggestions',
       'GET /api/me/submissions',
@@ -464,6 +468,8 @@ app.use('/api/admin/*', checkEmailVerification);
 app.use('/api/admin/*', requireAdmin);
 app.use('/api/consent', ensureUserToken);
 app.use('/api/consent', addUserTokenToResponse);
+app.use('/api/artwork/*/edit*', ensureUserToken);
+app.use('/api/artwork/*/edit*', checkEmailVerification);
 
 // ================================
 // Photo Serving Endpoint
@@ -576,6 +582,31 @@ app.get(
   rateLimitQueries,
   validateUUID('id'),
   withErrorHandling(getArtworkDetails)
+);
+
+// ================================
+// Artwork Editing Endpoints
+// ================================
+
+app.post(
+  '/api/artwork/:id/edit',
+  rateLimitSubmissions,
+  validateUUID('id'),
+  withErrorHandling(submitArtworkEdit)
+);
+
+app.get(
+  '/api/artwork/:id/pending-edits',
+  rateLimitQueries,
+  validateUUID('id'),
+  withErrorHandling(getUserPendingEdits)
+);
+
+app.post(
+  '/api/artwork/:id/edit/validate',
+  rateLimitQueries,
+  validateUUID('id'),
+  withErrorHandling(validateArtworkEdit)
 );
 
 // ================================
@@ -823,6 +854,9 @@ app.notFound(c => {
         'POST /api/logbook',
         'GET /api/artworks/nearby',
         'GET /api/artworks/:id',
+        'POST /api/artwork/:id/edit',
+        'GET /api/artwork/:id/pending-edits',
+        'POST /api/artwork/:id/edit/validate',
         'GET /api/search',
         'GET /api/search/suggestions',
         'GET /api/me/submissions',

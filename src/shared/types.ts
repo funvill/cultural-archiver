@@ -118,6 +118,62 @@ export interface CreateArtworkCreatorRequest {
 }
 
 // ================================
+// Artwork Edit Types
+// ================================
+
+export interface ArtworkEditRecord {
+  edit_id: string;
+  artwork_id: string;
+  user_token: string;
+  field_name: string;
+  field_value_old: string | null;
+  field_value_new: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  moderator_notes: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  submitted_at: string;
+}
+
+export interface CreateArtworkEditRequest {
+  artwork_id: string;
+  user_token: string;
+  edits: Array<{
+    field_name: string;
+    field_value_old: string | null;
+    field_value_new: string | null;
+  }>;
+}
+
+export interface ArtworkEditSubmissionResponse {
+  edit_ids: string[];
+  message: string;
+  status: 'pending';
+}
+
+export interface PendingEditsResponse {
+  has_pending_edits: boolean;
+  pending_fields: string[];
+  submitted_at?: string;
+}
+
+export interface ArtworkEditDiff {
+  field_name: string;
+  old_value: string | null;
+  new_value: string | null;
+  formatted_old?: string;
+  formatted_new?: string;
+}
+
+export interface ArtworkEditReviewData {
+  edit_ids: string[];
+  artwork_id: string;
+  user_token: string;
+  submitted_at: string;
+  diffs: ArtworkEditDiff[];
+}
+
+// ================================
 // MVP Worker API Types
 // ================================
 
