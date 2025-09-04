@@ -31,34 +31,9 @@ All user submitted content needs to be reviewed by a moderator. A moderator can 
 
 An artwork also has variable fields. These fields may or may not exist on each artwork. These fields are Key/Value. Some of the key/value variable fields will have enumerated values, while others are text fields. Examples: Artwork type: murals, sculptures, memorials, mosaics, tapestries, paintings, etc...
 
-## Mass Export
+## Mass Import
 
-We need the ability to generate a 'Backup' and 'Data Dump' of all the content within this sytem. SQL tables as well as photos, etc... This export will be used for both a backup, and data dump.
-
-- Backup - A archive that can be used to rebuild the system incase of production database failure
-- Data Dump - A public archive that other people can use to import data into their projects.
-
-The 'data dump' is public. Do not include any personal information or configuration settings, secrets, or temporary information (magic links, rate limiting, etc) in the data dump.
-
-The 'data dump' will automaticall be run once a month. Only the last 3 months of archives will be kept.
-
-The data dumps are stored in the R2 bucket. A list of data dumps with links to download the archives should be avalaible in the help page.
-
-The data dumps and all of the content should be licensed as CC0 Zero. Add the license to the archive. Add notes to the archive about when the data dump occured, and where the data is from.
-
-### Mass Import
-
-We need the ability to mass import public data sources that we find. The public data sets will have some location data at a minimum, but also could have addtional information that would be useful.
-
-We need a mass import libary that has utility functions to make generating import scripts for public data easier. This libary of utility functions will be used to import many different public data sets.
-
-Many of these data sets will have duplicate, and overlapping data. There needs to be a mechanizem to combine artworks together or update artworks instead of adding them. This is very importaint.
-
-These libaries functions should add logbook entries as if they were normal users. instead of directly accessing the database. Only use public functions.
-
-The mass import should continbute all submissions to a mass-import user.
-
-Example data sets:
+Data sets
 
 - City of Vancouver Public Art: Contains artist info and geolocated artwork data, updated weekly. It’s available in GIS-friendly formats like CSV or GeoJSON https://opendata.vancouver.ca/explore/dataset/public-art/
 - Public Art – Artists Dataset: https://opendata.vancouver.ca/explore/dataset/public-art-artists/information/
