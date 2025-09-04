@@ -26,7 +26,7 @@ import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 // Import route handlers
 import { createLogbookSubmission } from './routes/submissions';
 import { getNearbyArtworks, getArtworkDetails, getArtworksInBounds, getArtworkStats } from './routes/discovery';
-import { getUserSubmissions, getUserProfile } from './routes/user';
+import { getUserSubmissions, getUserProfile, sendTestEmail } from './routes/user';
 import {
   requestMagicLink,
   verifyMagicLink,
@@ -58,6 +58,8 @@ import {
   getAuditLogsEndpoint,
   getAdminStatistics,
 } from './routes/admin';
+import { debugStevenPermissions } from './routes/debug-permissions';
+import { fixPermissionsSchema } from './routes/fix-schema';
 
 // Initialize Hono app
 const app = new Hono<{ Bindings: WorkerEnv }>();
@@ -592,6 +594,12 @@ app.get(
   withErrorHandling(getUserProfile)
 );
 
+// Development/testing endpoint for email configuration
+app.post(
+  '/api/test-email',
+  withErrorHandling(sendTestEmail)
+);
+
 // ================================
 // Consent Management Endpoints
 // ================================
@@ -680,7 +688,7 @@ app.get(
   withErrorHandling(getVerificationStatus)
 );
 
-// Development helper endpoint (MailChannels fallback)
+// Development helper endpoint (Resend fallback)
 app.get(
   '/api/auth/dev-magic-link',
   withErrorHandling(getDevMagicLink)
@@ -726,6 +734,15 @@ app.get('/api/admin/audit', withErrorHandling(getAuditLogsEndpoint));
 
 // GET /api/admin/statistics - Get system and audit statistics
 app.get('/api/admin/statistics', withErrorHandling(getAdminStatistics));
+
+// Temporarily commented out - missing admin-update route file
+// app.post('/api/dev/update-steven-permissions', ensureUserToken, withErrorHandling(updateStevenPermissions));
+
+// GET /api/dev/debug-steven-permissions - Debug endpoint to check permission logic
+app.get('/api/dev/debug-steven-permissions', ensureUserToken, withErrorHandling(debugStevenPermissions));
+
+// POST /api/dev/fix-permissions-schema - Fix missing is_active column
+app.post('/api/dev/fix-permissions-schema', ensureUserToken, withErrorHandling(fixPermissionsSchema));
 
 // ================================
 // Permalink Redirects

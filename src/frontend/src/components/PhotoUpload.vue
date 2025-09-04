@@ -61,6 +61,7 @@ const locationData = ref({
 
 const description = ref('')
 const errors = ref<string[]>([])
+const consentError = ref<string>('')
 
 // Constants
 const MAX_FILES = 3
@@ -314,6 +315,9 @@ async function handleSubmit() {
 
 async function handleConsentSubmit(consentData: any) {
   try {
+    // Clear any previous consent errors
+    consentError.value = ''
+    
     // Submit consent to API
     const response = await fetch(createApiUrl('/consent'), {
       method: 'POST',
@@ -325,16 +329,48 @@ async function handleConsentSubmit(consentData: any) {
     })
     
     if (!response.ok) {
-      throw new Error('Failed to submit consent')
+      let errorMessage = 'Failed to submit consent'
+      
+      try {
+        const errorData = await response.json()
+        if (response.status === 429) {
+          // Rate limit exceeded
+          errorMessage = 'Too many consent submissions. Please wait before trying again.'
+          if (errorData.error?.retryAfter) {
+            const minutes = Math.ceil(errorData.error.retryAfter / 60000)
+            errorMessage += ` Try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`
+          }
+        } else if (errorData.error?.message) {
+          errorMessage = errorData.error.message
+        }
+      } catch {
+        // If we can't parse the error response, use the default message
+        if (response.status === 429) {
+          errorMessage = 'Too many consent submissions. Please wait before trying again.'
+        }
+      }
+      
+      consentError.value = errorMessage
+      return
     }
     
     hasValidConsent.value = true
-    showConsentForm.value = false
+    closeConsentForm()
     
   } catch (error) {
     console.error('Consent submission error:', error)
-    errors.value.push('Failed to submit consent')
+    consentError.value = 'Network error. Please check your connection and try again.'
   }
+}
+
+function openConsentForm() {
+  consentError.value = ''
+  showConsentForm.value = true
+}
+
+function closeConsentForm() {
+  consentError.value = ''
+  showConsentForm.value = false
 }
 
 // Utility functions
@@ -377,7 +413,7 @@ function generateId(): string {
           and distribution of your contributions.
         </p>
         <button
-          @click="showConsentForm = true"
+          @click="openConsentForm"
           class="text-sm font-medium text-yellow-800 hover:text-yellow-900 underline"
         >
           Provide Consent
@@ -629,8 +665,9 @@ function generateId(): string {
     >
       <div class="bg-white rounded-lg max-w-3xl w-full max-h-screen overflow-y-auto">
         <ConsentForm
+          :external-error="consentError"
           @submit="handleConsentSubmit"
-          @cancel="showConsentForm = false"
+          @cancel="closeConsentForm"
         />
       </div>
     </div>

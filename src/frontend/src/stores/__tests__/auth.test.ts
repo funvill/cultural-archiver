@@ -9,10 +9,11 @@ vi.mock('../../services/api', () => ({
       data: { token: 'test-uuid-token', isNew: true }
     }),
     verifyMagicLink: vi.fn().mockResolvedValue({
+      success: true,
       data: {
-        success: true,
         user: { uuid: 'test-uuid', email: 'test@example.com', created_at: '2025-01-01' },
-        message: 'Login successful'
+        message: 'Login successful',
+        is_new_account: false
       }
     }),
     requestMagicLink: vi.fn().mockResolvedValue({
@@ -361,7 +362,6 @@ describe('Auth Store', () => {
       const mockApi = await import('../../services/api')
       vi.mocked(mockApi.apiService.verifyMagicLink).mockResolvedValue({
         success: true,
-        timestamp: new Date().toISOString(),
         data: {
           success: true,
           user: { uuid: 'account-uuid', email: 'test@example.com', created_at: '2025-01-01', email_verified_at: '2025-01-01' },
@@ -369,7 +369,8 @@ describe('Auth Store', () => {
           session: { token: 'session-token', expires_at: '2025-01-02' },
           uuid_replaced: true,
           is_new_account: false
-        }
+        },
+        timestamp: new Date().toISOString()
       })
       
       const store = useAuthStore()

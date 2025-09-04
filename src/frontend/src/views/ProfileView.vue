@@ -2,7 +2,11 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { apiService } from '../services/api'
-import type { UserSubmission } from '../types'
+import type { UserSubmissionInfo } from '../../../shared/types'
+import type { UserProfile } from '../types/index'
+
+// Type alias for compatibility
+type UserSubmission = UserSubmissionInfo
 
 // Store and router
 const authStore = useAuthStore()
@@ -11,6 +15,7 @@ const authStore = useAuthStore()
 const loading = ref(true)
 const error = ref<string | null>(null)
 const submissions = ref<UserSubmission[]>([])
+const userProfile = ref<UserProfile | null>(null)
 const activeTab = ref('overview')
 const sortBy = ref('created_at')
 const sortOrder = ref<'asc' | 'desc'>('desc')
@@ -42,20 +47,26 @@ const tabs = computed(() => [
     name: 'Rejected',
     icon: 'svg',
     count: rejectedCount.value
+  },
+  {
+    id: 'debug',
+    name: 'Debug Info',
+    icon: 'svg',
+    count: undefined
   }
 ])
 
 // Computed
 const approvedCount = computed(() => 
-  submissions.value.filter(s => s.status === 'approved').length
+  submissions.value.filter((s: UserSubmission) => s.status === 'approved').length
 )
 
 const pendingCount = computed(() => 
-  submissions.value.filter(s => s.status === 'pending').length
+  submissions.value.filter((s: UserSubmission) => s.status === 'pending').length
 )
 
 const rejectedCount = computed(() => 
-  submissions.value.filter(s => s.status === 'rejected').length
+  submissions.value.filter((s: UserSubmission) => s.status === 'rejected').length
 )
 
 const filteredSubmissions = computed(() => {
@@ -63,11 +74,11 @@ const filteredSubmissions = computed(() => {
 
   // Filter by tab
   if (activeTab.value !== 'overview') {
-    filtered = filtered.filter(s => s.status === activeTab.value)
+    filtered = filtered.filter((s: UserSubmission) => s.status === activeTab.value)
   }
 
   // Sort
-  filtered.sort((a, b) => {
+  filtered.sort((a: UserSubmission, b: UserSubmission) => {
     let aVal: any = a[sortBy.value as keyof UserSubmission]
     let bVal: any = b[sortBy.value as keyof UserSubmission]
 
@@ -119,10 +130,16 @@ async function loadSubmissions() {
   error.value = null
 
   try {
-    const response = await apiService.getUserSubmissions()
-    submissions.value = response.items || []
+    // Load both submissions and profile data
+    const [submissionsResponse, profileResponse] = await Promise.all([
+      apiService.getUserSubmissions(),
+      apiService.getUserProfile()
+    ])
+    
+    submissions.value = submissionsResponse.items || []
+    userProfile.value = profileResponse.data || null
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load submissions'
+    error.value = err instanceof Error ? err.message : 'Failed to load profile data'
   } finally {
     loading.value = false
   }
@@ -422,6 +439,106 @@ function formatDate(dateString: string): string {
                 </div>
               </div>
             </div>
+          </div>
+
+          <!-- Debug Information Tab -->
+          <div v-if="activeTab === 'debug'" class="bg-white rounded-lg border border-gray-200 p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-6">Debug Information</h2>
+            
+            <div v-if="userProfile?.debug" class="space-y-6">
+              <!-- User Information Section -->
+              <div class="border-b border-gray-200 pb-6">
+                <h3 class="text-md font-medium text-gray-900 mb-4">User Information</h3>
+                <div v-if="userProfile.debug.user_info" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-2">
+                    <div><strong>UUID:</strong> <code class="bg-gray-100 px-2 py-1 rounded text-sm">{{ userProfile.debug.user_info.uuid }}</code></div>
+                    <div><strong>Email:</strong> {{ userProfile.debug.user_info.email || 'None' }}</div>
+                    <div><strong>Status:</strong> <span class="px-2 py-1 rounded text-xs" :class="userProfile.debug.user_info.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">{{ userProfile.debug.user_info.status }}</span></div>
+                  </div>
+                  <div class="space-y-2">
+                    <div><strong>Created:</strong> {{ formatDate(userProfile.debug.user_info.created_at) }}</div>
+                    <div><strong>Updated:</strong> {{ formatDate(userProfile.debug.user_info.updated_at) }}</div>
+                    <div><strong>Email Verified:</strong> {{ userProfile.debug.user_info.email_verified ? 'Yes' : 'No' }}</div>
+                  </div>
+                </div>
+                <div v-else class="text-gray-500 italic">No user information found in database</div>
+              </div>
+
+              <!-- Permissions Section -->
+              <div class="border-b border-gray-200 pb-6">
+                <h3 class="text-md font-medium text-gray-900 mb-4">User Permissions</h3>
+                <div v-if="userProfile.debug.permissions.length > 0" class="space-y-3">
+                  <div 
+                    v-for="permission in userProfile.debug.permissions" 
+                    :key="`${permission.permission}-${permission.granted_at}`"
+                    class="border border-gray-200 rounded-lg p-4"
+                  >
+                    <div class="flex items-center justify-between mb-2">
+                      <div class="flex items-center space-x-2">
+                        <span class="px-3 py-1 rounded-full text-sm font-medium" 
+                              :class="permission.permission === 'admin' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'">
+                          {{ permission.permission }}
+                        </span>
+                        <span class="px-2 py-1 rounded text-xs" 
+                              :class="permission.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'">
+                          {{ permission.is_active ? 'Active' : 'Revoked' }}
+                        </span>
+                      </div>
+                      <span class="text-sm text-gray-600">{{ formatDate(permission.granted_at) }}</span>
+                    </div>
+                    <div class="text-sm text-gray-600">
+                      <div><strong>Granted by:</strong> {{ permission.granted_by_email || permission.granted_by }}</div>
+                      <div v-if="permission.revoked_at"><strong>Revoked at:</strong> {{ formatDate(permission.revoked_at) }}</div>
+                      <div v-if="permission.notes"><strong>Notes:</strong> {{ permission.notes }}</div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="text-gray-500 italic">No permissions granted</div>
+              </div>
+
+              <!-- Authentication Context Section -->
+              <div class="border-b border-gray-200 pb-6">
+                <h3 class="text-md font-medium text-gray-900 mb-4">Authentication Context</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-2">
+                    <div><strong>Token:</strong> <code class="bg-gray-100 px-2 py-1 rounded text-sm">{{ userProfile.debug.auth_context.user_token.substring(0, 12) }}...</code></div>
+                    <div><strong>Is Reviewer:</strong> <span class="px-2 py-1 rounded text-xs" :class="userProfile.debug.auth_context.is_reviewer ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'">{{ userProfile.debug.auth_context.is_reviewer ? 'Yes' : 'No' }}</span></div>
+                    <div><strong>Is Authenticated:</strong> <span class="px-2 py-1 rounded text-xs" :class="userProfile.debug.auth_context.is_authenticated ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">{{ userProfile.debug.auth_context.is_authenticated ? 'Yes' : 'No' }}</span></div>
+                  </div>
+                  <div class="space-y-2">
+                    <div><strong>Email Verified:</strong> <span class="px-2 py-1 rounded text-xs" :class="userProfile.debug.auth_context.is_verified_email ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'">{{ userProfile.debug.auth_context.is_verified_email ? 'Yes' : 'No' }}</span></div>
+                    <div><strong>Is Admin:</strong> <span class="px-2 py-1 rounded text-xs" :class="userProfile.debug.auth_context.is_admin ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'">{{ userProfile.debug.auth_context.is_admin ? 'Yes' : 'No' }}</span></div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Request Headers Section -->
+              <div class="border-b border-gray-200 pb-6">
+                <h3 class="text-md font-medium text-gray-900 mb-4">Request Headers</h3>
+                <div class="space-y-2">
+                  <div><strong>Authorization:</strong> {{ userProfile.debug.request_headers.authorization }}</div>
+                  <div><strong>X-User-Token:</strong> {{ userProfile.debug.request_headers.user_token }}</div>
+                  <div><strong>User Agent:</strong> <code class="bg-gray-100 px-2 py-1 rounded text-sm break-all">{{ userProfile.debug.request_headers.user_agent }}</code></div>
+                </div>
+              </div>
+
+              <!-- Rate Limits Section -->
+              <div>
+                <h3 class="text-md font-medium text-gray-900 mb-4">Rate Limits</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div class="space-y-2">
+                    <div><strong>Submissions Remaining:</strong> {{ userProfile.debug.rate_limits.submissions_remaining }}</div>
+                    <div><strong>Email Blocked:</strong> <span class="px-2 py-1 rounded text-xs" :class="userProfile.debug.rate_limits.email_blocked === 'Yes' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'">{{ userProfile.debug.rate_limits.email_blocked }}</span></div>
+                  </div>
+                  <div class="space-y-2">
+                    <div><strong>Queries Remaining:</strong> {{ userProfile.debug.rate_limits.queries_remaining }}</div>
+                    <div><strong>IP Blocked:</strong> <span class="px-2 py-1 rounded text-xs" :class="userProfile.debug.rate_limits.ip_blocked === 'Yes' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'">{{ userProfile.debug.rate_limits.ip_blocked }}</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div v-else class="text-gray-500 italic">No debug information available</div>
           </div>
         </div>
       </div>

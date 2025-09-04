@@ -469,19 +469,6 @@ function requestLocation() {
   requestUserLocation()
 }
 
-function dismissLocationNotice() {
-  showLocationNotice.value = false
-  console.log('Location notice dismissed')
-  
-  // Force map refresh after dismissing notice
-  if (map.value) {
-    setTimeout(() => {
-      map.value?.invalidateSize()
-      console.log('Map size invalidated after notice dismissal')
-    }, 100)
-  }
-}
-
 function clearError() {
   error.value = null
 }
@@ -590,23 +577,24 @@ onUnmounted(() => {
         <ExclamationTriangleIcon class="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
         <div class="flex-1">
           <p class="text-sm text-yellow-800 font-medium">Location Access Needed</p>
-          <p class="text-xs text-yellow-700">
+          <p class="text-xs text-yellow-700 mb-2">
             Enable location access to see nearby artworks and improve your experience.
           </p>
-          <button 
-            @click="requestLocation"
-            class="mt-2 text-xs bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 focus:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors"
-          >
-            Enable Location
-          </button>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <button 
+              @click="requestLocation"
+              class="text-xs bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 focus:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors"
+            >
+              Enable Location
+            </button>
+            <a
+              href="/help#location-access-faq"
+              class="text-xs text-yellow-700 underline hover:text-yellow-800 focus:text-yellow-800 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded px-1"
+            >
+              Why is this needed?
+            </a>
+          </div>
         </div>
-        <button 
-          @click="dismissLocationNotice"
-          class="text-yellow-600 hover:text-yellow-800 focus:text-yellow-800 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded"
-          aria-label="Dismiss location notice"
-        >
-          <XMarkIcon class="w-4 h-4" aria-hidden="true" />
-        </button>
       </div>
     </div>
 

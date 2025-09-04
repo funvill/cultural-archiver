@@ -31,7 +31,7 @@ const isSignup = ref(false)
 const modalTitle = computed(() => {
   switch (currentStep.value) {
     case 'email':
-      return isSignup.value ? 'Create Account' : 'Sign In'
+      return 'Sign In'
     case 'sent':
       return 'Check Your Email'
     case 'verifying':
@@ -43,7 +43,7 @@ const modalTitle = computed(() => {
 
 const buttonText = computed(() => {
   if (isLoading.value) return 'Sending...'
-  return isSignup.value ? 'Create Account' : 'Send Magic Link'
+  return 'Send Magic Link'
 })
 
 // Watch for prop changes
@@ -98,12 +98,6 @@ async function handleSubmit(): Promise<void> {
 
 function handleClose(): void {
   emit('close')
-}
-
-function switchMode(): void {
-  isSignup.value = !isSignup.value
-  clearError()
-  emailError.value = null
 }
 
 function handleKeydown(event: KeyboardEvent): void {
@@ -161,12 +155,7 @@ function handleKeydown(event: KeyboardEvent): void {
               <div v-if="currentStep === 'email'" class="space-y-6">
                 <!-- Description -->
                 <p class="text-sm text-gray-600">
-                  <template v-if="isSignup">
-                    Create an account to claim your anonymous submissions and sync across devices.
-                  </template>
-                  <template v-else>
-                    Sign in to access your account and submissions across devices.
-                  </template>
+                  Enter your email address to sign in or create an account. We'll send you a magic link to verify your identity.
                 </p>
 
                 <!-- Form -->
@@ -203,22 +192,6 @@ function handleKeydown(event: KeyboardEvent): void {
                   </button>
                 </form>
 
-                <!-- Mode switch -->
-                <div class="text-center">
-                  <button
-                    type="button"
-                    class="text-sm text-blue-600 hover:text-blue-800 underline"
-                    @click="switchMode"
-                  >
-                    <template v-if="isSignup">
-                      Already have an account? Sign in
-                    </template>
-                    <template v-else>
-                      Don't have an account? Create one
-                    </template>
-                  </button>
-                </div>
-
                 <!-- Anonymous note -->
                 <div class="bg-blue-50 rounded-md p-3">
                   <p class="text-xs text-blue-800">
@@ -242,13 +215,13 @@ function handleKeydown(event: KeyboardEvent): void {
                     Magic link sent!
                   </h4>
                   <p class="text-sm text-gray-600 mb-4">
-                    We've sent a {{ isSignup ? 'verification' : 'login' }} link to:
+                    We've sent a magic link to:
                   </p>
                   <p class="text-sm font-medium text-gray-900 mb-4">
                     {{ email }}
                   </p>
                   <p class="text-xs text-gray-500">
-                    Click the link in your email to {{ isSignup ? 'create your account' : 'sign in' }}. 
+                    Click the link in your email to complete authentication. 
                     The link will expire in 1 hour.
                   </p>
                 </div>

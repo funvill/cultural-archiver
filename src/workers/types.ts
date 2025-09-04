@@ -21,7 +21,6 @@ export interface ArtworkRecord {
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null; // JSON object for key-value metadata like {"material": "bronze", "style": "modern"}
-  photos: string | null; // JSON array of R2 URLs like ["url1", "url2", "url3"]
 }
 
 export interface LogbookRecord {
@@ -70,6 +69,7 @@ export interface CreateArtworkRequest {
   lon: number;
   type_id: string;
   tags?: Record<string, unknown>;
+  status?: ArtworkRecord['status'];
 }
 
 export interface UpdateArtworkRequest extends Partial<CreateArtworkRequest> {
@@ -353,8 +353,11 @@ interface BaseWorkerEnv {
   FRONTEND_URL: string;
   LOG_LEVEL: string;
   API_VERSION: string;
-  EMAIL_API_KEY?: string; // Optional for development
-  EMAIL_FROM: string;
+  RESEND_API_KEY?: string; // Resend API key for email
+  EMAIL_FROM_ADDRESS: string; // Email address for from field
+  EMAIL_FROM_NAME: string; // Display name for from field  
+  EMAIL_REPLY_TO?: string; // Reply-to address
+  EMAIL_ENABLED?: string; // Feature flag for email
   PHOTOS_BASE_URL?: string;
   R2_PUBLIC_URL?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
@@ -493,7 +496,7 @@ export const MAX_SEARCH_RADIUS = 50000; // 50km - allows metropolitan area searc
 export const MIN_SEARCH_RADIUS = 50; // 50m
 
 // Rate limiting constants
-export const RATE_LIMIT_SUBMISSIONS_PER_DAY = 10;
+export const RATE_LIMIT_SUBMISSIONS_PER_HOUR = 60;
 export const RATE_LIMIT_QUERIES_PER_HOUR = 60;
 export const MAX_NOTE_LENGTH = 500;
 export const MAX_PHOTOS_PER_SUBMISSION = 3;

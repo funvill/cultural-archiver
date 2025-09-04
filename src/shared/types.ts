@@ -17,7 +17,6 @@ export interface ArtworkRecord {
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null; // JSON object for key-value metadata like {"material": "bronze", "style": "modern"}
-  photos: string | null; // JSON array of R2 URLs like ["url1", "url2", "url3"]
 }
 
 export interface ArtworkApiResponse {
@@ -37,6 +36,8 @@ export interface LogbookRecord {
   id: string;
   artwork_id: string | null;
   user_token: string;
+  lat: number | null;
+  lon: number | null;
   note: string | null;
   photos: string | null; // JSON array of R2 URLs like ["url1", "url2", "url3"]
   status: 'pending' | 'approved' | 'rejected';
@@ -76,6 +77,7 @@ export interface CreateArtworkRequest {
   lon: number;
   type_id: string;
   tags?: Record<string, unknown>;
+  status?: ArtworkRecord['status'];
 }
 
 export interface UpdateArtworkRequest extends Partial<CreateArtworkRequest> {
@@ -98,6 +100,8 @@ export interface CreateTagRequest {
 export interface CreateLogbookEntryRequest {
   artwork_id?: string;
   user_token: string;
+  lat?: number;
+  lon?: number;
   note?: string;
   photos?: string[];
 }
@@ -258,6 +262,44 @@ export interface ApiResponse<T = unknown> {
   error?: string;
   message?: string;
   timestamp: string;
+}
+
+// ================================
+// API Response Utilities
+// ================================
+
+/**
+ * Create a successful API response with consistent formatting
+ */
+export function createApiSuccessResponse<T>(data: T, message?: string): ApiResponse<T> {
+  const response: ApiResponse<T> = {
+    success: true,
+    data,
+    timestamp: new Date().toISOString()
+  };
+  
+  if (message) {
+    response.message = message;
+  }
+  
+  return response;
+}
+
+/**
+ * Create an error API response with consistent formatting
+ */
+export function createApiErrorResponse(error: string, message?: string): ApiResponse<never> {
+  const response: ApiResponse<never> = {
+    success: false,
+    error,
+    timestamp: new Date().toISOString()
+  };
+  
+  if (message) {
+    response.message = message;
+  }
+  
+  return response;
 }
 
 export interface PaginatedResponse<T> {
@@ -763,7 +805,7 @@ export const MAX_SEARCH_RADIUS = 10000; // 10km
 export const MIN_SEARCH_RADIUS = 50; // 50m
 
 // Rate limiting constants
-export const RATE_LIMIT_SUBMISSIONS_PER_DAY = 10;
+export const RATE_LIMIT_SUBMISSIONS_PER_HOUR = 60;
 export const RATE_LIMIT_QUERIES_PER_HOUR = 60;
 
 // Authentication rate limiting constants  

@@ -242,6 +242,8 @@ export interface UserSubmission {
   id: string
   artwork_id: string | null
   user_token: string
+  lat?: number | null
+  lon?: number | null
   note: string | null
   photos: string | null
   status: 'pending' | 'approved' | 'rejected'
@@ -275,13 +277,63 @@ export interface ArtworkWithPhotos {
 
 export interface UserProfile {
   user_token: string
-  total_submissions: number
-  approved_submissions: number
-  pending_submissions: number
-  rejected_submissions: number
+  is_reviewer: boolean
+  is_verified_email: boolean
+  is_admin: boolean
+  statistics: {
+    total_submissions: number
+    approved_submissions: number
+    pending_submissions: number
+    first_submission_at: string | null
+    last_submission_at: string | null
+  }
+  rate_limits: {
+    emailRemaining: number
+    ipRemaining: number
+    emailBlocked: boolean
+    ipBlocked: boolean
+    resetAt: string | null
+  }
+  preferences: Record<string, unknown>
   created_at: string
-  email_verified: boolean
-  email?: string
+  debug?: {
+    user_info: {
+      uuid: string
+      email: string | null
+      email_verified: boolean
+      status: string
+      created_at: string
+      updated_at: string
+    } | null
+    permissions: {
+      permission: string
+      granted_at: string
+      granted_by: string
+      granted_by_email: string | null
+      revoked_at: string | null
+      notes: string | null
+      is_active: boolean
+    }[]
+    auth_context: {
+      user_token: string
+      is_reviewer: boolean
+      is_admin: boolean
+      is_verified_email: boolean
+      is_authenticated: boolean
+    }
+    request_headers: {
+      authorization: string
+      user_token: string
+      user_agent: string
+    }
+    rate_limits: {
+      email_blocked: string
+      ip_blocked: string
+      submissions_remaining: number
+      queries_remaining: number
+    }
+    timestamp: string
+  }
 }
 
 export interface ReviewQueueItem {
@@ -298,15 +350,18 @@ export interface ReviewQueueItem {
 }
 
 export interface ReviewStats {
-  total_pending: number
-  total_approved: number
-  total_rejected: number
-  pending_by_type: Record<string, number>
-  recent_activity: Array<{
-    date: string
+  status_counts: {
+    pending: number
     approved: number
     rejected: number
+  }
+  queue_size: number
+  recent_activity: Array<{
+    date: string
+    status: string
+    count: number
   }>
+  generated_at: string
 }
 
 export interface MagicLinkRequest {

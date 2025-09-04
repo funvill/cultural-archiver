@@ -1,6 +1,6 @@
 /**
  * Magic Link Email System
- * Implements secure magic link generation, validation, email sending with MailChannels,
+ * Implements secure magic link generation, validation, email sending with Resend,
  * and rate limiting for the Cultural Archiver authentication system.
  */
 
@@ -21,6 +21,7 @@ import {
   MAGIC_LINK_TOKEN_LENGTH
 } from '../../shared/types';
 import { getUserByEmail, createUserWithUUIDClaim, updateUserEmailVerified } from './auth';
+import { sendMagicLinkEmailWithResend } from './resend-email';
 
 // Local rate limit info interface for magic link rate limiting
 interface MagicLinkRateLimitInfo {
@@ -301,104 +302,11 @@ export async function markMagicLinkUsed(
 }
 
 // ================================
-// Email Templates and Sending
+// Magic Link Email Sending
 // ================================
 
 /**
- * Generate HTML email template for magic link
- */
-export function generateMagicLinkEmailTemplate(
-  _email: string,
-  magicLink: string,
-  isSignup: boolean,
-  expiresAt: string,
-  anonymousSubmissions?: number
-): string {
-  const actionText = isSignup ? 'Create your account' : 'Sign in to your account';
-  const greetingText = isSignup ? 'Welcome to Cultural Archiver!' : 'Welcome back!';
-  const submissionText = anonymousSubmissions && anonymousSubmissions > 0
-    ? `<p style="color: #059669; background: #ecfdf5; padding: 12px; border-radius: 6px; margin: 16px 0;">
-         <strong>Great news!</strong> You have ${anonymousSubmissions} anonymous submission${anonymousSubmissions > 1 ? 's' : ''} 
-         that will be claimed and linked to your account.
-       </p>`
-    : '';
-  
-  return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${actionText} - Cultural Archiver</title>
-</head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #374151; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
-    <div style="text-align: center; padding: 20px 0; border-bottom: 2px solid #f3f4f6;">
-        <div style="font-size: 28px; font-weight: bold; color: #1f2937;">
-            🎨 Cultural Archiver
-        </div>
-        <div style="font-size: 16px; color: #6b7280; margin-top: 4px;">
-            Crowdsourced Public Art Mapping
-        </div>
-    </div>
-    
-    <div style="padding: 32px 0;">
-        <h1 style="color: #1f2937; margin-bottom: 24px;">${greetingText}</h1>
-        
-        <p style="font-size: 16px; margin-bottom: 16px;">
-            ${isSignup 
-              ? `Thank you for joining Cultural Archiver! Click the button below to verify your email address and create your account.`
-              : `Click the button below to sign in to your Cultural Archiver account.`
-            }
-        </p>
-        
-        ${submissionText}
-        
-        <div style="text-align: center; margin: 32px 0;">
-            <a href="${magicLink}" 
-               style="display: inline-block; background-color: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 16px;">
-                ${actionText}
-            </a>
-        </div>
-        
-        <p style="font-size: 14px; color: #6b7280; margin: 24px 0;">
-            Or copy and paste this link into your browser:
-        </p>
-        <div style="word-break: break-all; background: #f9fafb; padding: 12px; border-radius: 6px; font-size: 14px; color: #4b5563; border: 1px solid #e5e7eb;">
-            ${magicLink}
-        </div>
-        
-        <div style="background-color: #fef3c7; border: 1px solid #f59e0b; padding: 16px; border-radius: 8px; margin: 24px 0;">
-            <div style="color: #92400e; font-weight: 600; margin-bottom: 8px;">⚠️ Security Information</div>
-            <div style="color: #b45309; font-size: 14px;">
-                • This link expires at <strong>${expiresAt}</strong><br>
-                • This link can only be used once<br>
-                • If you didn't request this, you can safely ignore this email
-            </div>
-        </div>
-        
-        ${isSignup 
-          ? `<div style="background-color: #eff6ff; border: 1px solid #3b82f6; padding: 16px; border-radius: 8px; margin: 24px 0;">
-               <div style="color: #1e40af; font-weight: 600; margin-bottom: 8px;">✨ What happens next?</div>
-               <div style="color: #1d4ed8; font-size: 14px;">
-                 • Your email will be verified<br>
-                 • Your anonymous submissions will be linked to your account<br>
-                 • You'll be able to track and manage your contributions
-               </div>
-             </div>`
-          : ''
-        }
-    </div>
-    
-    <div style="font-size: 14px; color: #9ca3af; border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 32px; text-align: center;">
-        <p>This email was sent by Cultural Archiver</p>
-        <p>A crowdsourced platform for documenting public art and cultural heritage</p>
-    </div>
-</body>
-</html>`;
-}
-
-/**
- * Send magic link email using MailChannels
+ * Send magic link email using Resend
  */
 export async function sendMagicLinkEmail(
   env: WorkerEnv,
@@ -409,114 +317,50 @@ export async function sendMagicLinkEmail(
   const magicLink = `${frontendUrl}/verify?token=${magicLinkRecord.token}`;
   const expiresAt = new Date(magicLinkRecord.expires_at).toLocaleString();
   
-  const htmlContent = generateMagicLinkEmailTemplate(
-    magicLinkRecord.email,
-    magicLink,
-    magicLinkRecord.is_signup,
-    expiresAt,
-    anonymousSubmissions
-  );
-  
-  const subject = magicLinkRecord.is_signup
-    ? 'Verify your email - Cultural Archiver'
-    : 'Sign in to Cultural Archiver';
-  
   try {
-    if (env.EMAIL_FROM && env.ENVIRONMENT === 'production') {
-      // Use MailChannels with fallback to development mode if it fails
-      const emailPayload = {
-        personalizations: [{
-          to: [{ email: magicLinkRecord.email }]
-        }],
-        from: { 
-          email: env.EMAIL_FROM.includes('<') ? env.EMAIL_FROM.match(/<(.+)>/)?.[1] || env.EMAIL_FROM : env.EMAIL_FROM,
-          name: 'Cultural Archiver' 
-        },
-        subject: subject,
-        content: [{
-          type: 'text/html',
-          value: htmlContent
-        }]
-      };
-      
-      console.log('Sending email via MailChannels:', {
-        to: magicLinkRecord.email,
-        from: emailPayload.from,
-        subject: subject
-      });
-      
-      try {
-        const response = await fetch('https://api.mailchannels.net/tx/v1/send', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-MC-Tags': 'magic-link,cultural-archiver'
-          },
-          body: JSON.stringify(emailPayload)
-        });
-        
-        const responseText = await response.text();
-        
-        if (!response.ok) {
-          console.error('MailChannels API Error:', {
-            status: response.status,
-            statusText: response.statusText,
-            body: responseText,
-            email: magicLinkRecord.email,
-            payload: emailPayload
-          });
-          
-          // If MailChannels fails, fall back to development mode logging
-          console.warn('MailChannels failed, falling back to development mode');
-          throw new Error(`MailChannels delivery failed: ${response.status}`);
-        }
-        
-        console.info(`Magic link email sent via MailChannels to: ${magicLinkRecord.email}`, responseText);
-      } catch (mailChannelsError) {
-        console.error('MailChannels failed, using development fallback:', mailChannelsError);
-        
-        // Fallback: Log the magic link for manual access
-        console.log('=== DEVELOPMENT FALLBACK: MAGIC LINK EMAIL ===');
-        console.log('To:', magicLinkRecord.email);
-        console.log('Subject:', subject);
-        console.log('Magic Link:', magicLink);
-        console.log('Expires:', expiresAt);
-        console.log('Is Signup:', magicLinkRecord.is_signup);
-        if (anonymousSubmissions) {
-          console.log('Anonymous Submissions:', anonymousSubmissions);
-        }
-        console.log('============================================');
-        
-        // Store the magic link in KV for development access
-        await env.SESSIONS.put(
-          `dev-magic-link:${magicLinkRecord.email}`,
-          JSON.stringify({
-            token: magicLinkRecord.token,
-            magicLink,
-            expiresAt,
-            created: new Date().toISOString()
-          }),
-          { expirationTtl: MAGIC_LINK_EXPIRY_HOURS * 60 * 60 }
-        );
-        
-        console.info('Magic link stored in development mode for manual access');
-      }
-    } else {
-      // Development mode: log email content
-      console.log('=== DEVELOPMENT MAGIC LINK EMAIL ===');
-      console.log('To:', magicLinkRecord.email);
-      console.log('Subject:', subject);
-      console.log('Magic Link:', magicLink);
-      console.log('Expires:', expiresAt);
-      console.log('Is Signup:', magicLinkRecord.is_signup);
-      if (anonymousSubmissions) {
-        console.log('Anonymous Submissions:', anonymousSubmissions);
-      }
-      console.log('====================================');
-    }
+    await sendMagicLinkEmailWithResend(
+      env,
+      magicLinkRecord.email,
+      magicLink,
+      magicLinkRecord.is_signup,
+      expiresAt,
+      anonymousSubmissions
+    );
+
+    console.info(`Magic link email sent successfully to: ${magicLinkRecord.email}`);
+
   } catch (error) {
     console.error('Failed to send magic link email:', error);
-    throw new Error('Email delivery failed');
+    
+    // Fallback: Log the magic link for manual access in development
+    console.log('=== DEVELOPMENT FALLBACK: MAGIC LINK EMAIL ===');
+    console.log('To:', magicLinkRecord.email);
+    console.log('Magic Link:', magicLink);
+    console.log('Expires:', expiresAt);
+    console.log('Is Signup:', magicLinkRecord.is_signup);
+    if (anonymousSubmissions) {
+      console.log('Anonymous Submissions:', anonymousSubmissions);
+    }
+    console.log('============================================');
+    
+    // Store the magic link in KV for development access
+    try {
+      await env.SESSIONS.put(
+        `dev-magic-link:${magicLinkRecord.email}`,
+        JSON.stringify({
+          token: magicLinkRecord.token,
+          magicLink,
+          expiresAt,
+          created: new Date().toISOString()
+        }),
+        { expirationTtl: MAGIC_LINK_EXPIRY_HOURS * 60 * 60 }
+      );
+    } catch (kvError) {
+      console.error('Failed to store dev magic link in KV:', kvError);
+    }
+    
+    // Re-throw the error so the calling code can handle it appropriately
+    throw new Error(`Email delivery failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 

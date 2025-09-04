@@ -186,10 +186,10 @@ export async function sendMagicLinkEmail(
     // For MVP, we'll use a simple email sending approach
     // In production, this would integrate with Cloudflare Email Workers or a service like Resend
 
-    if (env.EMAIL_API_KEY && env.EMAIL_FROM) {
+    if (env.RESEND_API_KEY && env.EMAIL_FROM_ADDRESS) {
       // Use external email service (Resend, SendGrid, etc.)
       const emailPayload = {
-        from: env.EMAIL_FROM,
+        from: `${env.EMAIL_FROM_NAME} <${env.EMAIL_FROM_ADDRESS}>`,
         to: email,
         subject: 'Verify your Cultural Archiver account',
         html: htmlContent,
@@ -198,7 +198,7 @@ export async function sendMagicLinkEmail(
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${env.EMAIL_API_KEY}`,
+          Authorization: `Bearer ${env.RESEND_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(emailPayload),

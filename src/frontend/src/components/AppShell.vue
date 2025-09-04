@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { Bars3Icon, XMarkIcon, PlusIcon, UserIcon, InformationCircleIcon, QuestionMarkCircleIcon, ClipboardDocumentListIcon, MapIcon, ArrowLeftOnRectangleIcon, ShieldCheckIcon } from '@heroicons/vue/24/outline'
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { Bars3Icon, XMarkIcon, PlusIcon, UserIcon, QuestionMarkCircleIcon, ClipboardDocumentListIcon, MapIcon, ArrowLeftOnRectangleIcon, ShieldCheckIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/auth'
 import AuthModal from './AuthModal.vue'
 import LiveRegion from './LiveRegion.vue'
@@ -19,6 +19,7 @@ const showDrawer = ref(false)
 const showAuthModal = ref(false)
 const authMode = ref<'login' | 'signup'>('login')
 const route = useRoute()
+const router = useRouter()
 const authStore = useAuthStore()
 
 // Refs for focus management
@@ -38,13 +39,7 @@ const navigationItems: NavigationItem[] = [
     icon: PlusIcon
   },
   {
-    name: 'Profile',
-    path: '/profile',
-    icon: UserIcon,
-    requiresAuth: true
-  },
-  {
-    name: 'Review',
+    name: 'Moderate',
     path: '/review',
     icon: ClipboardDocumentListIcon,
     requiresReviewer: true
@@ -54,11 +49,6 @@ const navigationItems: NavigationItem[] = [
     path: '/admin',
     icon: ShieldCheckIcon,
     requiresAdmin: true
-  },
-  {
-    name: 'About',
-    path: '/home',
-    icon: InformationCircleIcon
   },
   {
     name: 'Help',
@@ -95,24 +85,6 @@ const userDisplayName = computed(() => {
     return authStore.user.email
   }
   return `Anonymous (${authStore.user.id.slice(0, 8)}...)`
-})
-
-const authStatusBadge = computed(() => {
-  if (authStore.isAuthenticated) {
-    return {
-      text: 'Verified',
-      class: 'bg-green-100 text-green-800 border-green-200'
-    }
-  } else if (authStore.isAnonymous) {
-    return {
-      text: 'Anonymous',
-      class: 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
-  return {
-    text: 'Unknown',
-    class: 'bg-red-100 text-red-800 border-red-200'
-  }
 })
 
 // Methods
@@ -155,12 +127,69 @@ function handleAuthSuccess(payload: { isNewAccount: boolean; email: string }): v
 }
 
 async function handleLogout(): Promise<void> {
+  // Show logout confirmation as per PRD requirements
+  const confirmed = confirm('Are you sure you want to sign out?')
+  if (!confirmed) {
+    return
+  }
+
   try {
     await authStore.logout()
     // Could show logout success message here
   } catch (error) {
     console.error('Logout failed:', error)
   }
+}
+
+// Handle navigation to home with dirty form check
+function handleHomeNavigation(): void {
+  // Check if we're already on the map page
+  if (route.path === '/') {
+    return
+  }
+  
+  // Check for dirty forms
+  const isDirty = checkForDirtyForms()
+  
+  if (isDirty) {
+    const confirmed = confirm('You have unsaved changes. Are you sure you want to leave this page?')
+    if (!confirmed) {
+      return
+    }
+  }
+  
+  // Navigate to map
+  router.push('/')
+}
+
+// Check for dirty forms in the current view
+function checkForDirtyForms(): boolean {
+  // Look for forms with data-dirty attribute or common form indicators
+  const forms = document.querySelectorAll('form')
+  
+  for (const form of forms) {
+    // Check if form has been marked as dirty
+    if (form.hasAttribute('data-dirty') && form.getAttribute('data-dirty') === 'true') {
+      return true
+    }
+    
+    // Check for input values that might indicate unsaved changes
+    const inputs = form.querySelectorAll('input, textarea, select')
+    for (const input of inputs) {
+      if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+        // Skip empty inputs and default values
+        if (input.value && input.value !== input.defaultValue) {
+          return true
+        }
+      } else if (input instanceof HTMLSelectElement) {
+        if (input.selectedIndex !== 0) {
+          return true
+        }
+      }
+    }
+  }
+  
+  return false
 }
 
 // Enhanced keyboard navigation
@@ -243,8 +272,14 @@ watch(() => route.path, handleRouteChange)
       <div class="flex items-center justify-between h-16 px-4">
         <!-- Left side: Logo and Title -->
         <div class="flex items-center space-x-2 sm:space-x-3 min-w-0">
-          <div class="text-xl sm:text-2xl" role="img" aria-label="Cultural Archiver logo">🎨</div>
-          <h1 class="text-lg sm:text-xl font-semibold truncate">Cultural Archiver</h1>
+          <button
+            @click="handleHomeNavigation"
+            class="flex items-center space-x-2 sm:space-x-3 text-left hover:opacity-80 focus:opacity-80 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 rounded-md transition-opacity"
+            aria-label="Return to map"
+          >
+            <div class="text-xl sm:text-2xl" role="img" aria-label="Cultural Archiver logo">🎨</div>
+            <h1 class="text-lg sm:text-xl font-semibold truncate">Cultural Archiver</h1>
+          </button>
         </div>
 
         <!-- Right side: Navigation (Desktop) -->
@@ -271,18 +306,21 @@ watch(() => route.path, handleRouteChange)
           
           <!-- User Menu -->
           <div class="flex items-center space-x-3 border-l border-blue-500 pl-4">
-            <!-- User Status -->
-            <div class="text-right">
+            <!-- User Profile Button -->
+            <button
+              v-if="authStore.isAuthenticated"
+              @click="$router.push('/profile')"
+              class="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
+              :title="`View profile for ${userDisplayName}`"
+            >
+              <UserIcon class="w-5 h-5" aria-hidden="true" />
+              <span>{{ userDisplayName }}</span>
+            </button>
+            
+            <!-- Anonymous User Display -->
+            <div v-else class="text-right">
               <div class="text-sm font-medium text-white">
                 {{ userDisplayName }}
-              </div>
-              <div class="text-xs text-blue-200">
-                <span 
-                  class="inline-block px-1.5 py-0.5 text-xs rounded-full border"
-                  :class="authStatusBadge.class"
-                >
-                  {{ authStatusBadge.text }}
-                </span>
               </div>
             </div>
             
@@ -291,15 +329,9 @@ watch(() => route.path, handleRouteChange)
               <template v-if="!authStore.isAuthenticated">
                 <button
                   @click="openAuthModal('login')"
-                  class="px-3 py-2 text-sm font-medium text-blue-100 hover:text-white hover:bg-blue-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600"
-                >
-                  Sign In
-                </button>
-                <button
-                  @click="openAuthModal('signup')"
                   class="px-3 py-2 text-sm font-medium bg-white text-blue-600 hover:bg-blue-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600"
                 >
-                  Sign Up
+                  Sign In
                 </button>
               </template>
               <template v-else>
@@ -392,30 +424,25 @@ watch(() => route.path, handleRouteChange)
         <div class="border-t border-gray-200 mt-4 pt-4">
           <!-- User Status -->
           <div class="px-4 py-2">
-            <div class="text-sm font-medium text-gray-900">{{ userDisplayName }}</div>
-            <div class="text-xs text-gray-500 mt-1">
-              <span 
-                class="inline-block px-2 py-0.5 text-xs rounded-full border"
-                :class="authStatusBadge.class"
-              >
-                {{ authStatusBadge.text }}
-              </span>
-            </div>
+            <button
+              v-if="authStore.isAuthenticated"
+              @click="$router.push('/profile'); closeDrawer()"
+              class="w-full flex items-center space-x-2 px-3 py-2 text-left text-sm font-medium text-gray-900 hover:bg-gray-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+              :title="`View profile for ${userDisplayName}`"
+            >
+              <UserIcon class="w-5 h-5 text-gray-600" aria-hidden="true" />
+              <span>{{ userDisplayName }}</span>
+            </button>
+            <div v-else class="text-sm font-medium text-gray-900">{{ userDisplayName }}</div>
           </div>
           
           <!-- Auth Actions -->
           <div v-if="!authStore.isAuthenticated" class="px-4 py-2 space-y-2">
             <button
               @click="openAuthModal('login'); closeDrawer()"
-              class="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
-            >
-              Sign In
-            </button>
-            <button
-              @click="openAuthModal('signup'); closeDrawer()"
               class="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
-              Sign Up
+              Sign In
             </button>
           </div>
           <div v-else class="px-4 py-2">

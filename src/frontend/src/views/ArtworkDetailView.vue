@@ -45,8 +45,16 @@ const artworkTitle = computed(() => {
 const artworkDescription = computed(() => {
   if (!artwork.value) return null
   
-  const description = artwork.value.tags_parsed?.description as string
-  return description || null
+  // First try tags_parsed.description
+  const tagDescription = artwork.value.tags_parsed?.description as string
+  if (tagDescription) return tagDescription
+  
+  // Fallback to first logbook entry note
+  const firstEntry = artwork.value.logbook_entries?.[0]
+  const noteDescription = firstEntry?.note
+  if (noteDescription && noteDescription.trim()) return noteDescription.trim()
+  
+  return null
 })
 
 const artworkCreators = computed(() => {
@@ -339,12 +347,16 @@ onUnmounted(() => {
             <section aria-labelledby="location-heading" class="bg-white rounded-lg border border-gray-200 p-6">
               <h2 id="location-heading" class="text-lg font-semibold text-gray-900 mb-4">Location</h2>
               <MiniMap
+                v-if="artwork.lat != null && artwork.lon != null"
                 :latitude="artwork.lat"
                 :longitude="artwork.lon"
                 :title="artworkTitle"
                 height="200px"
                 :zoom="16"
               />
+              <div v-else class="text-gray-500 text-sm">
+                Location information not available
+              </div>
             </section>
 
             <!-- Artwork Info -->
@@ -438,10 +450,6 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-.artwork-detail-view {
-  /* Custom styles if needed */
-}
-
 /* Screen reader only class */
 .sr-only {
   position: absolute;

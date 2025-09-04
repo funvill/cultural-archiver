@@ -4,16 +4,7 @@
  */
 
 import type {
-  // LogbookSubmission,
-  // ArtworkDetails,
-  // UserSubmission,
-  // UserProfile,
-  // ReviewQueueItem,
-  // ReviewStats,
   MagicLinkRequest,
-  // MagicLinkConsumeRequest,
-  ConsumeMagicLinkResponse,
-  // VerificationStatus,
   ApiResponse,
   PaginatedResponse,
   StatusResponse,
@@ -26,9 +17,9 @@ import type {
   AuditLogsResponse,
   AuditStatistics,
   NearbyArtworksResponse,
-  LogbookEntryWithPhotos,
-  NearbyArtworkInfo,
+  UserSubmissionInfo,
 } from '../../../shared/types'
+import type { UserProfile, ReviewQueueItem, ReviewStats, ArtworkDetails } from '../types'
 import { getApiBaseUrl } from '../utils/api-config'
 
 // Local type definitions for missing shared types
@@ -39,70 +30,6 @@ interface LogbookSubmission {
   type?: string
   artworkId?: string
   photos: File[]
-}
-
-interface ArtworkDetails {
-  id: string
-  lat: number
-  lon: number
-  type_id: string
-  created_at: string
-  status: 'pending' | 'approved' | 'removed'
-  tags: string | null
-  photos: string[]
-  type_name: string
-  logbook_entries: LogbookEntryWithPhotos[]
-  tags_parsed: Record<string, string>
-}
-
-interface UserSubmission {
-  id: string
-  artwork_id: string | null
-  user_token: string
-  note: string | null
-  photos: string | null
-  status: 'pending' | 'approved' | 'rejected'
-  created_at: string
-  artwork_lat?: number
-  artwork_lon?: number
-  artwork_type_name?: string
-  photos_parsed: string[]
-}
-
-interface UserProfile {
-  user_token: string
-  total_submissions: number
-  approved_submissions: number
-  pending_submissions: number
-  rejected_submissions: number
-  created_at: string
-  email_verified: boolean
-  email?: string
-}
-
-interface ReviewQueueItem {
-  id: string
-  lat: number
-  lon: number
-  note: string | null
-  photos: string[]
-  type?: string
-  status: 'pending' | 'approved' | 'rejected'
-  created_at: string
-  user_token: string
-  nearby_artworks?: NearbyArtworkInfo[]
-}
-
-interface ReviewStats {
-  total_pending: number
-  total_approved: number
-  total_rejected: number
-  pending_by_type: Record<string, number>
-  recent_activity: Array<{
-    date: string
-    approved: number
-    rejected: number
-  }>
 }
 
 interface MagicLinkConsumeRequest {
@@ -152,13 +79,22 @@ class ApiClient {
    * Get user token from localStorage
    */
   private getUserToken(): string | null {
-    return localStorage.getItem('user-token')
+    const token = localStorage.getItem('user-token')
+    console.log('[API DEBUG] Getting user token from localStorage:', {
+      token: token,
+      timestamp: new Date().toISOString()
+    })
+    return token
   }
 
   /**
    * Set user token in localStorage
    */
   private setUserToken(token: string): void {
+    console.log('[API DEBUG] Setting user token in localStorage:', {
+      token: token,
+      timestamp: new Date().toISOString()
+    })
     localStorage.setItem('user-token', token)
   }
 
@@ -172,6 +108,12 @@ class ApiClient {
     })
 
     const token = this.getUserToken()
+    console.log('[API DEBUG] Creating request headers:', {
+      hasToken: !!token,
+      token: token,
+      customHeaders: Object.keys(customHeaders)
+    })
+    
     if (token) {
       headers.set('X-User-Token', token)
     }
@@ -185,7 +127,16 @@ class ApiClient {
   private async handleResponse<T>(response: Response): Promise<T> {
     // Update user token if provided in response
     const newToken = response.headers.get('X-User-Token')
+    console.log('[API DEBUG] Handling response:', {
+      status: response.status,
+      statusText: response.statusText,
+      hasNewToken: !!newToken,
+      newToken: newToken,
+      url: response.url
+    })
+    
     if (newToken) {
+      console.log('[API DEBUG] Response contains new token, updating localStorage')
       this.setUserToken(newToken)
     }
 
@@ -411,7 +362,7 @@ export const apiService = {
     lon: number,
     radius: number = 500,
     limit: number = 50
-  ): Promise<NearbyArtworksResponse> {
+  ): Promise<ApiResponse<NearbyArtworksResponse>> {
     return client.get('/artworks/nearby', {
       lat: lat.toString(),
       lon: lon.toString(),
@@ -424,7 +375,11 @@ export const apiService = {
    * Get artwork details by ID
    */
   async getArtworkDetails(id: string): Promise<ArtworkDetails> {
-    return client.get(`/artworks/${id}`)
+    const response = await client.get<ApiResponse<ArtworkDetails>>(`/artworks/${id}`)
+    if (!response.data) {
+      throw new Error(`Artwork with ID ${id} not found`)
+    }
+    return response.data
   },
 
   // ================================
@@ -438,17 +393,31 @@ export const apiService = {
     status?: string,
     page: number = 1,
     limit: number = 20
-  ): Promise<PaginatedResponse<UserSubmission>> {
+  ): Promise<PaginatedResponse<UserSubmissionInfo>> {
     const params: Record<string, string> = {
       page: page.toString(),
-      limit: limit.toString()
+      per_page: limit.toString()
     }
     
     if (status) {
       params.status = status
     }
 
-    return client.get('/me/submissions', params)
+    const response = await client.get<ApiResponse<{ 
+      submissions: UserSubmissionInfo[]; 
+      total: number; 
+      page: number; 
+      per_page: number 
+    }>>('/me/submissions', params)
+
+    // Transform backend response to shared PaginatedResponse format
+    return {
+      items: response.data?.submissions || [],
+      total: response.data?.total || 0,
+      page: response.data?.page || page,
+      per_page: response.data?.per_page || limit,
+      has_more: response.data ? (response.data.page * response.data.per_page) < response.data.total : false
+    }
   },
 
   /**
@@ -536,8 +505,27 @@ export const apiService = {
   /**
    * @deprecated Use verifyMagicLink instead
    */
-  async consumeMagicLink(request: MagicLinkConsumeRequest): Promise<ApiResponse<ConsumeMagicLinkResponse>> {
-    return this.verifyMagicLink(request)
+  async consumeMagicLink(request: MagicLinkConsumeRequest): Promise<{
+    success: boolean;
+    message: string;
+    user: {
+      uuid: string;
+      email: string;
+      created_at: string;
+      email_verified_at: string;
+    };
+    session: {
+      token: string;
+      expires_at: string;
+    };
+    uuid_replaced: boolean;
+    is_new_account: boolean;
+  }> {
+    const response = await this.verifyMagicLink(request)
+    if (!response.data) {
+      throw new Error('Magic link verification failed')
+    }
+    return response.data
   },
 
   /**
@@ -598,7 +586,14 @@ export const apiService = {
   },
 
   /**
-   * Approve submission
+   * Approve submission with action
+   */
+  async approveSubmissionWithAction(id: string, body: { action: string; artwork_id?: string; overrides?: Record<string, unknown> }): Promise<ApiResponse<{ message: string }>> {
+    return client.post(`/review/approve/${id}`, body)
+  },
+
+  /**
+   * Approve submission (legacy method)
    */
   async approveSubmission(id: string, reason?: string): Promise<ApiResponse<{ message: string }>> {
     return client.post(`/review/approve/${id}`, { reason })
@@ -614,7 +609,7 @@ export const apiService = {
   /**
    * Get review statistics
    */
-  async getReviewStats(): Promise<ApiResponse<ReviewStats>> {
+  async getReviewStats(): Promise<ReviewStats> {
     return client.get('/review/stats')
   },
 

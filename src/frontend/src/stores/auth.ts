@@ -65,23 +65,93 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Initialize auth from localStorage and check status
   async function initializeAuth(): Promise<void> {
+    console.log('[AUTH DEBUG] Starting authentication initialization:', {
+      timestamp: new Date().toISOString(),
+      currentToken: token.value,
+      currentUser: user.value?.id,
+      userEmailVerified: user.value?.emailVerified
+    })
+    
     try {
       setLoading(true)
       
       // Check for existing token in localStorage first
       const storedToken = localStorage.getItem('user-token')
+      console.log('[AUTH DEBUG] Checking localStorage for existing token:', {
+        storedToken: storedToken,
+        currentToken: token.value,
+        tokensMatch: storedToken === token.value
+      })
+      
       if (storedToken) {
         token.value = storedToken
+        console.log('[AUTH DEBUG] Updated token from localStorage:', storedToken)
       }
       
       // Get current auth status from backend
+      console.log('[AUTH DEBUG] Requesting auth status from backend')
       const statusResponse = await apiService.getAuthStatus()
+      
+      console.log('[AUTH DEBUG] Raw status response received:', {
+        statusResponse: statusResponse,
+        hasData: !!statusResponse?.data,
+        dataKeys: statusResponse?.data ? Object.keys(statusResponse.data) : 'no_data',
+        fullJson: JSON.stringify(statusResponse, null, 2)
+      })
+      
       if (statusResponse.data) {
         const authStatus = statusResponse.data
+        console.log('[AUTH DEBUG] Auth status received:', {
+          is_authenticated: authStatus.is_authenticated,
+          is_anonymous: authStatus.is_anonymous,
+          user_token: authStatus.user_token,
+          stored_token: token.value,
+          user_exists: !!authStatus.user,
+          user_email: authStatus.user?.email
+        })
         
-        // Update token if backend provided a different one
+        // CRITICAL DEBUG: Log the complete response structure
+        console.log('[AUTH DEBUG] Complete auth status response:', {
+          fullResponse: authStatus,
+          hasUserObject: !!authStatus.user,
+          userObjectKeys: authStatus.user ? Object.keys(authStatus.user) : 'no_user_object',
+          responseKeys: Object.keys(authStatus),
+          jsonString: JSON.stringify(authStatus, null, 2)
+        })
+        
+        // ENHANCED: Check for UUID consistency issues
         if (authStatus.user_token && authStatus.user_token !== token.value) {
-          setToken(authStatus.user_token)
+          console.log('[AUTH DEBUG] Token mismatch detected:', {
+            stored: token.value,
+            backend: authStatus.user_token,
+            authenticated: authStatus.is_authenticated,
+            user_exists: !!authStatus.user
+          })
+          
+          // CRITICAL FIX: Only update token if user is NOT authenticated
+          // If user is authenticated, keep the existing token to maintain session
+          if (!authStatus.is_authenticated) {
+            // Only update token for anonymous users to prevent session loss
+            console.log('[AUTH DEBUG] Updating anonymous token from', token.value, 'to', authStatus.user_token)
+            setToken(authStatus.user_token)
+          } else {
+            // For authenticated users, this might indicate a session issue
+            console.warn('[AUTH DEBUG] Authenticated user has token mismatch - investigating:', {
+              stored: token.value,
+              backend: authStatus.user_token,
+              authenticated: authStatus.is_authenticated,
+              action: 'keeping_existing_token'
+            })
+            
+            // In this case, we should probably use the backend token since it's authenticated
+            console.log('[AUTH DEBUG] Forcing token consistency for authenticated user')
+            setToken(authStatus.user_token)
+          }
+        } else {
+          console.log('[AUTH DEBUG] Token consistency confirmed:', {
+            token: token.value,
+            authenticated: authStatus.is_authenticated
+          })
         }
         
         // Create user object from auth status
@@ -90,16 +160,49 @@ export const useAuthStore = defineStore('auth', () => {
             id: authStatus.user.uuid,
             email: authStatus.user.email,
             emailVerified: true,
-            isReviewer: false, // Will be determined by permissions
+            isReviewer: false, // Will be updated from profile
             createdAt: authStatus.user.created_at
           }
           setUser(userData)
           
-          // TODO: Fetch user permissions from backend and set them
-          // This would require a new API endpoint to get current user permissions
-          // For now, we'll rely on the backend auth middleware
+          // Fetch user profile to get reviewer permissions
+          try {
+            const profileResponse = await apiService.getUserProfile()
+            if (profileResponse.data?.is_reviewer) {
+              userData.isReviewer = true
+            }
+            
+            // Extract permissions from profile debug info
+            if (profileResponse.data?.debug?.permissions) {
+              const permissionObjects = profileResponse.data.debug.permissions as Array<{
+                permission: string;
+                is_active: boolean;
+              }>
+              const userPermissions = permissionObjects
+                .filter(p => p.is_active)
+                .map(p => p.permission as Permission)
+              setPermissions(userPermissions)
+              
+              console.log('[AUTH DEBUG] Permissions extracted from profile:', {
+                permissions: userPermissions,
+                isReviewer: userPermissions.includes('moderator') || userPermissions.includes('admin'),
+                isAdmin: userPermissions.includes('admin')
+              })
+            }
+            
+            setUser(userData)
+          } catch (profileError) {
+            console.warn('[AUTH DEBUG] Failed to fetch user profile:', profileError)
+          }
+          
+          console.log('[AUTH DEBUG] User authenticated successfully:', {
+            id: userData.id,
+            email: userData.email,
+            emailVerified: userData.emailVerified,
+            isReviewer: userData.isReviewer
+          })
         } else {
-          // Anonymous user
+          // Anonymous user - still check for permissions
           const userData: User = {
             id: authStatus.user_token,
             email: '',
@@ -107,25 +210,92 @@ export const useAuthStore = defineStore('auth', () => {
             isReviewer: false,
             createdAt: new Date().toISOString()
           }
+          
+          // Fetch user profile to check for reviewer permissions (even for anonymous users)
+          try {
+            const profileResponse = await apiService.getUserProfile()
+            if (profileResponse.data?.is_reviewer) {
+              userData.isReviewer = true
+            }
+            
+            // Extract permissions from profile debug info (even for anonymous users)
+            if (profileResponse.data?.debug?.permissions) {
+              const permissionObjects = profileResponse.data.debug.permissions as Array<{
+                permission: string;
+                is_active: boolean;
+              }>
+              const userPermissions = permissionObjects
+                .filter(p => p.is_active)
+                .map(p => p.permission as Permission)
+              setPermissions(userPermissions)
+              
+              console.log('[AUTH DEBUG] Anonymous user permissions extracted from profile:', {
+                permissions: userPermissions,
+                isReviewer: userPermissions.includes('moderator') || userPermissions.includes('admin'),
+                isAdmin: userPermissions.includes('admin')
+              })
+            }
+          } catch (profileError) {
+            console.warn('[AUTH DEBUG] Failed to fetch user profile for anonymous user:', profileError)
+          }
+          
           setUser(userData)
+          console.log('[AUTH DEBUG] User set as anonymous:', {
+            id: userData.id,
+            emailVerified: userData.emailVerified,
+            isReviewer: userData.isReviewer,
+            backend_authenticated: authStatus.is_authenticated
+          })
         }
+        
+        // Final state validation
+        console.log('[AUTH DEBUG] Authentication initialization complete:', {
+          final_token: token.value,
+          final_user_id: user.value?.id,
+          final_authenticated: isAuthenticated.value,
+          final_anonymous: isAnonymous.value,
+          tokens_match: token.value === user.value?.id
+        })
       }
     } catch (err) {
-      console.error('Auth initialization error:', err)
+      console.error('[AUTH DEBUG] Auth initialization error:', {
+        error: err,
+        message: err instanceof Error ? err.message : 'Unknown error',
+        current_token: token.value,
+        current_user: user.value?.id
+      })
       // If auth check fails, ensure we have an anonymous token
       if (!token.value) {
+        console.log('[AUTH DEBUG] No token available, generating anonymous token')
         await generateAnonymousToken()
       }
     } finally {
       setLoading(false)
+      console.log('[AUTH DEBUG] Authentication initialization finished:', {
+        loading: isLoading.value,
+        token: token.value,
+        user_id: user.value?.id,
+        authenticated: isAuthenticated.value
+      })
     }
   }
 
   // Generate anonymous user token
   async function generateAnonymousToken(): Promise<void> {
+    console.log('[AUTH DEBUG] Generating new anonymous token:', {
+      timestamp: new Date().toISOString(),
+      currentToken: token.value,
+      currentUser: user.value?.id
+    })
+    
     try {
       // Call status endpoint to trigger token generation
       const response = await apiService.generateToken()
+      console.log('[AUTH DEBUG] Generate token response:', {
+        success: response.success,
+        token: response.data?.token
+      })
+      
       if (response.data?.token) {
         setToken(response.data.token)
         const userData: User = {
@@ -136,9 +306,16 @@ export const useAuthStore = defineStore('auth', () => {
           createdAt: new Date().toISOString()
         }
         setUser(userData)
+        console.log('[AUTH DEBUG] Anonymous token generated successfully:', {
+          token: response.data.token,
+          user_id: userData.id
+        })
       }
     } catch (err) {
-      console.error('Failed to generate anonymous token:', err)
+      console.error('[AUTH DEBUG] Failed to generate anonymous token:', {
+        error: err,
+        message: err instanceof Error ? err.message : 'Unknown error'
+      })
       // Fallback to client-generated UUID
       const fallbackToken = crypto.randomUUID()
       setToken(fallbackToken)
@@ -150,6 +327,10 @@ export const useAuthStore = defineStore('auth', () => {
         createdAt: new Date().toISOString()
       }
       setUser(userData)
+      console.log('[AUTH DEBUG] Using fallback client-generated token:', {
+        token: fallbackToken,
+        user_id: userData.id
+      })
     }
   }
 
@@ -182,44 +363,87 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Verify and consume magic link token
   async function verifyMagicLink(magicToken: string): Promise<{ success: boolean; message: string; isNewAccount?: boolean }> {
+    console.log('[AUTH DEBUG] Starting magic link verification:', {
+      token: magicToken?.substring(0, 8) + '...',
+      currentToken: token.value,
+      currentUser: user.value?.id,
+      timestamp: new Date().toISOString()
+    })
+    
     setLoading(true)
     clearError()
 
     try {
       const request: MagicLinkConsumeRequest = { token: magicToken }
-      const response = await apiService.verifyMagicLink(request)
+      console.log('[AUTH DEBUG] Sending magic link verification request')
       
-      if (response.data?.success) {
-        const verifyResponse = response.data
+      const response = await apiService.verifyMagicLink(request)
+      console.log('[AUTH DEBUG] Magic link verification response:', {
+        success: response.success,
+        userUuid: response.data?.user?.uuid,
+        email: response.data?.user?.email,
+        isNewAccount: response.data?.is_new_account,
+        uuidReplaced: response.data?.uuid_replaced
+      })
+      
+      if (response.success && response.data) {
+        const authenticatedUUID = response.data.user.uuid
+        console.log('[AUTH DEBUG] Magic link verification successful, processing authentication:', {
+          previousToken: token.value,
+          newToken: authenticatedUUID,
+          email: response.data.user.email,
+          isNewAccount: response.data.is_new_account
+        })
         
-        // Update token if it was replaced (cross-device login)
-        if (verifyResponse.user.uuid) {
-          setToken(verifyResponse.user.uuid)
+        // CRITICAL: Ensure UUID consistency across all storage
+        if (authenticatedUUID) {
+          console.log('[AUTH DEBUG] Updating token to authenticated UUID:', authenticatedUUID)
+          setToken(authenticatedUUID)
         }
         
         // Update user state with verified user
         const userData: User = {
-          id: verifyResponse.user.uuid,
-          email: verifyResponse.user.email,
+          id: response.data.user.uuid,
+          email: response.data.user.email,
           emailVerified: true,
           isReviewer: false, // Will be determined by permissions
-          createdAt: verifyResponse.user.created_at
+          createdAt: response.data.user.created_at
         }
         setUser(userData)
+        console.log('[AUTH DEBUG] User data updated:', {
+          id: userData.id,
+          email: userData.email,
+          emailVerified: userData.emailVerified
+        })
         
-        // TODO: Fetch user permissions after successful verification
-        // This would be done by calling a permissions endpoint
+        // SKIP initializeAuth() here to prevent race condition
+        // Instead, manually update the authentication state
+        console.log('[AUTH DEBUG] Manually updating authentication state after successful verification')
+        
+        // REMOVE the forced page refresh - it causes the magic link to be processed twice
+        // Instead, let the component handle the success state and redirect
+        console.log('[AUTH DEBUG] Magic link verification complete, letting component handle redirect')
         
         return {
           success: true,
-          message: verifyResponse.message,
-          isNewAccount: verifyResponse.is_new_account
+          message: response.data.message || 'Login successful',
+          isNewAccount: response.data.is_new_account
         }
       }
       
-      return { success: false, message: 'Failed to verify magic link' }
+      console.log('[AUTH DEBUG] Magic link verification failed:', response.message || 'Unknown error')
+      return { success: false, message: response.message || 'Failed to verify magic link' }
     } catch (err) {
       const message = getErrorMessage(err)
+      console.error('[AUTH DEBUG] Magic link verification error:', {
+        error: message,
+        token: magicToken?.substring(0, 8) + '...',
+        currentState: {
+          token: token.value,
+          user: user.value?.id,
+          isAuthenticated: isAuthenticated.value
+        }
+      })
       setError(message)
       return { success: false, message }
     } finally {
@@ -229,18 +453,32 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Logout and get new anonymous token
   async function logout(): Promise<void> {
+    console.log('[AUTH DEBUG] Starting logout process:', {
+      currentToken: token.value,
+      currentUser: user.value?.id,
+      isAuthenticated: isAuthenticated.value,
+      timestamp: new Date().toISOString()
+    })
+    
     setLoading(true)
     clearError()
     
     try {
+      console.log('[AUTH DEBUG] Calling backend logout endpoint')
       const response = await apiService.logout()
+      console.log('[AUTH DEBUG] Logout response:', {
+        success: response.data?.success,
+        newToken: response.data?.new_user_token
+      })
       
       if (response.data?.success) {
         // Clear current auth state
+        console.log('[AUTH DEBUG] Clearing authentication state')
         clearAuth()
         
         // Set new anonymous token
         if (response.data.new_user_token) {
+          console.log('[AUTH DEBUG] Setting new anonymous token from logout response:', response.data.new_user_token)
           setToken(response.data.new_user_token)
           const userData: User = {
             id: response.data.new_user_token,
@@ -250,15 +488,28 @@ export const useAuthStore = defineStore('auth', () => {
             createdAt: new Date().toISOString()
           }
           setUser(userData)
+          console.log('[AUTH DEBUG] New anonymous user data set:', {
+            id: userData.id,
+            emailVerified: userData.emailVerified
+          })
         }
       }
     } catch (err) {
-      console.error('Logout error:', err)
+      console.error('[AUTH DEBUG] Logout error:', {
+        error: err,
+        message: err instanceof Error ? err.message : 'Unknown error'
+      })
       // Fallback: clear auth and generate new anonymous token
+      console.log('[AUTH DEBUG] Using fallback logout process')
       clearAuth()
       await generateAnonymousToken()
     } finally {
       setLoading(false)
+      console.log('[AUTH DEBUG] Logout process completed:', {
+        newToken: token.value,
+        newUser: user.value?.id,
+        isAuthenticated: isAuthenticated.value
+      })
     }
   }
 

@@ -63,7 +63,7 @@ The authentication system uses four main tables:
 
 **lib/email-auth.ts**: Magic link system
 - Secure token generation (Web Crypto API)
-- MailChannels email delivery
+- Resend email delivery
 - Rate limiting enforcement
 - Token lifecycle management
 
@@ -164,16 +164,15 @@ The authentication system uses four main tables:
 - **Automatic Cleanup**: Expired session removal
 - **Session Validation**: Token verification on each request
 
-## Email System and MailChannels Integration
+## Email System and Resend Integration
 
-### MailChannels Configuration
+### Resend Configuration
 
-The Cultural Archiver uses **MailChannels** for sending magic link emails through Cloudflare Workers. MailChannels provides a free email service specifically designed for Cloudflare Workers with no API keys required.
+The Cultural Archiver uses **Resend** for sending magic link emails through Cloudflare Workers. Resend provides a modern transactional email API with excellent deliverability and comprehensive tracking.
 
+#### DNS Configuration
 
-#### Cloudflare Email Routing
-
-**Email Routing must be enabled** in your Cloudflare dashboard for MailChannels authorization to work properly. Even if you don't use it for receiving emails, the service must be active.
+**Proper DNS setup is required** for Resend authorization and email delivery. The domain must be verified and configured with appropriate SPF, DKIM, and DMARC records as outlined in the Resend setup documentation.
 
 ### Email Templates
 
@@ -242,33 +241,30 @@ The Cultural Archiver uses **MailChannels** for sending magic link emails throug
 - Focuses on sign-in process
 - Button text: "Sign In Now"
 
-### MailChannels Implementation
+### Resend Implementation
 
 #### API Integration
 
 ```typescript
-// Email payload for MailChannels API
+// Email payload for Resend API
 const emailPayload = {
-  personalizations: [{
-    to: [{ email: recipient }]
-  }],
-  from: { 
-    email: "noreply@yourdomain.com",
-    name: "Cultural Archiver" 
-  },
+  from: `${env.EMAIL_FROM_NAME} <${env.EMAIL_FROM_ADDRESS}>`,
+  to: [recipient],
   subject: subject,
-  content: [{
-    type: 'text/html',
-    value: htmlContent
-  }]
+  html: htmlContent,
+  reply_to: env.EMAIL_REPLY_TO,
+  tags: [
+    { name: 'type', value: 'magic-link' },
+    { name: 'app', value: 'cultural-archiver' }
+  ]
 };
 
-// Send via MailChannels
-const response = await fetch('https://api.mailchannels.net/tx/v1/send', {
+// Send via Resend
+const response = await fetch('https://api.resend.com/emails', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'X-MC-Tags': 'magic-link,cultural-archiver'
+    'Authorization': `Bearer ${env.RESEND_API_KEY}`
   },
   body: JSON.stringify(emailPayload)
 });
@@ -276,7 +272,7 @@ const response = await fetch('https://api.mailchannels.net/tx/v1/send', {
 
 #### Fallback System
 
-When MailChannels fails (401 Unauthorized or network issues), the system automatically falls back to development mode:
+When Resend fails (401 Unauthorized or network issues), the system automatically falls back to development mode:
 
 ```typescript
 // Development Fallback
@@ -299,13 +295,13 @@ if (mailChannelsError) {
 
 #### Success Indicators
 
-- MailChannels returns HTTP 200/202
+- Resend returns HTTP 200/202
 - No rate limiting errors
 - No DNS authentication failures
 
 #### Common Issues
 
-**401 Unauthorized from MailChannels:**
+**401 Unauthorized from Resend:**
 - DNS records not properly configured
 - Email Routing not enabled in Cloudflare
 - Domain verification record missing
@@ -317,7 +313,7 @@ if (mailChannelsError) {
 - Blocked until rate limit window resets
 
 **DNS Issues:**
-- SPF record doesn't include MailChannels
+- SPF record doesn't include Resend
 - DKIM record missing or malformed
 - Domain verification record incorrect
 
@@ -681,16 +677,16 @@ WHERE window_start < datetime('now', '-2 hours')
 - Matches Vue.js frontend router configuration
 - Eliminates 404 errors on magic link clicks
 
-**MailChannels Integration:**
-- DNS records configured on `funvill.com`
-- Email Routing enabled in Cloudflare dashboard
-- Fallback system logs to console when MailChannels fails
+**Resend Integration:**
+- DNS records configured on `art.abluestar.com`
+- API key authentication with Bearer token
+- Fallback system logs to console when Resend fails
 - Production deployment successful with Version ID: `8754c89d-039a-4d8e-a86d-71215e83ffe5`
 
 ### Monitoring and Maintenance
 
 **Key Metrics to Monitor:**
-- Magic link delivery success rate (MailChannels API responses)
+- Magic link delivery success rate (Resend API responses)
 - Token verification success rate
 - Rate limiting effectiveness (blocked vs allowed requests)
 - Session creation and cleanup rates
