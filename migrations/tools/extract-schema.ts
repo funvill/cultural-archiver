@@ -11,8 +11,22 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { config } from 'dotenv';
 
+console.info('🔧 Cultural Archiver Schema Extraction Tool Starting...');
+console.info(`📍 Working directory: ${process.cwd()}`);
+console.info(`🕒 Started at: ${new Date().toISOString()}`);
+
 // Load environment variables
-config();
+console.info('📄 Loading environment variables...');
+try {
+    const result = config();
+    if (result.error) {
+        console.warn(`⚠️  Warning loading .env file: ${result.error.message}`);
+    } else {
+        console.info(`✅ Environment variables loaded from .env`);
+    }
+} catch (error) {
+    console.warn(`⚠️  Warning loading .env file: ${error}`);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -41,46 +55,80 @@ class SchemaExtractor {
     }
 
     private loadConfig(): DatabaseConfig {
+        console.info('🔍 Validating database configuration...');
+        
         const databaseId = process.env.D1_DATABASE_ID;
         const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
         const apiToken = process.env.CLOUDFLARE_API_TOKEN;
 
+        console.info(`📊 Configuration check:`);
+        console.info(`  - D1_DATABASE_ID: ${databaseId ? '✅ Set' : '❌ Missing'}`);
+        console.info(`  - CLOUDFLARE_ACCOUNT_ID: ${accountId ? '✅ Set' : '❌ Missing'}`);
+        console.info(`  - CLOUDFLARE_API_TOKEN: ${apiToken ? '✅ Set (****)' : '❌ Missing'}`);
+
         if (!databaseId) {
+            console.error('❌ D1_DATABASE_ID environment variable is required');
+            console.error('💡 Add D1_DATABASE_ID to your .env file');
             throw new Error('D1_DATABASE_ID environment variable is required');
         }
         if (!accountId) {
+            console.error('❌ CLOUDFLARE_ACCOUNT_ID environment variable is required');
+            console.error('💡 Add CLOUDFLARE_ACCOUNT_ID to your .env file');
             throw new Error('CLOUDFLARE_ACCOUNT_ID environment variable is required');
         }
         if (!apiToken) {
+            console.error('❌ CLOUDFLARE_API_TOKEN environment variable is required');
+            console.error('💡 Add CLOUDFLARE_API_TOKEN to your .env file');
             throw new Error('CLOUDFLARE_API_TOKEN environment variable is required');
         }
 
+        console.info('✅ Database configuration validated');
         return { databaseId, accountId, apiToken };
     }
 
     private async executeQuery(sql: string): Promise<any> {
         const url = `https://api.cloudflare.com/client/v4/accounts/${this.config.accountId}/d1/database/${this.config.databaseId}/query`;
         
-        const response = await fetch(url, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${this.config.apiToken}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ sql }),
-        });
+        console.info(`🌐 Executing query: ${sql.substring(0, 100)}${sql.length > 100 ? '...' : ''}`);
+        console.debug(`📡 Request URL: ${url}`);
+        
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${this.config.apiToken}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ sql }),
+            });
 
-        if (!response.ok) {
-            const error = await response.text();
-            throw new Error(`Database query failed: ${response.status} ${error}`);
+            console.info(`📡 Response status: ${response.status} ${response.statusText}`);
+
+            if (!response.ok) {
+                const error = await response.text();
+                console.error(`❌ HTTP Error ${response.status}: ${error}`);
+                throw new Error(`Database query failed: ${response.status} ${error}`);
+            }
+
+            const data = await response.json();
+            console.debug(`📊 Response data keys: ${Object.keys(data).join(', ')}`);
+            
+            if (!data.success) {
+                console.error(`❌ API Error: ${JSON.stringify(data.errors)}`);
+                throw new Error(`Database query failed: ${JSON.stringify(data.errors)}`);
+            }
+
+            const resultCount = data.result?.[0]?.results?.length || 0;
+            console.info(`✅ Query successful, ${resultCount} rows returned`);
+            return data.result[0];
+            
+        } catch (error) {
+            console.error('❌ Query execution failed:', error);
+            if (error.cause) {
+                console.error('🔍 Root cause:', error.cause);
+            }
+            throw error;
         }
-
-        const data = await response.json();
-        if (!data.success) {
-            throw new Error(`Database query failed: ${JSON.stringify(data.errors)}`);
-        }
-
-        return data.result[0];
     }
 
     private async getTables(): Promise<TableInfo[]> {
@@ -233,7 +281,7 @@ class SchemaExtractor {
         }
 
         // Add sample data if available
-        if (sampleData.trim()) {
+        if (sampleData && sampleData.trim()) {
             lines.push('-- ================================');
             lines.push('-- Sample Data');
             lines.push('-- ================================');
@@ -265,33 +313,67 @@ class SchemaExtractor {
     }
 
     public async extractSchema(outputFile?: string): Promise<string> {
-        console.info('🚀 Starting schema extraction...');
+        console.info('🚀 Starting schema extraction process...');
+        console.info(`📁 Target output file: ${outputFile || '001_consolidated_baseline.sql'}`);
 
         try {
+            console.info('⚡ Extracting schema components in parallel...');
+            
             // Extract all schema components
             const [tables, indexes, triggers, sampleData] = await Promise.all([
                 this.getTables(),
-                this.getIndexes(),
+                this.getIndexes(), 
                 this.getTriggers(),
                 this.getSampleData(),
             ]);
 
+            console.info('📊 Extraction summary:');
+            console.info(`  - Tables: ${tables.length}`);
+            console.info(`  - Indexes: ${indexes.length}`); 
+            console.info(`  - Triggers: ${triggers.length}`);
+            console.info(`  - Sample data: ${sampleData && sampleData.trim() ? '✅ Loaded' : '❌ Not available'}`);
+
+            console.info('🔨 Generating consolidated schema SQL...');
+            
             // Generate SQL with sample data
             const schemaSQL = this.generateSchemaSQL(tables, indexes, triggers, sampleData);
+            
+            const sqlLength = schemaSQL.length;
+            const lineCount = schemaSQL.split('\n').length;
+            console.info(`📄 Generated SQL: ${sqlLength} characters, ${lineCount} lines`);
 
             // Validate extraction
+            console.info('🔍 Validating generated schema...');
             await this.validateExtraction(schemaSQL);
 
             // Save to file (always save to file now)
             const outputPath = join(dirname(__dirname), outputFile || '001_consolidated_baseline.sql');
+            console.info(`💾 Saving schema to: ${outputPath}`);
+            
             await writeFile(outputPath, schemaSQL, 'utf-8');
-            console.info(`💾 Schema saved to: ${outputPath}`);
+            console.info(`✅ File written successfully (${sqlLength} bytes)`);
 
-            console.info('✅ Schema extraction completed successfully');
+            console.info('🎉 Schema extraction completed successfully!');
+            console.info(`📂 Final output: ${outputPath}`);
             return schemaSQL;
 
         } catch (error) {
-            console.error('❌ Schema extraction failed:', error);
+            console.error('❌ Schema extraction failed with error:', error);
+            
+            if (error.message?.includes('ENOTFOUND')) {
+                console.error('🌐 Network connectivity issue detected');
+                console.error('💡 Suggestions:');
+                console.error('   - Check your internet connection');
+                console.error('   - Verify Cloudflare API is accessible');
+                console.error('   - Try using --mock flag for offline testing');
+            } else if (error.message?.includes('environment variable')) {
+                console.error('🔧 Configuration issue detected');
+                console.error('💡 Suggestions:');
+                console.error('   - Check your .env file exists');
+                console.error('   - Verify all required environment variables are set');
+                console.error('   - Use --help flag to see required variables');
+            }
+            
             throw error;
         }
     }
@@ -299,13 +381,54 @@ class SchemaExtractor {
     public async testConnection(): Promise<boolean> {
         try {
             console.info('🔍 Testing database connection...');
+            console.info(`🌐 Testing connection to Cloudflare D1...`);
+            
             await this.executeQuery('SELECT 1 as test');
             console.info('✅ Database connection successful');
             return true;
         } catch (error) {
             console.error('❌ Database connection failed:', error);
+            console.error('💡 Check your environment variables and network connectivity');
             return false;
         }
+    }
+
+    public async generateMockSchema(outputFile?: string): Promise<string> {
+        console.info('🧪 Generating mock schema for testing...');
+        
+        // Mock data that simulates the database structure
+        const mockTables: TableInfo[] = [
+            {
+                name: 'users',
+                sql: 'CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)'
+            },
+            {
+                name: 'submissions',
+                sql: 'CREATE TABLE submissions (id TEXT PRIMARY KEY, user_id TEXT, title TEXT, status TEXT DEFAULT "pending", FOREIGN KEY(user_id) REFERENCES users(id))'
+            }
+        ];
+
+        const mockIndexes: IndexInfo[] = [
+            {
+                name: 'idx_submissions_user_id',
+                sql: 'CREATE INDEX idx_submissions_user_id ON submissions(user_id)'
+            }
+        ];
+
+        const mockTriggers: IndexInfo[] = [];
+
+        console.info('📄 Loading sample data for mock schema...');
+        const sampleData = await this.getSampleData();
+
+        const schemaSQL = this.generateSchemaSQL(mockTables, mockIndexes, mockTriggers, sampleData);
+        
+        // Save to file
+        const outputPath = join(dirname(__dirname), outputFile || 'mock-schema.sql');
+        await writeFile(outputPath, schemaSQL, 'utf-8');
+        console.info(`💾 Mock schema saved to: ${outputPath}`);
+        
+        console.info('✅ Mock schema generation completed successfully');
+        return schemaSQL;
     }
 
     public showHelp(): void {
@@ -319,7 +442,8 @@ class SchemaExtractor {
         console.info('Options:');
         console.info('  output-file    Output file path (relative to migrations/, defaults to 001_consolidated_baseline.sql)');
         console.info('  --test         Test database connection only');
-        console.info('  --help         Show this help');
+        console.info('  --mock         Generate mock schema for testing (no network required)');
+        console.info('  --help, -h     Show this help');
         console.info('');
         console.info('Required Environment Variables (.env file):');
         console.info('  D1_DATABASE_ID         Cloudflare D1 Database ID');
@@ -329,15 +453,25 @@ class SchemaExtractor {
         console.info('Examples:');
         console.info('  npx tsx migrations/tools/extract-schema.ts  # Updates 001_consolidated_baseline.sql');
         console.info('  npx tsx migrations/tools/extract-schema.ts backup-schema.sql');
-        console.info('  npx tsx migrations/tools/extract-schema.ts --test');
+        console.info('  npx tsx migrations/tools/extract-schema.ts --test  # Test connection only');
+        console.info('  npx tsx migrations/tools/extract-schema.ts --mock  # Generate test schema');
+        console.info('');
+        console.info('Troubleshooting:');
+        console.info('  - Ensure .env file exists with required variables');
+        console.info('  - Check network connectivity to api.cloudflare.com');
+        console.info('  - Use --mock flag for testing without network access');
+        console.info('  - Use --test flag to verify database connection');
     }
 }
 
 // Main execution
 async function main(): Promise<void> {
+    console.info('🚀 Processing command line arguments...');
     const args = process.argv.slice(2);
+    console.info(`📋 Arguments: ${args.join(' ') || '(none)'}`);
     
     if (args.includes('--help') || args.includes('-h')) {
+        console.info('ℹ️  Showing help information...');
         const extractor = new (class {
             showHelp() {
                 console.info('Cultural Archiver Schema Extraction Tool');
@@ -350,7 +484,8 @@ async function main(): Promise<void> {
                 console.info('Options:');
                 console.info('  output-file    Output file path (relative to migrations/, defaults to 001_consolidated_baseline.sql)');
                 console.info('  --test         Test database connection only');
-                console.info('  --help         Show this help');
+                console.info('  --mock         Generate mock schema for testing (no network required)');
+                console.info('  --help, -h     Show this help');
                 console.info('');
                 console.info('Required Environment Variables (.env file):');
                 console.info('  D1_DATABASE_ID         Cloudflare D1 Database ID');
@@ -360,27 +495,78 @@ async function main(): Promise<void> {
                 console.info('Examples:');
                 console.info('  npx tsx migrations/tools/extract-schema.ts  # Updates 001_consolidated_baseline.sql');
                 console.info('  npx tsx migrations/tools/extract-schema.ts backup-schema.sql');
-                console.info('  npx tsx migrations/tools/extract-schema.ts --test');
+                console.info('  npx tsx migrations/tools/extract-schema.ts --test  # Test connection only');
+                console.info('  npx tsx migrations/tools/extract-schema.ts --mock  # Generate test schema');
+                console.info('');
+                console.info('Troubleshooting:');
+                console.info('  - Ensure .env file exists with required variables');
+                console.info('  - Check network connectivity to api.cloudflare.com');
+                console.info('  - Use --mock flag for testing without network access');
+                console.info('  - Use --test flag to verify database connection');
             }
         })();
         extractor.showHelp();
+        console.info('✅ Help displayed successfully');
         return;
     }
 
-    const extractor = new SchemaExtractor();
+    console.info('🔧 Initializing SchemaExtractor...');
+    let extractor: SchemaExtractor;
+    
+    try {
+        extractor = new SchemaExtractor();
+        console.info('✅ SchemaExtractor initialized successfully');
+    } catch (error) {
+        console.error('❌ Failed to initialize SchemaExtractor:', error);
+        console.error('💡 Check your .env file and environment variables');
+        process.exit(1);
+        return;
+    }
+
+    if (args.includes('--mock')) {
+        console.info('🧪 Running in mock mode...');
+        const outputFile = args.find(arg => !arg.startsWith('--')) || 'mock-schema.sql';
+        try {
+            await extractor.generateMockSchema(outputFile);
+            console.info('✅ Mock schema generation completed');
+            process.exit(0);
+        } catch (error) {
+            console.error('❌ Mock schema generation failed:', error);
+            process.exit(1);
+        }
+        return;
+    }
 
     if (args.includes('--test')) {
-        const success = await extractor.testConnection();
-        process.exit(success ? 0 : 1);
+        console.info('🧪 Running connection test...');
+        try {
+            const success = await extractor.testConnection();
+            if (success) {
+                console.info('✅ Connection test passed');
+                process.exit(0);
+            } else {
+                console.error('❌ Connection test failed');
+                process.exit(1);
+            }
+        } catch (error) {
+            console.error('❌ Connection test error:', error);
+            process.exit(1);
+        }
         return;
     }
 
-    const outputFile = args[0] || '001_consolidated_baseline.sql';
+    console.info('🗂️  Starting schema extraction...');
+    const outputFile = args.find(arg => !arg.startsWith('--')) || '001_consolidated_baseline.sql';
+    console.info(`📁 Output file: ${outputFile}`);
+    
     try {
         await extractor.extractSchema(outputFile);
+        console.info('🎉 Schema extraction completed successfully!');
         process.exit(0);
     } catch (error) {
-        console.error('❌ Extraction failed:', error);
+        console.error('❌ Schema extraction failed:', error);
+        console.error('💡 Try using --test flag to check database connection');
+        console.error('💡 Or use --mock flag for offline testing');
         process.exit(1);
     }
 }
