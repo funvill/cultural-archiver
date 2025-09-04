@@ -63,7 +63,7 @@
   - [x] 3.9 Add loading states and error handling for edit operations
   - [x] 3.10 Ensure edit interface works consistently on mobile and desktop
 
-- [x] 4.0 Moderation Queue Integration - Backend Complete ✅ (7/9 complete as of commit c906dc1)
+- [x] 4.0 Moderation Queue Integration ✅ (Complete as of commit TBD)
   - [x] 4.1 Extend `src/workers/routes/review.ts` to handle artwork edit submissions
   - [x] 4.2 Update moderation queue queries to include artwork edits alongside new submissions
   - [x] 4.3 Implement diff view generation showing before/after comparison for each field
@@ -71,8 +71,8 @@
   - [x] 4.5 Enable moderator feedback text input for rejection reasons
   - [x] 4.6 Track moderator decisions with audit trail (moderator ID, timestamp, action)
   - [x] 4.7 Apply approved changes to original artwork record atomically
-  - [ ] 4.8 Update existing `ReviewView.vue` to display artwork edits with appropriate UI
-  - [ ] 4.9 Add visual indicators to distinguish new submissions from edit requests in queue
+  - [x] 4.8 Update existing `ReviewView.vue` to display artwork edits with appropriate UI
+  - [x] 4.9 Add visual indicators to distinguish new submissions from edit requests in queue
 
 - [ ] 5.0 Tag Chip Editor Component
   - [ ] 5.1 Create `TagChipEditor.vue` component extending existing TagBadge functionality

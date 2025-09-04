@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth'
 import { globalModal } from '../composables/useModal'
 import { apiService, getErrorMessage } from '../services/api'
 import { createApiUrl } from '../utils/api-config'
+import type { ArtworkEditReviewData } from '../../../shared/types'
 
 // Types
 interface ReviewSubmission {
@@ -38,6 +39,8 @@ const router = useRouter()
 const loading = ref(true)
 const error = ref<string | null>(null)
 const submissions = ref<ReviewSubmission[]>([])
+const artworkEdits = ref<ArtworkEditReviewData[]>([])
+const currentTab = ref<'submissions' | 'edits'>('submissions')
 const statistics = ref<Statistics>({
   pending: 0,
   approvedToday: 0,
@@ -54,6 +57,8 @@ const action = ref<'approve' | 'reject' | null>(null)
 
 // Computed
 const filteredSubmissions = computed(() => {
+  if (currentTab.value !== 'submissions') return []
+  
   let filtered = submissions.value.filter(s => s.status === 'pending')
 
   // Filter by type
@@ -76,9 +81,23 @@ const filteredSubmissions = computed(() => {
   return filtered
 })
 
-const totalPages = computed(() => 
-  Math.ceil(filteredSubmissions.value.length / pageSize)
-)
+const filteredArtworkEdits = computed(() => {
+  if (currentTab.value !== 'edits') return []
+  
+  let filtered = artworkEdits.value
+  
+  // Sort by submitted date (newest first)
+  filtered.sort((a, b) => {
+    return new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime()
+  })
+
+  return filtered
+})
+
+const totalPages = computed(() => {
+  const items = currentTab.value === 'submissions' ? filteredSubmissions.value : filteredArtworkEdits.value
+  return Math.ceil(items.length / pageSize)
+})
 
 const startIndex = computed(() => 
   (currentPage.value - 1) * pageSize
@@ -92,14 +111,18 @@ const paginatedSubmissions = computed(() =>
   filteredSubmissions.value.slice(startIndex.value, endIndex.value)
 )
 
+const paginatedArtworkEdits = computed(() => 
+  filteredArtworkEdits.value.slice(startIndex.value, endIndex.value)
+)
+
 // Lifecycle
 onMounted(() => {
   // TODO: Check if user has reviewer permissions
-  loadSubmissions()
+  loadData()
 })
 
 // Methods
-async function loadSubmissions() {
+async function loadData() {
   if (!authStore.token) {
     error.value = 'Authentication required for review access'
     loading.value = false
@@ -109,6 +132,48 @@ async function loadSubmissions() {
   loading.value = true
   error.value = null
 
+  try {
+    await Promise.all([
+      loadSubmissions(),
+      loadArtworkEdits()
+    ])
+  } catch (err) {
+    console.error('[ReviewView] Error loading data:', err)
+    error.value = getErrorMessage(err)
+  } finally {
+    loading.value = false
+  }
+}
+
+async function loadArtworkEdits() {
+  try {
+    console.log('[ReviewView] Loading artwork edits for moderation...')
+    
+    const response = await apiService.getArtworkEdits(1, 100)
+    
+    console.log('[ReviewView] Artwork edits response:', response)
+    
+    const responseData = response as any
+    if (responseData.edits && Array.isArray(responseData.edits)) {
+      artworkEdits.value = responseData.edits
+      
+      console.log('[ReviewView] Processed artwork edits:', artworkEdits.value.length)
+    } else {
+      console.warn('[ReviewView] No artwork edits in response:', responseData)
+      artworkEdits.value = []
+    }
+  } catch (err) {
+    console.error('[ReviewView] Error loading artwork edits:', err)
+    // Don't throw - let the submission loading continue
+  }
+}
+
+function extractArtworkTitle(artworkId: string): string {
+  // TODO: This could be enhanced to fetch artwork titles or include them in the API response
+  return `Artwork ${artworkId.substring(0, 8)}...`
+}
+
+async function loadSubmissions() {
   try {
     console.log('[ReviewView] Loading review queue using apiService...')
     
@@ -172,9 +237,8 @@ async function loadSubmissions() {
 
   } catch (err) {
     console.error('[ReviewView] Error loading submissions:', err)
-    error.value = getErrorMessage(err)
-  } finally {
-    loading.value = false
+    // Let loadData handle the error
+    throw err
   }
 }
 
@@ -365,6 +429,85 @@ function formatDate(dateString: string): string {
     return 'Unknown'
   }
 }
+
+// Artwork Edit Methods
+async function approveArtworkEdit(edit: ArtworkEditReviewData) {
+  const editId = edit.edit_ids?.[0]
+  if (!editId) return
+  
+  processingId.value = editId
+  action.value = 'approve'
+
+  try {
+    await apiService.approveArtworkEdit(editId, true)
+    
+    console.log('[ReviewView] Artwork edit approved successfully')
+
+    // Remove from list
+    artworkEdits.value = artworkEdits.value.filter((e: ArtworkEditReviewData) => e.edit_ids?.[0] !== editId)
+    
+    // Update statistics
+    statistics.value.pending = Math.max(0, statistics.value.pending - 1)
+    statistics.value.approvedToday++
+
+  } catch (err) {
+    console.error('[ReviewView] Error approving artwork edit:', err)
+    error.value = getErrorMessage(err)
+  } finally {
+    processingId.value = null
+    action.value = null
+  }
+}
+
+async function rejectArtworkEdit(edit: ArtworkEditReviewData) {
+  const editId = edit.edit_ids?.[0]
+  if (!editId) return
+  
+  const reason = await globalModal.showPrompt({
+    title: 'Reject Artwork Edit',
+    message: 'Please provide a reason for rejecting this edit (optional):',
+    inputLabel: 'Reason',
+    placeholder: 'Enter rejection reason...',
+    multiline: true,
+    maxLength: 500,
+    required: false,
+    variant: 'danger',
+    confirmText: 'Reject',
+    cancelText: 'Cancel'
+  })
+  
+  // User cancelled
+  if (reason === null) return
+
+  processingId.value = editId
+  action.value = 'reject'
+
+  try {
+    await apiService.rejectArtworkEdit(editId, reason || '')
+    
+    console.log('[ReviewView] Artwork edit rejected successfully')
+
+    // Remove from list
+    artworkEdits.value = artworkEdits.value.filter((e: ArtworkEditReviewData) => e.edit_ids?.[0] !== editId)
+    
+    // Update statistics
+    statistics.value.pending = Math.max(0, statistics.value.pending - 1)
+    statistics.value.rejectedToday++
+
+  } catch (err) {
+    console.error('[ReviewView] Error rejecting artwork edit:', err)
+    error.value = getErrorMessage(err)
+  } finally {
+    processingId.value = null
+    action.value = null
+  }
+}
+
+function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
+  const fieldCount = edit.diffs.length
+  const fields = edit.diffs.map(diff => diff.field_name).join(', ')
+  return `${fieldCount} field${fieldCount > 1 ? 's' : ''}: ${fields}`
+}
 </script>
 
 <template>
@@ -380,28 +523,78 @@ function formatDate(dateString: string): string {
             </p>
           </div>
           <div class="flex items-center space-x-4">
-            <!-- Filter Controls -->
-            <select
-              v-model="filterType"
-              class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="all">All Types</option>
-              <option value="public_art">Public Art</option>
-              <option value="street_art">Street Art</option>
-              <option value="monument">Monument</option>
-              <option value="sculpture">Sculpture</option>
-              <option value="other">Other</option>
-            </select>
-            
-            <select
-              v-model="sortBy"
-              class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="created_at">Date Submitted</option>
-              <option value="priority">Priority</option>
-            </select>
+            <!-- Filter Controls (only for submissions tab) -->
+            <template v-if="currentTab === 'submissions'">
+              <select
+                v-model="filterType"
+                class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">All Types</option>
+                <option value="public_art">Public Art</option>
+                <option value="street_art">Street Art</option>
+                <option value="monument">Monument</option>
+                <option value="sculpture">Sculpture</option>
+                <option value="other">Other</option>
+              </select>
+              
+              <select
+                v-model="sortBy"
+                class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="created_at">Date Submitted</option>
+                <option value="priority">Priority</option>
+              </select>
+            </template>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="bg-white border-b border-gray-200">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <nav class="flex space-x-8" aria-label="Tabs">
+          <button
+            :class="[
+              'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors',
+              currentTab === 'submissions'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ]"
+            @click="currentTab = 'submissions'; currentPage = 1"
+          >
+            New Submissions
+            <span 
+              v-if="filteredSubmissions.length > 0"
+              :class="[
+                'ml-2 py-0.5 px-2 rounded-full text-xs font-medium',
+                currentTab === 'submissions' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+              ]"
+            >
+              {{ filteredSubmissions.length }}
+            </span>
+          </button>
+          <button
+            :class="[
+              'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors',
+              currentTab === 'edits'
+                ? 'border-blue-500 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            ]"
+            @click="currentTab = 'edits'; currentPage = 1"
+          >
+            Artwork Edits
+            <span 
+              v-if="filteredArtworkEdits.length > 0"
+              :class="[
+                'ml-2 py-0.5 px-2 rounded-full text-xs font-medium',
+                currentTab === 'edits' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600'
+              ]"
+            >
+              {{ filteredArtworkEdits.length }}
+            </span>
+          </button>
+        </nav>
       </div>
     </div>
 
@@ -447,24 +640,26 @@ function formatDate(dateString: string): string {
         </svg>
         <p class="text-gray-600 mb-4">{{ error }}</p>
         <button
-          @click="loadSubmissions"
+          @click="loadData"
           class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
         >
           Retry
         </button>
       </div>
 
-      <!-- Empty State -->
-      <div v-else-if="filteredSubmissions.length === 0" class="text-center py-12">
-        <svg class="h-12 w-12 mx-auto mb-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <p class="text-gray-600 mb-4">No submissions pending review</p>
-        <p class="text-sm text-gray-600">Great job! All submissions have been reviewed.</p>
-      </div>
+      <!-- Submissions Tab Content -->
+      <template v-else-if="currentTab === 'submissions'">
+        <!-- Empty State -->
+        <div v-if="filteredSubmissions.length === 0" class="text-center py-12">
+          <svg class="h-12 w-12 mx-auto mb-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <p class="text-gray-600 mb-4">No submissions pending review</p>
+          <p class="text-sm text-gray-600">Great job! All submissions have been reviewed.</p>
+        </div>
 
-      <!-- Submissions Grid -->
-      <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Submissions Grid -->
+        <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div
           v-for="submission in paginatedSubmissions"
           :key="submission.id"
@@ -616,11 +811,107 @@ function formatDate(dateString: string): string {
           </div>
         </div>
       </div>
+      </template>
 
-      <!-- Pagination -->
+      <!-- Artwork Edits Tab Content -->
+      <template v-else-if="currentTab === 'edits'">
+        <!-- Empty State -->
+        <div v-if="filteredArtworkEdits.length === 0" class="text-center py-12">
+          <svg class="h-12 w-12 mx-auto mb-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          <p class="text-gray-600 mb-4">No artwork edits pending review</p>
+          <p class="text-sm text-gray-600">All artwork edits have been reviewed.</p>
+        </div>
+
+        <!-- Artwork Edits List -->
+        <div v-else class="space-y-6">
+          <div
+            v-for="edit in paginatedArtworkEdits"
+            :key="edit.edit_ids?.[0] || edit.artwork_id"
+            class="bg-white rounded-lg border border-gray-200 shadow-sm p-6"
+          >
+            <!-- Edit Header -->
+            <div class="flex items-start justify-between mb-4">
+              <div class="flex-1">
+                <h3 class="text-lg font-medium text-gray-900 mb-1">
+                  {{ extractArtworkTitle(edit.artwork_id) }}
+                </h3>
+                <p class="text-sm text-gray-600">
+                  {{ formatArtworkEditSummary(edit) }} • Submitted {{ new Date(edit.submitted_at).toLocaleDateString() }}
+                </p>
+              </div>
+              <div class="flex items-center space-x-2 ml-4">
+                <button
+                  @click="approveArtworkEdit(edit)"
+                  :disabled="processingId === edit.edit_ids?.[0]"
+                  class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span v-if="processingId === edit.edit_ids?.[0] && action === 'approve'" class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Approving...
+                  </span>
+                  <span v-else>Approve</span>
+                </button>
+                <button
+                  @click="rejectArtworkEdit(edit)"
+                  :disabled="processingId === edit.edit_ids?.[0]"
+                  class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span v-if="processingId === edit.edit_ids?.[0] && action === 'reject'" class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Rejecting...
+                  </span>
+                  <span v-else>Reject</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Diff Display -->
+            <div class="space-y-4">
+              <div
+                v-for="diff in edit.diffs"
+                :key="`${edit.edit_ids?.[0] || edit.artwork_id}-${diff.field_name}`"
+                class="border border-gray-200 rounded-md p-4"
+              >
+                <h4 class="font-medium text-gray-900 mb-2">{{ diff.field_name }}</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p class="text-sm font-medium text-gray-600 mb-1">Before:</p>
+                    <div class="bg-red-50 border border-red-200 rounded-md p-3 text-sm">
+                      <span v-if="diff.old_value" class="text-gray-800">{{ diff.old_value }}</span>
+                      <span v-else class="text-gray-400 italic">Empty</span>
+                    </div>
+                  </div>
+                  <div>
+                    <p class="text-sm font-medium text-gray-600 mb-1">After:</p>
+                    <div class="bg-green-50 border border-green-200 rounded-md p-3 text-sm">
+                      <span v-if="diff.new_value" class="text-gray-800">{{ diff.new_value }}</span>
+                      <span v-else class="text-gray-400 italic">Empty</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <!-- Pagination (works for both tabs) -->
       <div v-if="totalPages > 1" class="mt-8 flex items-center justify-between">
         <div class="text-sm text-gray-700">
-          Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, filteredSubmissions.length) }} of {{ filteredSubmissions.length }} submissions
+          <span v-if="currentTab === 'submissions'">
+            Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, filteredSubmissions.length) }} of {{ filteredSubmissions.length }} submissions
+          </span>
+          <span v-else>
+            Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, filteredArtworkEdits.length) }} of {{ filteredArtworkEdits.length }} artwork edits
+          </span>
         </div>
         <div class="flex space-x-2">
           <button
