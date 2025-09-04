@@ -65,26 +65,15 @@ Example data sets:
 - City of Vancouver Public Art: Contains artist info and geolocated artwork data, updated weekly. It’s available in GIS-friendly formats like CSV or GeoJSON https://opendata.vancouver.ca/explore/dataset/public-art/
 - Public Art – Artists Dataset: https://opendata.vancouver.ca/explore/dataset/public-art-artists/information/
 
-## App tool bar
-
-1) Combine the sign in and sign up dialogs. They both have only one input "email address", and both send magic-links. If the user doesn't exist for a specific email address add it. if doesn't exist as a user, then create the user and send the magic-link. If the user does exist, then send the magic-link. Call this "Sign in". instead of Sign up.
-
-2) Combine the 'About' and 'Help' links in the app bar into a single "Help" button.
-
-3) The site name and logo should be clickable to bring the user back to the map. If the user is in the middle of entering a form (dirty forum), ask them if they want to continue.
-
-4) The "Location Access Needed" warning should not be dismissible. Add a link into the warning bar to a help page in the FAQ section on "Why Location Access Needed"
-
-5) Add a FAQ section to the help page.
 
 ## Search page
 
 The search results should be a series of Art Work Cards, and Creator Cards. The user can click the cards to see the corasponding page.
 
 - Search by String - Primary way of searching
-- Search by Tag/Keyword - A user might want to find all artworks tagged with one ore more keyword.
-- Search by Creator - A user might want to find all artworks that are from the scame creator
-- Search by field (The Key or the Value) - A user might want to find all artworks that contain a specific field, or where the field matches a value.
+- Search by Tag/Keyword - A user might want to find all artworks tagged with one ore more keyword. `tag:{TagName}`
+- Search by Creator - A user might want to find all artworks that are from the scame creator. `Creator:{CreatorName}`
+- Search by field (The Key or the Value) - A user might want to find all artworks that contain a specific field, or where the field matches a value. `Field:{FieldName}:{FieldValue}`, or `Field:{FieldName}`
 
 
 ## Find partners
