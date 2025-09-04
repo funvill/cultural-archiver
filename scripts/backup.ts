@@ -418,6 +418,8 @@ async function downloadR2Files(config: CloudflareConfig): Promise<R2ListResult> 
         listUrl.searchParams.set('cursor', continuationToken);
       }
 
+      console.log(`   🔍 API Request: ${listUrl.toString()}`);
+      
       const listResponse = await fetch(listUrl.toString(), {
         method: 'GET',
         headers: {
@@ -425,13 +427,25 @@ async function downloadR2Files(config: CloudflareConfig): Promise<R2ListResult> 
         },
       });
 
+      console.log(`   📡 Response Status: ${listResponse.status} ${listResponse.statusText}`);
+
       if (!listResponse.ok) {
         const error = await listResponse.text();
+        console.error(`   ❌ Response Error: ${error}`);
         throw new Error(`Failed to list R2 objects: ${listResponse.status} ${error}`);
       }
 
       const listResult = await listResponse.json();
+      console.log(`   📋 API Response Structure:`, JSON.stringify({
+        success: listResult.success,
+        resultKeys: listResult.result ? Object.keys(listResult.result) : 'no result',
+        objectCount: listResult.result?.objects?.length || 0,
+        errors: listResult.errors,
+        messages: listResult.messages
+      }, null, 2));
+      
       if (!listResult.success) {
+        console.error(`   ❌ Cloudflare API Error:`, JSON.stringify(listResult, null, 2));
         throw new Error(`R2 list failed: ${JSON.stringify(listResult.errors)}`);
       }
 
@@ -513,6 +527,37 @@ export async function downloadR2PhotosToDirectory(
   try {
     console.log(`📸 Downloading R2 photos to local directory: ${localDirectory}`);
     console.log(`🔧 Using bucket: ${config.bucketName}`);
+    console.log(`🏢 Account ID: ${config.accountId.substring(0, 8)}...${config.accountId.substring(config.accountId.length - 4)}`);
+    console.log(`🔑 API Token: ${config.apiToken.substring(0, 8)}...${config.apiToken.substring(config.apiToken.length - 4)}`);
+    console.log(`🗂️  Database ID: ${config.databaseId.substring(0, 8)}...${config.databaseId.substring(config.databaseId.length - 4)}`);
+    
+    // Test bucket accessibility first
+    console.log(`🔍 Testing bucket accessibility...`);
+    const testUrl = `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/r2/buckets/${config.bucketName}`;
+    const testResponse = await fetch(testUrl, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${config.apiToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    console.log(`   Bucket test result: ${testResponse.status} ${testResponse.statusText}`);
+    if (!testResponse.ok) {
+      const errorText = await testResponse.text();
+      console.warn(`   ⚠️ Bucket accessibility warning: ${errorText}`);
+      console.log(`   This might indicate permission issues or incorrect bucket name`);
+    } else {
+      const bucketInfo = await testResponse.json();
+      console.log(`   ✅ Bucket accessible:`, JSON.stringify({
+        success: bucketInfo.success,
+        bucketName: bucketInfo.result?.name,
+        created: bucketInfo.result?.creation_date
+      }, null, 2));
+    }
+    console.log(`🏢 Account ID: ${config.accountId.substring(0, 8)}...${config.accountId.substring(config.accountId.length - 4)}`);
+    console.log(`🔑 API Token: ${config.apiToken.substring(0, 8)}...${config.apiToken.substring(config.apiToken.length - 4)}`);
+    console.log(`🗂️  Database ID: ${config.databaseId.substring(0, 8)}...${config.databaseId.substring(config.databaseId.length - 4)}`);
 
     // Create the local directory if it doesn't exist
     const fullPath = resolve(localDirectory);
@@ -536,6 +581,8 @@ export async function downloadR2PhotosToDirectory(
       }
       listUrl.searchParams.set('per_page', '1000'); // Maximum items per page
 
+      console.log(`   🔍 API Request: ${listUrl.toString()}`);
+      
       const listResponse = await fetch(listUrl.toString(), {
         method: 'GET',
         headers: {
@@ -544,18 +591,40 @@ export async function downloadR2PhotosToDirectory(
         },
       });
 
+      console.log(`   📡 Response Status: ${listResponse.status} ${listResponse.statusText}`);
+
       if (!listResponse.ok) {
         const error = await listResponse.text();
+        console.error(`   ❌ Response Error: ${error}`);
         throw new Error(`Failed to list R2 objects: ${listResponse.status} ${error}`);
       }
 
       const listResult = await listResponse.json();
+      console.log(`   📋 API Response Structure:`, JSON.stringify({
+        success: listResult.success,
+        resultKeys: listResult.result ? Object.keys(listResult.result) : 'no result',
+        objectCount: listResult.result?.objects?.length || 0,
+        hasObjects: !!listResult.result?.objects,
+        hasCursor: !!listResult.result?.cursor,
+        errors: listResult.errors,
+        messages: listResult.messages
+      }, null, 2));
+      
       if (!listResult.success) {
+        console.error(`   ❌ Cloudflare API Error:`, JSON.stringify(listResult, null, 2));
         throw new Error(`R2 list failed: ${JSON.stringify(listResult.errors || listResult.messages)}`);
       }
 
       const objects = listResult.result?.objects || [];
       console.log(`   Processing batch: ${objects.length} objects`);
+      
+      if (objects.length > 0) {
+        console.log(`   📄 First few objects:`, objects.slice(0, 3).map(obj => ({
+          key: obj.key,
+          size: obj.size,
+          uploaded: obj.uploaded
+        })));
+      }
 
       // Process each object in the batch
       for (const obj of objects) {
@@ -652,7 +721,6 @@ export async function downloadR2PhotosToDirectory(
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown R2 local download error',
-      warnings: warnings.length > 0 ? warnings : undefined,
     };
   }
 }
