@@ -383,6 +383,56 @@ export const apiService = {
   },
 
   // ================================
+  // Search Endpoints
+  // ================================
+
+  /**
+   * Search artworks by text query
+   */
+  async searchArtworks(
+    query: string,
+    page: number = 1,
+    perPage: number = 20,
+    status: 'approved' | 'pending' | 'removed' = 'approved'
+  ): Promise<ApiResponse<{
+    artworks: any[];
+    pagination: {
+      page: number;
+      per_page: number;
+      total: number;
+      total_pages: number;
+      has_more: boolean;
+    };
+    query: {
+      original: string;
+      sanitized: string;
+    };
+    suggestions?: string[];
+  }>> {
+    return client.get('/search', {
+      q: query,
+      page: page.toString(),
+      per_page: perPage.toString(),
+      status
+    })
+  },
+
+  /**
+   * Get search suggestions for autocomplete
+   */
+  async getSearchSuggestions(
+    query: string,
+    limit: number = 5
+  ): Promise<ApiResponse<{
+    suggestions: string[];
+  }>> {
+    return client.get('/search/suggestions', {
+      q: query,
+      limit: limit.toString()
+    })
+  },
+
+  // ================================
   // User Management Endpoints
   // ================================
 
