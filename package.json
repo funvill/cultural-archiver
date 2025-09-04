@@ -55,9 +55,11 @@
     "backup:remote": "npx tsx scripts/backup.ts -- --remote"
   },
   "devDependencies": {
+    "@types/archiver": "^6.0.3",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
     "@typescript-eslint/parser": "^7.0.0",
     "@vue/eslint-config-typescript": "^13.0.0",
+    "archiver": "^7.0.1",
     "concurrently": "^9.0.0",
     "cross-env": "^10.0.0",
     "eslint": "^8.57.0",
