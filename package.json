@@ -50,7 +50,9 @@
     "test:frontend:coverage": "cd src/frontend && npm run test --coverage",
     "test:workers:coverage": "cd src/workers && npm run test:coverage",
     "quality": "npm run lint && npm run type-check && npm run test",
-    "setup": "npm install && npm run build"
+    "setup": "npm install && npm run build",
+    "backup": "npx tsx scripts/backup.ts",
+    "backup:remote": "npx tsx scripts/backup.ts -- --remote"
   },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^7.0.0",

@@ -65,14 +65,14 @@
   - [x] 4.6 Add audit logging for data dump generation using existing admin audit system
   - [x] 4.7 Update `src/workers/routes/admin.test.ts` with comprehensive tests for new data dump endpoints
 
-- [ ] 5.0 Add NPM Script for Backup Command
-  - [ ] 5.1 Create `scripts/backup.ts` as entry point for backup command with CLI argument parsing
-  - [ ] 5.2 Implement environment detection to connect to correct Cloudflare resources (D1, R2)
-  - [ ] 5.3 Add backup execution logic that calls backup library and saves ZIP locally with timestamp filename
-  - [ ] 5.4 Implement progress logging and error handling for CLI feedback during backup process
-  - [ ] 5.5 Add `backup` script to root `package.json` that executes `node scripts/backup.ts`
-  - [ ] 5.6 Update `.env.example` with any additional environment variables needed for backup script
-  - [ ] 5.7 Test backup script execution and verify generated backup archive contains expected content
+- [x] 5.0 Add NPM Script for Backup Command
+  - [x] 5.1 Create `scripts/backup.ts` as entry point for backup command with CLI argument parsing
+  - [x] 5.2 Implement environment detection to connect to correct Cloudflare resources (D1, R2)
+  - [x] 5.3 Add backup execution logic that calls backup library and saves ZIP locally with timestamp filename
+  - [x] 5.4 Implement progress logging and error handling for CLI feedback during backup process
+  - [x] 5.5 Add `backup` script to root `package.json` that executes `npx tsx scripts/backup.ts`
+  - [x] 5.6 Update `.env.example` with any additional environment variables needed for backup script
+  - [x] 5.7 Test backup script execution and verify generated backup archive contains expected content
 
 - [ ] 6.0 Integrate Data Dump UI into Admin Interface
   - [ ] 6.1 Add "Generate Data Dump" button to existing admin panel in `src/frontend/src/views/AdminView.vue`
