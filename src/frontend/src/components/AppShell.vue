@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { Bars3Icon, XMarkIcon, PlusIcon, UserIcon, QuestionMarkCircleIcon, ClipboardDocumentListIcon, MapIcon, ArrowLeftOnRectangleIcon, ShieldCheckIcon } from '@heroicons/vue/24/outline'
+import { Bars3Icon, XMarkIcon, PlusIcon, UserIcon, QuestionMarkCircleIcon, ClipboardDocumentListIcon, MapIcon, ArrowLeftOnRectangleIcon, ShieldCheckIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
 import { useAuthStore } from '../stores/auth'
 import AuthModal from './AuthModal.vue'
 import LiveRegion from './LiveRegion.vue'
@@ -32,6 +32,11 @@ const navigationItems: NavigationItem[] = [
     name: 'Map',
     path: '/',
     icon: MapIcon
+  },
+  {
+    name: 'Search',
+    path: '/search',
+    icon: MagnifyingGlassIcon
   },
   {
     name: 'Add',
