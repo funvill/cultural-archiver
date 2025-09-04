@@ -483,9 +483,9 @@ onUnmounted(() => {
           </div>
           
           <!-- Edit button for authenticated users -->
-          <div v-if="canEdit && !isEditMode" class="flex items-center ml-auto">
+          <div v-if="canEdit && !isEditMode" class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 sm:ml-auto">
             <!-- Pending edits indicator -->
-            <div v-if="hasPendingEdits" class="mr-3 px-2 py-1 text-xs font-medium text-amber-700 bg-amber-100 rounded-full">
+            <div v-if="hasPendingEdits" class="px-2 py-1 text-xs font-medium text-amber-700 bg-amber-100 rounded-full">
               Changes pending review
             </div>
             
@@ -539,7 +539,7 @@ onUnmounted(() => {
         
         <!-- Edit mode controls -->
         <div v-if="isEditMode" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <div class="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
             <div class="flex items-center gap-2 text-blue-700">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -547,7 +547,7 @@ onUnmounted(() => {
               <span class="font-medium">Edit Mode</span>
             </div>
             
-            <div class="flex items-center gap-2">
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
               <button
                 @click="cancelEdit"
                 :disabled="editLoading"
@@ -559,7 +559,7 @@ onUnmounted(() => {
               <button
                 @click="saveEdit"
                 :disabled="editLoading || !editData.title.trim()"
-                class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg v-if="editLoading" class="w-4 h-4 mr-1.5 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -813,28 +813,28 @@ onUnmounted(() => {
       aria-labelledby="cancel-dialog-title"
     >
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
-        <div class="p-6">
+        <div class="p-4 sm:p-6">
           <div class="flex items-center mb-4">
-            <svg class="w-6 h-6 text-amber-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
             <h3 id="cancel-dialog-title" class="text-lg font-medium text-gray-900">Discard Changes?</h3>
           </div>
           
-          <p class="text-gray-600 mb-6">
+          <p class="text-gray-600 mb-6 text-sm sm:text-base">
             You have unsaved changes. Are you sure you want to discard them?
           </p>
           
-          <div class="flex justify-end space-x-3">
+          <div class="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
             <button
               @click="showCancelDialog = false"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 order-2 sm:order-1"
             >
               Keep Editing
             </button>
             <button
               @click="confirmCancel"
-              class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+              class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 order-1 sm:order-2"
             >
               Discard Changes
             </button>
