@@ -384,6 +384,48 @@ export const apiService = {
     return response.data
   },
 
+  /**
+   * Submit artwork edits
+   */
+  async submitArtworkEdit(artworkId: string, edits: Array<{
+    field_name: string
+    field_value_old: string
+    field_value_new: string
+  }>): Promise<ApiResponse<{ 
+    message: string
+    edit_id: string
+  }>> {
+    return client.post(`/artwork/${artworkId}/edit`, {
+      edits
+    })
+  },
+
+  /**
+   * Check pending edits for an artwork
+   */
+  async getPendingEdits(artworkId: string): Promise<ApiResponse<{
+    has_pending_edits: boolean
+    pending_fields: string[]
+  }>> {
+    return client.get(`/artwork/${artworkId}/pending-edits`)
+  },
+
+  /**
+   * Validate artwork edits without submitting
+   */
+  async validateArtworkEdit(artworkId: string, edits: Array<{
+    field_name: string
+    field_value_old: string
+    field_value_new: string
+  }>): Promise<ApiResponse<{
+    valid: boolean
+    errors?: string[]
+  }>> {
+    return client.post(`/artwork/${artworkId}/edit/validate`, {
+      edits
+    })
+  },
+
   // ================================
   // Search Endpoints
   // ================================
