@@ -9,9 +9,11 @@ import {
   generateBackupMetadata,
   createBackupArchive,
   generateFullBackup,
+  verifyBackupIntegrity,
   type DatabaseDumpResult,
   type PhotoCollectionResult,
   type BackupMetadata,
+  type BackupResult,
 } from './backup';
 import type { WorkerEnv } from '../types';
 
@@ -395,7 +397,119 @@ describe('Backup System', () => {
     });
   });
 
-  describe('generateFullBackup', () => {
+  describe('verifyBackupIntegrity', () => {
+    it('should verify backup integrity successfully', async () => {
+      const databaseResult: DatabaseDumpResult = {
+        success: true,
+        sql_dump: 'CREATE TABLE test (id TEXT);',
+        tables: ['test'],
+        total_records: 10,
+      };
+
+      const photoResult: PhotoCollectionResult = {
+        success: true,
+        photos: [{
+          path: 'photos/test.jpg',
+          content: new Uint8Array([1, 2, 3]).buffer,
+          mimeType: 'image/jpeg',
+        }],
+        originals_count: 1,
+        thumbnails_count: 0,
+        total_size: 1024,
+      };
+
+      const backupResult: BackupResult = {
+        success: true,
+        backup_file: new ArrayBuffer(1024),
+        filename: 'test-backup.zip',
+        size: 1024,
+        metadata: {
+          version: '1.0.0',
+          created_at: new Date().toISOString(),
+          database_info: {
+            tables: ['test'],
+            total_records: 10,
+            size_estimate: 100,
+          },
+          photos_info: {
+            total_photos: 1,
+            originals_count: 1,
+            thumbnails_count: 0,
+            total_size: 1024,
+          },
+          backup_type: 'full',
+          generator: 'test',
+        },
+      };
+
+      const verification = await verifyBackupIntegrity(backupResult, databaseResult, photoResult);
+
+      expect(verification.valid).toBe(true);
+      expect(verification.issues).toHaveLength(0);
+      expect(verification.summary).toContain('10 records');
+      expect(verification.summary).toContain('1 photos');
+    });
+
+    it('should detect integrity issues', async () => {
+      const databaseResult: DatabaseDumpResult = {
+        success: true,
+        tables: ['test1', 'test2'],
+        total_records: 100,
+      };
+
+      const photoResult: PhotoCollectionResult = {
+        success: true,
+        photos: [1, 2, 3].map(() => ({ path: 'test.jpg', content: new ArrayBuffer(100) })),
+        total_size: 300,
+      };
+
+      const backupResult: BackupResult = {
+        success: true,
+        backup_file: new ArrayBuffer(50), // Too small
+        size: 50,
+        metadata: {
+          version: '1.0.0',
+          created_at: new Date().toISOString(),
+          database_info: {
+            tables: ['test1'], // Missing one table
+            total_records: 90, // Wrong count
+            size_estimate: 100,
+          },
+          photos_info: {
+            total_photos: 2, // Wrong count
+            originals_count: 2,
+            thumbnails_count: 0,
+            total_size: 200, // Wrong size
+          },
+          backup_type: 'full',
+          generator: 'test',
+        },
+      };
+
+      const verification = await verifyBackupIntegrity(backupResult, databaseResult, photoResult);
+
+      expect(verification.valid).toBe(false);
+      expect(verification.issues.length).toBeGreaterThan(0);
+      expect(verification.issues.some(issue => issue.includes('Table count mismatch'))).toBe(true);
+      expect(verification.issues.some(issue => issue.includes('Record count mismatch'))).toBe(true);
+      expect(verification.issues.some(issue => issue.includes('Photo count mismatch'))).toBe(true);
+      expect(verification.issues.some(issue => issue.includes('suspiciously small'))).toBe(true);
+    });
+
+    it('should handle failed backup verification', async () => {
+      const databaseResult: DatabaseDumpResult = { success: true };
+      const photoResult: PhotoCollectionResult = { success: true };
+      const backupResult: BackupResult = { success: false, error: 'Backup failed' };
+
+      const verification = await verifyBackupIntegrity(backupResult, databaseResult, photoResult);
+
+      expect(verification.valid).toBe(false);
+      expect(verification.issues).toContain('Backup creation failed or backup file missing');
+      expect(verification.summary).toBe('Backup creation failed');
+    });
+  });
+
+  describe('generateFullBackup with verification', () => {
     it('should generate complete backup successfully', async () => {
       // Mock successful database dump
       const mockPrepare = mockDb.prepare as MockedFunction<any>;

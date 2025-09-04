@@ -53,7 +53,8 @@
     "setup": "npm install && npm run build",
     "backup": "npx tsx scripts/backup.ts",
     "backup:remote": "npx tsx scripts/backup.ts --remote",
-    "backup:photos": "npx tsx scripts/backup.ts --photos-only"
+    "backup:photos": "npx tsx scripts/backup.ts --photos-only",
+    "test:backup": "npx tsx scripts/test-backup.ts"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.3",

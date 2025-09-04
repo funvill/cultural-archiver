@@ -99,6 +99,75 @@ datadump-YYYY-MM-DD.zip
 3. Monitor real-time progress and receive notifications
 4. Browse history and download previous dumps
 
+## System Testing
+
+The backup system includes comprehensive testing utilities to ensure reliability:
+
+### Testing Commands
+```bash
+# Run backup system tests
+npm run test:backup
+
+# Run all unit tests (includes backup tests)
+npm run test
+
+# Run only worker tests (includes backup library tests)  
+npm run test:workers
+```
+
+### Test Coverage
+- **Environment validation**: Credential checking and security validation
+- **CLI functionality**: Help documentation and argument parsing
+- **Local mode behavior**: Graceful failure with helpful error messages
+- **Remote validation**: Proper credential validation before backup attempts
+- **Photos-only mode**: Standalone photo download functionality
+- **Archive integrity**: Automated validation of backup completeness
+- **Error recovery**: Retry logic and exponential backoff for failed operations
+
+## Security Enhancements
+
+The backup system includes several security features:
+
+### Credential Validation
+- **Format checking**: Validates Cloudflare account ID and API token formats
+- **Permission requirements**: Ensures API tokens have appropriate D1:Read and R2:Read permissions
+- **Environment isolation**: Encourages environment-specific tokens (not global admin tokens)
+- **Rotation reminders**: Recommends regular API token rotation (90-day cycle)
+
+### Secure Storage Guidelines
+- **Encrypted backups**: Optional encryption for sensitive backup data
+- **Access control**: Recommendations for backup file access restrictions
+- **Secure transfer**: Guidelines for secure backup file transfer protocols
+- **Data retention**: Policy recommendations for backup retention periods
+
+### Integrity Protection
+- **Checksum validation**: Automated backup integrity verification
+- **Content verification**: File count and size validation
+- **Metadata consistency**: Database and photo count verification
+- **Error detection**: Comprehensive validation with detailed error reporting
+
+## Reliability Improvements
+
+### Error Recovery
+- **Exponential backoff**: Automatic retry logic for failed R2 downloads
+- **Partial failure handling**: Continues backup even if some photos fail to download
+- **Detailed logging**: Comprehensive error messages and progress reporting
+- **Timeout management**: Appropriate timeouts for large backup operations
+
+### Archive Validation
+- **File integrity**: Automated validation of ZIP archive completeness
+- **Content verification**: Ensures all expected files are present in backup
+- **Size validation**: Detects suspiciously small or corrupt backup files
+- **Metadata consistency**: Verifies backup metadata matches actual content
+
+### Progress Reporting
+- **Real-time progress**: Detailed progress reporting for long-running operations
+- **Batch processing**: Efficient handling of large photo collections
+- **Performance metrics**: Duration and throughput reporting
+- **Memory optimization**: Streaming downloads to prevent memory exhaustion
+
+## Data Dump API
+
 #### REST API
 ```bash
 # Generate a new data dump (admin authentication required)

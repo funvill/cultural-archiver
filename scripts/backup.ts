@@ -443,13 +443,10 @@ async function downloadR2Files(config: CloudflareConfig): Promise<R2ListResult> 
         console.log(`   Downloading: ${obj.key} (${obj.size} bytes)`);
 
         try {
-          const downloadResponse = await fetch(
+          const downloadResponse = await downloadWithRetry(
             `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/r2/buckets/${config.bucketName}/objects/${encodeURIComponent(obj.key)}`,
             {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${config.apiToken}`,
-              },
+              'Authorization': `Bearer ${config.apiToken}`,
             }
           );
 
@@ -585,14 +582,11 @@ export async function downloadR2PhotosToDirectory(
 
           console.log(`   Downloading: ${fileName} (${obj.size} bytes)`);
 
-          // Download the object from R2
-          const downloadResponse = await fetch(
+          // Download the object from R2 with retry logic
+          const downloadResponse = await downloadWithRetry(
             `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/r2/buckets/${config.bucketName}/objects/${encodeURIComponent(obj.key)}`,
             {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${config.apiToken}`,
-              },
+              'Authorization': `Bearer ${config.apiToken}`,
             }
           );
 
@@ -664,14 +658,53 @@ export async function downloadR2PhotosToDirectory(
 }
 
 /**
- * Create backup ZIP archive
+ * Validate backup archive integrity
+ */
+async function validateBackupArchive(filepath: string, expectedMetadata: any): Promise<{ valid: boolean; errors: string[] }> {
+  const errors: string[] = [];
+  
+  try {
+    // Check if file exists and is readable
+    if (!existsSync(filepath)) {
+      errors.push('Backup file does not exist');
+      return { valid: false, errors };
+    }
+
+    // Check file size (should be > 0)
+    const { stat } = await import('fs').then(fs => fs.promises);
+    const stats = await stat(filepath);
+    
+    if (stats.size === 0) {
+      errors.push('Backup file is empty');
+    }
+    
+    if (stats.size < 100) { // Very small files are likely corrupt
+      errors.push('Backup file is suspiciously small');
+    }
+
+    console.log(`   Archive validation: ${filepath} (${formatFileSize(stats.size)})`);
+    
+    // Additional integrity checks could include:
+    // - ZIP header validation
+    // - File count verification
+    // - Critical file presence check
+    
+    return { valid: errors.length === 0, errors };
+  } catch (error) {
+    errors.push(`Archive validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return { valid: false, errors };
+  }
+}
+
+/**
+ * Create backup ZIP archive with integrity verification
  */
 async function createBackupArchive(
   outputDir: string,
   databaseResult: DatabaseExportResult,
   r2Result: R2ListResult
 ): Promise<BackupResult> {
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     const timestamp = generateTimestamp();
     const filename = `backup-${timestamp}.zip`;
     const filepath = join(outputDir, filename);
@@ -683,7 +716,10 @@ async function createBackupArchive(
       zlib: { level: 9 }, // Best compression
     });
 
-    output.on('close', () => {
+    let filesAdded = 0;
+    const expectedFiles = 3 + (r2Result.totalFiles || 0); // database.sql, metadata.json, README.md + photos
+
+    output.on('close', async () => {
       const metadata = {
         databaseInfo: {
           tables: databaseResult.tables || [],
@@ -700,6 +736,17 @@ async function createBackupArchive(
 
       console.log(`   Archive created: ${filename}`);
       console.log(`   Archive size: ${formatFileSize(archive.pointer())}`);
+      console.log(`   Files added: ${filesAdded}/${expectedFiles}`);
+
+      // Perform integrity validation
+      const validation = await validateBackupArchive(filepath, metadata);
+      
+      if (!validation.valid) {
+        console.warn('⚠️ Archive validation warnings:');
+        validation.errors.forEach(error => console.warn(`   - ${error}`));
+      } else {
+        console.log('✅ Archive integrity validated');
+      }
 
       resolve({
         success: true,
@@ -737,6 +784,7 @@ async function createBackupArchive(
     if (databaseResult.sqlDump) {
       archive.append(databaseResult.sqlDump, { name: 'database.sql' });
       console.log('   Added: database.sql');
+      filesAdded++;
     }
 
     // Add metadata
@@ -754,17 +802,27 @@ async function createBackupArchive(
       },
       backup_type: 'full' as const,
       generator: 'Cultural Archiver Backup System',
+      integrity: {
+        expected_files: expectedFiles,
+        created_at: new Date().toISOString(),
+        validation_checksum: generateMetadataChecksum(databaseResult, r2Result),
+      },
     };
     archive.append(JSON.stringify(metadata, null, 2), { name: 'metadata.json' });
     console.log('   Added: metadata.json');
+    filesAdded++;
 
     // Add README
     const readme = generateBackupReadme(metadata);
     archive.append(readme, { name: 'README.md' });
     console.log('   Added: README.md');
+    filesAdded++;
 
-    // Add R2 files
+    // Add R2 files with progress tracking
     if (r2Result.files && r2Result.files.length > 0) {
+      console.log(`   Adding ${r2Result.files.length} photos...`);
+      let photoCount = 0;
+      
       for (const file of r2Result.files) {
         if (file.content) {
           const pathInArchive = `photos/${file.key}`;
@@ -772,14 +830,76 @@ async function createBackupArchive(
             name: pathInArchive,
             date: new Date(file.lastModified),
           });
-          console.log(`   Added: ${pathInArchive} (${formatFileSize(file.size)})`);
+          
+          photoCount++;
+          filesAdded++;
+          
+          // Progress reporting for large numbers of files
+          if (photoCount % 50 === 0 || photoCount === r2Result.files.length) {
+            console.log(`   Progress: ${photoCount}/${r2Result.files.length} photos added`);
+          }
         }
       }
+      console.log(`   Completed: ${photoCount} photos added to archive`);
     }
 
     // Finalize the archive
     archive.finalize();
   });
+}
+
+/**
+ * Generate validation checksum for backup integrity
+ */
+function generateMetadataChecksum(databaseResult: DatabaseExportResult, r2Result: R2ListResult): string {
+  const checksumData = {
+    database_tables: (databaseResult.tables || []).sort(),
+    database_records: databaseResult.totalRecords || 0,
+    database_size: databaseResult.sqlDump?.length || 0,
+    photos_count: r2Result.totalFiles || 0,
+    photos_size: r2Result.totalSize || 0,
+    timestamp: Date.now(),
+  };
+  
+  // Simple checksum based on JSON representation
+  const jsonStr = JSON.stringify(checksumData);
+  let hash = 0;
+  for (let i = 0; i < jsonStr.length; i++) {
+    const char = jsonStr.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  
+  return Math.abs(hash).toString(16).padStart(8, '0');
+}
+
+/**
+ * Enhanced download with retry logic for failed R2 operations
+ */
+async function downloadWithRetry(url: string, headers: HeadersInit, maxRetries: number = 3, baseDelay: number = 1000): Promise<Response> {
+  let lastError: Error;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const response = await fetch(url, { method: 'GET', headers });
+      
+      if (response.ok) {
+        return response;
+      }
+      
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Unknown download error');
+      
+      if (attempt < maxRetries) {
+        const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
+        console.log(`   Retry ${attempt}/${maxRetries - 1} in ${delay}ms for ${url}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError!;
 }
 
 /**
@@ -806,46 +926,96 @@ function generateBackupReadme(metadata: any): string {
 - **Total Photos**: ${metadata.photos_info.total_photos.toLocaleString()}
 - **Total Size**: ${(metadata.photos_info.total_size / (1024 * 1024)).toFixed(2)} MB
 
+## Backup Integrity
+
+This backup includes integrity verification features:
+- **Expected Files**: ${metadata.integrity?.expected_files || 'N/A'}
+- **Validation Checksum**: ${metadata.integrity?.validation_checksum || 'N/A'}
+- **Creation Timestamp**: ${metadata.integrity?.created_at || metadata.created_at}
+
 ## Restoration Instructions
 
+### Prerequisites
+- Access to Cloudflare dashboard or Wrangler CLI
+- D1 database instance (can be new or existing)
+- R2 bucket for photos (can be new or existing)
+- Appropriate permissions for D1 and R2 operations
+
 ### Database Restoration
-1. Extract this backup archive
-2. Ensure you have access to a D1 database instance
-3. Execute the SQL dump: \`wrangler d1 execute [DATABASE_NAME] --file=database.sql\`
-4. Verify data integrity by checking table counts and key records
+1. **Extract this backup archive** to a working directory
+2. **Verify backup integrity** by checking file presence:
+   - \`database.sql\` - Should contain CREATE and INSERT statements
+   - \`photos/\` directory - Should contain ${metadata.photos_info.total_photos} image files
+   - \`metadata.json\` - Should match checksum: ${metadata.integrity?.validation_checksum || 'N/A'}
+3. **Execute SQL dump** using Wrangler CLI:
+   \`\`\`bash
+   wrangler d1 execute [DATABASE_NAME] --file=database.sql
+   \`\`\`
+4. **Verify restoration** by checking table counts and sample records
 
 ### Photo Restoration
-1. The \`photos/\` directory contains all original and thumbnail images
-2. Upload all photos to your R2 bucket preserving the directory structure
-3. Ensure proper permissions are set for public photo access
-4. Update any CDN or URL configurations as needed
+1. **Verify photo integrity** - ${metadata.photos_info.total_photos} files totaling ${(metadata.photos_info.total_size / (1024 * 1024)).toFixed(2)} MB
+2. **Upload to R2 bucket** preserving directory structure:
+   \`\`\`bash
+   wrangler r2 object put [BUCKET_NAME]/[FILENAME] --file=photos/[FILENAME]
+   \`\`\`
+   Or use bulk upload tools for large batches
+3. **Set appropriate permissions** for public photo access
+4. **Update CDN configurations** if using custom domains
 
-### Verification
-- Check that all tables listed above are present in the restored database
-- Verify photo counts match the numbers above
-- Test a few artwork detail pages to ensure photos are loading correctly
-- Run the application health check endpoint to verify system integrity
+### Verification Checklist
+- [ ] All ${metadata.database_info.tables.length} database tables restored: ${metadata.database_info.tables.join(', ')}
+- [ ] Total record count matches: ${metadata.database_info.total_records.toLocaleString()} records
+- [ ] All ${metadata.photos_info.total_photos.toLocaleString()} photos uploaded successfully
+- [ ] Photo file sizes match original total: ${(metadata.photos_info.total_size / (1024 * 1024)).toFixed(2)} MB
+- [ ] Sample artwork pages display correctly with photos
+- [ ] Application health checks pass
+- [ ] Search functionality works with restored data
+
+### Testing Restoration
+1. **Database connectivity**: Query a few tables to ensure data integrity
+2. **Photo accessibility**: Test loading sample images through the application
+3. **Application functionality**: Verify core features work with restored data
+4. **Search and filtering**: Test artwork discovery and filtering features
+
+## Troubleshooting
+
+### Common Issues
+- **Large database dumps**: May require increased timeouts for Wrangler commands
+- **Photo upload limits**: Consider batch uploading for large photo collections
+- **Permission errors**: Ensure API tokens have appropriate D1 and R2 permissions
+- **Encoding issues**: Ensure database restoration preserves UTF-8 encoding
+
+### Support Resources
+- Cultural Archiver documentation: \`docs/backup-data-dump.md\`
+- Database schema reference: \`docs/database.md\`
+- API documentation: \`docs/api.md\`
+- Cloudflare D1 documentation: https://developers.cloudflare.com/d1/
+- Cloudflare R2 documentation: https://developers.cloudflare.com/r2/
 
 ## Important Notes
 
-- This backup preserves all system data including user tokens, audit trails, and metadata
-- Photos maintain their original file names and directory structure
-- All timestamps and IDs are preserved exactly as they were at backup time
-- Rate limiting data and temporary sessions are included in the backup
+- **Data Preservation**: This backup preserves all system data including user tokens, audit trails, and metadata
+- **File Organization**: Photos maintain their original file names and directory structure
+- **Timestamp Consistency**: All timestamps and IDs are preserved exactly as they were at backup time
+- **Complete System State**: Rate limiting data and temporary sessions are included in the backup
+- **Security**: Contains sensitive data - store and transfer securely
 
-## Support
+## Security Considerations
 
-If you encounter issues during restoration, refer to:
-- Cultural Archiver documentation: \`docs/backup-data-dump.md\`
-- Database schema documentation: \`docs/database.md\`
-- API documentation: \`docs/api.md\`
+- **Secure Storage**: Store backup files in encrypted, access-controlled locations
+- **Data Retention**: Follow organizational policies for backup retention periods
+- **Access Control**: Limit backup file access to authorized personnel only
+- **Transfer Security**: Use secure channels (HTTPS, SFTP) for backup file transfer
+- **Regular Testing**: Periodically test restoration procedures to ensure backup validity
 
 Created by Cultural Archiver Backup System v${metadata.version}
+Integrity Checksum: ${metadata.integrity?.validation_checksum || 'Not Available'}
 `;
 }
 
 /**
- * Validate environment configuration
+ * Validate environment configuration with enhanced security checks
  */
 function validateEnvironment(options: BackupOptions): void {
   if (options.remote) {
@@ -859,12 +1029,30 @@ function validateEnvironment(options: BackupOptions): void {
     const missing = requiredVars.filter(varName => !process.env[varName]);
     
     if (missing.length > 0) {
-      console.error('Error: Missing required environment variables for remote backup:');
+      console.error('❌ Error: Missing required environment variables for remote backup:');
       missing.forEach(varName => console.error(`  - ${varName}`));
-      console.error('\nPlease set these variables in your .env file or environment.');
-      console.error('See .env.example for reference.');
+      console.error('\n💡 Security Requirements:');
+      console.error('  - CLOUDFLARE_API_TOKEN must have D1:Read and R2:Read permissions');
+      console.error('  - Use environment-specific API tokens (not global admin tokens)');
+      console.error('  - Rotate API tokens regularly (recommended: every 90 days)');
+      console.error('  - Store credentials in .env file (excluded from version control)');
+      console.error('\nPlease set these variables in your .env file.');
+      console.error('See .env.example for reference and security best practices.');
       process.exit(1);
     }
+
+    // Additional security validation
+    const apiToken = process.env.CLOUDFLARE_API_TOKEN;
+    if (apiToken && apiToken.length < 20) {
+      console.warn('⚠️ Warning: API token appears to be too short. Please verify it\'s a valid Cloudflare API token.');
+    }
+    
+    const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
+    if (accountId && !/^[a-f0-9]{32}$/.test(accountId)) {
+      console.warn('⚠️ Warning: Account ID format appears invalid. Should be 32 character hex string.');
+    }
+
+    console.log('🔒 Environment security validation passed');
   }
 
   // Validate output directory

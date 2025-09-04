@@ -459,6 +459,83 @@ Created by Cultural Archiver Backup System v${metadata.version}
 }
 
 /**
+ * Verify backup integrity and completeness
+ */
+export async function verifyBackupIntegrity(
+  backup: BackupResult,
+  originalDatabaseResult: DatabaseDumpResult,
+  originalPhotoResult: PhotoCollectionResult
+): Promise<{ valid: boolean; issues: string[]; summary: string }> {
+  const issues: string[] = [];
+  
+  try {
+    console.log('[BACKUP] Starting backup integrity verification...');
+    
+    if (!backup.success || !backup.backup_file) {
+      issues.push('Backup creation failed or backup file missing');
+      return { valid: false, issues, summary: 'Backup creation failed' };
+    }
+
+    // Check backup file size
+    if (backup.size && backup.size < 1000) {
+      issues.push('Backup file suspiciously small (< 1KB)');
+    }
+
+    // Verify metadata consistency
+    if (backup.metadata) {
+      const expectedTables = originalDatabaseResult.tables?.length || 0;
+      const actualTables = backup.metadata.database_info.tables.length;
+      
+      if (actualTables !== expectedTables) {
+        issues.push(`Table count mismatch: expected ${expectedTables}, got ${actualTables}`);
+      }
+
+      const expectedRecords = originalDatabaseResult.total_records || 0;
+      const actualRecords = backup.metadata.database_info.total_records;
+      
+      if (actualRecords !== expectedRecords) {
+        issues.push(`Record count mismatch: expected ${expectedRecords}, got ${actualRecords}`);
+      }
+
+      const expectedPhotos = originalPhotoResult.photos?.length || 0;
+      const actualPhotos = backup.metadata.photos_info.total_photos;
+      
+      if (actualPhotos !== expectedPhotos) {
+        issues.push(`Photo count mismatch: expected ${expectedPhotos}, got ${actualPhotos}`);
+      }
+
+      // Check metadata structure
+      if (!backup.metadata.version || !backup.metadata.created_at) {
+        issues.push('Missing required metadata fields (version, created_at)');
+      }
+    } else {
+      issues.push('Backup metadata missing');
+    }
+
+    const valid = issues.length === 0;
+    const summary = valid 
+      ? `Backup integrity verified: ${backup.metadata?.database_info.total_records || 0} records, ${backup.metadata?.photos_info.total_photos || 0} photos`
+      : `${issues.length} integrity issues found`;
+
+    console.log(`[BACKUP] Integrity verification completed: ${valid ? 'PASSED' : 'FAILED'}`);
+    if (!valid) {
+      console.warn('[BACKUP] Integrity issues:', issues);
+    }
+
+    return { valid, issues, summary };
+  } catch (error) {
+    const errorMessage = `Backup integrity verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    console.error('[BACKUP]', errorMessage);
+    
+    return { 
+      valid: false, 
+      issues: [errorMessage], 
+      summary: 'Verification process failed' 
+    };
+  }
+}
+
+/**
  * Main backup generation function
  */
 export async function generateFullBackup(env: WorkerEnv): Promise<BackupResult> {
@@ -507,6 +584,26 @@ export async function generateFullBackup(env: WorkerEnv): Promise<BackupResult> 
     const overallEndTime = Date.now();
     console.log(`[BACKUP] Full backup completed in ${overallEndTime - overallStartTime}ms`);
     console.log(`[BACKUP] Backup file: ${filename} (${archiveBuffer.byteLength} bytes)`);
+
+    // Perform integrity verification
+    const verification = await verifyBackupIntegrity(
+      {
+        success: true,
+        backup_file: archiveBuffer,
+        filename,
+        metadata,
+        size: archiveBuffer.byteLength,
+      },
+      databaseResult,
+      photoResult
+    );
+
+    if (!verification.valid) {
+      warnings.push(...verification.issues);
+      console.warn(`[BACKUP] Backup completed with integrity warnings: ${verification.summary}`);
+    } else {
+      console.log(`[BACKUP] Backup integrity verified: ${verification.summary}`);
+    }
 
     return {
       success: true,
