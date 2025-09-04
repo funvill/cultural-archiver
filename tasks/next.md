@@ -65,7 +65,6 @@ Example data sets:
 - City of Vancouver Public Art: Contains artist info and geolocated artwork data, updated weekly. It’s available in GIS-friendly formats like CSV or GeoJSON https://opendata.vancouver.ca/explore/dataset/public-art/
 - Public Art – Artists Dataset: https://opendata.vancouver.ca/explore/dataset/public-art-artists/information/
 
-
 ## Search page
 
 The search results should be a series of Art Work Cards, and Creator Cards. The user can click the cards to see the corasponding page.
@@ -74,7 +73,6 @@ The search results should be a series of Art Work Cards, and Creator Cards. The 
 - Search by Tag/Keyword - A user might want to find all artworks tagged with one ore more keyword. `tag:{TagName}`
 - Search by Creator - A user might want to find all artworks that are from the scame creator. `Creator:{CreatorName}`
 - Search by field (The Key or the Value) - A user might want to find all artworks that contain a specific field, or where the field matches a value. `Field:{FieldName}:{FieldValue}`, or `Field:{FieldName}`
-
 
 ## Find partners
 

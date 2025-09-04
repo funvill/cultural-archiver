@@ -40,43 +40,43 @@ export async function ensureUserToken(
   next: Next
 ): Promise<void | Response> {
   let userToken = c.req.header('Authorization')?.replace('Bearer ', '');
-  console.log(`[AUTH DEBUG] Authorization header token: ${userToken}`);
+  console.log(`[AUTH MIDDLEWARE DEBUG] Authorization header token: ${userToken}`);
   let isNewToken = false;
 
   if (!userToken) {
     // Check for X-User-Token header (used by frontend)
     userToken = c.req.header('X-User-Token');
-    console.log(`[AUTH DEBUG] X-User-Token header token: ${userToken}`);
+    console.log(`[AUTH MIDDLEWARE DEBUG] X-User-Token header token: ${userToken}`);
   }
 
   if (!userToken) {
     // Check for token in cookie (for browser requests)
     const cookieHeader = c.req.header('Cookie');
-    console.log(`[AUTH DEBUG] Cookie header: ${cookieHeader}`);
+    console.log(`[AUTH MIDDLEWARE DEBUG] Cookie header: ${cookieHeader}`);
     
     userToken = cookieHeader
       ?.split(';')
       .find(cookie => cookie.trim().startsWith('user_token='))
       ?.split('=')[1];
     
-    console.log(`[AUTH DEBUG] Extracted token from cookie: ${userToken}`);
+    console.log(`[AUTH MIDDLEWARE DEBUG] Extracted token from cookie: ${userToken}`);
   }
 
   // Validate token format if we have one (should be UUID)
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   
   if (userToken && !uuidRegex.test(userToken)) {
-    console.log(`[AUTH DEBUG] Token failed UUID validation: ${userToken}, generating new one`);
+    console.log(`[AUTH MIDDLEWARE DEBUG] Token failed UUID validation: ${userToken}, generating new one`);
     userToken = undefined; // Clear invalid token
   } else if (userToken) {
-    console.log(`[AUTH DEBUG] Token passed UUID validation: ${userToken}`);
+    console.log(`[AUTH MIDDLEWARE DEBUG] Token passed UUID validation: ${userToken}`);
   }
 
   // Only generate new token if we don't have a valid one
   if (!userToken) {
     userToken = generateUserToken();
     isNewToken = true;
-    console.log(`[AUTH DEBUG] Generated new token: ${userToken}`);
+    console.log(`[AUTH MIDDLEWARE DEBUG] Generated new token: ${userToken}`);
   }
 
   // Store in context for use by route handlers
@@ -86,6 +86,12 @@ export async function ensureUserToken(
     userToken,
     isReviewer: false,
     isVerifiedEmail: false,
+  });
+
+  console.log(`[AUTH MIDDLEWARE DEBUG] Final auth context set:`, {
+    userToken,
+    isNewToken,
+    endpoint: c.req.url
   });
 
   await next();

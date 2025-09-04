@@ -19,6 +19,7 @@ import type {
 import {
   generateUUID,
   getUserByEmail,
+  getUserByUUID,
   createSession,
   deactivateSession,
   getUserSessions
@@ -107,6 +108,12 @@ export async function verifyMagicLink(
     const authContext = c.get('authContext');
     const { token }: ConsumeMagicLinkRequest = await c.req.json();
 
+    console.log('[MAGIC LINK DEBUG] Starting verification:', {
+      token: token?.substring(0, 8) + '...',
+      currentUUID: authContext.userToken,
+      timestamp: new Date().toISOString()
+    });
+
     if (!token || typeof token !== 'string') {
       throw new ApiError('Valid magic link token is required', 'INVALID_TOKEN', 400);
     }
@@ -114,11 +121,19 @@ export async function verifyMagicLink(
     const currentUUID = authContext.userToken;
 
     // Consume magic link using existing function
+    console.log('[MAGIC LINK DEBUG] Consuming magic link with UUID:', currentUUID);
     const authResult = await consumeMagicLink(
       c.env, 
       { token }, // Pass as ConsumeMagicLinkRequest object
       currentUUID
     );
+
+    console.log('[MAGIC LINK DEBUG] Magic link consumption result:', {
+      success: authResult.success,
+      message: authResult.message,
+      user_token: authResult.user_token,
+      is_new_account: authResult.is_new_account
+    });
 
     // Check if consumption was successful  
     if (!authResult.success) {
@@ -131,11 +146,31 @@ export async function verifyMagicLink(
 
     // Create new session using existing function - need to get user UUID from the result
     const userUUID = authResult.user_token || currentUUID;
+    console.log('[MAGIC LINK DEBUG] Creating session for user UUID:', userUUID);
+    
     const sessionInfo = await createSession(c.env, {
       user_uuid: userUUID,
       ip_address: c.req.header('CF-Connecting-IP') || 'unknown',
       user_agent: c.req.header('User-Agent') || 'unknown'
     });
+
+    console.log('[MAGIC LINK DEBUG] Session created:', {
+      sessionToken: sessionInfo.token?.substring(0, 8) + '...',
+      expires: sessionInfo.session.expires_at
+    });
+
+    // Get user details from database to include correct email
+    let userRecord = null;
+    try {
+      userRecord = await getUserByUUID(c.env, userUUID);
+      console.log('[MAGIC LINK DEBUG] User record retrieved:', {
+        uuid: userRecord?.uuid,
+        email: userRecord?.email,
+        emailVerified: !!userRecord?.email_verified_at
+      });
+    } catch (error) {
+      console.warn('[MAGIC LINK DEBUG] Failed to get user record after magic link verification:', error);
+    }
 
     // Prepare response data
     const responseData = {
@@ -143,9 +178,9 @@ export async function verifyMagicLink(
       message: authResult.is_new_account ? 'Account created successfully' : 'Login successful',
       user: {
         uuid: userUUID,
-        email: 'placeholder@example.com', // We don't have email in the response
-        created_at: new Date().toISOString(),
-        email_verified_at: new Date().toISOString()
+        email: userRecord?.email || 'unknown@example.com',
+        created_at: userRecord?.created_at || new Date().toISOString(),
+        email_verified_at: userRecord?.email_verified_at || new Date().toISOString()
       },
       session: {
         token: sessionInfo.token,
@@ -169,6 +204,15 @@ export async function verifyMagicLink(
       'Set-Cookie',
       `user_token=${userUUID}; Secure; SameSite=Strict; Path=/; Max-Age=${365 * 24 * 60 * 60}` // 1 year
     );
+
+    console.log('[MAGIC LINK DEBUG] Magic link verification completed successfully:', {
+      userUUID,
+      email: userRecord?.email,
+      isNewAccount: authResult.is_new_account,
+      uuidReplaced: currentUUID !== userUUID,
+      sessionToken: sessionInfo.token?.substring(0, 8) + '...',
+      cookiesSet: ['session_token', 'user_token']
+    });
 
     return response;
 
@@ -249,6 +293,13 @@ export async function getAuthStatus(
     const sessionToken = c.req.header('Authorization')?.replace('Bearer ', '') ||
                         c.req.header('Cookie')?.match(/session_token=([^;]+)/)?.[1];
 
+    console.log('[AUTH STATUS DEBUG] Processing auth status request:', {
+      userToken: authContext.userToken,
+      hasSessionToken: !!sessionToken,
+      endpoint: c.req.url,
+      timestamp: new Date().toISOString()
+    });
+
     // Simple implementation using available functions
     let user = null;
     let session = null;
@@ -257,7 +308,8 @@ export async function getAuthStatus(
     // Check if user exists
     if (authContext.userToken) {
       try {
-        const userRecord = await getUserByEmail(c.env, authContext.userToken);
+        console.log('[AUTH STATUS DEBUG] Looking up user by UUID:', authContext.userToken);
+        const userRecord = await getUserByUUID(c.env, authContext.userToken);
         if (userRecord) {
           isAuthenticated = true;
           user = {
@@ -268,9 +320,16 @@ export async function getAuthStatus(
             email_verified_at: userRecord.email_verified_at,
             status: userRecord.status
           };
+          console.log('[AUTH STATUS DEBUG] User found:', {
+            uuid: user.uuid,
+            email: user.email,
+            isAuthenticated: true
+          });
+        } else {
+          console.log('[AUTH STATUS DEBUG] No user record found for UUID:', authContext.userToken);
         }
       } catch (error) {
-        console.warn('Failed to get user info during auth status check:', error);
+        console.warn('[AUTH STATUS DEBUG] Failed to get user info during auth status check:', error);
       }
     }
 
@@ -310,7 +369,21 @@ export async function getAuthStatus(
       session: session
     };
 
-    return c.json(response);
+    console.log('[AUTH STATUS DEBUG] Returning auth status:', {
+      user_token: response.user_token,
+      is_authenticated: response.is_authenticated,
+      is_anonymous: response.is_anonymous,
+      has_user: !!response.user,
+      has_session: !!response.session,
+      user_email: response.user?.email
+    });
+
+    // CRITICAL FIX: Wrap in ApiResponse format to match frontend expectations
+    return c.json({
+      success: true,
+      data: response,
+      timestamp: new Date().toISOString()
+    });
 
   } catch (error) {
     console.error('Auth status error:', error);

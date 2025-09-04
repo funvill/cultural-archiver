@@ -13,7 +13,7 @@ const redirectCountdown = ref(5)
 // Composables
 const route = useRoute()
 const router = useRouter()
-const { verifyMagicLink, error } = useAuth()
+const { verifyMagicLink, initAuth, error } = useAuth()
 
 // Computed
 const statusIcon = computed(() => {
@@ -82,6 +82,12 @@ async function performVerification(token: string): Promise<void> {
       verificationStatus.value = 'success'
       message.value = result.message
       isNewAccount.value = result.isNewAccount || false
+      
+      // CRITICAL: Re-initialize auth state after successful verification
+      // This ensures localStorage, user state, and backend session are all synchronized
+      console.log('[MAGIC LINK VERIFY] Initializing auth state after successful verification')
+      await initAuth()
+      console.log('[MAGIC LINK VERIFY] Auth state re-initialized successfully')
       
       // Start countdown for redirect
       startRedirectCountdown()

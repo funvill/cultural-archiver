@@ -151,13 +151,22 @@ class ApiClient {
    * Get user token from localStorage
    */
   private getUserToken(): string | null {
-    return localStorage.getItem('user-token')
+    const token = localStorage.getItem('user-token')
+    console.log('[API DEBUG] Getting user token from localStorage:', {
+      token: token,
+      timestamp: new Date().toISOString()
+    })
+    return token
   }
 
   /**
    * Set user token in localStorage
    */
   private setUserToken(token: string): void {
+    console.log('[API DEBUG] Setting user token in localStorage:', {
+      token: token,
+      timestamp: new Date().toISOString()
+    })
     localStorage.setItem('user-token', token)
   }
 
@@ -171,6 +180,12 @@ class ApiClient {
     })
 
     const token = this.getUserToken()
+    console.log('[API DEBUG] Creating request headers:', {
+      hasToken: !!token,
+      token: token,
+      customHeaders: Object.keys(customHeaders)
+    })
+    
     if (token) {
       headers.set('X-User-Token', token)
     }
@@ -184,7 +199,16 @@ class ApiClient {
   private async handleResponse<T>(response: Response): Promise<T> {
     // Update user token if provided in response
     const newToken = response.headers.get('X-User-Token')
+    console.log('[API DEBUG] Handling response:', {
+      status: response.status,
+      statusText: response.statusText,
+      hasNewToken: !!newToken,
+      newToken: newToken,
+      url: response.url
+    })
+    
     if (newToken) {
+      console.log('[API DEBUG] Response contains new token, updating localStorage')
       this.setUserToken(newToken)
     }
 
