@@ -56,14 +56,14 @@
   - [x] 3.7 Create `createDataDumpArchive()` to combine JSON files, photos, and documentation into timestamped ZIP
   - [x] 3.8 Create unit tests in `src/workers/lib/data-dump.test.ts` with data sanitization validation
 
-- [ ] 4.0 Create Admin API Endpoint for Data Dump Generation
-  - [ ] 4.1 Add `POST /api/admin/data-dump/generate` endpoint to existing `src/workers/routes/admin.ts`
-  - [ ] 4.2 Integrate `requireAdmin` middleware to ensure only administrators can trigger data dump generation
-  - [ ] 4.3 Implement async data dump generation with proper error handling and status responses
-  - [ ] 4.4 Add data dump upload to R2 bucket with public access configuration for download
-  - [ ] 4.5 Create `GET /api/admin/data-dumps` endpoint to list previously generated data dumps with download links
-  - [ ] 4.6 Add audit logging for data dump generation using existing admin audit system
-  - [ ] 4.7 Update `src/workers/routes/admin.test.ts` with comprehensive tests for new data dump endpoints
+- [x] 4.0 Create Admin API Endpoint for Data Dump Generation
+  - [x] 4.1 Add `POST /api/admin/data-dump/generate` endpoint to existing `src/workers/routes/admin.ts`
+  - [x] 4.2 Integrate `requireAdmin` middleware to ensure only administrators can trigger data dump generation
+  - [x] 4.3 Implement async data dump generation with proper error handling and status responses
+  - [x] 4.4 Add data dump upload to R2 bucket with public access configuration for download
+  - [x] 4.5 Create `GET /api/admin/data-dumps` endpoint to list previously generated data dumps with download links
+  - [x] 4.6 Add audit logging for data dump generation using existing admin audit system
+  - [x] 4.7 Update `src/workers/routes/admin.test.ts` with comprehensive tests for new data dump endpoints
 
 - [ ] 5.0 Add NPM Script for Backup Command
   - [ ] 5.1 Create `scripts/backup.ts` as entry point for backup command with CLI argument parsing
