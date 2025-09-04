@@ -6,7 +6,7 @@
  * Usage: npx tsx migrations/tools/extract-schema.ts [output-file]
  */
 
-import { writeFile } from 'fs/promises';
+import { writeFile, readFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { config } from 'dotenv';
@@ -162,7 +162,22 @@ class SchemaExtractor {
         return triggers;
     }
 
-    private generateSchemaSQL(tables: TableInfo[], indexes: IndexInfo[], triggers: IndexInfo[]): string {
+    private async getSampleData(): Promise<string> {
+        console.info('📄 Loading sample data...');
+        
+        try {
+            const sampleDataPath = join(__dirname, 'sample-data.sql');
+            const sampleData = await readFile(sampleDataPath, 'utf-8');
+            
+            console.info('✅ Sample data loaded successfully');
+            return sampleData;
+        } catch (error) {
+            console.warn(`⚠️  Could not load sample data: ${error}`);
+            return '';
+        }
+    }
+
+    private generateSchemaSQL(tables: TableInfo[], indexes: IndexInfo[], triggers: IndexInfo[], sampleData: string): string {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
         const lines = [
             '-- Cultural Archiver Database Schema (Consolidated)',
@@ -217,6 +232,16 @@ class SchemaExtractor {
             }
         }
 
+        // Add sample data if available
+        if (sampleData.trim()) {
+            lines.push('-- ================================');
+            lines.push('-- Sample Data');
+            lines.push('-- ================================');
+            lines.push('');
+            lines.push(sampleData);
+            lines.push('');
+        }
+
         return lines.join('\n');
     }
 
@@ -244,24 +269,23 @@ class SchemaExtractor {
 
         try {
             // Extract all schema components
-            const [tables, indexes, triggers] = await Promise.all([
+            const [tables, indexes, triggers, sampleData] = await Promise.all([
                 this.getTables(),
                 this.getIndexes(),
                 this.getTriggers(),
+                this.getSampleData(),
             ]);
 
-            // Generate SQL
-            const schemaSQL = this.generateSchemaSQL(tables, indexes, triggers);
+            // Generate SQL with sample data
+            const schemaSQL = this.generateSchemaSQL(tables, indexes, triggers, sampleData);
 
             // Validate extraction
             await this.validateExtraction(schemaSQL);
 
-            // Save to file if specified
-            if (outputFile) {
-                const outputPath = join(dirname(__dirname), outputFile);
-                await writeFile(outputPath, schemaSQL, 'utf-8');
-                console.info(`💾 Schema saved to: ${outputPath}`);
-            }
+            // Save to file (always save to file now)
+            const outputPath = join(dirname(__dirname), outputFile || '001_consolidated_baseline.sql');
+            await writeFile(outputPath, schemaSQL, 'utf-8');
+            console.info(`💾 Schema saved to: ${outputPath}`);
 
             console.info('✅ Schema extraction completed successfully');
             return schemaSQL;
@@ -289,10 +313,11 @@ class SchemaExtractor {
         console.info('');
         console.info('Usage:');
         console.info('  npx tsx migrations/tools/extract-schema.ts [output-file]');
-        console.info('  npx tsx migrations/tools/extract-schema.ts 001_consolidated_baseline.sql');
+        console.info('  npx tsx migrations/tools/extract-schema.ts  # Defaults to 001_consolidated_baseline.sql');
+        console.info('  npx tsx migrations/tools/extract-schema.ts custom-schema.sql');
         console.info('');
         console.info('Options:');
-        console.info('  output-file    Optional output file path (relative to migrations/)');
+        console.info('  output-file    Output file path (relative to migrations/, defaults to 001_consolidated_baseline.sql)');
         console.info('  --test         Test database connection only');
         console.info('  --help         Show this help');
         console.info('');
@@ -302,8 +327,8 @@ class SchemaExtractor {
         console.info('  CLOUDFLARE_API_TOKEN   Cloudflare API Token with D1:Edit permission');
         console.info('');
         console.info('Examples:');
-        console.info('  npx tsx migrations/tools/extract-schema.ts');
-        console.info('  npx tsx migrations/tools/extract-schema.ts baseline.sql');
+        console.info('  npx tsx migrations/tools/extract-schema.ts  # Updates 001_consolidated_baseline.sql');
+        console.info('  npx tsx migrations/tools/extract-schema.ts backup-schema.sql');
         console.info('  npx tsx migrations/tools/extract-schema.ts --test');
     }
 }
@@ -313,7 +338,32 @@ async function main(): Promise<void> {
     const args = process.argv.slice(2);
     
     if (args.includes('--help') || args.includes('-h')) {
-        new SchemaExtractor().showHelp();
+        const extractor = new (class {
+            showHelp() {
+                console.info('Cultural Archiver Schema Extraction Tool');
+                console.info('');
+                console.info('Usage:');
+                console.info('  npx tsx migrations/tools/extract-schema.ts [output-file]');
+                console.info('  npx tsx migrations/tools/extract-schema.ts  # Defaults to 001_consolidated_baseline.sql');
+                console.info('  npx tsx migrations/tools/extract-schema.ts custom-schema.sql');
+                console.info('');
+                console.info('Options:');
+                console.info('  output-file    Output file path (relative to migrations/, defaults to 001_consolidated_baseline.sql)');
+                console.info('  --test         Test database connection only');
+                console.info('  --help         Show this help');
+                console.info('');
+                console.info('Required Environment Variables (.env file):');
+                console.info('  D1_DATABASE_ID         Cloudflare D1 Database ID');
+                console.info('  CLOUDFLARE_ACCOUNT_ID  Cloudflare Account ID');
+                console.info('  CLOUDFLARE_API_TOKEN   Cloudflare API Token with D1:Edit permission');
+                console.info('');
+                console.info('Examples:');
+                console.info('  npx tsx migrations/tools/extract-schema.ts  # Updates 001_consolidated_baseline.sql');
+                console.info('  npx tsx migrations/tools/extract-schema.ts backup-schema.sql');
+                console.info('  npx tsx migrations/tools/extract-schema.ts --test');
+            }
+        })();
+        extractor.showHelp();
         return;
     }
 
@@ -325,7 +375,7 @@ async function main(): Promise<void> {
         return;
     }
 
-    const outputFile = args[0];
+    const outputFile = args[0] || '001_consolidated_baseline.sql';
     try {
         await extractor.extractSchema(outputFile);
         process.exit(0);
