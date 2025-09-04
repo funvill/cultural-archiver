@@ -629,7 +629,134 @@ for (let i = 0; i < 12; i++) {
 }
 ```
 
+## Admin Endpoints
+
+Administrative endpoints for platform management and data export. Requires admin authentication.
+
+### Generate Data Dump
+
+Create a public data dump containing approved artwork with CC0 licensing.
+
+**Endpoint**: `POST /api/admin/data-dump/generate`  
+**Authentication**: Admin token required
+
+```http
+POST /api/admin/data-dump/generate
+Authorization: Bearer {admin-token}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "filename": "datadump-2025-09-04.zip",
+    "size": 2048576,
+    "artwork_count": 150,
+    "creator_count": 75,
+    "tag_count": 200,
+    "photo_count": 145,
+    "download_url": "https://r2.cultural-archiver.com/datadump-2025-09-04.zip",
+    "created_at": "2025-09-04T14:30:22.000Z"
+  }
+}
+```
+
+### List Data Dumps
+
+Retrieve all generated data dumps with metadata and download links.
+
+**Endpoint**: `GET /api/admin/data-dumps`  
+**Authentication**: Admin token required
+
+```http
+GET /api/admin/data-dumps?page=1&limit=20
+Authorization: Bearer {admin-token}
+```
+
+**Query Parameters**:
+- `page` (optional): Page number for pagination (default: 1)
+- `limit` (optional): Results per page (max 100, default: 20)
+
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "dumps": [
+      {
+        "id": "550e8400-e29b-41d4-a716-446655440000",
+        "filename": "datadump-2025-09-04.zip",
+        "size": 2048576,
+        "artwork_count": 150,
+        "creator_count": 75,
+        "tag_count": 200,
+        "photo_count": 145,
+        "download_url": "https://r2.cultural-archiver.com/datadump-2025-09-04.zip",
+        "created_at": "2025-09-04T14:30:22.000Z",
+        "warnings": null
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 1,
+      "has_more": false
+    }
+  }
+}
+```
+
+**Error Responses**:
+- `401 Unauthorized`: Invalid or missing admin token
+- `500 Internal Server Error`: Data dump generation failed
+
+### Data Dump Contents
+
+Each data dump contains:
+- **artwork.json**: Approved artwork with public metadata only
+- **creators.json**: Artist information (name, public details)
+- **tags.json**: Metadata tags and categories
+- **artwork_creators.json**: Artwork-creator relationships
+- **photos/thumbnails/**: 800px thumbnail images only
+- **LICENSE.txt**: CC0 1.0 Universal Public Domain Dedication
+- **README.md**: Usage documentation and dataset information
+- **metadata.json**: Generation timestamp and statistics
+
+**Excluded Data**: User tokens, emails, IP addresses, moderation notes, rejected submissions, and original photos.
+
+## NPM Commands
+
+The platform includes command-line tools for backup generation:
+
+### Local Backup
+```bash
+# Generate backup to current directory
+npm run backup
+
+# Custom output directory
+npm run backup -- --output-dir ./backups
+
+# Show help
+npm run backup -- --help
+```
+
+### Remote Backup
+```bash
+# Generate backup using Cloudflare credentials
+npm run backup:remote -- --output-dir ./production-backups
+```
+
+**Required Environment Variables**:
+```bash
+CLOUDFLARE_ACCOUNT_ID=your-account-id
+DATABASE_ID=your-d1-database-id
+PHOTOS_BUCKET=your-r2-bucket-name
+```
+
 ## Support and Resources
 
 - **GitHub Repository**: https://github.com/funvill/cultural-archiver
 - **Issue Tracker**: https://github.com/funvill/cultural-archiver/issues
+- **Backup Documentation**: See `/docs/backup-data-dump.md` for detailed setup and usage
