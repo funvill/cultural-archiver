@@ -28,13 +28,13 @@
 
 ## Tasks
 
-- [ ] 1.0 Database Schema and Migration
-  - [ ] 1.1 Create migration file `003_create_artwork_edits_table.sql` with flexible key-value schema
-  - [ ] 1.2 Define table structure with edit_id, artwork_id, user_token, field_name, field_value_old, field_value_new
-  - [ ] 1.3 Add status, moderator_notes, reviewed_at, reviewed_by fields for moderation tracking
-  - [ ] 1.4 Add indexes on artwork_id, user_token, status, and submitted_at for query performance
-  - [ ] 1.5 Test migration with sample data and verify constraints work correctly
-  - [ ] 1.6 Update database schema documentation in docs/database.md
+- [x] 1.0 Database Schema and Migration
+  - [x] 1.1 Create migration file `003_create_artwork_edits_table.sql` with flexible key-value schema
+  - [x] 1.2 Define table structure with edit_id, artwork_id, user_token, field_name, field_value_old, field_value_new
+  - [x] 1.3 Add status, moderator_notes, reviewed_at, reviewed_by fields for moderation tracking
+  - [x] 1.4 Add indexes on artwork_id, user_token, status, and submitted_at for query performance
+  - [x] 1.5 Test migration with sample data and verify constraints work correctly
+  - [x] 1.6 Update database schema documentation in docs/database.md
 
 - [ ] 2.0 Backend API Implementation
   - [ ] 2.1 Create `src/workers/lib/artwork-edits.ts` with database operations for artwork edits

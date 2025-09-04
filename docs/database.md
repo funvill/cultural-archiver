@@ -170,6 +170,58 @@ Core table storing public artwork locations and metadata.
 - `approved` - Verified and visible on public map
 - `removed` - Removed from public view (soft delete)
 
+### artwork_edits
+
+Community-proposed edits to existing artwork records stored in flexible key-value format.
+
+| Field             | Type | Constraints                                | Description                           |
+| ----------------- | ---- | ------------------------------------------ | ------------------------------------- |
+| `edit_id`         | TEXT | PRIMARY KEY                                | Unique edit identifier (UUID)        |
+| `artwork_id`      | TEXT | NOT NULL, FK→artwork.id                    | Reference to artwork being edited     |
+| `user_token`      | TEXT | NOT NULL                                   | User proposing the edit               |
+| `field_name`      | TEXT | NOT NULL                                   | Field being edited (e.g., 'title')   |
+| `field_value_old` | TEXT | NULL                                       | Original value before edit (JSON)    |
+| `field_value_new` | TEXT | NULL                                       | Proposed new value (JSON)            |
+| `status`          | TEXT | CHECK('pending','approved','rejected')    | Moderation status                     |
+| `moderator_notes` | TEXT | NULL                                       | Feedback from moderator on rejection |
+| `reviewed_at`     | TEXT | NULL                                       | Timestamp when moderated              |
+| `reviewed_by`     | TEXT | NULL                                       | Moderator who reviewed                |
+| `submitted_at`    | TEXT | NOT NULL, DEFAULT datetime('now')         | When edit was submitted               |
+
+**Indexes:**
+
+- `idx_artwork_edits_artwork_id` on `artwork_id` for per-artwork queries
+- `idx_artwork_edits_user_token` on `user_token` for per-user queries
+- `idx_artwork_edits_status` on `status` for filtering by moderation status
+- `idx_artwork_edits_submitted_at` on `submitted_at DESC` for chronological ordering
+- `idx_artwork_edits_moderation_queue` on `(status, submitted_at DESC)` for moderation queue
+- `idx_artwork_edits_user_pending` on `(user_token, artwork_id, status)` for pending edits check
+
+**Foreign Keys:**
+
+- `artwork_id` → `artwork.id` (CASCADE DELETE)
+
+**Status Workflow:**
+
+- `pending` - Newly submitted edit, awaiting moderation
+- `approved` - Edit approved and applied to original artwork
+- `rejected` - Edit rejected with moderator feedback
+
+**Editable Fields:**
+
+- `title` - Artwork title
+- `description` - Artwork description  
+- `created_by` - Creator information (comma-separated)
+- `tags` - JSON object with key-value metadata tags
+
+**Key-Value Design:**
+
+Each field change is stored as a separate row with old/new values, enabling:
+- Atomic approval/rejection of entire edit submissions
+- Clear diff views for moderation  
+- Future extensibility for new editable fields
+- Complete audit trail of all changes
+
 ### logbook
 
 Community submissions and entries for artworks.
