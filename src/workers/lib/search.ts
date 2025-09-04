@@ -52,8 +52,8 @@ export async function searchArtworks(
   const searchTerm = query.trim();
   
   try {
-    // For MVP, we'll use LIKE queries on artwork tags and logbook notes
-    // In production, this could be enhanced with SQLite FTS
+    // Enhanced search query that searches across artwork types, tags, and logbook notes
+    // Uses LIKE queries for MVP - can be enhanced with SQLite FTS later
     const stmt = db.prepare(`
       SELECT DISTINCT 
         a.*,
@@ -63,6 +63,7 @@ export async function searchArtworks(
         CASE 
           WHEN at.name LIKE ? THEN 3
           WHEN a.tags LIKE ? THEN 2
+          WHEN l.note LIKE ? THEN 2
           ELSE 1
         END as relevance_score
       FROM artwork a
@@ -81,7 +82,8 @@ export async function searchArtworks(
     const likePattern = `%${searchTerm}%`;
     const results = await stmt.bind(
       likePattern, // type name relevance
-      likePattern, // tags relevance
+      likePattern, // tags relevance  
+      likePattern, // logbook notes relevance
       status,
       likePattern, // type name search
       likePattern, // tags search
