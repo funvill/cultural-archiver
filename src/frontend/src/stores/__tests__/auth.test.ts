@@ -360,11 +360,15 @@ describe('Auth Store', () => {
       const mockApi = await import('../../services/api')
       vi.mocked(mockApi.apiService.verifyMagicLink).mockResolvedValue({
         success: true,
-        user: { uuid: 'account-uuid', email: 'test@example.com', created_at: '2025-01-01', email_verified_at: '2025-01-01' },
-        message: 'Login successful',
-        session: { token: 'session-token', expires_at: '2025-01-02' },
-        uuid_replaced: true,
-        is_new_account: false
+        data: {
+          success: true,
+          user: { uuid: 'account-uuid', email: 'test@example.com', created_at: '2025-01-01', email_verified_at: '2025-01-01' },
+          message: 'Login successful',
+          session: { token: 'session-token', expires_at: '2025-01-02' },
+          uuid_replaced: true,
+          is_new_account: false
+        },
+        timestamp: new Date().toISOString()
       })
       
       const store = useAuthStore()

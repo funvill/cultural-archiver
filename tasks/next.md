@@ -84,5 +84,5 @@ Find people that would be willing to partner with me on this project. Be specifi
 ## App bar
 
 - The Email address/ Verified section of the app bar should have a profile icon and be clickable to go to the profile page. This should replace the profile button
+- Removed the "Verified", and "Anonymous" status under the profile email address.
 - The logout should have a conformation link.
-- The "Sign in" modle dialog. Should have the title of "Sign in/Create account"

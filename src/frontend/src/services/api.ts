@@ -501,7 +501,7 @@ export const apiService = {
   /**
    * Verify and consume magic link token
    */
-  async verifyMagicLink(request: MagicLinkConsumeRequest): Promise<{
+  async verifyMagicLink(request: MagicLinkConsumeRequest): Promise<ApiResponse<{
     success: boolean;
     message: string;
     user: {
@@ -516,7 +516,7 @@ export const apiService = {
     };
     uuid_replaced: boolean;
     is_new_account: boolean;
-  }> {
+  }>> {
     return client.post('/auth/verify-magic-link', request)
   },
 
@@ -575,7 +575,11 @@ export const apiService = {
     uuid_replaced: boolean;
     is_new_account: boolean;
   }> {
-    return this.verifyMagicLink(request)
+    const response = await this.verifyMagicLink(request)
+    if (!response.data) {
+      throw new Error('Magic link verification failed')
+    }
+    return response.data
   },
 
   /**

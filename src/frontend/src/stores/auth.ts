@@ -323,19 +323,19 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await apiService.verifyMagicLink(request)
       console.log('[AUTH DEBUG] Magic link verification response:', {
         success: response.success,
-        userUuid: response.user?.uuid,
-        email: response.user?.email,
-        isNewAccount: response.is_new_account,
-        uuidReplaced: response.uuid_replaced
+        userUuid: response.data?.user?.uuid,
+        email: response.data?.user?.email,
+        isNewAccount: response.data?.is_new_account,
+        uuidReplaced: response.data?.uuid_replaced
       })
       
-      if (response.success) {
-        const authenticatedUUID = response.user.uuid
+      if (response.success && response.data) {
+        const authenticatedUUID = response.data.user.uuid
         console.log('[AUTH DEBUG] Magic link verification successful, processing authentication:', {
           previousToken: token.value,
           newToken: authenticatedUUID,
-          email: response.user.email,
-          isNewAccount: response.is_new_account
+          email: response.data.user.email,
+          isNewAccount: response.data.is_new_account
         })
         
         // CRITICAL: Ensure UUID consistency across all storage
@@ -346,11 +346,11 @@ export const useAuthStore = defineStore('auth', () => {
         
         // Update user state with verified user
         const userData: User = {
-          id: response.user.uuid,
-          email: response.user.email,
+          id: response.data.user.uuid,
+          email: response.data.user.email,
           emailVerified: true,
           isReviewer: false, // Will be determined by permissions
-          createdAt: response.user.created_at
+          createdAt: response.data.user.created_at
         }
         setUser(userData)
         console.log('[AUTH DEBUG] User data updated:', {
@@ -369,12 +369,12 @@ export const useAuthStore = defineStore('auth', () => {
         
         return {
           success: true,
-          message: response.message,
-          isNewAccount: response.is_new_account
+          message: response.data.message || 'Login successful',
+          isNewAccount: response.data.is_new_account
         }
       }
       
-      console.log('[AUTH DEBUG] Magic link verification failed:', response.message)
+      console.log('[AUTH DEBUG] Magic link verification failed:', response.message || 'Unknown error')
       return { success: false, message: response.message || 'Failed to verify magic link' }
     } catch (err) {
       const message = getErrorMessage(err)
