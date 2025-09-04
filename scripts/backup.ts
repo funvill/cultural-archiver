@@ -720,13 +720,14 @@ export async function downloadR2PhotosToDirectory(
       }
 
       // Handle pagination - check for cursor in different possible locations
-      let continuationToken;
       if (Array.isArray(listResult.result)) {
         // For direct array structure, cursor might be in result.cursor or top-level
         continuationToken = listResult.cursor || null;
       } else if (listResult.result && typeof listResult.result === 'object') {
         // For nested structure, cursor is typically in result.cursor
         continuationToken = listResult.result.cursor || null;
+      } else {
+        continuationToken = null;
       }
       
       if (continuationToken) {
