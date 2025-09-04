@@ -29,6 +29,8 @@ interface BackupOptions {
   outputDir: string;
   remote: boolean;
   help: boolean;
+  photosOnly: boolean;
+  photosDir: string;
 }
 
 /**
@@ -104,6 +106,8 @@ function parseArguments(): BackupOptions {
     outputDir: process.cwd(),
     remote: false,
     help: false,
+    photosOnly: false,
+    photosDir: './r2-photos-backup',
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -119,8 +123,22 @@ function parseArguments(): BackupOptions {
         }
         break;
 
+      case '--photos-dir':
+        if (i + 1 < args.length) {
+          options.photosDir = resolve(args[++i]);
+        } else {
+          console.error('Error: --photos-dir requires a directory path');
+          process.exit(1);
+        }
+        break;
+
       case '--remote':
         options.remote = true;
+        break;
+
+      case '--photos-only':
+        options.photosOnly = true;
+        options.remote = true; // Photos-only mode requires remote access
         break;
 
       case '--help':
@@ -148,14 +166,26 @@ USAGE:
   npm run backup [options]
 
 OPTIONS:
-  --output-dir <dir>  Directory to save backup file (default: current directory)
-  --remote           Use remote Cloudflare resources (REQUIRED for real backups)
-  --help, -h         Show this help message
+  --output-dir <dir>   Directory to save backup file (default: current directory)
+  --photos-dir <dir>   Directory to save photos when using --photos-only (default: ./r2-photos-backup)
+  --remote             Use remote Cloudflare resources (REQUIRED for real backups)
+  --photos-only        Download only photos to local directory (implies --remote)
+  --help, -h           Show this help message
 
 EXAMPLES:
   npm run backup -- --help
   npm run backup -- --remote
   npm run backup -- --remote --output-dir ./backups
+  npm run backup -- --photos-only --photos-dir ./my-photos
+
+PHOTO-ONLY MODE:
+  The --photos-only flag downloads all R2 photos directly to a local directory:
+  - Downloads all original and thumbnail images
+  - Preserves the original file structure and names
+  - Skips files that already exist with the same size
+  - Handles large buckets with pagination
+  - Creates subdirectories as needed
+  - Provides detailed progress and error reporting
 
 ENVIRONMENT VARIABLES:
   The following environment variables must be set for remote backups:
@@ -167,16 +197,24 @@ ENVIRONMENT VARIABLES:
   Set these in your .env file (see .env.example for reference).
 
 BACKUP CONTENTS:
+  Full backup mode (default):
   ✅ Complete D1 database dump (all tables, data, and schema)
   ✅ All R2 photos (originals and thumbnails) 
   ✅ Metadata with backup statistics and information
   ✅ Restoration instructions and documentation
   ✅ Valid ZIP archive compatible with standard tools
 
+  Photos-only mode (--photos-only):
+  ✅ All R2 photos downloaded to local directory
+  ✅ Original file structure preserved
+  ✅ Duplicate detection and skipping
+  ✅ Progress reporting and error handling
+
 NOTES:
   - Backup files are named: backup-YYYY-MM-DD-HHMMSS.zip
   - Remote mode connects to actual Cloudflare D1 and R2 resources
   - Local mode is not yet implemented (use --remote for real backups)
+  - Photos-only mode creates a local mirror of your R2 bucket
   - Generated backups include complete restoration instructions
   - Archives can be opened with any standard ZIP tool
 
@@ -457,6 +495,175 @@ async function downloadR2Files(config: CloudflareConfig): Promise<R2ListResult> 
 }
 
 /**
+ * Download all photos from R2 bucket to a local directory
+ * This creates a local backup of all photo files with their original structure
+ */
+export interface R2LocalDownloadResult {
+  success: boolean;
+  localDirectory?: string;
+  totalFiles?: number;
+  totalSize?: number;
+  downloadedFiles?: string[];
+  skippedFiles?: string[];
+  error?: string;
+  warnings?: string[];
+}
+
+export async function downloadR2PhotosToDirectory(
+  config: CloudflareConfig, 
+  localDirectory: string = './r2-photos-backup'
+): Promise<R2LocalDownloadResult> {
+  try {
+    console.log(`📸 Downloading R2 photos to local directory: ${localDirectory}`);
+    console.log(`🔧 Using bucket: ${config.bucketName}`);
+
+    // Create the local directory if it doesn't exist
+    const fullPath = resolve(localDirectory);
+    if (!existsSync(fullPath)) {
+      mkdirSync(fullPath, { recursive: true });
+      console.log(`   Created directory: ${fullPath}`);
+    }
+
+    const downloadedFiles: string[] = [];
+    const skippedFiles: string[] = [];
+    const warnings: string[] = [];
+    let continuationToken: string | undefined;
+    let totalSize = 0;
+    let totalFiles = 0;
+
+    do {
+      // List objects in bucket with pagination
+      const listUrl = new URL(`https://api.cloudflare.com/client/v4/accounts/${config.accountId}/r2/buckets/${config.bucketName}/objects`);
+      if (continuationToken) {
+        listUrl.searchParams.set('cursor', continuationToken);
+      }
+      listUrl.searchParams.set('per_page', '1000'); // Maximum items per page
+
+      const listResponse = await fetch(listUrl.toString(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${config.apiToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!listResponse.ok) {
+        const error = await listResponse.text();
+        throw new Error(`Failed to list R2 objects: ${listResponse.status} ${error}`);
+      }
+
+      const listResult = await listResponse.json();
+      if (!listResult.success) {
+        throw new Error(`R2 list failed: ${JSON.stringify(listResult.errors || listResult.messages)}`);
+      }
+
+      const objects = listResult.result?.objects || [];
+      console.log(`   Processing batch: ${objects.length} objects`);
+
+      // Process each object in the batch
+      for (const obj of objects) {
+        totalFiles++;
+        const fileName = obj.key;
+        const localFilePath = join(fullPath, fileName);
+        
+        try {
+          // Create subdirectories if the key contains path separators
+          const localFileDir = dirname(localFilePath);
+          if (!existsSync(localFileDir)) {
+            mkdirSync(localFileDir, { recursive: true });
+          }
+
+          // Check if file already exists and has the same size
+          if (existsSync(localFilePath)) {
+            const stats = await import('fs').then(fs => fs.promises.stat(localFilePath));
+            if (stats.size === obj.size) {
+              console.log(`   Skipping (exists): ${fileName} (${obj.size} bytes)`);
+              skippedFiles.push(fileName);
+              continue;
+            }
+          }
+
+          console.log(`   Downloading: ${fileName} (${obj.size} bytes)`);
+
+          // Download the object from R2
+          const downloadResponse = await fetch(
+            `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/r2/buckets/${config.bucketName}/objects/${encodeURIComponent(obj.key)}`,
+            {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${config.apiToken}`,
+              },
+            }
+          );
+
+          if (!downloadResponse.ok) {
+            const errorText = await downloadResponse.text();
+            warnings.push(`Failed to download ${fileName}: ${downloadResponse.status} ${errorText}`);
+            console.warn(`   Warning: Failed to download ${fileName}: ${downloadResponse.status}`);
+            skippedFiles.push(fileName);
+            continue;
+          }
+
+          // Get file content
+          const fileBuffer = Buffer.from(await downloadResponse.arrayBuffer());
+          
+          // Write to local file
+          writeFileSync(localFilePath, fileBuffer);
+          
+          downloadedFiles.push(fileName);
+          totalSize += obj.size || fileBuffer.length;
+          
+          console.log(`   Saved: ${localFilePath} (${formatFileSize(obj.size || fileBuffer.length)})`);
+        } catch (downloadError) {
+          const errorMsg = `Failed to process ${fileName}: ${downloadError}`;
+          warnings.push(errorMsg);
+          console.warn(`   Warning: ${errorMsg}`);
+          skippedFiles.push(fileName);
+        }
+      }
+
+      // Handle pagination
+      continuationToken = listResult.result?.cursor;
+      if (continuationToken) {
+        console.log(`   Continuing with next batch (cursor: ${continuationToken.substring(0, 20)}...)`);
+      }
+    } while (continuationToken);
+
+    console.log('\n' + '='.repeat(50));
+    console.log('📸 R2 PHOTO DOWNLOAD COMPLETED');
+    console.log('='.repeat(50));
+    console.log(`Local Directory: ${fullPath}`);
+    console.log(`Total Files Processed: ${totalFiles}`);
+    console.log(`Downloaded: ${downloadedFiles.length} files`);
+    console.log(`Skipped: ${skippedFiles.length} files`);
+    console.log(`Total Size: ${formatFileSize(totalSize)}`);
+    
+    if (warnings.length > 0) {
+      console.log(`Warnings: ${warnings.length}`);
+      console.log('='.repeat(50));
+    }
+
+    return {
+      success: true,
+      localDirectory: fullPath,
+      totalFiles: downloadedFiles.length,
+      totalSize,
+      downloadedFiles,
+      skippedFiles: skippedFiles.length > 0 ? skippedFiles : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  } catch (error) {
+    console.error('❌ R2 local download failed:', error);
+    
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown R2 local download error',
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  }
+}
+
+/**
  * Create backup ZIP archive
  */
 async function createBackupArchive(
@@ -725,6 +932,39 @@ async function performBackup(options: BackupOptions): Promise<BackupResult> {
     // Get Cloudflare configuration
     const config = getCloudflareConfig();
 
+    // Handle photos-only mode
+    if (options.photosOnly) {
+      console.log('📸 Running in photos-only mode - downloading R2 photos to local directory');
+      const photosResult = await downloadR2PhotosToDirectory(config, options.photosDir);
+      
+      if (photosResult.success) {
+        return {
+          success: true,
+          filename: `photos-downloaded-to-${options.photosDir}`,
+          filepath: photosResult.localDirectory,
+          size: photosResult.totalSize || 0,
+          metadata: {
+            databaseInfo: {
+              tables: [],
+              totalRecords: 0,
+              size: 0,
+            },
+            photosInfo: {
+              totalFiles: photosResult.totalFiles || 0,
+              totalSize: photosResult.totalSize || 0,
+            },
+            createdAt: new Date().toISOString(),
+            version: '1.0.0',
+          },
+        };
+      } else {
+        return {
+          success: false,
+          error: `Photos download failed: ${photosResult.error}`,
+        };
+      }
+    }
+
     // Step 1: Export D1 database
     const databaseResult = await exportD1Database(config);
     if (!databaseResult.success) {
@@ -782,6 +1022,10 @@ async function main(): Promise<void> {
 
     // Display configuration
     console.log(`📁 Output directory: ${options.outputDir}`);
+    if (options.photosOnly) {
+      console.log(`📸 Photos directory: ${options.photosDir}`);
+      console.log(`🔄 Mode: Photos-only download`);
+    }
     console.log(`☁️  Environment: ${options.remote ? 'Remote (Cloudflare)' : 'Local (Development)'}`);
     console.log();
 
@@ -797,47 +1041,78 @@ async function main(): Promise<void> {
     console.log('\n' + '='.repeat(50));
     
     if (result.success) {
-      console.log('✅ BACKUP COMPLETED SUCCESSFULLY');
-      console.log('='.repeat(50));
-      
-      console.log(`\nBackup File: ${result.filename}`);
-      console.log(`File Path: ${result.filepath}`);
-      console.log(`File Size: ${formatFileSize(result.size || 0)}`);
-      console.log(`Duration: ${(duration / 1000).toFixed(1)}s`);
-      
-      if (result.metadata) {
-        console.log(`\nDatabase:`);
-        console.log(`  Tables: ${result.metadata.databaseInfo.tables.length} (${result.metadata.databaseInfo.tables.join(', ')})`);
-        console.log(`  Records: ${result.metadata.databaseInfo.totalRecords.toLocaleString()}`);
-        console.log(`  SQL Size: ${formatFileSize(result.metadata.databaseInfo.size)}`);
+      if (options.photosOnly) {
+        console.log('✅ PHOTOS DOWNLOAD COMPLETED SUCCESSFULLY');
+        console.log('='.repeat(50));
         
-        console.log(`\nPhotos:`);
-        console.log(`  Files: ${result.metadata.photosInfo.totalFiles.toLocaleString()}`);
-        console.log(`  Total Size: ${formatFileSize(result.metadata.photosInfo.totalSize)}`);
-      }
-      
-      console.log('\n✨ Backup archive contains:');
-      console.log('  • database.sql - Complete database dump');
-      console.log('  • photos/ - All original and thumbnail images');
-      console.log('  • metadata.json - Backup information and statistics');
-      console.log('  • README.md - Restoration instructions');
-
-      // Open file location (platform-specific)
-      try {
-        const { spawn } = await import('child_process');
-        const platform = process.platform;
+        console.log(`\nLocal Directory: ${result.filepath}`);
+        console.log(`Total Files: ${result.metadata?.photosInfo.totalFiles.toLocaleString() || 0}`);
+        console.log(`Total Size: ${formatFileSize(result.size || 0)}`);
+        console.log(`Duration: ${(duration / 1000).toFixed(1)}s`);
         
-        if (platform === 'win32') {
-          spawn('explorer', ['/select,', result.filepath!.replace(/\//g, '\\')]);
-        } else if (platform === 'darwin') {
-          spawn('open', ['-R', result.filepath!]);
-        } else {
-          spawn('xdg-open', [options.outputDir]);
+        console.log('\n🎯 All R2 photos have been downloaded to your local directory.');
+        console.log('📁 You can now browse, backup, or process the photos locally.');
+        
+        // Try to open the photos directory
+        try {
+          const { spawn } = await import('child_process');
+          const platform = process.platform;
+          
+          if (platform === 'win32') {
+            spawn('explorer', [result.filepath!.replace(/\//g, '\\')]);
+          } else if (platform === 'darwin') {
+            spawn('open', [result.filepath!]);
+          } else {
+            spawn('xdg-open', [result.filepath!]);
+          }
+          
+          console.log('\n📂 Opening photos directory...');
+        } catch (error) {
+          // Ignore errors opening directory
+        }
+      } else {
+        console.log('✅ BACKUP COMPLETED SUCCESSFULLY');
+        console.log('='.repeat(50));
+        
+        console.log(`\nBackup File: ${result.filename}`);
+        console.log(`File Path: ${result.filepath}`);
+        console.log(`File Size: ${formatFileSize(result.size || 0)}`);
+        console.log(`Duration: ${(duration / 1000).toFixed(1)}s`);
+        
+        if (result.metadata) {
+          console.log(`\nDatabase:`);
+          console.log(`  Tables: ${result.metadata.databaseInfo.tables.length} (${result.metadata.databaseInfo.tables.join(', ')})`);
+          console.log(`  Records: ${result.metadata.databaseInfo.totalRecords.toLocaleString()}`);
+          console.log(`  SQL Size: ${formatFileSize(result.metadata.databaseInfo.size)}`);
+          
+          console.log(`\nPhotos:`);
+          console.log(`  Files: ${result.metadata.photosInfo.totalFiles.toLocaleString()}`);
+          console.log(`  Total Size: ${formatFileSize(result.metadata.photosInfo.totalSize)}`);
         }
         
-        console.log('\n📂 Opening file location...');
-      } catch (error) {
-        // Ignore errors opening file location
+        console.log('\n✨ Backup archive contains:');
+        console.log('  • database.sql - Complete database dump');
+        console.log('  • photos/ - All original and thumbnail images');
+        console.log('  • metadata.json - Backup information and statistics');
+        console.log('  • README.md - Restoration instructions');
+
+        // Open file location (platform-specific)
+        try {
+          const { spawn } = await import('child_process');
+          const platform = process.platform;
+          
+          if (platform === 'win32') {
+            spawn('explorer', ['/select,', result.filepath!.replace(/\//g, '\\')]);
+          } else if (platform === 'darwin') {
+            spawn('open', ['-R', result.filepath!]);
+          } else {
+            spawn('xdg-open', [options.outputDir]);
+          }
+          
+          console.log('\n📂 Opening file location...');
+        } catch (error) {
+          // Ignore errors opening file location
+        }
       }
     } else {
       console.log('❌ BACKUP FAILED');

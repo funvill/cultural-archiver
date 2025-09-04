@@ -52,7 +52,8 @@
     "quality": "npm run lint && npm run type-check && npm run test",
     "setup": "npm install && npm run build",
     "backup": "npx tsx scripts/backup.ts",
-    "backup:remote": "npx tsx scripts/backup.ts -- --remote"
+    "backup:remote": "npx tsx scripts/backup.ts --remote",
+    "backup:photos": "npx tsx scripts/backup.ts --photos-only"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.3",
