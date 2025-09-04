@@ -10,9 +10,11 @@ vi.mock('../../services/api', () => ({
     }),
     verifyMagicLink: vi.fn().mockResolvedValue({
       success: true,
-      user: { uuid: 'test-uuid', email: 'test@example.com', created_at: '2025-01-01' },
-      message: 'Login successful',
-      is_new_account: false
+      data: {
+        user: { uuid: 'test-uuid', email: 'test@example.com', created_at: '2025-01-01' },
+        message: 'Login successful',
+        is_new_account: false
+      }
     }),
     requestMagicLink: vi.fn().mockResolvedValue({
       data: {
