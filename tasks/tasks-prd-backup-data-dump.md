@@ -29,22 +29,22 @@
 
 ## Tasks
 
-- [ ] 1.0 Create Archive Utilities Library
-  - [ ] 1.1 Create `src/workers/lib/archive.ts` with ZIP creation functionality using Web Streams API
-  - [ ] 1.2 Implement `createZipArchive(files: ArchiveFile[])` function that accepts file list with content and paths
-  - [ ] 1.3 Add `addFileToArchive(path: string, content: ArrayBuffer | string)` helper for individual files
-  - [ ] 1.4 Implement `addFolderToArchive(folderPath: string, files: ArchiveFile[])` for organizing files in ZIP structure
-  - [ ] 1.5 Add error handling for memory limits and file size constraints during ZIP creation
-  - [ ] 1.6 Create comprehensive unit tests in `src/workers/lib/archive.test.ts` covering ZIP creation and error scenarios
+- [x] 1.0 Create Archive Utilities Library
+  - [x] 1.1 Create `src/workers/lib/archive.ts` with ZIP creation functionality using Web Streams API
+  - [x] 1.2 Implement `createZipArchive(files: ArchiveFile[])` function that accepts file list with content and paths
+  - [x] 1.3 Add `addFileToArchive(path: string, content: ArrayBuffer | string)` helper for individual files
+  - [x] 1.4 Implement `addFolderToArchive(folderPath: string, files: ArchiveFile[])` for organizing files in ZIP structure
+  - [x] 1.5 Add error handling for memory limits and file size constraints during ZIP creation
+  - [x] 1.6 Create comprehensive unit tests in `src/workers/lib/archive.test.ts` covering ZIP creation and error scenarios
 
-- [ ] 2.0 Implement Backup System Infrastructure  
-  - [ ] 2.1 Create `src/workers/lib/backup.ts` with complete system backup logic
-  - [ ] 2.2 Implement `generateDatabaseDump(db: D1Database)` to export complete SQL dump with all tables and data
-  - [ ] 2.3 Add `collectR2Photos(env: WorkerEnv)` to retrieve all photos (originals and thumbnails) from R2 bucket
-  - [ ] 2.4 Create `generateBackupMetadata()` to include timestamp, database info, and backup content summary
-  - [ ] 2.5 Implement `createBackupArchive(databaseDump, photos, metadata)` to combine all components into timestamped ZIP
-  - [ ] 2.6 Add comprehensive error logging and recovery for partial backup failures
-  - [ ] 2.7 Create unit tests in `src/workers/lib/backup.test.ts` with mocked D1 and R2 services
+- [x] 2.0 Implement Backup System Infrastructure  
+  - [x] 2.1 Create `src/workers/lib/backup.ts` with complete system backup logic
+  - [x] 2.2 Implement `generateDatabaseDump(db: D1Database)` to export complete SQL dump with all tables and data
+  - [x] 2.3 Add `collectR2Photos(env: WorkerEnv)` to retrieve all photos (originals and thumbnails) from R2 bucket
+  - [x] 2.4 Create `generateBackupMetadata()` to include timestamp, database info, and backup content summary
+  - [x] 2.5 Implement `createBackupArchive(databaseDump, photos, metadata)` to combine all components into timestamped ZIP
+  - [x] 2.6 Add comprehensive error logging and recovery for partial backup failures
+  - [x] 2.7 Create unit tests in `src/workers/lib/backup.test.ts` with mocked D1 and R2 services
 
 - [ ] 3.0 Implement Data Dump System Infrastructure
   - [ ] 3.1 Create `src/workers/lib/data-dump.ts` with public data export logic
