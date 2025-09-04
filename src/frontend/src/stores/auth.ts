@@ -160,22 +160,49 @@ export const useAuthStore = defineStore('auth', () => {
             id: authStatus.user.uuid,
             email: authStatus.user.email,
             emailVerified: true,
-            isReviewer: false, // Will be determined by permissions
+            isReviewer: false, // Will be updated from profile
             createdAt: authStatus.user.created_at
           }
           setUser(userData)
+          
+          // Fetch user profile to get reviewer permissions
+          try {
+            const profileResponse = await apiService.getUserProfile()
+            if (profileResponse.data?.is_reviewer) {
+              userData.isReviewer = true
+            }
+            
+            // Extract permissions from profile debug info
+            if (profileResponse.data?.debug?.permissions) {
+              const permissionObjects = profileResponse.data.debug.permissions as Array<{
+                permission: string;
+                is_active: boolean;
+              }>
+              const userPermissions = permissionObjects
+                .filter(p => p.is_active)
+                .map(p => p.permission as Permission)
+              setPermissions(userPermissions)
+              
+              console.log('[AUTH DEBUG] Permissions extracted from profile:', {
+                permissions: userPermissions,
+                isReviewer: userPermissions.includes('moderator') || userPermissions.includes('admin'),
+                isAdmin: userPermissions.includes('admin')
+              })
+            }
+            
+            setUser(userData)
+          } catch (profileError) {
+            console.warn('[AUTH DEBUG] Failed to fetch user profile:', profileError)
+          }
+          
           console.log('[AUTH DEBUG] User authenticated successfully:', {
             id: userData.id,
             email: userData.email,
             emailVerified: userData.emailVerified,
             isReviewer: userData.isReviewer
           })
-          
-          // TODO: Fetch user permissions from backend and set them
-          // This would require a new API endpoint to get current user permissions
-          // For now, we'll rely on the backend auth middleware
         } else {
-          // Anonymous user
+          // Anonymous user - still check for permissions
           const userData: User = {
             id: authStatus.user_token,
             email: '',
@@ -183,10 +210,40 @@ export const useAuthStore = defineStore('auth', () => {
             isReviewer: false,
             createdAt: new Date().toISOString()
           }
+          
+          // Fetch user profile to check for reviewer permissions (even for anonymous users)
+          try {
+            const profileResponse = await apiService.getUserProfile()
+            if (profileResponse.data?.is_reviewer) {
+              userData.isReviewer = true
+            }
+            
+            // Extract permissions from profile debug info (even for anonymous users)
+            if (profileResponse.data?.debug?.permissions) {
+              const permissionObjects = profileResponse.data.debug.permissions as Array<{
+                permission: string;
+                is_active: boolean;
+              }>
+              const userPermissions = permissionObjects
+                .filter(p => p.is_active)
+                .map(p => p.permission as Permission)
+              setPermissions(userPermissions)
+              
+              console.log('[AUTH DEBUG] Anonymous user permissions extracted from profile:', {
+                permissions: userPermissions,
+                isReviewer: userPermissions.includes('moderator') || userPermissions.includes('admin'),
+                isAdmin: userPermissions.includes('admin')
+              })
+            }
+          } catch (profileError) {
+            console.warn('[AUTH DEBUG] Failed to fetch user profile for anonymous user:', profileError)
+          }
+          
           setUser(userData)
           console.log('[AUTH DEBUG] User set as anonymous:', {
             id: userData.id,
             emailVerified: userData.emailVerified,
+            isReviewer: userData.isReviewer,
             backend_authenticated: authStatus.is_authenticated
           })
         }

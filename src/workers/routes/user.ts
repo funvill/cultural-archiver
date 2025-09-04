@@ -103,9 +103,14 @@ export async function getUserProfile(c: Context<{ Bindings: WorkerEnv }>): Promi
     const userDetailedInfo = await getUserDetailedInfo(c.env, userToken);
     const userPermissions = await getUserPermissionsInfo(c.env, userToken);
 
+    // Check database-backed permissions for accurate display
+    const { isAdmin, isModerator } = await import('../lib/permissions');
+    const isUserAdmin = await isAdmin(c.env.DB, userToken);
+    const isUserModerator = await isModerator(c.env.DB, userToken);
+
     const profile = {
       user_token: userToken,
-      is_reviewer: authContext.isReviewer,
+      is_reviewer: isUserModerator, // Use database-backed check
       is_verified_email: authContext.isVerifiedEmail,
       statistics: submissionStats,
       rate_limits: rateLimitStatus,
@@ -124,8 +129,8 @@ export async function getUserProfile(c: Context<{ Bindings: WorkerEnv }>): Promi
         })),
         auth_context: {
           user_token: userToken,
-          is_reviewer: authContext.isReviewer,
-          is_admin: authContext.isAdmin,
+          is_reviewer: isUserModerator, // Use database-backed check
+          is_admin: isUserAdmin, // Use database-backed check
           is_verified_email: authContext.isVerifiedEmail,
           is_authenticated: !!userDetailedInfo
         },

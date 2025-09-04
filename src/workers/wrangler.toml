@@ -3,11 +3,14 @@ main = "index.ts"
 compatibility_date = "2024-11-06"
 compatibility_flags = ["nodejs_compat"]
 
+# D1 migrations directory
 [env.development]
 name = "cultural-archiver-api"
+migrations_dir = "../../migrations"
 
 [env.production]
 name = "cultural-archiver-api"
+migrations_dir = "../../migrations"
 
 # D1 Database bindings
 [[env.development.d1_databases]]

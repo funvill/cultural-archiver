@@ -118,6 +118,22 @@ router.beforeEach(async (to, _from, next) => {
     }
   }
   
+  // Wait for loading to complete
+  while (authStore.isLoading) {
+    await new Promise(resolve => setTimeout(resolve, 50))
+  }
+  
+  console.log('[ROUTER DEBUG] Route guard check:', {
+    route: to.path,
+    requiresReviewer: to.meta.requiresReviewer,
+    isAuthenticated: authStore.isAuthenticated,
+    isReviewer: authStore.isReviewer,
+    isAdmin: authStore.isAdmin,
+    hasUser: !!authStore.user,
+    permissions: authStore.permissions,
+    loading: authStore.isLoading
+  })
+  
   // Check if route requires authentication
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     // Redirect to home with query parameter indicating login needed
@@ -133,6 +149,7 @@ router.beforeEach(async (to, _from, next) => {
   
   // Check if route requires reviewer permissions
   if (to.meta.requiresReviewer && !authStore.isReviewer) {
+    console.log('Reviewer access required for this route')
     // Redirect to home page for non-reviewers
     next({
       path: '/',
