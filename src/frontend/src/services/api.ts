@@ -17,9 +17,8 @@ import type {
   AuditLogsResponse,
   AuditStatistics,
   NearbyArtworksResponse,
-  LogbookEntryWithPhotos,
 } from '../../../shared/types'
-import type { UserProfile, UserSubmission, ReviewQueueItem, ReviewStats } from '../types'
+import type { UserProfile, UserSubmission, ReviewQueueItem, ReviewStats, ArtworkDetails } from '../types'
 import { getApiBaseUrl } from '../utils/api-config'
 
 // Local type definitions for missing shared types
@@ -30,20 +29,6 @@ interface LogbookSubmission {
   type?: string
   artworkId?: string
   photos: File[]
-}
-
-interface ArtworkDetails {
-  id: string
-  lat: number
-  lon: number
-  type_id: string
-  created_at: string
-  status: 'pending' | 'approved' | 'removed'
-  tags: string | null
-  photos: string[]
-  type_name: string
-  logbook_entries: LogbookEntryWithPhotos[]
-  tags_parsed: Record<string, string>
 }
 
 interface MagicLinkConsumeRequest {
@@ -389,7 +374,11 @@ export const apiService = {
    * Get artwork details by ID
    */
   async getArtworkDetails(id: string): Promise<ArtworkDetails> {
-    return client.get(`/artworks/${id}`)
+    const response = await client.get<ApiResponse<ArtworkDetails>>(`/artworks/${id}`)
+    if (!response.data) {
+      throw new Error(`Artwork with ID ${id} not found`)
+    }
+    return response.data
   },
 
   // ================================

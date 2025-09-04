@@ -15,6 +15,7 @@ import {
   insertTags,
   findArtworkById,
   updateArtworkPhotos,
+  getPhotosFromArtwork,
 } from '../lib/database';
 import { movePhotosToArtwork, cleanupRejectedPhotos } from '../lib/photos';
 import { calculateDistance } from '../lib/spatial';
@@ -304,7 +305,6 @@ export async function approveSubmission(
         lon: overrides?.lon || submission.lon,
         tags: submission.tags || '{}',
         status: 'approved',
-        photos: '[]', // Will be updated after photo migration
       };
 
       finalArtworkId = await insertArtwork(c.env.DB, artworkData);
@@ -341,7 +341,7 @@ export async function approveSubmission(
         } else {
           // Merge with existing photos
           const existingArtwork = await findArtworkById(c.env.DB, finalArtworkId);
-          const existingPhotos = existingArtwork?.photos ? JSON.parse(existingArtwork.photos) : [];
+          const existingPhotos = existingArtwork ? getPhotosFromArtwork(existingArtwork) : [];
           const allPhotos = [...existingPhotos, ...newPhotoUrls];
           await updateArtworkPhotos(c.env.DB, finalArtworkId, allPhotos);
         }
@@ -611,7 +611,6 @@ export async function processBatchReview(
               lon: submission.lon,
               tags: submission.tags || '{}',
               status: 'approved',
-              photos: null, // Will be updated separately if needed
             };
 
             const artworkId = await insertArtwork(c.env.DB, artworkData);

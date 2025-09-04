@@ -3,10 +3,12 @@
 ## Very important, Read and understand these first. 
 
 - Developed on a Windows computer using PowerShell. Commands should be PowerShell compliant. Use PowerShell syntax instead
+  - Use `Invoke-WebRequest` instead of `curl`
 - Use Playwright-MCP over simple browser tools when available.
 - When starting a devlopment server for testing, use `npm run dev` in the project root to start the frontend and backend test servers. 
 - All unit tests must pass. Run `npm run test` in the project root.
 - Build must work `npm run build`. 
+
 
 ## Project Overview
 

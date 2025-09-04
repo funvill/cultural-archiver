@@ -21,7 +21,6 @@ export interface ArtworkRecord {
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null; // JSON object for key-value metadata like {"material": "bronze", "style": "modern"}
-  photos: string | null; // JSON array of R2 URLs like ["url1", "url2", "url3"]
 }
 
 export interface LogbookRecord {
@@ -70,6 +69,7 @@ export interface CreateArtworkRequest {
   lon: number;
   type_id: string;
   tags?: Record<string, unknown>;
+  status?: ArtworkRecord['status'];
 }
 
 export interface UpdateArtworkRequest extends Partial<CreateArtworkRequest> {

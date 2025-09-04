@@ -38,11 +38,12 @@ export class DatabaseService {
     // For MVP, we'll add photos as NULL since the current schema doesn't have it
     const stmt = this.db.prepare(`
       INSERT INTO artwork (id, lat, lon, type_id, created_at, status, tags)
-      VALUES (?, ?, ?, ?, ?, 'pending', ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
     `);
 
     const tagsJson = data.tags ? JSON.stringify(data.tags) : null;
-    await stmt.bind(id, data.lat, data.lon, data.type_id, now, tagsJson).run();
+    const status = data.status || 'pending'; // Default to 'pending' if not specified
+    await stmt.bind(id, data.lat, data.lon, data.type_id, now, status, tagsJson).run();
 
     return id;
   }
@@ -455,21 +456,27 @@ export class DatabaseService {
   }
 
   async getCreatorsForArtwork(artworkId: string): Promise<ArtworkCreatorInfo[]> {
-    const stmt = this.db.prepare(`
-      SELECT c.id, c.name, c.bio, ac.role
-      FROM creators c
-      JOIN artwork_creators ac ON c.id = ac.creator_id
-      WHERE ac.artwork_id = ?
-      ORDER BY ac.created_at ASC
-    `);
+    try {
+      const stmt = this.db.prepare(`
+        SELECT c.id, c.name, c.bio, ac.role
+        FROM creators c
+        JOIN artwork_creators ac ON c.id = ac.creator_id
+        WHERE ac.artwork_id = ?
+        ORDER BY ac.created_at ASC
+      `);
 
-    const results = await stmt.bind(artworkId).all();
-    return results.results.map((row): ArtworkCreatorInfo => ({
-      id: row.id as string,
-      name: row.name as string,
-      bio: row.bio as string | null,
-      role: row.role as string,
-    }));
+      const results = await stmt.bind(artworkId).all();
+      return results.results.map((row): ArtworkCreatorInfo => ({
+        id: row.id as string,
+        name: row.name as string,
+        bio: row.bio as string | null,
+        role: row.role as string,
+      }));
+    } catch (error) {
+      // Return empty array if creators tables don't exist yet
+      console.warn('Creators tables not found, returning empty creators list:', error);
+      return [];
+    }
   }
 
   async getArtworksForCreator(creatorId: string): Promise<ArtworkRecord[]> {
@@ -507,6 +514,7 @@ export async function insertArtwork(
     lon: artwork.lon,
     type_id: artwork.type_id,
     tags: artwork.tags ? JSON.parse(artwork.tags) : {},
+    status: artwork.status, // Pass through the status
   };
 
   return service.createArtwork(createRequest);
@@ -579,6 +587,16 @@ export async function updateArtworkPhotos(
     WHERE id = ?
   `);
   await stmt.bind(JSON.stringify(photoUrls), id).run();
+}
+
+export function getPhotosFromArtwork(artwork: ArtworkRecord): string[] {
+  if (!artwork.tags) return [];
+  try {
+    const tags = JSON.parse(artwork.tags);
+    return Array.isArray(tags._photos) ? tags._photos : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function getArtworkTypeByName(
