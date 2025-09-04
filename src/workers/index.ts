@@ -58,7 +58,6 @@ import {
   getAuditLogsEndpoint,
   getAdminStatistics,
 } from './routes/admin';
-import { updateStevenPermissions } from './routes/admin-update';
 import { debugStevenPermissions } from './routes/debug-permissions';
 import { fixPermissionsSchema } from './routes/fix-schema';
 
@@ -736,8 +735,8 @@ app.get('/api/admin/audit', withErrorHandling(getAuditLogsEndpoint));
 // GET /api/admin/statistics - Get system and audit statistics
 app.get('/api/admin/statistics', withErrorHandling(getAdminStatistics));
 
-// POST /api/admin/update-steven-permissions - Temporary endpoint to update Steven's permissions (no auth required)
-app.post('/api/dev/update-steven-permissions', ensureUserToken, withErrorHandling(updateStevenPermissions));
+// Temporarily commented out - missing admin-update route file
+// app.post('/api/dev/update-steven-permissions', ensureUserToken, withErrorHandling(updateStevenPermissions));
 
 // GET /api/dev/debug-steven-permissions - Debug endpoint to check permission logic
 app.get('/api/dev/debug-steven-permissions', ensureUserToken, withErrorHandling(debugStevenPermissions));

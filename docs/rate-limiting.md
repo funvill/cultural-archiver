@@ -8,7 +8,7 @@ Rate limiting is implemented using Cloudflare KV storage with per-user-token tra
 
 ### Rate Limit Types
 
-1. **Submission Limits**: 10 submissions per day per user token
+1. **Submission Limits**: 60 submissions per hour per user token
 2. **Query Limits**: 60 queries per hour per user token
 3. **Magic Link Limits**: 5 requests per hour per email address
 
@@ -21,7 +21,7 @@ Rate limits use Cloudflare KV with structured keys:
 ```typescript
 // KV Key Patterns
 const RATE_LIMIT_KEYS = {
-  submissions: `rate:submit:${userToken}:${date}`, // YYYY-MM-DD format
+  submissions: `rate:submit:${userToken}:${hour}`, // YYYY-MM-DD-HH format
   queries: `rate:query:${userToken}:${hour}`, // YYYY-MM-DD-HH format
   magicLinks: `rate:magic:${email}:${hour}`, // YYYY-MM-DD-HH format
 };
@@ -43,7 +43,7 @@ interface RateLimitCounter {
 
 ```bash
 # Rate limit settings (optional - defaults shown)
-RATE_LIMIT_SUBMISSIONS_PER_DAY=10
+RATE_LIMIT_SUBMISSIONS_PER_HOUR=60
 RATE_LIMIT_QUERIES_PER_HOUR=60
 RATE_LIMIT_MAGIC_LINKS_PER_HOUR=5
 
@@ -208,13 +208,13 @@ Reviewers have elevated limits:
 ```typescript
 const getEffectiveRateLimit = (userToken: string, isReviewer: boolean, limitType: string) => {
   const baseLimits = {
-    submission: 10,
+    submission: 60,
     query: 60,
   };
 
   if (isReviewer) {
     return {
-      submission: baseLimits.submission * 5, // 50 per day
+      submission: baseLimits.submission * 5, // 300 per hour
       query: baseLimits.query * 3, // 180 per hour
     }[limitType];
   }

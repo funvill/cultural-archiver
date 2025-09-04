@@ -80,9 +80,11 @@ Find people that would be willing to partner with me on this project. Be specifi
 - Burrard Arts Foundation, Centre for Digital Media students. They spondered a simlare project in the past. https://intergalactic.com/content/muse-public-art-app?utm_source=chatgpt.com
 - Canada Council - They prefer events over resources. The event could be a mass hunt for new art.
 
-## Bug fix
+## Database
 
-If a user is logged in and has moderator privlages. Add a link to the app bar that takes them to the moderators page
+Currently the database has gone though several changes during the inital devlopment. There is an existing migration process (/migrations/) for updating the database between each version.
 
-steven@abluestar.com (UUID: 550e8400-e29b-41d4-a716-446655440001)
-moderator@funvill.com (UUID: 550e8400-e29b-41d4-a716-446655440002)
+We do not need these old migration steps. They were devlopped during the intial devlopment stage while the system was changing quickly.
+
+Now that the database is more stable, we want to extract the current state of the database and use this schema as the default base for new migration steps.
+

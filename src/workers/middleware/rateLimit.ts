@@ -5,7 +5,7 @@
 
 import type { Context, Next } from 'hono';
 import type { WorkerEnv } from '../types';
-import { RATE_LIMIT_SUBMISSIONS_PER_DAY, RATE_LIMIT_QUERIES_PER_HOUR } from '../types';
+import { RATE_LIMIT_SUBMISSIONS_PER_HOUR, RATE_LIMIT_QUERIES_PER_HOUR } from '../types';
 import { RateLimitError } from '../lib/errors';
 
 export interface RateLimitData {
@@ -25,16 +25,10 @@ export interface RateLimitInfo {
  */
 function getRateLimitKey(userToken: string, type: 'submissions' | 'queries'): string {
   const now = new Date();
-
-  if (type === 'submissions') {
-    // Daily limit - key includes date
-    const dateKey = now.toISOString().split('T')[0]; // YYYY-MM-DD
-    return `rate_limit:submissions:${userToken}:${dateKey}`;
-  } else {
-    // Hourly limit - key includes date and hour
-    const hourKey = now.toISOString().split(':')[0]; // YYYY-MM-DDTHH
-    return `rate_limit:queries:${userToken}:${hourKey}`;
-  }
+  
+  // Both submissions and queries now use hourly limits
+  const hourKey = now.toISOString().split(':')[0]; // YYYY-MM-DDTHH
+  return `rate_limit:${type}:${userToken}:${hourKey}`;
 }
 
 /**
@@ -107,11 +101,8 @@ async function incrementRateLimit(
 
   // Check if reset time has passed
   if (now >= data.resetTime) {
-    // Reset counter
-    const resetTime =
-      type === 'submissions'
-        ? now + 24 * 60 * 60 * 1000 // 24 hours
-        : now + 60 * 60 * 1000; // 1 hour
+    // Reset counter - both submissions and queries now reset hourly
+    const resetTime = now + 60 * 60 * 1000; // 1 hour
 
     data.count = 1;
     data.resetTime = resetTime;
@@ -129,7 +120,7 @@ async function incrementRateLimit(
  */
 function isRateLimitExceeded(data: RateLimitData, type: 'submissions' | 'queries'): boolean {
   const limit =
-    type === 'submissions' ? RATE_LIMIT_SUBMISSIONS_PER_DAY : RATE_LIMIT_QUERIES_PER_HOUR;
+    type === 'submissions' ? RATE_LIMIT_SUBMISSIONS_PER_HOUR : RATE_LIMIT_QUERIES_PER_HOUR;
 
   return data.count > limit;
 }
@@ -143,7 +134,7 @@ function getRetryAfterSeconds(resetTime: number): number {
 }
 
 /**
- * Middleware for submission rate limiting (10 per day)
+ * Middleware for submission rate limiting (60 per hour)
  */
 export async function rateLimitSubmissions(
   c: Context<{ Bindings: WorkerEnv }>,
@@ -171,7 +162,7 @@ export async function rateLimitSubmissions(
       const retryAfter = getRetryAfterSeconds(data.resetTime);
       throw new RateLimitError(
         retryAfter,
-        `Submission limit exceeded. You can submit ${RATE_LIMIT_SUBMISSIONS_PER_DAY} artworks per day.`
+        `Submission limit exceeded. You can submit ${RATE_LIMIT_SUBMISSIONS_PER_HOUR} artworks per hour.`
       );
     }
 
@@ -183,15 +174,15 @@ export async function rateLimitSubmissions(
       const retryAfter = getRetryAfterSeconds(newData.resetTime);
       throw new RateLimitError(
         retryAfter,
-        `Submission limit exceeded. You can submit ${RATE_LIMIT_SUBMISSIONS_PER_DAY} artworks per day.`
+        `Submission limit exceeded. You can submit ${RATE_LIMIT_SUBMISSIONS_PER_HOUR} artworks per hour.`
       );
     }
 
     // Add rate limit info to response headers
-    c.res.headers.set('X-RateLimit-Submissions-Limit', RATE_LIMIT_SUBMISSIONS_PER_DAY.toString());
+    c.res.headers.set('X-RateLimit-Submissions-Limit', RATE_LIMIT_SUBMISSIONS_PER_HOUR.toString());
     c.res.headers.set(
       'X-RateLimit-Submissions-Remaining',
-      (RATE_LIMIT_SUBMISSIONS_PER_DAY - newData.count).toString()
+      (RATE_LIMIT_SUBMISSIONS_PER_HOUR - newData.count).toString()
     );
     c.res.headers.set('X-RateLimit-Submissions-Reset', new Date(newData.resetTime).toISOString());
   } catch (error) {
@@ -281,7 +272,7 @@ export async function getRateLimitStatus(
   ]);
 
   return {
-    submissions_remaining: Math.max(0, RATE_LIMIT_SUBMISSIONS_PER_DAY - submissionsData.count),
+    submissions_remaining: Math.max(0, RATE_LIMIT_SUBMISSIONS_PER_HOUR - submissionsData.count),
     submissions_reset_at: new Date(submissionsData.resetTime).toISOString(),
     queries_remaining: Math.max(0, RATE_LIMIT_QUERIES_PER_HOUR - queriesData.count),
     queries_reset_at: new Date(queriesData.resetTime).toISOString(),

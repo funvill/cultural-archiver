@@ -242,6 +242,8 @@ export interface UserSubmission {
   id: string
   artwork_id: string | null
   user_token: string
+  lat?: number | null
+  lon?: number | null
   note: string | null
   photos: string | null
   status: 'pending' | 'approved' | 'rejected'

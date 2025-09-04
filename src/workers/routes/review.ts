@@ -174,8 +174,8 @@ function parseSubmissionData(logbookEntry: LogbookRecord): ParsedSubmissionData 
   return {
     ...logbookEntry,
     total_count: 0, // Add missing field
-    lat: 49.2827, // Default Vancouver coordinates
-    lon: -123.1207,
+    lat: logbookEntry.lat || 49.2827, // Use actual coordinates or fallback to Vancouver
+    lon: logbookEntry.lon || -123.1207,
     type_id: 'other',
     tags: '{}',
     artwork_type_name: 'Other',

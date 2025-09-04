@@ -496,7 +496,7 @@ export const MAX_SEARCH_RADIUS = 50000; // 50km - allows metropolitan area searc
 export const MIN_SEARCH_RADIUS = 50; // 50m
 
 // Rate limiting constants
-export const RATE_LIMIT_SUBMISSIONS_PER_DAY = 10;
+export const RATE_LIMIT_SUBMISSIONS_PER_HOUR = 60;
 export const RATE_LIMIT_QUERIES_PER_HOUR = 60;
 export const MAX_NOTE_LENGTH = 500;
 export const MAX_PHOTOS_PER_SUBMISSION = 3;

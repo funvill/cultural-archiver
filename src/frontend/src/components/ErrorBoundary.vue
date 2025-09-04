@@ -121,7 +121,7 @@ Please describe what you were doing when this error occurred:
 [Your description here]
   `.trim())
 
-  window.open(`mailto:support@abluestar.com?subject=${subject}&body=${body}`)
+  window.open(`mailto:support@art.abluestar.com?subject=${subject}&body=${body}`)
 }
 
 // Reset error state (can be called from parent)

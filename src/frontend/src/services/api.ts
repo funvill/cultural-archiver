@@ -17,8 +17,9 @@ import type {
   AuditLogsResponse,
   AuditStatistics,
   NearbyArtworksResponse,
+  UserSubmissionInfo,
 } from '../../../shared/types'
-import type { UserProfile, UserSubmission, ReviewQueueItem, ReviewStats, ArtworkDetails } from '../types'
+import type { UserProfile, ReviewQueueItem, ReviewStats, ArtworkDetails } from '../types'
 import { getApiBaseUrl } from '../utils/api-config'
 
 // Local type definitions for missing shared types
@@ -392,7 +393,7 @@ export const apiService = {
     status?: string,
     page: number = 1,
     limit: number = 20
-  ): Promise<PaginatedResponse<UserSubmission>> {
+  ): Promise<PaginatedResponse<UserSubmissionInfo>> {
     const params: Record<string, string> = {
       page: page.toString(),
       per_page: limit.toString()
@@ -403,7 +404,7 @@ export const apiService = {
     }
 
     const response = await client.get<ApiResponse<{ 
-      submissions: UserSubmission[]; 
+      submissions: UserSubmissionInfo[]; 
       total: number; 
       page: number; 
       per_page: number 

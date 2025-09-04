@@ -15,6 +15,7 @@ interface ConsentFormData {
 interface Props {
   initialData?: Partial<ConsentFormData>
   consentVersion?: string
+  externalError?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -55,11 +56,15 @@ const isFormValid = computed(() => {
 })
 
 const hasErrors = computed(() => {
-  return Object.keys(errors.value).length > 0
+  return Object.keys(errors.value).length > 0 || !!props.externalError
 })
 
 const allErrors = computed(() => {
-  return Object.values(errors.value).filter(Boolean)
+  const formErrors = Object.values(errors.value).filter(Boolean)
+  if (props.externalError) {
+    formErrors.push(props.externalError)
+  }
+  return formErrors
 })
 
 // Validation functions
@@ -326,8 +331,8 @@ watch(() => formData.value.freedomOfPanorama, (newValue) => {
         By providing consent, you agree to our terms of service and confirm
         that you have the legal right to submit these photos. For questions
         about consent or data handling, please contact us at
-        <a href="mailto:privacy@abluestar.com" class="text-blue-600 hover:text-blue-800">
-          privacy@abluestar.com
+        <a href="mailto:privacy@art.abluestar.com" class="text-blue-600 hover:text-blue-800">
+          privacy@art.abluestar.com
         </a>.
       </p>
     </div>
