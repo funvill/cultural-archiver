@@ -46,15 +46,15 @@
   - [x] 2.6 Add comprehensive error logging and recovery for partial backup failures
   - [x] 2.7 Create unit tests in `src/workers/lib/backup.test.ts` with mocked D1 and R2 services
 
-- [ ] 3.0 Implement Data Dump System Infrastructure
-  - [ ] 3.1 Create `src/workers/lib/data-dump.ts` with public data export logic
-  - [ ] 3.2 Implement `filterApprovedArtwork(db: D1Database)` to extract only approved artwork with public fields
-  - [ ] 3.3 Add `sanitizeUserData(data)` function using field blacklist to exclude sensitive information (emails, IPs, tokens)
-  - [ ] 3.4 Create `exportArtworkAsJSON()`, `exportCreatorsAsJSON()`, and `exportTagsAsJSON()` for separate JSON files
-  - [ ] 3.5 Implement `collectThumbnailPhotos(env: WorkerEnv, approvedArtwork)` to gather only 800px thumbnails
-  - [ ] 3.6 Add `generateCC0License()` and `generateDataDumpReadme()` for legal compliance and documentation
-  - [ ] 3.7 Create `createDataDumpArchive()` to combine JSON files, photos, and documentation into timestamped ZIP
-  - [ ] 3.8 Create unit tests in `src/workers/lib/data-dump.test.ts` with data sanitization validation
+- [x] 3.0 Implement Data Dump System Infrastructure
+  - [x] 3.1 Create `src/workers/lib/data-dump.ts` with public data export logic
+  - [x] 3.2 Implement `filterApprovedArtwork(db: D1Database)` to extract only approved artwork with public fields
+  - [x] 3.3 Add `sanitizeUserData(data)` function using field blacklist to exclude sensitive information (emails, IPs, tokens)
+  - [x] 3.4 Create `exportArtworkAsJSON()`, `exportCreatorsAsJSON()`, and `exportTagsAsJSON()` for separate JSON files
+  - [x] 3.5 Implement `collectThumbnailPhotos(env: WorkerEnv, approvedArtwork)` to gather only 800px thumbnails
+  - [x] 3.6 Add `generateCC0License()` and `generateDataDumpReadme()` for legal compliance and documentation
+  - [x] 3.7 Create `createDataDumpArchive()` to combine JSON files, photos, and documentation into timestamped ZIP
+  - [x] 3.8 Create unit tests in `src/workers/lib/data-dump.test.ts` with data sanitization validation
 
 - [ ] 4.0 Create Admin API Endpoint for Data Dump Generation
   - [ ] 4.1 Add `POST /api/admin/data-dump/generate` endpoint to existing `src/workers/routes/admin.ts`
