@@ -39,12 +39,6 @@ const navigationItems: NavigationItem[] = [
     icon: PlusIcon
   },
   {
-    name: 'Profile',
-    path: '/profile',
-    icon: UserIcon,
-    requiresAuth: true
-  },
-  {
     name: 'Review',
     path: '/review',
     icon: ClipboardDocumentListIcon,
@@ -93,24 +87,6 @@ const userDisplayName = computed(() => {
   return `Anonymous (${authStore.user.id.slice(0, 8)}...)`
 })
 
-const authStatusBadge = computed(() => {
-  if (authStore.isAuthenticated) {
-    return {
-      text: 'Verified',
-      class: 'bg-green-100 text-green-800 border-green-200'
-    }
-  } else if (authStore.isAnonymous) {
-    return {
-      text: 'Anonymous',
-      class: 'bg-gray-100 text-gray-800 border-gray-200'
-    }
-  }
-  return {
-    text: 'Unknown',
-    class: 'bg-red-100 text-red-800 border-red-200'
-  }
-})
-
 // Methods
 function toggleDrawer(): void {
   showDrawer.value = !showDrawer.value
@@ -151,6 +127,12 @@ function handleAuthSuccess(payload: { isNewAccount: boolean; email: string }): v
 }
 
 async function handleLogout(): Promise<void> {
+  // Show logout confirmation as per PRD requirements
+  const confirmed = confirm('Are you sure you want to sign out?')
+  if (!confirmed) {
+    return
+  }
+
   try {
     await authStore.logout()
     // Could show logout success message here
@@ -324,18 +306,21 @@ watch(() => route.path, handleRouteChange)
           
           <!-- User Menu -->
           <div class="flex items-center space-x-3 border-l border-blue-500 pl-4">
-            <!-- User Status -->
-            <div class="text-right">
+            <!-- User Profile Button -->
+            <button
+              v-if="authStore.isAuthenticated"
+              @click="$router.push('/profile')"
+              class="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
+              :title="`View profile for ${userDisplayName}`"
+            >
+              <UserIcon class="w-5 h-5" aria-hidden="true" />
+              <span>{{ userDisplayName }}</span>
+            </button>
+            
+            <!-- Anonymous User Display -->
+            <div v-else class="text-right">
               <div class="text-sm font-medium text-white">
                 {{ userDisplayName }}
-              </div>
-              <div class="text-xs text-blue-200">
-                <span 
-                  class="inline-block px-1.5 py-0.5 text-xs rounded-full border"
-                  :class="authStatusBadge.class"
-                >
-                  {{ authStatusBadge.text }}
-                </span>
               </div>
             </div>
             
@@ -439,15 +424,16 @@ watch(() => route.path, handleRouteChange)
         <div class="border-t border-gray-200 mt-4 pt-4">
           <!-- User Status -->
           <div class="px-4 py-2">
-            <div class="text-sm font-medium text-gray-900">{{ userDisplayName }}</div>
-            <div class="text-xs text-gray-500 mt-1">
-              <span 
-                class="inline-block px-2 py-0.5 text-xs rounded-full border"
-                :class="authStatusBadge.class"
-              >
-                {{ authStatusBadge.text }}
-              </span>
-            </div>
+            <button
+              v-if="authStore.isAuthenticated"
+              @click="$router.push('/profile'); closeDrawer()"
+              class="w-full flex items-center space-x-2 px-3 py-2 text-left text-sm font-medium text-gray-900 hover:bg-gray-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+              :title="`View profile for ${userDisplayName}`"
+            >
+              <UserIcon class="w-5 h-5 text-gray-600" aria-hidden="true" />
+              <span>{{ userDisplayName }}</span>
+            </button>
+            <div v-else class="text-sm font-medium text-gray-900">{{ userDisplayName }}</div>
           </div>
           
           <!-- Auth Actions -->

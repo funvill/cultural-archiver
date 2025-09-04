@@ -80,9 +80,3 @@ Find people that would be willing to partner with me on this project. Be specifi
 
 - Burrard Arts Foundation, Centre for Digital Media students. They spondered a simlare project in the past. https://intergalactic.com/content/muse-public-art-app?utm_source=chatgpt.com
 - Canada Council - They prefer events over resources. The event could be a mass hunt for new art.
-
-## App bar
-
-- The Email address/ Verified section of the app bar should have a profile icon and be clickable to go to the profile page. This should replace the profile button
-- Removed the "Verified", and "Anonymous" status under the profile email address.
-- The logout should have a conformation link.
