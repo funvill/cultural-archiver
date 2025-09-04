@@ -997,3 +997,73 @@ export const isValidAdminActionType = (action: string): action is AdminActionTyp
 export const PERMISSIONS = ['moderator', 'admin'] as const;
 export const MODERATION_DECISIONS = ['approved', 'rejected', 'skipped'] as const;
 export const ADMIN_ACTION_TYPES = ['grant_permission', 'revoke_permission', 'view_audit_logs'] as const;
+
+// ================================
+// Backup and Data Dump System Types
+// ================================
+
+// Data dump generation request
+export interface GenerateDataDumpRequest {
+  // No body parameters needed - admin only endpoint
+}
+
+// Data dump generation response
+export interface GenerateDataDumpResponse {
+  success: boolean;
+  data?: {
+    dump_id: string;
+    filename: string;
+    size: number;
+    download_url: string;
+    generated_at: string;
+    metadata: {
+      total_artworks: number;
+      total_creators: number;
+      total_tags: number;
+      total_photos: number;
+    };
+  };
+  error?: string;
+  warnings?: string[];
+}
+
+// Data dump record for storage
+export interface DataDumpRecord {
+  id: string;
+  filename: string;
+  size: number;
+  r2_key: string;
+  download_url: string;
+  generated_at: string;
+  generated_by: string; // admin user token
+  total_artworks: number;
+  total_creators: number;
+  total_tags: number;
+  total_photos: number;
+  warnings: string | null; // JSON array of warnings
+}
+
+// List data dumps response
+export interface ListDataDumpsResponse {
+  success: boolean;
+  data?: {
+    dumps: {
+      id: string;
+      filename: string;
+      size: number;
+      download_url: string;
+      generated_at: string;
+      generated_by: string;
+      metadata: {
+        total_artworks: number;
+        total_creators: number;
+        total_tags: number;
+        total_photos: number;
+      };
+      warnings?: string[];
+    }[];
+    total: number;
+    retrieved_at: string;
+  };
+  error?: string;
+}

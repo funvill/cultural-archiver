@@ -7,6 +7,7 @@
 
 import type { Context } from 'hono';
 import type { WorkerEnv, AuthContext } from '../types';
+import type { GenerateDataDumpRequest, GenerateDataDumpResponse, ListDataDumpsResponse, DataDumpRecord } from '../../shared/types';
 import { ApiError } from '../lib/errors';
 import {
   listUsersWithPermissions,
@@ -24,6 +25,7 @@ import {
   type AuditLogQuery,
   type AdminActionType,
 } from '../lib/audit';
+import { generatePublicDataDump } from '../lib/data-dump';
 
 // Constants for input validation
 const MAX_REASON_LENGTH = 500;
@@ -541,5 +543,250 @@ export async function getAdminStatistics(
     }
 
     throw new ApiError('Failed to retrieve admin statistics', 'ADMIN_STATS_ERROR', 500);
+  }
+}
+
+/**
+ * POST /api/admin/data-dump/generate
+ * Generate a new public data dump (admin only)
+ */
+export async function generateDataDump(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+    const db = c.env.DB;
+
+    // Check admin permissions
+    const adminCheck = await hasPermission(db, authContext.userToken, 'admin');
+    if (!adminCheck.hasPermission) {
+      throw new ApiError('Administrator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    console.log('[ADMIN] Starting data dump generation...');
+
+    // Generate the data dump
+    const dataDumpResult = await generatePublicDataDump(c.env);
+    if (!dataDumpResult.success) {
+      throw new ApiError(
+        dataDumpResult.error || 'Data dump generation failed',
+        'DATA_DUMP_GENERATION_FAILED',
+        500
+      );
+    }
+
+    // Generate unique ID and R2 key for the dump
+    const dumpId = crypto.randomUUID();
+    const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    const filename = `datadump-${timestamp}.zip`;
+    const r2Key = `public-data-dumps/${filename}`;
+
+    // Upload to R2 bucket with public access
+    const bucket = c.env.PHOTOS_BUCKET; // Reuse photos bucket for now
+    if (!bucket) {
+      throw new ApiError('Storage not configured', 'STORAGE_NOT_CONFIGURED', 503);
+    }
+
+    await bucket.put(r2Key, dataDumpResult.data_dump_file!, {
+      httpMetadata: {
+        contentType: 'application/zip',
+      },
+      customMetadata: {
+        'Content-Type': 'application/zip',
+        'Content-Length': dataDumpResult.size!.toString(),
+        'Upload-Timestamp': new Date().toISOString(),
+        'Generated-By': authContext.userToken,
+        'Dump-Type': 'public-data-dump',
+      },
+    });
+
+    // Generate public download URL
+    const downloadUrl = `${c.env.R2_PUBLIC_URL}/${r2Key}`;
+
+    // Save data dump record to database
+    const dataDumpRecord: Omit<DataDumpRecord, 'id'> = {
+      filename,
+      size: dataDumpResult.size!,
+      r2_key: r2Key,
+      download_url: downloadUrl,
+      generated_at: new Date().toISOString(),
+      generated_by: authContext.userToken,
+      total_artworks: dataDumpResult.metadata!.data_info.total_artworks,
+      total_creators: dataDumpResult.metadata!.data_info.total_creators,
+      total_tags: dataDumpResult.metadata!.data_info.total_tags,
+      total_photos: dataDumpResult.metadata!.data_info.total_photos,
+      warnings: dataDumpResult.warnings && dataDumpResult.warnings.length > 0 
+        ? JSON.stringify(dataDumpResult.warnings) 
+        : null,
+    };
+
+    const insertResult = await db.prepare(`
+      INSERT INTO data_dumps (
+        id, filename, size, r2_key, download_url, generated_at, generated_by,
+        total_artworks, total_creators, total_tags, total_photos, warnings
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      dumpId,
+      dataDumpRecord.filename,
+      dataDumpRecord.size,
+      dataDumpRecord.r2_key,
+      dataDumpRecord.download_url,
+      dataDumpRecord.generated_at,
+      dataDumpRecord.generated_by,
+      dataDumpRecord.total_artworks,
+      dataDumpRecord.total_creators,
+      dataDumpRecord.total_tags,
+      dataDumpRecord.total_photos,
+      dataDumpRecord.warnings
+    ).run();
+
+    if (!insertResult.success) {
+      console.error('[ADMIN] Failed to save data dump record:', insertResult.error);
+      // Don't fail the response, but log the issue
+    }
+
+    // Log admin action for audit trail
+    const auditContext = createAdminAuditContext(
+      c,
+      authContext.userToken,
+      'view_audit_logs', // Using existing action type, could add data_dump_generate later
+      {
+        reason: `Generated public data dump: ${filename}`,
+        targetUuid: dumpId,
+        newValue: {
+          filename,
+          size: dataDumpResult.size,
+          total_artworks: dataDumpResult.metadata!.data_info.total_artworks,
+          total_creators: dataDumpResult.metadata!.data_info.total_creators,
+        },
+      }
+    );
+    
+    const auditResult = await logAdminAction(c.env.DB, auditContext);
+    if (!auditResult.success) {
+      console.warn('Failed to log admin action:', auditResult.error);
+    }
+
+    console.log(`[ADMIN] Data dump generated successfully: ${filename} (${dataDumpResult.size} bytes)`);
+
+    const response: GenerateDataDumpResponse = {
+      success: true,
+      data: {
+        dump_id: dumpId,
+        filename,
+        size: dataDumpResult.size!,
+        download_url: downloadUrl,
+        generated_at: dataDumpRecord.generated_at,
+        metadata: {
+          total_artworks: dataDumpResult.metadata!.data_info.total_artworks,
+          total_creators: dataDumpResult.metadata!.data_info.total_creators,
+          total_tags: dataDumpResult.metadata!.data_info.total_tags,
+          total_photos: dataDumpResult.metadata!.data_info.total_photos,
+        },
+      },
+      warnings: dataDumpResult.warnings,
+    };
+
+    return c.json(response);
+  } catch (error) {
+    console.error('Generate data dump error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to generate data dump', 'DATA_DUMP_GENERATION_ERROR', 500);
+  }
+}
+
+/**
+ * GET /api/admin/data-dumps
+ * List all generated data dumps (admin only)
+ */
+export async function listDataDumps(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+    const db = c.env.DB;
+
+    // Check admin permissions
+    const adminCheck = await hasPermission(db, authContext.userToken, 'admin');
+    if (!adminCheck.hasPermission) {
+      throw new ApiError('Administrator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    // Get query parameters for pagination
+    const { page: pageStr, limit: limitStr } = c.req.query();
+    const page = pageStr ? Math.max(1, parseInt(pageStr)) : 1;
+    const limit = limitStr 
+      ? Math.max(MIN_PAGE_SIZE, Math.min(MAX_PAGE_SIZE, parseInt(limitStr)))
+      : 20;
+    const offset = (page - 1) * limit;
+
+    // Query data dumps with pagination
+    const dumpsQuery = await db.prepare(`
+      SELECT 
+        id, filename, size, download_url, generated_at, generated_by,
+        total_artworks, total_creators, total_tags, total_photos, warnings
+      FROM data_dumps
+      ORDER BY generated_at DESC
+      LIMIT ? OFFSET ?
+    `).bind(limit, offset).all();
+
+    if (!dumpsQuery.success) {
+      throw new Error('Failed to query data dumps');
+    }
+
+    // Format the response data
+    const dumps = dumpsQuery.results.map((row: any) => ({
+      id: row.id,
+      filename: row.filename,
+      size: row.size,
+      download_url: row.download_url,
+      generated_at: row.generated_at,
+      generated_by: row.generated_by,
+      metadata: {
+        total_artworks: row.total_artworks,
+        total_creators: row.total_creators,
+        total_tags: row.total_tags,
+        total_photos: row.total_photos,
+      },
+      warnings: row.warnings ? JSON.parse(row.warnings) : undefined,
+    }));
+
+    // Log admin action for audit trail
+    const auditContext = createAdminAuditContext(
+      c,
+      authContext.userToken,
+      'view_audit_logs',
+      {
+        reason: `Viewed data dumps list (page ${page}, ${limit} per page)`,
+      }
+    );
+    
+    const auditResult = await logAdminAction(c.env.DB, auditContext);
+    if (!auditResult.success) {
+      console.warn('Failed to log admin action:', auditResult.error);
+    }
+
+    const response: ListDataDumpsResponse = {
+      success: true,
+      data: {
+        dumps,
+        total: dumps.length,
+        retrieved_at: new Date().toISOString(),
+      },
+    };
+
+    return c.json(response);
+  } catch (error) {
+    console.error('List data dumps error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to retrieve data dumps', 'DATA_DUMPS_RETRIEVAL_ERROR', 500);
   }
 }

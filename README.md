@@ -27,7 +27,14 @@ This ensures that the cultural history of our cities outlives any single platfor
 - **Quality assurance**: 261 unit tests (255 passing) across 19 test files, robust TypeScript coverage
 - **Enhanced navigation**: Clickable map markers with direct routing to artwork details
 
-**Latest Features (v1.1):**
+**Latest Features (v1.2):**
+- 💾 **Backup System**: Complete system snapshots for disaster recovery with database and R2 photo collection
+- 📦 **Data Dumps**: Public CC0-licensed data exports for researchers and developers
+- 🔧 **Admin Interface**: Data dump management with one-click generation and download history
+- 📋 **NPM Commands**: CLI tools for local and remote backup generation with progress logging
+- 🛡️ **Data Privacy**: Comprehensive filtering to exclude sensitive information from public exports
+
+**Previous Features (v1.1):**
 - 🎨 **PhotoCarousel**: Touch/swipe support with fullscreen modal and keyboard navigation
 - 🗺️ **MiniMap**: Interactive location display with directions integration  
 - 🏷️ **TagBadge**: Smart tag management with expandable display
@@ -249,6 +256,8 @@ For complete API documentation with examples and error codes, see [`docs/api.md`
 - `npm run migrate` - Run database migrations against Cloudflare D1 (requires .env setup)
 - `npm run migrate:list` - List all available migration files  
 - `npm run migrate:help` - Show migration help and setup instructions
+- `npm run backup` - Generate local backup archive with database and photos
+- `npm run backup:remote` - Generate remote backup using Cloudflare credentials
 - `npm run deploy:frontend` - Deploy frontend to Cloudflare Pages
 - `npm run deploy:workers` - Deploy workers to Cloudflare
 

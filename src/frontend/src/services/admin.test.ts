@@ -22,6 +22,8 @@ vi.mock('./api', () => ({
     revokeAdminPermission: vi.fn(),
     getAdminAuditLogs: vi.fn(),
     getAdminStatistics: vi.fn(),
+    generateDataDump: vi.fn(),
+    getDataDumps: vi.fn(),
   },
 }));
 
@@ -333,6 +335,155 @@ describe('AdminService', () => {
       vi.mocked(apiService.getAdminStatistics).mockRejectedValue(mockError);
 
       await expect(adminService.getStatistics()).rejects.toThrow('Statistics unavailable');
+    });
+  });
+
+  describe('generateDataDump', () => {
+    it('should generate a new data dump successfully', async () => {
+      const mockResponse = {
+        success: true,
+        data: {
+          success: true,
+          data: {
+            dump_id: 'dump-123',
+            filename: 'datadump-2025-01-03.zip',
+            size: 1024000,
+            download_url: 'https://example.com/datadump-2025-01-03.zip',
+            generated_at: '2025-01-03T10:00:00Z',
+            metadata: {
+              total_artworks: 150,
+              total_creators: 45,
+              total_tags: 200,
+              total_photos: 300,
+            },
+          },
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      vi.mocked(apiService.generateDataDump).mockResolvedValue(mockResponse);
+
+      const result = await adminService.generateDataDump();
+
+      expect(apiService.generateDataDump).toHaveBeenCalledWith();
+      expect(result).toEqual(mockResponse.data);
+    });
+
+    it('should handle generation errors', async () => {
+      const mockResponse = {
+        success: false,
+        error: 'Insufficient data for dump generation',
+        timestamp: new Date().toISOString(),
+      };
+
+      vi.mocked(apiService.generateDataDump).mockResolvedValue(mockResponse);
+
+      await expect(adminService.generateDataDump()).rejects.toThrow('Insufficient data for dump generation');
+    });
+
+    it('should handle API errors during generation', async () => {
+      const mockError = new Error('Network error');
+      vi.mocked(apiService.generateDataDump).mockRejectedValue(mockError);
+
+      await expect(adminService.generateDataDump()).rejects.toThrow('Network error');
+    });
+  });
+
+  describe('getDataDumps', () => {
+    it('should fetch list of data dumps successfully', async () => {
+      const mockResponse = {
+        success: true,
+        data: {
+          success: true,
+          data: {
+            dumps: [
+              {
+                id: 'dump-123',
+                filename: 'datadump-2025-01-03.zip',
+                size: 1024000,
+                download_url: 'https://example.com/datadump-2025-01-03.zip',
+                generated_at: '2025-01-03T10:00:00Z',
+                generated_by: 'admin-1',
+                metadata: {
+                  total_artworks: 150,
+                  total_creators: 45,
+                  total_tags: 200,
+                  total_photos: 300,
+                },
+                warnings: [],
+              },
+              {
+                id: 'dump-124',
+                filename: 'datadump-2025-01-02.zip',
+                size: 980000,
+                download_url: 'https://example.com/datadump-2025-01-02.zip',
+                generated_at: '2025-01-02T15:30:00Z',
+                generated_by: 'admin-2',
+                metadata: {
+                  total_artworks: 140,
+                  total_creators: 42,
+                  total_tags: 190,
+                  total_photos: 285,
+                },
+                warnings: ['Some photos could not be processed'],
+              },
+            ],
+            total: 2,
+            retrieved_at: '2025-01-03T11:00:00Z',
+          },
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      vi.mocked(apiService.getDataDumps).mockResolvedValue(mockResponse);
+
+      const result = await adminService.getDataDumps();
+
+      expect(apiService.getDataDumps).toHaveBeenCalledWith();
+      expect(result).toEqual(mockResponse.data);
+      expect(result.data?.dumps).toHaveLength(2);
+      expect(result.data?.total).toBe(2);
+    });
+
+    it('should handle empty data dump list', async () => {
+      const mockResponse = {
+        success: true,
+        data: {
+          success: true,
+          data: {
+            dumps: [],
+            total: 0,
+            retrieved_at: '2025-01-03T11:00:00Z',
+          },
+        },
+        timestamp: new Date().toISOString(),
+      };
+
+      vi.mocked(apiService.getDataDumps).mockResolvedValue(mockResponse);
+
+      const result = await adminService.getDataDumps();
+
+      expect(result.data?.dumps).toHaveLength(0);
+      expect(result.data?.total).toBe(0);
+    });
+
+    it('should handle API errors when fetching data dumps', async () => {
+      const mockError = new Error('Access denied');
+      vi.mocked(apiService.getDataDumps).mockRejectedValue(mockError);
+
+      await expect(adminService.getDataDumps()).rejects.toThrow('Access denied');
+    });
+
+    it('should handle unsuccessful API response', async () => {
+      const mockResponse = {
+        success: false,
+        error: 'Database connection failed',
+        timestamp: new Date().toISOString(),
+      };
+
+      vi.mocked(apiService.getDataDumps).mockResolvedValue(mockResponse);
+
+      await expect(adminService.getDataDumps()).rejects.toThrow('Database connection failed');
     });
   });
 });
