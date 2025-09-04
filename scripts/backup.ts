@@ -438,8 +438,9 @@ async function downloadR2Files(config: CloudflareConfig): Promise<R2ListResult> 
       const listResult = await listResponse.json();
       console.log(`   📋 API Response Structure:`, JSON.stringify({
         success: listResult.success,
-        resultKeys: listResult.result ? Object.keys(listResult.result) : 'no result',
-        objectCount: listResult.result?.objects?.length || 0,
+        resultType: typeof listResult.result,
+        resultIsArray: Array.isArray(listResult.result),
+        resultLength: Array.isArray(listResult.result) ? listResult.result.length : 0,
         errors: listResult.errors,
         messages: listResult.messages
       }, null, 2));
@@ -449,7 +450,15 @@ async function downloadR2Files(config: CloudflareConfig): Promise<R2ListResult> 
         throw new Error(`R2 list failed: ${JSON.stringify(listResult.errors)}`);
       }
 
-      const objects = listResult.result?.objects || [];
+      // Handle two possible response structures for objects
+      let objects = [];
+      if (Array.isArray(listResult.result)) {
+        objects = listResult.result;
+      } else if (listResult.result?.objects && Array.isArray(listResult.result.objects)) {
+        objects = listResult.result.objects;
+      }
+      
+      console.log(`   Found ${objects.length} objects in this batch`);
       console.log(`   Found ${objects.length} objects in this batch`);
 
       // Download each object
@@ -485,7 +494,16 @@ async function downloadR2Files(config: CloudflareConfig): Promise<R2ListResult> 
         }
       }
 
-      continuationToken = listResult.result?.cursor;
+      // Handle pagination - check for cursor in different possible locations
+      if (Array.isArray(listResult.result)) {
+        // For direct array structure, cursor might be in result.cursor or top-level
+        continuationToken = listResult.cursor || null;
+      } else if (listResult.result && typeof listResult.result === 'object') {
+        // For nested structure, cursor is typically in result.cursor
+        continuationToken = listResult.result.cursor || null;
+      } else {
+        continuationToken = null;
+      }
     } while (continuationToken);
 
     console.log(`   R2 download completed: ${files.length} files, ${totalSize} bytes total`);
@@ -600,12 +618,12 @@ export async function downloadR2PhotosToDirectory(
       }
 
       const listResult = await listResponse.json();
-      console.log(`   📋 API Response Structure:`, JSON.stringify({
+      
+      console.log(`   📋 API Response Analysis:`, JSON.stringify({
         success: listResult.success,
-        resultKeys: listResult.result ? Object.keys(listResult.result) : 'no result',
-        objectCount: listResult.result?.objects?.length || 0,
-        hasObjects: !!listResult.result?.objects,
-        hasCursor: !!listResult.result?.cursor,
+        resultType: typeof listResult.result,
+        resultIsArray: Array.isArray(listResult.result),
+        resultLength: Array.isArray(listResult.result) ? listResult.result.length : 0,
         errors: listResult.errors,
         messages: listResult.messages
       }, null, 2));
@@ -615,7 +633,23 @@ export async function downloadR2PhotosToDirectory(
         throw new Error(`R2 list failed: ${JSON.stringify(listResult.errors || listResult.messages)}`);
       }
 
-      const objects = listResult.result?.objects || [];
+      // Handle two possible response structures:
+      // Structure A: { result: { objects: [...] } }
+      // Structure B: { result: [...] } (direct array)
+      let objects = [];
+      if (Array.isArray(listResult.result)) {
+        // Direct array of objects
+        objects = listResult.result;
+        console.log(`   📄 Objects structure: Direct array with ${objects.length} objects`);
+      } else if (listResult.result?.objects && Array.isArray(listResult.result.objects)) {
+        // Nested objects array
+        objects = listResult.result.objects;
+        console.log(`   📄 Objects structure: Nested array with ${objects.length} objects`);
+      } else {
+        console.log(`   📄 Objects structure: Unknown - result:`, typeof listResult.result);
+        objects = [];
+      }
+      
       console.log(`   Processing batch: ${objects.length} objects`);
       
       if (objects.length > 0) {
@@ -685,10 +719,20 @@ export async function downloadR2PhotosToDirectory(
         }
       }
 
-      // Handle pagination
-      continuationToken = listResult.result?.cursor;
+      // Handle pagination - check for cursor in different possible locations
+      let continuationToken;
+      if (Array.isArray(listResult.result)) {
+        // For direct array structure, cursor might be in result.cursor or top-level
+        continuationToken = listResult.cursor || null;
+      } else if (listResult.result && typeof listResult.result === 'object') {
+        // For nested structure, cursor is typically in result.cursor
+        continuationToken = listResult.result.cursor || null;
+      }
+      
       if (continuationToken) {
         console.log(`   Continuing with next batch (cursor: ${continuationToken.substring(0, 20)}...)`);
+      } else {
+        console.log(`   No cursor found - this is the last batch`);
       }
     } while (continuationToken);
 
