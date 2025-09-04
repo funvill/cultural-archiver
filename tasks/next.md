@@ -14,23 +14,22 @@ A artwork has a series of fields and properties.
 
 All artworks have the following fixed fields
 
-- Description - A description of the artwork
-- Title - Title of the artwork
+- Title - Title of the artwork. A string with a max of 512 chars
+- Description - A description of the artwork. Markdown formating
 - Created by - A list of the creators, comma separated.
-- Location - The GPS location of the artwork (Can't be edited by users)
-- Created on - The date that the artwork was added (Can't be edited by users)
-- Photos - A series of photos for this artwork. (Can't be edited by users)
 - Tags/keywords - A series of comma separated keywords. That can be used for searching.
 
+The user needs a method for updating the information about a artwork. Only logged in users only can edit information about artworks.
+
+In this way a artwork details page is like a wiki, allowing for user submitted content and edits.
+
+A user should click the "edit mode" button on the artworks details page. This enabled the user to edit the content of each field. The edits should happen inline. When the user is done with editing, they can click the "Save" button to submit their changes to the server.
+
+All user submitted content needs to be reviewed by a moderator. A moderator can either `Approve` or `Rejected` the changes, Just like the new artwork moderator queue. The changes are added to the moderator queue (/review). A moderator is given a preview of the change. If the moderator accepted the updates, the updates will be shown on the artwork details page. The changes also are shown in the logbook section of the Artwork details page.
+
+
+
 An artwork also has variable fields. These fields may or may not exist on each artwork. These fields are Key/Value. Some of the key/value variable fields will have enumerated values, while others are text fields. Examples: Artwork type: murals, sculptures, memorials, mosaics, tapestries, paintings, etc...
-
-The user needs a method for updating the information about a artwork. The moderators need the ability to approve or reject these changes to the artwork. Only logged in users only can edit information about artworks.
-
-In this way a artwork details page is like a wiki, allowing for user submitted content and edits. A moderator reviews each edit to reject obvious abuse.
-
-A user should click the "edit mode" button on the artworks details page. This enabled them to edit each field. The edits should happen inline. When the user has made one or more changes to the artwork page. They can click the "Save" button, add a change note. This change is then stored in the moderators queue.
-
-A moderator needs to review all edits to reject the obvious abuse.
 
 ## Mass Export / Import
   

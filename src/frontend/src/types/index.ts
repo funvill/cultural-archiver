@@ -348,15 +348,18 @@ export interface ReviewQueueItem {
 }
 
 export interface ReviewStats {
-  total_pending: number
-  total_approved: number
-  total_rejected: number
-  pending_by_type: Record<string, number>
-  recent_activity: Array<{
-    date: string
+  status_counts: {
+    pending: number
     approved: number
     rejected: number
+  }
+  queue_size: number
+  recent_activity: Array<{
+    date: string
+    status: string
+    count: number
   }>
+  generated_at: string
 }
 
 export interface MagicLinkRequest {

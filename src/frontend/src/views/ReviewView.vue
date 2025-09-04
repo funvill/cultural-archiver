@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { globalModal } from '../composables/useModal'
+import { apiService, getErrorMessage } from '../services/api'
 import { createApiUrl } from '../utils/api-config'
 
 // Types
@@ -109,37 +110,60 @@ async function loadSubmissions() {
   error.value = null
 
   try {
-    // Load submissions
-    const submissionsResponse = await fetch(createApiUrl('/review/submissions'), {
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`
-      }
-    })
-
-    if (!submissionsResponse.ok) {
-      throw new Error('Failed to load submissions for review')
+    console.log('[ReviewView] Loading review queue using apiService...')
+    
+    // Use the proper API service method
+    const response = await apiService.getReviewQueue('pending', undefined, 1, 100)
+    
+    console.log('[ReviewView] Review queue response:', response)
+    
+    // The backend returns { submissions: [...], pagination: {...} }
+    // But the apiService expects PaginatedResponse format with items
+    // Let's access the response data directly since it doesn't match
+    const responseData = response as any
+    
+    if (responseData.submissions && Array.isArray(responseData.submissions)) {
+      submissions.value = responseData.submissions.map((item: any) => ({
+        id: item.id,
+        title: item.title || '',
+        note: item.note || '',
+        photos: item.photos || [],
+        latitude: item.lat || item.latitude || 0,
+        longitude: item.lon || item.longitude || 0,
+        type: item.type || 'other',
+        status: item.status || 'pending',
+        created_at: item.created_at || new Date().toISOString(),
+        user_token: item.user_token || '',
+        priority: item.priority || 'normal',
+        nearby_artworks: item.nearby_artworks || [],
+        currentPhotoIndex: 0
+      }))
+      
+      console.log('[ReviewView] Processed submissions:', submissions.value.length)
+    } else {
+      console.warn('[ReviewView] No submissions in response:', responseData)
+      submissions.value = []
     }
 
-    const submissionsData = await submissionsResponse.json()
-    submissions.value = (submissionsData.submissions || []).map((s: ReviewSubmission) => ({
-      ...s,
-      currentPhotoIndex: 0
-    }))
-
-    // Load statistics
-    const statsResponse = await fetch(createApiUrl('/review/statistics'), {
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`
+    // Load statistics (if the stats endpoint exists)
+    try {
+      const statsResponse = await apiService.getReviewStats()
+      if (statsResponse.data) {
+        statistics.value = {
+          pending: statsResponse.data.status_counts.pending || 0,
+          approvedToday: statsResponse.data.status_counts.approved || 0,
+          rejectedToday: statsResponse.data.status_counts.rejected || 0,
+          total: (statsResponse.data.status_counts.pending || 0) + (statsResponse.data.status_counts.approved || 0) + (statsResponse.data.status_counts.rejected || 0)
+        }
       }
-    })
-
-    if (statsResponse.ok) {
-      const statsData = await statsResponse.json()
-      statistics.value = statsData.statistics
+    } catch (statsError) {
+      console.warn('[ReviewView] Failed to load statistics:', statsError)
+      // Don't fail the whole operation if stats fail
     }
 
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load review data'
+    console.error('[ReviewView] Error loading submissions:', err)
+    error.value = getErrorMessage(err)
   } finally {
     loading.value = false
   }
@@ -168,25 +192,21 @@ async function approveSubmission(submission: ReviewSubmission) {
   action.value = 'approve'
 
   try {
-    const response = await fetch(createApiUrl(`/review/submissions/${submission.id}/approve`), {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      }
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to approve submission')
-    }
+    console.log('[ReviewView] Approving submission:', submission.id)
+    
+    // Use the proper API service method
+    await apiService.approveSubmission(submission.id)
+    
+    console.log('[ReviewView] Submission approved successfully')
 
     // Remove from list
-    submissions.value = submissions.value.filter(s => s.id !== submission.id)
+    submissions.value = submissions.value.filter((s: ReviewSubmission) => s.id !== submission.id)
     statistics.value.pending--
     statistics.value.approvedToday++
 
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to approve submission'
+    console.error('[ReviewView] Error approving submission:', err)
+    error.value = getErrorMessage(err)
   } finally {
     processingId.value = null
     action.value = null
@@ -213,26 +233,21 @@ async function rejectSubmission(submission: ReviewSubmission) {
   action.value = 'reject'
 
   try {
-    const response = await fetch(createApiUrl(`/review/submissions/${submission.id}/reject`), {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${authStore.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ reason })
-    })
-
-    if (!response.ok) {
-      throw new Error('Failed to reject submission')
-    }
+    console.log('[ReviewView] Rejecting submission:', submission.id, 'with reason:', reason)
+    
+    // Use the proper API service method
+    await apiService.rejectSubmission(submission.id, reason || undefined)
+    
+    console.log('[ReviewView] Submission rejected successfully')
 
     // Remove from list
-    submissions.value = submissions.value.filter(s => s.id !== submission.id)
+    submissions.value = submissions.value.filter((s: ReviewSubmission) => s.id !== submission.id)
     statistics.value.pending--
     statistics.value.rejectedToday++
 
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to reject submission'
+    console.error('[ReviewView] Error rejecting submission:', err)
+    error.value = getErrorMessage(err)
   } finally {
     processingId.value = null
     action.value = null
@@ -264,7 +279,7 @@ async function flagForReview(submission: ReviewSubmission) {
     const response = await fetch(createApiUrl(`/review/submissions/${submission.id}/flag`), {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${authStore.token}`,
+        'X-User-Token': authStore.token || '',
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ reason })
