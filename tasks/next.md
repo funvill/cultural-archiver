@@ -81,9 +81,10 @@ Example data sets:
 
 The search results should be a series of Art Work Cards, and Creator Cards. The user can click the cards to see the corasponding page.
 
-Search by string
-Search by tag/keyword
-Search by Creator
+- Search by String - Primary way of searching
+- Search by Tag/Keyword - A user might want to find all artworks tagged with one ore more keyword.
+- Search by Creator - A user might want to find all artworks that are from the scame creator
+- Search by field (The Key or the Value) - A user might want to find all artworks that contain a specific field, or where the field matches a value.
 
 
 ## Find partners

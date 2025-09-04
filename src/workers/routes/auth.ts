@@ -73,13 +73,16 @@ export async function requestMagicLink(
     // We just return success message
     return c.json({
       success: true,
-      message: isSignup 
-        ? 'Account creation magic link sent successfully' 
-        : 'Login magic link sent successfully',
-      email: normalizedEmail,
-      is_signup: isSignup,
-      rate_limit_remaining: magicLinkResult.rate_limit_remaining,
-      rate_limit_reset_at: magicLinkResult.rate_limit_reset_at
+      data: {
+        message: isSignup 
+          ? 'Account creation magic link sent successfully' 
+          : 'Login magic link sent successfully',
+        email: normalizedEmail,
+        is_signup: isSignup,
+        rate_limit_remaining: magicLinkResult.rate_limit_remaining,
+        rate_limit_reset_at: magicLinkResult.rate_limit_reset_at
+      },
+      timestamp: new Date().toISOString()
     });
 
   } catch (error) {
