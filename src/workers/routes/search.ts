@@ -5,7 +5,7 @@
 
 import type { Context } from 'hono';
 import type { WorkerEnv } from '../types';
-import { createSuccessResponse, ValidationError } from '../lib/errors';
+import { createSuccessResponse, ApiError } from '../lib/errors';
 import { searchArtworks, validateSearchQuery, getSearchSuggestions } from '../lib/search';
 
 export interface SearchQuery {
@@ -50,15 +50,15 @@ export async function handleSearchRequest(c: Context<{ Bindings: WorkerEnv }>): 
     // Validate search query
     const validation = validateSearchQuery(query);
     if (!validation.valid) {
-      throw new ValidationError(validation.error || 'Invalid search query');
+      throw new ApiError('VALIDATION_ERROR', validation.error || 'Invalid search query', 400);
     }
 
     // Validate pagination parameters
     if (page < 1) {
-      throw new ValidationError('Page number must be >= 1');
+      throw new ApiError('VALIDATION_ERROR', 'Page number must be >= 1', 400);
     }
     if (perPage < 1 || perPage > 50) {
-      throw new ValidationError('Per page must be between 1 and 50');
+      throw new ApiError('VALIDATION_ERROR', 'Per page must be between 1 and 50', 400);
     }
 
     const offset = (page - 1) * perPage;
@@ -92,7 +92,7 @@ export async function handleSearchRequest(c: Context<{ Bindings: WorkerEnv }>): 
         original: query,
         sanitized: validation.sanitized
       },
-      suggestions
+      ...(suggestions && { suggestions })
     };
 
     return c.json(createSuccessResponse(response));

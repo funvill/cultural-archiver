@@ -22,7 +22,6 @@ const showSearchTips = ref(true)
 const currentQuery = computed(() => route.params.query as string || '')
 const isSearchActive = computed(() => currentQuery.value.length > 0)
 const hasResults = computed(() => searchStore.hasResults)
-const isEmpty = computed(() => searchStore.isEmpty)
 const isLoading = computed(() => searchStore.isLoading)
 const error = computed(() => searchStore.error)
 const suggestions = computed(() => searchStore.suggestions)
@@ -83,7 +82,7 @@ function handleRecentQueryClick(query: string): void {
 
 function getTipSearchTerm(tip: string): string {
   const match = tip.match(/"([^"]+)"/)
-  return match ? match[1] : tip
+  return match ? (match[1] || tip) : tip
 }
 
 function clearSearch(): void {

@@ -2,7 +2,7 @@
  * Tests for ArtworkCard component
  */
 
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { mount } from '@vue/test-utils'
 import ArtworkCard from '../ArtworkCard.vue'
 import type { SearchResult } from '../../types'
@@ -52,10 +52,10 @@ describe('ArtworkCard', () => {
   })
 
   it('should show placeholder when no photo is available', () => {
-    const artworkWithoutPhoto: SearchResult = {
-      ...mockArtwork,
-      recent_photo: undefined
+    const artworkWithoutPhoto = {
+      ...mockArtwork
     }
+    delete artworkWithoutPhoto.recent_photo
 
     const wrapper = mount(ArtworkCard, {
       props: {

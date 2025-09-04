@@ -60,6 +60,10 @@ const showClear = computed(() =>
   props.showClearButton && localValue.value.length > 0 && !props.disabled
 )
 
+const activeDescendant = computed(() => 
+  highlightedIndex.value >= 0 ? `suggestion-${highlightedIndex.value}` : ''
+)
+
 // Methods
 function debouncedSearch(query: string): void {
   if (debounceTimer.value) {
@@ -130,8 +134,11 @@ function handleKeydown(event: KeyboardEvent): void {
 
     case 'Enter':
       event.preventDefault()
-      if (highlightedIndex.value >= 0) {
-        selectSuggestion(props.suggestions[highlightedIndex.value])
+      if (highlightedIndex.value >= 0 && highlightedIndex.value < props.suggestions.length) {
+        const suggestion = props.suggestions[highlightedIndex.value]
+        if (suggestion) {
+          selectSuggestion(suggestion)
+        }
       } else if (localValue.value.trim().length > 0) {
         emit('search', localValue.value.trim())
         hideSuggestions()
@@ -221,8 +228,8 @@ defineExpose({
         ref="inputRef"
         :value="localValue"
         type="search"
-        :placeholder="placeholder"
-        :disabled="disabled"
+        :placeholder="placeholder || 'Search artworks...'"
+        :disabled="disabled || false"
         class="
           block w-full pl-10 pr-12 py-3 
           border border-gray-300 rounded-lg
@@ -240,7 +247,7 @@ defineExpose({
         spellcheck="false"
         role="combobox"
         :aria-expanded="hasSuggestions"
-        :aria-activedescendant="highlightedIndex >= 0 ? `suggestion-${highlightedIndex}` : undefined"
+        v-bind="activeDescendant ? { 'aria-activedescendant': activeDescendant } : {}"
         aria-autocomplete="list"
         aria-describedby="search-description"
         @input="handleInput"
@@ -261,7 +268,7 @@ defineExpose({
             focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2
             rounded-full
           "
-          :disabled="disabled"
+          :disabled="disabled || false"
           @click="clearInput"
           aria-label="Clear search"
         >

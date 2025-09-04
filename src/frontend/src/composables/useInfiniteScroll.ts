@@ -87,10 +87,12 @@ export function useInfiniteScroll(
     observer.value = new IntersectionObserver(
       (entries) => {
         const entry = entries[0]
-        isIntersecting.value = entry.isIntersecting
+        if (entry) {
+          isIntersecting.value = entry.isIntersecting
 
-        if (shouldLoad.value) {
-          trigger()
+          if (shouldLoad.value) {
+            trigger()
+          }
         }
       },
       {

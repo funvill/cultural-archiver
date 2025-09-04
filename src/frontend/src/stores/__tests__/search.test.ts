@@ -240,8 +240,8 @@ describe('Search Store', () => {
     }])
     
     expect(store.results).toHaveLength(2)
-    expect(store.results[0].id).toBe('test-1')
-    expect(store.results[1].id).toBe('test-2')
+    expect(store.results[0]?.id).toBe('test-1')
+    expect(store.results[1]?.id).toBe('test-2')
   })
 
   it('should generate correct cache keys', () => {

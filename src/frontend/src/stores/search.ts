@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { SearchResult, SearchState } from '../types'
+import type { SearchResult } from '../types'
 import { apiService, getErrorMessage, isNetworkError } from '../services/api'
 
 /**
@@ -268,7 +268,7 @@ export const useSearchStore = defineStore('search', () => {
         }
       }
     } finally {
-      setLoading.value = false
+      setLoading(false)
     }
   }
 
