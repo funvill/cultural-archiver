@@ -27,6 +27,7 @@ import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 import { createLogbookSubmission } from './routes/submissions';
 import { getNearbyArtworks, getArtworkDetails, getArtworksInBounds, getArtworkStats } from './routes/discovery';
 import { getUserSubmissions, getUserProfile, sendTestEmail } from './routes/user';
+import { handleSearchRequest, handleSearchSuggestions } from './routes/search';
 import {
   requestMagicLink,
   verifyMagicLink,
@@ -376,6 +377,8 @@ app.get('/health', async c => {
       'GET /api/artworks/nearby',
       'GET /api/artworks/bounds', 
       'GET /api/artworks/:id',
+      'GET /api/search',
+      'GET /api/search/suggestions',
       'GET /api/me/submissions',
       'GET /api/me/profile',
       'POST /api/consent',
@@ -573,6 +576,22 @@ app.get(
   rateLimitQueries,
   validateUUID('id'),
   withErrorHandling(getArtworkDetails)
+);
+
+// ================================
+// Search Endpoints
+// ================================
+
+app.get(
+  '/api/search',
+  rateLimitQueries,
+  withErrorHandling(handleSearchRequest)
+);
+
+app.get(
+  '/api/search/suggestions',
+  rateLimitQueries,
+  withErrorHandling(handleSearchSuggestions)
 );
 
 // ================================
@@ -804,6 +823,8 @@ app.notFound(c => {
         'POST /api/logbook',
         'GET /api/artworks/nearby',
         'GET /api/artworks/:id',
+        'GET /api/search',
+        'GET /api/search/suggestions',
         'GET /api/me/submissions',
         'GET /api/me/profile',
         'POST /api/consent',
