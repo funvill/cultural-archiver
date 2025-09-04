@@ -5,6 +5,7 @@
 
 import type { Context } from 'hono';
 import type { ApiErrorResponse, ValidationError, WorkerEnv } from '../types';
+import { createApiErrorResponse } from '../../shared/types';
 
 export interface ErrorOptions {
   showDetails?: boolean;
@@ -226,14 +227,21 @@ export function sendErrorResponse(
     correlationId,
   });
 
+  // Wrap error response in ApiResponse format to match frontend expectations
+  const apiResponse = {
+    ...createApiErrorResponse(errorResponse.error, errorResponse.message),
+    ...(errorResponse.details && { details: errorResponse.details }),
+    ...(errorResponse.show_details !== undefined && { show_details: errorResponse.show_details })
+  };
+
   // Add special headers for rate limiting
   if (error instanceof RateLimitError && error.details?.retry_after) {
-    return c.json(errorResponse, statusCode as 429, {
+    return c.json(apiResponse, statusCode as 429, {
       'Retry-After': error.details.retry_after.toString(),
     });
   }
 
-  return c.json(errorResponse, statusCode as 400 | 401 | 403 | 404 | 429 | 500);
+  return c.json(apiResponse, statusCode as 400 | 401 | 403 | 404 | 429 | 500);
 }
 
 /**
@@ -320,11 +328,13 @@ export function validateTypes(
   }
 }
 
+import { createApiSuccessResponse, type ApiResponse } from '../../shared/types';
+
 /**
- * Create a success response that returns data directly (as per PRD)
+ * Create a success response that returns data in ApiResponse format
  */
-export function createSuccessResponse<T>(data: T): T {
-  return data;
+export function createSuccessResponse<T>(data: T, message?: string): ApiResponse<T> {
+  return createApiSuccessResponse(data, message);
 }
 
 /**

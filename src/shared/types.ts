@@ -260,6 +260,44 @@ export interface ApiResponse<T = unknown> {
   timestamp: string;
 }
 
+// ================================
+// API Response Utilities
+// ================================
+
+/**
+ * Create a successful API response with consistent formatting
+ */
+export function createApiSuccessResponse<T>(data: T, message?: string): ApiResponse<T> {
+  const response: ApiResponse<T> = {
+    success: true,
+    data,
+    timestamp: new Date().toISOString()
+  };
+  
+  if (message) {
+    response.message = message;
+  }
+  
+  return response;
+}
+
+/**
+ * Create an error API response with consistent formatting
+ */
+export function createApiErrorResponse(error: string, message?: string): ApiResponse<never> {
+  const response: ApiResponse<never> = {
+    success: false,
+    error,
+    timestamp: new Date().toISOString()
+  };
+  
+  if (message) {
+    response.message = message;
+  }
+  
+  return response;
+}
+
 export interface PaginatedResponse<T> {
   items: T[];
   total: number;

@@ -16,6 +16,7 @@ import type {
   ConsumeMagicLinkRequest,
   AuthStatusResponse
 } from '../../shared/types';
+import { createApiSuccessResponse, createApiErrorResponse } from '../../shared/types';
 import {
   generateUUID,
   getUserByEmail,
@@ -190,8 +191,8 @@ export async function verifyMagicLink(
       is_new_account: authResult.is_new_account || false
     };
 
-    // Set authentication cookies
-    const response = c.json(responseData);
+    // Set authentication cookies - use ApiResponse wrapper
+    const response = c.json(createApiSuccessResponse(responseData, responseData.message));
     
     // Set session cookie (httpOnly, secure)
     response.headers.set(
@@ -251,10 +252,17 @@ export async function logout(
     // Generate new anonymous UUID
     const newAnonymousUUID = generateUUID();
 
-    const response = c.json({
+    // Wrap in ApiResponse format to match frontend expectations
+    const responseData = {
       success: true,
       message: 'Logged out successfully',
       new_user_token: newAnonymousUUID
+    };
+
+    const response = c.json({
+      success: true,
+      data: responseData,
+      timestamp: new Date().toISOString()
     });
 
     // Clear authentication cookies
@@ -438,18 +446,18 @@ export async function getDevMagicLink(
       // Check if we have a stored magic link for this email
       const storedLink = await c.env.SESSIONS.get(`dev-magic-link:${email}`);
       if (!storedLink) {
-        return c.json({ error: 'No magic link found for this email' }, 404);
+        return c.json(createApiErrorResponse('No magic link found for this email'), 404);
       }
 
       const linkData = JSON.parse(storedLink);
-      return c.json({
+      return c.json(createApiSuccessResponse({
         message: 'Development magic link (Resend fallback)',
         email: email,
         magic_link: linkData.magicLink,
         token: linkData.token,
         expires_at: linkData.expiresAt,
         created_at: linkData.created
-      });
+      }));
     }
 
     throw new ApiError('Development endpoint not available', 'FORBIDDEN', 403);
