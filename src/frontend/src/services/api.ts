@@ -464,14 +464,28 @@ export const apiService = {
   ): Promise<PaginatedResponse<UserSubmission>> {
     const params: Record<string, string> = {
       page: page.toString(),
-      limit: limit.toString()
+      per_page: limit.toString()
     }
     
     if (status) {
       params.status = status
     }
 
-    return client.get('/me/submissions', params)
+    const response = await client.get<ApiResponse<{ 
+      submissions: UserSubmission[]; 
+      total: number; 
+      page: number; 
+      per_page: number 
+    }>>('/me/submissions', params)
+
+    // Transform backend response to shared PaginatedResponse format
+    return {
+      items: response.data?.submissions || [],
+      total: response.data?.total || 0,
+      page: response.data?.page || page,
+      per_page: response.data?.per_page || limit,
+      has_more: response.data ? (response.data.page * response.data.per_page) < response.data.total : false
+    }
   },
 
   /**

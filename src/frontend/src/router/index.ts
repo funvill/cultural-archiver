@@ -54,8 +54,7 @@ const router = createRouter({
       name: 'Profile',
       component: ProfileView,
       meta: {
-        title: 'My Submissions - Cultural Archiver',
-        requiresAuth: true
+        title: 'My Submissions - Cultural Archiver'
       }
     },
     {

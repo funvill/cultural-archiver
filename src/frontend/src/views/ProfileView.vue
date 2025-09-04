@@ -2,7 +2,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useAuthStore } from '../stores/auth'
 import { apiService } from '../services/api'
-import type { UserSubmission } from '../types'
+import type { UserSubmissionInfo } from '../../../shared/types'
+
+// Type alias for compatibility
+type UserSubmission = UserSubmissionInfo
 
 // Store and router
 const authStore = useAuthStore()
@@ -47,15 +50,15 @@ const tabs = computed(() => [
 
 // Computed
 const approvedCount = computed(() => 
-  submissions.value.filter(s => s.status === 'approved').length
+  submissions.value.filter((s: UserSubmission) => s.status === 'approved').length
 )
 
 const pendingCount = computed(() => 
-  submissions.value.filter(s => s.status === 'pending').length
+  submissions.value.filter((s: UserSubmission) => s.status === 'pending').length
 )
 
 const rejectedCount = computed(() => 
-  submissions.value.filter(s => s.status === 'rejected').length
+  submissions.value.filter((s: UserSubmission) => s.status === 'rejected').length
 )
 
 const filteredSubmissions = computed(() => {
@@ -63,11 +66,11 @@ const filteredSubmissions = computed(() => {
 
   // Filter by tab
   if (activeTab.value !== 'overview') {
-    filtered = filtered.filter(s => s.status === activeTab.value)
+    filtered = filtered.filter((s: UserSubmission) => s.status === activeTab.value)
   }
 
   // Sort
-  filtered.sort((a, b) => {
+  filtered.sort((a: UserSubmission, b: UserSubmission) => {
     let aVal: any = a[sortBy.value as keyof UserSubmission]
     let bVal: any = b[sortBy.value as keyof UserSubmission]
 

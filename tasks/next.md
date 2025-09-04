@@ -84,16 +84,3 @@ Find people that would be willing to partner with me on this project. Be specifi
 ## Bug fix
 
 When logged in, I submit a new art work, but the artwork doesn't appear on my profile as pending.
-
-## Annoying unit test capture
-
-When running this command: `cd src/frontend; npm test -- auth.test.ts`
-The system stops and waits for a `q` to be pressed after the unit tests have been run. 
-
-```
- PASS  Waiting for file changes...
-       press h to show help, press q to quit
-
-```
-
-I don't want it to wait for the `q` it should automaticly quit after finishing the unit tests. Update the variouse `package.json` as nessary.
