@@ -31,21 +31,20 @@ All user submitted content needs to be reviewed by a moderator. A moderator can 
 
 An artwork also has variable fields. These fields may or may not exist on each artwork. These fields are Key/Value. Some of the key/value variable fields will have enumerated values, while others are text fields. Examples: Artwork type: murals, sculptures, memorials, mosaics, tapestries, paintings, etc...
 
-## Mass Export / Import
-  
-### Export
+## Mass Export
 
-We need the ability to generate a export of the Artworks, Photos, and logbook entries from this system as a backup, and data dump.
+We need the ability to generate a 'Backup' and 'Data Dump' of all the content within this sytem. SQL tables as well as photos, etc... This export will be used for both a backup, and data dump.
 
-This export will be used as a backup of the system and a data dump for others to import into their systems.
+- Backup - A archive that can be used to rebuild the system incase of production database failure
+- Data Dump - A public archive that other people can use to import data into their projects.
 
-The export does not need to include user information or temporary information (magic links, rate limiting, etc).
+The 'data dump' is public. Do not include any personal information or configuration settings, secrets, or temporary information (magic links, rate limiting, etc) in the data dump.
 
-The data dump will happen automatically once a month. Only the last 3 months will be kept. The data dumps will be public. Do not include any personal information or configuration settings or secrets in the data dump.
+The 'data dump' will automaticall be run once a month. Only the last 3 months of archives will be kept.
 
-The data dumps are stored in the R2 bucket. A list of data dumps with links should be avalaible in the help page.
+The data dumps are stored in the R2 bucket. A list of data dumps with links to download the archives should be avalaible in the help page.
 
-The data dumps and all of the content should be licensed as CC0 Zero. Add the license to the archive.
+The data dumps and all of the content should be licensed as CC0 Zero. Add the license to the archive. Add notes to the archive about when the data dump occured, and where the data is from.
 
 ### Mass Import
 
@@ -64,15 +63,6 @@ Example data sets:
 - City of Vancouver Public Art: Contains artist info and geolocated artwork data, updated weekly. It’s available in GIS-friendly formats like CSV or GeoJSON https://opendata.vancouver.ca/explore/dataset/public-art/
 - Public Art – Artists Dataset: https://opendata.vancouver.ca/explore/dataset/public-art-artists/information/
 
-## Search page
-
-The search results should be a series of Art Work Cards, and Creator Cards. The user can click the cards to see the corasponding page.
-
-- Search by String - Primary way of searching
-- Search by Tag/Keyword - A user might want to find all artworks tagged with one ore more keyword. `tag:{TagName}`
-- Search by Creator - A user might want to find all artworks that are from the scame creator. `Creator:{CreatorName}`
-- Search by field (The Key or the Value) - A user might want to find all artworks that contain a specific field, or where the field matches a value. `Field:{FieldName}:{FieldValue}`, or `Field:{FieldName}`
-
 ## Find partners
 
 Find people that would be willing to partner with me on this project. Be specific and say that you are NOT looking for monetary support but are looking for in-kind support. Advertisement, recommendations, etc.
@@ -80,11 +70,8 @@ Find people that would be willing to partner with me on this project. Be specifi
 - Burrard Arts Foundation, Centre for Digital Media students. They spondered a simlare project in the past. https://intergalactic.com/content/muse-public-art-app?utm_source=chatgpt.com
 - Canada Council - They prefer events over resources. The event could be a mass hunt for new art.
 
-## Database
+## Github copilot
 
-Currently the database has gone though several changes during the inital devlopment. There is an existing migration process (/migrations/) for updating the database between each version.
+Optimize the adgent session. See if there is a way to have `vitest` pre installed.
 
-We do not need these old migration steps. They were devlopped during the intial devlopment stage while the system was changing quickly.
-
-Now that the database is more stable, we want to extract the current state of the database and use this schema as the default base for new migration steps.
-
+`I see there's an issue with vitest not being found. Let me check if dependencies are installed and try to fix this:`

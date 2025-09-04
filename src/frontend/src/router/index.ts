@@ -12,6 +12,7 @@ const ProfileView = (): Promise<Component> => import('../views/ProfileView.vue')
 const ReviewView = (): Promise<Component> => import('../views/ReviewView.vue')
 const AdminView = (): Promise<Component> => import('../views/AdminView.vue')
 const VerifyView = (): Promise<Component> => import('../views/VerifyView.vue')
+const SearchView = (): Promise<Component> => import('../views/SearchView.vue')
 
 const router = createRouter({
   history: createWebHistory(),
@@ -38,6 +39,15 @@ const router = createRouter({
       component: SubmitView,
       meta: {
         title: 'Submit Artwork - Cultural Archiver'
+      }
+    },
+    {
+      path: '/search/:query?',
+      name: 'Search',
+      component: SearchView,
+      props: true,
+      meta: {
+        title: 'Search Artworks - Cultural Archiver'
       }
     },
     {

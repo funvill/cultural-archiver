@@ -485,3 +485,90 @@ declare module 'vue-router' {
     requiresReviewer?: boolean
   }
 }
+
+// ================================
+// Search Types
+// ================================
+
+export interface SearchQuery {
+  text: string
+  filters?: SearchFilters
+  pagination?: SearchPagination
+}
+
+export interface SearchFilters {
+  status?: 'approved' | 'pending' | 'removed'
+  artworkType?: string
+  tags?: string[]
+  location?: {
+    center: Coordinates
+    radius: number
+  }
+}
+
+export interface SearchPagination {
+  page: number
+  perPage: number
+}
+
+export interface SearchResult {
+  id: string
+  lat: number
+  lon: number
+  type_name: string
+  tags: Record<string, any> | null
+  recent_photo?: string
+  photo_count: number
+  distance_km?: number
+  relevance_score?: number
+}
+
+export interface SearchResponse {
+  results: SearchResult[]
+  pagination: {
+    page: number
+    per_page: number
+    total: number
+    total_pages: number
+    has_more: boolean
+  }
+  query: {
+    original: string
+    sanitized: string
+  }
+  suggestions?: string[]
+}
+
+export interface SearchState {
+  query: string
+  results: SearchResult[]
+  total: number
+  page: number
+  perPage: number
+  totalPages: number
+  hasMore: boolean
+  isLoading: boolean
+  error: string | null
+  suggestions: string[]
+  recentQueries: string[]
+}
+
+export interface UseSearchReturn {
+  // State
+  query: ComputedRef<string>
+  results: ComputedRef<SearchResult[]>
+  total: ComputedRef<number>
+  isLoading: ComputedRef<boolean>
+  error: ComputedRef<string | null>
+  hasResults: ComputedRef<boolean>
+  isEmpty: ComputedRef<boolean>
+  canLoadMore: ComputedRef<boolean>
+  suggestions: ComputedRef<string[]>
+  recentQueries: ComputedRef<string[]>
+
+  // Actions
+  search: (query: string) => void
+  loadMore: () => Promise<void>
+  clear: () => void
+  getSuggestions: (query: string) => Promise<void>
+}
