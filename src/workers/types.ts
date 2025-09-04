@@ -353,8 +353,11 @@ interface BaseWorkerEnv {
   FRONTEND_URL: string;
   LOG_LEVEL: string;
   API_VERSION: string;
-  EMAIL_API_KEY?: string; // Optional for development
-  EMAIL_FROM: string;
+  RESEND_API_KEY?: string; // Resend API key for email
+  EMAIL_FROM_ADDRESS: string; // Email address for from field
+  EMAIL_FROM_NAME: string; // Display name for from field  
+  EMAIL_REPLY_TO?: string; // Reply-to address
+  EMAIL_ENABLED?: string; // Feature flag for email
   PHOTOS_BASE_URL?: string;
   R2_PUBLIC_URL?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;

@@ -13,12 +13,12 @@ import {
   createMagicLinkRecord,
   getMagicLinkRecord,
   markMagicLinkUsed,
-  generateMagicLinkEmailTemplate,
   sendMagicLinkEmail,
   requestMagicLink,
   consumeMagicLink,
   cleanupExpiredMagicLinks
 } from './email-auth';
+import { generateMagicLinkEmailTemplate } from './resend-email';
 import * as authModule from './auth';
 
 // Mock environment
@@ -308,8 +308,8 @@ describe('Magic Link Email System', () => {
         anonymousSubmissions
       );
 
-      expect(html).toContain('Welcome to Cultural Archiver!');
-      expect(html).toContain('Create your account');
+      expect(html).toContain('Welcome to Cultural Archiver');
+      expect(html).toContain('Verify Email & Complete Setup');
       expect(html).toContain(magicLink);
       expect(html).toContain('3 anonymous submission');
       expect(html).toContain(expiresAt);
@@ -327,8 +327,8 @@ describe('Magic Link Email System', () => {
         expiresAt
       );
 
-      expect(html).toContain('Welcome back!');
-      expect(html).toContain('Sign in to your account');
+      expect(html).toContain('Sign In');
+      expect(html).toContain('Sign In to Cultural Archiver');
       expect(html).toContain(magicLink);
       expect(html).not.toContain('anonymous submission');
     });
@@ -363,24 +363,28 @@ describe('Magic Link Email System', () => {
 
       const prodEnv = { 
         ...mockEnv, 
-        EMAIL_API_KEY: 'test-key',
-        EMAIL_FROM: 'noreply@example.com',
+        RESEND_API_KEY: 'test-resend-key',
+        EMAIL_ENABLED: 'true',
+        EMAIL_FROM_ADDRESS: 'noreply@example.com',
+        EMAIL_FROM_NAME: 'Cultural Archiver Test',
+        EMAIL_REPLY_TO: 'noreply@example.com',
         ENVIRONMENT: 'production' as const
       };
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        text: vi.fn().mockResolvedValue('Email sent successfully')
+        json: vi.fn().mockResolvedValue({ id: 'test-email-id-123' })
       });
 
       await sendMagicLinkEmail(prodEnv, mockRecord, 'http://localhost:3000');
 
       expect(fetch).toHaveBeenCalledWith(
-        'https://api.mailchannels.net/tx/v1/send',
+        'https://api.resend.com/emails',
         expect.objectContaining({
           method: 'POST',
           headers: expect.objectContaining({
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer test-resend-key'
           })
         })
       );
@@ -401,20 +405,23 @@ describe('Magic Link Email System', () => {
 
       const prodEnv = { 
         ...mockEnv, 
-        EMAIL_API_KEY: 'test-key',
-        EMAIL_FROM: 'noreply@example.com',
+        RESEND_API_KEY: 'test-resend-key',
+        EMAIL_ENABLED: 'true',
+        EMAIL_FROM_ADDRESS: 'noreply@example.com',
+        EMAIL_FROM_NAME: 'Cultural Archiver Test',
+        EMAIL_REPLY_TO: 'noreply@example.com',
         ENVIRONMENT: 'production' as const
       };
       global.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 500,
-        text: () => Promise.resolve('Server error')
+        json: () => Promise.resolve({ message: 'Server error' })
       });
 
-      // Should use fallback mode instead of throwing - this is the graceful failure mode
+      // Should throw an error when email delivery fails, but gracefully handle it with fallback logging
       await expect(
         sendMagicLinkEmail(prodEnv, mockRecord, 'http://localhost:3000')
-      ).resolves.toBeUndefined();
+      ).rejects.toThrow('Email delivery failed');
       
       // Verify that SESSIONS.put was called for fallback storage
       expect(prodEnv.SESSIONS.put).toHaveBeenCalledWith(
@@ -442,7 +449,11 @@ describe('Magic Link Email System', () => {
       await sendMagicLinkEmail(mockEnv, mockRecord, 'http://localhost:3000');
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('DEVELOPMENT MAGIC LINK EMAIL')
+        'Email sending disabled, logging magic link:',
+        expect.objectContaining({
+          email: 'test@example.com',
+          isSignup: true
+        })
       );
       
       consoleSpy.mockRestore();

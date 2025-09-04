@@ -70,8 +70,11 @@ ENVIRONMENT = "development"
 FRONTEND_URL = "http://localhost:5173"
 LOG_LEVEL = "debug"
 API_VERSION = "1.0.0"
-# Email configuration (leave empty for development mode)
-EMAIL_FROM = "Cultural Archiver <noreply@funvill.com>"
+# Email configuration
+EMAIL_FROM_ADDRESS = "noreply@art.abluestar.com"
+EMAIL_FROM_NAME = "Cultural Archiver (Dev)"
+EMAIL_REPLY_TO = "support@art.abluestar.com"
+EMAIL_ENABLED = "true"
 PHOTOS_BASE_URL = "http://localhost:8787/photos"
 R2_PUBLIC_URL = "http://localhost:8787/photos"
 CLOUDFLARE_ACCOUNT_ID = "development"
@@ -84,10 +87,12 @@ ENVIRONMENT = "production"
 FRONTEND_URL = "https://art.abluestar.com"
 LOG_LEVEL = "warn"
 API_VERSION = "1.0.0"
-# Email configuration (MailChannels is free for Cloudflare Workers)
-EMAIL_FROM = "Cultural Archiver <noreply@funvill.com>"
+# Email configuration
+EMAIL_FROM_ADDRESS = "noreply@art.abluestar.com"
+EMAIL_FROM_NAME = "Cultural Archiver"
+EMAIL_REPLY_TO = "support@art.abluestar.com"
+EMAIL_ENABLED = "true"
 PHOTOS_BASE_URL = "https://art-photos.abluestar.com"
-# EMAIL_API_KEY not needed for MailChannels
 # CLOUDFLARE_ACCOUNT_ID set via `wrangler secret put CLOUDFLARE_ACCOUNT_ID`
 # Cloudflare Images configuration  
 CLOUDFLARE_IMAGES_ENABLED = "false"

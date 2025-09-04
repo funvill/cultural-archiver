@@ -431,3 +431,50 @@ export async function exportUserData(c: Context<{ Bindings: WorkerEnv }>): Promi
     throw error;
   }
 }
+
+/**
+ * POST /api/test-email - Test Email Configuration
+ * Sends a test email to verify Resend configuration
+ * Development/testing endpoint only
+ */
+export async function sendTestEmail(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  // Only allow in development/staging environments
+  if (c.env.ENVIRONMENT === 'production') {
+    return c.json({ error: 'Test endpoint not available in production' }, 403);
+  }
+
+  try {
+    const { sendTestEmail: sendTestEmailFn } = await import('../lib/resend-email');
+    
+    // Get email from request body or use default test email
+    const body = await c.req.json().catch(() => ({}));
+    const testEmail = body.email || '1633@funvill.com';
+
+    console.log('Sending test email to:', testEmail);
+
+    const result = await sendTestEmailFn(c.env, testEmail);
+
+    if (result.success) {
+      return c.json({
+        success: true,
+        message: 'Test email sent successfully!',
+        email_id: result.id,
+        sent_to: testEmail
+      });
+    } else {
+      return c.json({
+        success: false,
+        error: result.error,
+        sent_to: testEmail
+      }, 500);
+    }
+
+  } catch (error) {
+    console.error('Test email failed:', error);
+    return c.json({
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      details: 'Check worker logs for more information'
+    }, 500);
+  }
+}

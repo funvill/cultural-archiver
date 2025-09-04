@@ -26,7 +26,7 @@ import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 // Import route handlers
 import { createLogbookSubmission } from './routes/submissions';
 import { getNearbyArtworks, getArtworkDetails, getArtworksInBounds, getArtworkStats } from './routes/discovery';
-import { getUserSubmissions, getUserProfile } from './routes/user';
+import { getUserSubmissions, getUserProfile, sendTestEmail } from './routes/user';
 import {
   requestMagicLink,
   verifyMagicLink,
@@ -592,6 +592,12 @@ app.get(
   withErrorHandling(getUserProfile)
 );
 
+// Development/testing endpoint for email configuration
+app.post(
+  '/api/test-email',
+  withErrorHandling(sendTestEmail)
+);
+
 // ================================
 // Consent Management Endpoints
 // ================================
@@ -680,7 +686,7 @@ app.get(
   withErrorHandling(getVerificationStatus)
 );
 
-// Development helper endpoint (MailChannels fallback)
+// Development helper endpoint (Resend fallback)
 app.get(
   '/api/auth/dev-magic-link',
   withErrorHandling(getDevMagicLink)

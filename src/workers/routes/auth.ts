@@ -345,7 +345,7 @@ export async function getVerificationStatus(
 }
 
 /**
- * Development helper: Get magic link for email when MailChannels fails
+ * Development helper: Get magic link for email when Resend fails
  * GET /api/auth/dev-magic-link?email=user@example.com
  */
 export async function getDevMagicLink(
@@ -353,7 +353,7 @@ export async function getDevMagicLink(
 ): Promise<Response> {
   try {
     if (c.env.ENVIRONMENT === 'production') {
-      // Only allow in development or when MailChannels is failing
+      // Only allow in development or when Resend is failing
       const email = c.req.query('email');
       if (!email) {
         throw new ApiError('Email parameter required', 'MISSING_EMAIL', 400);
@@ -367,7 +367,7 @@ export async function getDevMagicLink(
 
       const linkData = JSON.parse(storedLink);
       return c.json({
-        message: 'Development magic link (MailChannels fallback)',
+        message: 'Development magic link (Resend fallback)',
         email: email,
         magic_link: linkData.magicLink,
         token: linkData.token,

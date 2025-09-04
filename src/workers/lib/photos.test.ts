@@ -40,8 +40,11 @@ const mockEnv: WorkerEnv = {
   FRONTEND_URL: 'http://localhost:3000',
   LOG_LEVEL: 'debug',
   API_VERSION: '1.0.0',
-  EMAIL_API_KEY: '',
-  EMAIL_FROM: 'test@example.com'
+  RESEND_API_KEY: 'test-resend-key',
+  EMAIL_FROM_ADDRESS: 'test@example.com',
+  EMAIL_FROM_NAME: 'Test Cultural Archiver',
+  EMAIL_REPLY_TO: 'test@example.com',
+  EMAIL_ENABLED: 'true'
 };
 
 // Mock File class for testing
