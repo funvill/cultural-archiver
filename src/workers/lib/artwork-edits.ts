@@ -260,6 +260,9 @@ export class ArtworkEditsService {
     }
     const artworkId = firstRecord.artwork_id;
 
+    // Ensure editable fields exist in artwork table
+    await this.ensureEditableFieldsExist();
+
     // Get artwork table structure to verify which fields exist
     const tableInfo = await this.db.prepare(`PRAGMA table_info(artwork)`).all();
     const artworkColumns = new Set((tableInfo.results as { name: string }[]).map(col => col.name));
@@ -271,7 +274,7 @@ export class ArtworkEditsService {
       if (edit.field_value_new !== null && artworkColumns.has(edit.field_name)) {
         updatedFields[edit.field_name] = edit.field_value_new;
       } else if (!artworkColumns.has(edit.field_name)) {
-        console.warn(`Field ${edit.field_name} does not exist in artwork table, skipping update`);
+        console.error(`Field ${edit.field_name} does not exist in artwork table, skipping update`);
       }
     }
 
@@ -480,7 +483,70 @@ export class ArtworkEditsService {
       artwork.lon,
       approvedAt
     ).run();
-    
-    console.info(`Created logbook entry ${logbookId} for approved artwork edits on ${editDetails.artworkId}`);
+  }
+
+  /**
+   * Ensure editable fields exist in artwork table
+   * This handles cases where the database hasn't had migration 004 applied
+   */
+  private async ensureEditableFieldsExist(): Promise<void> {
+    try {
+      // Check which columns currently exist
+      const tableInfo = await this.db.prepare(`PRAGMA table_info(artwork)`).all();
+      const existingColumns = new Set((tableInfo.results as { name: string }[]).map(col => col.name));
+      
+      const requiredColumns = ['title', 'description', 'created_by'];
+      const missingColumns = requiredColumns.filter(col => !existingColumns.has(col));
+      
+      if (missingColumns.length === 0) {
+        return; // All columns exist
+      }
+      
+      console.info(`Adding missing editable columns to artwork table: ${missingColumns.join(', ')}`);
+      
+      // Add missing columns one by one
+      for (const column of missingColumns) {
+        try {
+          await this.db.prepare(`ALTER TABLE artwork ADD COLUMN ${column} TEXT`).run();
+          console.info(`Added column: ${column}`);
+        } catch (error) {
+          // Column might already exist if another request added it
+          console.warn(`Failed to add column ${column}:`, error);
+        }
+      }
+      
+      // Create indexes for new columns (if they don't exist)
+      const indexCommands = [
+        'CREATE INDEX IF NOT EXISTS idx_artwork_title ON artwork(title)',
+        'CREATE INDEX IF NOT EXISTS idx_artwork_description ON artwork(description)', 
+        'CREATE INDEX IF NOT EXISTS idx_artwork_created_by ON artwork(created_by)'
+      ];
+      
+      for (const indexCmd of indexCommands) {
+        try {
+          await this.db.prepare(indexCmd).run();
+        } catch (error) {
+          console.warn(`Failed to create index:`, error);
+        }
+      }
+      
+      // Update existing records to have empty strings instead of NULL
+      try {
+        await this.db.prepare(`
+          UPDATE artwork SET 
+            title = COALESCE(title, ''),
+            description = COALESCE(description, ''),
+            created_by = COALESCE(created_by, '')
+          WHERE title IS NULL OR description IS NULL OR created_by IS NULL
+        `).run();
+        console.info('Updated existing records with default values');
+      } catch (error) {
+        console.warn('Failed to update existing records:', error);
+      }
+      
+    } catch (error) {
+      console.error('Failed to ensure editable fields exist:', error);
+      // Don't throw - let the edit process continue with available fields
+    }
   }
 }
