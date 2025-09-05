@@ -27,11 +27,11 @@
 
 ## Tasks
 
-- [ ] 1.0 Archive current custom migration system
-  - [ ] 1.1 Audit `migrations/` to list all current migration files and confirm which are already applied in production.
-  - [ ] 1.2 Move `migrations/migrate.ts` and obsolete SQL files to `migrations/archive/` and add brief metadata file `migrations/archive/README.md` describing why each file was archived.
-  - [ ] 1.3 Remove or guard any npm scripts that call the old `migrate.ts` (leave behind clear comments in commits for reviewers).
-  - [ ] 1.4 Run the test suite and smoke-test local worker to ensure no regressions introduced by archiving.
+- [x] 1.0 Archive current custom migration system
+  - [x] 1.1 Audit `migrations/` to list all current migration files and confirm which are already applied in production.
+  - [x] 1.2 Move `migrations/migrate.ts` and obsolete SQL files to `migrations/archive/` and add brief metadata file `migrations/archive/README.md` describing why each file was archived.
+  - [x] 1.3 Remove or guard any npm scripts that call the old `migrate.ts` (leave behind clear comments in commits for reviewers).
+  - [x] 1.4 Run the test suite and smoke-test local worker to ensure no regressions introduced by archiving.
 
 - [ ] 2.0 Create Wrangler-compatible migration structure
   - [ ] 2.1 Create `migrations/templates/` with a D1-compatible SQL template and example header (timestamp, author, description).
