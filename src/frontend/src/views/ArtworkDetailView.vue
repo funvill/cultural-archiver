@@ -57,7 +57,12 @@ const artwork = computed(() => {
 const artworkTitle = computed(() => {
   if (!artwork.value) return 'Unknown Artwork'
   
-  // Try to get title from tags_parsed first, then fallback
+  // First try the new editable title field from the database
+  if (artwork.value.title && artwork.value.title.trim()) {
+    return artwork.value.title.trim()
+  }
+  
+  // Fallback to tags_parsed for backward compatibility
   const title = artwork.value.tags_parsed?.title as string
   return title || 'Unknown Artwork Title'
 })
@@ -65,11 +70,16 @@ const artworkTitle = computed(() => {
 const artworkDescription = computed(() => {
   if (!artwork.value) return null
   
-  // First try tags_parsed.description
-  const tagDescription = artwork.value.tags_parsed?.description as string
-  if (tagDescription) return tagDescription
+  // First try the new editable description field from the database
+  if (artwork.value.description && artwork.value.description.trim()) {
+    return artwork.value.description.trim()
+  }
   
-  // Fallback to first logbook entry note
+  // Fallback to tags_parsed for backward compatibility
+  const tagDescription = artwork.value.tags_parsed?.description as string
+  if (tagDescription && tagDescription.trim()) return tagDescription.trim()
+  
+  // Final fallback to first logbook entry note
   const firstEntry = artwork.value.logbook_entries?.[0]
   const noteDescription = firstEntry?.note
   if (noteDescription && noteDescription.trim()) return noteDescription.trim()
@@ -78,11 +88,19 @@ const artworkDescription = computed(() => {
 })
 
 const artworkCreators = computed(() => {
-  if (!artwork.value?.tags_parsed?.creator) {
-    return 'Unknown'
+  if (!artwork.value) return 'Unknown'
+  
+  // First try the new editable created_by field from the database
+  if (artwork.value.created_by && artwork.value.created_by.trim()) {
+    return artwork.value.created_by.trim()
   }
   
-  return artwork.value.tags_parsed.creator as string
+  // Fallback to tags_parsed for backward compatibility
+  if (artwork.value?.tags_parsed?.creator) {
+    return artwork.value.tags_parsed.creator as string
+  }
+  
+  return 'Unknown'
 })
 
 const artworkTags = computed(() => {
