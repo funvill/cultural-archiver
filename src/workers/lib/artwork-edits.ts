@@ -207,17 +207,14 @@ export class ArtworkEditsService {
     if (applyToArtwork) {
       const appliedFields = await this.applyApprovedEditsToArtwork(editIds);
       
-      // Only create logbook entry if there were actually applied changes
-      if (appliedFields.length > 0) {
-        try {
-          const editDetails = await this.getEditDetailsForLogbook(editIds, appliedFields);
-          await this.createEditLogbookEntry(editDetails, moderatorToken, reviewedAt);
-        } catch (error) {
-          console.warn('Failed to create logbook entry for approved edits:', error);
-          // Don't fail the approval if logbook creation fails
-        }
-      } else {
-        console.info('No fields were actually applied to artwork, skipping logbook entry creation');
+      // Always create logbook entry for approved edits to maintain transparency
+      // This ensures users can see the history of all approved changes
+      try {
+        const editDetails = await this.getEditDetailsForLogbook(editIds, appliedFields);
+        await this.createEditLogbookEntry(editDetails, moderatorToken, reviewedAt);
+      } catch (error) {
+        console.warn('Failed to create logbook entry for approved edits:', error);
+        // Don't fail the approval if logbook creation fails
       }
     }
   }
@@ -399,7 +396,7 @@ export class ArtworkEditsService {
     artworkId: string;
     userToken: string;
     submittedAt: string;
-    edits: Array<{ field_name: string; field_value_old: string; field_value_new: string }>;
+    edits: Array<{ field_name: string; field_value_old: string; field_value_new: string; applied: boolean }>;
   }> {
     const editsStmt = this.db.prepare(`
       SELECT artwork_id, user_token, field_name, field_value_old, field_value_new, submitted_at
@@ -423,13 +420,12 @@ export class ArtworkEditsService {
       artworkId: firstRecord.artwork_id,
       userToken: firstRecord.user_token,
       submittedAt: firstRecord.submitted_at,
-      edits: editRecords
-        .filter(edit => appliedFields.includes(edit.field_name)) // Only include edits that were actually applied
-        .map(edit => ({
-          field_name: edit.field_name,
-          field_value_old: edit.field_value_old ?? '',
-          field_value_new: edit.field_value_new ?? ''
-        }))
+      edits: editRecords.map(edit => ({
+        field_name: edit.field_name,
+        field_value_old: edit.field_value_old ?? '',
+        field_value_new: edit.field_value_new ?? '',
+        applied: appliedFields.includes(edit.field_name) // Track which edits were actually applied
+      }))
     };
   }
 
@@ -441,7 +437,7 @@ export class ArtworkEditsService {
       artworkId: string;
       userToken: string;
       submittedAt: string;
-      edits: Array<{ field_name: string; field_value_old: string; field_value_new: string }>;
+      edits: Array<{ field_name: string; field_value_old: string; field_value_new: string; applied: boolean }>;
     },
     moderatorToken: string,
     approvedAt: string
@@ -458,24 +454,48 @@ export class ArtworkEditsService {
     }
 
     // Format the changes for the logbook note
+    const appliedEdits = editDetails.edits.filter(edit => edit.applied);
+    const unappliedEdits = editDetails.edits.filter(edit => !edit.applied);
+    
+    // Create base logbook note
     const fieldNames = editDetails.edits.map(edit => edit.field_name);
     const uniqueFields = [...new Set(fieldNames)];
     
-    const logbookNote = `Artwork details updated on ${new Date(approvedAt).toLocaleDateString()} by user ${editDetails.userToken.slice(0, 8)}... - Modified fields: ${uniqueFields.join(', ')}`;
+    let logbookNote = `Artwork edit submission approved on ${new Date(approvedAt).toLocaleDateString()} by user ${editDetails.userToken.slice(0, 8)}... - Fields: ${uniqueFields.join(', ')}`;
     
     // Create comprehensive change details for note
-    const changeDetails = editDetails.edits.map(edit => {
-      let oldValue = edit.field_value_old || '';
-      let newValue = edit.field_value_new || '';
-      
-      // Truncate long values for readability
-      if (oldValue.length > 100) oldValue = oldValue.substring(0, 97) + '...';
-      if (newValue.length > 100) newValue = newValue.substring(0, 97) + '...';
-      
-      return `${edit.field_name}: "${oldValue}" → "${newValue}"`;
-    }).join('\n');
+    const changeDetails: string[] = [];
     
-    const fullNote = `${logbookNote}\n\nChanges:\n${changeDetails}`;
+    if (appliedEdits.length > 0) {
+      changeDetails.push('Applied changes:');
+      appliedEdits.forEach(edit => {
+        let oldValue = edit.field_value_old || '';
+        let newValue = edit.field_value_new || '';
+        
+        // Truncate long values for readability
+        if (oldValue.length > 100) oldValue = oldValue.substring(0, 97) + '...';
+        if (newValue.length > 100) newValue = newValue.substring(0, 97) + '...';
+        
+        changeDetails.push(`  ${edit.field_name}: "${oldValue}" → "${newValue}"`);
+      });
+    }
+    
+    if (unappliedEdits.length > 0) {
+      changeDetails.push('');
+      changeDetails.push('Note: Some fields could not be applied (field may not exist in database):');
+      unappliedEdits.forEach(edit => {
+        let oldValue = edit.field_value_old || '';
+        let newValue = edit.field_value_new || '';
+        
+        // Truncate long values for readability
+        if (oldValue.length > 100) oldValue = oldValue.substring(0, 97) + '...';
+        if (newValue.length > 100) newValue = newValue.substring(0, 97) + '...';
+        
+        changeDetails.push(`  ${edit.field_name}: "${oldValue}" → "${newValue}" [NOT APPLIED]`);
+      });
+    }
+    
+    const fullNote = changeDetails.length > 0 ? `${logbookNote}\n\n${changeDetails.join('\n')}` : logbookNote;
 
     // Insert logbook entry
     const insertStmt = this.db.prepare(`

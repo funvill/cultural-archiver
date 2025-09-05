@@ -400,7 +400,7 @@ describe('ArtworkEditsService', () => {
       expect(logbookInsertCall[0]).toContain('INSERT INTO logbook');
     });
 
-    test('should not create logbook entry when no fields are applied', async () => {
+    test('should create logbook entry even when no fields are applied', async () => {
       // Mock approval flow with no successful field application
       const editIds = ['edit-1'];
       
@@ -428,6 +428,9 @@ describe('ArtworkEditsService', () => {
         ]
       };
 
+      // Mock artwork coordinates
+      const mockArtwork = { lat: 49.2827, lon: -123.1207 };
+
       // Setup mock call sequence
       mockStmt.run.mockResolvedValue({ changes: 1 }); // Update edit status
       
@@ -439,16 +442,22 @@ describe('ArtworkEditsService', () => {
       // ensureEditableFieldsExist will be called
       mockStmt.all.mockResolvedValueOnce(mockTableInfo); // Get table info again
       mockStmt.run.mockResolvedValue({ changes: 1 }); // Try to add columns (may fail)
+      
+      // For logbook entry creation:
+      mockStmt.all.mockResolvedValueOnce({ results: mockApprovedEdits }); // Get edits for logbook
+      mockStmt.first.mockResolvedValueOnce(mockArtwork); // Get artwork coordinates
+      mockStmt.run.mockResolvedValue({ changes: 1 }); // Insert logbook entry
 
       await artworkEditsService.approveEditSubmission(editIds, 'moderator-123', true);
 
-      // Verify logbook entry was NOT created (no INSERT INTO logbook call should happen)
+      // Verify logbook entry WAS created to maintain transparency
       const prepareCalls = mockDb.prepare.mock.calls;
       const logbookInsertCall = prepareCalls.find(call => 
         call[0].includes('INSERT INTO logbook')
       );
       
-      expect(logbookInsertCall).toBeUndefined();
+      expect(logbookInsertCall).toBeDefined();
+      expect(logbookInsertCall[0]).toContain('INSERT INTO logbook');
     });
   });
 });

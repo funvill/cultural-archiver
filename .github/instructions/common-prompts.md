@@ -11,7 +11,7 @@ Using these instructions .github\instructions\create-prd.md help me generate a P
 ## Generate task list from PRD
 
 ```txt
-Use these instructions .github\instructions\generate-tasks.md to generate a task list for this PRD tasks\prd-moderator-screen.md
+Use these instructions .github\instructions\generate-tasks.md to generate a task list for this PRD tasks\prd-cloudflare-d1-database-migration.md
 ```
 
 ## Update PRD
