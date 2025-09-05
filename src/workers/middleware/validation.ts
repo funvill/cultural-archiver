@@ -8,6 +8,8 @@ import { z } from 'zod';
 import type { WorkerEnv } from '../types';
 import { ValidationApiError } from '../lib/errors';
 import { isValidLatitude, isValidLongitude } from '../lib/spatial';
+import { tagValidationService, convertToValidationApiError } from '../lib/tag-validation';
+import type { StructuredTags } from '../../shared/tag-schema';
 import {
   MAX_NOTE_LENGTH,
   MAX_PHOTOS_PER_SUBMISSION,
@@ -23,6 +25,8 @@ declare module 'hono' {
     validated_query: Record<string, unknown>;
     validated_params: Record<string, unknown>;
     validated_files: File[];
+    validated_tags: Record<string, string | number | boolean>;
+    tag_warnings: Array<{ key: string; message: string }>;
   }
 }
 
@@ -132,6 +136,12 @@ export const reviewSubmissionSchema = z.object({
     .optional(),
   link_to_existing_artwork: z.string().uuid('Existing artwork ID must be a valid UUID').optional(),
 });
+
+// ================================
+// Structured Tag Validation Schemas
+// ================================
+
+export const structuredTagsSchema = z.record(z.union([z.string(), z.number(), z.boolean()]));
 
 // ================================
 // Validation Middleware Functions
@@ -707,4 +717,167 @@ export function validateUUID(paramName: string = 'id') {
 
     await next();
   };
+}
+
+// ================================
+// Structured Tag Validation Middleware
+// ================================
+
+/**
+ * Validate structured tags in request body
+ */
+export async function validateStructuredTags(
+  c: Context<{ Bindings: WorkerEnv }>,
+  next: Next
+): Promise<void | Response> {
+  const contentType = c.req.header('Content-Type');
+  
+  if (!contentType?.includes('application/json')) {
+    await next();
+    return;
+  }
+
+  try {
+    const body = await c.req.json();
+    
+    // Check if request contains tags field
+    if (!body || typeof body !== 'object' || !('tags' in body)) {
+      await next();
+      return;
+    }
+
+    const tags = body.tags as StructuredTags;
+    
+    // Validate tags using the tag validation service
+    const validationResponse = tagValidationService.validateTags(tags);
+    
+    if (!validationResponse.valid) {
+      const validationErrors = convertToValidationApiError(validationResponse);
+      throw new ValidationApiError(validationErrors);
+    }
+
+    // Store validated and sanitized tags in context
+    if (validationResponse.sanitized_tags) {
+      c.set('validated_tags', validationResponse.sanitized_tags);
+    }
+    
+    // Also store warnings for logging
+    if (validationResponse.warnings.length > 0) {
+      c.set('tag_warnings', validationResponse.warnings);
+    }
+
+    await next();
+  } catch (error) {
+    if (error instanceof ValidationApiError) {
+      throw error;
+    }
+    throw new ValidationApiError([
+      { field: 'tags', message: 'Tag validation failed', code: 'TAG_VALIDATION_ERROR' },
+    ]);
+  }
+}
+
+/**
+ * Validate artwork edit request with structured tags
+ */
+export async function validateArtworkEditRequest(
+  c: Context<{ Bindings: WorkerEnv }>,
+  next: Next
+): Promise<void | Response> {
+  try {
+    const body = await c.req.json();
+    
+    if (!body || typeof body !== 'object') {
+      throw new ValidationApiError([
+        { field: 'body', message: 'Request body must be valid JSON object', code: 'INVALID_JSON' },
+      ]);
+    }
+
+    // Validate basic structure
+    if (!('edits' in body) || !Array.isArray(body.edits)) {
+      throw new ValidationApiError([
+        { field: 'edits', message: 'Edits array is required', code: 'REQUIRED' },
+      ]);
+    }
+
+    const validationErrors: Array<{ field: string; message: string; code: string }> = [];
+
+    // Validate each edit
+    body.edits.forEach((edit: unknown, index: number) => {
+      if (!edit || typeof edit !== 'object') {
+        validationErrors.push({
+          field: `edits[${index}]`,
+          message: 'Edit must be an object',
+          code: 'INVALID_TYPE',
+        });
+        return;
+      }
+
+      const editObj = edit as Record<string, unknown>;
+
+      // Validate required fields
+      if (!editObj.field_name || typeof editObj.field_name !== 'string') {
+        validationErrors.push({
+          field: `edits[${index}].field_name`,
+          message: 'Field name is required',
+          code: 'REQUIRED',
+        });
+      }
+
+      // Special validation for tags field
+      if (editObj.field_name === 'tags' && editObj.field_value_new) {
+        try {
+          const newTags = typeof editObj.field_value_new === 'string' 
+            ? JSON.parse(editObj.field_value_new as string)
+            : editObj.field_value_new;
+
+          const validationResponse = tagValidationService.validateTags(newTags as StructuredTags);
+          
+          if (!validationResponse.valid) {
+            validationResponse.errors.forEach((error) => {
+              validationErrors.push({
+                field: `edits[${index}].tags.${error.key}`,
+                message: error.message,
+                code: error.code.toUpperCase(),
+              });
+            });
+          }
+        } catch {
+          validationErrors.push({
+            field: `edits[${index}].field_value_new`,
+            message: 'Invalid tags format',
+            code: 'INVALID_FORMAT',
+          });
+        }
+      }
+    });
+
+    if (validationErrors.length > 0) {
+      throw new ValidationApiError(validationErrors);
+    }
+
+    c.set('validated_body', body);
+    await next();
+  } catch (error) {
+    if (error instanceof ValidationApiError) {
+      throw error;
+    }
+    throw new ValidationApiError([
+      { field: 'body', message: 'Artwork edit validation failed', code: 'EDIT_VALIDATION_ERROR' },
+    ]);
+  }
+}
+
+/**
+ * Helper function to get validated tags from context
+ */
+export function getValidatedTags(c: Context): StructuredTags | undefined {
+  return c.get('validated_tags');
+}
+
+/**
+ * Helper function to get tag warnings from context
+ */
+export function getTagWarnings(c: Context): Array<{ key: string; message: string }> {
+  return c.get('tag_warnings') || [];
 }

@@ -545,7 +545,7 @@ export interface TagValidationError {
   key: string;
   field: string;
   message: string;
-  code: 'required' | 'invalid_format' | 'out_of_range' | 'invalid_enum' | 'unknown_key';
+  code: 'required' | 'invalid_format' | 'out_of_range' | 'invalid_enum' | 'unknown_key' | 'warning' | 'validation_error';
   suggestions?: string[];
 }
 
@@ -553,7 +553,7 @@ export interface TagValidationResponse {
   valid: boolean;
   errors: TagValidationError[];
   warnings: TagValidationError[];
-  sanitized_tags?: Record<string, string | number | boolean>;
+  sanitized_tags?: Record<string, string | number | boolean> | undefined;
 }
 
 // OpenStreetMap Export Types

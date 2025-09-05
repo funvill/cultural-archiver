@@ -15,6 +15,13 @@ import type {
   ArtworkEditReviewData,
   ArtworkEditDiff,
 } from '../../shared/types';
+import type { StructuredTags } from '../../shared/tag-schema';
+import { 
+  tagValidationService, 
+  parseArtworkTags, 
+  serializeArtworkTags
+} from './tag-validation';
+import { getCategoriesOrderedForDisplay, getTagDefinition } from '../../shared/tag-schema';
 
 import { randomUUID } from 'crypto';
 
@@ -23,21 +30,23 @@ export class ArtworkEditsService {
 
   /**
    * Submit artwork edit proposals in key-value format
-   * Creates one row per field being edited
+   * Creates one row per field being edited, with special handling for structured tags
    */
   async submitArtworkEdit(request: CreateArtworkEditRequest): Promise<string[]> {
     const editIds: string[] = [];
     const submittedAt = new Date().toISOString();
 
-    // Validate that artwork exists
-    const artworkExists = await this.db
-      .prepare('SELECT id FROM artwork WHERE id = ?')
+    // Validate that artwork exists and get current data
+    const artworkResult = await this.db
+      .prepare('SELECT id, tags FROM artwork WHERE id = ?')
       .bind(request.artwork_id)
       .first();
 
-    if (!artworkExists) {
+    if (!artworkResult) {
       throw new Error(`Artwork not found: ${request.artwork_id}`);
     }
+
+    const artwork = artworkResult as { id: string; tags: string | null };
 
     // Begin transaction for all edits
     const stmt = this.db.prepare(`
@@ -51,20 +60,70 @@ export class ArtworkEditsService {
       const editId = randomUUID();
       editIds.push(editId);
 
-      await stmt
-        .bind(
-          editId,
-          request.artwork_id,
-          request.user_token,
-          edit.field_name,
-          edit.field_value_old,
-          edit.field_value_new,
-          submittedAt
-        )
-        .run();
+      // Special handling for structured tags
+      if (edit.field_name === 'tags') {
+        const processedEdit = await this.processTagsEdit(edit, artwork.tags);
+        
+        await stmt
+          .bind(
+            editId,
+            request.artwork_id,
+            request.user_token,
+            edit.field_name,
+            processedEdit.field_value_old,
+            processedEdit.field_value_new,
+            submittedAt
+          )
+          .run();
+      } else {
+        await stmt
+          .bind(
+            editId,
+            request.artwork_id,
+            request.user_token,
+            edit.field_name,
+            edit.field_value_old,
+            edit.field_value_new,
+            submittedAt
+          )
+          .run();
+      }
     }
 
     return editIds;
+  }
+
+  private async processTagsEdit(
+    edit: { field_name: string; field_value_old: string | null; field_value_new: string | null },
+    currentTagsField: string | null
+  ): Promise<{ field_value_old: string | null; field_value_new: string | null }> {
+    // Parse and validate new tags
+    let newTags: StructuredTags = {};
+    if (edit.field_value_new) {
+      try {
+        newTags = typeof edit.field_value_new === 'string' 
+          ? JSON.parse(edit.field_value_new) 
+          : edit.field_value_new as StructuredTags;
+        
+        // Validate the new tags
+        const validationResponse = tagValidationService.validateTags(newTags);
+        if (!validationResponse.valid) {
+          const errors = validationResponse.errors.map(e => e.message).join(', ');
+          throw new Error(`Tag validation failed: ${errors}`);
+        }
+        
+        // Use sanitized tags
+        newTags = validationResponse.sanitized_tags || newTags;
+      } catch (error) {
+        throw new Error(`Invalid tags format: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+    }
+
+    // Serialize for storage
+    return {
+      field_value_old: currentTagsField,
+      field_value_new: serializeArtworkTags(newTags),
+    };
   }
 
   /**
@@ -354,7 +413,7 @@ export class ArtworkEditsService {
   }
 
   /**
-   * Format diffs for display in moderation UI
+   * Format diffs for display in moderation UI with enhanced structured tag support
    */
   formatDiffsForDisplay(diffs: ArtworkEditDiff[]): ArtworkEditDiff[] {
     return diffs.map(diff => {
@@ -364,24 +423,17 @@ export class ArtworkEditsService {
       // Special formatting for different field types
       if (diff.field_name === 'tags') {
         try {
+          // Handle structured tags format
           if (diff.old_value) {
-            const oldTags = JSON.parse(diff.old_value);
-            formatted_old = Array.isArray(oldTags)
-              ? oldTags.join(', ')
-              : Object.entries(oldTags)
-                  .map(([k, v]) => `${k}: ${v}`)
-                  .join(', ');
+            const oldTags = parseArtworkTags(diff.old_value);
+            formatted_old = this.formatStructuredTagsForDisplay(oldTags);
           }
           if (diff.new_value) {
-            const newTags = JSON.parse(diff.new_value);
-            formatted_new = Array.isArray(newTags)
-              ? newTags.join(', ')
-              : Object.entries(newTags)
-                  .map(([k, v]) => `${k}: ${v}`)
-                  .join(', ');
+            const newTags = parseArtworkTags(diff.new_value);
+            formatted_new = this.formatStructuredTagsForDisplay(newTags);
           }
         } catch {
-          // If JSON parsing fails, use raw values
+          // If parsing fails, use raw values
         }
       }
 
@@ -399,6 +451,49 @@ export class ArtworkEditsService {
 
       return result;
     });
+  }
+
+  /**
+   * Format structured tags for display in moderation interface
+   */
+  private formatStructuredTagsForDisplay(tags: StructuredTags): string {
+    if (Object.keys(tags).length === 0) {
+      return '(no tags)';
+    }
+
+    const categories = getCategoriesOrderedForDisplay();
+    const formattedSections: string[] = [];
+
+    categories.forEach(category => {
+      const categoryTags = Object.entries(tags)
+        .filter(([key]) => {
+          const definition = getTagDefinition(key);
+          return definition && definition.category === category.key;
+        })
+        .map(([key, value]) => {
+          const definition = getTagDefinition(key);
+          const label = definition ? definition.label : key;
+          return `${label}: ${value}`;
+        });
+
+      if (categoryTags.length > 0) {
+        formattedSections.push(`${category.label}: ${categoryTags.join(', ')}`);
+      }
+    });
+
+    // Handle any tags that don't match known categories
+    const uncategorizedTags = Object.entries(tags)
+      .filter(([key]) => {
+        const definition = getTagDefinition(key);
+        return !definition;
+      })
+      .map(([key, value]) => `${key}: ${value}`);
+
+    if (uncategorizedTags.length > 0) {
+      formattedSections.push(`Other: ${uncategorizedTags.join(', ')}`);
+    }
+
+    return formattedSections.join(' | ');
   }
 
   /**
