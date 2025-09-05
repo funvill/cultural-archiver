@@ -37,7 +37,8 @@ import {
   getArtworksInBounds,
   getArtworkStats,
 } from './routes/discovery';
-import { submitArtworkEdit, getUserPendingEdits, validateArtworkEdit } from './routes/artwork';
+import { submitArtworkEdit, getUserPendingEdits, validateArtworkEdit, exportArtworkToOSM } from './routes/artwork';
+import { bulkExportToOSM, getExportStats } from './routes/export';
 import { getUserSubmissions, getUserProfile, sendTestEmail } from './routes/user';
 import { handleSearchRequest, handleSearchSuggestions } from './routes/search';
 import {
@@ -403,6 +404,9 @@ app.get('/health', async c => {
       'POST /api/artwork/:id/edit',
       'GET /api/artwork/:id/pending-edits',
       'POST /api/artwork/:id/edit/validate',
+      'GET /api/artwork/:id/export/osm',
+      'GET /api/export/osm',
+      'GET /api/export/osm/stats',
       'GET /api/search',
       'GET /api/search/suggestions',
       'GET /api/me/submissions',
@@ -716,6 +720,21 @@ app.post(
   withErrorHandling(validateArtworkEdit)
 );
 
+app.get(
+  '/api/artwork/:id/export/osm',
+  rateLimitQueries,
+  validateUUID('id'),
+  withErrorHandling(exportArtworkToOSM)
+);
+
+// ================================
+// Export Endpoints
+// ================================
+
+app.get('/api/export/osm', rateLimitQueries, withErrorHandling(bulkExportToOSM));
+
+app.get('/api/export/osm/stats', rateLimitQueries, withErrorHandling(getExportStats));
+
 // ================================
 // Search Endpoints
 // ================================
@@ -955,6 +974,9 @@ app.notFound(c => {
         'POST /api/artwork/:id/edit',
         'GET /api/artwork/:id/pending-edits',
         'POST /api/artwork/:id/edit/validate',
+        'GET /api/artwork/:id/export/osm',
+        'GET /api/export/osm',
+        'GET /api/export/osm/stats',
         'GET /api/search',
         'GET /api/search/suggestions',
         'GET /api/me/submissions',
