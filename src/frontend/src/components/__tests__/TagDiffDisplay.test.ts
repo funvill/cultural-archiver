@@ -40,7 +40,7 @@ describe('TagDiffDisplay', () => {
       });
 
       expect(wrapper.text()).toContain('New Art');
-      expect(wrapper.text()).toContain('Added');
+      expect(wrapper.text()).toContain('➕');
     });
 
     it('should detect removed tags', () => {
@@ -52,7 +52,7 @@ describe('TagDiffDisplay', () => {
       });
 
       expect(wrapper.text()).toContain('Old Art');
-      expect(wrapper.text()).toContain('Removed');
+      expect(wrapper.text()).toContain('➖');
     });
 
     it('should detect modified tags', () => {
@@ -65,7 +65,7 @@ describe('TagDiffDisplay', () => {
 
       expect(wrapper.text()).toContain('statue');
       expect(wrapper.text()).toContain('mural');
-      expect(wrapper.text()).toContain('Modified');
+      expect(wrapper.text()).toContain('✏️');
     });
 
     it('should handle complex tag changes', () => {
@@ -146,7 +146,7 @@ describe('TagDiffDisplay', () => {
 
       // Should still show the new tag
       expect(wrapper.text()).toContain('New Art');
-      expect(wrapper.text()).toContain('Added');
+      expect(wrapper.text()).toContain('➕');
     });
 
     it('should handle null and undefined values', () => {

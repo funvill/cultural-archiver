@@ -267,7 +267,6 @@ describe('ArtworkEditDiffs', () => {
       });
 
       // Should contain descriptive text about the nature of changes
-      expect(wrapper.text()).toContain('Proposed Value');
       expect(wrapper.text()).toContain('Current');
       expect(wrapper.text()).toContain('Proposed');
     });

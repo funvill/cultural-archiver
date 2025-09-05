@@ -85,6 +85,7 @@ Use `migrations/templates/d1-template.sql` as a starting point for new migration
 - **003_create_artwork_edits_table.sql** - Artwork editing system
 - **004_add_artwork_edit_fields.sql** - Additional edit fields
 - **005_fix_missing_editable_fields.sql** - Field fixes
+- **006_structured_tag_schema.sql** - Structured tag system with schema validation
 
 ### Archived System
 
@@ -125,6 +126,55 @@ CREATE TABLE users (
 
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_status ON users(status);
+```
+
+## Structured Tag System Migration
+
+### Migration 006: Structured Tag Schema
+
+The structured tag system migration (`006_structured_tag_schema.sql`) transforms the artwork tagging system from unstructured JSON to a validated schema-based approach.
+
+**Key Changes**:
+- Preserves all existing tag data during migration
+- Adds performance indexes for common tag-based queries
+- Implements comprehensive data validation
+- Maintains backward compatibility with legacy formats
+
+**Migration Process**:
+1. **Preserve existing data**: All current tags are maintained in original format
+2. **Add indexes**: Optimized for common tag searches (`material`, `artwork_type`, `artist_name`)
+3. **Schema validation**: JSON validation constraint ensures data integrity
+4. **Performance optimization**: Efficient querying for large datasets
+
+**Post-Migration Verification**:
+```bash
+# Verify migration was applied successfully
+npm run migrate:status
+
+# Check tag data integrity
+npm run migrate:verify:tags
+```
+
+**Data Compatibility**:
+- **Legacy format**: Still supported for existing artworks
+- **New format**: Enforced for new tag submissions  
+- **Migration**: Automatic conversion during first edit
+- **Rollback**: Safe rollback preserves all original data
+
+**Common Tag Queries After Migration**:
+```sql
+-- Find artworks by type (optimized with new indexes)
+SELECT * FROM artwork 
+WHERE json_extract(tags, '$.tags.artwork_type') = 'statue';
+
+-- Find artworks by material
+SELECT * FROM artwork 
+WHERE json_extract(tags, '$.tags.material') = 'bronze';
+
+-- Find artworks by artist
+SELECT * FROM artwork 
+WHERE json_extract(tags, '$.tags.artist_name') LIKE '%doe%';
+```
 ```
 
 ```sql

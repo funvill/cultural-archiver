@@ -172,7 +172,7 @@ function getFirstDiff(diffs?: ArtworkEditDiff[]): ArtworkEditDiff | null {
           
           <!-- Standard field diff display -->
           <div v-else class="space-y-3">
-            <div v-if="diff.old_value && diff.new_value" class="grid grid-cols-2 gap-4">
+            <div v-if="diff.old_value !== undefined && diff.new_value !== undefined" class="grid grid-cols-2 gap-4">
               <div>
                 <h5 class="text-xs font-medium text-gray-700 mb-2">Current</h5>
                 <div class="p-3 bg-white border border-gray-200 rounded-md">

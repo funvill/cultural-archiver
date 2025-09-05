@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { TAG_CATEGORIES } from '../services/tagSchema';
+import { TAG_CATEGORIES, getTagDefinition } from '../services/tagSchema';
 
 interface Props {
   oldValue?: string | null | undefined;
@@ -55,14 +55,12 @@ const tagChanges = computed(() => {
 
 // Group changes by category for better organization
 const changesByCategory = computed(() => {
-  const categories = TAG_CATEGORIES;
   const grouped: Record<string, typeof tagChanges.value> = {};
   const uncategorized: typeof tagChanges.value = [];
 
   tagChanges.value.forEach(change => {
-    const category = categories.find((cat: any) => 
-      cat.tags.some((tag: any) => tag.key === change.key)
-    );
+    const tagDefinition = getTagDefinition(change.key);
+    const category = tagDefinition ? TAG_CATEGORIES.find(cat => cat.key === tagDefinition.category) : null;
 
     if (category) {
       if (!grouped[category.key]) {
