@@ -64,11 +64,11 @@
 
 - [x] 5.0 Frontend Tag Display and Schema Service
   - [x] 5.1 Create `src/frontend/src/services/tagSchema.ts` for client-side schema access
-  - [ ] 5.2 Update `TagBadge.vue` to display tags organized by categories with collapsible sections
-  - [ ] 5.3 Add tag value formatting and display helpers for different data types
-  - [ ] 5.4 Implement tag click handlers for potential future filtering functionality
-  - [ ] 5.5 Add loading states and error handling for tag operations
-  - [ ] 5.6 Create consistent styling with existing Tailwind CSS design system
+  - [x] 5.2 Update `TagBadge.vue` to display tags organized by categories with collapsible sections
+  - [x] 5.3 Add tag value formatting and display helpers for different data types
+  - [x] 5.4 Implement tag click handlers for potential future filtering functionality
+  - [x] 5.5 Add loading states and error handling for tag operations
+  - [x] 5.6 Create consistent styling with existing Tailwind CSS design system
 
 - [ ] 6.0 Integration with Artwork Detail View
   - [ ] 6.1 Replace tag editing section in `ArtworkDetailView.vue` with new `TagEditor.vue`
