@@ -12,53 +12,81 @@ import type {
   CreateArtworkEditRequest,
   ArtworkEditSubmissionResponse,
   PendingEditsResponse
-} from '../types';
+} from '../../shared/types';
+import type { WorkerEnv as LocalWorkerEnv } from '../types';
 import { ArtworkEditsService } from '../lib/artwork-edits';
 import { createSuccessResponse, ValidationApiError, NotFoundError } from '../lib/errors';
 import { getUserToken } from '../middleware/auth';
-import { getValidatedData } from '../middleware/validation';
 
 /**
  * POST /api/artwork/:id/edit - Submit artwork edit proposals
  * Allows authenticated users to propose edits to artwork details
  */
-export async function submitArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+export async function submitArtworkEdit(c: Context<{ Bindings: LocalWorkerEnv }>): Promise<Response> {
   const userToken = getUserToken(c);
   const artworkId = c.req.param('id');
   
   if (!artworkId) {
-    throw new ValidationApiError('Artwork ID is required');
+    throw new ValidationApiError([{
+      field: 'artwork_id',
+      message: 'Artwork ID is required',
+      code: 'REQUIRED_FIELD'
+    }]);
   }
 
   // Get and validate request body
   const requestBody = await c.req.json().catch(() => {
-    throw new ValidationApiError('Invalid JSON in request body');
+    throw new ValidationApiError([{
+      field: 'request_body',
+      message: 'Invalid JSON in request body',
+      code: 'INVALID_JSON'
+    }]);
   });
 
   // Validate required fields
   if (!requestBody.edits || !Array.isArray(requestBody.edits)) {
-    throw new ValidationApiError('edits array is required');
+    throw new ValidationApiError([{
+      field: 'edits',
+      message: 'edits array is required',
+      code: 'REQUIRED_FIELD'
+    }]);
   }
 
   if (requestBody.edits.length === 0) {
-    throw new ValidationApiError('At least one edit is required');
+    throw new ValidationApiError([{
+      field: 'edits',
+      message: 'At least one edit is required',
+      code: 'ARRAY_MIN_LENGTH'
+    }]);
   }
 
   // Validate each edit
   for (const edit of requestBody.edits) {
     if (!edit.field_name || typeof edit.field_name !== 'string') {
-      throw new ValidationApiError('Each edit must have a field_name');
+      throw new ValidationApiError([{
+        field: 'field_name',
+        message: 'Each edit must have a field_name',
+        code: 'REQUIRED_FIELD'
+      }]);
     }
 
     // Validate allowed field names
     const allowedFields = ['title', 'description', 'created_by', 'tags'];
     if (!allowedFields.includes(edit.field_name)) {
-      throw new ValidationApiError(`Invalid field name: ${edit.field_name}. Allowed: ${allowedFields.join(', ')}`);
+      throw new ValidationApiError([{
+        field: 'field_name',
+        message: `Invalid field name: ${edit.field_name}. Allowed: ${allowedFields.join(', ')}`,
+        code: 'INVALID_FIELD_NAME'
+      }]);
     }
 
     // field_value_old and field_value_new can be null, but must be provided
     if (!('field_value_old' in edit) || !('field_value_new' in edit)) {
-      throw new ValidationApiError('Each edit must have field_value_old and field_value_new properties');
+      throw new ValidationApiError([{
+        field: 'field_values',
+        message: 'Each edit must have field_value_old and field_value_new properties',
+        code: 'REQUIRED_FIELD'
+      }]);
     }
   }
 
@@ -68,13 +96,21 @@ export async function submitArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): Pr
     // Check rate limiting - 500 edits per 24 hours
     const recentEditCount = await artworkEditsService.getUserPendingEditCount(userToken, 24);
     if (recentEditCount >= 500) {
-      throw new ValidationApiError('Rate limit exceeded. You can submit up to 500 edits per 24-hour period.');
+      throw new ValidationApiError([{
+        field: 'rate_limit',
+        message: 'Rate limit exceeded. You can submit up to 500 edits per 24-hour period.',
+        code: 'RATE_LIMIT_EXCEEDED'
+      }]);
     }
 
     // Check if user already has pending edits for this artwork
     const existingPendingEdits = await artworkEditsService.getUserPendingEdits(userToken, artworkId);
     if (existingPendingEdits.length > 0) {
-      throw new ValidationApiError('You already have pending edits for this artwork. Please wait for them to be reviewed.');
+      throw new ValidationApiError([{
+        field: 'pending_edits',
+        message: 'You already have pending edits for this artwork. Please wait for them to be reviewed.',
+        code: 'PENDING_EDITS_EXIST'
+      }]);
     }
 
     // Submit the edits
@@ -106,12 +142,16 @@ export async function submitArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): Pr
  * GET /api/artwork/:id/pending-edits - Check user's pending edits for artwork
  * Returns information about any pending edits the user has submitted
  */
-export async function getUserPendingEdits(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+export async function getUserPendingEdits(c: Context<{ Bindings: LocalWorkerEnv }>): Promise<Response> {
   const userToken = getUserToken(c);
   const artworkId = c.req.param('id');
   
   if (!artworkId) {
-    throw new ValidationApiError('Artwork ID is required');
+    throw new ValidationApiError([{
+      field: 'artwork_id',
+      message: 'Artwork ID is required',
+      code: 'REQUIRED_FIELD'
+    }]);
   }
 
   const artworkEditsService = new ArtworkEditsService(c.env.DB);
@@ -137,40 +177,68 @@ export async function getUserPendingEdits(c: Context<{ Bindings: WorkerEnv }>): 
  * POST /api/artwork/:id/edit/validate - Validate edit request without submitting
  * Useful for client-side validation feedback
  */
-export async function validateArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+export async function validateArtworkEdit(c: Context<{ Bindings: LocalWorkerEnv }>): Promise<Response> {
   const userToken = getUserToken(c);
   const artworkId = c.req.param('id');
   
   if (!artworkId) {
-    throw new ValidationApiError('Artwork ID is required');
+    throw new ValidationApiError([{
+      field: 'artwork_id',
+      message: 'Artwork ID is required',
+      code: 'REQUIRED_FIELD'
+    }]);
   }
 
   // Get and validate request body (same validation as submitArtworkEdit)
   const requestBody = await c.req.json().catch(() => {
-    throw new ValidationApiError('Invalid JSON in request body');
+    throw new ValidationApiError([{
+      field: 'request_body',
+      message: 'Invalid JSON in request body',
+      code: 'INVALID_JSON'
+    }]);
   });
 
   if (!requestBody.edits || !Array.isArray(requestBody.edits)) {
-    throw new ValidationApiError('edits array is required');
+    throw new ValidationApiError([{
+      field: 'edits',
+      message: 'edits array is required',
+      code: 'REQUIRED_FIELD'
+    }]);
   }
 
   if (requestBody.edits.length === 0) {
-    throw new ValidationApiError('At least one edit is required');
+    throw new ValidationApiError([{
+      field: 'edits',
+      message: 'At least one edit is required',
+      code: 'ARRAY_MIN_LENGTH'
+    }]);
   }
 
   const allowedFields = ['title', 'description', 'created_by', 'tags'];
   
   for (const edit of requestBody.edits) {
     if (!edit.field_name || typeof edit.field_name !== 'string') {
-      throw new ValidationApiError('Each edit must have a field_name');
+      throw new ValidationApiError([{
+        field: 'field_name',
+        message: 'Each edit must have a field_name',
+        code: 'REQUIRED_FIELD'
+      }]);
     }
 
     if (!allowedFields.includes(edit.field_name)) {
-      throw new ValidationApiError(`Invalid field name: ${edit.field_name}. Allowed: ${allowedFields.join(', ')}`);
+      throw new ValidationApiError([{
+        field: 'field_name',
+        message: `Invalid field name: ${edit.field_name}. Allowed: ${allowedFields.join(', ')}`,
+        code: 'INVALID_FIELD_NAME'
+      }]);
     }
 
     if (!('field_value_old' in edit) || !('field_value_new' in edit)) {
-      throw new ValidationApiError('Each edit must have field_value_old and field_value_new properties');
+      throw new ValidationApiError([{
+        field: 'field_values',
+        message: 'Each edit must have field_value_old and field_value_new properties',
+        code: 'REQUIRED_FIELD'
+      }]);
     }
   }
 

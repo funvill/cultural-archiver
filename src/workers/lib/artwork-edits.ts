@@ -8,12 +8,13 @@
  * - Applying approved edits to artwork records
  */
 
+import type { D1Database } from '@cloudflare/workers-types';
 import type { 
   ArtworkEditRecord,
   CreateArtworkEditRequest,
   ArtworkEditReviewData,
   ArtworkEditDiff
-} from '../types';
+} from '../../shared/types';
 
 import { randomUUID } from 'crypto';
 
@@ -75,7 +76,7 @@ export class ArtworkEditsService {
     `);
 
     const results = await stmt.bind(userToken, artworkId).all();
-    return results.results as ArtworkEditRecord[];
+    return results.results as unknown as ArtworkEditRecord[];
   }
 
   /**
@@ -84,7 +85,7 @@ export class ArtworkEditsService {
   async getArtworkEditById(editId: string): Promise<ArtworkEditRecord | null> {
     const stmt = this.db.prepare('SELECT * FROM artwork_edits WHERE edit_id = ?');
     const result = await stmt.bind(editId).first();
-    return result as ArtworkEditRecord | null;
+    return result as unknown as ArtworkEditRecord | null;
   }
 
   /**
@@ -127,7 +128,7 @@ export class ArtworkEditsService {
         groupData.submitted_at
       ).all();
 
-      const editRecords = edits.results as ArtworkEditRecord[];
+      const editRecords = edits.results as unknown as ArtworkEditRecord[];
       
       reviewData.push({
         edit_ids: editRecords.map(e => e.edit_id),
@@ -171,7 +172,7 @@ export class ArtworkEditsService {
       edit.status
     ).all();
 
-    const editRecords = edits.results as ArtworkEditRecord[];
+    const editRecords = edits.results as unknown as ArtworkEditRecord[];
 
     return {
       edit_ids: editRecords.map(e => e.edit_id),
@@ -237,7 +238,7 @@ export class ArtworkEditsService {
     `);
 
     const edits = await editsStmt.bind(...editIds).all();
-    const editRecords = edits.results as ArtworkEditRecord[];
+    const editRecords = edits.results as unknown as ArtworkEditRecord[];
 
     if (editRecords.length === 0) {
       return;
