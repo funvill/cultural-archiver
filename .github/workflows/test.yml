@@ -32,6 +32,9 @@ jobs:
       - name: Run tests
         run: npm run test
 
+      - name: Validate migrations
+        run: npm run migrate:validate
+
       - name: Cache dependencies
         uses: actions/cache@v3
         with:

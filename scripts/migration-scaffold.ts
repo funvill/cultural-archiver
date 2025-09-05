@@ -9,6 +9,7 @@
 import { readdir, readFile, writeFile } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { spawn } from 'child_process';
 
 // Get current directory for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -86,7 +87,35 @@ class MigrationScaffolder {
         }
     }
 
-    async createMigration(name: string): Promise<void> {
+    async openInEditor(filepath: string): Promise<void> {
+        const editors = [
+            process.env.EDITOR,
+            process.env.VISUAL,
+            'code',    // VS Code
+            'subl',    // Sublime Text
+            'atom',    // Atom
+            'vim',     // Vim
+            'nano'     // Nano
+        ].filter(Boolean);
+
+        for (const editor of editors) {
+            try {
+                const child = spawn(editor!, [filepath], {
+                    stdio: 'inherit',
+                    detached: true
+                });
+                
+                child.unref(); // Don't wait for editor to close
+                console.log(`📝 Opened in ${editor}: ${filepath}`);
+                return;
+            } catch (error) {
+                // Try next editor
+                continue;
+            }
+        }
+        
+        console.log('💡 No editor found. Edit manually:', filepath);
+    }
         if (!name || name.trim() === '') {
             console.error('❌ Migration name is required');
             console.error('Usage: npm run migrate:create "migration_name"');
@@ -119,6 +148,12 @@ class MigrationScaffolder {
             await writeFile(filepath, template, 'utf-8');
             console.log(`✅ Created migration: ${filename}`);
             console.log(`📍 Path: ${filepath}`);
+            
+            // Try to open in editor (optional, non-blocking)
+            if (process.env.CI !== 'true' && process.env.NODE_ENV !== 'test') {
+                await this.openInEditor(filepath);
+            }
+            
             console.log('');
             console.log('📋 Next steps:');
             console.log('1. Edit the migration file and add your SQL');
@@ -132,6 +167,8 @@ class MigrationScaffolder {
             process.exit(1);
         }
     }
+
+    async createMigration(name: string): Promise<void> {
 
     showHelp(): void {
         console.log('Migration Scaffolding Tool - Cultural Archiver');

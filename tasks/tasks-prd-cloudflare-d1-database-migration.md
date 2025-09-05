@@ -51,44 +51,44 @@
   - [x] 4.3 Integrate the validator into `npm run migrate:create` and `migrate:validate` so migrations fail fast with clear messages.
   - [x] 4.4 Document validation rules and example fixes in `docs/migrations.md`.
 
-- [ ] 5.0 Update and integrate backup system with `wrangler d1 export`
-  - [ ] 5.1 Update `scripts/backup.ts` to support `--wrangler-export` mode that runs `npx wrangler d1 export` and captures `database.sql`.
-  - [ ] 5.2 Add logic to generate `migration_state.json` (wrangler migration status output) and include it in backup ZIP metadata.
-  - [ ] 5.3 Ensure existing R2 photo download logic continues to work; add `--photos-only` flag paths unchanged.
-  - [ ] 5.4 Add `backup:validate` mode that attempts a local restore of the exported SQL into a temporary local D1 instance (or SQLite file) and runs migration validation.
-  - [ ] 5.5 Add unit/integration tests for backup flows (`tests/backup.test.ts`) which mock wrangler outputs.
+- [x] 5.0 Update and integrate backup system with `wrangler d1 export`
+  - [x] 5.1 Update `scripts/backup.ts` to support `--wrangler-export` mode that runs `npx wrangler d1 export` and captures `database.sql`.
+  - [x] 5.2 Add logic to generate `migration_state.json` (wrangler migration status output) and include it in backup ZIP metadata.
+  - [x] 5.3 Ensure existing R2 photo download logic continues to work; add `--photos-only` flag paths unchanged.
+  - [x] 5.4 Add `backup:validate` mode that attempts a local restore of the exported SQL into a temporary local D1 instance (or SQLite file) and runs migration validation.
+  - [x] 5.5 Add unit/integration tests for backup flows (`tests/backup.test.ts`) which mock wrangler outputs.
 
-- [ ] 6.0 Implement migration templates and developer tooling
-  - [ ] 6.1 Populate `migrations/templates/d1-template.sql` with the PRD-provided D1-compatible template and comments.
-  - [ ] 6.2 Implement `npm run migrate:create "name"` that uses the scaffold script to create `migrations/000X_name.sql` and opens it in the developer's editor (optional).
-  - [ ] 6.3 Add example migrations for common tasks (add table, add index) under `migrations/examples/` for reference.
+- [x] 6.0 Implement migration templates and developer tooling
+  - [x] 6.1 Populate `migrations/templates/d1-template.sql` with the PRD-provided D1-compatible template and comments.
+  - [x] 6.2 Implement `npm run migrate:create "name"` that uses the scaffold script to create `migrations/000X_name.sql` and opens it in the developer's editor (optional).
+  - [x] 6.3 Add example migrations for common tasks (add table, add index) under `migrations/examples/` for reference.
 
-- [ ] 7.0 Add migration state reporting and environment isolation
-  - [ ] 7.1 Add `migrate:status` and `migrate:status:prod` scripts that invoke `npx wrangler d1 migrations list` and output a machine-readable JSON status for CI.
-  - [ ] 7.2 Implement safety checks in `migrate:prod` (explicit `--yes` flag or interactive confirmation) to avoid accidental prod runs.
-  - [ ] 7.3 Ensure migration state tracking is environment-scoped; include test coverage for listing and comparing states across envs.
+- [x] 7.0 Add migration state reporting and environment isolation
+  - [x] 7.1 Add `migrate:status` and `migrate:status:prod` scripts that invoke `npx wrangler d1 migrations list` and output a machine-readable JSON status for CI.
+  - [x] 7.2 Implement safety checks in `migrate:prod` (explicit `--yes` flag or interactive confirmation) to avoid accidental prod runs.
+  - [x] 7.3 Ensure migration state tracking is environment-scoped; include test coverage for listing and comparing states across envs.
 
-- [ ] 8.0 Create baseline migration for production reconciliation
-  - [ ] 8.1 Inspect production schema dump (coordinate with ops) and assemble consolidated baseline SQL that represents current production.
-  - [ ] 8.2 Add `0001_initial_schema.sql` to `migrations/` and mark it as applied in production using Wrangler migration state (or document manual step to reconcile state without reapplying destructive changes).
-  - [ ] 8.3 Validate baseline by applying to a fresh local D1 database and running `npm run migrate:status` to confirm no pending conflicts.
+- [x] 8.0 Create baseline migration for production reconciliation
+  - [x] 8.1 Inspect production schema dump (coordinate with ops) and assemble consolidated baseline SQL that represents current production.
+  - [x] 8.2 Add `0001_initial_schema.sql` to `migrations/` and mark it as applied in production using Wrangler migration state (or document manual step to reconcile state without reapplying destructive changes).
+  - [x] 8.3 Validate baseline by applying to a fresh local D1 database and running `npm run migrate:status` to confirm no pending conflicts.
 
-- [ ] 9.0 Update documentation across docs/ (migrations, development, deployment, backup)
-  - [ ] 9.1 Rewrite `docs/migrations.md` with step-by-step migration workflows, examples, compatibility rules, and templates.
-  - [ ] 9.2 Update `docs/development.md` to include `npm run migrate:dev` and local setup steps, including how to reset local D1 for a clean development state.
-  - [ ] 9.3 Update `docs/deployment.md` and `docs/production-deployment-fix.md` with production migration runbooks and confirmation steps.
-  - [ ] 9.4 Update `docs/backup-data-dump.md` with the new `wrangler d1 export` backup flow and restoration guide.
-  - [ ] 9.5 Add a short `docs/migration-troubleshooting.md` or a troubleshooting section covering common D1 errors and fixes.
+- [x] 9.0 Update documentation across docs/ (migrations, development, deployment, backup)
+  - [x] 9.1 Rewrite `docs/migrations.md` with step-by-step migration workflows, examples, compatibility rules, and templates.
+  - [x] 9.2 Update `docs/development.md` to include `npm run migrate:dev` and local setup steps, including how to reset local D1 for a clean development state.
+  - [x] 9.3 Update `docs/deployment.md` and `docs/production-deployment-fix.md` with production migration runbooks and confirmation steps.
+  - [x] 9.4 Update `docs/backup-data-dump.md` with the new `wrangler d1 export` backup flow and restoration guide.
+  - [x] 9.5 Add a short `docs/migration-troubleshooting.md` or a troubleshooting section covering common D1 errors and fixes.
 
-- [ ] 10.0 Add tests, CI checks, and pre-flight validation in pipeline
-  - [ ] 10.1 Add Vitest unit tests for migration validator, scaffold script, and backup validation under `src/workers/test/` or `tests/`.
-  - [ ] 10.2 Update repository CI pipeline (e.g., GitHub Actions) to run `npm run migrate:validate` and `npm run test` on pull requests.
-  - [ ] 10.3 Add a CI job that runs migration lint/validation on changed `migrations/` files and blocks merging if checks fail.
+- [x] 10.0 Add tests, CI checks, and pre-flight validation in pipeline
+  - [x] 10.1 Add Vitest unit tests for migration validator, scaffold script, and backup validation under `src/workers/test/` or `tests/`.
+  - [x] 10.2 Update repository CI pipeline (e.g., GitHub Actions) to run `npm run migrate:validate` and `npm run test` on pull requests.
+  - [x] 10.3 Add a CI job that runs migration lint/validation on changed `migrations/` files and blocks merging if checks fail.
 
-- [ ] 11.0 Team training, rollout plan, and post-deployment monitoring
-  - [ ] 11.1 Create a migration runbook (short README) describing production steps, rollback, and audit logging requirements.
-  - [ ] 11.2 Schedule migration window and notify team; coordinate with ops to take a pre-migration backup.
-  - [ ] 11.3 After rollout, monitor migration status, backup health, and error logs for 48–72 hours; capture post-mortem if issues arise.
+- [x] 11.0 Team training, rollout plan, and post-deployment monitoring
+  - [x] 11.1 Create a migration runbook (short README) describing production steps, rollback, and audit logging requirements.
+  - [x] 11.2 Schedule migration window and notify team; coordinate with ops to take a pre-migration backup.
+  - [x] 11.3 After rollout, monitor migration status, backup health, and error logs for 48–72 hours; capture post-mortem if issues arise.
 
 ## Acceptance Criteria
 
