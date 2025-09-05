@@ -52,7 +52,8 @@ describe('Search Utilities', () => {
       const result = parseSearchQuery('street art');
 
       expect(result.text).toBe('street art');
-      expect(result.tags).toHaveLength(0);
+      expect(result.tagKeys).toHaveLength(0);
+      expect(result.tagPairs).toHaveLength(0);
       expect(result.filters).toEqual({});
     });
 
@@ -60,7 +61,8 @@ describe('Search Utilities', () => {
       const result = parseSearchQuery('');
 
       expect(result.text).toBe('');
-      expect(result.tags).toHaveLength(0);
+      expect(result.tagKeys).toHaveLength(0);
+      expect(result.tagPairs).toHaveLength(0);
       expect(result.filters).toEqual({});
     });
 
@@ -68,6 +70,41 @@ describe('Search Utilities', () => {
       const result = parseSearchQuery('  street art  ');
 
       expect(result.text).toBe('street art');
+    });
+
+    it('should parse tag key searches', () => {
+      const result = parseSearchQuery('tag:material street art');
+
+      expect(result.text).toBe('street art');
+      expect(result.tagKeys).toEqual(['material']);
+      expect(result.tagPairs).toHaveLength(0);
+    });
+
+    it('should parse tag key-value searches', () => {
+      const result = parseSearchQuery('tag:material:bronze tag:artist:banksy street art');
+
+      expect(result.text).toBe('street art');
+      expect(result.tagKeys).toHaveLength(0);
+      expect(result.tagPairs).toEqual([
+        { key: 'material', value: 'bronze' },
+        { key: 'artist', value: 'banksy' }
+      ]);
+    });
+
+    it('should handle mixed tag and text searches', () => {
+      const result = parseSearchQuery('tag:artwork_type tag:material:bronze modern sculpture');
+
+      expect(result.text).toBe('modern sculpture');
+      expect(result.tagKeys).toEqual(['artwork_type']);
+      expect(result.tagPairs).toEqual([{ key: 'material', value: 'bronze' }]);
+    });
+
+    it('should handle case insensitive tag syntax', () => {
+      const result = parseSearchQuery('TAG:Material:BRONZE Tag:Artist street');
+
+      expect(result.text).toBe('street');
+      expect(result.tagKeys).toEqual(['artist']);
+      expect(result.tagPairs).toEqual([{ key: 'material', value: 'BRONZE' }]);
     });
   });
 });

@@ -78,13 +78,13 @@
   - [x] 6.5 Update tag data mapping between frontend and API format
   - [x] 6.6 Ensure proper display of structured tags in read-only mode with category groupings
 
-- [ ] 7.0 Search Integration Enhancement
-  - [ ] 7.1 Extend existing search functionality to support "Tag:key" format searches
-  - [ ] 7.2 Implement "Tag:key:value" specific value searches
-  - [ ] 7.3 Ensure general text search includes structured tag values in results
-  - [ ] 7.4 Update search result display to highlight tag matches
-  - [ ] 7.5 Optimize full-text search indexing for new structured tag format
-  - [ ] 7.6 Add search suggestions that include common tag keys and values
+- [x] 7.0 Search Integration Enhancement
+  - [x] 7.1 Extend existing search functionality to support "Tag:key" format searches
+  - [x] 7.2 Implement "Tag:key:value" specific value searches
+  - [x] 7.3 Ensure general text search includes structured tag values in results
+  - [x] 7.4 Update search result display to highlight tag matches
+  - [x] 7.5 Optimize full-text search indexing for new structured tag format
+  - [x] 7.6 Add search suggestions that include common tag keys and values
 
 - [ ] 8.0 OpenStreetMap Export Functionality
   - [ ] 8.1 Create export service to generate OpenStreetMap-compatible format with "ca:" prefixes
