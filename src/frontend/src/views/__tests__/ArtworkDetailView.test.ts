@@ -17,6 +17,26 @@ vi.mock('../../stores/auth', () => ({
   useAuthStore: vi.fn()
 }))
 
+// Mock useAnnouncer composable
+const mockAnnounceSuccess = vi.fn()
+const mockAnnounceError = vi.fn()
+const mockAnnounceWarning = vi.fn()
+const mockAnnounceInfo = vi.fn()
+
+vi.mock('../../composables/useAnnouncer', () => ({
+  useAnnouncer: (): {
+    announceError: (message: string) => void;
+    announceSuccess: (message: string) => void;
+    announceWarning: (message: string) => void;
+    announceInfo: (message: string) => void;
+  } => ({
+    announceError: mockAnnounceError,
+    announceSuccess: mockAnnounceSuccess,
+    announceWarning: mockAnnounceWarning,
+    announceInfo: mockAnnounceInfo
+  })
+}))
+
 // Mock stores with proper Pinia store structure
 const createMockStore = (): any => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
   // State
@@ -85,16 +105,23 @@ const createMockRouter = (): Router => {
 
 // Mock artwork data
 const mockArtwork = {
-  id: 'test-artwork-id',
+  id: '12345678-1234-5678-9abc-123456789abc',
   title: 'Test Artwork',
-  artist: 'Test Artist',
+  artist: 'Test Artist', 
   description: 'A beautiful test artwork',
-  type: 'sculpture',
+  type_name: 'sculpture',
   status: 'approved',
   lat: 49.2827,
   lon: -123.1207,
   photos: ['photo1.jpg', 'photo2.jpg'],
-  tags: { material: 'bronze', style: 'modern' },
+  tags_parsed: { 
+    title: 'Test Artwork',
+    description: 'A beautiful test artwork',
+    creator: 'Test Artist',
+    material: 'bronze', 
+    style: 'modern' 
+  },
+  logbook_entries: [],
   created_at: '2024-01-01T00:00:00Z',
   updated_at: '2024-01-01T00:00:00Z',
 }
@@ -111,7 +138,7 @@ describe('ArtworkDetailView', () => {
     
     mockStore = createMockStore()
     // Set up the artworkById mock to return a function that returns the mockArtwork
-    const artworkByIdFunction = vi.fn((id: string) => id === 'test-artwork-id' ? mockArtwork : null)
+    const artworkByIdFunction = vi.fn((id: string) => id === '12345678-1234-5678-9abc-123456789abc' ? mockArtwork : null)
     mockStore.artworkById = artworkByIdFunction
     mockStore.fetchArtwork.mockResolvedValue(mockArtwork)
     
@@ -119,7 +146,7 @@ describe('ArtworkDetailView', () => {
     
     wrapper = mount(ArtworkDetailView, {
       props: {
-        id: 'test-artwork-id',
+        id: '12345678-1234-5678-9abc-123456789abc',
       },
       global: {
         plugins: [router, pinia],
@@ -156,7 +183,7 @@ describe('ArtworkDetailView', () => {
       wrapper.unmount()
       
       const freshMockStore = createMockStore()
-      const artworkByIdFunction = vi.fn((id: string) => id === 'test-artwork-id' ? mockArtwork : null)
+      const artworkByIdFunction = vi.fn((id: string) => id === '12345678-1234-5678-9abc-123456789abc' ? mockArtwork : null)
       freshMockStore.artworkById = artworkByIdFunction
       freshMockStore.fetchArtwork.mockResolvedValue(mockArtwork)
       
@@ -164,7 +191,7 @@ describe('ArtworkDetailView', () => {
       
       const freshWrapper = mount(ArtworkDetailView, {
         props: {
-          id: 'test-artwork-id',
+          id: '12345678-1234-5678-9abc-123456789abc',
         },
         global: {
           plugins: [router, pinia],
@@ -287,17 +314,32 @@ describe('ArtworkDetailView', () => {
 
   describe('Edit Mode Functionality', (): void => {
     beforeEach(async (): Promise<void> => {
-      // Set up authenticated user state for editing
-      const authStore = {
+      // Set up authenticated user state for editing BEFORE mounting
+      const authStore: any = {
         isAuthenticated: true,
         userToken: 'test-token',
-        user: { id: 'test-user' }
+        user: { id: 'test-user', emailVerified: true },
+        token: 'test-token',
+        loading: false,
+        $state: {},
+        $patch: vi.fn(),
+        $reset: vi.fn(),
+        $subscribe: vi.fn(),
+        $dispose: vi.fn(),
+        $id: 'auth'
       }
-      vi.mocked(useAuthStore).mockReturnValue(authStore as any)
+      vi.mocked(useAuthStore).mockReturnValue(authStore)
+      
+      // Set up artwork store mock for editing
+      const artworkStore = createMockStore()
+      const artworkByIdFunction = vi.fn((id: string) => id === '12345678-1234-5678-9abc-123456789abc' ? mockArtwork : null)
+      artworkStore.artworkById.mockImplementation(artworkByIdFunction)
+      artworkStore.fetchArtwork.mockResolvedValue(mockArtwork)
+      vi.mocked(useArtworksStore).mockReturnValue(artworkStore)
       
       // Mock API service for edit operations
-      vi.mocked(apiService).mockReturnValue({
-        checkPendingEdits: vi.fn().mockResolvedValue({
+      Object.assign(apiService, {
+        getPendingEdits: vi.fn().mockResolvedValue({
           success: true,
           data: { has_pending_edits: false, pending_fields: [] }
         }),
@@ -305,14 +347,31 @@ describe('ArtworkDetailView', () => {
           success: true,
           data: { edit_ids: ['edit-1'], message: 'Changes submitted', status: 'pending' }
         })
-      } as any)
+      })
+      
+      // Remount component with authenticated state
+      wrapper.unmount()
+      wrapper = mount(ArtworkDetailView, {
+        props: {
+          id: '12345678-1234-5678-9abc-123456789abc',
+        },
+        global: {
+          plugins: [router, pinia],
+          stubs: {
+            RouterLink: true,
+          },
+        },
+      })
       
       await wrapper.vm.$nextTick()
     })
 
-    it('shows edit button for authenticated users', (): void => {
+    it('shows edit button for authenticated users', async (): Promise<void> => {
+      // The wrapper is already created with authenticated state in beforeEach
+      await wrapper.vm.$nextTick() // Wait for reactivity
+      
       const editButton = wrapper.find('button[aria-label="Edit artwork details"]')
-      expect(editButton.exists() || wrapper.text().includes('Edit')).toBe(true)
+      expect(editButton.exists()).toBe(true)
     })
 
     it('enters edit mode when edit button is clicked', async (): Promise<void> => {
@@ -410,6 +469,7 @@ describe('ArtworkDetailView', () => {
     })
 
     it('displays error messages for failed saves', async (): Promise<void> => {
+      wrapper.vm.isEditMode = true
       wrapper.vm.editError = 'Failed to save changes'
       await wrapper.vm.$nextTick()
       
@@ -474,19 +534,27 @@ describe('ArtworkDetailView', () => {
       wrapper.vm.editData.title = 'a'.repeat(600) // Exceed 512 char limit
       await wrapper.vm.$nextTick()
       
-      const charCounter = wrapper.find('.text-gray-500')
-      expect(charCounter.exists()).toBe(true)
-      expect(charCounter.text()).toContain('600')
+      // Look for character counter specifically
+      const charCounters = wrapper.findAll('.text-gray-500')
+      const charCounter = charCounters.find(c => c.text().includes('600') || c.text().includes('512'))
+      expect(charCounter).toBeDefined()
+      expect(charCounter?.text()).toContain('600')
     })
 
     it('announces successful save to screen readers', async (): Promise<void> => {
-      const announcerMock = vi.fn()
-      wrapper.vm.announceSuccess = announcerMock
+      // Ensure we're in edit mode and have changes to save  
+      wrapper.vm.isEditMode = true
+      wrapper.vm.editData.title = 'Modified Title'
+      
+      // Mock API success response  
+      Object.assign(apiService, {
+        submitArtworkEdit: vi.fn().mockResolvedValue({ success: true })
+      })
       
       // Simulate successful save
       await wrapper.vm.saveChanges?.()
       
-      expect(announcerMock).toHaveBeenCalledWith(expect.stringContaining('submitted'))
+      expect(mockAnnounceSuccess).toHaveBeenCalledWith(expect.stringContaining('submitted'))
     })
   })
 })

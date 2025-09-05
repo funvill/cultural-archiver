@@ -122,6 +122,17 @@ const displayCreators = computed(() => {
   return isEditMode.value ? editData.value.creators : artworkCreators.value
 })
 
+const hasUnsavedChanges = computed(() => {
+  if (!artwork.value) return false
+  
+  return (
+    editData.value.title !== artworkTitle.value ||
+    editData.value.description !== (artworkDescription.value || '') ||
+    editData.value.creators !== artworkCreators.value ||
+    JSON.stringify(editData.value.tags) !== JSON.stringify(extractTagsAsStringArray())
+  )
+})
+
 
 // Lifecycle
 onMounted(async () => {
@@ -259,7 +270,7 @@ function extractTagsAsStringArray(): string[] {
 }
 
 function cancelEdit(): void {
-  if (hasUnsavedChanges()) {
+  if (hasUnsavedChanges.value) {
     showCancelDialog.value = true
   } else {
     exitEditMode()
@@ -276,17 +287,6 @@ function exitEditMode(): void {
   editError.value = null
   showCancelDialog.value = false
   announceSuccess('Exited edit mode')
-}
-
-function hasUnsavedChanges(): boolean {
-  if (!artwork.value) return false
-  
-  return (
-    editData.value.title !== artworkTitle.value ||
-    editData.value.description !== (artworkDescription.value || '') ||
-    editData.value.creators !== artworkCreators.value ||
-    JSON.stringify(editData.value.tags) !== JSON.stringify(extractTagsAsStringArray())
-  )
 }
 
 async function saveEdit(): Promise<void> {
@@ -490,6 +490,7 @@ onUnmounted(() => {
             <button
               @click="enterEditMode"
               :disabled="hasPendingEdits"
+              aria-label="Edit artwork details"
               class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2"
               :class="hasPendingEdits 
                 ? 'text-gray-500 bg-gray-100 cursor-not-allowed' 
@@ -549,6 +550,7 @@ onUnmounted(() => {
               <button
                 @click="cancelEdit"
                 :disabled="editLoading"
+                aria-label="Cancel editing"
                 class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
@@ -557,6 +559,7 @@ onUnmounted(() => {
               <button
                 @click="saveEdit"
                 :disabled="editLoading || !editData.title.trim()"
+                aria-label="Save changes"
                 class="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <svg v-if="editLoading" class="w-4 h-4 mr-1.5 animate-spin" fill="none" viewBox="0 0 24 24">
