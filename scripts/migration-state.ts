@@ -216,7 +216,14 @@ async function main(): Promise<void> {
 }
 
 // Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Check if this file is being run directly (works with tsx and various environments)
+const isMainModule = process.argv[1] && (
+  process.argv[1].endsWith('migration-state.ts') ||
+  process.argv[1].endsWith('migration-state.js') ||
+  import.meta.url === `file://${process.argv[1]}`
+);
+
+if (isMainModule) {
   main().catch(error => {
     console.error('❌ Unhandled error:', error);
     process.exit(1);
