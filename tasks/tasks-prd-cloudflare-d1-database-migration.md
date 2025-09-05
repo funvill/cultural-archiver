@@ -45,11 +45,11 @@
   - [x] 3.3 Update `src/workers/package.json` if present to mirror necessary wrangler helper scripts.
   - [x] 3.4 Add documentation blurb in `docs/migrations.md` showing example commands and confirming pre-flight steps.
 
-- [ ] 4.0 Implement migration validation and D1 compatibility checks
-  - [ ] 4.1 Implement `scripts/validate-migration.ts` that scans SQL files for prohibited patterns (regex-based checks for `PRAGMA`, `WITHOUT ROWID`, `AUTOINCREMENT`, `ATTACH`, complex CHECKs using `length(`, etc.).
-  - [ ] 4.2 Add unit tests for the validator under `src/workers/test/validate-migration.test.ts` covering supported and prohibited examples.
-  - [ ] 4.3 Integrate the validator into `npm run migrate:create` and `migrate:validate` so migrations fail fast with clear messages.
-  - [ ] 4.4 Document validation rules and example fixes in `docs/migrations.md`.
+- [x] 4.0 Implement migration validation and D1 compatibility checks
+  - [x] 4.1 Implement `scripts/validate-migration.ts` that scans SQL files for prohibited patterns (regex-based checks for `PRAGMA`, `WITHOUT ROWID`, `AUTOINCREMENT`, `ATTACH`, complex CHECKs using `length(`, etc.).
+  - [x] 4.2 Add unit tests for the validator under `src/workers/test/validate-migration.test.ts` covering supported and prohibited examples.
+  - [x] 4.3 Integrate the validator into `npm run migrate:create` and `migrate:validate` so migrations fail fast with clear messages.
+  - [x] 4.4 Document validation rules and example fixes in `docs/migrations.md`.
 
 - [ ] 5.0 Update and integrate backup system with `wrangler d1 export`
   - [ ] 5.1 Update `scripts/backup.ts` to support `--wrangler-export` mode that runs `npx wrangler d1 export` and captures `database.sql`.

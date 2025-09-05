@@ -2,9 +2,9 @@
 -- Generated on: 2025-09-05T00:00:00.000Z
 -- Purpose: Add missing editable fields that should exist from migration 004
 -- This migration is idempotent and safe to run multiple times
+-- Updated for D1 compatibility: 2025-01-08 (removed PRAGMA)
 
--- Enable foreign key constraints
-PRAGMA foreign_keys = ON;
+-- D1 COMPATIBILITY NOTE: Removed PRAGMA foreign_keys = ON (not supported in D1)
 
 -- Check if title column exists, if not add it
 -- SQLite doesn't have conditional column addition, so we'll handle this in the application
