@@ -206,6 +206,15 @@ export class ArtworkEditsService {
 
     if (applyToArtwork) {
       await this.applyApprovedEditsToArtwork(editIds);
+      
+      // Get edit details after approval for logbook entry
+      try {
+        const editDetails = await this.getEditDetailsForLogbook(editIds);
+        await this.createEditLogbookEntry(editDetails, moderatorToken, reviewedAt);
+      } catch (error) {
+        console.warn('Failed to create logbook entry for approved edits:', error);
+        // Don't fail the approval if logbook creation fails
+      }
     }
   }
 
@@ -350,5 +359,104 @@ export class ArtworkEditsService {
         formatted_new,
       };
     });
+  }
+
+  /**
+   * Get edit details for logbook entry creation
+   */
+  private async getEditDetailsForLogbook(editIds: string[]): Promise<{
+    artworkId: string;
+    userToken: string;
+    submittedAt: string;
+    edits: Array<{ field_name: string; field_value_old: string; field_value_new: string }>;
+  }> {
+    const editsStmt = this.db.prepare(`
+      SELECT artwork_id, user_token, field_name, field_value_old, field_value_new, submitted_at
+      FROM artwork_edits 
+      WHERE edit_id IN (${editIds.map(() => '?').join(',')})
+    `);
+
+    const edits = await editsStmt.bind(...editIds).all();
+    const editRecords = edits.results as unknown as ArtworkEditRecord[];
+
+    if (editRecords.length === 0) {
+      throw new Error('No edits found for logbook entry');
+    }
+
+    return {
+      artworkId: editRecords[0].artwork_id,
+      userToken: editRecords[0].user_token,
+      submittedAt: editRecords[0].submitted_at,
+      edits: editRecords.map(edit => ({
+        field_name: edit.field_name,
+        field_value_old: edit.field_value_old,
+        field_value_new: edit.field_value_new
+      }))
+    };
+  }
+
+  /**
+   * Create logbook entry for approved artwork edits
+   */
+  private async createEditLogbookEntry(
+    editDetails: {
+      artworkId: string;
+      userToken: string;
+      submittedAt: string;
+      edits: Array<{ field_name: string; field_value_old: string; field_value_new: string }>;
+    },
+    moderatorToken: string,
+    approvedAt: string
+  ): Promise<void> {
+    const logbookId = crypto.randomUUID();
+    
+    // Get artwork coordinates for logbook entry
+    const artworkStmt = this.db.prepare('SELECT lat, lon FROM artwork WHERE id = ?');
+    const artwork = await artworkStmt.bind(editDetails.artworkId).first();
+    
+    if (!artwork) {
+      console.warn(`Could not find artwork ${editDetails.artworkId} for logbook entry`);
+      return;
+    }
+
+    // Format the changes for the logbook note
+    const fieldNames = editDetails.edits.map(edit => edit.field_name);
+    const uniqueFields = [...new Set(fieldNames)];
+    
+    const logbookNote = `Artwork details updated on ${new Date(approvedAt).toLocaleDateString()} by user ${editDetails.userToken.slice(0, 8)}... - Modified fields: ${uniqueFields.join(', ')}`;
+    
+    // Create comprehensive change details for note
+    const changeDetails = editDetails.edits.map(edit => {
+      let oldValue = edit.field_value_old || '';
+      let newValue = edit.field_value_new || '';
+      
+      // Truncate long values for readability
+      if (oldValue.length > 100) oldValue = oldValue.substring(0, 97) + '...';
+      if (newValue.length > 100) newValue = newValue.substring(0, 97) + '...';
+      
+      return `${edit.field_name}: "${oldValue}" → "${newValue}"`;
+    }).join('\n');
+    
+    const fullNote = `${logbookNote}\n\nChanges:\n${changeDetails}`;
+
+    // Insert logbook entry
+    const insertStmt = this.db.prepare(`
+      INSERT INTO logbook (id, artwork_id, user_token, note, photos, status, lat, lon, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    await insertStmt.bind(
+      logbookId,
+      editDetails.artworkId,
+      moderatorToken, // Use moderator token as the logbook entry creator
+      fullNote,
+      '[]', // No photos for edit entries
+      'approved', // Auto-approve logbook entries from edit approvals
+      artwork.lat,
+      artwork.lon,
+      approvedAt
+    ).run();
+    
+    console.info(`Created logbook entry ${logbookId} for approved artwork edits on ${editDetails.artworkId}`);
   }
 }

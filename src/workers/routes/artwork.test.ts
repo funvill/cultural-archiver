@@ -30,8 +30,11 @@ vi.mock('../middleware/validation', () => ({
 vi.mock('../lib/errors', () => ({
   createSuccessResponse: vi.fn().mockImplementation(data => ({ success: true, data })),
   ValidationApiError: class ValidationApiError extends Error {
-    constructor(message: string) {
-      super(message);
+    constructor(validationErrors: Array<{field: string, message: string, code: string}>, message?: string) {
+      // Use the first validation error's message if only one error and no custom message
+      const finalMessage = message || 
+        (validationErrors.length === 1 ? validationErrors[0].message : 'Validation failed');
+      super(finalMessage);
       this.name = 'ValidationApiError';
     }
   },

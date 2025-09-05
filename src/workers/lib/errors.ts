@@ -47,8 +47,12 @@ export class ApiError extends Error {
  * Validation error for input validation failures
  */
 export class ValidationApiError extends ApiError {
-  constructor(validationErrors: ValidationError[], message = 'Validation failed') {
-    super(message, 'VALIDATION_ERROR', 400, {
+  constructor(validationErrors: ValidationError[], message?: string) {
+    // Use the first validation error's message if only one error and no custom message
+    const finalMessage = message || 
+      (validationErrors.length === 1 ? validationErrors[0].message : 'Validation failed');
+    
+    super(finalMessage, 'VALIDATION_ERROR', 400, {
       validationErrors,
       showDetails: true,
     });

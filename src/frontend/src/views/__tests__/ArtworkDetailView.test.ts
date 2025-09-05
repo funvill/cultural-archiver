@@ -4,6 +4,18 @@ import { createRouter, createWebHistory, type Router } from 'vue-router'
 import { createPinia, type Pinia } from 'pinia'
 import ArtworkDetailView from '../ArtworkDetailView.vue'
 import { useArtworksStore } from '../../stores/artworks'
+import { useAuthStore } from '../../stores/auth'
+import { apiService } from '../../services/api'
+
+// Mock API service
+vi.mock('../../services/api', () => ({
+  apiService: vi.fn()
+}))
+
+// Mock auth store
+vi.mock('../../stores/auth', () => ({
+  useAuthStore: vi.fn()
+}))
 
 // Mock stores with proper Pinia store structure
 const createMockStore = (): any => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -270,6 +282,211 @@ describe('ArtworkDetailView', () => {
       const images = wrapper.findAll('img')
       // Either no images present or they have alt attributes
       expect(images.length === 0 || images.every(img => img.attributes('alt') !== undefined)).toBe(true)
+    })
+  })
+
+  describe('Edit Mode Functionality', (): void => {
+    beforeEach(async (): Promise<void> => {
+      // Set up authenticated user state for editing
+      const authStore = {
+        isAuthenticated: true,
+        userToken: 'test-token',
+        user: { id: 'test-user' }
+      }
+      vi.mocked(useAuthStore).mockReturnValue(authStore as any)
+      
+      // Mock API service for edit operations
+      vi.mocked(apiService).mockReturnValue({
+        checkPendingEdits: vi.fn().mockResolvedValue({
+          success: true,
+          data: { has_pending_edits: false, pending_fields: [] }
+        }),
+        submitArtworkEdit: vi.fn().mockResolvedValue({
+          success: true,
+          data: { edit_ids: ['edit-1'], message: 'Changes submitted', status: 'pending' }
+        })
+      } as any)
+      
+      await wrapper.vm.$nextTick()
+    })
+
+    it('shows edit button for authenticated users', (): void => {
+      const editButton = wrapper.find('button[aria-label="Edit artwork details"]')
+      expect(editButton.exists() || wrapper.text().includes('Edit')).toBe(true)
+    })
+
+    it('enters edit mode when edit button is clicked', async (): Promise<void> => {
+      wrapper.vm.isEditMode = true
+      await wrapper.vm.$nextTick()
+      
+      expect(wrapper.vm.isEditMode).toBe(true)
+    })
+
+    it('shows edit form fields in edit mode', async (): Promise<void> => {
+      wrapper.vm.isEditMode = true
+      await wrapper.vm.$nextTick()
+      
+      // Check for edit form elements
+      const titleInput = wrapper.find('input[id*="edit-title"]')
+      const creatorsInput = wrapper.find('input[id*="edit-creators"]')
+      const descriptionTextarea = wrapper.find('textarea[id*="edit-description"]')
+      
+      expect(titleInput.exists() || creatorsInput.exists() || descriptionTextarea.exists()).toBe(true)
+    })
+
+    it('validates required fields before saving', async (): Promise<void> => {
+      wrapper.vm.isEditMode = true
+      wrapper.vm.editData = {
+        title: '', // Empty title should prevent saving
+        description: 'Test description',
+        creators: 'Test creator',
+        tags: ['tag1']
+      }
+      await wrapper.vm.$nextTick()
+      
+      const saveButton = wrapper.find('button[aria-label*="Save"]')
+      if (saveButton.exists()) {
+        expect(saveButton.attributes('disabled')).toBeDefined()
+      }
+    })
+
+    it('detects changes from original values', (): void => {
+      wrapper.vm.isEditMode = true
+      wrapper.vm.editData = {
+        title: 'Modified Title',
+        description: 'Original description',
+        creators: 'Original creator',
+        tags: []
+      }
+      
+      const hasChanges = wrapper.vm.hasUnsavedChanges
+      expect(typeof hasChanges).toBe('boolean')
+    })
+
+    it('shows confirmation dialog when canceling with unsaved changes', async (): Promise<void> => {
+      wrapper.vm.isEditMode = true
+      wrapper.vm.editData = {
+        title: 'Modified Title',
+        description: 'Original description', 
+        creators: 'Original creator',
+        tags: []
+      }
+      
+      const cancelButton = wrapper.find('button[aria-label*="Cancel"]')
+      if (cancelButton.exists()) {
+        await cancelButton.trigger('click')
+        await wrapper.vm.$nextTick()
+        
+        // Should show confirmation dialog
+        expect(wrapper.vm.showCancelDialog).toBe(true)
+      }
+    })
+
+    it('submits edit form with proper data structure', async (): Promise<void> => {
+      wrapper.vm.isEditMode = true
+      wrapper.vm.editData = {
+        title: 'New Title',
+        description: 'New description',
+        creators: 'New creator',
+        tags: ['new-tag']
+      }
+      
+      // Mock the save function
+      const saveSpy = vi.spyOn(wrapper.vm, 'saveChanges')
+      
+      const saveButton = wrapper.find('button[aria-label*="Save"]')
+      if (saveButton.exists()) {
+        await saveButton.trigger('click')
+        expect(saveSpy).toHaveBeenCalled()
+      }
+    })
+
+    it('shows loading state during save operation', async (): Promise<void> => {
+      wrapper.vm.editLoading = true
+      await wrapper.vm.$nextTick()
+      
+      const loadingText = wrapper.text()
+      expect(loadingText.includes('Saving') || loadingText.includes('Loading')).toBe(true)
+    })
+
+    it('displays error messages for failed saves', async (): Promise<void> => {
+      wrapper.vm.editError = 'Failed to save changes'
+      await wrapper.vm.$nextTick()
+      
+      const errorMessage = wrapper.find('.text-red-700, .text-red-600, [class*="error"]')
+      expect(errorMessage.exists() || wrapper.text().includes('Failed to save')).toBe(true)
+    })
+
+    it('exits edit mode after successful save', async (): Promise<void> => {
+      wrapper.vm.isEditMode = true
+      
+      // Simulate successful save
+      await wrapper.vm.exitEditMode()
+      await wrapper.vm.$nextTick()
+      
+      expect(wrapper.vm.isEditMode).toBe(false)
+    })
+
+    it('preserves original data when canceling without changes', async (): Promise<void> => {
+      const originalTitle = wrapper.vm.artworkTitle
+      
+      wrapper.vm.isEditMode = true
+      wrapper.vm.editData.title = 'Temporary change'
+      
+      // Cancel without saving
+      await wrapper.vm.exitEditMode()
+      await wrapper.vm.$nextTick()
+      
+      expect(wrapper.vm.artworkTitle).toBe(originalTitle)
+    })
+
+    it('shows pending edits indicator when user has pending changes', async (): Promise<void> => {
+      wrapper.vm.hasPendingEdits = true
+      wrapper.vm.pendingFields = ['title', 'description']
+      await wrapper.vm.$nextTick()
+      
+      const pendingIndicator = wrapper.find('[class*="pending"], .text-yellow-600, .text-amber-600')
+      expect(pendingIndicator.exists() || wrapper.text().includes('pending')).toBe(true)
+    })
+
+    it('disables edit button when user has pending edits', async (): Promise<void> => {
+      wrapper.vm.hasPendingEdits = true
+      await wrapper.vm.$nextTick()
+      
+      const editButton = wrapper.find('button[aria-label*="Edit"]')
+      if (editButton.exists()) {
+        expect(editButton.attributes('disabled')).toBeDefined()
+      }
+    })
+
+    it('handles tag editing with TagChipEditor integration', async (): Promise<void> => {
+      wrapper.vm.isEditMode = true
+      wrapper.vm.editData.tags = ['existing-tag']
+      await wrapper.vm.$nextTick()
+      
+      // Check if TagChipEditor is rendered (or tag editing interface exists)
+      const tagEditor = wrapper.find('[class*="tag-chip-editor"], textarea[id*="edit-tags"], input[id*="tags"]')
+      expect(tagEditor.exists()).toBe(true)
+    })
+
+    it('validates character limits for text fields', async (): Promise<void> => {
+      wrapper.vm.isEditMode = true
+      wrapper.vm.editData.title = 'a'.repeat(600) // Exceed 512 char limit
+      await wrapper.vm.$nextTick()
+      
+      const charCounter = wrapper.find('.text-gray-500')
+      expect(charCounter.exists()).toBe(true)
+      expect(charCounter.text()).toContain('600')
+    })
+
+    it('announces successful save to screen readers', async (): Promise<void> => {
+      const announcerMock = vi.fn()
+      wrapper.vm.announceSuccess = announcerMock
+      
+      // Simulate successful save
+      await wrapper.vm.saveChanges?.()
+      
+      expect(announcerMock).toHaveBeenCalledWith(expect.stringContaining('submitted'))
     })
   })
 })

@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/auth'
 import PhotoCarousel from '../components/PhotoCarousel.vue'
 import MiniMap from '../components/MiniMap.vue'
 import TagBadge from '../components/TagBadge.vue'
+import TagChipEditor from '../components/TagChipEditor.vue'
 import LogbookTimeline from '../components/LogbookTimeline.vue'
 import { useAnnouncer } from '../composables/useAnnouncer'
 import { apiService } from '../services/api'
@@ -121,14 +122,6 @@ const displayCreators = computed(() => {
   return isEditMode.value ? editData.value.creators : artworkCreators.value
 })
 
-const editTagsText = computed({
-  get() {
-    return editData.value.tags.join('\n')
-  },
-  set(value: string) {
-    editData.value.tags = value.split('\n').filter(line => line.trim())
-  }
-})
 
 // Lifecycle
 onMounted(async () => {
@@ -250,7 +243,12 @@ function extractTagsAsStringArray(): string[] {
   Object.entries(parsed).forEach(([key, value]) => {
     if (!['title', 'description', 'artist', 'creator'].includes(key)) {
       if (typeof value === 'string') {
-        tags.push(`${key}: ${value}`)
+        // For simple values, just add as "key: value" or if value matches key, just the key
+        if (value.toLowerCase() === key.toLowerCase()) {
+          tags.push(key)
+        } else {
+          tags.push(`${key}: ${value}`)
+        }
       } else {
         tags.push(`${key}: ${JSON.stringify(value)}`)
       }
@@ -329,7 +327,7 @@ async function saveEdit(): Promise<void> {
       })
     }
     
-    // Tags edit (simplified for now)
+    // Tags edit - convert array back to format expected by backend
     const originalTags = extractTagsAsStringArray()
     if (JSON.stringify(editData.value.tags) !== JSON.stringify(originalTags)) {
       edits.push({
@@ -661,14 +659,15 @@ onUnmounted(() => {
             <!-- Edit mode -->
             <div v-else class="space-y-2">
               <label for="edit-tags" class="block text-sm font-medium text-gray-700">Tags/Keywords</label>
-              <textarea
-                id="edit-tags"
-                v-model="editTagsText"
-                rows="3"
-                class="block w-full bg-white border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter tags as key:value pairs, one per line..."
-              ></textarea>
-              <p class="text-sm text-gray-500">Format: key: value (one per line)</p>
+              <TagChipEditor
+                v-model="editData.tags"
+                placeholder="Add tags..."
+                :max-tags="20"
+                :disabled="editLoading"
+                @tag-added="(tag) => announceSuccess(`Tag '${tag}' added`)"
+                @tag-removed="(tag) => announceSuccess(`Tag '${tag}' removed`)"
+              />
+              <p class="text-sm text-gray-500">Add tags to help categorize this artwork. Use Enter or commas to separate multiple tags.</p>
             </div>
           </section>
 
