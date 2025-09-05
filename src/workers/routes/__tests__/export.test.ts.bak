@@ -246,14 +246,14 @@ describe('Export Integration Tests', () => {
           query: vi.fn().mockReturnValue({}),
         },
         env: mockEnv,
-        json: vi.fn((data) => Response.json(data)),
-        json: vi.fn((data) => Response.json(data)),
-        json: vi.fn((data) => Response.json(data)),
-        json: vi.fn((data) => Response.json(data)),
-        json: vi.fn((data) => Response.json(data)),
-        json: vi.fn((data) => Response.json(data)),
-        json: vi.fn((data) => Response.json(data)),
-        json: vi.fn((data) => Response.json(data)),
+        json: vi.fn((data) => {
+          const response = new Response(JSON.stringify(data), {
+            headers: { 'Content-Type': 'application/json' },
+            status: 200,
+          });
+          response.json = async () => data;
+          return response;
+        }),
       };
 
       const response = await bulkExportToOSM(mockContext as any);
