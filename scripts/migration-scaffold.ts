@@ -27,18 +27,22 @@ class MigrationScaffolder {
         try {
             const files = await readdir(migrationsDir);
             const migrationFiles = files
-                .filter(file => file.match(/^\d{4}_.*\.sql$/))
-                .map(file => ({
-                    number: parseInt(file.substring(0, 4)),
-                    filename: file
-                }))
-                .sort((a, b) => a.number - b.number);
+                .filter(file => file.match(/^\d{3,4}_.*\.sql$/))  // Match both 3 and 4 digit prefixes
+                .map(file => {
+                    const match = file.match(/^(\d{3,4})_/);
+                    return match ? {
+                        number: parseInt(match[1]),
+                        filename: file
+                    } : null;
+                })
+                .filter(item => item !== null)
+                .sort((a, b) => a!.number - b!.number);
 
             if (migrationFiles.length === 0) {
                 return 1;
             }
 
-            return migrationFiles[migrationFiles.length - 1].number + 1;
+            return migrationFiles[migrationFiles.length - 1]!.number + 1;
         } catch (error) {
             console.error('❌ Error reading migrations directory:', error);
             return 1;

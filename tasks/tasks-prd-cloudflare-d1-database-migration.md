@@ -39,11 +39,11 @@
   - [x] 2.3 Create an initial placeholder `0001_initial_schema.sql` (consolidated baseline) and mark as draft for review.
   - [x] 2.4 Add a small Node/TS script `scripts/migration-scaffold.ts` (or npm script) to scaffold new migrations with proper name and template.
 
-- [ ] 3.0 Replace npm scripts and CLI workflows
-  - [ ] 3.1 Add/replace npm scripts in root `package.json` per PRD (migrate:create, migrate:dev, migrate:prod, migrate:status, migrate:rollback, migrate:validate, backup variants).
-  - [ ] 3.2 Ensure scripts run from `src/workers` (use `cd`) and pass `--env` flags where applicable.
-  - [ ] 3.3 Update `src/workers/package.json` if present to mirror necessary wrangler helper scripts.
-  - [ ] 3.4 Add documentation blurb in `docs/migrations.md` showing example commands and confirming pre-flight steps.
+- [x] 3.0 Replace npm scripts and CLI workflows
+  - [x] 3.1 Add/replace npm scripts in root `package.json` per PRD (migrate:create, migrate:dev, migrate:prod, migrate:status, migrate:rollback, migrate:validate, backup variants).
+  - [x] 3.2 Ensure scripts run from `src/workers` (use `cd`) and pass `--env` flags where applicable.
+  - [x] 3.3 Update `src/workers/package.json` if present to mirror necessary wrangler helper scripts.
+  - [x] 3.4 Add documentation blurb in `docs/migrations.md` showing example commands and confirming pre-flight steps.
 
 - [ ] 4.0 Implement migration validation and D1 compatibility checks
   - [ ] 4.1 Implement `scripts/validate-migration.ts` that scans SQL files for prohibited patterns (regex-based checks for `PRAGMA`, `WITHOUT ROWID`, `AUTOINCREMENT`, `ATTACH`, complex CHECKs using `length(`, etc.).
