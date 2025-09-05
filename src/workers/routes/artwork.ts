@@ -17,7 +17,7 @@ import type { WorkerEnv } from '../types';
 import { ArtworkEditsService } from '../lib/artwork-edits';
 import { createSuccessResponse, ValidationApiError, NotFoundError } from '../lib/errors';
 import { getUserToken } from '../middleware/auth';
-import { validateOSMExportData, createExportResponse, generateOSMXML } from '../lib/osm-export';
+import { validateOSMExportData, createExportResponse, generateOSMXMLFile } from '../lib/osm-export';
 
 /**
  * POST /api/artwork/:id/edit - Submit artwork edit proposals
@@ -381,7 +381,7 @@ export async function exportArtworkToOSM(c: Context<{ Bindings: WorkerEnv }>): P
   if (format === 'xml') {
     // Return OSM XML format
     try {
-      const xmlContent = generateOSMXML(artwork);
+      const xmlContent = generateOSMXMLFile([artwork]);
       return new Response(xmlContent, {
         status: 200,
         headers: {

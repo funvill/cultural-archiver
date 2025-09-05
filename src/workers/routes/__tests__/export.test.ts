@@ -83,8 +83,8 @@ describe('Export Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.data.artworks).toHaveLength(1);
-      expect(data.data.artworks[0]).toMatchObject({
+      expect(data.data.data.artworks).toHaveLength(1);
+      expect(data.data.data.artworks[0]).toMatchObject({
         id: 'artwork-123',
         lat: 49.2827,
         lon: -123.1207,
@@ -178,10 +178,10 @@ describe('Export Integration Tests', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.artwork_id).toBe('artwork-123');
-      expect(data.valid).toBe(true);
-      expect(Array.isArray(data.errors)).toBe(true);
-      expect(Array.isArray(data.warnings)).toBe(true);
+      expect(data.data.artwork_id).toBe('artwork-123');
+      expect(data.data.valid).toBe(true);
+      expect(Array.isArray(data.data.errors)).toBe(true);
+      expect(Array.isArray(data.data.warnings)).toBe(true);
     });
 
     it('should return 404 for non-existent artwork', async () => {
@@ -261,8 +261,8 @@ describe('Export Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.data.artworks).toHaveLength(2);
-      expect(data.data.metadata.total_artworks).toBe(2);
+      expect(data.data.data.artworks).toHaveLength(2);
+      expect(data.data.data.metadata.total_artworks).toBe(2);
     });
 
     it('should export artworks by specific IDs', async () => {
@@ -293,8 +293,8 @@ describe('Export Integration Tests', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.data.artworks).toHaveLength(1);
-      expect(data.data.artworks[0].id).toBe('artwork-1');
+      expect(data.data.data.artworks).toHaveLength(1);
+      expect(data.data.data.artworks[0].id).toBe('artwork-1');
     });
 
     it('should export artworks within geographic bounds', async () => {
@@ -437,11 +437,11 @@ describe('Export Integration Tests', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.total_artworks).toBe(100);
-      expect(data.sample_size).toBe(10);
-      expect(data.validation_summary).toBeDefined();
-      expect(data.validation_summary.valid_artworks).toBeDefined();
-      expect(data.export_estimates).toBeDefined();
+      expect(data.data.total_artworks).toBe(100);
+      expect(data.data.sample_size).toBe(10);
+      expect(data.data.validation_summary).toBeDefined();
+      expect(data.data.validation_summary.valid_artworks).toBeDefined();
+      expect(data.data.export_estimates).toBeDefined();
     });
 
     it('should handle bounds in statistics', async () => {
@@ -478,7 +478,7 @@ describe('Export Integration Tests', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.total_artworks).toBe(50);
+      expect(data.data.total_artworks).toBe(50);
     });
 
     it('should validate bounds in statistics endpoint', async () => {
