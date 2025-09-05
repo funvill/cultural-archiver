@@ -356,8 +356,6 @@ export function exportToOpenStreetMapFormat(tags: Record<string, string>): Recor
   const osmTags: Record<string, string> = {};
   
   for (const [key, value] of Object.entries(tags)) {
-    const definition = getTagDefinition(key);
-    
     // Core OSM tags don't get prefixed
     if (['tourism', 'name', 'artwork_type', 'artist_name', 'material', 'height', 'start_date', 'access', 'fee', 'website', 'wikipedia'].includes(key)) {
       osmTags[key] = value;

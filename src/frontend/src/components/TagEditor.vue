@@ -18,7 +18,6 @@ import {
   getTagDefinition,
   getCategoriesOrderedForDisplay,
   getTagsByCategory,
-  getAllTagKeysAlphabetically,
   validateTagValue,
   formatTagValueForDisplay,
   type TagDefinition,
@@ -70,10 +69,7 @@ const tags = computed({
 
 const categories = computed(() => getCategoriesOrderedForDisplay());
 
-const availableTagKeys = computed(() => {
-  const allKeys = getAllTagKeysAlphabetically();
-  return allKeys.filter(def => !tags.value.hasOwnProperty(def.key));
-});
+// Remove unused availableTagKeys computation
 
 const canAddMoreTags = computed(() => {
   return Object.keys(tags.value).length < props.maxTags;
@@ -90,7 +86,7 @@ const currentTagError = computed(() => {
 const tagsByCategory = computed(() => {
   const result: Record<string, Array<{ key: string; value: string; definition: TagDefinition }>> = {};
   
-  categories.value.forEach(category => {
+  categories.value.forEach((category: any) => {
     result[category.key] = [];
   });
 
@@ -100,12 +96,14 @@ const tagsByCategory = computed(() => {
   for (const [key, value] of Object.entries(tags.value)) {
     const definition = getTagDefinition(key);
     if (definition) {
-      result[definition.category] = result[definition.category] || [];
-      result[definition.category].push({ key, value, definition });
+      const categoryArray = result[definition.category];
+      if (categoryArray) {
+        categoryArray.push({ key, value: String(value), definition });
+      }
     } else {
       result.other.push({ 
         key, 
-        value, 
+        value: String(value), 
         definition: {
           key,
           label: key,
@@ -119,7 +117,8 @@ const tagsByCategory = computed(() => {
 
   // Remove empty categories
   for (const categoryKey of Object.keys(result)) {
-    if (result[categoryKey].length === 0) {
+    const categoryArray = result[categoryKey];
+    if (categoryArray && categoryArray.length === 0) {
       delete result[categoryKey];
     }
   }
@@ -471,16 +470,37 @@ onBeforeUnmount(() => {
                 <option value="no">No</option>
               </select>
 
+              <!-- Number input -->
+              <input
+                v-if="selectedTagDefinition.dataType === 'number'"
+                id="tag-value-input"
+                ref="valueInputRef"
+                v-model="tagValue"
+                type="number"
+                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                :class="{ 'border-red-300 bg-red-50': currentTagError }"
+                @keypress="handleKeyPress"
+              />
+              
+              <!-- URL input -->
+              <input
+                v-else-if="selectedTagDefinition.dataType === 'url'"
+                id="tag-value-input"
+                ref="valueInputRef"
+                v-model="tagValue"
+                type="url"
+                class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                :class="{ 'border-red-300 bg-red-50': currentTagError }"
+                @keypress="handleKeyPress"
+              />
+              
+              <!-- Text input -->
               <input
                 v-else
                 id="tag-value-input"
                 ref="valueInputRef"
                 v-model="tagValue"
-                :type="selectedTagDefinition.dataType === 'number' ? 'number' : selectedTagDefinition.dataType === 'url' ? 'url' : 'text'"
-                :placeholder="selectedTagDefinition.placeholder"
-                :maxlength="selectedTagDefinition.maxLength"
-                :min="selectedTagDefinition.min"
-                :max="selectedTagDefinition.max"
+                type="text"
                 class="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 :class="{ 'border-red-300 bg-red-50': currentTagError }"
                 @keypress="handleKeyPress"

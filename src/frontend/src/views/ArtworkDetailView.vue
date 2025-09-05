@@ -796,7 +796,7 @@ onUnmounted(() => {
                 v-model="editData.tags"
                 :disabled="editLoading"
                 :max-tags="30"
-                @tag-added="(key, value) => announceSuccess(`Tag '${key}' added`)"
+                @tag-added="(key) => announceSuccess(`Tag '${key}' added`)"
                 @tag-removed="(key) => announceSuccess(`Tag '${key}' removed`)"
               />
             </div>

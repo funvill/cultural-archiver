@@ -158,7 +158,7 @@ describe('TagBadge', () => {
 
       expect(wrapper.emitted('tagClick')).toBeTruthy();
       // The emitted event now contains StructuredTag format with key, value, and definition
-      const emittedEvent = wrapper.emitted('tagClick')?.[0]?.[0];
+      const emittedEvent = wrapper.emitted('tagClick')?.[0]?.[0] as { key: string; value: string; definition: unknown };
       expect(emittedEvent).toBeDefined();
       expect(emittedEvent.key).toBe('material');
       expect(emittedEvent.value).toBe('bronze');

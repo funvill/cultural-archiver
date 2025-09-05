@@ -232,8 +232,8 @@ export function parseSearchQuery(query: string): {
   for (const part of parts) {
     // Check for tag search syntax (case insensitive)
     const tagMatch = part.match(/^tag:([^:]+)(?::(.+))?$/i);
-    
-    if (tagMatch) {
+
+    if (tagMatch && tagMatch[1]) {
       const key = tagMatch[1].toLowerCase().trim();
       const value = tagMatch[2]?.trim();
       
