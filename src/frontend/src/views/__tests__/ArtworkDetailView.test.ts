@@ -536,14 +536,14 @@ describe('ArtworkDetailView', () => {
       }
     });
 
-    it('handles tag editing with TagChipEditor integration', async (): Promise<void> => {
+    it('handles tag editing with TagEditor integration', async (): Promise<void> => {
       wrapper.vm.isEditMode = true;
-      wrapper.vm.editData.tags = ['existing-tag'];
+      wrapper.vm.editData.tags = { 'existing-tag': 'existing-value' };
       await wrapper.vm.$nextTick();
 
-      // Check if TagChipEditor is rendered (or tag editing interface exists)
+      // Check if TagEditor component is rendered
       const tagEditor = wrapper.find(
-        '[class*="tag-chip-editor"], textarea[id*="edit-tags"], input[id*="tags"]'
+        '.tag-editor, [class*="tag-editor"]'
       );
       expect(tagEditor.exists()).toBe(true);
     });

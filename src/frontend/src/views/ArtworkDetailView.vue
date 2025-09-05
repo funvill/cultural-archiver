@@ -6,7 +6,7 @@ import { useAuthStore } from '../stores/auth';
 import PhotoCarousel from '../components/PhotoCarousel.vue';
 import MiniMap from '../components/MiniMap.vue';
 import TagBadge from '../components/TagBadge.vue';
-import TagChipEditor from '../components/TagChipEditor.vue';
+import TagEditor from '../components/TagEditor.vue';
 import LogbookTimeline from '../components/LogbookTimeline.vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { apiService } from '../services/api';
@@ -47,7 +47,7 @@ const editData = ref({
   title: '',
   description: '',
   creators: '',
-  tags: [] as string[],
+  tags: {} as Record<string, string>, // Structured tags instead of string array
 });
 
 // Computed
@@ -107,13 +107,24 @@ const artworkCreators = computed(() => {
 const artworkTags = computed(() => {
   if (!artwork.value?.tags_parsed) return {};
 
-  // Filter out special fields like title, description, artist
+  // Convert legacy tags_parsed format to structured tags
   const filteredTags = { ...artwork.value.tags_parsed };
+  
+  // Remove special fields that are handled separately
   delete filteredTags.title;
   delete filteredTags.description;
   delete filteredTags.artist;
+  delete filteredTags.creator;
 
-  return filteredTags;
+  // Convert to structured tags format (string values only)
+  const structuredTags: Record<string, string> = {};
+  Object.entries(filteredTags).forEach(([key, value]) => {
+    if (value != null) {
+      structuredTags[key] = String(value);
+    }
+  });
+
+  return structuredTags;
 });
 
 const artworkPhotos = computed(() => {
@@ -148,7 +159,7 @@ const hasUnsavedChanges = computed(() => {
     editData.value.title !== artworkTitle.value ||
     editData.value.description !== (artworkDescription.value || '') ||
     editData.value.creators !== artworkCreators.value ||
-    JSON.stringify(editData.value.tags) !== JSON.stringify(extractTagsAsStringArray())
+    JSON.stringify(editData.value.tags) !== JSON.stringify(artworkTags.value)
   );
 });
 
@@ -223,7 +234,7 @@ function closeFullscreenPhoto(): void {
   fullscreenPhotoUrl.value = '';
 }
 
-function handleTagClick(tag: { label: string; value: string }): void {
+function handleTagClick(tag: { label?: string; value?: string; key?: string }): void {
   // Future: implement tag filtering or search
   console.log('Tag clicked:', tag);
 }
@@ -255,7 +266,7 @@ function enterEditMode(): void {
     title: artworkTitle.value,
     description: artworkDescription.value || '',
     creators: artworkCreators.value,
-    tags: extractTagsAsStringArray(),
+    tags: { ...artworkTags.value }, // Copy structured tags
   };
 
   isEditMode.value = true;
@@ -263,30 +274,6 @@ function enterEditMode(): void {
   announceSuccess('Entering edit mode');
 }
 
-function extractTagsAsStringArray(): string[] {
-  if (!artwork.value?.tags_parsed) return [];
-
-  const tags: string[] = [];
-  const parsed = artwork.value.tags_parsed;
-
-  // Add non-system tags as simple strings
-  Object.entries(parsed).forEach(([key, value]) => {
-    if (!['title', 'description', 'artist', 'creator'].includes(key)) {
-      if (typeof value === 'string') {
-        // For simple values, just add as "key: value" or if value matches key, just the key
-        if (value.toLowerCase() === key.toLowerCase()) {
-          tags.push(key);
-        } else {
-          tags.push(`${key}: ${value}`);
-        }
-      } else {
-        tags.push(`${key}: ${JSON.stringify(value)}`);
-      }
-    }
-  });
-
-  return tags;
-}
 
 function cancelEdit(): void {
   if (hasUnsavedChanges.value) {
@@ -346,13 +333,23 @@ async function saveEdit(): Promise<void> {
       });
     }
 
-    // Tags edit - convert array back to format expected by backend
-    const originalTags = extractTagsAsStringArray();
-    if (JSON.stringify(editData.value.tags) !== JSON.stringify(originalTags)) {
+    // Tags edit - convert structured tags to format expected by backend
+    const originalTags = artworkTags.value;
+    const hasTagChanges = JSON.stringify(editData.value.tags) !== JSON.stringify(originalTags);
+    
+    if (hasTagChanges) {
+      // For now, convert to legacy format for backend compatibility
+      const originalTagsArray = Object.entries(originalTags).map(([key, value]) => 
+        value.toLowerCase() === key.toLowerCase() ? key : `${key}: ${value}`
+      );
+      const newTagsArray = Object.entries(editData.value.tags).map(([key, value]) => 
+        value.toLowerCase() === key.toLowerCase() ? key : `${key}: ${value}`
+      );
+
       edits.push({
         field_name: 'tags',
-        field_value_old: originalTags.join('\n'),
-        field_value_new: editData.value.tags.join('\n'),
+        field_value_old: originalTagsArray.join('\n'),
+        field_value_new: newTagsArray.join('\n'),
       });
     }
 
@@ -779,9 +776,11 @@ onUnmounted(() => {
             <div v-if="!isEditMode && Object.keys(artworkTags).length > 0">
               <TagBadge
                 :tags="artworkTags"
-                :max-visible="5"
+                :max-visible="8"
                 color-scheme="blue"
                 variant="compact"
+                :show-categories="true"
+                :collapsible="true"
                 @tag-click="handleTagClick"
               />
             </div>
@@ -793,21 +792,13 @@ onUnmounted(() => {
 
             <!-- Edit mode -->
             <div v-else class="space-y-2">
-              <label for="edit-tags" class="block text-sm font-medium text-gray-700"
-                >Tags/Keywords</label
-              >
-              <TagChipEditor
+              <TagEditor
                 v-model="editData.tags"
-                placeholder="Add tags..."
-                :max-tags="20"
                 :disabled="editLoading"
-                @tag-added="tag => announceSuccess(`Tag '${tag}' added`)"
-                @tag-removed="tag => announceSuccess(`Tag '${tag}' removed`)"
+                :max-tags="30"
+                @tag-added="(key, value) => announceSuccess(`Tag '${key}' added`)"
+                @tag-removed="(key) => announceSuccess(`Tag '${key}' removed`)"
               />
-              <p class="text-sm text-gray-500">
-                Add tags to help categorize this artwork. Use Enter or commas to separate multiple
-                tags.
-              </p>
             </div>
           </section>
 

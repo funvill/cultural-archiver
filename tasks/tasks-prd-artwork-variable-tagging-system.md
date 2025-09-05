@@ -70,13 +70,13 @@
   - [x] 5.5 Add loading states and error handling for tag operations
   - [x] 5.6 Create consistent styling with existing Tailwind CSS design system
 
-- [ ] 6.0 Integration with Artwork Detail View
-  - [ ] 6.1 Replace tag editing section in `ArtworkDetailView.vue` with new `TagEditor.vue`
-  - [ ] 6.2 Update edit mode toggle to work with new structured tag system
-  - [ ] 6.3 Integrate with existing save/cancel functionality and unsaved changes detection
-  - [ ] 6.4 Add tag validation feedback during edit process
-  - [ ] 6.5 Update tag data mapping between frontend and API format
-  - [ ] 6.6 Ensure proper display of structured tags in read-only mode with category groupings
+- [x] 6.0 Integration with Artwork Detail View
+  - [x] 6.1 Replace tag editing section in `ArtworkDetailView.vue` with new `TagEditor.vue`
+  - [x] 6.2 Update edit mode toggle to work with new structured tag system
+  - [x] 6.3 Integrate with existing save/cancel functionality and unsaved changes detection
+  - [x] 6.4 Add tag validation feedback during edit process
+  - [x] 6.5 Update tag data mapping between frontend and API format
+  - [x] 6.6 Ensure proper display of structured tags in read-only mode with category groupings
 
 - [ ] 7.0 Search Integration Enhancement
   - [ ] 7.1 Extend existing search functionality to support "Tag:key" format searches
