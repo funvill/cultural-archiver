@@ -20,6 +20,7 @@ import type {
   UserSubmissionInfo,
   GenerateDataDumpResponse,
   ListDataDumpsResponse,
+  ArtworkEditReviewData
 } from '../../../shared/types'
 import type { UserProfile, ReviewQueueItem, ReviewStats, ArtworkDetails } from '../types'
 import { getApiBaseUrl } from '../utils/api-config'
@@ -384,6 +385,48 @@ export const apiService = {
     return response.data
   },
 
+  /**
+   * Submit artwork edits
+   */
+  async submitArtworkEdit(artworkId: string, edits: Array<{
+    field_name: string
+    field_value_old: string
+    field_value_new: string
+  }>): Promise<ApiResponse<{ 
+    message: string
+    edit_id: string
+  }>> {
+    return client.post(`/artwork/${artworkId}/edit`, {
+      edits
+    })
+  },
+
+  /**
+   * Check pending edits for an artwork
+   */
+  async getPendingEdits(artworkId: string): Promise<ApiResponse<{
+    has_pending_edits: boolean
+    pending_fields: string[]
+  }>> {
+    return client.get(`/artwork/${artworkId}/pending-edits`)
+  },
+
+  /**
+   * Validate artwork edits without submitting
+   */
+  async validateArtworkEdit(artworkId: string, edits: Array<{
+    field_name: string
+    field_value_old: string
+    field_value_new: string
+  }>): Promise<ApiResponse<{
+    valid: boolean
+    errors?: string[]
+  }>> {
+    return client.post(`/artwork/${artworkId}/edit/validate`, {
+      edits
+    })
+  },
+
   // ================================
   // Search Endpoints
   // ================================
@@ -670,6 +713,38 @@ export const apiService = {
    */
   async processBatchReview(batch: unknown[]): Promise<ApiResponse<{ processed: number; message: string }>> {
     return client.put('/review/batch', { batch })
+  },
+
+  /**
+   * Get artwork edits for moderation
+   */
+  async getArtworkEdits(page?: number, per_page?: number): Promise<PaginatedResponse<ArtworkEditReviewData[]>> {
+    const params: Record<string, string> = {}
+    if (page) params.page = page.toString()
+    if (per_page) params.per_page = per_page.toString()
+    
+    return client.get('/review/artwork-edits', params)
+  },
+
+  /**
+   * Get specific artwork edit for detailed review
+   */
+  async getArtworkEditForReview(editId: string): Promise<ApiResponse<ArtworkEditReviewData>> {
+    return client.get(`/review/artwork-edits/${editId}`)
+  },
+
+  /**
+   * Approve artwork edit
+   */
+  async approveArtworkEdit(editId: string, applyToArtwork = true): Promise<ApiResponse<{ message: string }>> {
+    return client.post(`/review/artwork-edits/${editId}/approve`, { apply_to_artwork: applyToArtwork })
+  },
+
+  /**
+   * Reject artwork edit
+   */
+  async rejectArtworkEdit(editId: string, reason: string): Promise<ApiResponse<{ message: string }>> {
+    return client.post(`/review/artwork-edits/${editId}/reject`, { reason })
   },
 
   // ================================

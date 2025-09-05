@@ -225,6 +225,9 @@ export interface ArtworkDetails {
   type_name: string
   logbook_entries: LogbookEntryWithPhotos[]
   tags_parsed: Record<string, string>
+  title?: string | null // Editable field
+  description?: string | null // Editable field  
+  created_by?: string | null // Editable field
 }
 
 export interface LogbookEntryWithPhotos {

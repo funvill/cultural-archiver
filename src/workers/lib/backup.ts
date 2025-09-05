@@ -280,14 +280,19 @@ export async function collectR2Photos(env: WorkerEnv): Promise<PhotoCollectionRe
       console.warn(`[BACKUP] Photo collection completed with ${warnings.length} warnings`);
     }
 
-    return {
+    const result: PhotoCollectionResult = {
       success: true,
       photos,
       originals_count: originalsCount,
       thumbnails_count: thumbnailsCount,
       total_size: totalSize,
-      warnings: warnings.length > 0 ? warnings : undefined,
     };
+    
+    if (warnings.length > 0) {
+      result.warnings = warnings;
+    }
+    
+    return result;
   } catch (error) {
     console.error('[BACKUP] R2 photo collection failed:', error);
     
@@ -605,21 +610,31 @@ export async function generateFullBackup(env: WorkerEnv): Promise<BackupResult> 
       console.log(`[BACKUP] Backup integrity verified: ${verification.summary}`);
     }
 
-    return {
+    const successResult: BackupResult = {
       success: true,
       backup_file: archiveBuffer,
       filename,
       metadata,
       size: archiveBuffer.byteLength,
-      warnings: warnings.length > 0 ? warnings : undefined,
     };
+    
+    if (warnings.length > 0) {
+      successResult.warnings = warnings;
+    }
+    
+    return successResult;
   } catch (error) {
     console.error('[BACKUP] Full backup failed:', error);
     
-    return {
+    const errorResult: BackupResult = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown backup error',
-      warnings: warnings.length > 0 ? warnings : undefined,
     };
+    
+    if (warnings.length > 0) {
+      errorResult.warnings = warnings;
+    }
+    
+    return errorResult;
   }
 }

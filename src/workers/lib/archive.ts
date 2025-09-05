@@ -78,9 +78,10 @@ export class SimpleZipArchive {
     // Convert content to ArrayBuffer if needed
     let arrayBuffer: ArrayBuffer;
     if (typeof content === 'string') {
-      arrayBuffer = new TextEncoder().encode(content).buffer;
+      const encoder = new TextEncoder().encode(content);
+      arrayBuffer = encoder.buffer.slice(encoder.byteOffset, encoder.byteOffset + encoder.byteLength) as ArrayBuffer;
     } else if (content instanceof Uint8Array) {
-      arrayBuffer = content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength);
+      arrayBuffer = content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength) as ArrayBuffer;
     } else {
       arrayBuffer = content;
     }
@@ -106,12 +107,17 @@ export class SimpleZipArchive {
       );
     }
 
-    this.files.push({
+    const fileEntry: ArchiveFile = {
       path: normalizedPath,
       content: arrayBuffer,
-      mimeType: options?.mimeType,
       lastModified: options?.lastModified || new Date(),
-    });
+    };
+    
+    if (options?.mimeType) {
+      fileEntry.mimeType = options.mimeType;
+    }
+    
+    this.files.push(fileEntry);
   }
 
   /**
@@ -128,10 +134,17 @@ export class SimpleZipArchive {
 
     for (const file of files) {
       const fullPath = `${folderPrefix}${file.path}`;
-      this.addFile(fullPath, file.content, {
-        mimeType: file.mimeType,
-        lastModified: file.lastModified,
-      });
+      const options: { mimeType?: string; lastModified?: Date } = {};
+      
+      if (file.mimeType) {
+        options.mimeType = file.mimeType;
+      }
+      
+      if (file.lastModified) {
+        options.lastModified = file.lastModified;
+      }
+      
+      this.addFile(fullPath, file.content, options);
     }
   }
 
@@ -360,7 +373,10 @@ export class SimpleZipArchive {
     // Simplified CRC32 - just use a hash based on data for MVP
     let crc = 0;
     for (let i = 0; i < data.length; i++) {
-      crc = ((crc << 1) ^ data[i]) & 0xFFFFFFFF;
+      const byte = data[i];
+      if (byte !== undefined) {
+        crc = ((crc << 1) ^ byte) & 0xFFFFFFFF;
+      }
     }
     return crc >>> 0; // Ensure unsigned 32-bit integer
   }
@@ -386,10 +402,17 @@ export async function createZipArchive(files: ArchiveFile[], options?: ArchiveOp
       throw new ApiError('Each file must have a path and content', 'INVALID_FILE_STRUCTURE', 400);
     }
     
-    archive.addFile(file.path, file.content, {
-      mimeType: file.mimeType,
-      lastModified: file.lastModified,
-    });
+    const options: { mimeType?: string; lastModified?: Date } = {};
+    
+    if (file.mimeType) {
+      options.mimeType = file.mimeType;
+    }
+    
+    if (file.lastModified) {
+      options.lastModified = file.lastModified;
+    }
+    
+    archive.addFile(file.path, file.content, options);
   }
 
   return await archive.generateArchive();

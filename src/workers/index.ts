@@ -26,6 +26,7 @@ import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 // Import route handlers
 import { createLogbookSubmission } from './routes/submissions';
 import { getNearbyArtworks, getArtworkDetails, getArtworksInBounds, getArtworkStats } from './routes/discovery';
+import { submitArtworkEdit, getUserPendingEdits, validateArtworkEdit } from './routes/artwork';
 import { getUserSubmissions, getUserProfile, sendTestEmail } from './routes/user';
 import { handleSearchRequest, handleSearchSuggestions } from './routes/search';
 import {
@@ -45,6 +46,10 @@ import {
   rejectSubmission,
   getReviewStats,
   processBatchReview,
+  getArtworkEditsForReview,
+  getArtworkEditForReview,
+  approveArtworkEdit,
+  rejectArtworkEdit,
 } from './routes/review';
 import {
   submitConsent,
@@ -377,6 +382,9 @@ app.get('/health', async c => {
       'GET /api/artworks/nearby',
       'GET /api/artworks/bounds', 
       'GET /api/artworks/:id',
+      'POST /api/artwork/:id/edit',
+      'GET /api/artwork/:id/pending-edits',
+      'POST /api/artwork/:id/edit/validate',
       'GET /api/search',
       'GET /api/search/suggestions',
       'GET /api/me/submissions',
@@ -399,6 +407,10 @@ app.get('/health', async c => {
       'POST /api/review/approve/:id',
       'POST /api/review/reject/:id',
       'POST /api/review/batch',
+      'GET /api/review/artwork-edits',
+      'GET /api/review/artwork-edits/:editId',
+      'POST /api/review/artwork-edits/:editId/approve',
+      'POST /api/review/artwork-edits/:editId/reject',
     ],
     debug_info: {
       request_url: c.req.url,
@@ -437,6 +449,84 @@ app.get('/test', c => {
   });
 });
 
+// Permissions diagnostic endpoint for debugging reviewer access
+app.get('/api/debug/permissions/:userToken', async c => {
+  console.log('[DEBUG] Permissions diagnostic endpoint called');
+  
+  const userToken = c.req.param('userToken');
+  console.log('[DEBUG] Testing permissions for user:', userToken);
+  
+  try {
+    // Test 1: Basic database connection
+    const dbTest = await c.env.DB.prepare('SELECT 1 as test').first();
+    console.log('[DEBUG] Database test result:', dbTest);
+    
+    // Test 2: Check user_permissions table
+    const permStmt = c.env.DB.prepare(`
+      SELECT * FROM user_permissions 
+      WHERE user_uuid = ? AND is_active = 1
+    `);
+    const permissions = await permStmt.bind(userToken).all();
+    console.log('[DEBUG] Direct permissions query result:', permissions);
+    
+    // Test 3: Check legacy logbook count
+    const logbookStmt = c.env.DB.prepare(`
+      SELECT COUNT(*) as count FROM logbook 
+      WHERE user_token = ? AND status = 'approved'
+    `);
+    const logbookResult = await logbookStmt.bind(userToken).first();
+    console.log('[DEBUG] Legacy logbook count:', logbookResult);
+    
+    // Test 4: Import and test isModerator function
+    const { isModerator } = await import('./lib/permissions');
+    const isModeratorResult = await isModerator(c.env.DB, userToken);
+    console.log('[DEBUG] isModerator function result:', isModeratorResult);
+    
+    // Test 5: Test requireReviewer middleware logic manually
+    let legacyReviewerCheck = false;
+    if (!isModeratorResult) {
+      const approvedCount = (logbookResult as { count: number } | null)?.count || 0;
+      legacyReviewerCheck = approvedCount >= 5;
+    }
+    
+    const finalReviewerStatus = isModeratorResult || legacyReviewerCheck;
+    
+    return c.json({
+      user_token: userToken,
+      timestamp: new Date().toISOString(),
+      tests: {
+        database_connection: !!dbTest,
+        direct_permissions: {
+          count: permissions.results?.length || 0,
+          permissions: permissions.results || [],
+        },
+        legacy_logbook: {
+          approved_count: (logbookResult as { count: number } | null)?.count || 0,
+          meets_threshold: ((logbookResult as { count: number } | null)?.count || 0) >= 5,
+        },
+        is_moderator_function: isModeratorResult,
+        legacy_reviewer_check: legacyReviewerCheck,
+        final_reviewer_status: finalReviewerStatus,
+      },
+      debug_info: {
+        middleware_should_pass: finalReviewerStatus,
+        expected_auth_context: {
+          isReviewer: finalReviewerStatus,
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('[DEBUG] Permissions diagnostic error:', error);
+    return c.json({
+      error: 'Permissions diagnostic failed',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      user_token: userToken,
+      timestamp: new Date().toISOString(),
+    }, 500);
+  }
+});
+
 // API status endpoint (no auth required)
 app.get('/api/status', ensureUserToken, addUserTokenToResponse, c => {
   console.log('API status endpoint called'); // Add logging
@@ -464,6 +554,8 @@ app.use('/api/admin/*', checkEmailVerification);
 app.use('/api/admin/*', requireAdmin);
 app.use('/api/consent', ensureUserToken);
 app.use('/api/consent', addUserTokenToResponse);
+app.use('/api/artwork/*/edit*', ensureUserToken);
+app.use('/api/artwork/*/edit*', checkEmailVerification);
 
 // ================================
 // Photo Serving Endpoint
@@ -576,6 +668,31 @@ app.get(
   rateLimitQueries,
   validateUUID('id'),
   withErrorHandling(getArtworkDetails)
+);
+
+// ================================
+// Artwork Editing Endpoints
+// ================================
+
+app.post(
+  '/api/artwork/:id/edit',
+  rateLimitSubmissions,
+  validateUUID('id'),
+  withErrorHandling(submitArtworkEdit)
+);
+
+app.get(
+  '/api/artwork/:id/pending-edits',
+  rateLimitQueries,
+  validateUUID('id'),
+  withErrorHandling(getUserPendingEdits)
+);
+
+app.post(
+  '/api/artwork/:id/edit/validate',
+  rateLimitQueries,
+  validateUUID('id'),
+  withErrorHandling(validateArtworkEdit)
 );
 
 // ================================
@@ -733,6 +850,27 @@ app.get('/api/review/stats', withErrorHandling(getReviewStats));
 
 app.put('/api/review/batch', withErrorHandling(processBatchReview));
 
+// Artwork Edit Review Endpoints
+app.get('/api/review/artwork-edits', withErrorHandling(getArtworkEditsForReview));
+
+app.get(
+  '/api/review/artwork-edits/:editId',
+  validateUUID('editId'),
+  withErrorHandling(getArtworkEditForReview)
+);
+
+app.post(
+  '/api/review/artwork-edits/:editId/approve',
+  validateUUID('editId'),
+  withErrorHandling(approveArtworkEdit)
+);
+
+app.post(
+  '/api/review/artwork-edits/:editId/reject',
+  validateUUID('editId'),
+  withErrorHandling(rejectArtworkEdit)
+);
+
 // ================================
 // Admin Endpoints
 // ================================
@@ -823,6 +961,9 @@ app.notFound(c => {
         'POST /api/logbook',
         'GET /api/artworks/nearby',
         'GET /api/artworks/:id',
+        'POST /api/artwork/:id/edit',
+        'GET /api/artwork/:id/pending-edits',
+        'POST /api/artwork/:id/edit/validate',
         'GET /api/search',
         'GET /api/search/suggestions',
         'GET /api/me/submissions',
@@ -842,6 +983,10 @@ app.notFound(c => {
         'GET /api/review/queue',
         'POST /api/review/approve/:id',
         'POST /api/review/reject/:id',
+        'GET /api/review/artwork-edits',
+        'GET /api/review/artwork-edits/:editId',
+        'POST /api/review/artwork-edits/:editId/approve',
+        'POST /api/review/artwork-edits/:editId/reject',
         'GET /api/admin/permissions',
         'POST /api/admin/permissions/grant',
         'POST /api/admin/permissions/revoke',

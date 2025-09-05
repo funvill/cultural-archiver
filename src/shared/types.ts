@@ -17,6 +17,9 @@ export interface ArtworkRecord {
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null; // JSON object for key-value metadata like {"material": "bronze", "style": "modern"}
+  title?: string | null; // Artwork title (editable field)
+  description?: string | null; // Artwork description (editable field)
+  created_by?: string | null; // Creator/artist name(s) (editable field)
 }
 
 export interface ArtworkApiResponse {
@@ -30,6 +33,9 @@ export interface ArtworkApiResponse {
   photos: string[] | null; // Already parsed as array
   type_name?: string;
   tags_parsed?: Record<string, unknown>;
+  title?: string | null; // Artwork title (editable field)
+  description?: string | null; // Artwork description (editable field)
+  created_by?: string | null; // Creator/artist name(s) (editable field)
 }
 
 export interface LogbookRecord {
@@ -118,6 +124,62 @@ export interface CreateArtworkCreatorRequest {
 }
 
 // ================================
+// Artwork Edit Types
+// ================================
+
+export interface ArtworkEditRecord {
+  edit_id: string;
+  artwork_id: string;
+  user_token: string;
+  field_name: string;
+  field_value_old: string | null;
+  field_value_new: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  moderator_notes: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  submitted_at: string;
+}
+
+export interface CreateArtworkEditRequest {
+  artwork_id: string;
+  user_token: string;
+  edits: Array<{
+    field_name: string;
+    field_value_old: string | null;
+    field_value_new: string | null;
+  }>;
+}
+
+export interface ArtworkEditSubmissionResponse {
+  edit_ids: string[];
+  message: string;
+  status: 'pending';
+}
+
+export interface PendingEditsResponse {
+  has_pending_edits: boolean;
+  pending_fields: string[];
+  submitted_at?: string;
+}
+
+export interface ArtworkEditDiff {
+  field_name: string;
+  old_value: string | null;
+  new_value: string | null;
+  formatted_old?: string;
+  formatted_new?: string;
+}
+
+export interface ArtworkEditReviewData {
+  edit_ids: string[];
+  artwork_id: string;
+  user_token: string;
+  submitted_at: string;
+  diffs: ArtworkEditDiff[];
+}
+
+// ================================
 // MVP Worker API Types
 // ================================
 
@@ -180,6 +242,9 @@ export interface ArtworkDetailResponse {
   logbook_entries: LogbookEntryWithPhotos[];
   tags_parsed: Record<string, string>;
   creators: ArtworkCreatorInfo[];
+  title?: string | null; // Artwork title (editable field)
+  description?: string | null; // Artwork description (editable field)
+  created_by?: string | null; // Creator/artist name(s) (editable field)
 }
 
 export interface ArtworkCreatorInfo {

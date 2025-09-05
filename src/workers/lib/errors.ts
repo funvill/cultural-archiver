@@ -47,8 +47,13 @@ export class ApiError extends Error {
  * Validation error for input validation failures
  */
 export class ValidationApiError extends ApiError {
-  constructor(validationErrors: ValidationError[], message = 'Validation failed') {
-    super('VALIDATION_ERROR', message, 400, {
+  constructor(validationErrors: ValidationError[], message?: string) {
+    // Use the first validation error's message if only one error and no custom message
+    const firstError = validationErrors[0];
+    const finalMessage = message || 
+      (validationErrors.length === 1 && firstError?.message ? firstError.message : 'Validation failed');
+    
+    super(finalMessage, 'VALIDATION_ERROR', 400, {
       validationErrors,
       showDetails: true,
     });
@@ -60,7 +65,7 @@ export class ValidationApiError extends ApiError {
  */
 export class RateLimitError extends ApiError {
   constructor(retryAfter: number, message = 'Rate limit exceeded') {
-    super('RATE_LIMIT_EXCEEDED', message, 429, {
+    super(message, 'RATE_LIMIT_EXCEEDED', 429, {
       details: { retry_after: retryAfter },
       showDetails: true,
     });
@@ -74,7 +79,7 @@ export class NotFoundError extends ApiError {
   constructor(resource: string, id?: string) {
     const message = id ? `${resource} with id '${id}' not found` : `${resource} not found`;
 
-    super('NOT_FOUND', message, 404, {
+    super(message, 'NOT_FOUND', 404, {
       details: { resource, id },
       showDetails: false,
     });
@@ -86,7 +91,7 @@ export class NotFoundError extends ApiError {
  */
 export class UnauthorizedError extends ApiError {
   constructor(message = 'Unauthorized access') {
-    super('UNAUTHORIZED', message, 401, {
+    super(message, 'UNAUTHORIZED', 401, {
       showDetails: false,
     });
   }

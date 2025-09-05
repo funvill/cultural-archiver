@@ -91,6 +91,7 @@
   },
   "homepage": "https://github.com/funvill/cultural-archiver#readme",
   "dependencies": {
-    "dotenv": "^17.2.2"
+    "dotenv": "^17.2.2",
+    "sqlite3": "^5.1.7"
   }
 }

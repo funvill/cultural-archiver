@@ -7,7 +7,7 @@
 
 import type { Context } from 'hono';
 import type { WorkerEnv, AuthContext } from '../types';
-import type { GenerateDataDumpRequest, GenerateDataDumpResponse, ListDataDumpsResponse, DataDumpRecord } from '../../shared/types';
+import type { GenerateDataDumpResponse, ListDataDumpsResponse, DataDumpRecord } from '../../shared/types';
 import { ApiError } from '../lib/errors';
 import {
   listUsersWithPermissions,
@@ -684,8 +684,11 @@ export async function generateDataDump(
           total_photos: dataDumpResult.metadata!.data_info.total_photos,
         },
       },
-      warnings: dataDumpResult.warnings,
     };
+    
+    if (dataDumpResult.warnings) {
+      response.warnings = dataDumpResult.warnings;
+    }
 
     return c.json(response);
   } catch (error) {

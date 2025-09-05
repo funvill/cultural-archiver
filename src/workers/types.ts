@@ -2,6 +2,9 @@
  * Worker-specific types that include both shared types and Cloudflare Worker types
  */
 
+// Import Cloudflare Worker types
+import type { D1Database, KVNamespace, R2Bucket } from '@cloudflare/workers-types';
+
 // ================================
 // Database Schema Types
 // ================================
