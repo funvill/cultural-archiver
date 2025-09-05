@@ -44,7 +44,7 @@ describe('TagChipEditor', () => {
 
       expect(wrapper.emitted('update:modelValue')).toBeTruthy()
       const emittedEvents = wrapper.emitted('update:modelValue') as any[][]
-      expect(emittedEvents[0][0]).toEqual(['test-tag'])
+      expect(emittedEvents?.[0]?.[0]).toEqual(['test-tag'])
       expect(wrapper.emitted('tag-added')).toBeTruthy()
     })
 
@@ -58,7 +58,7 @@ describe('TagChipEditor', () => {
 
       expect(wrapper.emitted('update:modelValue')).toBeTruthy()
       const emittedEvents = wrapper.emitted('update:modelValue') as any[][]
-      expect(emittedEvents[0][0]).toEqual(['button-tag'])
+      expect(emittedEvents?.[0]?.[0]).toEqual(['button-tag'])
     })
 
     it('adds multiple tags with comma separation', async () => {
@@ -78,7 +78,7 @@ describe('TagChipEditor', () => {
       await input.trigger('keydown', { key: 'Enter' })
 
       const emittedEvents = wrapper.emitted('update:modelValue') as any[][]
-      expect(emittedEvents[0][0]).toEqual(['spaced-tag'])
+      expect(emittedEvents?.[0]?.[0]).toEqual(['spaced-tag'])
     })
   })
 
@@ -93,12 +93,12 @@ describe('TagChipEditor', () => {
       const removeButtons = wrapper.findAll('button[aria-label*="Remove tag"]')
       expect(removeButtons.length).toBe(3)
 
-      await removeButtons[0].trigger('click')
+      await removeButtons[0]?.trigger('click')
       
       expect(wrapper.emitted('update:modelValue')).toBeTruthy()
       expect(wrapper.emitted('tag-removed')).toBeTruthy()
       const removedEvents = wrapper.emitted('tag-removed') as any[][]
-      expect(removedEvents[0][0]).toBe('tag1')
+      expect(removedEvents?.[0]?.[0]).toBe('tag1')
     })
 
     it('removes last tag on Backspace when input is empty', async () => {
@@ -108,7 +108,7 @@ describe('TagChipEditor', () => {
 
       expect(wrapper.emitted('tag-removed')).toBeTruthy()
       const removedEvents = wrapper.emitted('tag-removed') as any[][]
-      expect(removedEvents[0][0]).toBe('tag3') // Last tag
+      expect(removedEvents?.[0]?.[0]).toBe('tag3') // Last tag
     })
 
     it('does not remove tag on Backspace when input has content', async () => {
@@ -155,14 +155,17 @@ describe('TagChipEditor', () => {
       expect(wrapper.text()).toContain('Maximum 5 tags allowed')
     })
 
-    it('disables input when max tags reached', async () => {
+    it('hides add button when max tags reached', async () => {
       await wrapper.setProps({
         modelValue: ['tag1', 'tag2', 'tag3', 'tag4', 'tag5'],
         maxTags: 5
       })
 
       const input = wrapper.find('input')
-      expect(input.attributes('disabled')).toBeDefined()
+      await input.setValue('new-tag')
+      
+      const addButton = wrapper.find('button[aria-label="Add tag"]')
+      expect(addButton.exists()).toBe(false)
     })
   })
 
@@ -182,7 +185,7 @@ describe('TagChipEditor', () => {
 
       expect(wrapper.emitted('update:modelValue')).toBeTruthy()
       const emittedEvents = wrapper.emitted('update:modelValue') as any[][]
-      expect(emittedEvents[0][0]).toEqual(['blur-tag'])
+      expect(emittedEvents?.[0]?.[0]).toEqual(['blur-tag'])
     })
   })
 
@@ -252,7 +255,7 @@ describe('TagChipEditor', () => {
 
   describe('Focus Management', () => {
     it('focuses input when container is clicked', async () => {
-      const container = wrapper.find('.tag-chip-editor')
+      const container = wrapper.find('.tag-chip-editor > div')  // Click on the inner div with the click handler
       const focusSpy = vi.spyOn(wrapper.vm, 'focusInput')
 
       await container.trigger('click')

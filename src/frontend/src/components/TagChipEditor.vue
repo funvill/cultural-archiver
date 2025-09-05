@@ -50,6 +50,13 @@ const tags = computed({
 
 const canAddMore = computed(() => tags.value.length < props.maxTags)
 const inputId = computed(() => `tag-input-${Math.random().toString(36).substr(2, 9)}`)
+const inputAttrs = computed(() => {
+  const attrs: Record<string, string> = {}
+  if (error.value) {
+    attrs['aria-describedby'] = `${inputId.value}-error`
+  }
+  return attrs
+})
 
 // Tag management
 function addTag(tagText: string) {
@@ -96,13 +103,13 @@ function removeLastTag() {
   if (props.disabled || tags.value.length === 0) return
   
   const lastTag = tags.value[tags.value.length - 1]
-  removeTag(lastTag)
+  if (lastTag) {
+    removeTag(lastTag)
+  }
 }
 
 // Input handling
 function handleInputKeydown(event: KeyboardEvent) {
-  error.value = null
-
   if (event.key === 'Enter') {
     event.preventDefault()
     const input = inputValue.value.trim()
@@ -117,7 +124,13 @@ function handleInputKeydown(event: KeyboardEvent) {
       } else {
         addTag(input)
       }
+    } else {
+      // Show error for empty input when Enter is pressed
+      error.value = 'Tag cannot be empty'
     }
+  } else {
+    // Clear error when user starts typing (but not on Enter)
+    error.value = null
   }
   
   if (event.key === 'Backspace' && !inputValue.value && tags.value.length > 0) {
@@ -220,11 +233,11 @@ defineExpose({
             v-model="inputValue"
             :id="inputId"
             type="text"
-            :placeholder="tags.length === 0 ? placeholder : ''"
-            :disabled="disabled || !canAddMore"
+            :placeholder="tags.length === 0 ? (placeholder || '') : ''"
+            :disabled="!!disabled"
             class="flex-1 border-0 outline-none bg-transparent placeholder-gray-400 text-sm"
             :aria-label="`Add new tag. ${tags.length} of ${maxTags} tags used.`"
-            :aria-describedby="error ? `${inputId}-error` : undefined"
+            v-bind="inputAttrs"
             @keydown="handleInputKeydown"
             @blur="handleInputBlur"
             @focus="handleInputFocus"
