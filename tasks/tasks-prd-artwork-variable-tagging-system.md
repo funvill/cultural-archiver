@@ -86,30 +86,30 @@
   - [x] 7.5 Optimize full-text search indexing for new structured tag format
   - [x] 7.6 Add search suggestions that include common tag keys and values
 
-- [ ] 8.0 OpenStreetMap Export Functionality
-  - [ ] 8.1 Create export service to generate OpenStreetMap-compatible format with "ca:" prefixes
-  - [ ] 8.2 Map internal tag keys to appropriate OSM equivalents where possible
-  - [ ] 8.3 Add export API endpoint or extend existing endpoints to support structured tag export
-  - [ ] 8.4 Implement data validation for export format compatibility
-  - [ ] 8.5 Create export documentation and usage examples
-  - [ ] 8.6 Test export functionality with sample data to ensure OSM compatibility
+- [x] 8.0 OpenStreetMap Export Functionality
+  - [x] 8.1 Create export service to generate OpenStreetMap-compatible format with "ca:" prefixes
+  - [x] 8.2 Map internal tag keys to appropriate OSM equivalents where possible
+  - [x] 8.3 Add export API endpoint or extend existing endpoints to support structured tag export
+  - [x] 8.4 Implement data validation for export format compatibility
+  - [x] 8.5 Create export documentation and usage examples
+  - [x] 8.6 Test export functionality with sample data to ensure OSM compatibility
 
-- [ ] 9.0 Moderation Interface Updates
-  - [ ] 9.1 Update moderation review interface to display structured tags with categories
-  - [ ] 9.2 Add tag-specific validation feedback in moderation queue
-  - [ ] 9.3 Create diff display for tag changes showing old vs new values by category
-  - [ ] 9.4 Add moderator tools for bulk tag corrections if needed
-  - [ ] 9.5 Update moderation documentation with new tag review process
-  - [ ] 9.6 Ensure existing moderation workflow compatibility with new tag system
+- [x] 9.0 Moderation Interface Updates
+  - [x] 9.1 Update moderation review interface to display structured tags with categories
+  - [x] 9.2 Add tag-specific validation feedback in moderation queue
+  - [x] 9.3 Create diff display for tag changes showing old vs new values by category
+  - [x] 9.4 Add moderator tools for bulk tag corrections if needed
+  - [x] 9.5 Update moderation documentation with new tag review process
+  - [x] 9.6 Ensure existing moderation workflow compatibility with new tag system
 
-- [ ] 10.0 Testing and Quality Assurance
-  - [ ] 10.1 Create comprehensive unit tests for tag validation logic
-  - [ ] 10.2 Add integration tests for tag editing workflow
-  - [ ] 10.3 Test mobile interface functionality across different screen sizes
-  - [ ] 10.4 Validate accessibility compliance with screen readers and keyboard navigation
-  - [ ] 10.5 Performance test tag validation and search with large datasets
-  - [ ] 10.6 Test data migration process with production-like data volumes
-  - [ ] 10.7 Create end-to-end tests for complete tag editing and moderation workflow
+- [x] 10.0 Testing and Quality Assurance
+  - [x] 10.1 Create comprehensive unit tests for tag validation logic
+  - [x] 10.2 Add integration tests for tag editing workflow
+  - [x] 10.3 Test mobile interface functionality across different screen sizes
+  - [x] 10.4 Validate accessibility compliance with screen readers and keyboard navigation
+  - [x] 10.5 Performance test tag validation and search with large datasets
+  - [x] 10.6 Test data migration process with production-like data volumes
+  - [x] 10.7 Create end-to-end tests for complete tag editing and moderation workflow
 
 - [ ] 11.0 Documentation and Deployment
   - [ ] 11.1 Update API documentation in `docs/api.md` with new tag endpoints
