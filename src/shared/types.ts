@@ -513,6 +513,79 @@ export interface ConsentRecord {
   revoked_at?: string;
 }
 
+// ================================
+// Structured Tagging System Types
+// ================================
+
+export interface StructuredTagValue {
+  key: string;
+  value: string | number | boolean;
+  category: string;
+  dataType: 'enum' | 'text' | 'number' | 'date' | 'yes_no' | 'url' | 'wikidata_id';
+}
+
+export interface StructuredTagsData {
+  tags: Record<string, string | number | boolean>;
+  version: string; // Tag schema version used
+  lastModified: string; // ISO timestamp
+}
+
+export interface TagEditRequest {
+  artwork_id: string;
+  user_token: string;
+  tag_changes: Array<{
+    action: 'add' | 'update' | 'remove';
+    key: string;
+    old_value?: string | number | boolean | null;
+    new_value?: string | number | boolean | null;
+  }>;
+}
+
+export interface TagValidationError {
+  key: string;
+  field: string;
+  message: string;
+  code: 'required' | 'invalid_format' | 'out_of_range' | 'invalid_enum' | 'unknown_key';
+  suggestions?: string[];
+}
+
+export interface TagValidationResponse {
+  valid: boolean;
+  errors: TagValidationError[];
+  warnings: TagValidationError[];
+  sanitized_tags?: Record<string, string | number | boolean>;
+}
+
+// OpenStreetMap Export Types
+export interface OSMExportData {
+  tags: Record<string, string>; // All values converted to strings with ca: prefixes
+  export_timestamp: string;
+  schema_version: string;
+}
+
+export interface OSMExportRequest {
+  artwork_ids?: string[]; // If not provided, export all approved artwork
+  include_metadata?: boolean;
+}
+
+export interface OSMExportResponse {
+  success: boolean;
+  data?: {
+    artworks: Array<{
+      id: string;
+      lat: number;
+      lon: number;
+      osm_tags: Record<string, string>;
+    }>;
+    metadata: {
+      total_artworks: number;
+      export_timestamp: string;
+      schema_version: string;
+    };
+  };
+  error?: string;
+}
+
 export interface PhotoMetadata {
   id: string;
   photo_url: string;
