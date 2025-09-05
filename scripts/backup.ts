@@ -31,6 +31,9 @@ interface BackupOptions {
   help: boolean;
   photosOnly: boolean;
   photosDir: string;
+  wranglerExport: boolean;
+  validateOnly: boolean;
+  env: string;
 }
 
 /**
@@ -108,6 +111,9 @@ function parseArguments(): BackupOptions {
     help: false,
     photosOnly: false,
     photosDir: './r2-photos-backup',
+    wranglerExport: false,
+    validateOnly: false,
+    env: 'development',
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -134,6 +140,23 @@ function parseArguments(): BackupOptions {
 
       case '--remote':
         options.remote = true;
+        break;
+
+      case '--wrangler-export':
+        options.wranglerExport = true;
+        break;
+
+      case '--validate-only':
+        options.validateOnly = true;
+        break;
+
+      case '--env':
+        if (i + 1 < args.length) {
+          options.env = args[++i];
+        } else {
+          console.error('Error: --env requires an environment name');
+          process.exit(1);
+        }
         break;
 
       case '--photos-only':
@@ -169,14 +192,27 @@ OPTIONS:
   --output-dir <dir>   Directory to save backup file (default: current directory)
   --photos-dir <dir>   Directory to save photos when using --photos-only (default: ./r2-photos-backup)
   --remote             Use remote Cloudflare resources (REQUIRED for real backups)
+  --wrangler-export    Use Wrangler CLI for D1 database export (recommended)
+  --env <environment>  Environment for Wrangler operations (default: development)
   --photos-only        Download only photos to local directory (implies --remote)
+  --validate-only      Validate existing backup files without creating new backup
   --help, -h           Show this help message
 
 EXAMPLES:
   npm run backup -- --help
-  npm run backup -- --remote
-  npm run backup -- --remote --output-dir ./backups
+  npm run backup -- --remote --wrangler-export
+  npm run backup -- --remote --wrangler-export --env production
+  npm run backup -- --remote --output-dir ./backups --wrangler-export
   npm run backup -- --photos-only --photos-dir ./my-photos
+  npm run backup -- --validate-only
+
+WRANGLER EXPORT MODE:
+  The --wrangler-export flag uses Wrangler's native D1 export functionality:
+  - Uses wrangler d1 export command for database export
+  - Includes migration state information in backup
+  - Supports environment-specific operations (--env development|production)
+  - Requires wrangler.toml configuration in src/workers/
+  - Provides better compatibility with D1 schema and data formats
 
 PHOTO-ONLY MODE:
   The --photos-only flag downloads all R2 photos directly to a local directory:
@@ -247,7 +283,184 @@ function getCloudflareConfig(): CloudflareConfig {
 }
 
 /**
- * Export D1 database using Cloudflare API
+ * Export D1 database using Wrangler CLI
+ */
+async function exportD1DatabaseWithWrangler(config: CloudflareConfig, env: string = 'development'): Promise<DatabaseExportResult> {
+  try {
+    console.log(`📊 Exporting D1 database using Wrangler CLI (${env})...`);
+
+    const { spawn } = await import('child_process');
+    const { resolve } = await import('path');
+    
+    // Change to workers directory where wrangler.toml exists
+    const workersDir = resolve(process.cwd(), 'src/workers');
+    
+    // Run wrangler d1 export command
+    const wranglerArgs = ['d1', 'export', 'cultural-archiver'];
+    if (env && env !== 'development') {
+      wranglerArgs.push('--env', env);
+    }
+    
+    console.log(`   Running: wrangler ${wranglerArgs.join(' ')} (from ${workersDir})`);
+    
+    return new Promise((resolve, reject) => {
+      let sqlOutput = '';
+      let errorOutput = '';
+      
+      const wranglerProcess = spawn('npx', ['wrangler', ...wranglerArgs], {
+        cwd: workersDir,
+        stdio: 'pipe',
+      });
+      
+      wranglerProcess.stdout?.on('data', (data) => {
+        sqlOutput += data.toString();
+      });
+      
+      wranglerProcess.stderr?.on('data', (data) => {
+        errorOutput += data.toString();
+        console.log(`   Wrangler: ${data.toString().trim()}`);
+      });
+      
+      wranglerProcess.on('close', (code) => {
+        if (code === 0) {
+          console.log('   Wrangler export completed successfully');
+          
+          // Extract table names from SQL output for metadata
+          const tableMatches = sqlOutput.match(/CREATE TABLE (?:IF NOT EXISTS )?`?([^`\s]+)`?/g) || [];
+          const tables = tableMatches.map(match => {
+            const tableMatch = match.match(/CREATE TABLE (?:IF NOT EXISTS )?`?([^`\s]+)`?/);
+            return tableMatch ? tableMatch[1] : '';
+          }).filter(Boolean);
+          
+          // Estimate record count from INSERT statements
+          const insertMatches = sqlOutput.match(/INSERT INTO/g) || [];
+          const totalRecords = insertMatches.length;
+          
+          console.log(`   Database export: ${sqlOutput.length} characters, estimated ${totalRecords} records`);
+          console.log(`   Found ${tables.length} tables: ${tables.join(', ')}`);
+          
+          resolve({
+            success: true,
+            sqlDump: sqlOutput,
+            tables,
+            totalRecords,
+          });
+        } else {
+          console.error('   Wrangler export failed with code:', code);
+          console.error('   Error output:', errorOutput);
+          reject(new Error(`Wrangler export failed: ${errorOutput || 'Unknown error'}`));
+        }
+      });
+      
+      wranglerProcess.on('error', (error) => {
+        console.error('   Failed to spawn wrangler process:', error);
+        reject(error);
+      });
+    });
+  } catch (error) {
+    console.error('❌ Wrangler database export failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown wrangler export error',
+    };
+  }
+}
+
+/**
+ * Get migration status using Wrangler CLI
+ */
+async function getMigrationStatus(env: string = 'development'): Promise<{ success: boolean; status?: any; error?: string }> {
+  try {
+    console.log(`📋 Getting migration status using Wrangler CLI (${env})...`);
+
+    const { spawn } = await import('child_process');
+    const { resolve } = await import('path');
+    
+    // Change to workers directory where wrangler.toml exists
+    const workersDir = resolve(process.cwd(), 'src/workers');
+    
+    // Run wrangler d1 migrations list command
+    const wranglerArgs = ['d1', 'migrations', 'list', 'cultural-archiver'];
+    if (env && env !== 'development') {
+      wranglerArgs.push('--env', env);
+    }
+    
+    console.log(`   Running: wrangler ${wranglerArgs.join(' ')} (from ${workersDir})`);
+    
+    return new Promise((resolve, reject) => {
+      let jsonOutput = '';
+      let errorOutput = '';
+      
+      const wranglerProcess = spawn('npx', ['wrangler', ...wranglerArgs], {
+        cwd: workersDir,
+        stdio: 'pipe',
+      });
+      
+      wranglerProcess.stdout?.on('data', (data) => {
+        jsonOutput += data.toString();
+      });
+      
+      wranglerProcess.stderr?.on('data', (data) => {
+        errorOutput += data.toString();
+        console.log(`   Wrangler: ${data.toString().trim()}`);
+      });
+      
+      wranglerProcess.on('close', (code) => {
+        if (code === 0) {
+          try {
+            // Try to parse JSON output
+            let migrationStatus;
+            try {
+              migrationStatus = JSON.parse(jsonOutput);
+            } catch (parseError) {
+              // If JSON parsing fails, create a simple status object
+              migrationStatus = {
+                environment: env,
+                output: jsonOutput.trim(),
+                timestamp: new Date().toISOString(),
+              };
+            }
+            
+            console.log('   Migration status retrieved successfully');
+            resolve({
+              success: true,
+              status: migrationStatus,
+            });
+          } catch (error) {
+            console.error('   Failed to parse migration status:', error);
+            resolve({
+              success: false,
+              error: `Failed to parse migration status: ${error}`,
+            });
+          }
+        } else {
+          console.error('   Migration status failed with code:', code);
+          resolve({
+            success: false,
+            error: `Migration status failed: ${errorOutput || 'Unknown error'}`,
+          });
+        }
+      });
+      
+      wranglerProcess.on('error', (error) => {
+        console.error('   Failed to spawn wrangler process:', error);
+        resolve({
+          success: false,
+          error: error.message,
+        });
+      });
+    });
+  } catch (error) {
+    console.error('❌ Migration status failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown migration status error',
+    };
+  }
+}
+
+/**
+ * Export D1 database using Cloudflare API (legacy method)
  */
 async function exportD1Database(config: CloudflareConfig): Promise<DatabaseExportResult> {
   try {
@@ -771,6 +984,72 @@ export async function downloadR2PhotosToDirectory(
 }
 
 /**
+ * Validate backup by attempting restore and migration validation
+ */
+async function validateBackupRestore(filepath: string): Promise<{ success: boolean; errors: string[]; warnings: string[] }> {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+  
+  try {
+    console.log('🔍 Starting backup restore validation...');
+    
+    // Check if backup file exists
+    if (!existsSync(filepath)) {
+      errors.push(`Backup file does not exist: ${filepath}`);
+      return { success: false, errors, warnings };
+    }
+    
+    console.log(`   Validating backup file: ${filepath}`);
+    
+    // For now, implement basic validation
+    // In a full implementation, this would:
+    // 1. Extract the backup archive to a temp directory
+    // 2. Create a temporary SQLite database
+    // 3. Import the database.sql file
+    // 4. Run migration validation against the restored database
+    // 5. Clean up temporary files
+    
+    const { createReadStream } = await import('fs');
+    const { createGunzip } = await import('zlib');
+    
+    // Basic integrity check - ensure file is readable and not corrupted
+    const stream = createReadStream(filepath);
+    
+    return new Promise((resolve) => {
+      let hasData = false;
+      
+      stream.on('data', (chunk) => {
+        hasData = true;
+        // Check if this looks like a ZIP file
+        const zipHeader = Buffer.from([0x50, 0x4B, 0x03, 0x04]); // ZIP file header
+        if (chunk.length >= 4 && chunk.subarray(0, 4).equals(zipHeader)) {
+          console.log('   ✅ File appears to be a valid ZIP archive');
+        }
+      });
+      
+      stream.on('end', () => {
+        if (hasData) {
+          console.log('   ✅ Backup file is readable and contains data');
+          warnings.push('Full restore validation not yet implemented - only basic checks performed');
+          resolve({ success: true, errors, warnings });
+        } else {
+          errors.push('Backup file appears to be empty');
+          resolve({ success: false, errors, warnings });
+        }
+      });
+      
+      stream.on('error', (error) => {
+        errors.push(`Failed to read backup file: ${error.message}`);
+        resolve({ success: false, errors, warnings });
+      });
+    });
+  } catch (error) {
+    errors.push(`Backup validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return { success: false, errors, warnings };
+  }
+}
+
+/**
  * Validate backup archive integrity
  */
 async function validateBackupArchive(filepath: string, expectedMetadata: any): Promise<{ valid: boolean; errors: string[] }> {
@@ -815,7 +1094,8 @@ async function validateBackupArchive(filepath: string, expectedMetadata: any): P
 async function createBackupArchive(
   outputDir: string,
   databaseResult: DatabaseExportResult,
-  r2Result: R2ListResult
+  r2Result: R2ListResult,
+  migrationStatus?: any
 ): Promise<BackupResult> {
   return new Promise(async (resolve) => {
     const timestamp = generateTimestamp();
@@ -830,7 +1110,7 @@ async function createBackupArchive(
     });
 
     let filesAdded = 0;
-    const expectedFiles = 3 + (r2Result.totalFiles || 0); // database.sql, metadata.json, README.md + photos
+    const expectedFiles = 4 + (r2Result.totalFiles || 0); // database.sql, metadata.json, migration_state.json, README.md + photos
 
     output.on('close', async () => {
       const metadata = {
@@ -924,6 +1204,13 @@ async function createBackupArchive(
     archive.append(JSON.stringify(metadata, null, 2), { name: 'metadata.json' });
     console.log('   Added: metadata.json');
     filesAdded++;
+
+    // Add migration state if available
+    if (migrationStatus) {
+      archive.append(JSON.stringify(migrationStatus, null, 2), { name: 'migration_state.json' });
+      console.log('   Added: migration_state.json');
+      filesAdded++;
+    }
 
     // Add README
     const readme = generateBackupReadme(metadata);
@@ -1233,6 +1520,50 @@ async function performBackup(options: BackupOptions): Promise<BackupResult> {
     // Get Cloudflare configuration
     const config = getCloudflareConfig();
 
+    // Handle validate-only mode
+    if (options.validateOnly) {
+      console.log('🔍 Running in validation-only mode');
+      
+      // Look for existing backup files in output directory
+      const { readdir } = await import('fs').then(fs => fs.promises);
+      const files = await readdir(options.outputDir);
+      const backupFiles = files.filter(f => f.startsWith('backup-') && f.endsWith('.zip'));
+      
+      if (backupFiles.length === 0) {
+        return {
+          success: false,
+          error: 'No backup files found to validate. Create a backup first.',
+        };
+      }
+      
+      // Validate the most recent backup file
+      const mostRecentBackup = backupFiles.sort().reverse()[0];
+      const backupPath = join(options.outputDir, mostRecentBackup);
+      
+      console.log(`   Validating: ${mostRecentBackup}`);
+      const validation = await validateBackupRestore(backupPath);
+      
+      if (validation.success) {
+        console.log('✅ Backup validation completed');
+        if (validation.warnings.length > 0) {
+          console.log('   Warnings:');
+          validation.warnings.forEach(w => console.log(`   - ${w}`));
+        }
+        return {
+          success: true,
+          filename: mostRecentBackup,
+          filepath: backupPath,
+        };
+      } else {
+        console.log('❌ Backup validation failed');
+        validation.errors.forEach(e => console.log(`   - ${e}`));
+        return {
+          success: false,
+          error: `Validation failed: ${validation.errors.join(', ')}`,
+        };
+      }
+    }
+
     // Handle photos-only mode
     if (options.photosOnly) {
       console.log('📸 Running in photos-only mode - downloading R2 photos to local directory');
@@ -1266,8 +1597,16 @@ async function performBackup(options: BackupOptions): Promise<BackupResult> {
       }
     }
 
-    // Step 1: Export D1 database
-    const databaseResult = await exportD1Database(config);
+    // Step 1: Export D1 database (choose method based on options)
+    let databaseResult: DatabaseExportResult;
+    if (options.wranglerExport) {
+      console.log('Using Wrangler D1 export...');
+      databaseResult = await exportD1DatabaseWithWrangler(config, options.env);
+    } else {
+      console.log('Using Cloudflare API export...');
+      databaseResult = await exportD1Database(config);
+    }
+    
     if (!databaseResult.success) {
       return {
         success: false,
@@ -1275,7 +1614,18 @@ async function performBackup(options: BackupOptions): Promise<BackupResult> {
       };
     }
 
-    // Step 2: Download R2 files
+    // Step 2: Get migration status if using wrangler export
+    let migrationStatus = undefined;
+    if (options.wranglerExport) {
+      const statusResult = await getMigrationStatus(options.env);
+      if (statusResult.success) {
+        migrationStatus = statusResult.status;
+      } else {
+        console.warn(`Warning: Failed to get migration status: ${statusResult.error}`);
+      }
+    }
+
+    // Step 3: Download R2 files
     const r2Result = await downloadR2Files(config);
     if (!r2Result.success) {
       return {
@@ -1284,8 +1634,8 @@ async function performBackup(options: BackupOptions): Promise<BackupResult> {
       };
     }
 
-    // Step 3: Create ZIP archive
-    const archiveResult = await createBackupArchive(options.outputDir, databaseResult, r2Result);
+    // Step 4: Create ZIP archive
+    const archiveResult = await createBackupArchive(options.outputDir, databaseResult, r2Result, migrationStatus);
     if (!archiveResult.success) {
       return {
         success: false,

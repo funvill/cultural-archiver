@@ -54,9 +54,11 @@
     "test:workers:coverage": "cd src/workers && npm run test:coverage",
     "quality": "npm run lint && npm run type-check && npm run test",
     "setup": "npm install && npm run build",
-    "backup": "npx tsx scripts/backup.ts",
-    "backup:remote": "npx tsx scripts/backup.ts --remote",
+    "backup": "npx tsx scripts/backup.ts --wrangler-export --remote",
+    "backup:remote": "npx tsx scripts/backup.ts --wrangler-export --remote --env production",
+    "backup:dev": "npx tsx scripts/backup.ts --wrangler-export --env development",
     "backup:photos": "npx tsx scripts/backup.ts --photos-only",
+    "backup:validate": "npx tsx scripts/backup.ts --validate-only",
     "test:backup": "npx tsx scripts/test-backup.ts"
   },
   "devDependencies": {
