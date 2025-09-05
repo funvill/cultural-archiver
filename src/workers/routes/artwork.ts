@@ -8,12 +8,11 @@
 
 import type { Context } from 'hono';
 import type { 
-  WorkerEnv, 
   CreateArtworkEditRequest,
   ArtworkEditSubmissionResponse,
   PendingEditsResponse
 } from '../../shared/types';
-import type { WorkerEnv as LocalWorkerEnv } from '../types';
+import type { WorkerEnv } from '../types';
 import { ArtworkEditsService } from '../lib/artwork-edits';
 import { createSuccessResponse, ValidationApiError, NotFoundError } from '../lib/errors';
 import { getUserToken } from '../middleware/auth';
@@ -22,7 +21,7 @@ import { getUserToken } from '../middleware/auth';
  * POST /api/artwork/:id/edit - Submit artwork edit proposals
  * Allows authenticated users to propose edits to artwork details
  */
-export async function submitArtworkEdit(c: Context<{ Bindings: LocalWorkerEnv }>): Promise<Response> {
+export async function submitArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const userToken = getUserToken(c);
   const artworkId = c.req.param('id');
   
@@ -142,7 +141,7 @@ export async function submitArtworkEdit(c: Context<{ Bindings: LocalWorkerEnv }>
  * GET /api/artwork/:id/pending-edits - Check user's pending edits for artwork
  * Returns information about any pending edits the user has submitted
  */
-export async function getUserPendingEdits(c: Context<{ Bindings: LocalWorkerEnv }>): Promise<Response> {
+export async function getUserPendingEdits(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const userToken = getUserToken(c);
   const artworkId = c.req.param('id');
   
@@ -162,8 +161,14 @@ export async function getUserPendingEdits(c: Context<{ Bindings: LocalWorkerEnv 
     const response: PendingEditsResponse = {
       has_pending_edits: pendingEdits.length > 0,
       pending_fields: pendingEdits.map(edit => edit.field_name),
-      submitted_at: pendingEdits.length > 0 ? pendingEdits[0].submitted_at : undefined
     };
+    
+    if (pendingEdits.length > 0) {
+      const firstEdit = pendingEdits[0];
+      if (firstEdit?.submitted_at) {
+        response.submitted_at = firstEdit.submitted_at;
+      }
+    }
 
     return c.json(createSuccessResponse(response));
 
@@ -177,7 +182,7 @@ export async function getUserPendingEdits(c: Context<{ Bindings: LocalWorkerEnv 
  * POST /api/artwork/:id/edit/validate - Validate edit request without submitting
  * Useful for client-side validation feedback
  */
-export async function validateArtworkEdit(c: Context<{ Bindings: LocalWorkerEnv }>): Promise<Response> {
+export async function validateArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const userToken = getUserToken(c);
   const artworkId = c.req.param('id');
   

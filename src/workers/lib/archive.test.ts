@@ -47,7 +47,7 @@ describe('Archive Utilities', () => {
       });
 
       it('should add a binary file from ArrayBuffer', () => {
-        const content = new TextEncoder().encode('Binary content').buffer;
+        const content = new TextEncoder().encode('Binary content').buffer as ArrayBuffer;
         expect(() => {
           archive.addFile('binary.dat', content);
         }).not.toThrow();

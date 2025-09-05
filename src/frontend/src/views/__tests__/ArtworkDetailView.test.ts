@@ -451,7 +451,7 @@ describe('ArtworkDetailView', () => {
       }
       
       // Mock the save function
-      const saveSpy = vi.spyOn(wrapper.vm, 'saveChanges')
+      const saveSpy = vi.spyOn(wrapper.vm, 'saveEdit')
       
       const saveButton = wrapper.find('button[aria-label*="Save"]')
       if (saveButton.exists()) {
@@ -552,9 +552,9 @@ describe('ArtworkDetailView', () => {
       })
       
       // Simulate successful save
-      await wrapper.vm.saveChanges?.()
+      await wrapper.vm.saveEdit?.()
       
-      expect(mockAnnounceSuccess).toHaveBeenCalledWith(expect.stringContaining('submitted'))
+      expect(mockAnnounceSuccess).toHaveBeenCalledWith(expect.stringContaining('submitted for review'))
     })
   })
 })

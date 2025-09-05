@@ -234,10 +234,20 @@ export async function exportArtworkAsJSON(db: D1Database): Promise<{
     
     const result = await filterApprovedArtwork(db);
     if (!result.success) {
-      return {
+      const errorResult: {
+        success: false;
+        json_content?: string;
+        count?: number;
+        error?: string;
+      } = {
         success: false,
-        error: result.error,
       };
+      
+      if (result.error) {
+        errorResult.error = result.error;
+      }
+      
+      return errorResult;
     }
 
     // Sanitize all artwork data
@@ -246,11 +256,21 @@ export async function exportArtworkAsJSON(db: D1Database): Promise<{
     const jsonContent = JSON.stringify(sanitizedArtworks, null, 2);
     console.log(`[DATA_DUMP] Exported ${result.total_count} artworks as JSON`);
 
-    return {
+    const successResult: { 
+      success: true; 
+      json_content: string; 
+      count?: number; 
+      error?: string; 
+    } = {
       success: true,
       json_content: jsonContent,
-      count: result.total_count,
     };
+    
+    if (result.total_count !== undefined) {
+      successResult.count = result.total_count;
+    }
+    
+    return successResult;
   } catch (error) {
     console.error('[DATA_DUMP] Artwork JSON export failed:', error);
     
@@ -518,13 +538,25 @@ export async function collectThumbnailPhotos(
       console.warn(`[DATA_DUMP] Thumbnail collection completed with ${warnings.length} warnings`);
     }
 
-    return {
+    const result: {
+      success: true;
+      photos: ArchiveFile[];
+      total_count: number;
+      total_size: number;
+      error?: string;
+      warnings?: string[];
+    } = {
       success: true,
       photos,
       total_count: photos.length,
       total_size: totalSize,
-      warnings: warnings.length > 0 ? warnings : undefined,
     };
+    
+    if (warnings.length > 0) {
+      result.warnings = warnings;
+    }
+    
+    return result;
   } catch (error) {
     console.error('[DATA_DUMP] Thumbnail photo collection failed:', error);
     
@@ -924,21 +956,31 @@ export async function generatePublicDataDump(env: WorkerEnv): Promise<DataDumpRe
     console.log(`[DATA_DUMP] Public data dump completed in ${overallEndTime - overallStartTime}ms`);
     console.log(`[DATA_DUMP] Data dump file: ${filename} (${archiveBuffer.byteLength} bytes)`);
 
-    return {
+    const successResult: DataDumpResult = {
       success: true,
       data_dump_file: archiveBuffer,
       filename,
       metadata,
       size: archiveBuffer.byteLength,
-      warnings: warnings.length > 0 ? warnings : undefined,
     };
+    
+    if (warnings.length > 0) {
+      successResult.warnings = warnings;
+    }
+    
+    return successResult;
   } catch (error) {
     console.error('[DATA_DUMP] Public data dump failed:', error);
     
-    return {
+    const errorResult: DataDumpResult = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown data dump error',
-      warnings: warnings.length > 0 ? warnings : undefined,
     };
+    
+    if (warnings.length > 0) {
+      errorResult.warnings = warnings;
+    }
+    
+    return errorResult;
   }
 }

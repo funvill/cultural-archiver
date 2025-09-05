@@ -3,7 +3,6 @@
  */
 
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { Hono } from 'hono';
 import { submitArtworkEdit, getUserPendingEdits, validateArtworkEdit } from '../routes/artwork';
 import type { WorkerEnv } from '../types';
 
@@ -32,8 +31,9 @@ vi.mock('../lib/errors', () => ({
   ValidationApiError: class ValidationApiError extends Error {
     constructor(validationErrors: Array<{field: string, message: string, code: string}>, message?: string) {
       // Use the first validation error's message if only one error and no custom message
+      const firstError = validationErrors[0];
       const finalMessage = message || 
-        (validationErrors.length === 1 ? validationErrors[0].message : 'Validation failed');
+        (validationErrors.length === 1 && firstError?.message ? firstError.message : 'Validation failed');
       super(finalMessage);
       this.name = 'ValidationApiError';
     }

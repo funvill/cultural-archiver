@@ -254,7 +254,11 @@ export class ArtworkEditsService {
     }
 
     // Group by artwork_id (should be the same for all edits)
-    const artworkId = editRecords[0].artwork_id;
+    const firstRecord = editRecords[0];
+    if (!firstRecord?.artwork_id) {
+      throw new Error('Invalid edit record: missing artwork_id');
+    }
+    const artworkId = firstRecord.artwork_id;
     const updatedFields: Record<string, string> = {};
 
     // Build update query dynamically based on which fields are being edited
@@ -330,8 +334,8 @@ export class ArtworkEditsService {
    */
   formatDiffsForDisplay(diffs: ArtworkEditDiff[]): ArtworkEditDiff[] {
     return diffs.map(diff => {
-      let formatted_old = diff.old_value;
-      let formatted_new = diff.new_value;
+      let formatted_old: string | undefined = diff.old_value ?? undefined;
+      let formatted_new: string | undefined = diff.new_value ?? undefined;
 
       // Special formatting for different field types
       if (diff.field_name === 'tags') {
@@ -353,11 +357,19 @@ export class ArtworkEditsService {
         }
       }
 
-      return {
+      const result: ArtworkEditDiff = {
         ...diff,
-        formatted_old,
-        formatted_new,
       };
+      
+      if (formatted_old !== undefined) {
+        result.formatted_old = formatted_old;
+      }
+      
+      if (formatted_new !== undefined) {
+        result.formatted_new = formatted_new;
+      }
+      
+      return result;
     });
   }
 
@@ -383,14 +395,19 @@ export class ArtworkEditsService {
       throw new Error('No edits found for logbook entry');
     }
 
+    const firstRecord = editRecords[0];
+    if (!firstRecord?.artwork_id || !firstRecord?.user_token || !firstRecord?.submitted_at) {
+      throw new Error('Invalid edit record: missing required fields');
+    }
+
     return {
-      artworkId: editRecords[0].artwork_id,
-      userToken: editRecords[0].user_token,
-      submittedAt: editRecords[0].submitted_at,
+      artworkId: firstRecord.artwork_id,
+      userToken: firstRecord.user_token,
+      submittedAt: firstRecord.submitted_at,
       edits: editRecords.map(edit => ({
         field_name: edit.field_name,
-        field_value_old: edit.field_value_old,
-        field_value_new: edit.field_value_new
+        field_value_old: edit.field_value_old ?? '',
+        field_value_new: edit.field_value_new ?? ''
       }))
     };
   }
