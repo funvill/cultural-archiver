@@ -38,6 +38,7 @@ const isEditMode = ref(false)
 const editLoading = ref(false)
 const editError = ref<string | null>(null)
 const showCancelDialog = ref(false)
+const showSuccessModal = ref(false)
 const hasPendingEdits = ref(false)
 const pendingFields = ref<string[]>([])
 
@@ -366,6 +367,7 @@ async function saveEdit(): Promise<void> {
     
     if (response.success) {
       announceSuccess('Your changes have been submitted for review')
+      showSuccessModal.value = true
       exitEditMode()
     } else {
       throw new Error(response.message || 'Failed to submit edits')
@@ -822,6 +824,43 @@ onUnmounted(() => {
         class="max-w-full max-h-full object-contain"
         @click.stop
       />
+    </div>
+    
+    <!-- Success Modal -->
+    <div
+      v-if="showSuccessModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="success-modal-title"
+      @click.self="showSuccessModal = false"
+    >
+      <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl">
+        <div class="flex items-center justify-center mb-4">
+          <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+        </div>
+        
+        <h3 id="success-modal-title" class="text-xl font-bold text-gray-900 text-center mb-2">
+          Changes Submitted Successfully!
+        </h3>
+        
+        <p class="text-gray-600 text-center mb-6">
+          Your edits have been sent to our moderation team for review. You'll be able to see the updated artwork once your changes are approved.
+        </p>
+        
+        <div class="flex justify-center">
+          <button
+            @click="showSuccessModal = false"
+            class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            Got it!
+          </button>
+        </div>
+      </div>
     </div>
     
     <!-- Cancel confirmation dialog -->

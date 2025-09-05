@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { useArtworksStore } from '../stores/artworks'
 import { globalModal } from '../composables/useModal'
 import { apiService, getErrorMessage } from '../services/api'
 import { createApiUrl } from '../utils/api-config'
@@ -33,6 +34,7 @@ interface Statistics {
 
 // Store and router
 const authStore = useAuthStore()
+const artworksStore = useArtworksStore()
 const router = useRouter()
 
 // State
@@ -442,6 +444,17 @@ async function approveArtworkEdit(edit: ArtworkEditReviewData) {
     await apiService.approveArtworkEdit(editId, true)
     
     console.log('[ReviewView] Artwork edit approved successfully')
+
+    // Refresh the artwork data to show updated values
+    if (edit.artwork_id) {
+      try {
+        await artworksStore.refreshArtwork(edit.artwork_id)
+        console.log('[ReviewView] Artwork data refreshed after approval')
+      } catch (refreshError) {
+        console.warn('[ReviewView] Failed to refresh artwork data:', refreshError)
+        // Don't fail the approval if refresh fails
+      }
+    }
 
     // Remove from list
     artworkEdits.value = artworkEdits.value.filter((e: ArtworkEditReviewData) => e.edit_ids?.[0] !== editId)

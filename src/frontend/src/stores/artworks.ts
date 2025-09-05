@@ -205,6 +205,30 @@ export const useArtworksStore = defineStore('artworks', () => {
     }
   }
 
+  // Refresh individual artwork details (bypass cache)
+  async function refreshArtwork(id: string): Promise<ArtworkDetails | null> {
+    setLoading(true)
+    clearError()
+
+    try {
+      const artwork = await apiService.getArtworkDetails(id)
+      
+      if (artwork) {
+        cacheArtwork(id, artwork)
+        return artwork
+      }
+      
+      return null
+    } catch (err) {
+      const message = getErrorMessage(err)
+      setError(message)
+      console.error('Failed to refresh artwork details:', err)
+      return null
+    } finally {
+      setLoading(false)
+    }
+  }
+
   // Search artworks by bounds (for map view)
   async function fetchArtworksInBounds(bounds: MapBounds): Promise<void> {
     setLoading(true)
@@ -397,6 +421,7 @@ export const useArtworksStore = defineStore('artworks', () => {
     cacheArtwork,
     fetchNearbyArtworks,
     fetchArtwork,
+    refreshArtwork,
     fetchArtworksInBounds,
     getArtworksForSubmission,
     calculateDistance,
