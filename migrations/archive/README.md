@@ -75,6 +75,7 @@ The consolidated schema includes sample data generation with:
 ## Migration Infrastructure
 
 The existing migration system (`migrate.ts`) continues to work normally:
+
 - Future migrations will be numbered 002, 003, etc.
 - The migration tracking system recognizes the new baseline
 - All existing npm scripts continue to function
@@ -82,6 +83,7 @@ The existing migration system (`migrate.ts`) continues to work normally:
 ## Recovery Information
 
 If you need to understand changes made in the original migrations:
+
 1. All original migration files are preserved in this archive
 2. The consolidated schema represents the final state after applying all 8 migrations
 3. The consolidation was performed manually by analyzing each migration file
@@ -90,6 +92,7 @@ If you need to understand changes made in the original migrations:
 ## Tool Information
 
 The database consolidation was performed using custom tools:
+
 - `migrations/tools/extract-schema.ts` - Schema extraction from Cloudflare D1
 - `migrations/tools/recreate-database.ts` - Database recreation with sample data
 - Manual analysis and consolidation of all migration files

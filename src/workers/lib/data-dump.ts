@@ -20,17 +20,17 @@ const SENSITIVE_FIELDS = {
   email: true,
   ip_address: true,
   session_data: true,
-  
+
   // Rate limiting and security data
   rate_limit_data: true,
   auth_tokens: true,
   magic_tokens: true,
-  
+
   // Private admin data
   moderation_notes: true,
   admin_comments: true,
   internal_flags: true,
-  
+
   // System internals
   created_by_admin: true,
   reviewed_by: true,
@@ -131,7 +131,9 @@ export async function filterApprovedArtwork(db: D1Database): Promise<{
     const startTime = Date.now();
 
     // Get approved artwork with type names
-    const artworkQuery = await db.prepare(`
+    const artworkQuery = await db
+      .prepare(
+        `
       SELECT 
         a.id,
         a.lat,
@@ -145,7 +147,9 @@ export async function filterApprovedArtwork(db: D1Database): Promise<{
       LEFT JOIN artwork_types at ON a.type_id = at.id
       WHERE a.status = 'approved'
       ORDER BY a.created_at DESC
-    `).all();
+    `
+      )
+      .all();
 
     if (!artworkQuery.success) {
       throw new Error('Failed to query approved artwork');
@@ -187,7 +191,9 @@ export async function filterApprovedArtwork(db: D1Database): Promise<{
     });
 
     const endTime = Date.now();
-    console.log(`[DATA_DUMP] Filtered ${artworks.length} approved artworks in ${endTime - startTime}ms`);
+    console.log(
+      `[DATA_DUMP] Filtered ${artworks.length} approved artworks in ${endTime - startTime}ms`
+    );
 
     return {
       success: true,
@@ -196,7 +202,7 @@ export async function filterApprovedArtwork(db: D1Database): Promise<{
     };
   } catch (error) {
     console.error('[DATA_DUMP] Approved artwork filtering failed:', error);
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown artwork filtering error',
@@ -209,14 +215,14 @@ export async function filterApprovedArtwork(db: D1Database): Promise<{
  */
 export function sanitizeUserData<T extends Record<string, any>>(data: T): Partial<T> {
   const sanitized: Partial<T> = {};
-  
+
   for (const [key, value] of Object.entries(data)) {
     // Skip sensitive fields
     if (!(key in SENSITIVE_FIELDS)) {
       sanitized[key as keyof T] = value;
     }
   }
-  
+
   return sanitized;
 }
 
@@ -231,7 +237,7 @@ export async function exportArtworkAsJSON(db: D1Database): Promise<{
 }> {
   try {
     console.log('[DATA_DUMP] Exporting artwork as JSON...');
-    
+
     const result = await filterApprovedArtwork(db);
     if (!result.success) {
       const errorResult: {
@@ -242,38 +248,38 @@ export async function exportArtworkAsJSON(db: D1Database): Promise<{
       } = {
         success: false,
       };
-      
+
       if (result.error) {
         errorResult.error = result.error;
       }
-      
+
       return errorResult;
     }
 
     // Sanitize all artwork data
     const sanitizedArtworks = result.artworks!.map(artwork => sanitizeUserData(artwork));
-    
+
     const jsonContent = JSON.stringify(sanitizedArtworks, null, 2);
     console.log(`[DATA_DUMP] Exported ${result.total_count} artworks as JSON`);
 
-    const successResult: { 
-      success: true; 
-      json_content: string; 
-      count?: number; 
-      error?: string; 
+    const successResult: {
+      success: true;
+      json_content: string;
+      count?: number;
+      error?: string;
     } = {
       success: true,
       json_content: jsonContent,
     };
-    
+
     if (result.total_count !== undefined) {
       successResult.count = result.total_count;
     }
-    
+
     return successResult;
   } catch (error) {
     console.error('[DATA_DUMP] Artwork JSON export failed:', error);
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown JSON export error',
@@ -292,13 +298,17 @@ export async function exportCreatorsAsJSON(db: D1Database): Promise<{
 }> {
   try {
     console.log('[DATA_DUMP] Exporting creators as JSON...');
-    
+
     // Get all creators (they don't have sensitive data typically)
-    const creatorsQuery = await db.prepare(`
+    const creatorsQuery = await db
+      .prepare(
+        `
       SELECT id, name, bio, created_at
       FROM creators
       ORDER BY created_at DESC
-    `).all();
+    `
+      )
+      .all();
 
     if (!creatorsQuery.success) {
       throw new Error('Failed to query creators');
@@ -313,7 +323,7 @@ export async function exportCreatorsAsJSON(db: D1Database): Promise<{
 
     // Sanitize creator data (though typically no sensitive fields)
     const sanitizedCreators = creators.map(creator => sanitizeUserData(creator));
-    
+
     const jsonContent = JSON.stringify(sanitizedCreators, null, 2);
     console.log(`[DATA_DUMP] Exported ${creators.length} creators as JSON`);
 
@@ -324,7 +334,7 @@ export async function exportCreatorsAsJSON(db: D1Database): Promise<{
     };
   } catch (error) {
     console.error('[DATA_DUMP] Creators JSON export failed:', error);
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown creators export error',
@@ -343,15 +353,19 @@ export async function exportTagsAsJSON(db: D1Database): Promise<{
 }> {
   try {
     console.log('[DATA_DUMP] Exporting tags as JSON...');
-    
+
     // Get tags associated with approved artwork only
-    const tagsQuery = await db.prepare(`
+    const tagsQuery = await db
+      .prepare(
+        `
       SELECT DISTINCT t.id, t.label, t.value, t.created_at
       FROM tags t
       LEFT JOIN artwork a ON t.artwork_id = a.id
       WHERE a.status = 'approved' OR t.artwork_id IS NULL
       ORDER BY t.label, t.value
-    `).all();
+    `
+      )
+      .all();
 
     if (!tagsQuery.success) {
       throw new Error('Failed to query tags');
@@ -366,7 +380,7 @@ export async function exportTagsAsJSON(db: D1Database): Promise<{
 
     // Sanitize tag data
     const sanitizedTags = tags.map(tag => sanitizeUserData(tag));
-    
+
     const jsonContent = JSON.stringify(sanitizedTags, null, 2);
     console.log(`[DATA_DUMP] Exported ${tags.length} tags as JSON`);
 
@@ -377,7 +391,7 @@ export async function exportTagsAsJSON(db: D1Database): Promise<{
     };
   } catch (error) {
     console.error('[DATA_DUMP] Tags JSON export failed:', error);
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown tags export error',
@@ -396,32 +410,40 @@ export async function exportArtworkCreatorsAsJSON(db: D1Database): Promise<{
 }> {
   try {
     console.log('[DATA_DUMP] Exporting artwork-creator relationships as JSON...');
-    
+
     // Get relationships for approved artwork only
-    const relationshipsQuery = await db.prepare(`
+    const relationshipsQuery = await db
+      .prepare(
+        `
       SELECT ac.artwork_id, ac.creator_id, ac.role, ac.created_at
       FROM artwork_creators ac
       INNER JOIN artwork a ON ac.artwork_id = a.id
       WHERE a.status = 'approved'
       ORDER BY ac.created_at DESC
-    `).all();
+    `
+      )
+      .all();
 
     if (!relationshipsQuery.success) {
       throw new Error('Failed to query artwork-creator relationships');
     }
 
-    const relationships: ExportArtworkCreatorData[] = relationshipsQuery.results.map((row: any) => ({
-      artwork_id: row.artwork_id,
-      creator_id: row.creator_id,
-      role: row.role,
-      created_at: row.created_at,
-    }));
+    const relationships: ExportArtworkCreatorData[] = relationshipsQuery.results.map(
+      (row: any) => ({
+        artwork_id: row.artwork_id,
+        creator_id: row.creator_id,
+        role: row.role,
+        created_at: row.created_at,
+      })
+    );
 
     // Sanitize relationship data
     const sanitizedRelationships = relationships.map(rel => sanitizeUserData(rel));
-    
+
     const jsonContent = JSON.stringify(sanitizedRelationships, null, 2);
-    console.log(`[DATA_DUMP] Exported ${relationships.length} artwork-creator relationships as JSON`);
+    console.log(
+      `[DATA_DUMP] Exported ${relationships.length} artwork-creator relationships as JSON`
+    );
 
     return {
       success: true,
@@ -430,7 +452,7 @@ export async function exportArtworkCreatorsAsJSON(db: D1Database): Promise<{
     };
   } catch (error) {
     console.error('[DATA_DUMP] Artwork-creators JSON export failed:', error);
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown relationships export error',
@@ -491,7 +513,7 @@ export async function collectThumbnailPhotos(
 
         // Get the object from R2
         const r2Object = await env.PHOTOS_BUCKET.get(r2Key);
-        
+
         if (!r2Object) {
           warnings.push(`Failed to download thumbnail: ${photoUrl}`);
           continue;
@@ -499,7 +521,7 @@ export async function collectThumbnailPhotos(
 
         // Get the content as ArrayBuffer
         const content = await r2Object.arrayBuffer();
-        
+
         // Determine content type from file extension
         const getContentType = (key: string): string => {
           const ext = key.split('.').pop()?.toLowerCase();
@@ -532,7 +554,9 @@ export async function collectThumbnailPhotos(
 
     const endTime = Date.now();
     console.log(`[DATA_DUMP] Thumbnail collection completed in ${endTime - startTime}ms`);
-    console.log(`[DATA_DUMP] Collected ${photos.length} thumbnails, total size: ${totalSize} bytes`);
+    console.log(
+      `[DATA_DUMP] Collected ${photos.length} thumbnails, total size: ${totalSize} bytes`
+    );
 
     if (warnings.length > 0) {
       console.warn(`[DATA_DUMP] Thumbnail collection completed with ${warnings.length} warnings`);
@@ -551,15 +575,15 @@ export async function collectThumbnailPhotos(
       total_count: photos.length,
       total_size: totalSize,
     };
-    
+
     if (warnings.length > 0) {
       result.warnings = warnings;
     }
-    
+
     return result;
   } catch (error) {
     console.error('[DATA_DUMP] Thumbnail photo collection failed:', error);
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown photo collection error',
@@ -628,9 +652,9 @@ this data for any purpose without restrictions.
 
 ### Data Files
 
-${Object.entries(metadata.file_structure).map(([file, description]) => 
-  `- **${file}**: ${description}`
-).join('\n')}
+${Object.entries(metadata.file_structure)
+  .map(([file, description]) => `- **${file}**: ${description}`)
+  .join('\n')}
 
 ### Photos
 - Contains thumbnail images (800px) for approved artwork
@@ -772,7 +796,7 @@ export async function createDataDumpArchive(
         mimeType: 'text/plain',
         lastModified: new Date(),
       },
-      
+
       // README
       {
         path: 'README.md',
@@ -780,7 +804,7 @@ export async function createDataDumpArchive(
         mimeType: 'text/markdown',
         lastModified: new Date(),
       },
-      
+
       // Data files
       {
         path: 'artwork.json',
@@ -806,7 +830,7 @@ export async function createDataDumpArchive(
         mimeType: 'application/json',
         lastModified: new Date(),
       },
-      
+
       // Metadata
       {
         path: 'metadata.json',
@@ -834,17 +858,14 @@ export async function createDataDumpArchive(
     return result.archiveBuffer;
   } catch (error) {
     console.error('[DATA_DUMP] Data dump archive creation failed:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to create data dump archive',
-      'DATA_DUMP_ARCHIVE_FAILED',
-      500,
-      { details: { error: error instanceof Error ? error.message : 'Unknown error' } }
-    );
+
+    throw new ApiError('Failed to create data dump archive', 'DATA_DUMP_ARCHIVE_FAILED', 500, {
+      details: { error: error instanceof Error ? error.message : 'Unknown error' },
+    });
   }
 }
 
@@ -853,7 +874,7 @@ export async function createDataDumpArchive(
  */
 export async function generatePublicDataDump(env: WorkerEnv): Promise<DataDumpResult> {
   const warnings: string[] = [];
-  
+
   try {
     console.log('[DATA_DUMP] Starting public data dump generation...');
     const overallStartTime = Date.now();
@@ -963,24 +984,24 @@ export async function generatePublicDataDump(env: WorkerEnv): Promise<DataDumpRe
       metadata,
       size: archiveBuffer.byteLength,
     };
-    
+
     if (warnings.length > 0) {
       successResult.warnings = warnings;
     }
-    
+
     return successResult;
   } catch (error) {
     console.error('[DATA_DUMP] Public data dump failed:', error);
-    
+
     const errorResult: DataDumpResult = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown data dump error',
     };
-    
+
     if (warnings.length > 0) {
       errorResult.warnings = warnings;
     }
-    
+
     return errorResult;
   }
 }

@@ -5,9 +5,9 @@ import { resolve } from 'path';
 export default defineConfig(({ mode }) => {
   // Enable debug mode in development unless explicitly disabled
   const debugMode = mode !== 'production';
-  
+
   console.log(`[Vite Config] Mode: ${mode}, Debug Mode: ${debugMode}`);
-  
+
   return {
     plugins: [vue()],
     resolve: {
@@ -33,14 +33,14 @@ export default defineConfig(({ mode }) => {
               console.log('[Vite Proxy] Proxying request:', {
                 from: req.url,
                 to: proxyReq.getHeader('host') + proxyReq.path,
-                method: req.method
+                method: req.method,
               });
             });
             proxy.on('proxyRes', (proxyRes, req, _res) => {
               console.log('[Vite Proxy] Proxy response:', {
                 from: req.url,
                 status: proxyRes.statusCode,
-                headers: proxyRes.headers
+                headers: proxyRes.headers,
               });
             });
           },
@@ -58,14 +58,14 @@ export default defineConfig(({ mode }) => {
               console.log('[Vite Proxy] Proxying photo request:', {
                 from: req.url,
                 to: proxyReq.getHeader('host') + proxyReq.path,
-                method: req.method
+                method: req.method,
               });
             });
             proxy.on('proxyRes', (proxyRes, req, _res) => {
               console.log('[Vite Proxy] Photo proxy response:', {
                 from: req.url,
                 status: proxyRes.statusCode,
-                contentType: proxyRes.headers['content-type']
+                contentType: proxyRes.headers['content-type'],
               });
             });
           },

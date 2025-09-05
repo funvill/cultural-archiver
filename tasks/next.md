@@ -4,10 +4,6 @@
 2. Variables files
 3. mass import
 
-
-
-
-
 ## Choose a name
 
 Use https://domains.cloudflare.com/ to find the domain.
@@ -34,10 +30,6 @@ In this way a artwork details page is like a wiki, allowing for user submitted c
 A user should click the "Edit" button on the artworks details page. This enabled the user to edit the content of each field. The edits should happen inline. When the user is done with editing, they can click the "Save" button to submit their changes to the server.
 
 All user submitted content needs to be reviewed by a moderator. A moderator can either `Approve` or `Rejected` the changes, Just like the new artwork moderator queue. The changes are added to the moderator queue (/review). A moderator is given a preview of the change. If the moderator accepted the updates, the updates will be shown on the artwork details page. The changes also are shown in the logbook section of the Artwork details page.
-
-
-
-
 
 An artwork also has variable fields. These fields may or may not exist on each artwork. These fields are Key/Value. Some of the key/value variable fields will have enumerated values, while others are text fields. Examples: Artwork type: murals, sculptures, memorials, mosaics, tapestries, paintings, etc...
 

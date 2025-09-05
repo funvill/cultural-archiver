@@ -7,6 +7,7 @@ This document outlines the rollout plan for the new Cloudflare D1 native migrati
 ## Pre-Rollout Checklist
 
 ### Development Environment
+
 - [ ] All developers have Wrangler CLI installed (`npm install -g wrangler@latest`)
 - [ ] Local development databases are backed up
 - [ ] Team has reviewed new migration workflows in `docs/migrations.md`
@@ -14,6 +15,7 @@ This document outlines the rollout plan for the new Cloudflare D1 native migrati
 - [ ] All migrations validate: `npm run migrate:validate`
 
 ### Production Environment
+
 - [ ] Production database backup completed
 - [ ] Monitoring alerts configured for database errors
 - [ ] Rollback plan documented and tested
@@ -22,6 +24,7 @@ This document outlines the rollout plan for the new Cloudflare D1 native migrati
 ## Rollout Timeline
 
 ### Phase 1: Development Migration (Week 1)
+
 **Duration:** 1-2 days  
 **Impact:** Development only
 
@@ -42,6 +45,7 @@ This document outlines the rollout plan for the new Cloudflare D1 native migrati
    - Test backup system integration
 
 ### Phase 2: Staging Migration (Week 2)
+
 **Duration:** 1 day  
 **Impact:** Staging environment
 
@@ -56,6 +60,7 @@ This document outlines the rollout plan for the new Cloudflare D1 native migrati
    - Finalize production runbook
 
 ### Phase 3: Production Migration (Week 3)
+
 **Duration:** 2-4 hours (maintenance window)  
 **Impact:** Production system
 
@@ -82,6 +87,7 @@ This document outlines the rollout plan for the new Cloudflare D1 native migrati
 ## Training Materials
 
 ### Quick Reference Card
+
 ```bash
 # New Migration Commands
 npm run migrate:create "migration_name"    # Create new migration
@@ -95,6 +101,7 @@ npm run backup                             # Full backup with migration state
 ### Common Workflows
 
 #### Creating a New Migration
+
 1. `npm run migrate:create "add_user_preferences"`
 2. Edit the generated migration file
 3. `npm run migrate:validate` to check D1 compatibility
@@ -103,6 +110,7 @@ npm run backup                             # Full backup with migration state
 6. Commit and push for review
 
 #### Production Migration
+
 1. Ensure all tests pass
 2. Get PR approval
 3. Coordinate with team for maintenance window
@@ -114,6 +122,7 @@ npm run backup                             # Full backup with migration state
 ### Rollback Plan
 
 #### If Migration Fails During Application
+
 1. Stop the migration process
 2. Run `npm run backup:validate` to check data integrity
 3. Review error logs in Wrangler output
@@ -121,20 +130,23 @@ npm run backup                             # Full backup with migration state
 5. Consider manual rollback if safe
 
 #### If Application Issues Post-Migration
+
 1. Check application logs for database errors
 2. Run `npm run migrate:status:prod` to verify migration state
 3. If issues persist, prepare rollback migration
 4. Coordinate with team before applying fixes
 
 ### Support Contacts
+
 - **Database Issues:** Database Administrator
-- **Migration System:** Lead Developer  
+- **Migration System:** Lead Developer
 - **Production Issues:** On-call Engineer
 - **Emergency:** Team Lead
 
 ## Monitoring and Metrics
 
 ### Key Metrics to Track
+
 - Migration execution time
 - Database error rates
 - Application response times
@@ -142,11 +154,13 @@ npm run backup                             # Full backup with migration state
 - Backup completion rates
 
 ### Monitoring Windows
+
 - **First 24 hours:** Continuous monitoring
 - **First week:** Daily health checks
 - **First month:** Weekly reviews
 
 ### Success Criteria
+
 - [ ] All migrations apply successfully
 - [ ] No increase in database errors
 - [ ] Application performance maintained
@@ -156,16 +170,19 @@ npm run backup                             # Full backup with migration state
 ## Post-Rollout Activities
 
 ### Week 1
+
 - [ ] Daily team check-ins on new workflow
 - [ ] Monitor migration and backup metrics
 - [ ] Address any workflow issues
 
 ### Week 2-4
+
 - [ ] Weekly team retrospective
 - [ ] Documentation updates based on feedback
 - [ ] Process refinement
 
 ### Month 1
+
 - [ ] Full system review
 - [ ] Performance metrics analysis
 - [ ] Team satisfaction survey
@@ -174,34 +191,40 @@ npm run backup                             # Full backup with migration state
 ## Risk Assessment
 
 ### High Risk
+
 - **Production database corruption**
-  - *Mitigation:* Comprehensive backups before migration
-- **Extended downtime during migration**  
-  - *Mitigation:* Thorough testing in staging, rollback plan
+  - _Mitigation:_ Comprehensive backups before migration
+- **Extended downtime during migration**
+  - _Mitigation:_ Thorough testing in staging, rollback plan
 
 ### Medium Risk
+
 - **Team adoption challenges**
-  - *Mitigation:* Training sessions, documentation, support
+  - _Mitigation:_ Training sessions, documentation, support
 - **Migration state inconsistencies**
-  - *Mitigation:* Validation tools, monitoring
+  - _Mitigation:_ Validation tools, monitoring
 
 ### Low Risk
+
 - **Minor workflow disruptions**
-  - *Mitigation:* Quick feedback loops, documentation updates
+  - _Mitigation:_ Quick feedback loops, documentation updates
 
 ## Communication Plan
 
 ### Pre-Rollout
+
 - Team announcement 1 week before
 - Training session scheduling
 - Documentation distribution
 
 ### During Rollout
+
 - Real-time updates in team chat
 - Status updates every 30 minutes during production migration
 - Immediate notification of any issues
 
 ### Post-Rollout
+
 - Completion announcement
 - Daily check-ins for first week
 - Weekly summaries for first month

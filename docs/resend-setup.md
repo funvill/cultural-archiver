@@ -56,7 +56,7 @@ Name: resend._domainkey.art.abluestar.com
 Type: CNAME
 Value: [provided by Resend - unique per domain]
 
-Name: resend2._domainkey.art.abluestar.com  
+Name: resend2._domainkey.art.abluestar.com
 Type: CNAME
 Value: [provided by Resend - unique per domain]
 ```
@@ -94,7 +94,7 @@ Set the API key as a Cloudflare Worker secret:
 # For production environment
 wrangler secret put RESEND_API_KEY --env production
 
-# For development environment  
+# For development environment
 wrangler secret put RESEND_API_KEY --env development
 ```
 
@@ -140,37 +140,36 @@ The authentication system sends magic links for user login. Configure the email 
 ```html
 <!DOCTYPE html>
 <html>
-<head>
-    <meta charset="utf-8">
+  <head>
+    <meta charset="utf-8" />
     <title>Sign in to Cultural Archiver</title>
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+  </head>
+  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
     <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-        <h1 style="color: #2c3e50;">Welcome to Cultural Archiver</h1>
-        
-        <p>Click the link below to sign in to your account:</p>
-        
-        <div style="text-align: center; margin: 30px 0;">
-            <a href="{{magic_link}}" 
-               style="background-color: #3498db; color: white; padding: 12px 30px; 
-                      text-decoration: none; border-radius: 5px; display: inline-block;">
-                Sign In to Cultural Archiver
-            </a>
-        </div>
-        
-        <p style="color: #666; font-size: 14px;">
-            This link will expire in 15 minutes for security reasons.
-            If you didn't request this email, you can safely ignore it.
-        </p>
-        
-        <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-        
-        <p style="color: #999; font-size: 12px;">
-            Cultural Archiver - Preserving Digital Culture<br>
-            This email was sent to {{user_email}}
-        </p>
+      <h1 style="color: #2c3e50;">Welcome to Cultural Archiver</h1>
+
+      <p>Click the link below to sign in to your account:</p>
+
+      <div style="text-align: center; margin: 30px 0;">
+        <a
+          href="{{magic_link}}"
+          style="background-color: #3498db; color: white; padding: 12px 30px; 
+                      text-decoration: none; border-radius: 5px; display: inline-block;"
+        >
+          Sign In to Cultural Archiver
+        </a>
+      </div>
+
+      <p style="color: #666; font-size: 14px;">This link will expire in 15 minutes for security reasons. If you didn't request this email, you can safely ignore it.</p>
+
+      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;" />
+
+      <p style="color: #999; font-size: 12px;">
+        Cultural Archiver - Preserving Digital Culture<br />
+        This email was sent to {{user_email}}
+      </p>
     </div>
-</body>
+  </body>
 </html>
 ```
 
@@ -190,21 +189,21 @@ Create a test endpoint in your worker to verify email functionality:
 
 ```typescript
 // Test endpoint - remove in production
-app.get('/test-email', async (c) => {
-    const resend = new Resend(c.env.RESEND_API_KEY);
-    
-    try {
-        const result = await resend.emails.send({
-            from: 'test@art.abluestar.com',
-            to: 'your-test-email@example.com',
-            subject: 'Test Email from Cultural Archiver',
-            html: '<p>If you receive this, Resend is configured correctly!</p>'
-        });
-        
-        return c.json({ success: true, id: result.data?.id });
-    } catch (error) {
-        return c.json({ success: false, error: error.message }, 500);
-    }
+app.get('/test-email', async c => {
+  const resend = new Resend(c.env.RESEND_API_KEY);
+
+  try {
+    const result = await resend.emails.send({
+      from: 'test@art.abluestar.com',
+      to: 'your-test-email@example.com',
+      subject: 'Test Email from Cultural Archiver',
+      html: '<p>If you receive this, Resend is configured correctly!</p>',
+    });
+
+    return c.json({ success: true, id: result.data?.id });
+  } catch (error) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
 });
 ```
 
@@ -307,7 +306,7 @@ If migrating from another email provider:
 
 **Pro Tier Benefits**:
 
-- 50,000 emails/month  
+- 50,000 emails/month
 - Dedicated IP option
 - Advanced analytics
 - Priority support

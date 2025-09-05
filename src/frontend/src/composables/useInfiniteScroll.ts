@@ -3,24 +3,24 @@
  * Provides intersection observer-based infinite scrolling
  */
 
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import type { Ref } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import type { Ref } from 'vue';
 
 export interface UseInfiniteScrollOptions {
-  threshold?: number
-  rootMargin?: string
-  enabled?: boolean
-  immediate?: boolean
+  threshold?: number;
+  rootMargin?: string;
+  enabled?: boolean;
+  immediate?: boolean;
 }
 
 export interface UseInfiniteScrollReturn {
-  targetRef: Ref<Element | null>
-  isIntersecting: Ref<boolean>
-  isEnabled: Ref<boolean>
-  trigger: () => void
-  enable: () => void
-  disable: () => void
-  reset: () => void
+  targetRef: Ref<Element | null>;
+  isIntersecting: Ref<boolean>;
+  isEnabled: Ref<boolean>;
+  trigger: () => void;
+  enable: () => void;
+  disable: () => void;
+  reset: () => void;
 }
 
 /**
@@ -32,85 +32,78 @@ export function useInfiniteScroll(
   loadMore: () => void | Promise<void>,
   options: UseInfiniteScrollOptions = {}
 ): UseInfiniteScrollReturn {
-  const {
-    threshold = 0.1,
-    rootMargin = '100px',
-    enabled = true,
-    immediate = false
-  } = options
+  const { threshold = 0.1, rootMargin = '100px', enabled = true, immediate = false } = options;
 
   // State
-  const targetRef = ref<Element | null>(null)
-  const isIntersecting = ref(false)
-  const isEnabled = ref(enabled)
-  const observer = ref<IntersectionObserver | null>(null)
-  const isLoading = ref(false)
+  const targetRef = ref<Element | null>(null);
+  const isIntersecting = ref(false);
+  const isEnabled = ref(enabled);
+  const observer = ref<IntersectionObserver | null>(null);
+  const isLoading = ref(false);
 
   // Computed
-  const shouldLoad = computed(() => 
-    isEnabled.value && isIntersecting.value && !isLoading.value
-  )
+  const shouldLoad = computed(() => isEnabled.value && isIntersecting.value && !isLoading.value);
 
   // Methods
   async function trigger(): Promise<void> {
-    if (!isEnabled.value || isLoading.value) return
+    if (!isEnabled.value || isLoading.value) return;
 
-    isLoading.value = true
+    isLoading.value = true;
     try {
-      await loadMore()
+      await loadMore();
     } catch (error) {
-      console.error('Error loading more content:', error)
+      console.error('Error loading more content:', error);
     } finally {
-      isLoading.value = false
+      isLoading.value = false;
     }
   }
 
   function enable(): void {
-    isEnabled.value = true
+    isEnabled.value = true;
   }
 
   function disable(): void {
-    isEnabled.value = false
+    isEnabled.value = false;
   }
 
   function reset(): void {
-    isIntersecting.value = false
-    isLoading.value = false
+    isIntersecting.value = false;
+    isLoading.value = false;
   }
 
   function createObserver(): void {
     if (!window.IntersectionObserver) {
-      console.warn('IntersectionObserver not supported')
-      return
+      console.warn('IntersectionObserver not supported');
+      return;
     }
 
     observer.value = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0]
+      entries => {
+        const entry = entries[0];
         if (entry) {
-          isIntersecting.value = entry.isIntersecting
+          isIntersecting.value = entry.isIntersecting;
 
           if (shouldLoad.value) {
-            trigger()
+            trigger();
           }
         }
       },
       {
         threshold,
-        rootMargin
+        rootMargin,
       }
-    )
+    );
   }
 
   function startObserving(): void {
     if (observer.value && targetRef.value) {
-      observer.value.observe(targetRef.value)
+      observer.value.observe(targetRef.value);
     }
   }
 
   function stopObserving(): void {
     if (observer.value) {
-      observer.value.disconnect()
+      observer.value.disconnect();
     }
   }
 
@@ -119,42 +112,42 @@ export function useInfiniteScroll(
     // Use a MutationObserver to watch for when targetRef becomes available
     const checkTarget = () => {
       if (targetRef.value && observer.value) {
-        startObserving()
-        return true
+        startObserving();
+        return true;
       }
-      return false
-    }
+      return false;
+    };
 
     // Try immediately
-    if (checkTarget()) return
+    if (checkTarget()) return;
 
     // If not available, watch for it
     const interval = setInterval(() => {
       if (checkTarget()) {
-        clearInterval(interval)
+        clearInterval(interval);
       }
-    }, 100)
+    }, 100);
 
     // Cleanup after 5 seconds
-    setTimeout(() => clearInterval(interval), 5000)
+    setTimeout(() => clearInterval(interval), 5000);
   }
 
   // Lifecycle
   onMounted(() => {
-    createObserver()
-    
+    createObserver();
+
     if (immediate) {
       nextTick(() => {
-        watchTarget()
-      })
+        watchTarget();
+      });
     } else {
-      watchTarget()
+      watchTarget();
     }
-  })
+  });
 
   onUnmounted(() => {
-    stopObserving()
-  })
+    stopObserving();
+  });
 
   return {
     targetRef,
@@ -163,8 +156,8 @@ export function useInfiniteScroll(
     trigger,
     enable,
     disable,
-    reset
-  }
+    reset,
+  };
 }
 
 /**
@@ -174,68 +167,68 @@ export function useInfiniteScroll(
 export function useScrollBasedInfiniteScroll(
   loadMore: () => void | Promise<void>,
   options: {
-    threshold?: number
-    enabled?: boolean
+    threshold?: number;
+    enabled?: boolean;
   } = {}
 ): {
-  isEnabled: Ref<boolean>
-  trigger: () => void
-  enable: () => void
-  disable: () => void
+  isEnabled: Ref<boolean>;
+  trigger: () => void;
+  enable: () => void;
+  disable: () => void;
 } {
-  const { threshold = 100, enabled = true } = options
+  const { threshold = 100, enabled = true } = options;
 
-  const isEnabled = ref(enabled)
-  const isLoading = ref(false)
+  const isEnabled = ref(enabled);
+  const isLoading = ref(false);
 
   async function trigger(): Promise<void> {
-    if (!isEnabled.value || isLoading.value) return
+    if (!isEnabled.value || isLoading.value) return;
 
-    isLoading.value = true
+    isLoading.value = true;
     try {
-      await loadMore()
+      await loadMore();
     } catch (error) {
-      console.error('Error loading more content:', error)
+      console.error('Error loading more content:', error);
     } finally {
-      isLoading.value = false
+      isLoading.value = false;
     }
   }
 
   function handleScroll(): void {
-    if (!isEnabled.value || isLoading.value) return
+    if (!isEnabled.value || isLoading.value) return;
 
-    const scrollHeight = document.documentElement.scrollHeight
-    const scrollTop = document.documentElement.scrollTop || document.body.scrollTop
-    const clientHeight = document.documentElement.clientHeight
+    const scrollHeight = document.documentElement.scrollHeight;
+    const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+    const clientHeight = document.documentElement.clientHeight;
 
     if (scrollTop + clientHeight >= scrollHeight - threshold) {
-      trigger()
+      trigger();
     }
   }
 
   function enable(): void {
-    isEnabled.value = true
+    isEnabled.value = true;
   }
 
   function disable(): void {
-    isEnabled.value = false
+    isEnabled.value = false;
   }
 
   // Lifecycle
   onMounted(() => {
-    window.addEventListener('scroll', handleScroll, { passive: true })
-  })
+    window.addEventListener('scroll', handleScroll, { passive: true });
+  });
 
   onUnmounted(() => {
-    window.removeEventListener('scroll', handleScroll)
-  })
+    window.removeEventListener('scroll', handleScroll);
+  });
 
   return {
     isEnabled: computed(() => isEnabled.value),
     trigger,
     enable,
-    disable
-  }
+    disable,
+  };
 }
 
-export default useInfiniteScroll
+export default useInfiniteScroll;

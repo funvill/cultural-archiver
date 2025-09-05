@@ -70,7 +70,7 @@ export async function extractExifData(buffer: ArrayBuffer): Promise<ExifData> {
 
     // Check for JPEG magic number (0xFFD8)
     const view = new DataView(buffer);
-    if (view.byteLength < 2 || view.getUint16(0) !== 0xFFD8) {
+    if (view.byteLength < 2 || view.getUint16(0) !== 0xffd8) {
       console.info('Non-JPEG file provided for EXIF extraction');
       return {}; // Not a JPEG file, return empty EXIF data
     }
@@ -78,12 +78,18 @@ export async function extractExifData(buffer: ArrayBuffer): Promise<ExifData> {
     // Try using exifr library for full EXIF extraction
     try {
       // Simple options for exifr compatibility
-      const rawExif = await exifr.parse(buffer, ['GPSLatitude', 'GPSLongitude', 'Make', 'Model', 'DateTime']);
-      
+      const rawExif = await exifr.parse(buffer, [
+        'GPSLatitude',
+        'GPSLongitude',
+        'Make',
+        'Model',
+        'DateTime',
+      ]);
+
       if (!rawExif) {
         console.info('No EXIF data found in image');
         return {
-          comment: 'Cultural Archiver photo submission'
+          comment: 'Cultural Archiver photo submission',
         };
       }
 
@@ -96,7 +102,7 @@ export async function extractExifData(buffer: ArrayBuffer): Promise<ExifData> {
           latitude: rawExif.GPSLatitude,
           longitude: rawExif.GPSLongitude,
           altitude: rawExif.GPSAltitude,
-          timestamp: rawExif.GPSTimeStamp || rawExif.GPSDateStamp
+          timestamp: rawExif.GPSTimeStamp || rawExif.GPSDateStamp,
         };
       }
 
@@ -108,9 +114,9 @@ export async function extractExifData(buffer: ArrayBuffer): Promise<ExifData> {
           software: rawExif.Software,
           dateTime: rawExif.DateTime || rawExif.DateTimeOriginal,
           orientation: rawExif.Orientation,
-          iso: rawExif.ISO
+          iso: rawExif.ISO,
         };
-        
+
         // Only add optional fields if they have valid values
         if (rawExif.FocalLength) {
           cameraData.focalLength = `${rawExif.FocalLength}mm`;
@@ -121,7 +127,7 @@ export async function extractExifData(buffer: ArrayBuffer): Promise<ExifData> {
         if (rawExif.ExposureTime) {
           cameraData.shutterSpeed = `1/${Math.round(1 / rawExif.ExposureTime)}s`;
         }
-        
+
         exifData.camera = cameraData;
       }
 
@@ -134,25 +140,23 @@ export async function extractExifData(buffer: ArrayBuffer): Promise<ExifData> {
         hasCamera: !!exifData.camera,
         gpsCoords: exifData.gps ? `${exifData.gps.latitude}, ${exifData.gps.longitude}` : null,
         cameraMake: exifData.camera?.make,
-        cameraModel: exifData.camera?.model
+        cameraModel: exifData.camera?.model,
       });
 
       return exifData;
-      
     } catch (exifrError) {
       console.warn('exifr library error, falling back to basic extraction:', exifrError);
-      
+
       // Fallback to basic implementation for backwards compatibility
       return {
-        comment: 'Cultural Archiver photo submission'
+        comment: 'Cultural Archiver photo submission',
       };
     }
-    
   } catch (error) {
     console.warn('Failed to extract EXIF data:', error);
     // Return basic data instead of throwing to maintain backwards compatibility
     return {
-      comment: 'Cultural Archiver photo submission'
+      comment: 'Cultural Archiver photo submission',
     };
   }
 }
@@ -173,7 +177,7 @@ export async function injectPermalink(
 
     // Check if it's a JPEG file
     const view = new DataView(buffer);
-    if (view.byteLength < 2 || view.getUint16(0) !== 0xFFD8) {
+    if (view.byteLength < 2 || view.getUint16(0) !== 0xffd8) {
       console.info('Non-JPEG file, skipping EXIF permalink injection');
       return buffer;
     }
@@ -185,7 +189,9 @@ export async function injectPermalink(
     try {
       // Convert ArrayBuffer to base64 for piexifjs
       const uint8Array = new Uint8Array(buffer);
-      const binary = Array.from(uint8Array).map(byte => String.fromCharCode(byte)).join('');
+      const binary = Array.from(uint8Array)
+        .map(byte => String.fromCharCode(byte))
+        .join('');
       const base64 = btoa(binary);
       const dataUrl = `data:image/jpeg;base64,${base64}`;
 
@@ -196,19 +202,20 @@ export async function injectPermalink(
         exifData = piexif.load(dataUrl);
       } catch {
         // No existing EXIF data, create new structure
-        exifData = { "0th": {}, "Exif": {}, "GPS": {}, "1st": {}, "thumbnail": undefined };
+        exifData = { '0th': {}, Exif: {}, GPS: {}, '1st': {}, thumbnail: undefined };
       }
 
       // Set Image Description (comment) in IFD0
-      if (!exifData["0th"]) exifData["0th"] = {};
+      if (!exifData['0th']) exifData['0th'] = {};
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (exifData["0th"] as Record<string, any>)[piexif.ImageIFD.ImageDescription] = comment;
+      (exifData['0th'] as Record<string, any>)[piexif.ImageIFD.ImageDescription] = comment;
 
       // Also set UserComment in EXIF IFD for broader compatibility
-      if (!exifData["Exif"]) exifData["Exif"] = {};
+      if (!exifData['Exif']) exifData['Exif'] = {};
       const userCommentBytes = new TextEncoder().encode(`UNICODE\0${comment}`);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (exifData["Exif"] as Record<string, any>)[piexif.ExifIFD.UserComment] = Array.from(userCommentBytes);
+      (exifData['Exif'] as Record<string, any>)[piexif.ExifIFD.UserComment] =
+        Array.from(userCommentBytes);
 
       // Preserve existing GPS data if requested
       if (options.preserveGPS && exifData.GPS) {
@@ -217,37 +224,42 @@ export async function injectPermalink(
 
       // Generate new EXIF binary
       const newExifBinary = piexif.dump(exifData);
-      
+
       // Insert EXIF into image
       const newDataUrl = piexif.insert(newExifBinary, dataUrl);
-      
+
       // Convert back to ArrayBuffer
       const base64Data = newDataUrl.replace(/^data:image\/jpeg;base64,/, '');
       const binaryString = atob(base64Data);
       const newBuffer = new ArrayBuffer(binaryString.length);
       const newView = new Uint8Array(newBuffer);
-      
+
       for (let i = 0; i < binaryString.length; i++) {
         newView[i] = binaryString.charCodeAt(i);
       }
 
-      console.info('Permalink injected into EXIF successfully:', { 
-        artworkId, 
-        permalink, 
+      console.info('Permalink injected into EXIF successfully:', {
+        artworkId,
+        permalink,
         originalSize: buffer.byteLength,
-        newSize: newBuffer.byteLength
+        newSize: newBuffer.byteLength,
       });
-      
+
       return newBuffer;
-      
     } catch (exifError) {
-      console.warn('Failed to modify EXIF data with piexifjs, returning original buffer:', exifError);
-      
+      console.warn(
+        'Failed to modify EXIF data with piexifjs, returning original buffer:',
+        exifError
+      );
+
       // Fallback: return original buffer with logged intention
-      console.info('Permalink prepared for injection (fallback mode):', { artworkId, permalink, comment });
+      console.info('Permalink prepared for injection (fallback mode):', {
+        artworkId,
+        permalink,
+        comment,
+      });
       return buffer;
     }
-    
   } catch (error) {
     console.error('Failed to inject permalink into EXIF:', error);
     throw new ApiError('EXIF permalink injection failed', 'EXIF_PROCESSING_ERROR', 500);
@@ -269,7 +281,7 @@ export async function processExifData(
 
     // Extract existing EXIF data
     const exifData = await extractExifData(buffer);
-    
+
     // Create modified buffer (for MVP, return original)
     let processedBuffer = buffer;
 
@@ -280,7 +292,7 @@ export async function processExifData(
 
     return {
       buffer: processedBuffer,
-      exifData
+      exifData,
     };
   } catch (error) {
     console.error('EXIF processing failed:', error);
@@ -297,11 +309,11 @@ export function validateExifData(exifData: ExifData): { isValid: boolean; errors
   // Validate GPS data if present
   if (exifData.gps) {
     const { latitude, longitude } = exifData.gps;
-    
+
     if (typeof latitude !== 'number' || latitude < -90 || latitude > 90) {
       errors.push('Invalid GPS latitude value');
     }
-    
+
     if (typeof longitude !== 'number' || longitude < -180 || longitude > 180) {
       errors.push('Invalid GPS longitude value');
     }
@@ -316,7 +328,7 @@ export function validateExifData(exifData: ExifData): { isValid: boolean; errors
 
   return {
     isValid: errors.length === 0,
-    errors
+    errors,
   };
 }
 
@@ -328,7 +340,7 @@ export function getDefaultExifOptions(): ExifProcessingOptions {
     preserveGPS: true,
     preserveCamera: true,
     injectPermalink: true,
-    stripPrivateData: false
+    stripPrivateData: false,
   };
 }
 
@@ -338,16 +350,16 @@ export function getDefaultExifOptions(): ExifProcessingOptions {
 export function hasExifData(buffer: ArrayBuffer): boolean {
   try {
     const view = new DataView(buffer);
-    
+
     // Check for JPEG magic number
-    if (view.getUint16(0) !== 0xFFD8) {
+    if (view.getUint16(0) !== 0xffd8) {
       return false;
     }
 
     // Basic check for EXIF marker (0xFFE1)
     // This is a simplified check - full implementation would scan all segments
     for (let i = 2; i < Math.min(buffer.byteLength - 4, 1024); i += 2) {
-      if (view.getUint16(i) === 0xFFE1) {
+      if (view.getUint16(i) === 0xffe1) {
         return true;
       }
     }

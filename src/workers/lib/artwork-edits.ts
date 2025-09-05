@@ -1,6 +1,6 @@
 /**
  * Artwork Edits Database Operations
- * 
+ *
  * Handles database operations for artwork editing system including:
  * - Submitting edit proposals
  * - Checking user pending edits
@@ -9,11 +9,11 @@
  */
 
 import type { D1Database } from '@cloudflare/workers-types';
-import type { 
+import type {
   ArtworkEditRecord,
   CreateArtworkEditRequest,
   ArtworkEditReviewData,
-  ArtworkEditDiff
+  ArtworkEditDiff,
 } from '../../shared/types';
 
 import { randomUUID } from 'crypto';
@@ -51,15 +51,17 @@ export class ArtworkEditsService {
       const editId = randomUUID();
       editIds.push(editId);
 
-      await stmt.bind(
-        editId,
-        request.artwork_id,
-        request.user_token,
-        edit.field_name,
-        edit.field_value_old,
-        edit.field_value_new,
-        submittedAt
-      ).run();
+      await stmt
+        .bind(
+          editId,
+          request.artwork_id,
+          request.user_token,
+          edit.field_name,
+          edit.field_value_old,
+          edit.field_value_new,
+          submittedAt
+        )
+        .run();
     }
 
     return editIds;
@@ -122,14 +124,12 @@ export class ArtworkEditsService {
         ORDER BY field_name
       `);
 
-      const edits = await editsStmt.bind(
-        groupData.artwork_id,
-        groupData.user_token,
-        groupData.submitted_at
-      ).all();
+      const edits = await editsStmt
+        .bind(groupData.artwork_id, groupData.user_token, groupData.submitted_at)
+        .all();
 
       const editRecords = edits.results as unknown as ArtworkEditRecord[];
-      
+
       reviewData.push({
         edit_ids: editRecords.map(e => e.edit_id),
         artwork_id: groupData.artwork_id,
@@ -139,7 +139,7 @@ export class ArtworkEditsService {
           field_name: edit.field_name,
           old_value: edit.field_value_old,
           new_value: edit.field_value_new,
-        }))
+        })),
       });
     }
 
@@ -152,8 +152,8 @@ export class ArtworkEditsService {
   async getEditSubmissionForReview(editId: string): Promise<ArtworkEditReviewData | null> {
     // First get the edit to find the submission group
     const editStmt = this.db.prepare('SELECT * FROM artwork_edits WHERE edit_id = ?');
-    const edit = await editStmt.bind(editId).first() as ArtworkEditRecord | null;
-    
+    const edit = (await editStmt.bind(editId).first()) as ArtworkEditRecord | null;
+
     if (!edit) {
       return null;
     }
@@ -165,12 +165,9 @@ export class ArtworkEditsService {
       ORDER BY field_name
     `);
 
-    const edits = await groupStmt.bind(
-      edit.artwork_id,
-      edit.user_token,
-      edit.submitted_at,
-      edit.status
-    ).all();
+    const edits = await groupStmt
+      .bind(edit.artwork_id, edit.user_token, edit.submitted_at, edit.status)
+      .all();
 
     const editRecords = edits.results as unknown as ArtworkEditRecord[];
 
@@ -183,14 +180,18 @@ export class ArtworkEditsService {
         field_name: e.field_name,
         old_value: e.field_value_old,
         new_value: e.field_value_new,
-      }))
+      })),
     };
   }
 
   /**
    * Approve all edits in a submission group (all-or-nothing)
    */
-  async approveEditSubmission(editIds: string[], moderatorToken: string, applyToArtwork = true): Promise<void> {
+  async approveEditSubmission(
+    editIds: string[],
+    moderatorToken: string,
+    applyToArtwork = true
+  ): Promise<void> {
     const reviewedAt = new Date().toISOString();
 
     // Update all edits to approved status
@@ -206,7 +207,7 @@ export class ArtworkEditsService {
 
     if (applyToArtwork) {
       const appliedFields = await this.applyApprovedEditsToArtwork(editIds);
-      
+
       // Always create logbook entry for approved edits to maintain transparency
       // This ensures users can see the history of all approved changes
       try {
@@ -222,7 +223,11 @@ export class ArtworkEditsService {
   /**
    * Reject all edits in a submission group (all-or-nothing)
    */
-  async rejectEditSubmission(editIds: string[], moderatorToken: string, reason?: string): Promise<void> {
+  async rejectEditSubmission(
+    editIds: string[],
+    moderatorToken: string,
+    reason?: string
+  ): Promise<void> {
     const reviewedAt = new Date().toISOString();
 
     const updateStmt = this.db.prepare(`
@@ -286,7 +291,9 @@ export class ArtworkEditsService {
     }
 
     // Apply updates to artwork table
-    const setClause = Object.keys(updatedFields).map(field => `${field} = ?`).join(', ');
+    const setClause = Object.keys(updatedFields)
+      .map(field => `${field} = ?`)
+      .join(', ');
     const values = Object.values(updatedFields);
 
     const updateArtworkStmt = this.db.prepare(`
@@ -296,8 +303,10 @@ export class ArtworkEditsService {
     `);
 
     await updateArtworkStmt.bind(...values, artworkId).run();
-    console.info(`Applied ${Object.keys(updatedFields).length} field updates to artwork ${artworkId}`);
-    
+    console.info(
+      `Applied ${Object.keys(updatedFields).length} field updates to artwork ${artworkId}`
+    );
+
     // Return the list of field names that were actually applied
     return Object.keys(updatedFields);
   }
@@ -357,15 +366,19 @@ export class ArtworkEditsService {
         try {
           if (diff.old_value) {
             const oldTags = JSON.parse(diff.old_value);
-            formatted_old = Array.isArray(oldTags) 
-              ? oldTags.join(', ') 
-              : Object.entries(oldTags).map(([k, v]) => `${k}: ${v}`).join(', ');
+            formatted_old = Array.isArray(oldTags)
+              ? oldTags.join(', ')
+              : Object.entries(oldTags)
+                  .map(([k, v]) => `${k}: ${v}`)
+                  .join(', ');
           }
           if (diff.new_value) {
             const newTags = JSON.parse(diff.new_value);
-            formatted_new = Array.isArray(newTags) 
+            formatted_new = Array.isArray(newTags)
               ? newTags.join(', ')
-              : Object.entries(newTags).map(([k, v]) => `${k}: ${v}`).join(', ');
+              : Object.entries(newTags)
+                  .map(([k, v]) => `${k}: ${v}`)
+                  .join(', ');
           }
         } catch {
           // If JSON parsing fails, use raw values
@@ -375,15 +388,15 @@ export class ArtworkEditsService {
       const result: ArtworkEditDiff = {
         ...diff,
       };
-      
+
       if (formatted_old !== undefined) {
         result.formatted_old = formatted_old;
       }
-      
+
       if (formatted_new !== undefined) {
         result.formatted_new = formatted_new;
       }
-      
+
       return result;
     });
   }
@@ -392,11 +405,19 @@ export class ArtworkEditsService {
    * Get edit details for logbook entry creation
    * Only includes edits for fields that were actually applied
    */
-  private async getEditDetailsForLogbook(editIds: string[], appliedFields: string[]): Promise<{
+  private async getEditDetailsForLogbook(
+    editIds: string[],
+    appliedFields: string[]
+  ): Promise<{
     artworkId: string;
     userToken: string;
     submittedAt: string;
-    edits: Array<{ field_name: string; field_value_old: string; field_value_new: string; applied: boolean }>;
+    edits: Array<{
+      field_name: string;
+      field_value_old: string;
+      field_value_new: string;
+      applied: boolean;
+    }>;
   }> {
     const editsStmt = this.db.prepare(`
       SELECT artwork_id, user_token, field_name, field_value_old, field_value_new, submitted_at
@@ -424,8 +445,8 @@ export class ArtworkEditsService {
         field_name: edit.field_name,
         field_value_old: edit.field_value_old ?? '',
         field_value_new: edit.field_value_new ?? '',
-        applied: appliedFields.includes(edit.field_name) // Track which edits were actually applied
-      }))
+        applied: appliedFields.includes(edit.field_name), // Track which edits were actually applied
+      })),
     };
   }
 
@@ -437,17 +458,22 @@ export class ArtworkEditsService {
       artworkId: string;
       userToken: string;
       submittedAt: string;
-      edits: Array<{ field_name: string; field_value_old: string; field_value_new: string; applied: boolean }>;
+      edits: Array<{
+        field_name: string;
+        field_value_old: string;
+        field_value_new: string;
+        applied: boolean;
+      }>;
     },
     moderatorToken: string,
     approvedAt: string
   ): Promise<void> {
     const logbookId = crypto.randomUUID();
-    
+
     // Get artwork coordinates for logbook entry
     const artworkStmt = this.db.prepare('SELECT lat, lon FROM artwork WHERE id = ?');
     const artwork = await artworkStmt.bind(editDetails.artworkId).first();
-    
+
     if (!artwork) {
       console.warn(`Could not find artwork ${editDetails.artworkId} for logbook entry`);
       return;
@@ -456,46 +482,49 @@ export class ArtworkEditsService {
     // Format the changes for the logbook note
     const appliedEdits = editDetails.edits.filter(edit => edit.applied);
     const unappliedEdits = editDetails.edits.filter(edit => !edit.applied);
-    
+
     // Create base logbook note
     const fieldNames = editDetails.edits.map(edit => edit.field_name);
     const uniqueFields = [...new Set(fieldNames)];
-    
+
     let logbookNote = `Artwork edit submission approved on ${new Date(approvedAt).toLocaleDateString()} by user ${editDetails.userToken.slice(0, 8)}... - Fields: ${uniqueFields.join(', ')}`;
-    
+
     // Create comprehensive change details for note
     const changeDetails: string[] = [];
-    
+
     if (appliedEdits.length > 0) {
       changeDetails.push('Applied changes:');
       appliedEdits.forEach(edit => {
         let oldValue = edit.field_value_old || '';
         let newValue = edit.field_value_new || '';
-        
+
         // Truncate long values for readability
         if (oldValue.length > 100) oldValue = oldValue.substring(0, 97) + '...';
         if (newValue.length > 100) newValue = newValue.substring(0, 97) + '...';
-        
+
         changeDetails.push(`  ${edit.field_name}: "${oldValue}" → "${newValue}"`);
       });
     }
-    
+
     if (unappliedEdits.length > 0) {
       changeDetails.push('');
-      changeDetails.push('Note: Some fields could not be applied (field may not exist in database):');
+      changeDetails.push(
+        'Note: Some fields could not be applied (field may not exist in database):'
+      );
       unappliedEdits.forEach(edit => {
         let oldValue = edit.field_value_old || '';
         let newValue = edit.field_value_new || '';
-        
+
         // Truncate long values for readability
         if (oldValue.length > 100) oldValue = oldValue.substring(0, 97) + '...';
         if (newValue.length > 100) newValue = newValue.substring(0, 97) + '...';
-        
+
         changeDetails.push(`  ${edit.field_name}: "${oldValue}" → "${newValue}" [NOT APPLIED]`);
       });
     }
-    
-    const fullNote = changeDetails.length > 0 ? `${logbookNote}\n\n${changeDetails.join('\n')}` : logbookNote;
+
+    const fullNote =
+      changeDetails.length > 0 ? `${logbookNote}\n\n${changeDetails.join('\n')}` : logbookNote;
 
     // Insert logbook entry
     const insertStmt = this.db.prepare(`
@@ -503,17 +532,19 @@ export class ArtworkEditsService {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    await insertStmt.bind(
-      logbookId,
-      editDetails.artworkId,
-      moderatorToken, // Use moderator token as the logbook entry creator
-      fullNote,
-      '[]', // No photos for edit entries
-      'approved', // Auto-approve logbook entries from edit approvals
-      artwork.lat,
-      artwork.lon,
-      approvedAt
-    ).run();
+    await insertStmt
+      .bind(
+        logbookId,
+        editDetails.artworkId,
+        moderatorToken, // Use moderator token as the logbook entry creator
+        fullNote,
+        '[]', // No photos for edit entries
+        'approved', // Auto-approve logbook entries from edit approvals
+        artwork.lat,
+        artwork.lon,
+        approvedAt
+      )
+      .run();
   }
 
   /**
@@ -524,17 +555,21 @@ export class ArtworkEditsService {
     try {
       // Check which columns currently exist
       const tableInfo = await this.db.prepare(`PRAGMA table_info(artwork)`).all();
-      const existingColumns = new Set((tableInfo.results as { name: string }[]).map(col => col.name));
-      
+      const existingColumns = new Set(
+        (tableInfo.results as { name: string }[]).map(col => col.name)
+      );
+
       const requiredColumns = ['title', 'description', 'created_by'];
       const missingColumns = requiredColumns.filter(col => !existingColumns.has(col));
-      
+
       if (missingColumns.length === 0) {
         return; // All columns exist
       }
-      
-      console.info(`Adding missing editable columns to artwork table: ${missingColumns.join(', ')}`);
-      
+
+      console.info(
+        `Adding missing editable columns to artwork table: ${missingColumns.join(', ')}`
+      );
+
       // Add missing columns one by one
       for (const column of missingColumns) {
         try {
@@ -545,14 +580,14 @@ export class ArtworkEditsService {
           console.warn(`Failed to add column ${column}:`, error);
         }
       }
-      
+
       // Create indexes for new columns (if they don't exist)
       const indexCommands = [
         'CREATE INDEX IF NOT EXISTS idx_artwork_title ON artwork(title)',
-        'CREATE INDEX IF NOT EXISTS idx_artwork_description ON artwork(description)', 
-        'CREATE INDEX IF NOT EXISTS idx_artwork_created_by ON artwork(created_by)'
+        'CREATE INDEX IF NOT EXISTS idx_artwork_description ON artwork(description)',
+        'CREATE INDEX IF NOT EXISTS idx_artwork_created_by ON artwork(created_by)',
       ];
-      
+
       for (const indexCmd of indexCommands) {
         try {
           await this.db.prepare(indexCmd).run();
@@ -560,21 +595,24 @@ export class ArtworkEditsService {
           console.warn(`Failed to create index:`, error);
         }
       }
-      
+
       // Update existing records to have empty strings instead of NULL
       try {
-        await this.db.prepare(`
+        await this.db
+          .prepare(
+            `
           UPDATE artwork SET 
             title = COALESCE(title, ''),
             description = COALESCE(description, ''),
             created_by = COALESCE(created_by, '')
           WHERE title IS NULL OR description IS NULL OR created_by IS NULL
-        `).run();
+        `
+          )
+          .run();
         console.info('Updated existing records with default values');
       } catch (error) {
         console.warn('Failed to update existing records:', error);
       }
-      
     } catch (error) {
       console.error('Failed to ensure editable fields exist:', error);
       // Don't throw - let the edit process continue with available fields

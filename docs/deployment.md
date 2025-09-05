@@ -89,7 +89,7 @@ Apply database migrations using the new migration system:
 
 ```bash
 # From project root directory
-# Check current migration status  
+# Check current migration status
 npm run migrate:status:prod
 
 # Apply pending migrations to production
@@ -99,11 +99,12 @@ npm run migrate:prod
 npm run migrate:status:prod
 
 # Alternative: Manual verification via Wrangler
-cd src/workers  
+cd src/workers
 npx wrangler d1 execute cultural-archiver --command="SELECT name FROM sqlite_master WHERE type='table';" --env production
 ```
 
 **Important Migration Notes:**
+
 - Always run `migrate:status:prod` before applying production migrations
 - Take a backup before major migration changes: `npm run backup:remote`
 - Test migrations in development first: `npm run migrate:dev`
@@ -348,7 +349,7 @@ wrangler rollback --name cultural-archiver-api
 Use the integrated backup system with Wrangler D1 export:
 
 ```bash
-# Create production backup with migration state  
+# Create production backup with migration state
 npm run backup:remote
 
 # Development environment backup
@@ -363,6 +364,7 @@ npx wrangler d1 export cultural-archiver --env production --output backup.sql
 ```
 
 **Automated Backup Schedule:**
+
 ```bash
 #!/bin/bash
 # add to CI/CD or cron job
@@ -473,33 +475,33 @@ if (!allowedTypes.includes(file.type)) {
    ```bash
    # Test the current deployment
    curl https://art-api.abluestar.com/test
-   
+
    # Should return JSON like:
    # {"message":"Test endpoint working","timestamp":"...","environment":"production"}
-   # 
+   #
    # If it returns just "hello world", the wrong worker is deployed
    ```
 
    **Solutions:**
-   
+
    ```bash
    # 1. Check which worker is deployed
    wrangler whoami
    wrangler list
-   
+
    # 2. Check if you're deploying to the correct name
    grep "name.*=" src/workers/wrangler.toml
-   
+
    # 3. Deploy with explicit environment
    cd src/workers
    wrangler deploy --env production --name cultural-archiver-workers-prod
-   
+
    # 4. Verify deployment
    curl https://art-api.abluestar.com/health | jq .status
    ```
 
    **Root Cause Check:**
-   
+
    ```bash
    # Check the custom domain mapping in Cloudflare Dashboard:
    # Workers & Pages > cultural-archiver-workers-prod > Custom Domains
@@ -511,7 +513,7 @@ if (!allowedTypes.includes(file.type)) {
    ```bash
    # Check D1 binding
    wrangler d1 info cultural-archiver-db
-   
+
    # Test health endpoint to verify database connection
    curl https://art-api.abluestar.com/health | jq .checks.database
    ```
@@ -521,7 +523,7 @@ if (!allowedTypes.includes(file.type)) {
    ```bash
    # List namespaces
    wrangler kv:namespace list
-   
+
    # Test health endpoint to verify KV connections
    curl https://art-api.abluestar.com/health | jq '.checks | keys | map(select(startswith("kv_")))'
    ```
@@ -531,7 +533,7 @@ if (!allowedTypes.includes(file.type)) {
    ```bash
    # Test R2 access
    wrangler r2 bucket list
-   
+
    # Test health endpoint to verify R2 connection
    curl https://art-api.abluestar.com/health | jq .checks.r2_storage
    ```
@@ -561,6 +563,7 @@ curl https://art.abluestar.com/ | grep -o "System Status.*failed\|API.*OK"
 ```
 
 Expected health check response:
+
 ```json
 {
   "status": "healthy",

@@ -69,7 +69,9 @@ describe('Audit Logging', () => {
 
       expect(result.success).toBe(true);
       expect(result.auditId).toBeDefined();
-      expect(mockPrepare).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO moderation_decisions'));
+      expect(mockPrepare).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO moderation_decisions')
+      );
     });
 
     it('should handle moderation logging errors gracefully', async () => {
@@ -141,7 +143,9 @@ describe('Audit Logging', () => {
 
       expect(result.success).toBe(true);
       expect(result.auditId).toBeDefined();
-      expect(mockPrepare).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO admin_actions'));
+      expect(mockPrepare).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO admin_actions')
+      );
     });
 
     it('should handle admin logging errors gracefully', async () => {
@@ -188,7 +192,8 @@ describe('Audit Logging', () => {
 
   describe('Audit Log Retrieval', () => {
     it('should retrieve moderation audit logs', async () => {
-      const mockPrepare = vi.fn()
+      const mockPrepare = vi
+        .fn()
         .mockReturnValueOnce({
           bind: vi.fn().mockReturnValue({
             all: vi.fn().mockResolvedValue({
@@ -233,7 +238,8 @@ describe('Audit Logging', () => {
     });
 
     it('should retrieve admin audit logs', async () => {
-      const mockPrepare = vi.fn()
+      const mockPrepare = vi
+        .fn()
         .mockReturnValueOnce({
           bind: vi.fn().mockReturnValue({
             all: vi.fn().mockResolvedValue({
@@ -279,7 +285,8 @@ describe('Audit Logging', () => {
     });
 
     it('should retrieve combined audit logs', async () => {
-      const mockPrepare = vi.fn()
+      const mockPrepare = vi
+        .fn()
         .mockReturnValueOnce({
           bind: vi.fn().mockReturnValue({
             all: vi.fn().mockResolvedValue({
@@ -325,7 +332,8 @@ describe('Audit Logging', () => {
     });
 
     it('should handle pagination correctly', async () => {
-      const mockPrepare = vi.fn()
+      const mockPrepare = vi
+        .fn()
         .mockReturnValueOnce({
           bind: vi.fn().mockReturnValue({
             all: vi.fn().mockResolvedValue({ success: true, results: [] }),
@@ -364,7 +372,8 @@ describe('Audit Logging', () => {
 
   describe('Audit Statistics', () => {
     it('should retrieve audit statistics successfully', async () => {
-      const mockPrepare = vi.fn()
+      const mockPrepare = vi
+        .fn()
         .mockReturnValueOnce({
           all: vi.fn().mockResolvedValue({
             success: true,
@@ -440,7 +449,7 @@ describe('Audit Logging', () => {
       const mockContext = createMockContext({
         'cf-connecting-ip': '192.168.1.100',
         'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
-        'referer': 'https://example.com/admin',
+        referer: 'https://example.com/admin',
         'x-session-id': 'session-123',
       });
 
@@ -517,25 +526,22 @@ describe('Audit Logging', () => {
         'user-agent': 'Mozilla/5.0 Admin',
       });
 
-      const auditContext = createAdminAuditContext(
-        mockContext,
-        'admin-123',
-        'grant_permission',
-        {
-          targetUuid: 'user-456',
-          permissionType: 'moderator',
-          oldValue: null,
-          newValue: { permission: 'moderator', granted_at: '2025-01-03T15:30:00Z' },
-          reason: 'New moderator appointment',
-        }
-      );
+      const auditContext = createAdminAuditContext(mockContext, 'admin-123', 'grant_permission', {
+        targetUuid: 'user-456',
+        permissionType: 'moderator',
+        oldValue: null,
+        newValue: { permission: 'moderator', granted_at: '2025-01-03T15:30:00Z' },
+        reason: 'New moderator appointment',
+      });
 
       expect(auditContext.adminUuid).toBe('admin-123');
       expect(auditContext.actionType).toBe('grant_permission');
       expect(auditContext.targetUuid).toBe('user-456');
       expect(auditContext.permissionType).toBe('moderator');
       expect(auditContext.oldValue).toBe('null');
-      expect(auditContext.newValue).toBe('{"permission":"moderator","granted_at":"2025-01-03T15:30:00Z"}');
+      expect(auditContext.newValue).toBe(
+        '{"permission":"moderator","granted_at":"2025-01-03T15:30:00Z"}'
+      );
       expect(auditContext.reason).toBe('New moderator appointment');
       expect(auditContext.metadata?.ip).toBe('192.168.1.200');
       expect(auditContext.metadata?.userAgent).toBe('Mozilla/5.0 Admin');

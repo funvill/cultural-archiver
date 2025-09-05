@@ -382,7 +382,7 @@ export async function approveSubmission(
         photosProcessed: newPhotoUrls.length,
       }
     );
-    
+
     const auditResult = await logModerationDecision(c.env.DB, auditContext);
     if (!auditResult.success) {
       console.warn('Failed to log moderation decision:', auditResult.error);
@@ -458,10 +458,11 @@ export async function rejectSubmission(
       'rejected',
       {
         reason: reason || 'No reason provided',
-        photosProcessed: cleanup_photos && submission.photos ? JSON.parse(submission.photos).length : 0,
+        photosProcessed:
+          cleanup_photos && submission.photos ? JSON.parse(submission.photos).length : 0,
       }
     );
-    
+
     const auditResult = await logModerationDecision(c.env.DB, auditContext);
     if (!auditResult.success) {
       console.warn('Failed to log moderation decision:', auditResult.error);
@@ -672,7 +673,10 @@ export async function getArtworkEditsForReview(
     const offset = (page - 1) * per_page;
 
     const editsService = new ArtworkEditsService(c.env.DB);
-    const pendingEdits: ArtworkEditReviewData[] = await editsService.getPendingEditsForReview(limit, offset);
+    const pendingEdits: ArtworkEditReviewData[] = await editsService.getPendingEditsForReview(
+      limit,
+      offset
+    );
 
     // Enrich with artwork details
     const enrichedEdits = [];
@@ -684,11 +688,13 @@ export async function getArtworkEditsForReview(
         try {
           tagsParsed = JSON.parse(artwork.tags || '{}') as Record<string, string>;
         } catch (jsonError) {
-          console.warn(`[ARTWORK EDITS] Invalid JSON in tags for artwork ${artwork.id}: "${artwork.tags}"`);
+          console.warn(
+            `[ARTWORK EDITS] Invalid JSON in tags for artwork ${artwork.id}: "${artwork.tags}"`
+          );
           // If it's not valid JSON, treat the entire string as a title
           tagsParsed = { title: artwork.tags || 'Unknown Artwork' };
         }
-        
+
         enrichedEdits.push({
           ...edit,
           artwork_title: tagsParsed.title || 'Unknown Artwork',
@@ -709,8 +715,8 @@ export async function getArtworkEditsForReview(
         limit,
         offset,
         total_items: enrichedEdits.length,
-        has_more: enrichedEdits.length === limit
-      }
+        has_more: enrichedEdits.length === limit,
+      },
     });
   } catch (error) {
     console.error('Get artwork edits error:', error);
@@ -740,8 +746,9 @@ export async function getArtworkEditForReview(
 
     const editId = c.req.param('editId');
     const editsService = new ArtworkEditsService(c.env.DB);
-    
-    const editSubmission: ArtworkEditReviewData | null = await editsService.getEditSubmissionForReview(editId);
+
+    const editSubmission: ArtworkEditReviewData | null =
+      await editsService.getEditSubmissionForReview(editId);
     if (!editSubmission) {
       throw new ApiError('Edit submission not found', 'EDIT_NOT_FOUND', 404);
     }
@@ -766,7 +773,7 @@ export async function getArtworkEditForReview(
         status: artwork.status,
         lat: artwork.lat,
         lon: artwork.lon,
-      }
+      },
     });
   } catch (error) {
     console.error('Get artwork edit error:', error);
@@ -798,9 +805,10 @@ export async function approveArtworkEdit(
     const { apply_to_artwork = true } = await c.req.json();
 
     const editsService = new ArtworkEditsService(c.env.DB);
-    
+
     // Get the full edit submission
-    const editSubmission: ArtworkEditReviewData | null = await editsService.getEditSubmissionForReview(editId);
+    const editSubmission: ArtworkEditReviewData | null =
+      await editsService.getEditSubmissionForReview(editId);
     if (!editSubmission) {
       throw new ApiError('Edit submission not found', 'EDIT_NOT_FOUND', 404);
     }
@@ -825,7 +833,7 @@ export async function approveArtworkEdit(
         // Note: edit_count and fields_changed are custom metadata that may not be stored
       }
     );
-    
+
     const auditResult = await logModerationDecision(c.env.DB, auditContext);
     if (!auditResult.success) {
       console.warn('Failed to log artwork edit approval:', auditResult.error);
@@ -869,19 +877,16 @@ export async function rejectArtworkEdit(
     const { reason } = await c.req.json();
 
     const editsService = new ArtworkEditsService(c.env.DB);
-    
+
     // Get the full edit submission
-    const editSubmission: ArtworkEditReviewData | null = await editsService.getEditSubmissionForReview(editId);
+    const editSubmission: ArtworkEditReviewData | null =
+      await editsService.getEditSubmissionForReview(editId);
     if (!editSubmission) {
       throw new ApiError('Edit submission not found', 'EDIT_NOT_FOUND', 404);
     }
 
     // Reject all edits in the submission group
-    await editsService.rejectEditSubmission(
-      editSubmission.edit_ids,
-      authContext.userToken,
-      reason
-    );
+    await editsService.rejectEditSubmission(editSubmission.edit_ids, authContext.userToken, reason);
 
     // Log the moderation decision for audit trail
     const { logModerationDecision, createModerationAuditContext } = await import('../lib/audit');
@@ -896,7 +901,7 @@ export async function rejectArtworkEdit(
         // Note: edit_count and fields_rejected are custom metadata that may not be stored
       }
     );
-    
+
     const auditResult = await logModerationDecision(c.env.DB, auditContext);
     if (!auditResult.success) {
       console.warn('Failed to log artwork edit rejection:', auditResult.error);

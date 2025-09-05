@@ -12,7 +12,7 @@ The Cultural Archiver uses **Wrangler's native D1 migration system** for databas
 - **State Tracking**: Wrangler automatically tracks which migrations have been applied to each environment
 - **Environment Isolation**: Separate migration state for development, staging, and production
 - **D1 Validation**: Built-in validation to prevent D1-incompatible SQL patterns
-- **Sequential Numbering**: Enforced 4-digit sequential numbering (0001_, 0002_, etc.)
+- **Sequential Numbering**: Enforced 4-digit sequential numbering (0001*, 0002*, etc.)
 
 ## Quick Start
 
@@ -49,25 +49,26 @@ npm run migrate:rollback:prod
 
 ### Development Commands
 
-| Command | Description |
-|---------|-------------|
-| `npm run migrate:create "description"` | Create new migration with D1-compatible template |
-| `npm run migrate:dev` | Apply pending migrations to development environment |
-| `npm run migrate:status` | Show migration status for development environment |
-| `npm run migrate:rollback` | Rollback last migration in development |
-| `npm run migrate:validate` | Validate all migrations for D1 compatibility |
+| Command                                | Description                                         |
+| -------------------------------------- | --------------------------------------------------- |
+| `npm run migrate:create "description"` | Create new migration with D1-compatible template    |
+| `npm run migrate:dev`                  | Apply pending migrations to development environment |
+| `npm run migrate:status`               | Show migration status for development environment   |
+| `npm run migrate:rollback`             | Rollback last migration in development              |
+| `npm run migrate:validate`             | Validate all migrations for D1 compatibility        |
 
 ### Production Commands
 
-| Command | Description |
-|---------|-------------|
-| `npm run migrate:prod` | Apply pending migrations to production environment |
-| `npm run migrate:status:prod` | Show migration status for production environment |
-| `npm run migrate:rollback:prod` | Emergency rollback of last production migration |
+| Command                         | Description                                        |
+| ------------------------------- | -------------------------------------------------- |
+| `npm run migrate:prod`          | Apply pending migrations to production environment |
+| `npm run migrate:status:prod`   | Show migration status for production environment   |
+| `npm run migrate:rollback:prod` | Emergency rollback of last production migration    |
 
 ### Under the Hood
 
 All migration commands use Wrangler CLI:
+
 - `migrate:create` → Runs scaffolding script to create numbered migration files
 - `migrate:dev` → `wrangler d1 migrations apply cultural-archiver --env development`
 - `migrate:prod` → `wrangler d1 migrations apply cultural-archiver --env production`
@@ -85,6 +86,7 @@ npm run migrate:create "add_user_preferences_table"
 ```
 
 The generator automatically:
+
 - Determines the next sequential number (0001, 0002, etc.)
 - Creates a file with D1-compatible template
 - Includes proper header comments with timestamp and description
@@ -94,7 +96,7 @@ The generator automatically:
 ```
 migrations/
 ├── 0001_consolidated_baseline.sql     # Initial schema
-├── 0002_create_data_dumps_table.sql   # Data export functionality  
+├── 0002_create_data_dumps_table.sql   # Data export functionality
 ├── 0003_create_artwork_edits_table.sql # Edit tracking
 ├── 0004_add_artwork_edit_fields.sql   # Additional edit fields
 └── templates/
@@ -123,7 +125,7 @@ CREATE INDEX idx_user_preferences_user_token ON user_preferences(user_token);
 CREATE INDEX idx_user_preferences_theme ON user_preferences(theme);
 
 -- Add sample data (optional - remove for production)
-INSERT INTO user_preferences (id, user_token, theme, language) VALUES 
+INSERT INTO user_preferences (id, user_token, theme, language) VALUES
 ('pref-1', 'user-123', 'dark', 'en'),
 ('pref-2', 'user-456', 'light', 'es');
 ```
@@ -133,17 +135,20 @@ INSERT INTO user_preferences (id, user_token, theme, language) VALUES
 ### ✅ Supported SQL Features
 
 **Table Operations**
+
 - `CREATE TABLE` with basic constraints
 - `DROP TABLE IF EXISTS`
 - `ALTER TABLE ADD COLUMN` (with limitations)
 
 **Data Types**
+
 - `TEXT` (recommended for most use cases)
 - `INTEGER` (for numbers, timestamps)
 - `REAL` (for floating-point numbers)
 - `BLOB` (for binary data)
 
 **Constraints**
+
 - `PRIMARY KEY`
 - `NOT NULL`
 - `DEFAULT` values
@@ -151,6 +156,7 @@ INSERT INTO user_preferences (id, user_token, theme, language) VALUES
 - `FOREIGN KEY` references
 
 **Functions**
+
 - `datetime('now')` for timestamps
 - Basic math functions
 - String functions like `upper()`, `lower()`
@@ -160,6 +166,7 @@ INSERT INTO user_preferences (id, user_token, theme, language) VALUES
 **The migration validator will flag these issues:**
 
 **PRAGMA Statements**
+
 ```sql
 -- ❌ Not supported in D1
 PRAGMA foreign_keys = ON;
@@ -167,12 +174,14 @@ PRAGMA journal_mode = WAL;
 ```
 
 **WITHOUT ROWID Tables**
+
 ```sql
--- ❌ Not supported in D1  
+-- ❌ Not supported in D1
 CREATE TABLE example (id TEXT PRIMARY KEY) WITHOUT ROWID;
 ```
 
 **AUTOINCREMENT**
+
 ```sql
 -- ❌ Use UUIDs instead
 CREATE TABLE example (id INTEGER PRIMARY KEY AUTOINCREMENT);
@@ -183,17 +192,19 @@ CREATE TABLE example (id TEXT PRIMARY KEY);
 ```
 
 **Complex CHECK Constraints**
+
 ```sql
 -- ❌ Functions in CHECK constraints may not work
 CHECK (length(name) > 0)
 CHECK (email LIKE '%@%')
 
--- ✅ Simple value checks work fine  
+-- ✅ Simple value checks work fine
 CHECK (status IN ('active', 'inactive'))
 CHECK (priority BETWEEN 1 AND 5)
 ```
 
 **Temporary Tables & Views**
+
 ```sql
 -- ❌ Not supported in migrations
 CREATE TEMPORARY TABLE temp_data (...);
@@ -224,6 +235,7 @@ npm run migrate:validate
 ### Validation Rules
 
 The validator checks for:
+
 - **Prohibited patterns**: PRAGMA, WITHOUT ROWID, AUTOINCREMENT, ATTACH
 - **Complex CHECK constraints**: Using functions like length(), LIKE patterns
 - **Temporary objects**: Temporary tables, views in migrations
@@ -232,6 +244,7 @@ The validator checks for:
 ### Fixing Validation Errors
 
 **Remove PRAGMA statements**
+
 ```sql
 -- ❌ Remove this
 PRAGMA foreign_keys = ON;
@@ -240,15 +253,17 @@ PRAGMA foreign_keys = ON;
 ```
 
 **Simplify CHECK constraints**
-```sql  
+
+```sql
 -- ❌ Complex constraint
 CHECK (length(name) > 0 AND name NOT LIKE '%test%')
 
--- ✅ Simple constraint  
+-- ✅ Simple constraint
 CHECK (name != '')
 ```
 
 **Use UUIDs instead of AUTOINCREMENT**
+
 ```sql
 -- ❌ Not supported
 id INTEGER PRIMARY KEY AUTOINCREMENT
@@ -263,7 +278,8 @@ id TEXT PRIMARY KEY
 ### Development Environment
 
 **Local D1 database for development:**
-- Fast reset capabilities for clean development environments  
+
+- Fast reset capabilities for clean development environments
 - Automatic migration application during development setup
 - No confirmation prompts for development operations
 
@@ -281,6 +297,7 @@ npm run migrate:rollback
 ### Production Environment
 
 **Protected production database with safety checks:**
+
 - Confirmation prompts for destructive operations
 - Audit logging of all production migration activities
 - Emergency rollback capabilities
@@ -311,7 +328,7 @@ npm run migrate:status:prod   # Production
 Wrangler automatically tracks migration state:
 
 - **Applied migrations**: Stored in D1's internal metadata
-- **Pending migrations**: Determined by comparing files vs. applied state  
+- **Pending migrations**: Determined by comparing files vs. applied state
 - **Consistency validation**: Automatic prevention of re-running completed migrations
 - **Environment isolation**: Separate tracking for development/production
 
@@ -367,6 +384,7 @@ npm run migrate:status:prod
 ### Common Issues
 
 **Migration State Mismatch**
+
 ```bash
 # Symptom: Wrangler reports different state than expected
 # Solution: Check both environments
@@ -375,6 +393,7 @@ npm run migrate:status:prod
 ```
 
 **D1 Compatibility Errors**
+
 ```bash
 # Symptom: SQLITE_AUTH errors during migration
 # Solution: Run validation and fix issues
@@ -382,6 +401,7 @@ npm run migrate:validate
 ```
 
 **Missing Migrations**
+
 ```bash
 # Symptom: Migration files not found
 # Solution: Ensure you're running from project root
@@ -390,6 +410,7 @@ npm run migrate:status
 ```
 
 **Wrangler Authentication**
+
 ```bash
 # Symptom: Authentication errors
 # Solution: Login to Wrangler
@@ -400,6 +421,7 @@ npx wrangler whoami
 ### Debug Mode
 
 Add debug logging to migration commands:
+
 ```bash
 # Enable debug output
 WRANGLER_LOG=debug npm run migrate:dev
@@ -411,14 +433,16 @@ cd src/workers && npx wrangler d1 list
 ### Recovery Procedures
 
 **Corrupted Migration State**
+
 1. Take full database backup
 2. Compare development vs. production schema
 3. Manually synchronize if needed
 4. Resume normal migration workflow
 
 **Failed Migration**
+
 1. Check error logs carefully
-2. Fix the problematic SQL in migration file  
+2. Fix the problematic SQL in migration file
 3. Re-run migration after fixes
 4. Validate with `migrate:status`
 
@@ -439,7 +463,7 @@ cd src/workers && npx wrangler d1 list
 3. **Deploy in order** - Apply migrations in the same order across environments
 4. **Backup before production** - Always take backup before production migrations
 
-### Performance Considerations  
+### Performance Considerations
 
 1. **Add indexes thoughtfully** - Consider query patterns and performance impact
 2. **Batch large data operations** - Split large updates into smaller chunks

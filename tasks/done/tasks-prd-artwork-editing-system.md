@@ -98,7 +98,7 @@
   - [x] 7.1 Integrate artwork edit endpoints with existing authentication middleware
   - [x] 7.2 Implement rate limiting of 500 edits per 24-hour period per user token
   - [x] 7.3 Add user permission checks to ensure only logged-in users can edit
-  - [x] 7.4 Handle authentication errors with appropriate 401 Unauthorized responses  
+  - [x] 7.4 Handle authentication errors with appropriate 401 Unauthorized responses
   - [x] 7.5 Add rate limit exceeded handling with clear error messages
   - [x] 7.6 Ensure edit operations respect existing user token validation patterns
   - [x] 7.7 Test authentication edge cases (expired tokens, invalid tokens, etc.)
@@ -106,7 +106,7 @@
 - [x] 8.0 Testing and Quality Assurance ✅ (371 backend tests passing, frontend tests created for edit functionality)
   - [x] 8.1 Write comprehensive unit tests for `artwork-edits.ts` database operations
   - [x] 8.2 Write unit tests for artwork edit API endpoints with mock database
-  - [x] 8.3 Write unit tests for `ArtworkEditForm.vue` component functionality  
+  - [x] 8.3 Write unit tests for `ArtworkEditForm.vue` component functionality
   - [x] 8.4 Write unit tests for `TagChipEditor.vue` component interactions
   - [x] 8.5 Update existing `ArtworkDetailView.test.ts` to cover edit mode functionality
   - [x] 8.6 Write integration tests for end-to-end edit workflow (submit -> moderate -> approve)

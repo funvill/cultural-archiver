@@ -2,7 +2,7 @@
 /**
  * Cultural Archiver Backup Testing Utility
  * Tests backup creation and validates archive integrity
- * 
+ *
  * Usage:
  *   npm run test:backup [options]
  */
@@ -26,19 +26,19 @@ interface TestResult {
  */
 async function runBackupTests(): Promise<TestResult[]> {
   const results: TestResult[] = [];
-  
+
   console.log('🧪 Cultural Archiver Backup System Tests');
   console.log('========================================\n');
 
   // Test 1: Environment validation
   results.push(await testEnvironmentValidation());
-  
+
   // Test 2: CLI help functionality
   results.push(await testCliHelp());
-  
+
   // Test 3: Archive creation (local mode)
   results.push(await testLocalMode());
-  
+
   // Test 4: Remote mode validation (if credentials available)
   if (hasRemoteCredentials()) {
     results.push(await testRemoteValidation());
@@ -61,44 +61,44 @@ async function runBackupTests(): Promise<TestResult[]> {
  */
 async function testEnvironmentValidation(): Promise<TestResult> {
   const startTime = Date.now();
-  
+
   try {
     console.log('📋 Testing environment validation...');
-    
+
     // Test should pass with local mode (no remote credentials required)
     const { spawn } = await import('child_process');
-    const result = await new Promise<{ success: boolean; output: string }>((resolve) => {
+    const result = await new Promise<{ success: boolean; output: string }>(resolve => {
       const child = spawn('npm', ['run', 'backup', '--', '--help'], {
         stdio: ['pipe', 'pipe', 'pipe'],
         shell: true,
       });
-      
+
       let output = '';
       let errorOutput = '';
-      
-      child.stdout?.on('data', (data) => {
+
+      child.stdout?.on('data', data => {
         output += data.toString();
       });
-      
-      child.stderr?.on('data', (data) => {
+
+      child.stderr?.on('data', data => {
         errorOutput += data.toString();
       });
-      
-      child.on('close', (code) => {
+
+      child.on('close', code => {
         resolve({
           success: code === 0,
           output: output + errorOutput,
         });
       });
-      
+
       setTimeout(() => {
         child.kill();
         resolve({ success: false, output: 'Timeout' });
       }, 10000);
     });
-    
+
     const duration = Date.now() - startTime;
-    
+
     if (result.success && result.output.includes('Cultural Archiver Backup Command')) {
       console.log('   ✅ Environment validation passed');
       return {
@@ -133,18 +133,18 @@ async function testEnvironmentValidation(): Promise<TestResult> {
  */
 async function testCliHelp(): Promise<TestResult> {
   const startTime = Date.now();
-  
+
   try {
     console.log('📖 Testing CLI help functionality...');
-    
+
     const { execSync } = await import('child_process');
-    const output = execSync('npm run backup -- --help', { 
+    const output = execSync('npm run backup -- --help', {
       encoding: 'utf8',
       timeout: 10000,
     });
-    
+
     const duration = Date.now() - startTime;
-    
+
     const hasRequired = [
       'Cultural Archiver Backup Command',
       '--output-dir',
@@ -153,7 +153,7 @@ async function testCliHelp(): Promise<TestResult> {
       'ENVIRONMENT VARIABLES',
       'BACKUP CONTENTS',
     ].every(text => output.includes(text));
-    
+
     if (hasRequired) {
       console.log('   ✅ CLI help complete and informative');
       return {
@@ -188,27 +188,27 @@ async function testCliHelp(): Promise<TestResult> {
  */
 async function testLocalMode(): Promise<TestResult> {
   const startTime = Date.now();
-  
+
   try {
     console.log('🏠 Testing local mode behavior...');
-    
+
     const { execSync } = await import('child_process');
-    
+
     try {
-      const output = execSync('npm run backup 2>&1', { 
+      const output = execSync('npm run backup 2>&1', {
         encoding: 'utf8',
         timeout: 15000,
       });
-      
+
       const duration = Date.now() - startTime;
-      
+
       // Local mode should fail gracefully with informative message
       const hasExpectedMessages = [
         'Local mode not yet implemented',
         'Please use --remote flag',
         'BACKUP FAILED',
       ].every(text => output.includes(text));
-      
+
       if (hasExpectedMessages) {
         console.log('   ✅ Local mode provides clear guidance');
         return {
@@ -254,19 +254,19 @@ async function testLocalMode(): Promise<TestResult> {
  */
 async function testRemoteValidation(): Promise<TestResult> {
   const startTime = Date.now();
-  
+
   try {
     console.log('☁️ Testing remote validation...');
-    
+
     // Test remote mode validation with missing credentials
     const { execSync } = await import('child_process');
-    
+
     try {
-      execSync('npm run backup -- --remote 2>&1', { 
+      execSync('npm run backup -- --remote 2>&1', {
         encoding: 'utf8',
         timeout: 10000,
       });
-      
+
       // If this doesn't throw, something is wrong
       const duration = Date.now() - startTime;
       console.log('   ⚠️ Remote mode should validate credentials');
@@ -303,23 +303,23 @@ async function testRemoteValidation(): Promise<TestResult> {
  */
 async function testPhotoOnlyMode(): Promise<TestResult> {
   const startTime = Date.now();
-  
+
   try {
     console.log('📸 Testing photos-only mode...');
-    
+
     const { execSync } = await import('child_process');
-    
+
     try {
-      const output = execSync('npm run backup -- --photos-only 2>&1', { 
+      const output = execSync('npm run backup -- --photos-only 2>&1', {
         encoding: 'utf8',
         timeout: 10000,
       });
-      
+
       const duration = Date.now() - startTime;
-      
+
       // Should fail due to missing credentials, but with specific error
       const hasExpectedError = output.includes('Missing required environment variables');
-      
+
       if (hasExpectedError) {
         console.log('   ✅ Photos-only mode validates requirements');
         return {
@@ -378,23 +378,23 @@ async function main(): Promise<void> {
   const startTime = Date.now();
   const results = await runBackupTests();
   const totalTime = Date.now() - startTime;
-  
+
   console.log('\n' + '='.repeat(50));
   console.log('🏁 BACKUP SYSTEM TEST RESULTS');
   console.log('='.repeat(50));
-  
+
   const passed = results.filter(r => r.success).length;
   const failed = results.filter(r => !r.success).length;
-  
+
   console.log(`\nSummary: ${passed} passed, ${failed} failed (${totalTime}ms total)\n`);
-  
+
   results.forEach((result, index) => {
     const icon = result.success ? '✅' : '❌';
     const duration = result.duration ? ` (${result.duration}ms)` : '';
     console.log(`${index + 1}. ${icon} ${result.name}${duration}`);
     console.log(`   ${result.message}\n`);
   });
-  
+
   if (failed === 0) {
     console.log('🎉 All backup system tests passed!');
     console.log('\n💡 Next steps:');
@@ -404,9 +404,9 @@ async function main(): Promise<void> {
   } else {
     console.log(`⚠️  ${failed} test(s) failed. Please review and fix issues.`);
   }
-  
+
   console.log('\n' + '='.repeat(50));
-  
+
   process.exit(failed > 0 ? 1 : 0);
 }
 

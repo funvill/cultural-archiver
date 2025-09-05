@@ -1,24 +1,24 @@
 <script setup lang="ts">
-import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue'
-import { XMarkIcon } from '@heroicons/vue/24/outline'
+import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue';
+import { XMarkIcon } from '@heroicons/vue/24/outline';
 
 interface Props {
-  isOpen: boolean
-  title?: string
-  message?: string
-  inputLabel?: string
-  placeholder?: string
-  defaultValue?: string
-  confirmText?: string
-  cancelText?: string
-  showCloseButton?: boolean
-  variant?: 'primary' | 'danger' | 'warning'
-  preventEscapeClose?: boolean
-  preventBackdropClose?: boolean
-  required?: boolean
-  multiline?: boolean
-  maxLength?: number
-  validator?: (value: string) => string | null
+  isOpen: boolean;
+  title?: string;
+  message?: string;
+  inputLabel?: string;
+  placeholder?: string;
+  defaultValue?: string;
+  confirmText?: string;
+  cancelText?: string;
+  showCloseButton?: boolean;
+  variant?: 'primary' | 'danger' | 'warning';
+  preventEscapeClose?: boolean;
+  preventBackdropClose?: boolean;
+  required?: boolean;
+  multiline?: boolean;
+  maxLength?: number;
+  validator?: (value: string) => string | null;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -30,189 +30,194 @@ const props = withDefaults(defineProps<Props>(), {
   preventEscapeClose: false,
   preventBackdropClose: false,
   required: false,
-  multiline: false
-})
+  multiline: false,
+});
 
 interface Emits {
-  (e: 'update:isOpen', value: boolean): void
-  (e: 'confirm', value: string): void
-  (e: 'cancel'): void
-  (e: 'close'): void
+  (e: 'update:isOpen', value: boolean): void;
+  (e: 'confirm', value: string): void;
+  (e: 'cancel'): void;
+  (e: 'close'): void;
 }
 
-const emit = defineEmits<Emits>()
+const emit = defineEmits<Emits>();
 
 // Refs
-const modalPanel = ref<HTMLElement>()
-const inputElement = ref<HTMLInputElement | HTMLTextAreaElement>()
-const confirmButton = ref<HTMLElement>()
-const cancelButton = ref<HTMLElement>()
+const modalPanel = ref<HTMLElement>();
+const inputElement = ref<HTMLInputElement | HTMLTextAreaElement>();
+const confirmButton = ref<HTMLElement>();
+const cancelButton = ref<HTMLElement>();
 
 // State
-const inputValue = ref('')
-const previouslyFocused = ref<HTMLElement | null>(null)
+const inputValue = ref('');
+const previouslyFocused = ref<HTMLElement | null>(null);
 
 // Computed
-const inputId = computed(() => `prompt-input-${Math.random().toString(36).substr(2, 9)}`)
-const titleId = computed(() => `prompt-title-${Math.random().toString(36).substr(2, 9)}`)
-const descriptionId = computed(() => `prompt-description-${Math.random().toString(36).substr(2, 9)}`)
+const inputId = computed(() => `prompt-input-${Math.random().toString(36).substr(2, 9)}`);
+const titleId = computed(() => `prompt-title-${Math.random().toString(36).substr(2, 9)}`);
+const descriptionId = computed(
+  () => `prompt-description-${Math.random().toString(36).substr(2, 9)}`
+);
 
 const confirmButtonClass = computed(() => {
-  const baseClass = 'focus:ring-2 focus:ring-offset-2'
+  const baseClass = 'focus:ring-2 focus:ring-offset-2';
   switch (props.variant) {
     case 'danger':
-      return `${baseClass} bg-red-600 hover:bg-red-700 focus:ring-red-500`
+      return `${baseClass} bg-red-600 hover:bg-red-700 focus:ring-red-500`;
     case 'warning':
-      return `${baseClass} bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500`
+      return `${baseClass} bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500`;
     default:
-      return `${baseClass} bg-blue-600 hover:bg-blue-700 focus:ring-blue-500`
+      return `${baseClass} bg-blue-600 hover:bg-blue-700 focus:ring-blue-500`;
   }
-})
+});
 
 const errorMessage = computed(() => {
   if (props.validator) {
-    return props.validator(inputValue.value)
+    return props.validator(inputValue.value);
   }
-  return null
-})
+  return null;
+});
 
 const hasError = computed(() => {
-  return errorMessage.value !== null
-})
+  return errorMessage.value !== null;
+});
 
 const canConfirm = computed(() => {
   if (props.required && !inputValue.value.trim()) {
-    return false
+    return false;
   }
   if (hasError.value) {
-    return false
+    return false;
   }
-  return true
-})
+  return true;
+});
 
 // Methods
 function close() {
-  emit('update:isOpen', false)
-  emit('close')
-  restoreFocus()
+  emit('update:isOpen', false);
+  emit('close');
+  restoreFocus();
 }
 
 function confirm() {
-  if (!canConfirm.value) return
-  
-  emit('confirm', inputValue.value)
-  close()
+  if (!canConfirm.value) return;
+
+  emit('confirm', inputValue.value);
+  close();
 }
 
 function cancel() {
-  emit('cancel')
-  close()
+  emit('cancel');
+  close();
 }
 
 function handleEscape(event: KeyboardEvent) {
   if (!props.preventEscapeClose && event.key === 'Escape') {
-    cancel()
+    cancel();
   }
 }
 
 function handleBackdropClick() {
   if (!props.preventBackdropClose) {
-    cancel()
+    cancel();
   }
 }
 
 // Focus management
 function setInitialFocus() {
   nextTick(() => {
-    inputElement.value?.focus()
-    inputElement.value?.select()
-  })
+    inputElement.value?.focus();
+    inputElement.value?.select();
+  });
 }
 
 function saveFocus() {
-  previouslyFocused.value = document.activeElement as HTMLElement
+  previouslyFocused.value = document.activeElement as HTMLElement;
 }
 
 function restoreFocus() {
   nextTick(() => {
-    previouslyFocused.value?.focus()
-    previouslyFocused.value = null
-  })
+    previouslyFocused.value?.focus();
+    previouslyFocused.value = null;
+  });
 }
 
 // Tab trapping
 function handleKeydown(event: KeyboardEvent) {
-  if (!props.isOpen || event.key !== 'Tab') return
-  
-  const panel = modalPanel.value
-  if (!panel) return
-  
+  if (!props.isOpen || event.key !== 'Tab') return;
+
+  const panel = modalPanel.value;
+  if (!panel) return;
+
   const focusableElements = panel.querySelectorAll(
     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-  )
-  
-  const firstElement = focusableElements[0] as HTMLElement
-  const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
-  
+  );
+
+  const firstElement = focusableElements[0] as HTMLElement;
+  const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
   if (event.shiftKey) {
     // Shift+Tab: moving backwards
     if (document.activeElement === firstElement) {
-      event.preventDefault()
-      lastElement.focus()
+      event.preventDefault();
+      lastElement.focus();
     }
   } else {
     // Tab: moving forwards
     if (document.activeElement === lastElement) {
-      event.preventDefault()
-      firstElement.focus()
+      event.preventDefault();
+      firstElement.focus();
     }
   }
 }
 
 // Body scroll management
 function disableBodyScroll() {
-  document.body.style.overflow = 'hidden'
+  document.body.style.overflow = 'hidden';
 }
 
 function enableBodyScroll() {
-  document.body.style.overflow = ''
+  document.body.style.overflow = '';
 }
 
 // Watchers and lifecycle
-import { watch } from 'vue'
+import { watch } from 'vue';
 
-watch(() => props.isOpen, (newValue) => {
-  if (newValue) {
-    saveFocus()
-    disableBodyScroll()
-    inputValue.value = props.defaultValue || ''
-    setInitialFocus()
-  } else {
-    enableBodyScroll()
+watch(
+  () => props.isOpen,
+  newValue => {
+    if (newValue) {
+      saveFocus();
+      disableBodyScroll();
+      inputValue.value = props.defaultValue || '';
+      setInitialFocus();
+    } else {
+      enableBodyScroll();
+    }
   }
-})
+);
 
 onMounted(() => {
-  document.addEventListener('keydown', handleKeydown)
-  
+  document.addEventListener('keydown', handleKeydown);
+
   // If modal opens on mount
   if (props.isOpen) {
-    saveFocus()
-    disableBodyScroll()
-    inputValue.value = props.defaultValue || ''
-    setInitialFocus()
+    saveFocus();
+    disableBodyScroll();
+    inputValue.value = props.defaultValue || '';
+    setInitialFocus();
   }
-})
+});
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
-  enableBodyScroll()
-  
+  document.removeEventListener('keydown', handleKeydown);
+  enableBodyScroll();
+
   // Restore focus if modal was open when component unmounts
   if (props.isOpen) {
-    restoreFocus()
+    restoreFocus();
   }
-})
+});
 </script>
 
 <template>
@@ -229,7 +234,7 @@ onUnmounted(() => {
     >
       <!-- Backdrop -->
       <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
-      
+
       <!-- Modal Panel -->
       <div class="flex min-h-full items-center justify-center p-4">
         <div
@@ -257,10 +262,14 @@ onUnmounted(() => {
           <!-- Content -->
           <div :id="descriptionId" class="mb-6">
             <p v-if="message" class="text-gray-600 mb-4">{{ message }}</p>
-            
+
             <!-- Input Field -->
             <div>
-              <label v-if="inputLabel" :for="inputId" class="block text-sm font-medium text-gray-700 mb-2">
+              <label
+                v-if="inputLabel"
+                :for="inputId"
+                class="block text-sm font-medium text-gray-700 mb-2"
+              >
                 {{ inputLabel }}
               </label>
               <textarea
@@ -272,7 +281,7 @@ onUnmounted(() => {
                   ...(placeholder ? { placeholder } : {}),
                   ...(maxLength ? { maxlength: maxLength } : {}),
                   ...(required ? { required: true } : {}),
-                  ...(hasError ? { 'aria-describedby': `${inputId}-error` } : {})
+                  ...(hasError ? { 'aria-describedby': `${inputId}-error` } : {}),
                 }"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
                 :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': hasError }"
@@ -291,17 +300,22 @@ onUnmounted(() => {
                   ...(placeholder ? { placeholder } : {}),
                   ...(maxLength ? { maxlength: maxLength } : {}),
                   ...(required ? { required: true } : {}),
-                  ...(hasError ? { 'aria-describedby': `${inputId}-error` } : {})
+                  ...(hasError ? { 'aria-describedby': `${inputId}-error` } : {}),
                 }"
                 class="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 :class="{ 'border-red-500 focus:ring-red-500 focus:border-red-500': hasError }"
                 :aria-invalid="hasError"
                 @keydown.enter="confirm"
               />
-              
+
               <!-- Character count -->
               <div v-if="maxLength" class="flex justify-between items-center mt-1">
-                <p v-if="hasError" :id="`${inputId}-error`" class="text-sm text-red-600" role="alert">
+                <p
+                  v-if="hasError"
+                  :id="`${inputId}-error`"
+                  class="text-sm text-red-600"
+                  role="alert"
+                >
                   {{ errorMessage }}
                 </p>
                 <span v-else class="text-sm text-gray-500">

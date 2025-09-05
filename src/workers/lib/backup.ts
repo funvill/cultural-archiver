@@ -78,11 +78,15 @@ export async function generateDatabaseDump(db: D1Database): Promise<DatabaseDump
     const startTime = Date.now();
 
     // Get list of tables
-    const tablesResult = await db.prepare(`
+    const tablesResult = await db
+      .prepare(
+        `
       SELECT name FROM sqlite_master 
       WHERE type='table' AND name NOT LIKE 'sqlite_%' 
       ORDER BY name
-    `).all();
+    `
+      )
+      .all();
 
     if (!tablesResult.success) {
       throw new Error('Failed to retrieve database tables');
@@ -110,10 +114,15 @@ export async function generateDatabaseDump(db: D1Database): Promise<DatabaseDump
 
       try {
         // Get table schema
-        const schemaResult = await db.prepare(`
+        const schemaResult = await db
+          .prepare(
+            `
           SELECT sql FROM sqlite_master 
           WHERE type='table' AND name = ? AND sql IS NOT NULL
-        `).bind(tableName).first();
+        `
+          )
+          .bind(tableName)
+          .first();
 
         if (schemaResult?.sql) {
           sqlDump += `-- Table structure for ${tableName}\n`;
@@ -123,22 +132,22 @@ export async function generateDatabaseDump(db: D1Database): Promise<DatabaseDump
 
         // Get table data
         const dataResult = await db.prepare(`SELECT * FROM ${tableName}`).all();
-        
+
         if (dataResult.success && dataResult.results.length > 0) {
           console.log(`[BACKUP] Table ${tableName}: ${dataResult.results.length} records`);
           totalRecords += dataResult.results.length;
 
           sqlDump += `-- Data for table ${tableName}\n`;
-          
+
           // Get column names
           const firstRow = dataResult.results[0] as Record<string, any>;
           const columns = Object.keys(firstRow);
-          
+
           // Generate INSERT statements in batches for better performance
           const batchSize = 100;
           for (let i = 0; i < dataResult.results.length; i += batchSize) {
             const batch = dataResult.results.slice(i, i + batchSize);
-            
+
             for (const row of batch) {
               const values = columns.map(col => {
                 const value = row[col];
@@ -154,7 +163,7 @@ export async function generateDatabaseDump(db: D1Database): Promise<DatabaseDump
                   return `'${JSON.stringify(value).replace(/'/g, "''")}'`;
                 }
               });
-              
+
               sqlDump += `INSERT INTO ${tableName} (${columns.join(', ')}) VALUES (${values.join(', ')});\n`;
             }
           }
@@ -186,7 +195,7 @@ export async function generateDatabaseDump(db: D1Database): Promise<DatabaseDump
     };
   } catch (error) {
     console.error('[BACKUP] Database dump failed:', error);
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown database dump error',
@@ -222,7 +231,7 @@ export async function collectR2Photos(env: WorkerEnv): Promise<PhotoCollectionRe
 
         // Download the object
         const r2Object = await env.PHOTOS_BUCKET.get(object.key);
-        
+
         if (!r2Object) {
           warnings.push(`Failed to download object: ${object.key}`);
           continue;
@@ -230,7 +239,7 @@ export async function collectR2Photos(env: WorkerEnv): Promise<PhotoCollectionRe
 
         // Get the content as ArrayBuffer
         const content = await r2Object.arrayBuffer();
-        
+
         // Determine content type from file extension
         const getContentType = (key: string): string => {
           const ext = key.split('.').pop()?.toLowerCase();
@@ -274,7 +283,9 @@ export async function collectR2Photos(env: WorkerEnv): Promise<PhotoCollectionRe
 
     const endTime = Date.now();
     console.log(`[BACKUP] R2 photo collection completed in ${endTime - startTime}ms`);
-    console.log(`[BACKUP] Collected ${photos.length} photos (${originalsCount} originals, ${thumbnailsCount} thumbnails), total size: ${totalSize} bytes`);
+    console.log(
+      `[BACKUP] Collected ${photos.length} photos (${originalsCount} originals, ${thumbnailsCount} thumbnails), total size: ${totalSize} bytes`
+    );
 
     if (warnings.length > 0) {
       console.warn(`[BACKUP] Photo collection completed with ${warnings.length} warnings`);
@@ -287,15 +298,15 @@ export async function collectR2Photos(env: WorkerEnv): Promise<PhotoCollectionRe
       thumbnails_count: thumbnailsCount,
       total_size: totalSize,
     };
-    
+
     if (warnings.length > 0) {
       result.warnings = warnings;
     }
-    
+
     return result;
   } catch (error) {
     console.error('[BACKUP] R2 photo collection failed:', error);
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown photo collection error',
@@ -349,7 +360,7 @@ export async function createBackupArchive(
         mimeType: 'application/sql',
         lastModified: new Date(),
       },
-      
+
       // Metadata
       {
         path: 'metadata.json',
@@ -357,7 +368,7 @@ export async function createBackupArchive(
         mimeType: 'application/json',
         lastModified: new Date(),
       },
-      
+
       // README for backup restoration
       {
         path: 'README.md',
@@ -385,17 +396,14 @@ export async function createBackupArchive(
     return result.archiveBuffer;
   } catch (error) {
     console.error('[BACKUP] Backup archive creation failed:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to create backup archive',
-      'BACKUP_ARCHIVE_FAILED',
-      500,
-      { details: { error: error instanceof Error ? error.message : 'Unknown error' } }
-    );
+
+    throw new ApiError('Failed to create backup archive', 'BACKUP_ARCHIVE_FAILED', 500, {
+      details: { error: error instanceof Error ? error.message : 'Unknown error' },
+    });
   }
 }
 
@@ -472,10 +480,10 @@ export async function verifyBackupIntegrity(
   originalPhotoResult: PhotoCollectionResult
 ): Promise<{ valid: boolean; issues: string[]; summary: string }> {
   const issues: string[] = [];
-  
+
   try {
     console.log('[BACKUP] Starting backup integrity verification...');
-    
+
     if (!backup.success || !backup.backup_file) {
       issues.push('Backup creation failed or backup file missing');
       return { valid: false, issues, summary: 'Backup creation failed' };
@@ -490,21 +498,21 @@ export async function verifyBackupIntegrity(
     if (backup.metadata) {
       const expectedTables = originalDatabaseResult.tables?.length || 0;
       const actualTables = backup.metadata.database_info.tables.length;
-      
+
       if (actualTables !== expectedTables) {
         issues.push(`Table count mismatch: expected ${expectedTables}, got ${actualTables}`);
       }
 
       const expectedRecords = originalDatabaseResult.total_records || 0;
       const actualRecords = backup.metadata.database_info.total_records;
-      
+
       if (actualRecords !== expectedRecords) {
         issues.push(`Record count mismatch: expected ${expectedRecords}, got ${actualRecords}`);
       }
 
       const expectedPhotos = originalPhotoResult.photos?.length || 0;
       const actualPhotos = backup.metadata.photos_info.total_photos;
-      
+
       if (actualPhotos !== expectedPhotos) {
         issues.push(`Photo count mismatch: expected ${expectedPhotos}, got ${actualPhotos}`);
       }
@@ -518,7 +526,7 @@ export async function verifyBackupIntegrity(
     }
 
     const valid = issues.length === 0;
-    const summary = valid 
+    const summary = valid
       ? `Backup integrity verified: ${backup.metadata?.database_info.total_records || 0} records, ${backup.metadata?.photos_info.total_photos || 0} photos`
       : `${issues.length} integrity issues found`;
 
@@ -531,11 +539,11 @@ export async function verifyBackupIntegrity(
   } catch (error) {
     const errorMessage = `Backup integrity verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`;
     console.error('[BACKUP]', errorMessage);
-    
-    return { 
-      valid: false, 
-      issues: [errorMessage], 
-      summary: 'Verification process failed' 
+
+    return {
+      valid: false,
+      issues: [errorMessage],
+      summary: 'Verification process failed',
     };
   }
 }
@@ -545,7 +553,7 @@ export async function verifyBackupIntegrity(
  */
 export async function generateFullBackup(env: WorkerEnv): Promise<BackupResult> {
   const warnings: string[] = [];
-  
+
   try {
     console.log('[BACKUP] Starting full system backup...');
     const overallStartTime = Date.now();
@@ -617,24 +625,24 @@ export async function generateFullBackup(env: WorkerEnv): Promise<BackupResult> 
       metadata,
       size: archiveBuffer.byteLength,
     };
-    
+
     if (warnings.length > 0) {
       successResult.warnings = warnings;
     }
-    
+
     return successResult;
   } catch (error) {
     console.error('[BACKUP] Full backup failed:', error);
-    
+
     const errorResult: BackupResult = {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown backup error',
     };
-    
+
     if (warnings.length > 0) {
       errorResult.warnings = warnings;
     }
-    
+
     return errorResult;
   }
 }

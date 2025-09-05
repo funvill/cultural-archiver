@@ -1,11 +1,11 @@
 /**
  * Centralized API configuration utility
  * Provides consistent API base URL across the entire frontend application
- * 
+ *
  * This replaces all scattered environment variable usage and ensures:
  * - Development: /api (proxied to localhost:8787 by Vite)
  * - Production: https://art-api.abluestar.com/api
- * 
+ *
  * Usage:
  * - Import { getApiBaseUrl, createApiUrl } from '@/utils/api-config'
  * - Use createApiUrl('/endpoint') for fetch calls
@@ -14,43 +14,43 @@
 
 /**
  * Get the API base URL based on the current environment
- * 
+ *
  * Development: /api (proxied to localhost:8787)
  * Production: https://art-api.abluestar.com/api
- * 
+ *
  * @returns The API base URL without trailing slash
  */
 export function getApiBaseUrl(): string {
   // Check if we're in production mode (set by Vite build)
-  const isProduction = import.meta.env.PROD
-  
+  const isProduction = import.meta.env.PROD;
+
   if (isProduction) {
     // Production: Use the full API domain with /api path
-    return 'https://art-api.abluestar.com/api'
+    return 'https://art-api.abluestar.com/api';
   } else {
     // Development: Use relative path (proxied by Vite dev server)
-    return '/api'
+    return '/api';
   }
 }
 
 /**
  * Create a full API URL by combining the base URL with an endpoint
- * 
+ *
  * @param endpoint - The API endpoint (should start with /)
  * @returns The complete API URL
- * 
+ *
  * @example
- * createApiUrl('/auth/magic-link') 
+ * createApiUrl('/auth/magic-link')
  * // Development: '/api/auth/magic-link'
  * // Production: 'https://art-api.abluestar.com/api/auth/magic-link'
  */
 export function createApiUrl(endpoint: string): string {
-  const baseUrl = getApiBaseUrl()
-  
+  const baseUrl = getApiBaseUrl();
+
   // Ensure endpoint starts with /
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
-  
-  return `${baseUrl}${cleanEndpoint}`
+  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+  return `${baseUrl}${cleanEndpoint}`;
 }
 
 /**
@@ -61,6 +61,6 @@ export function logApiConfig(): void {
     isProduction: import.meta.env.PROD,
     mode: import.meta.env.MODE,
     baseUrl: getApiBaseUrl(),
-    exampleUrl: createApiUrl('/auth/magic-link')
-  })
+    exampleUrl: createApiUrl('/auth/magic-link'),
+  });
 }

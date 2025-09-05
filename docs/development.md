@@ -67,6 +67,7 @@ npm run migrate:status
 ```
 
 The migration system will:
+
 - Apply all pending migrations in sequence (0001, 0002, etc.)
 - Track migration state automatically
 - Ensure D1 compatibility

@@ -195,13 +195,15 @@ npx wrangler d1 execute cultural-archiver --command=".schema" --env development
 ### SQLITE_AUTH Errors During Migration
 
 **Symptoms:**
-- Migration fails with `SQLITE_AUTH` error 
+
+- Migration fails with `SQLITE_AUTH` error
 - Error messages about unauthorized operations
 - Migration appears to hang or fail silently
 
 **Common Causes:**
+
 1. **D1-incompatible SQL patterns** in migration files
-2. **PRAGMA statements** not supported in D1  
+2. **PRAGMA statements** not supported in D1
 3. **Complex CHECK constraints** using unsupported functions
 4. **WITHOUT ROWID tables** or **AUTOINCREMENT** usage
 
@@ -216,7 +218,7 @@ npx tsx scripts/validate-migration.ts migrations/0003_problematic_migration.sql
 
 # Fix common D1 compatibility issues:
 # - Remove PRAGMA statements
-# - Replace AUTOINCREMENT with UUIDs  
+# - Replace AUTOINCREMENT with UUIDs
 # - Simplify CHECK constraints
 # - Remove WITHOUT ROWID modifiers
 ```
@@ -224,6 +226,7 @@ npx tsx scripts/validate-migration.ts migrations/0003_problematic_migration.sql
 ### Migration State Mismatch
 
 **Symptoms:**
+
 - Migrations report different state than expected
 - "Migration already applied" errors when migration seems missing
 - Inconsistent state between development and production
@@ -260,6 +263,7 @@ npx wrangler d1 migrations list cultural-archiver --env production
 ### Failed Migration Recovery
 
 **Symptoms:**
+
 - Migration fails partway through execution
 - Database left in inconsistent state
 - Subsequent migrations won't run
@@ -287,8 +291,9 @@ npm run migrate:dev
 ```
 
 **For production recovery:**
+
 1. **DO NOT attempt rollback without full backup**
-2. **Test recovery procedure in development first**  
+2. **Test recovery procedure in development first**
 3. **Consider manual database repair if needed**
 4. **Document all recovery steps taken**
 
@@ -297,6 +302,7 @@ npm run migrate:dev
 **Common D1 Validation Issues:**
 
 **PRAGMA Statements**
+
 ```sql
 -- ❌ This will fail validation
 PRAGMA foreign_keys = ON;
@@ -306,6 +312,7 @@ PRAGMA foreign_keys = ON;
 ```
 
 **AUTOINCREMENT Usage**
+
 ```sql
 -- ❌ Not supported in D1
 CREATE TABLE example (
@@ -319,6 +326,7 @@ CREATE TABLE example (
 ```
 
 **Complex CHECK Constraints**
+
 ```sql
 -- ❌ Functions in CHECK may not work
 CHECK (length(email) > 0 AND email LIKE '%@%')
@@ -328,17 +336,19 @@ CHECK (email != '')
 ```
 
 **WITHOUT ROWID Tables**
+
 ```sql
 -- ❌ Not supported in D1
 CREATE TABLE cache (key TEXT PRIMARY KEY, value TEXT) WITHOUT ROWID;
 
--- ✅ Standard table structure  
+-- ✅ Standard table structure
 CREATE TABLE cache (key TEXT PRIMARY KEY, value TEXT);
 ```
 
 ### Wrangler CLI Issues
 
 **Command Not Found**
+
 ```bash
 # Install Wrangler globally
 npm install -g wrangler
@@ -352,6 +362,7 @@ which wrangler
 ```
 
 **Authentication Problems**
+
 ```bash
 # Login to Wrangler
 npx wrangler login
@@ -364,6 +375,7 @@ npx wrangler whoami
 ```
 
 **Configuration Issues**
+
 ```bash
 # Verify wrangler.toml exists and is valid
 cd src/workers
@@ -379,11 +391,13 @@ npx wrangler d1 migrations list cultural-archiver --env development
 ### Migration Performance Issues
 
 **Slow Migration Execution**
+
 - Large migrations may timeout in Wrangler
 - Network latency affecting remote operations
 - Complex queries taking too long
 
 **Solutions:**
+
 ```bash
 # Break large migrations into smaller chunks
 # Use batch operations for data migrations
@@ -401,12 +415,13 @@ cd src/workers && npx wrangler d1 info cultural-archiver
 **When migrations are completely broken:**
 
 1. **Take full backup immediately**
-2. **Document current database state**  
+2. **Document current database state**
 3. **Identify last known good migration**
 4. **Plan recovery strategy**
 5. **Test recovery in development first**
 
 **Recovery Commands:**
+
 ```bash
 # Create emergency backup
 npm run backup:validate  # Check existing backups first

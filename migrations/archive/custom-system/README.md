@@ -5,18 +5,21 @@ This directory contains the custom migration system files that were replaced wit
 ## Archived Files
 
 ### migrate.ts
+
 - **Purpose**: Custom migration runner that manually spawned wrangler CLI processes
-- **Archived Because**: 
+- **Archived Because**:
   - Lacked migration state tracking, causing `SQLITE_AUTH` errors from re-running completed migrations
   - Had poor error handling and environment confusion
   - Didn't support D1 compatibility validation
   - Manually reinvented functionality that Wrangler already provides natively
 
 ### mock-schema.sql
+
 - **Purpose**: Mock schema file for testing migration system
 - **Archived Because**: No longer needed with Wrangler's native migration testing capabilities
 
 ### test-schema.sql
+
 - **Purpose**: Test schema file for migration validation
 - **Archived Because**: Replaced by new D1-compatible validation system
 
@@ -27,7 +30,7 @@ The custom migration system had several critical issues:
 1. **No Migration State Tracking**: The system tried to run ALL migrations every time, causing conflicts when migrations had already been applied
 2. **D1 Compatibility Issues**: Migrations failed with `SQLITE_AUTH` errors due to unsupported SQLite features:
    - `PRAGMA foreign_keys = ON;` statements
-   - `WITHOUT ROWID` table modifiers  
+   - `WITHOUT ROWID` table modifiers
    - Complex `CHECK` constraints using functions like `length()`
 3. **Poor Error Handling**: Failed migrations didn't provide actionable error messages or recovery paths
 4. **Environment Confusion**: No clear separation between development and production database operations

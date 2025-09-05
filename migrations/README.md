@@ -5,7 +5,7 @@ The Cultural Archiver uses Cloudflare's native D1 migration system via Wrangler 
 ## Quick Start
 
 ```powershell
-# Create a new migration  
+# Create a new migration
 npm run migrate:create "add_example_table"
 
 # Apply migrations to development
@@ -27,6 +27,7 @@ npm run migrate:prod
 ## D1 Compatibility Rules
 
 ### ✅ Supported Features
+
 - Standard CREATE TABLE, INSERT, UPDATE, DELETE, DROP statements
 - SQLite data types: TEXT, INTEGER, REAL, BLOB
 - Basic indexes: CREATE INDEX
@@ -35,9 +36,10 @@ npm run migrate:prod
 - DEFAULT values: literals or `datetime('now')`
 
 ### ❌ Prohibited Features (Will Cause SQLITE_AUTH Errors)
+
 - `PRAGMA` statements (especially `PRAGMA foreign_keys = ON`)
 - `WITHOUT ROWID` tables
-- `AUTOINCREMENT` keyword  
+- `AUTOINCREMENT` keyword
 - Complex CHECK constraints: `length(field) > 10`
 - `ATTACH`/`DETACH` database commands
 - Triggers, views, or stored procedures
@@ -46,15 +48,15 @@ npm run migrate:prod
 
 ## Available Commands
 
-| Command | Description |
-|---------|-------------|
-| `npm run migrate:create "name"` | Create new migration from template |
-| `npm run migrate:dev` | Apply pending migrations to development |  
-| `npm run migrate:prod` | Apply pending migrations to production |
-| `npm run migrate:status` | Show migration status for development |
-| `npm run migrate:status:prod` | Show migration status for production |
-| `npm run migrate:validate` | Validate migrations for D1 compatibility |
-| `npm run migrate:rollback` | Rollback last migration (emergency use) |
+| Command                         | Description                              |
+| ------------------------------- | ---------------------------------------- |
+| `npm run migrate:create "name"` | Create new migration from template       |
+| `npm run migrate:dev`           | Apply pending migrations to development  |
+| `npm run migrate:prod`          | Apply pending migrations to production   |
+| `npm run migrate:status`        | Show migration status for development    |
+| `npm run migrate:status:prod`   | Show migration status for production     |
+| `npm run migrate:validate`      | Validate migrations for D1 compatibility |
+| `npm run migrate:rollback`      | Rollback last migration (emergency use)  |
 
 ## Environment Setup
 
@@ -70,7 +72,7 @@ No additional environment variables required - Wrangler handles authentication a
 Use `migrations/templates/d1-template.sql` as a starting point for new migrations. The template includes:
 
 - D1 compatibility guidelines
-- Common patterns and examples  
+- Common patterns and examples
 - Prohibited features list
 - Migration metadata headers
 
@@ -93,16 +95,19 @@ The original custom migration system has been archived to `migrations/archive/cu
 ### Common D1 Errors
 
 **SQLITE_AUTH Error**: Your migration contains prohibited D1 features
+
 - Remove `PRAGMA` statements
 - Replace `WITHOUT ROWID` with standard tables
 - Simplify complex `CHECK` constraints
 - Use `npm run migrate:validate` to check compatibility
 
 **Migration Already Applied Error**: Use proper migration state tracking
+
 - Check status: `npm run migrate:status`
 - Wrangler automatically prevents re-running completed migrations
 
 **Environment Confusion**: Ensure you're targeting the correct environment
+
 - Development: `npm run migrate:dev`
 - Production: `npm run migrate:prod` (requires confirmation)
 
@@ -122,12 +127,12 @@ CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_users_status ON users(status);
 ```
 
-```sql  
+```sql
 -- ❌ BAD: Will cause SQLITE_AUTH errors
 PRAGMA foreign_keys = ON;  -- Prohibited
 
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,  -- AUTOINCREMENT prohibited
-    name TEXT CHECK (length(name) > 0)     -- Complex CHECK prohibited  
+    name TEXT CHECK (length(name) > 0)     -- Complex CHECK prohibited
 ) WITHOUT ROWID;  -- WITHOUT ROWID prohibited
 ```

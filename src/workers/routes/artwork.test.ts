@@ -12,28 +12,34 @@ vi.mock('../lib/artwork-edits', () => ({
     submitArtworkEdit: vi.fn(),
     getUserPendingEdits: vi.fn(),
     getUserPendingEditCount: vi.fn(),
-  }))
+  })),
 }));
 
 // Mock auth middleware
 vi.mock('../middleware/auth', () => ({
-  getUserToken: vi.fn().mockReturnValue('test-user-token')
+  getUserToken: vi.fn().mockReturnValue('test-user-token'),
 }));
 
 // Mock validation middleware
 vi.mock('../middleware/validation', () => ({
-  getValidatedData: vi.fn()
+  getValidatedData: vi.fn(),
 }));
 
 // Mock error handling
 vi.mock('../lib/errors', () => ({
   createSuccessResponse: vi.fn().mockImplementation(data => ({ success: true, data })),
   ValidationApiError: class ValidationApiError extends Error {
-    constructor(validationErrors: Array<{field: string, message: string, code: string}>, message?: string) {
+    constructor(
+      validationErrors: Array<{ field: string; message: string; code: string }>,
+      message?: string
+    ) {
       // Use the first validation error's message if only one error and no custom message
       const firstError = validationErrors[0];
-      const finalMessage = message || 
-        (validationErrors.length === 1 && firstError?.message ? firstError.message : 'Validation failed');
+      const finalMessage =
+        message ||
+        (validationErrors.length === 1 && firstError?.message
+          ? firstError.message
+          : 'Validation failed');
       super(finalMessage);
       this.name = 'ValidationApiError';
     }
@@ -43,7 +49,7 @@ vi.mock('../lib/errors', () => ({
       super(message);
       this.name = 'NotFoundError';
     }
-  }
+  },
 }));
 
 // Mock database
@@ -52,12 +58,12 @@ const mockDb = {
     bind: vi.fn().mockReturnThis(),
     first: vi.fn(),
     all: vi.fn(),
-    run: vi.fn()
-  })
+    run: vi.fn(),
+  }),
 } as any;
 
 const mockEnv: WorkerEnv = {
-  DB: mockDb
+  DB: mockDb,
 } as any;
 
 // Create mock Hono context
@@ -65,10 +71,10 @@ function createMockContext(params: Record<string, string> = {}, body: any = {}) 
   return {
     req: {
       param: vi.fn().mockImplementation((key: string) => params[key]),
-      json: vi.fn().mockResolvedValue(body)
+      json: vi.fn().mockResolvedValue(body),
     },
     json: vi.fn().mockReturnValue(new Response()),
-    env: mockEnv
+    env: mockEnv,
   } as any;
 }
 
@@ -82,7 +88,7 @@ describe('Artwork Editing Routes', () => {
       const mockArtworkEditsService = {
         getUserPendingEditCount: vi.fn().mockResolvedValue(5),
         getUserPendingEdits: vi.fn().mockResolvedValue([]),
-        submitArtworkEdit: vi.fn().mockResolvedValue(['edit-1', 'edit-2'])
+        submitArtworkEdit: vi.fn().mockResolvedValue(['edit-1', 'edit-2']),
       };
 
       const { ArtworkEditsService } = await import('../lib/artwork-edits');
@@ -93,34 +99,40 @@ describe('Artwork Editing Routes', () => {
           {
             field_name: 'title',
             field_value_old: 'Old Title',
-            field_value_new: 'New Title'
+            field_value_new: 'New Title',
           },
           {
-            field_name: 'description', 
+            field_name: 'description',
             field_value_old: 'Old Description',
-            field_value_new: 'New Description'
-          }
-        ]
+            field_value_new: 'New Description',
+          },
+        ],
       };
 
       const c = createMockContext({ id: 'artwork-123' }, requestBody);
-      
+
       await submitArtworkEdit(c);
 
-      expect(mockArtworkEditsService.getUserPendingEditCount).toHaveBeenCalledWith('test-user-token', 24);
-      expect(mockArtworkEditsService.getUserPendingEdits).toHaveBeenCalledWith('test-user-token', 'artwork-123');
+      expect(mockArtworkEditsService.getUserPendingEditCount).toHaveBeenCalledWith(
+        'test-user-token',
+        24
+      );
+      expect(mockArtworkEditsService.getUserPendingEdits).toHaveBeenCalledWith(
+        'test-user-token',
+        'artwork-123'
+      );
       expect(mockArtworkEditsService.submitArtworkEdit).toHaveBeenCalledWith({
         artwork_id: 'artwork-123',
         user_token: 'test-user-token',
-        edits: requestBody.edits
+        edits: requestBody.edits,
       });
       expect(c.json).toHaveBeenCalledWith({
         success: true,
         data: {
           edit_ids: ['edit-1', 'edit-2'],
           message: 'Your changes have been submitted for review',
-          status: 'pending'
-        }
+          status: 'pending',
+        },
       });
     });
 
@@ -144,11 +156,13 @@ describe('Artwork Editing Routes', () => {
 
     test('should reject request with invalid field names', async () => {
       const requestBody = {
-        edits: [{
-          field_name: 'invalid_field',
-          field_value_old: 'old',
-          field_value_new: 'new'
-        }]
+        edits: [
+          {
+            field_name: 'invalid_field',
+            field_value_old: 'old',
+            field_value_new: 'new',
+          },
+        ],
       };
 
       const c = createMockContext({ id: 'artwork-123' }, requestBody);
@@ -159,18 +173,20 @@ describe('Artwork Editing Routes', () => {
     test('should reject request when rate limit exceeded', async () => {
       const mockArtworkEditsService = {
         getUserPendingEditCount: vi.fn().mockResolvedValue(500),
-        getUserPendingEdits: vi.fn().mockResolvedValue([])
+        getUserPendingEdits: vi.fn().mockResolvedValue([]),
       };
 
       const { ArtworkEditsService } = await import('../lib/artwork-edits');
       (ArtworkEditsService as any).mockImplementation(() => mockArtworkEditsService);
 
       const requestBody = {
-        edits: [{
-          field_name: 'title',
-          field_value_old: 'Old Title',
-          field_value_new: 'New Title'
-        }]
+        edits: [
+          {
+            field_name: 'title',
+            field_value_old: 'Old Title',
+            field_value_new: 'New Title',
+          },
+        ],
       };
 
       const c = createMockContext({ id: 'artwork-123' }, requestBody);
@@ -181,48 +197,54 @@ describe('Artwork Editing Routes', () => {
     test('should reject request when user has pending edits', async () => {
       const mockArtworkEditsService = {
         getUserPendingEditCount: vi.fn().mockResolvedValue(5),
-        getUserPendingEdits: vi.fn().mockResolvedValue([{ edit_id: 'existing-edit' }])
+        getUserPendingEdits: vi.fn().mockResolvedValue([{ edit_id: 'existing-edit' }]),
       };
 
       const { ArtworkEditsService } = await import('../lib/artwork-edits');
       (ArtworkEditsService as any).mockImplementation(() => mockArtworkEditsService);
 
       const requestBody = {
-        edits: [{
-          field_name: 'title',
-          field_value_old: 'Old Title',
-          field_value_new: 'New Title'
-        }]
+        edits: [
+          {
+            field_name: 'title',
+            field_value_old: 'Old Title',
+            field_value_new: 'New Title',
+          },
+        ],
       };
 
       const c = createMockContext({ id: 'artwork-123' }, requestBody);
 
-      await expect(submitArtworkEdit(c)).rejects.toThrow('You already have pending edits for this artwork');
+      await expect(submitArtworkEdit(c)).rejects.toThrow(
+        'You already have pending edits for this artwork'
+      );
     });
 
     test('should validate allowed field names', async () => {
       const allowedFields = ['title', 'description', 'created_by', 'tags'];
-      
+
       for (const field of allowedFields) {
         const mockArtworkEditsService = {
           getUserPendingEditCount: vi.fn().mockResolvedValue(5),
           getUserPendingEdits: vi.fn().mockResolvedValue([]),
-          submitArtworkEdit: vi.fn().mockResolvedValue(['edit-1'])
+          submitArtworkEdit: vi.fn().mockResolvedValue(['edit-1']),
         };
 
         const { ArtworkEditsService } = await import('../lib/artwork-edits');
         (ArtworkEditsService as any).mockImplementation(() => mockArtworkEditsService);
 
         const requestBody = {
-          edits: [{
-            field_name: field,
-            field_value_old: 'old',
-            field_value_new: 'new'
-          }]
+          edits: [
+            {
+              field_name: field,
+              field_value_old: 'old',
+              field_value_new: 'new',
+            },
+          ],
         };
 
         const c = createMockContext({ id: 'artwork-123' }, requestBody);
-        
+
         // Should not throw error for allowed fields
         await expect(submitArtworkEdit(c)).resolves.not.toThrow();
       }
@@ -235,12 +257,12 @@ describe('Artwork Editing Routes', () => {
         {
           edit_id: 'edit-1',
           field_name: 'title',
-          submitted_at: '2025-01-01T00:00:00.000Z'
-        }
+          submitted_at: '2025-01-01T00:00:00.000Z',
+        },
       ];
 
       const mockArtworkEditsService = {
-        getUserPendingEdits: vi.fn().mockResolvedValue(mockPendingEdits)
+        getUserPendingEdits: vi.fn().mockResolvedValue(mockPendingEdits),
       };
 
       const { ArtworkEditsService } = await import('../lib/artwork-edits');
@@ -250,20 +272,23 @@ describe('Artwork Editing Routes', () => {
 
       await getUserPendingEdits(c);
 
-      expect(mockArtworkEditsService.getUserPendingEdits).toHaveBeenCalledWith('test-user-token', 'artwork-123');
+      expect(mockArtworkEditsService.getUserPendingEdits).toHaveBeenCalledWith(
+        'test-user-token',
+        'artwork-123'
+      );
       expect(c.json).toHaveBeenCalledWith({
         success: true,
         data: {
           has_pending_edits: true,
           pending_fields: ['title'],
-          submitted_at: '2025-01-01T00:00:00.000Z'
-        }
+          submitted_at: '2025-01-01T00:00:00.000Z',
+        },
       });
     });
 
     test('should return no pending edits when none exist', async () => {
       const mockArtworkEditsService = {
-        getUserPendingEdits: vi.fn().mockResolvedValue([])
+        getUserPendingEdits: vi.fn().mockResolvedValue([]),
       };
 
       const { ArtworkEditsService } = await import('../lib/artwork-edits');
@@ -278,8 +303,8 @@ describe('Artwork Editing Routes', () => {
         data: {
           has_pending_edits: false,
           pending_fields: [],
-          submitted_at: undefined
-        }
+          submitted_at: undefined,
+        },
       });
     });
 
@@ -294,23 +319,25 @@ describe('Artwork Editing Routes', () => {
     test('should validate valid edit request', async () => {
       const mockDbStmt = {
         bind: vi.fn().mockReturnThis(),
-        first: vi.fn().mockResolvedValue({ id: 'artwork-123' })
+        first: vi.fn().mockResolvedValue({ id: 'artwork-123' }),
       };
       mockDb.prepare.mockReturnValue(mockDbStmt);
 
       const mockArtworkEditsService = {
-        getUserPendingEditCount: vi.fn().mockResolvedValue(10)
+        getUserPendingEditCount: vi.fn().mockResolvedValue(10),
       };
 
       const { ArtworkEditsService } = await import('../lib/artwork-edits');
       (ArtworkEditsService as any).mockImplementation(() => mockArtworkEditsService);
 
       const requestBody = {
-        edits: [{
-          field_name: 'title',
-          field_value_old: 'Old Title',
-          field_value_new: 'New Title'
-        }]
+        edits: [
+          {
+            field_name: 'title',
+            field_value_old: 'Old Title',
+            field_value_new: 'New Title',
+          },
+        ],
       };
 
       const c = createMockContext({ id: 'artwork-123' }, requestBody);
@@ -326,32 +353,34 @@ describe('Artwork Editing Routes', () => {
             edits_used: 10,
             edits_remaining: 490,
             rate_limit: 500,
-            window_hours: 24
-          }
-        }
+            window_hours: 24,
+          },
+        },
       });
     });
 
     test('should return invalid when rate limit exceeded', async () => {
       const mockDbStmt = {
         bind: vi.fn().mockReturnThis(),
-        first: vi.fn().mockResolvedValue({ id: 'artwork-123' })
+        first: vi.fn().mockResolvedValue({ id: 'artwork-123' }),
       };
       mockDb.prepare.mockReturnValue(mockDbStmt);
 
       const mockArtworkEditsService = {
-        getUserPendingEditCount: vi.fn().mockResolvedValue(500)
+        getUserPendingEditCount: vi.fn().mockResolvedValue(500),
       };
 
       const { ArtworkEditsService } = await import('../lib/artwork-edits');
       (ArtworkEditsService as any).mockImplementation(() => mockArtworkEditsService);
 
       const requestBody = {
-        edits: [{
-          field_name: 'title',
-          field_value_old: 'Old Title',
-          field_value_new: 'New Title'
-        }]
+        edits: [
+          {
+            field_name: 'title',
+            field_value_old: 'Old Title',
+            field_value_new: 'New Title',
+          },
+        ],
       };
 
       const c = createMockContext({ id: 'artwork-123' }, requestBody);
@@ -367,25 +396,27 @@ describe('Artwork Editing Routes', () => {
             edits_used: 500,
             edits_remaining: 0,
             rate_limit: 500,
-            window_hours: 24
-          }
-        }
+            window_hours: 24,
+          },
+        },
       });
     });
 
     test('should reject when artwork not found', async () => {
       const mockDbStmt = {
         bind: vi.fn().mockReturnThis(),
-        first: vi.fn().mockResolvedValue(null)
+        first: vi.fn().mockResolvedValue(null),
       };
       mockDb.prepare.mockReturnValue(mockDbStmt);
 
       const requestBody = {
-        edits: [{
-          field_name: 'title',
-          field_value_old: 'Old Title',
-          field_value_new: 'New Title'
-        }]
+        edits: [
+          {
+            field_name: 'title',
+            field_value_old: 'Old Title',
+            field_value_new: 'New Title',
+          },
+        ],
       };
 
       const c = createMockContext({ id: 'nonexistent' }, requestBody);

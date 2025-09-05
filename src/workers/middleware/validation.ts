@@ -8,7 +8,13 @@ import { z } from 'zod';
 import type { WorkerEnv } from '../types';
 import { ValidationApiError } from '../lib/errors';
 import { isValidLatitude, isValidLongitude } from '../lib/spatial';
-import { MAX_NOTE_LENGTH, MAX_PHOTOS_PER_SUBMISSION, ARTWORK_TYPES, MIN_SEARCH_RADIUS, MAX_SEARCH_RADIUS } from '../types';
+import {
+  MAX_NOTE_LENGTH,
+  MAX_PHOTOS_PER_SUBMISSION,
+  ARTWORK_TYPES,
+  MIN_SEARCH_RADIUS,
+  MAX_SEARCH_RADIUS,
+} from '../types';
 
 // Extend the Hono context types
 declare module 'hono' {
@@ -72,14 +78,11 @@ export const nearbyArtworksQuerySchema = z.object({
 });
 
 export const artworkIdSchema = z.object({
-  id: z.string().refine(
-    (value) => {
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-      const sampleDataRegex = /^SAMPLE-[a-zA-Z0-9-]+$/;
-      return uuidRegex.test(value) || sampleDataRegex.test(value);
-    },
-    'Artwork ID must be a valid UUID or sample data format'
-  ),
+  id: z.string().refine(value => {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    const sampleDataRegex = /^SAMPLE-[a-zA-Z0-9-]+$/;
+    return uuidRegex.test(value) || sampleDataRegex.test(value);
+  }, 'Artwork ID must be a valid UUID or sample data format'),
 });
 
 // ================================
@@ -322,10 +325,10 @@ export async function validateBoundsQuery(
     const northNum = parseFloat(north);
     const southNum = parseFloat(south);
     if (northNum <= southNum) {
-      validationErrors.push({ 
-        field: 'bounds', 
-        message: 'North bound must be greater than south bound', 
-        code: 'INVALID' 
+      validationErrors.push({
+        field: 'bounds',
+        message: 'North bound must be greater than south bound',
+        code: 'INVALID',
       });
     }
   }
@@ -514,7 +517,7 @@ export async function validateLogbookFormData(
 ): Promise<void | Response> {
   try {
     const contentType = c.req.header('Content-Type');
-    
+
     // Handle multipart form data (with files)
     if (contentType?.includes('multipart/form-data')) {
       const formData = await c.req.formData();
@@ -523,32 +526,48 @@ export async function validateLogbookFormData(
       // Extract and validate latitude
       const latValue = formData.get('latitude')?.toString();
       if (!latValue) {
-        validationErrors.push({ field: 'latitude', message: 'Latitude is required', code: 'REQUIRED' });
+        validationErrors.push({
+          field: 'latitude',
+          message: 'Latitude is required',
+          code: 'REQUIRED',
+        });
       } else {
         const lat = parseFloat(latValue);
         if (isNaN(lat) || lat < -90 || lat > 90) {
-          validationErrors.push({ field: 'latitude', message: 'Latitude must be between -90 and 90', code: 'INVALID' });
+          validationErrors.push({
+            field: 'latitude',
+            message: 'Latitude must be between -90 and 90',
+            code: 'INVALID',
+          });
         }
       }
 
       // Extract and validate longitude
       const lonValue = formData.get('longitude')?.toString();
       if (!lonValue) {
-        validationErrors.push({ field: 'longitude', message: 'Longitude is required', code: 'REQUIRED' });
+        validationErrors.push({
+          field: 'longitude',
+          message: 'Longitude is required',
+          code: 'REQUIRED',
+        });
       } else {
         const lon = parseFloat(lonValue);
         if (isNaN(lon) || lon < -180 || lon > 180) {
-          validationErrors.push({ field: 'longitude', message: 'Longitude must be between -180 and 180', code: 'INVALID' });
+          validationErrors.push({
+            field: 'longitude',
+            message: 'Longitude must be between -180 and 180',
+            code: 'INVALID',
+          });
         }
       }
 
       // Extract and validate optional note
       const note = formData.get('note')?.toString();
       if (note && note.length > MAX_NOTE_LENGTH) {
-        validationErrors.push({ 
-          field: 'note', 
-          message: `Note must be ${MAX_NOTE_LENGTH} characters or less`, 
-          code: 'TOO_LONG' 
+        validationErrors.push({
+          field: 'note',
+          message: `Note must be ${MAX_NOTE_LENGTH} characters or less`,
+          code: 'TOO_LONG',
         });
       }
 
@@ -560,18 +579,18 @@ export async function validateLogbookFormData(
       const validatedData = {
         lat: parseFloat(latValue!),
         lon: parseFloat(lonValue!),
-        ...(note && { note })
+        ...(note && { note }),
       };
-      
+
       c.set('validated_body', validatedData);
     }
     // Handle JSON data (text-only submissions)
     else if (contentType?.includes('application/json')) {
       const jsonData = await c.req.json();
-      
+
       // Validate using Zod schema
       const result = logbookSubmissionSchema.parse(jsonData);
-      
+
       // Store validated data in context
       c.set('validated_body', result);
     }
@@ -583,32 +602,48 @@ export async function validateLogbookFormData(
       // Extract and validate latitude
       const latValue = formData.latitude?.toString();
       if (!latValue) {
-        validationErrors.push({ field: 'latitude', message: 'Latitude is required', code: 'REQUIRED' });
+        validationErrors.push({
+          field: 'latitude',
+          message: 'Latitude is required',
+          code: 'REQUIRED',
+        });
       } else {
         const lat = parseFloat(latValue);
         if (isNaN(lat) || lat < -90 || lat > 90) {
-          validationErrors.push({ field: 'latitude', message: 'Latitude must be between -90 and 90', code: 'INVALID' });
+          validationErrors.push({
+            field: 'latitude',
+            message: 'Latitude must be between -90 and 90',
+            code: 'INVALID',
+          });
         }
       }
 
       // Extract and validate longitude
       const lonValue = formData.longitude?.toString();
       if (!lonValue) {
-        validationErrors.push({ field: 'longitude', message: 'Longitude is required', code: 'REQUIRED' });
+        validationErrors.push({
+          field: 'longitude',
+          message: 'Longitude is required',
+          code: 'REQUIRED',
+        });
       } else {
         const lon = parseFloat(lonValue);
         if (isNaN(lon) || lon < -180 || lon > 180) {
-          validationErrors.push({ field: 'longitude', message: 'Longitude must be between -180 and 180', code: 'INVALID' });
+          validationErrors.push({
+            field: 'longitude',
+            message: 'Longitude must be between -180 and 180',
+            code: 'INVALID',
+          });
         }
       }
 
       // Extract and validate optional note
       const note = formData.note?.toString();
       if (note && note.length > MAX_NOTE_LENGTH) {
-        validationErrors.push({ 
-          field: 'note', 
-          message: `Note must be ${MAX_NOTE_LENGTH} characters or less`, 
-          code: 'TOO_LONG' 
+        validationErrors.push({
+          field: 'note',
+          message: `Note must be ${MAX_NOTE_LENGTH} characters or less`,
+          code: 'TOO_LONG',
         });
       }
 
@@ -620,19 +655,19 @@ export async function validateLogbookFormData(
       const validatedData = {
         lat: parseFloat(latValue!),
         lon: parseFloat(lonValue!),
-        ...(note && { note })
+        ...(note && { note }),
       };
-      
+
       c.set('validated_body', validatedData);
-    }
-    else {
+    } else {
       // Unsupported content type
       throw new ValidationApiError([
-        { 
-          field: 'content-type', 
-          message: 'Content-Type must be multipart/form-data, application/json, or application/x-www-form-urlencoded', 
-          code: 'UNSUPPORTED_CONTENT_TYPE' 
-        }
+        {
+          field: 'content-type',
+          message:
+            'Content-Type must be multipart/form-data, application/json, or application/x-www-form-urlencoded',
+          code: 'UNSUPPORTED_CONTENT_TYPE',
+        },
       ]);
     }
 
@@ -662,7 +697,11 @@ export function validateUUID(paramName: string = 'id') {
 
     if (!uuidRegex.test(value) && !sampleDataRegex.test(value)) {
       throw new ValidationApiError([
-        { field: paramName, message: `${paramName} must be a valid UUID or sample data format`, code: 'INVALID_ID' },
+        {
+          field: paramName,
+          message: `${paramName} must be a valid UUID or sample data format`,
+          code: 'INVALID_ID',
+        },
       ]);
     }
 

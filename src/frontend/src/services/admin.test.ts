@@ -247,7 +247,7 @@ describe('AdminService', () => {
         start_date: '2025-01-01T00:00:00Z',
         end_date: '2025-01-03T23:59:59Z',
         page: '1',
-        limit: '25'
+        limit: '25',
       });
     });
 
@@ -378,7 +378,9 @@ describe('AdminService', () => {
 
       vi.mocked(apiService.generateDataDump).mockResolvedValue(mockResponse);
 
-      await expect(adminService.generateDataDump()).rejects.toThrow('Insufficient data for dump generation');
+      await expect(adminService.generateDataDump()).rejects.toThrow(
+        'Insufficient data for dump generation'
+      );
     });
 
     it('should handle API errors during generation', async () => {

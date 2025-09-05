@@ -1,19 +1,19 @@
 <script setup lang="ts">
-import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue'
-import { XMarkIcon } from '@heroicons/vue/24/outline'
+import { ref, nextTick, onMounted, onUnmounted, computed } from 'vue';
+import { XMarkIcon } from '@heroicons/vue/24/outline';
 
 interface Props {
-  isOpen: boolean
-  title?: string
-  message?: string
-  confirmText?: string
-  cancelText?: string
-  showCancel?: boolean
-  showCloseButton?: boolean
-  variant?: 'primary' | 'danger' | 'warning'
-  preventEscapeClose?: boolean
-  preventBackdropClose?: boolean
-  focusOnOpen?: 'confirm' | 'cancel' | 'close'
+  isOpen: boolean;
+  title?: string;
+  message?: string;
+  confirmText?: string;
+  cancelText?: string;
+  showCancel?: boolean;
+  showCloseButton?: boolean;
+  variant?: 'primary' | 'danger' | 'warning';
+  preventEscapeClose?: boolean;
+  preventBackdropClose?: boolean;
+  focusOnOpen?: 'confirm' | 'cancel' | 'close';
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -24,174 +24,179 @@ const props = withDefaults(defineProps<Props>(), {
   variant: 'primary',
   preventEscapeClose: false,
   preventBackdropClose: false,
-  focusOnOpen: 'confirm'
-})
+  focusOnOpen: 'confirm',
+});
 
 interface Emits {
-  (e: 'update:isOpen', value: boolean): void
-  (e: 'confirm'): void
-  (e: 'cancel'): void
-  (e: 'close'): void
+  (e: 'update:isOpen', value: boolean): void;
+  (e: 'confirm'): void;
+  (e: 'cancel'): void;
+  (e: 'close'): void;
 }
 
-const emit = defineEmits<Emits>()
+const emit = defineEmits<Emits>();
 
 // Refs
-const modalPanel = ref<HTMLElement>()
-const confirmButton = ref<HTMLElement>()
-const cancelButton = ref<HTMLElement>()
-const closeButton = ref<HTMLElement>()
+const modalPanel = ref<HTMLElement>();
+const confirmButton = ref<HTMLElement>();
+const cancelButton = ref<HTMLElement>();
+const closeButton = ref<HTMLElement>();
 
 // State for focus management
-const previouslyFocused = ref<HTMLElement | null>(null)
+const previouslyFocused = ref<HTMLElement | null>(null);
 
 // Computed
-const titleId = computed(() => `modal-title-${Math.random().toString(36).substr(2, 9)}`)
-const descriptionId = computed(() => `modal-description-${Math.random().toString(36).substr(2, 9)}`)
+const titleId = computed(() => `modal-title-${Math.random().toString(36).substr(2, 9)}`);
+const descriptionId = computed(
+  () => `modal-description-${Math.random().toString(36).substr(2, 9)}`
+);
 
 const confirmButtonClass = computed(() => {
-  const baseClass = 'focus:ring-2 focus:ring-offset-2'
+  const baseClass = 'focus:ring-2 focus:ring-offset-2';
   switch (props.variant) {
     case 'danger':
-      return `${baseClass} bg-red-600 hover:bg-red-700 focus:ring-red-500`
+      return `${baseClass} bg-red-600 hover:bg-red-700 focus:ring-red-500`;
     case 'warning':
-      return `${baseClass} bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500`
+      return `${baseClass} bg-yellow-600 hover:bg-yellow-700 focus:ring-yellow-500`;
     default:
-      return `${baseClass} bg-blue-600 hover:bg-blue-700 focus:ring-blue-500`
+      return `${baseClass} bg-blue-600 hover:bg-blue-700 focus:ring-blue-500`;
   }
-})
+});
 
 // Methods
 function close() {
-  emit('update:isOpen', false)
-  emit('close')
-  restoreFocus()
+  emit('update:isOpen', false);
+  emit('close');
+  restoreFocus();
 }
 
 function confirm() {
-  emit('confirm')
-  close()
+  emit('confirm');
+  close();
 }
 
 function cancel() {
-  emit('cancel')
-  close()
+  emit('cancel');
+  close();
 }
 
 function handleEscape(event: KeyboardEvent) {
   if (!props.preventEscapeClose && event.key === 'Escape') {
-    cancel()
+    cancel();
   }
 }
 
 function handleBackdropClick() {
   if (!props.preventBackdropClose) {
-    cancel()
+    cancel();
   }
 }
 
 // Focus management
 function setInitialFocus() {
   nextTick(() => {
-    let elementToFocus: HTMLElement | null = null
-    
+    let elementToFocus: HTMLElement | null = null;
+
     switch (props.focusOnOpen) {
       case 'cancel':
-        elementToFocus = cancelButton.value || null
-        break
+        elementToFocus = cancelButton.value || null;
+        break;
       case 'close':
-        elementToFocus = closeButton.value || null
-        break
+        elementToFocus = closeButton.value || null;
+        break;
       default:
-        elementToFocus = confirmButton.value || null
+        elementToFocus = confirmButton.value || null;
     }
-    
-    elementToFocus?.focus()
-  })
+
+    elementToFocus?.focus();
+  });
 }
 
 function saveFocus() {
-  previouslyFocused.value = document.activeElement as HTMLElement
+  previouslyFocused.value = document.activeElement as HTMLElement;
 }
 
 function restoreFocus() {
   nextTick(() => {
-    previouslyFocused.value?.focus()
-    previouslyFocused.value = null
-  })
+    previouslyFocused.value?.focus();
+    previouslyFocused.value = null;
+  });
 }
 
 // Tab trapping
 function handleKeydown(event: KeyboardEvent) {
-  if (!props.isOpen || event.key !== 'Tab') return
-  
-  const panel = modalPanel.value
-  if (!panel) return
-  
+  if (!props.isOpen || event.key !== 'Tab') return;
+
+  const panel = modalPanel.value;
+  if (!panel) return;
+
   const focusableElements = panel.querySelectorAll(
     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-  )
-  
-  const firstElement = focusableElements[0] as HTMLElement
-  const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
-  
+  );
+
+  const firstElement = focusableElements[0] as HTMLElement;
+  const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
   if (event.shiftKey) {
     // Shift+Tab: moving backwards
     if (document.activeElement === firstElement) {
-      event.preventDefault()
-      lastElement.focus()
+      event.preventDefault();
+      lastElement.focus();
     }
   } else {
     // Tab: moving forwards
     if (document.activeElement === lastElement) {
-      event.preventDefault()
-      firstElement.focus()
+      event.preventDefault();
+      firstElement.focus();
     }
   }
 }
 
 // Body scroll management
 function disableBodyScroll() {
-  document.body.style.overflow = 'hidden'
+  document.body.style.overflow = 'hidden';
 }
 
 function enableBodyScroll() {
-  document.body.style.overflow = ''
+  document.body.style.overflow = '';
 }
 
 // Watchers and lifecycle
-import { watch } from 'vue'
+import { watch } from 'vue';
 
-watch(() => props.isOpen, (newValue) => {
-  if (newValue) {
-    saveFocus()
-    disableBodyScroll()
-    setInitialFocus()
-  } else {
-    enableBodyScroll()
+watch(
+  () => props.isOpen,
+  newValue => {
+    if (newValue) {
+      saveFocus();
+      disableBodyScroll();
+      setInitialFocus();
+    } else {
+      enableBodyScroll();
+    }
   }
-})
+);
 
 onMounted(() => {
-  document.addEventListener('keydown', handleKeydown)
-  
+  document.addEventListener('keydown', handleKeydown);
+
   // If modal opens on mount
   if (props.isOpen) {
-    saveFocus()
-    disableBodyScroll()
-    setInitialFocus()
+    saveFocus();
+    disableBodyScroll();
+    setInitialFocus();
   }
-})
+});
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
-  enableBodyScroll()
-  
+  document.removeEventListener('keydown', handleKeydown);
+  enableBodyScroll();
+
   // Restore focus if modal was open when component unmounts
   if (props.isOpen) {
-    restoreFocus()
+    restoreFocus();
   }
-})
+});
 </script>
 
 <template>
@@ -208,7 +213,7 @@ onUnmounted(() => {
     >
       <!-- Backdrop -->
       <div class="fixed inset-0 bg-black bg-opacity-50 transition-opacity" />
-      
+
       <!-- Modal Panel -->
       <div class="flex min-h-full items-center justify-center p-4">
         <div

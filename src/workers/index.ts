@@ -8,7 +8,13 @@ import { secureHeaders } from 'hono/secure-headers';
 import type { WorkerEnv } from './types';
 
 // Import middleware
-import { ensureUserToken, addUserTokenToResponse, checkEmailVerification, requireReviewer, requireAdmin } from './middleware/auth';
+import {
+  ensureUserToken,
+  addUserTokenToResponse,
+  checkEmailVerification,
+  requireReviewer,
+  requireAdmin,
+} from './middleware/auth';
 import { rateLimitSubmissions, rateLimitQueries, addRateLimitStatus } from './middleware/rateLimit';
 import {
   validateLogbookFormData,
@@ -25,7 +31,12 @@ import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
 // Import route handlers
 import { createLogbookSubmission } from './routes/submissions';
-import { getNearbyArtworks, getArtworkDetails, getArtworksInBounds, getArtworkStats } from './routes/discovery';
+import {
+  getNearbyArtworks,
+  getArtworkDetails,
+  getArtworksInBounds,
+  getArtworkStats,
+} from './routes/discovery';
 import { submitArtworkEdit, getUserPendingEdits, validateArtworkEdit } from './routes/artwork';
 import { getUserSubmissions, getUserProfile, sendTestEmail } from './routes/user';
 import { handleSearchRequest, handleSearchSuggestions } from './routes/search';
@@ -73,7 +84,7 @@ const app = new Hono<{ Bindings: WorkerEnv }>();
 // Add binding validation middleware - CRITICAL for deployment diagnosis
 app.use('*', async (c, next) => {
   const missingBindings = [];
-  
+
   // Check critical bindings
   if (!c.env.DB) missingBindings.push('DB (D1 Database)');
   if (!c.env.SESSIONS) missingBindings.push('SESSIONS (KV)');
@@ -81,43 +92,48 @@ app.use('*', async (c, next) => {
   if (!c.env.RATE_LIMITS) missingBindings.push('RATE_LIMITS (KV)');
   if (!c.env.MAGIC_LINKS) missingBindings.push('MAGIC_LINKS (KV)');
   if (!c.env.PHOTOS_BUCKET) missingBindings.push('PHOTOS_BUCKET (R2)');
-  
+
   // If critical bindings are missing, return a helpful error instead of "hello world"
   if (missingBindings.length > 0) {
     console.error('❌ CRITICAL: Missing Cloudflare bindings:', missingBindings);
-    
+
     // Return a helpful error response instead of failing silently
-    return c.json({
-      error: 'Deployment Configuration Error',
-      message: 'Cultural Archiver API worker is deployed but missing critical Cloudflare bindings',
-      missing_bindings: missingBindings,
-      environment: c.env.ENVIRONMENT || 'unknown',
-      worker_name: 'cultural-archiver-workers',
-      timestamp: new Date().toISOString(),
-      diagnosis: {
-        issue: 'The worker is deployed correctly but missing required Cloudflare bindings',
-        likely_cause: 'Placeholder values in wrangler.toml or incomplete deployment configuration',
-        solution: [
-          '1. Check wrangler.toml for placeholder values (PLACEHOLDER_*)',
-          '2. Fill in actual resource IDs from Cloudflare dashboard',
-          '3. Redeploy with: wrangler deploy --env production',
-          '4. Verify custom domain points to correct worker'
-        ],
-        next_steps: [
-          'Run: node verify-deployment.js production',
-          'Check Cloudflare Dashboard > Workers & Pages',
-          'Verify D1, KV, and R2 resource configurations'
-        ]
+    return c.json(
+      {
+        error: 'Deployment Configuration Error',
+        message:
+          'Cultural Archiver API worker is deployed but missing critical Cloudflare bindings',
+        missing_bindings: missingBindings,
+        environment: c.env.ENVIRONMENT || 'unknown',
+        worker_name: 'cultural-archiver-workers',
+        timestamp: new Date().toISOString(),
+        diagnosis: {
+          issue: 'The worker is deployed correctly but missing required Cloudflare bindings',
+          likely_cause:
+            'Placeholder values in wrangler.toml or incomplete deployment configuration',
+          solution: [
+            '1. Check wrangler.toml for placeholder values (PLACEHOLDER_*)',
+            '2. Fill in actual resource IDs from Cloudflare dashboard',
+            '3. Redeploy with: wrangler deploy --env production',
+            '4. Verify custom domain points to correct worker',
+          ],
+          next_steps: [
+            'Run: node verify-deployment.js production',
+            'Check Cloudflare Dashboard > Workers & Pages',
+            'Verify D1, KV, and R2 resource configurations',
+          ],
+        },
+        debug_info: {
+          note: 'This error proves the Cultural Archiver worker is deployed, not a "hello world" worker',
+          request_url: c.req.url,
+          user_agent: c.req.header('User-Agent'),
+          cf_ray: c.req.header('CF-Ray'),
+        },
       },
-      debug_info: {
-        note: 'This error proves the Cultural Archiver worker is deployed, not a "hello world" worker',
-        request_url: c.req.url,
-        user_agent: c.req.header('User-Agent'),
-        cf_ray: c.req.header('CF-Ray')
-      }
-    }, 500);
+      500
+    );
   }
-  
+
   // Continue to next middleware if all bindings are present
   return await next();
 });
@@ -132,7 +148,9 @@ app.use('*', async (c, next) => {
   // Support both comma-separated string and array for origins
   let origins: string[] = [];
   if (typeof c.env.CORS_ORIGINS === 'string') {
-    origins = c.env.CORS_ORIGINS.split(',').map((o: string) => o.trim()).filter(Boolean);
+    origins = c.env.CORS_ORIGINS.split(',')
+      .map((o: string) => o.trim())
+      .filter(Boolean);
   } else if (Array.isArray(c.env.CORS_ORIGINS)) {
     origins = c.env.CORS_ORIGINS;
   } else {
@@ -141,7 +159,7 @@ app.use('*', async (c, next) => {
       'https://art.abluestar.com',
       'https://art-api.abluestar.com',
       'https://art-photos.abluestar.com',
-      'https://cultural-archiver.broad-bird-0934.workers.dev'
+      'https://cultural-archiver.broad-bird-0934.workers.dev',
     ];
   }
   const corsOptions = cors({
@@ -228,14 +246,14 @@ app.get('/health', async c => {
       console.log(`[HEALTH] Testing KV namespace: ${name}...`);
       const testKey = `health-check-${Date.now()}`;
       const testValue = 'health-test';
-      
+
       // Test write and read
       await binding.put(testKey, testValue, { expirationTtl: 60 });
       const readValue = await binding.get(testKey);
-      
+
       // Clean up
       await binding.delete(testKey);
-      
+
       checks[`kv_${name.toLowerCase()}`] = {
         status: readValue === testValue ? 'healthy' : 'degraded',
         test_write: true,
@@ -259,17 +277,17 @@ app.get('/health', async c => {
     console.log('[HEALTH] Testing R2 bucket...');
     const testKey = `health-check-${Date.now()}.txt`;
     const testContent = 'health-test';
-    
+
     // Test write
     await c.env.PHOTOS_BUCKET.put(testKey, testContent);
-    
+
     // Test read
     const object = await c.env.PHOTOS_BUCKET.get(testKey);
     const readContent = object ? await object.text() : null;
-    
+
     // Clean up
     await c.env.PHOTOS_BUCKET.delete(testKey);
-    
+
     checks.r2_storage = {
       status: readContent === testContent ? 'healthy' : 'degraded',
       test_write: true,
@@ -296,7 +314,7 @@ app.get('/health', async c => {
   for (const { name, path } of endpointTests) {
     try {
       console.log(`[HEALTH] Testing endpoint: ${path}...`);
-      
+
       // Test the endpoint based on path
       let result: Record<string, unknown>;
       if (path === '/test') {
@@ -380,7 +398,7 @@ app.get('/health', async c => {
       'GET /api/status',
       'POST /api/logbook',
       'GET /api/artworks/nearby',
-      'GET /api/artworks/bounds', 
+      'GET /api/artworks/bounds',
       'GET /api/artworks/:id',
       'POST /api/artwork/:id/edit',
       'GET /api/artwork/:id/pending-edits',
@@ -429,7 +447,7 @@ app.get('/health', async c => {
 // Enhanced test endpoint with debug information
 app.get('/test', c => {
   console.log('Test endpoint called');
-  return c.json({ 
+  return c.json({
     message: 'Test endpoint working',
     timestamp: new Date().toISOString(),
     environment: c.env.ENVIRONMENT || 'unknown',
@@ -445,22 +463,23 @@ app.get('/test', c => {
       has_r2: !!c.env.PHOTOS_BUCKET,
       frontend_url: c.env.FRONTEND_URL,
     },
-    debug_note: 'If you see "hello world" instead of this JSON in production, the wrong worker is deployed',
+    debug_note:
+      'If you see "hello world" instead of this JSON in production, the wrong worker is deployed',
   });
 });
 
 // Permissions diagnostic endpoint for debugging reviewer access
 app.get('/api/debug/permissions/:userToken', async c => {
   console.log('[DEBUG] Permissions diagnostic endpoint called');
-  
+
   const userToken = c.req.param('userToken');
   console.log('[DEBUG] Testing permissions for user:', userToken);
-  
+
   try {
     // Test 1: Basic database connection
     const dbTest = await c.env.DB.prepare('SELECT 1 as test').first();
     console.log('[DEBUG] Database test result:', dbTest);
-    
+
     // Test 2: Check user_permissions table
     const permStmt = c.env.DB.prepare(`
       SELECT * FROM user_permissions 
@@ -468,7 +487,7 @@ app.get('/api/debug/permissions/:userToken', async c => {
     `);
     const permissions = await permStmt.bind(userToken).all();
     console.log('[DEBUG] Direct permissions query result:', permissions);
-    
+
     // Test 3: Check legacy logbook count
     const logbookStmt = c.env.DB.prepare(`
       SELECT COUNT(*) as count FROM logbook 
@@ -476,21 +495,21 @@ app.get('/api/debug/permissions/:userToken', async c => {
     `);
     const logbookResult = await logbookStmt.bind(userToken).first();
     console.log('[DEBUG] Legacy logbook count:', logbookResult);
-    
+
     // Test 4: Import and test isModerator function
     const { isModerator } = await import('./lib/permissions');
     const isModeratorResult = await isModerator(c.env.DB, userToken);
     console.log('[DEBUG] isModerator function result:', isModeratorResult);
-    
+
     // Test 5: Test requireReviewer middleware logic manually
     let legacyReviewerCheck = false;
     if (!isModeratorResult) {
       const approvedCount = (logbookResult as { count: number } | null)?.count || 0;
       legacyReviewerCheck = approvedCount >= 5;
     }
-    
+
     const finalReviewerStatus = isModeratorResult || legacyReviewerCheck;
-    
+
     return c.json({
       user_token: userToken,
       timestamp: new Date().toISOString(),
@@ -512,18 +531,20 @@ app.get('/api/debug/permissions/:userToken', async c => {
         middleware_should_pass: finalReviewerStatus,
         expected_auth_context: {
           isReviewer: finalReviewerStatus,
-        }
-      }
+        },
+      },
     });
-    
   } catch (error) {
     console.error('[DEBUG] Permissions diagnostic error:', error);
-    return c.json({
-      error: 'Permissions diagnostic failed',
-      details: error instanceof Error ? error.message : 'Unknown error',
-      user_token: userToken,
-      timestamp: new Date().toISOString(),
-    }, 500);
+    return c.json(
+      {
+        error: 'Permissions diagnostic failed',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        user_token: userToken,
+        timestamp: new Date().toISOString(),
+      },
+      500
+    );
   }
 });
 
@@ -566,11 +587,11 @@ app.get('/photos/*', async c => {
   try {
     const key = c.req.path.substring(1); // Remove leading slash to get "photos/..."
     console.log(`[PHOTO DEBUG] Looking for key: ${key}`);
-    
+
     // Get object from R2
     const object = await c.env.PHOTOS_BUCKET.get(key);
     console.log(`[PHOTO DEBUG] Object found: ${!!object}`);
-    
+
     if (!object) {
       return c.json(
         {
@@ -608,7 +629,7 @@ app.get('/photos/*', async c => {
     c.header('Content-Type', contentType);
     c.header('Cache-Control', 'public, max-age=31536000, immutable'); // Cache for 1 year
     c.header('ETag', object.etag || 'unknown');
-    
+
     // Add object metadata as headers if available
     if (object.customMetadata) {
       for (const [metaKey, metaValue] of Object.entries(object.customMetadata)) {
@@ -699,17 +720,9 @@ app.post(
 // Search Endpoints
 // ================================
 
-app.get(
-  '/api/search',
-  rateLimitQueries,
-  withErrorHandling(handleSearchRequest)
-);
+app.get('/api/search', rateLimitQueries, withErrorHandling(handleSearchRequest));
 
-app.get(
-  '/api/search/suggestions',
-  rateLimitQueries,
-  withErrorHandling(handleSearchSuggestions)
-);
+app.get('/api/search/suggestions', rateLimitQueries, withErrorHandling(handleSearchSuggestions));
 
 // ================================
 // User Management Endpoints
@@ -731,43 +744,24 @@ app.get(
 );
 
 // Development/testing endpoint for email configuration
-app.post(
-  '/api/test-email',
-  withErrorHandling(sendTestEmail)
-);
+app.post('/api/test-email', withErrorHandling(sendTestEmail));
 
 // ================================
 // Consent Management Endpoints
 // ================================
 
-app.post(
-  '/api/consent',
-  rateLimitSubmissions,
-  withErrorHandling(submitConsent)
-);
+app.post('/api/consent', rateLimitSubmissions, withErrorHandling(submitConsent));
 
-app.get(
-  '/api/consent',
-  rateLimitQueries,
-  withErrorHandling(getConsentStatus)
-);
+app.get('/api/consent', rateLimitQueries, withErrorHandling(getConsentStatus));
 
-app.get(
-  '/api/consent/form-data',
-  rateLimitQueries,
-  withErrorHandling(getConsentFormData)
-);
+app.get('/api/consent/form-data', rateLimitQueries, withErrorHandling(getConsentFormData));
 
-app.delete(
-  '/api/consent',
-  rateLimitQueries,
-  withErrorHandling(revokeConsent)
-);
+app.delete('/api/consent', rateLimitQueries, withErrorHandling(revokeConsent));
 
 // ================================
 // Authentication Endpoints
 // ================================
-// Authentication Endpoints  
+// Authentication Endpoints
 // UUID-based authentication with magic links
 // ================================
 
@@ -789,18 +783,10 @@ app.post(
 );
 
 // POST /api/auth/logout - Logout and get new anonymous UUID
-app.post(
-  '/api/auth/logout',
-  addUserTokenToResponse,
-  withErrorHandling(logout)
-);
+app.post('/api/auth/logout', addUserTokenToResponse, withErrorHandling(logout));
 
 // GET /api/auth/status - Get current authentication status
-app.get(
-  '/api/auth/status',
-  addUserTokenToResponse,
-  withErrorHandling(getAuthStatus)
-);
+app.get('/api/auth/status', addUserTokenToResponse, withErrorHandling(getAuthStatus));
 
 // Legacy endpoints for backward compatibility
 app.post(
@@ -825,10 +811,7 @@ app.get(
 );
 
 // Development helper endpoint (Resend fallback)
-app.get(
-  '/api/auth/dev-magic-link',
-  withErrorHandling(getDevMagicLink)
-);
+app.get('/api/auth/dev-magic-link', withErrorHandling(getDevMagicLink));
 
 // ================================
 // Review/Moderation Endpoints
@@ -896,10 +879,18 @@ app.get('/api/admin/statistics', withErrorHandling(getAdminStatistics));
 // app.post('/api/dev/update-steven-permissions', ensureUserToken, withErrorHandling(updateStevenPermissions));
 
 // GET /api/dev/debug-steven-permissions - Debug endpoint to check permission logic
-app.get('/api/dev/debug-steven-permissions', ensureUserToken, withErrorHandling(debugStevenPermissions));
+app.get(
+  '/api/dev/debug-steven-permissions',
+  ensureUserToken,
+  withErrorHandling(debugStevenPermissions)
+);
 
 // POST /api/dev/fix-permissions-schema - Fix missing is_active column
-app.post('/api/dev/fix-permissions-schema', ensureUserToken, withErrorHandling(fixPermissionsSchema));
+app.post(
+  '/api/dev/fix-permissions-schema',
+  ensureUserToken,
+  withErrorHandling(fixPermissionsSchema)
+);
 
 // ================================
 // Permalink Redirects
@@ -910,12 +901,12 @@ app.get('/p/artwork/:id', validateUUID('id'), async c => {
   try {
     const artworkId = c.req.param('id');
     const frontendUrl = c.env.FRONTEND_URL || 'http://localhost:5173';
-    
+
     // Redirect to frontend artwork detail page
     const redirectUrl = `${frontendUrl}/artwork/${artworkId}`;
-    
+
     console.info('Permalink redirect:', { artworkId, redirectUrl });
-    
+
     return c.redirect(redirectUrl, 302);
   } catch (error) {
     console.error('Permalink redirect error:', error);

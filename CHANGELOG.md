@@ -1,12 +1,13 @@
 # Changelog
+
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
 ### Added
+
 - Complete Artwork Details Page implementation with mobile optimization (#22)
 - PhotoCarousel component with touch/swipe support and fullscreen modal
 - MiniMap component with responsive controls and Google Maps directions
@@ -19,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WCAG AA accessibility compliance with screen reader support
 
 ### Enhanced
+
 - Map markers now clickable for direct navigation to artwork details
 - MapComponent with enhanced router integration and error handling
 - Database schema with creators table and proper foreign key constraints
@@ -27,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Code quality improvements with ESLint error resolution and TypeScript cleanup
 
 ### Fixed
+
 - Map marker click handlers for direct navigation
 - Mobile touch interactions and gesture support
 - ESLint component tag order errors (Vue components)
@@ -38,6 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.0.0] - 2024-12-XX
 
 ### Added
+
 - Initial release of Cultural Archiver MVP
 - Vue 3 + TypeScript frontend with Tailwind CSS
 - Cloudflare Workers backend with Hono framework
@@ -53,6 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Production deployment on Cloudflare infrastructure
 
 ### Security
+
 - Anonymous user tokens (UUIDs) for submissions
 - Age gates and content consent workflows
 - Rate limiting (10/day per user token, 60/hour for lookups)

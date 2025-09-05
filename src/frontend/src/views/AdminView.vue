@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useAuthStore } from '../stores/auth'
-import { adminService } from '../services/admin'
-import PermissionManager from '../components/PermissionManager.vue'
-import AuditLogViewer from '../components/AuditLogViewer.vue'
-import DataDumpManager from '../components/DataDumpManager.vue'
-import type { AuditStatistics } from '../../../shared/types'
+import { ref, onMounted, computed } from 'vue';
+import { useAuthStore } from '../stores/auth';
+import { adminService } from '../services/admin';
+import PermissionManager from '../components/PermissionManager.vue';
+import AuditLogViewer from '../components/AuditLogViewer.vue';
+import DataDumpManager from '../components/DataDumpManager.vue';
+import type { AuditStatistics } from '../../../shared/types';
 
 /**
  * Admin View Component
@@ -15,55 +15,55 @@ import type { AuditStatistics } from '../../../shared/types'
  */
 
 // Auth store
-const authStore = useAuthStore()
+const authStore = useAuthStore();
 
 // Reactive state
-const statistics = ref<AuditStatistics | null>(null)
-const isLoading = ref(false)
-const error = ref<string | null>(null)
-const activeTab = ref('permissions')
+const statistics = ref<AuditStatistics | null>(null);
+const isLoading = ref(false);
+const error = ref<string | null>(null);
+const activeTab = ref('permissions');
 
 // Tab configuration
 const tabs = [
   { id: 'permissions', name: 'Permission Management' },
   { id: 'audit', name: 'Audit Logs' },
   { id: 'data-dumps', name: 'Data Dumps' },
-]
+];
 
 // Check admin access
-const hasAdminAccess = computed(() => authStore.isAdmin)
+const hasAdminAccess = computed(() => authStore.isAdmin);
 
 // Load initial data
 async function loadData(): Promise<void> {
   if (!hasAdminAccess.value) {
-    error.value = 'Access denied. Admin permissions required.'
-    return
+    error.value = 'Access denied. Admin permissions required.';
+    return;
   }
 
   try {
-    isLoading.value = true
-    error.value = null
-    
+    isLoading.value = true;
+    error.value = null;
+
     // Load statistics
-    const stats = await adminService.getStatistics(30)
-    statistics.value = stats
+    const stats = await adminService.getStatistics(30);
+    statistics.value = stats;
   } catch (err) {
-    console.error('Failed to load admin data:', err)
-    error.value = err instanceof Error ? err.message : 'Failed to load admin dashboard'
+    console.error('Failed to load admin data:', err);
+    error.value = err instanceof Error ? err.message : 'Failed to load admin dashboard';
   } finally {
-    isLoading.value = false
+    isLoading.value = false;
   }
 }
 
 // Refresh all data
 async function refreshData(): Promise<void> {
-  await loadData()
+  await loadData();
 }
 
 // Initialize component
 onMounted(async () => {
-  await loadData()
-})
+  await loadData();
+});
 </script>
 
 <template>
@@ -74,9 +74,7 @@ onMounted(async () => {
         <div class="py-6">
           <div class="flex items-center justify-between">
             <div>
-              <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-                Admin Dashboard
-              </h1>
+              <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Admin Dashboard</h1>
               <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 Manage user permissions and view system audit logs
               </p>
@@ -114,16 +112,25 @@ onMounted(async () => {
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <!-- Loading State -->
       <div v-if="isLoading && !statistics" class="text-center py-12">
-        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div
+          class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
+        ></div>
         <p class="mt-2 text-gray-600 dark:text-gray-400">Loading admin dashboard...</p>
       </div>
 
       <!-- Error State -->
-      <div v-else-if="error" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-6">
+      <div
+        v-else-if="error"
+        class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-6"
+      >
         <div class="flex">
           <div class="flex-shrink-0">
             <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+              <path
+                fill-rule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                clip-rule="evenodd"
+              />
             </svg>
           </div>
           <div class="ml-3">
@@ -143,8 +150,18 @@ onMounted(async () => {
             <div class="p-5">
               <div class="flex items-center">
                 <div class="flex-shrink-0">
-                  <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    class="h-6 w-6 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 </div>
                 <div class="ml-5 w-0 flex-1">
@@ -165,8 +182,18 @@ onMounted(async () => {
             <div class="p-5">
               <div class="flex items-center">
                 <div class="flex-shrink-0">
-                  <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                  <svg
+                    class="h-6 w-6 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"
+                    />
                   </svg>
                 </div>
                 <div class="ml-5 w-0 flex-1">
@@ -187,8 +214,18 @@ onMounted(async () => {
             <div class="p-5">
               <div class="flex items-center">
                 <div class="flex-shrink-0">
-                  <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  <svg
+                    class="h-6 w-6 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                    />
                   </svg>
                 </div>
                 <div class="ml-5 w-0 flex-1">
@@ -209,8 +246,18 @@ onMounted(async () => {
             <div class="p-5">
               <div class="flex items-center">
                 <div class="flex-shrink-0">
-                  <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                  <svg
+                    class="h-6 w-6 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                    />
                   </svg>
                 </div>
                 <div class="ml-5 w-0 flex-1">
@@ -239,7 +286,7 @@ onMounted(async () => {
                 activeTab === tab.id
                   ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300',
-                'whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+                'whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2',
               ]"
               v-bind="activeTab === tab.id ? { 'aria-current': 'page' } : {}"
             >
@@ -269,4 +316,3 @@ onMounted(async () => {
     </div>
   </div>
 </template>
-

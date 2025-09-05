@@ -15,7 +15,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest --coverage",
     "migrate:dev": "wrangler d1 migrations apply cultural-archiver --env development",
-    "migrate:prod": "wrangler d1 migrations apply cultural-archiver --env production", 
+    "migrate:prod": "wrangler d1 migrations apply cultural-archiver --env production",
     "migrate:status": "wrangler d1 migrations list cultural-archiver --env development",
     "migrate:status:prod": "wrangler d1 migrations list cultural-archiver --env production"
   },

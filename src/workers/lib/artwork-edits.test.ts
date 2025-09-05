@@ -33,7 +33,7 @@ describe('ArtworkEditsService', () => {
     test('should submit artwork edits successfully', async () => {
       // Mock artwork exists check
       mockStmt.first.mockResolvedValueOnce({ id: 'artwork-123' });
-      
+
       // Mock successful inserts
       mockStmt.run.mockResolvedValue({ changes: 1 });
 
@@ -44,14 +44,14 @@ describe('ArtworkEditsService', () => {
           {
             field_name: 'title',
             field_value_old: 'Old Title',
-            field_value_new: 'New Title'
+            field_value_new: 'New Title',
           },
           {
             field_name: 'description',
             field_value_old: 'Old Description',
-            field_value_new: 'New Description'
-          }
-        ]
+            field_value_new: 'New Description',
+          },
+        ],
       };
 
       const editIds = await artworkEditsService.submitArtworkEdit(request);
@@ -70,16 +70,18 @@ describe('ArtworkEditsService', () => {
       const request: CreateArtworkEditRequest = {
         artwork_id: 'nonexistent-artwork',
         user_token: 'user-456',
-        edits: [{
-          field_name: 'title',
-          field_value_old: 'Old Title',
-          field_value_new: 'New Title'
-        }]
+        edits: [
+          {
+            field_name: 'title',
+            field_value_old: 'Old Title',
+            field_value_new: 'New Title',
+          },
+        ],
       };
 
-      await expect(artworkEditsService.submitArtworkEdit(request))
-        .rejects
-        .toThrow('Artwork not found: nonexistent-artwork');
+      await expect(artworkEditsService.submitArtworkEdit(request)).rejects.toThrow(
+        'Artwork not found: nonexistent-artwork'
+      );
     });
 
     test('should handle empty edits array', async () => {
@@ -89,7 +91,7 @@ describe('ArtworkEditsService', () => {
       const request: CreateArtworkEditRequest = {
         artwork_id: 'artwork-123',
         user_token: 'user-456',
-        edits: []
+        edits: [],
       };
 
       const editIds = await artworkEditsService.submitArtworkEdit(request);
@@ -110,8 +112,8 @@ describe('ArtworkEditsService', () => {
           field_value_old: 'Old Title',
           field_value_new: 'New Title',
           status: 'pending',
-          submitted_at: '2025-01-01T00:00:00.000Z'
-        }
+          submitted_at: '2025-01-01T00:00:00.000Z',
+        },
       ];
 
       mockStmt.all.mockResolvedValue({ results: mockPendingEdits });
@@ -119,7 +121,9 @@ describe('ArtworkEditsService', () => {
       const result = await artworkEditsService.getUserPendingEdits('user-456', 'artwork-123');
 
       expect(result).toEqual(mockPendingEdits);
-      expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('WHERE user_token = ? AND artwork_id = ? AND status = \'pending\''));
+      expect(mockDb.prepare).toHaveBeenCalledWith(
+        expect.stringContaining("WHERE user_token = ? AND artwork_id = ? AND status = 'pending'")
+      );
       expect(mockStmt.bind).toHaveBeenCalledWith('user-456', 'artwork-123');
     });
 
@@ -138,7 +142,7 @@ describe('ArtworkEditsService', () => {
         edit_id: 'edit-1',
         artwork_id: 'artwork-123',
         field_name: 'title',
-        status: 'pending'
+        status: 'pending',
       };
 
       mockStmt.first.mockResolvedValue(mockEdit);
@@ -186,8 +190,18 @@ describe('ArtworkEditsService', () => {
       await artworkEditsService.rejectEditSubmission(editIds, moderatorToken, reason);
 
       expect(mockStmt.run).toHaveBeenCalledTimes(2);
-      expect(mockStmt.bind).toHaveBeenCalledWith(expect.any(String), moderatorToken, reason, 'edit-1');
-      expect(mockStmt.bind).toHaveBeenCalledWith(expect.any(String), moderatorToken, reason, 'edit-2');
+      expect(mockStmt.bind).toHaveBeenCalledWith(
+        expect.any(String),
+        moderatorToken,
+        reason,
+        'edit-1'
+      );
+      expect(mockStmt.bind).toHaveBeenCalledWith(
+        expect.any(String),
+        moderatorToken,
+        reason,
+        'edit-2'
+      );
     });
 
     test('should reject edits without reason', async () => {
@@ -195,7 +209,12 @@ describe('ArtworkEditsService', () => {
 
       await artworkEditsService.rejectEditSubmission(['edit-1'], 'moderator-123');
 
-      expect(mockStmt.bind).toHaveBeenCalledWith(expect.any(String), 'moderator-123', null, 'edit-1');
+      expect(mockStmt.bind).toHaveBeenCalledWith(
+        expect.any(String),
+        'moderator-123',
+        null,
+        'edit-1'
+      );
     });
   });
 
@@ -206,7 +225,9 @@ describe('ArtworkEditsService', () => {
       const result = await artworkEditsService.getUserPendingEditCount('user-456', 24);
 
       expect(result).toBe(5);
-      expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('WHERE user_token = ? AND submitted_at >= ?'));
+      expect(mockDb.prepare).toHaveBeenCalledWith(
+        expect.stringContaining('WHERE user_token = ? AND submitted_at >= ?')
+      );
       expect(mockStmt.bind).toHaveBeenCalledWith('user-456', expect.any(String));
     });
 
@@ -225,7 +246,7 @@ describe('ArtworkEditsService', () => {
         total_edits: 100,
         pending_edits: 10,
         approved_edits: 80,
-        rejected_edits: 10
+        rejected_edits: 10,
       };
 
       mockStmt.first.mockResolvedValue(mockStats);
@@ -243,13 +264,13 @@ describe('ArtworkEditsService', () => {
         {
           field_name: 'tags',
           old_value: '["tag1", "tag2"]',
-          new_value: '["tag2", "tag3", "tag4"]'
+          new_value: '["tag2", "tag3", "tag4"]',
         },
         {
           field_name: 'title',
           old_value: 'Old Title',
-          new_value: 'New Title'
-        }
+          new_value: 'New Title',
+        },
       ];
 
       const formatted = artworkEditsService.formatDiffsForDisplay(diffs);
@@ -265,8 +286,8 @@ describe('ArtworkEditsService', () => {
         {
           field_name: 'tags',
           old_value: '{"material": "bronze", "style": "modern"}',
-          new_value: '{"material": "steel", "style": "contemporary", "color": "blue"}'
-        }
+          new_value: '{"material": "steel", "style": "contemporary", "color": "blue"}',
+        },
       ];
 
       const formatted = artworkEditsService.formatDiffsForDisplay(diffs);
@@ -280,8 +301,8 @@ describe('ArtworkEditsService', () => {
         {
           field_name: 'tags',
           old_value: 'invalid json',
-          new_value: 'also invalid'
-        }
+          new_value: 'also invalid',
+        },
       ];
 
       const formatted = artworkEditsService.formatDiffsForDisplay(diffs);
@@ -298,8 +319,8 @@ describe('ArtworkEditsService', () => {
           artwork_id: 'artwork-123',
           user_token: 'user-456',
           submitted_at: '2025-01-01T00:00:00.000Z',
-          edit_count: 2
-        }
+          edit_count: 2,
+        },
       ];
 
       const mockEdits = [
@@ -311,7 +332,7 @@ describe('ArtworkEditsService', () => {
           field_value_old: 'Old Title',
           field_value_new: 'New Title',
           status: 'pending',
-          submitted_at: '2025-01-01T00:00:00.000Z'
+          submitted_at: '2025-01-01T00:00:00.000Z',
         },
         {
           edit_id: 'edit-2',
@@ -321,8 +342,8 @@ describe('ArtworkEditsService', () => {
           field_value_old: 'Old Description',
           field_value_new: 'New Description',
           status: 'pending',
-          submitted_at: '2025-01-01T00:00:00.000Z'
-        }
+          submitted_at: '2025-01-01T00:00:00.000Z',
+        },
       ];
 
       // First call returns groups, second call returns edits for group
@@ -344,7 +365,7 @@ describe('ArtworkEditsService', () => {
     test('should create logbook entry when edits are successfully applied', async () => {
       // Mock approval flow with successful field application
       const editIds = ['edit-1', 'edit-2'];
-      
+
       // Mock approved edits
       const mockApprovedEdits = [
         {
@@ -355,8 +376,8 @@ describe('ArtworkEditsService', () => {
           field_value_old: 'Old Title',
           field_value_new: 'New Title',
           status: 'approved',
-          submitted_at: '2025-01-01T00:00:00.000Z'
-        }
+          submitted_at: '2025-01-01T00:00:00.000Z',
+        },
       ];
 
       // Mock table schema with editable fields
@@ -367,8 +388,8 @@ describe('ArtworkEditsService', () => {
           { name: 'lon' },
           { name: 'title' }, // This field exists, so edit will be applied
           { name: 'description' },
-          { name: 'created_by' }
-        ]
+          { name: 'created_by' },
+        ],
       };
 
       // Mock artwork coordinates
@@ -376,14 +397,14 @@ describe('ArtworkEditsService', () => {
 
       // Setup mock call sequence
       mockStmt.run.mockResolvedValue({ changes: 1 }); // Update edit status
-      
+
       // For applyApprovedEditsToArtwork:
       mockStmt.all
         .mockResolvedValueOnce({ results: mockApprovedEdits }) // Get approved edits
         .mockResolvedValueOnce(mockTableInfo) // Get table info (title field exists)
         .mockResolvedValueOnce(mockTableInfo) // ensureEditableFieldsExist check
         .mockResolvedValueOnce({ results: mockApprovedEdits }); // Get edits for logbook
-      
+
       mockStmt.run.mockResolvedValue({ changes: 1 }); // Apply edits to artwork
       mockStmt.first.mockResolvedValueOnce(mockArtwork); // Get artwork coordinates
       mockStmt.run.mockResolvedValue({ changes: 1 }); // Insert logbook entry
@@ -392,10 +413,8 @@ describe('ArtworkEditsService', () => {
 
       // Verify logbook entry was created
       const prepareCalls = mockDb.prepare.mock.calls;
-      const logbookInsertCall = prepareCalls.find(call => 
-        call[0].includes('INSERT INTO logbook')
-      );
-      
+      const logbookInsertCall = prepareCalls.find(call => call[0].includes('INSERT INTO logbook'));
+
       expect(logbookInsertCall).toBeDefined();
       expect(logbookInsertCall[0]).toContain('INSERT INTO logbook');
     });
@@ -403,7 +422,7 @@ describe('ArtworkEditsService', () => {
     test('should create logbook entry even when no fields are applied', async () => {
       // Mock approval flow with no successful field application
       const editIds = ['edit-1'];
-      
+
       // Mock approved edits
       const mockApprovedEdits = [
         {
@@ -414,8 +433,8 @@ describe('ArtworkEditsService', () => {
           field_value_old: 'Old Value',
           field_value_new: 'New Value',
           status: 'approved',
-          submitted_at: '2025-01-01T00:00:00.000Z'
-        }
+          submitted_at: '2025-01-01T00:00:00.000Z',
+        },
       ];
 
       // Mock table schema without editable fields (field doesn't exist)
@@ -423,9 +442,9 @@ describe('ArtworkEditsService', () => {
         results: [
           { name: 'id' },
           { name: 'lat' },
-          { name: 'lon' }
+          { name: 'lon' },
           // Missing: title, description, created_by, nonexistent_field
-        ]
+        ],
       };
 
       // Mock artwork coordinates
@@ -433,16 +452,16 @@ describe('ArtworkEditsService', () => {
 
       // Setup mock call sequence
       mockStmt.run.mockResolvedValue({ changes: 1 }); // Update edit status
-      
+
       // For applyApprovedEditsToArtwork:
       mockStmt.all
         .mockResolvedValueOnce({ results: mockApprovedEdits }) // Get approved edits
         .mockResolvedValueOnce(mockTableInfo); // Get table info
-      
+
       // ensureEditableFieldsExist will be called
       mockStmt.all.mockResolvedValueOnce(mockTableInfo); // Get table info again
       mockStmt.run.mockResolvedValue({ changes: 1 }); // Try to add columns (may fail)
-      
+
       // For logbook entry creation:
       mockStmt.all.mockResolvedValueOnce({ results: mockApprovedEdits }); // Get edits for logbook
       mockStmt.first.mockResolvedValueOnce(mockArtwork); // Get artwork coordinates
@@ -452,10 +471,8 @@ describe('ArtworkEditsService', () => {
 
       // Verify logbook entry WAS created to maintain transparency
       const prepareCalls = mockDb.prepare.mock.calls;
-      const logbookInsertCall = prepareCalls.find(call => 
-        call[0].includes('INSERT INTO logbook')
-      );
-      
+      const logbookInsertCall = prepareCalls.find(call => call[0].includes('INSERT INTO logbook'));
+
       expect(logbookInsertCall).toBeDefined();
       expect(logbookInsertCall[0]).toContain('INSERT INTO logbook');
     });

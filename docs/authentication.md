@@ -21,14 +21,16 @@ The authentication system follows these core principles:
 The authentication system uses four main tables:
 
 **users**: Core authenticated user records
+
 - `uuid` (TEXT, PRIMARY KEY): User's claimed UUID token
-- `email` (TEXT, UNIQUE): User's email address  
+- `email` (TEXT, UNIQUE): User's email address
 - `created_at` (TEXT): Account creation timestamp
 - `last_login` (TEXT): Last login timestamp
 - `email_verified_at` (TEXT): Email verification timestamp
 - `status` (TEXT): Account status (active/suspended)
 
 **magic_links**: Secure authentication tokens
+
 - `token` (TEXT, PRIMARY KEY): 64-character hex token (32 secure bytes)
 - `email` (TEXT): Target email address
 - `user_uuid` (TEXT): Associated user UUID (NULL for signup)
@@ -38,6 +40,7 @@ The authentication system uses four main tables:
 - `is_signup` (BOOLEAN): Account creation vs. login flag
 
 **rate_limiting**: Abuse prevention
+
 - `identifier` (TEXT): Email or IP address
 - `identifier_type` (TEXT): 'email' or 'ip'
 - `request_count` (INTEGER): Requests in current window
@@ -45,6 +48,7 @@ The authentication system uses four main tables:
 - `blocked_until` (TEXT): Block expiration time
 
 **auth_sessions**: Active user sessions
+
 - `id` (TEXT, PRIMARY KEY): Session UUID
 - `user_uuid` (TEXT): Associated user UUID
 - `token_hash` (TEXT): SHA-256 hash of session token
@@ -56,18 +60,21 @@ The authentication system uses four main tables:
 #### Core Libraries
 
 **lib/auth.ts**: Core authentication logic
+
 - UUID generation with collision detection
 - User creation with UUID claiming
 - Session management and validation
 - Cross-device UUID replacement
 
 **lib/email-auth.ts**: Magic link system
+
 - Secure token generation (Web Crypto API)
 - Resend email delivery
 - Rate limiting enforcement
 - Token lifecycle management
 
 **routes/auth.ts**: REST API endpoints
+
 - `POST /api/auth/request-magic-link`: Request magic link
 - `POST /api/auth/verify-magic-link`: Verify and consume token
 - `POST /api/auth/logout`: Logout with new anonymous UUID
@@ -78,17 +85,20 @@ The authentication system uses four main tables:
 #### Vue Components
 
 **AuthModal.vue**: Login/signup modal
+
 - Email validation and submission
 - Loading states and error handling
 - Accessibility features (ARIA, focus trap)
 - Mode switching (login/signup)
 
 **AnonymousUserWarning.vue**: User education
+
 - Submission warnings for anonymous users
 - Contextual messaging (submission vs. general)
 - Sign-in prompts and calls-to-action
 
 **MagicLinkVerify.vue**: Email verification
+
 - Magic link token processing
 - Success/error state handling
 - User feedback and next steps
@@ -96,6 +106,7 @@ The authentication system uses four main tables:
 #### State Management
 
 **stores/auth.ts**: Pinia authentication store
+
 - User token management
 - Authentication state persistence
 - Magic link request/verification
@@ -103,6 +114,7 @@ The authentication system uses four main tables:
 - LocalStorage integration
 
 **composables/useAuth.ts**: Authentication composable
+
 - API integration abstraction
 - Error handling and loading states
 - Reactive authentication operations
@@ -181,62 +193,65 @@ The Cultural Archiver uses **Resend** for sending magic link emails through Clou
 ```html
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Cultural Archiver - Magic Link</title>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-</head>
-<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-  <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
-    <h1>Cultural Archiver</h1>
-    
-    <!-- Account Creation vs Login -->
-    <h2>{{ is_signup ? "Verify your email" : "Sign in to your account" }}</h2>
-    
-    <!-- Magic Link Button -->
-    <div style="text-align: center; margin: 30px 0;">
-      <a href="{{ magicLink }}" 
-         style="background: #0066cc; color: white; padding: 15px 30px; 
-                text-decoration: none; border-radius: 5px; font-weight: bold;">
-        {{ is_signup ? "Complete Account Setup" : "Sign In Now" }}
-      </a>
+  <head>
+    <title>Cultural Archiver - Magic Link</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+  </head>
+  <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+      <h1>Cultural Archiver</h1>
+
+      <!-- Account Creation vs Login -->
+      <h2>{{ is_signup ? "Verify your email" : "Sign in to your account" }}</h2>
+
+      <!-- Magic Link Button -->
+      <div style="text-align: center; margin: 30px 0;">
+        <a
+          href="{{ magicLink }}"
+          style="background: #0066cc; color: white; padding: 15px 30px; 
+                text-decoration: none; border-radius: 5px; font-weight: bold;"
+        >
+          {{ is_signup ? "Complete Account Setup" : "Sign In Now" }}
+        </a>
+      </div>
+
+      <!-- Security Information -->
+      <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
+        <p><strong>Security Information:</strong></p>
+        <ul>
+          <li>This link expires at: {{ expiresAt }}</li>
+          <li>This link can only be used once</li>
+          <li>If you didn't request this, you can safely ignore this email</li>
+        </ul>
+      </div>
+
+      <!-- Anonymous Submissions Count (for signup) -->
+      {{#if anonymousSubmissions}}
+      <p>You currently have <strong>{{ anonymousSubmissions }}</strong> anonymous submissions that will be linked to your account.</p>
+      {{/if}}
+
+      <!-- Manual Link -->
+      <p style="font-size: 12px; color: #666;">
+        If the button doesn't work, copy and paste this link:<br />
+        {{ magicLink }}
+      </p>
     </div>
-    
-    <!-- Security Information -->
-    <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0;">
-      <p><strong>Security Information:</strong></p>
-      <ul>
-        <li>This link expires at: {{ expiresAt }}</li>
-        <li>This link can only be used once</li>
-        <li>If you didn't request this, you can safely ignore this email</li>
-      </ul>
-    </div>
-    
-    <!-- Anonymous Submissions Count (for signup) -->
-    {{#if anonymousSubmissions}}
-    <p>You currently have <strong>{{ anonymousSubmissions }}</strong> anonymous submissions 
-       that will be linked to your account.</p>
-    {{/if}}
-    
-    <!-- Manual Link -->
-    <p style="font-size: 12px; color: #666;">
-      If the button doesn't work, copy and paste this link:<br>
-      {{ magicLink }}
-    </p>
-  </div>
-</body>
+  </body>
 </html>
 ```
 
 #### Email Content Variations
 
 **Account Creation (is_signup: true):**
+
 - Subject: "Verify your email - Cultural Archiver"
 - Shows anonymous submission count if applicable
 - Emphasizes account creation benefits
 - Button text: "Complete Account Setup"
 
 **Existing User Login (is_signup: false):**
+
 - Subject: "Sign in to Cultural Archiver"
 - Focuses on sign-in process
 - Button text: "Sign In Now"
@@ -255,8 +270,8 @@ const emailPayload = {
   reply_to: env.EMAIL_REPLY_TO,
   tags: [
     { name: 'type', value: 'magic-link' },
-    { name: 'app', value: 'cultural-archiver' }
-  ]
+    { name: 'app', value: 'cultural-archiver' },
+  ],
 };
 
 // Send via Resend
@@ -264,9 +279,9 @@ const response = await fetch('https://api.resend.com/emails', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${env.RESEND_API_KEY}`
+    Authorization: `Bearer ${env.RESEND_API_KEY}`,
   },
-  body: JSON.stringify(emailPayload)
+  body: JSON.stringify(emailPayload),
 });
 ```
 
@@ -281,13 +296,9 @@ if (mailChannelsError) {
   console.log('To:', email);
   console.log('Magic Link:', magicLink);
   console.log('Expires:', expiresAt);
-  
+
   // Store in KV for manual access
-  await env.SESSIONS.put(
-    `dev-magic-link:${email}`,
-    JSON.stringify({ token, magicLink, expiresAt }),
-    { expirationTtl: MAGIC_LINK_EXPIRY_HOURS * 60 * 60 }
-  );
+  await env.SESSIONS.put(`dev-magic-link:${email}`, JSON.stringify({ token, magicLink, expiresAt }), { expirationTtl: MAGIC_LINK_EXPIRY_HOURS * 60 * 60 });
 }
 ```
 
@@ -302,17 +313,20 @@ if (mailChannelsError) {
 #### Common Issues
 
 **401 Unauthorized from Resend:**
+
 - DNS records not properly configured
 - Email Routing not enabled in Cloudflare
 - Domain verification record missing
 - DKIM signature validation failed
 
 **Rate Limiting:**
+
 - Too many requests from same IP/email
 - Current limits: 10/hour per email, 20/hour per IP
 - Blocked until rate limit window resets
 
 **DNS Issues:**
+
 - SPF record doesn't include Resend
 - DKIM record missing or malformed
 - Domain verification record incorrect
@@ -336,6 +350,7 @@ curl -X POST https://api.mailchannels.net/tx/v1/send \
 ### Magic Link Email Template
 
 The system sends HTML emails with:
+
 - Clear call-to-action button
 - Security information and warnings
 - Token expiration details
@@ -358,11 +373,12 @@ Content-Type: application/json
 ```
 
 **Response (Success)**:
+
 ```json
 {
   "success": true,
   "message": "Account creation magic link sent successfully",
-  "email": "user@example.com", 
+  "email": "user@example.com",
   "is_signup": true,
   "rate_limit_remaining": 9,
   "rate_limit_reset_at": "2025-09-03T07:35:57.354Z"
@@ -370,6 +386,7 @@ Content-Type: application/json
 ```
 
 **Response (Rate Limited)**:
+
 ```json
 {
   "error": "Too many requests from this IP address. Please try again at 6:36:38 AM.",
@@ -393,6 +410,7 @@ Content-Type: application/json
 ```
 
 **Response (Account Creation)**:
+
 ```json
 {
   "success": true,
@@ -413,6 +431,7 @@ Content-Type: application/json
 ```
 
 **Response (Login)**:
+
 ```json
 {
   "success": true,
@@ -440,6 +459,7 @@ GET /api/auth/status
 ```
 
 **Response (Authenticated)**:
+
 ```json
 {
   "user_token": "4571d949-6497-4894-9c42-5258a20b2b58",
@@ -462,6 +482,7 @@ GET /api/auth/status
 ```
 
 **Response (Anonymous)**:
+
 ```json
 {
   "user_token": "d063bcd3-6901-4b14-a2b1-1657bba2238a",
@@ -479,6 +500,7 @@ POST /api/auth/logout
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -494,7 +516,7 @@ All authentication endpoints use progressive error disclosure:
 ```json
 {
   "error": "Human-readable error message",
-  "message": "ERROR_CODE_FOR_PROGRAMMATIC_HANDLING", 
+  "message": "ERROR_CODE_FOR_PROGRAMMATIC_HANDLING",
   "details": {
     "correlation_id": "unique-request-id",
     "additional_context": "if_applicable"
@@ -520,6 +542,7 @@ The frontend Vue router handles the `/verify` route to process magic link tokens
 The authentication system uses the following tables in the Cloudflare D1 database:
 
 #### `users` Table
+
 ```sql
 CREATE TABLE users (
     uuid TEXT PRIMARY KEY,              -- User's claimed UUID token (UUID v4)
@@ -537,6 +560,7 @@ CREATE INDEX idx_users_created_at ON users(created_at);
 ```
 
 #### `magic_links` Table
+
 ```sql
 CREATE TABLE magic_links (
     token TEXT PRIMARY KEY,             -- 64-character hex token (32 secure bytes)
@@ -548,12 +572,12 @@ CREATE TABLE magic_links (
     ip_address TEXT,                    -- Client IP address for audit
     user_agent TEXT,                    -- Client user agent for audit
     is_signup BOOLEAN NOT NULL DEFAULT 0,  -- Account creation vs login flag
-    
+
     -- Constraints
     CONSTRAINT magic_link_token_length CHECK (length(token) >= 64),
     CONSTRAINT magic_link_expires_valid CHECK (expires_at > created_at),
     CONSTRAINT magic_link_used_valid CHECK (used_at IS NULL OR used_at >= created_at),
-    
+
     -- Foreign key relationship
     FOREIGN KEY (user_uuid) REFERENCES users(uuid) ON DELETE CASCADE
 );
@@ -566,6 +590,7 @@ CREATE INDEX idx_magic_links_created_at ON magic_links(created_at);
 ```
 
 #### `rate_limiting` Table
+
 ```sql
 CREATE TABLE rate_limiting (
     identifier TEXT NOT NULL,           -- Email address or IP address
@@ -574,7 +599,7 @@ CREATE TABLE rate_limiting (
     window_start TEXT NOT NULL,         -- Rate limit window start timestamp
     last_request_at TEXT NOT NULL,      -- Last request timestamp
     blocked_until TEXT,                 -- Block expiration time (NULL if not blocked)
-    
+
     -- Composite primary key for identifier + type
     PRIMARY KEY (identifier, identifier_type)
 );
@@ -585,6 +610,7 @@ CREATE INDEX idx_rate_limiting_window_start ON rate_limiting(window_start);
 ```
 
 #### `auth_sessions` Table
+
 ```sql
 CREATE TABLE auth_sessions (
     id TEXT PRIMARY KEY,                -- Session UUID
@@ -597,10 +623,10 @@ CREATE TABLE auth_sessions (
     user_agent TEXT,                    -- Client user agent
     is_active BOOLEAN NOT NULL DEFAULT 1,   -- Session status
     device_info TEXT,                   -- JSON device information
-    
+
     -- Foreign key relationship
     FOREIGN KEY (user_uuid) REFERENCES users(uuid) ON DELETE CASCADE,
-    
+
     -- Constraints
     CONSTRAINT session_expires_valid CHECK (expires_at IS NULL OR expires_at > created_at)
 );
@@ -634,6 +660,7 @@ rate_limiting (independent)
 ```
 
 **Key Relationships:**
+
 - One user can have multiple magic links (for login attempts)
 - One user can have multiple active sessions (cross-device)
 - Rate limiting is independent and tracks by email/IP
@@ -645,22 +672,25 @@ rate_limiting (independent)
 The system includes automatic cleanup for:
 
 **Expired Magic Links:**
+
 ```sql
-DELETE FROM magic_links 
-WHERE expires_at < datetime('now') 
+DELETE FROM magic_links
+WHERE expires_at < datetime('now')
    OR used_at IS NOT NULL;
 ```
 
 **Expired Sessions:**
+
 ```sql
-DELETE FROM auth_sessions 
-WHERE expires_at IS NOT NULL 
+DELETE FROM auth_sessions
+WHERE expires_at IS NOT NULL
   AND expires_at < datetime('now');
 ```
 
 **Old Rate Limit Records:**
+
 ```sql
-DELETE FROM rate_limiting 
+DELETE FROM rate_limiting
 WHERE window_start < datetime('now', '-2 hours')
   AND blocked_until IS NULL;
 ```
@@ -668,16 +698,19 @@ WHERE window_start < datetime('now', '-2 hours')
 ### Recent Changes (September 2025)
 
 **Rate Limits Doubled:**
+
 - Email rate limit: 5 → 10 requests per hour
 - IP rate limit: 10 → 20 requests per hour
 - Deployed successfully with Version ID: `edd24938-2238-495c-95d7-4bd2c6ca6031`
 
 **URL Path Fixed:**
+
 - Magic link URLs now use `/verify` instead of `/auth/verify`
 - Matches Vue.js frontend router configuration
 - Eliminates 404 errors on magic link clicks
 
 **Resend Integration:**
+
 - DNS records configured on `art.abluestar.com`
 - API key authentication with Bearer token
 - Fallback system logs to console when Resend fails
@@ -686,6 +719,7 @@ WHERE window_start < datetime('now', '-2 hours')
 ### Monitoring and Maintenance
 
 **Key Metrics to Monitor:**
+
 - Magic link delivery success rate (Resend API responses)
 - Token verification success rate
 - Rate limiting effectiveness (blocked vs allowed requests)
@@ -693,6 +727,7 @@ WHERE window_start < datetime('now', '-2 hours')
 - Authentication error rates and correlation IDs
 
 **Regular Maintenance:**
+
 - Clean up expired magic links and sessions
 - Monitor rate limiting patterns for abuse
 - Review authentication logs for anomalies
@@ -730,23 +765,27 @@ WHERE window_start < datetime('now', '-2 hours')
 ### Common Issues
 
 **Magic Links Not Received**:
+
 - Check spam/junk folders
 - Verify email address format
 - Check rate limiting status
 - Verify MailChannels configuration
 
 **Token Expired/Invalid**:
+
 - Tokens expire after 1 hour
 - Tokens are single-use only
 - Request new magic link
 - Check server time synchronization
 
 **UUID Not Claimed**:
+
 - UUID claiming only works during account creation
 - Cannot claim submissions from different UUIDs retroactively
 - One email = one UUID permanently
 
 **Cross-Device Issues**:
+
 - UUID replacement requires magic link login
 - Content appears immediately after UUID replacement
 - Session cookies don't transfer between devices
@@ -764,8 +803,9 @@ WHERE window_start < datetime('now', '-2 hours')
 ### Monitoring
 
 Key metrics to monitor:
+
 - Magic link delivery success rate
-- Token verification success rate  
+- Token verification success rate
 - Rate limiting effectiveness
 - Session creation/cleanup rates
 - Authentication error rates

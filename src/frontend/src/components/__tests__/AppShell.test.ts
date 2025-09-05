@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount, type VueWrapper } from '@vue/test-utils'
-import { createRouter, createWebHistory, type Router } from 'vue-router'
-import { createPinia, type Pinia } from 'pinia'
-import AppShell from '../AppShell.vue'
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { mount, type VueWrapper } from '@vue/test-utils';
+import { createRouter, createWebHistory, type Router } from 'vue-router';
+import { createPinia, type Pinia } from 'pinia';
+import AppShell from '../AppShell.vue';
 
 // Mock components
 vi.mock('../LiveRegion.vue', () => ({
@@ -10,7 +10,7 @@ vi.mock('../LiveRegion.vue', () => ({
     name: 'LiveRegion',
     template: '<div data-testid="live-region"></div>',
   },
-}))
+}));
 
 const createMockRouter = (): Router => {
   return createRouter({
@@ -19,18 +19,18 @@ const createMockRouter = (): Router => {
       { path: '/', component: { template: '<div>Home</div>' } },
       { path: '/submit', component: { template: '<div>Submit</div>' } },
     ],
-  })
-}
+  });
+};
 
 describe('AppShell', () => {
-  let wrapper: VueWrapper<any> // eslint-disable-line @typescript-eslint/no-explicit-any
-  let router: Router
-  let pinia: Pinia
+  let wrapper: VueWrapper<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let router: Router;
+  let pinia: Pinia;
 
   beforeEach(async (): Promise<void> => {
-    pinia = createPinia()
-    router = createMockRouter()
-    
+    pinia = createPinia();
+    router = createMockRouter();
+
     wrapper = mount(AppShell, {
       global: {
         plugins: [router, pinia],
@@ -40,18 +40,18 @@ describe('AppShell', () => {
           LiveRegion: true,
         },
       },
-    })
-    
-    await router.isReady()
-  })
+    });
+
+    await router.isReady();
+  });
 
   describe('Basic Rendering', (): void => {
     it('renders without errors', (): void => {
-      expect(wrapper.exists()).toBe(true)
-    })
+      expect(wrapper.exists()).toBe(true);
+    });
 
     it('contains shell structure', (): void => {
-      expect(wrapper.find('.app-shell').exists()).toBe(true)
-    })
-  })
-})
+      expect(wrapper.find('.app-shell').exists()).toBe(true);
+    });
+  });
+});

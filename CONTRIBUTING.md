@@ -9,24 +9,27 @@ We welcome contributions from the community to help document, preserve, and shar
 ### Prerequisites
 
 - **Node.js**: >=22.0.0 (for full compatibility)
-- **npm**: Latest version 
+- **npm**: Latest version
 - **Git**: For version control
 - **Wrangler CLI**: For Cloudflare Workers development
 
 ### Development Setup
 
 1. **Fork and Clone**
+
    ```bash
    git clone https://github.com/YOUR_USERNAME/cultural-archiver.git
    cd cultural-archiver
    ```
 
 2. **Install Dependencies**
+
    ```bash
    npm run setup  # Installs deps and builds project
    ```
 
 3. **Start Development**
+
    ```bash
    npm run dev    # Starts both frontend and backend in development mode
    ```
@@ -65,6 +68,7 @@ cultural-archiver/
 ### Making Changes
 
 1. **Create a Feature Branch**
+
    ```bash
    git checkout -b feature/your-feature-name
    ```
@@ -75,33 +79,36 @@ cultural-archiver/
    - Add tests for new functionality
 
 3. **Run Quality Checks**
+
    ```bash
    # Type checking
    npm run type-check
-   
+
    # Linting
    npm run lint
-   
+
    # Testing
    npm run test
-   
+
    # Formatting
    npm run format
    ```
 
 4. **Test Your Changes**
+
    ```bash
    # Frontend tests
    cd src/frontend && npm run test
-   
-   # Backend tests  
+
+   # Backend tests
    cd src/workers && npm run test
-   
+
    # Build verification
    npm run build
    ```
 
 5. **Commit and Push**
+
    ```bash
    git add .
    git commit -m "feat: add your feature description"
@@ -116,18 +123,21 @@ cultural-archiver/
 ### Code Style Guidelines
 
 #### TypeScript Standards
+
 - Use strict TypeScript configuration
 - Leverage type inference where possible
 - Create interfaces for complex data structures
 - Use discriminated unions for status/state management
 
 #### Vue.js Components
+
 - Use Composition API with `<script setup>`
 - Follow single responsibility principle
 - Implement proper accessibility (ARIA labels, keyboard navigation)
 - Write comprehensive unit tests with Vue Test Utils + Vitest
 
 #### Backend Development
+
 - Follow RESTful API conventions
 - Implement proper error handling with descriptive messages
 - Use Zod for runtime validation
@@ -136,40 +146,44 @@ cultural-archiver/
 ### Testing Patterns
 
 #### Frontend Testing
+
 ```typescript
 // Component testing example
-import { mount } from '@vue/test-utils'
-import { describe, it, expect, vi } from 'vitest'
-import YourComponent from '../YourComponent.vue'
+import { mount } from '@vue/test-utils';
+import { describe, it, expect, vi } from 'vitest';
+import YourComponent from '../YourComponent.vue';
 
 describe('YourComponent', () => {
   it('renders correctly', () => {
     const wrapper = mount(YourComponent, {
-      props: { /* your props */ }
-    })
-    expect(wrapper.text()).toContain('expected text')
-  })
-})
+      props: {
+        /* your props */
+      },
+    });
+    expect(wrapper.text()).toContain('expected text');
+  });
+});
 ```
 
 #### Backend Testing
+
 ```typescript
 // API testing example
-import { describe, it, expect, beforeEach } from 'vitest'
-import { createMockEnv } from './test-utils'
+import { describe, it, expect, beforeEach } from 'vitest';
+import { createMockEnv } from './test-utils';
 
 describe('API Endpoint', () => {
-  let env: MockEnv
-  
+  let env: MockEnv;
+
   beforeEach(() => {
-    env = createMockEnv()
-  })
-  
+    env = createMockEnv();
+  });
+
   it('handles request correctly', async () => {
-    const response = await handleRequest(request, env)
-    expect(response.status).toBe(200)
-  })
-})
+    const response = await handleRequest(request, env);
+    expect(response.status).toBe(200);
+  });
+});
 ```
 
 ## 📋 Pull Request Checklist
@@ -188,16 +202,19 @@ Before submitting your PR, ensure:
 ## 🎯 Contribution Guidelines
 
 ### Bug Reports
+
 - Use GitHub Issues with the "bug" label
 - Include reproduction steps and environment details
 - Provide screenshots for UI issues
 
 ### Feature Requests
+
 - Use GitHub Issues with the "enhancement" label
 - Describe the problem and proposed solution
 - Consider implementation complexity and user impact
 
 ### Documentation Improvements
+
 - Fix typos, clarify instructions, add examples
 - Update API documentation for endpoint changes
 - Improve code comments for complex logic
@@ -256,8 +273,9 @@ By submitting a contribution, you agree to these licensing terms.
 ## 🙏 Recognition
 
 Contributors are recognized in:
+
 - Git commit history
-- GitHub contributors page  
+- GitHub contributors page
 - Periodic contributor highlights in releases
 
 Thank you for helping preserve cultural heritage! 🎨

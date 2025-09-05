@@ -25,7 +25,7 @@ export interface RateLimitInfo {
  */
 function getRateLimitKey(userToken: string, type: 'submissions' | 'queries'): string {
   const now = new Date();
-  
+
   // Both submissions and queries now use hourly limits
   const hourKey = now.toISOString().split(':')[0]; // YYYY-MM-DDTHH
   return `rate_limit:${type}:${userToken}:${hourKey}`;

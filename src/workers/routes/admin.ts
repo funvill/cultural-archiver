@@ -7,7 +7,11 @@
 
 import type { Context } from 'hono';
 import type { WorkerEnv, AuthContext } from '../types';
-import type { GenerateDataDumpResponse, ListDataDumpsResponse, DataDumpRecord } from '../../shared/types';
+import type {
+  GenerateDataDumpResponse,
+  ListDataDumpsResponse,
+  DataDumpRecord,
+} from '../../shared/types';
 import { ApiError } from '../lib/errors';
 import {
   listUsersWithPermissions,
@@ -81,15 +85,10 @@ export async function getUserPermissions(
     );
 
     // Log admin action for audit trail
-    const auditContext = createAdminAuditContext(
-      c,
-      authContext.userToken,
-      'view_audit_logs',
-      {
-        reason: `Viewed user permissions${filterPermission ? ` (filtered by ${filterPermission})` : ''}`,
-      }
-    );
-    
+    const auditContext = createAdminAuditContext(c, authContext.userToken, 'view_audit_logs', {
+      reason: `Viewed user permissions${filterPermission ? ` (filtered by ${filterPermission})` : ''}`,
+    });
+
     const auditResult = await logAdminAction(c.env.DB, auditContext);
     if (!auditResult.success) {
       console.warn('Failed to log admin action:', auditResult.error);
@@ -174,13 +173,7 @@ export async function grantUserPermission(
     }
 
     // Grant the permission
-    const result = await grantPermission(
-      db,
-      userUuid,
-      permission,
-      authContext.userToken,
-      reason
-    );
+    const result = await grantPermission(db, userUuid, permission, authContext.userToken, reason);
 
     if (!result.success) {
       throw new ApiError(
@@ -191,19 +184,14 @@ export async function grantUserPermission(
     }
 
     // Log admin action for audit trail
-    const auditContext = createAdminAuditContext(
-      c,
-      authContext.userToken,
-      'grant_permission',
-      {
-        targetUuid: userUuid,
-        permissionType: permission,
-        oldValue: null,
-        newValue: { permission, granted_at: new Date().toISOString() },
-        reason: reason || 'Permission granted via admin interface',
-      }
-    );
-    
+    const auditContext = createAdminAuditContext(c, authContext.userToken, 'grant_permission', {
+      targetUuid: userUuid,
+      permissionType: permission,
+      oldValue: null,
+      newValue: { permission, granted_at: new Date().toISOString() },
+      reason: reason || 'Permission granted via admin interface',
+    });
+
     const auditResult = await logAdminAction(c.env.DB, auditContext);
     if (!auditResult.success) {
       console.warn('Failed to log admin action:', auditResult.error);
@@ -290,13 +278,7 @@ export async function revokeUserPermission(
     }
 
     // Revoke the permission
-    const result = await revokePermission(
-      db,
-      userUuid,
-      permission,
-      authContext.userToken,
-      reason
-    );
+    const result = await revokePermission(db, userUuid, permission, authContext.userToken, reason);
 
     if (!result.success) {
       throw new ApiError(
@@ -307,19 +289,14 @@ export async function revokeUserPermission(
     }
 
     // Log admin action for audit trail
-    const auditContext = createAdminAuditContext(
-      c,
-      authContext.userToken,
-      'revoke_permission',
-      {
-        targetUuid: userUuid,
-        permissionType: permission,
-        oldValue: { permission, revoked_at: new Date().toISOString() },
-        newValue: null,
-        reason: reason || 'Permission revoked via admin interface',
-      }
-    );
-    
+    const auditContext = createAdminAuditContext(c, authContext.userToken, 'revoke_permission', {
+      targetUuid: userUuid,
+      permissionType: permission,
+      oldValue: { permission, revoked_at: new Date().toISOString() },
+      newValue: null,
+      reason: reason || 'Permission revoked via admin interface',
+    });
+
     const auditResult = await logAdminAction(c.env.DB, auditContext);
     if (!auditResult.success) {
       console.warn('Failed to log admin action:', auditResult.error);
@@ -379,7 +356,7 @@ export async function getAuditLogsEndpoint(
 
     // Validate and parse pagination
     const page = pageStr ? Math.max(1, parseInt(pageStr)) : 1;
-    const limit = limitStr 
+    const limit = limitStr
       ? Math.max(MIN_PAGE_SIZE, Math.min(MAX_PAGE_SIZE, parseInt(limitStr)))
       : 20;
 
@@ -402,7 +379,10 @@ export async function getAuditLogsEndpoint(
     }
 
     // Validate actionType filter
-    if (actionType && !['grant_permission', 'revoke_permission', 'view_audit_logs'].includes(actionType)) {
+    if (
+      actionType &&
+      !['grant_permission', 'revoke_permission', 'view_audit_logs'].includes(actionType)
+    ) {
       throw new ApiError(
         'Invalid actionType filter. Must be "grant_permission", "revoke_permission", or "view_audit_logs"',
         'INVALID_ACTION_TYPE_FILTER',
@@ -436,15 +416,10 @@ export async function getAuditLogsEndpoint(
     const result = await getAuditLogs(db, auditQuery);
 
     // Log admin action for audit trail
-    const auditContext = createAdminAuditContext(
-      c,
-      authContext.userToken,
-      'view_audit_logs',
-      {
-        reason: `Viewed audit logs (page ${page}, ${limit} per page)${type ? `, type: ${type}` : ''}`,
-      }
-    );
-    
+    const auditContext = createAdminAuditContext(c, authContext.userToken, 'view_audit_logs', {
+      reason: `Viewed audit logs (page ${page}, ${limit} per page)${type ? `, type: ${type}` : ''}`,
+    });
+
     const auditLogResult = await logAdminAction(c.env.DB, auditContext);
     if (!auditLogResult.success) {
       console.warn('Failed to log admin action:', auditLogResult.error);
@@ -512,15 +487,10 @@ export async function getAdminStatistics(
     };
 
     // Log admin action for audit trail
-    const auditContext = createAdminAuditContext(
-      c,
-      authContext.userToken,
-      'view_audit_logs',
-      {
-        reason: `Viewed admin statistics (${days} days)`,
-      }
-    );
-    
+    const auditContext = createAdminAuditContext(c, authContext.userToken, 'view_audit_logs', {
+      reason: `Viewed admin statistics (${days} days)`,
+    });
+
     const auditResult = await logAdminAction(c.env.DB, auditContext);
     if (!auditResult.success) {
       console.warn('Failed to log admin action:', auditResult.error);
@@ -615,30 +585,36 @@ export async function generateDataDump(
       total_creators: dataDumpResult.metadata!.data_info.total_creators,
       total_tags: dataDumpResult.metadata!.data_info.total_tags,
       total_photos: dataDumpResult.metadata!.data_info.total_photos,
-      warnings: dataDumpResult.warnings && dataDumpResult.warnings.length > 0 
-        ? JSON.stringify(dataDumpResult.warnings) 
-        : null,
+      warnings:
+        dataDumpResult.warnings && dataDumpResult.warnings.length > 0
+          ? JSON.stringify(dataDumpResult.warnings)
+          : null,
     };
 
-    const insertResult = await db.prepare(`
+    const insertResult = await db
+      .prepare(
+        `
       INSERT INTO data_dumps (
         id, filename, size, r2_key, download_url, generated_at, generated_by,
         total_artworks, total_creators, total_tags, total_photos, warnings
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      dumpId,
-      dataDumpRecord.filename,
-      dataDumpRecord.size,
-      dataDumpRecord.r2_key,
-      dataDumpRecord.download_url,
-      dataDumpRecord.generated_at,
-      dataDumpRecord.generated_by,
-      dataDumpRecord.total_artworks,
-      dataDumpRecord.total_creators,
-      dataDumpRecord.total_tags,
-      dataDumpRecord.total_photos,
-      dataDumpRecord.warnings
-    ).run();
+    `
+      )
+      .bind(
+        dumpId,
+        dataDumpRecord.filename,
+        dataDumpRecord.size,
+        dataDumpRecord.r2_key,
+        dataDumpRecord.download_url,
+        dataDumpRecord.generated_at,
+        dataDumpRecord.generated_by,
+        dataDumpRecord.total_artworks,
+        dataDumpRecord.total_creators,
+        dataDumpRecord.total_tags,
+        dataDumpRecord.total_photos,
+        dataDumpRecord.warnings
+      )
+      .run();
 
     if (!insertResult.success) {
       console.error('[ADMIN] Failed to save data dump record:', insertResult.error);
@@ -661,13 +637,15 @@ export async function generateDataDump(
         },
       }
     );
-    
+
     const auditResult = await logAdminAction(c.env.DB, auditContext);
     if (!auditResult.success) {
       console.warn('Failed to log admin action:', auditResult.error);
     }
 
-    console.log(`[ADMIN] Data dump generated successfully: ${filename} (${dataDumpResult.size} bytes)`);
+    console.log(
+      `[ADMIN] Data dump generated successfully: ${filename} (${dataDumpResult.size} bytes)`
+    );
 
     const response: GenerateDataDumpResponse = {
       success: true,
@@ -685,7 +663,7 @@ export async function generateDataDump(
         },
       },
     };
-    
+
     if (dataDumpResult.warnings) {
       response.warnings = dataDumpResult.warnings;
     }
@@ -722,20 +700,25 @@ export async function listDataDumps(
     // Get query parameters for pagination
     const { page: pageStr, limit: limitStr } = c.req.query();
     const page = pageStr ? Math.max(1, parseInt(pageStr)) : 1;
-    const limit = limitStr 
+    const limit = limitStr
       ? Math.max(MIN_PAGE_SIZE, Math.min(MAX_PAGE_SIZE, parseInt(limitStr)))
       : 20;
     const offset = (page - 1) * limit;
 
     // Query data dumps with pagination
-    const dumpsQuery = await db.prepare(`
+    const dumpsQuery = await db
+      .prepare(
+        `
       SELECT 
         id, filename, size, download_url, generated_at, generated_by,
         total_artworks, total_creators, total_tags, total_photos, warnings
       FROM data_dumps
       ORDER BY generated_at DESC
       LIMIT ? OFFSET ?
-    `).bind(limit, offset).all();
+    `
+      )
+      .bind(limit, offset)
+      .all();
 
     if (!dumpsQuery.success) {
       throw new Error('Failed to query data dumps');
@@ -759,15 +742,10 @@ export async function listDataDumps(
     }));
 
     // Log admin action for audit trail
-    const auditContext = createAdminAuditContext(
-      c,
-      authContext.userToken,
-      'view_audit_logs',
-      {
-        reason: `Viewed data dumps list (page ${page}, ${limit} per page)`,
-      }
-    );
-    
+    const auditContext = createAdminAuditContext(c, authContext.userToken, 'view_audit_logs', {
+      reason: `Viewed data dumps list (page ${page}, ${limit} per page)`,
+    });
+
     const auditResult = await logAdminAction(c.env.DB, auditContext);
     if (!auditResult.success) {
       console.warn('Failed to log admin action:', auditResult.error);

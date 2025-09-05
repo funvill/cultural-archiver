@@ -18,7 +18,7 @@ This ensures that the cultural history of our cities outlives any single platfor
 ✅ **Phase 1 Complete**: Full-featured web application delivered with:
 
 - **Frontend**: Vue 3 + TypeScript with comprehensive accessibility (WCAG AA compliant)
-- **Interactive map**: Leaflet + OpenStreetMap with artwork discovery and clustering  
+- **Interactive map**: Leaflet + OpenStreetMap with artwork discovery and clustering
 - **Artwork details**: Rich detail pages with photo carousels, mini-maps, and community timelines
 - **Photo submission**: Drag-and-drop upload with EXIF location extraction
 - **User flows**: Anonymous tokens + optional email verification via magic links
@@ -28,6 +28,7 @@ This ensures that the cultural history of our cities outlives any single platfor
 - **Enhanced navigation**: Clickable map markers with direct routing to artwork details
 
 **Latest Features (v1.2):**
+
 - 💾 **Backup System**: Complete system snapshots for disaster recovery with database and R2 photo collection
 - 📦 **Data Dumps**: Public CC0-licensed data exports for researchers and developers
 - 🔧 **Admin Interface**: Data dump management with one-click generation and download history
@@ -35,8 +36,9 @@ This ensures that the cultural history of our cities outlives any single platfor
 - 🛡️ **Data Privacy**: Comprehensive filtering to exclude sensitive information from public exports
 
 **Previous Features (v1.1):**
+
 - 🎨 **PhotoCarousel**: Touch/swipe support with fullscreen modal and keyboard navigation
-- 🗺️ **MiniMap**: Interactive location display with directions integration  
+- 🗺️ **MiniMap**: Interactive location display with directions integration
 - 🏷️ **TagBadge**: Smart tag management with expandable display
 - 📖 **LogbookTimeline**: Community journal entries with chronological display
 - 📱 **Mobile optimization**: Touch-friendly 44px buttons and responsive layouts
@@ -53,6 +55,7 @@ Phase 0 and 1 focus on delivering a simple, accessible web app where users can:
 ## 🛠 Tech Stack
 
 ### Frontend (Production Ready)
+
 - **Framework**: Vue 3 + TypeScript + Composition API
 - **Styling**: Tailwind CSS with mobile-first responsive design
 - **Build**: Vite with optimized production builds
@@ -64,6 +67,7 @@ Phase 0 and 1 focus on delivering a simple, accessible web app where users can:
 - **Testing**: Vitest with 261 unit tests across 19 test files covering components, views, and API integration
 
 ### Backend (Production Ready)
+
 - **Runtime**: Cloudflare Workers + TypeScript + Hono framework
 - **Database**: SQLite (Cloudflare D1) with spatial indexing
 - **Storage**: Cloudflare R2 for photo uploads (up to 15MB per photo)
@@ -72,6 +76,7 @@ Phase 0 and 1 focus on delivering a simple, accessible web app where users can:
 - **Testing**: 54 comprehensive tests across all API endpoints
 
 ### Infrastructure
+
 - **Hosting**: Cloudflare Pages (frontend) + Workers (backend)
 - **Global CDN**: Automatic edge caching and distribution
 - **Monitoring**: Built-in analytics and error tracking
@@ -97,7 +102,6 @@ The Cultural Archiver API provides a comprehensive backend for crowdsourced publ
 #### Devlopment
 
 - Main website: http://localhost:8787
-
 
 ### Authentication
 
@@ -266,7 +270,7 @@ For complete API documentation with examples and error codes, see [`docs/api.md`
 - `npm run format` - Format code with Prettier
 - `npm run type-check` - Run TypeScript compiler checks
 - `npm run migrate` - Run database migrations against Cloudflare D1 (requires .env setup)
-- `npm run migrate:list` - List all available migration files  
+- `npm run migrate:list` - List all available migration files
 - `npm run migrate:help` - Show migration help and setup instructions
 - `npm run backup` - Generate local backup archive with database and photos
 - `npm run backup:remote` - Generate remote backup using Cloudflare credentials

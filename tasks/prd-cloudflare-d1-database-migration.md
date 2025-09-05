@@ -67,66 +67,47 @@ This migration system overhaul will establish a reliable foundation for ongoing 
 
 ### 1. Migration System Architecture
 
-1.1. **Replace Custom System**: Remove existing `migrations/migrate.ts` and related npm scripts
-1.2. **Use Wrangler Native Commands**: Leverage `wrangler d1 migrations` commands for all operations
-1.3. **Maintain Migration Directory**: Keep `migrations/` directory structure compatible with Wrangler requirements
-1.4. **Sequential Numbering**: Enforce sequential 4-digit numbering: `0001_`, `0002_`, etc.
+1.1. **Replace Custom System**: Remove existing `migrations/migrate.ts` and related npm scripts 1.2. **Use Wrangler Native Commands**: Leverage `wrangler d1 migrations` commands for all operations 1.3. **Maintain Migration Directory**: Keep `migrations/` directory structure compatible with Wrangler requirements 1.4. **Sequential Numbering**: Enforce sequential 4-digit numbering: `0001_`, `0002_`, etc.
 
 ### 2. Environment Management
 
-2.1. **Development Environment**: 
-   - Local D1 database for development and testing
-   - Automatic migration application during development setup
-   - Fast reset capabilities for clean development environments
+2.1. **Development Environment**:
+
+- Local D1 database for development and testing
+- Automatic migration application during development setup
+- Fast reset capabilities for clean development environments
 
 2.2. **Production Environment**:
-   - Protected production database with confirmation prompts
-   - Audit logging of all production migration activities  
-   - Rollback capabilities for emergency recovery
+
+- Protected production database with confirmation prompts
+- Audit logging of all production migration activities
+- Rollback capabilities for emergency recovery
 
 2.3. **Environment Isolation**:
-   - Separate migration state tracking per environment
-   - Clear environment indicators in all commands
-   - Prevention of accidental cross-environment operations
+
+- Separate migration state tracking per environment
+- Clear environment indicators in all commands
+- Prevention of accidental cross-environment operations
 
 ### 3. Migration State Tracking
 
-3.1. **Applied Migration Tracking**: Wrangler automatically tracks which migrations have been applied to each environment
-3.2. **Status Reporting**: Commands to show migration status across environments
-3.3. **Consistency Validation**: Ability to verify all environments have consistent migration states
-3.4. **Conflict Prevention**: Automatic prevention of re-running completed migrations
+3.1. **Applied Migration Tracking**: Wrangler automatically tracks which migrations have been applied to each environment 3.2. **Status Reporting**: Commands to show migration status across environments 3.3. **Consistency Validation**: Ability to verify all environments have consistent migration states 3.4. **Conflict Prevention**: Automatic prevention of re-running completed migrations
 
 ### 4. Migration Creation and Management
 
-4.1. **Template Generation**: Command to create new migration files with proper naming and D1-compatible templates
-4.2. **Migration Validation**: Pre-flight checks for D1 compatibility before applying migrations
-4.3. **Atomic Operations**: Each migration runs in a transaction with automatic rollback on failure
-4.4. **Documentation Integration**: Auto-generation of migration documentation and change logs
+4.1. **Template Generation**: Command to create new migration files with proper naming and D1-compatible templates 4.2. **Migration Validation**: Pre-flight checks for D1 compatibility before applying migrations 4.3. **Atomic Operations**: Each migration runs in a transaction with automatic rollback on failure 4.4. **Documentation Integration**: Auto-generation of migration documentation and change logs
 
 ### 5. D1 Compatibility Guidelines
 
-5.1. **Prohibited Patterns**: Clear documentation of unsupported SQLite features in D1
-5.2. **Template Examples**: Pre-built migration templates for common operations (add table, add index, etc.)
-5.3. **Validation Rules**: Automated checks to prevent common D1 compatibility issues
-5.4. **Error Message Improvements**: Clear error messages with suggested fixes for D1 issues
+5.1. **Prohibited Patterns**: Clear documentation of unsupported SQLite features in D1 5.2. **Template Examples**: Pre-built migration templates for common operations (add table, add index, etc.) 5.3. **Validation Rules**: Automated checks to prevent common D1 compatibility issues 5.4. **Error Message Improvements**: Clear error messages with suggested fixes for D1 issues
 
 ### 6. Backup System Integration
 
-6.1. **D1 Export Integration**: Update backup system to use Wrangler's native D1 export functionality instead of custom SQL dumping
-6.2. **Environment-Aware Backups**: Support separate backup workflows for development and production environments
-6.3. **Migration-Consistent Exports**: Ensure backup database exports are compatible with the new migration system structure
-6.4. **R2 Photo Backup**: Maintain existing R2 photo backup functionality alongside the updated database export
-6.5. **Backup Validation**: Add validation to ensure backup integrity and restorability with the new migration system
+6.1. **D1 Export Integration**: Update backup system to use Wrangler's native D1 export functionality instead of custom SQL dumping 6.2. **Environment-Aware Backups**: Support separate backup workflows for development and production environments 6.3. **Migration-Consistent Exports**: Ensure backup database exports are compatible with the new migration system structure 6.4. **R2 Photo Backup**: Maintain existing R2 photo backup functionality alongside the updated database export 6.5. **Backup Validation**: Add validation to ensure backup integrity and restorability with the new migration system
 
 ### 7. Documentation Updates
 
-7.1. **Migration Documentation**: Completely rewrite `/docs/migrations.md` to reflect the new Wrangler-based migration system
-7.2. **Development Guide Updates**: Update `/docs/development.md` to use new migration commands for local setup
-7.3. **Deployment Guide Updates**: Update `/docs/deployment.md` to use new migration commands for production deployment
-7.4. **Database Documentation**: Update `/docs/database.md` to reference new migration system and remove outdated custom migration references
-7.5. **Troubleshooting Updates**: Update `/docs/troubleshooting.md` to replace old migration troubleshooting with new system guidance
-7.6. **Backup Documentation**: Update `/docs/backup-data-dump.md` to reflect new Wrangler D1 export integration
-7.7. **Production Deployment**: Update `/docs/production-deployment-fix.md` to use new migration commands
+7.1. **Migration Documentation**: Completely rewrite `/docs/migrations.md` to reflect the new Wrangler-based migration system 7.2. **Development Guide Updates**: Update `/docs/development.md` to use new migration commands for local setup 7.3. **Deployment Guide Updates**: Update `/docs/deployment.md` to use new migration commands for production deployment 7.4. **Database Documentation**: Update `/docs/database.md` to reference new migration system and remove outdated custom migration references 7.5. **Troubleshooting Updates**: Update `/docs/troubleshooting.md` to replace old migration troubleshooting with new system guidance 7.6. **Backup Documentation**: Update `/docs/backup-data-dump.md` to reflect new Wrangler D1 export integration 7.7. **Production Deployment**: Update `/docs/production-deployment-fix.md` to use new migration commands
 
 ## Non-Goals (Out of Scope)
 
@@ -145,7 +126,7 @@ This migration system overhaul will establish a reliable foundation for ongoing 
 migrations/
 ├── 0001_initial_schema.sql         # Clean baseline schema
 ├── 0002_add_data_dumps.sql        # Existing migration (already applied)
-├── 0003_add_artwork_edits.sql     # Existing migration (already applied)  
+├── 0003_add_artwork_edits.sql     # Existing migration (already applied)
 ├── 0004_add_user_permissions.sql  # Future migrations
 └── README.md                      # Migration documentation
 ```
@@ -191,7 +172,7 @@ CREATE INDEX idx_example_table_name ON example_table(name);
 CREATE INDEX idx_example_table_status ON example_table(status);
 
 -- Add sample data (optional)
-INSERT INTO example_table (id, name) VALUES 
+INSERT INTO example_table (id, name) VALUES
 ('sample-1', 'Sample Record 1'),
 ('sample-2', 'Sample Record 2');
 ```
@@ -199,15 +180,17 @@ INSERT INTO example_table (id, name) VALUES
 ### D1 Compatibility Rules
 
 #### ✅ Supported Patterns
+
 - Standard `CREATE TABLE` with basic constraints
-- Simple `CHECK` constraints with `IN()` clauses  
+- Simple `CHECK` constraints with `IN()` clauses
 - Standard indexes with `CREATE INDEX`
 - Foreign key constraints
 - Default values using SQLite functions like `datetime('now')`
 
 #### ❌ Prohibited Patterns
+
 - `PRAGMA` statements (not needed in D1)
-- `WITHOUT ROWID` table modifiers  
+- `WITHOUT ROWID` table modifiers
 - Complex `CHECK` constraints using functions like `length()`
 - `AUTOINCREMENT` (use UUIDs instead)
 - Temporary tables or views in migrations
@@ -246,7 +229,7 @@ backup-2025-09-04-143022.zip
 ├── migration_state.json      # Current migration state info
 ├── photos/
 │   ├── originals/           # R2 photos (unchanged)
-│   └── thumbnails/          # R2 thumbnails (unchanged)  
+│   └── thumbnails/          # R2 thumbnails (unchanged)
 ├── metadata.json            # Backup metadata (enhanced)
 └── README.md               # Restoration guide (updated)
 ```
@@ -281,7 +264,7 @@ The migration system overhaul will require updates to multiple documentation fil
    - **Required Changes**: Update references to migration system, add new migration state tracking
    - **Impact**: Developer reference documentation accuracy
 
-5. **`/docs/troubleshooting.md`** - Migration troubleshooting updates  
+5. **`/docs/troubleshooting.md`** - Migration troubleshooting updates
    - **Current State**: Contains numerous `wrangler d1` commands and old migration references
    - **Required Changes**: Update troubleshooting steps to use new npm scripts, add D1 compatibility error solutions
    - **Impact**: Developer support and debugging capabilities
@@ -301,12 +284,14 @@ The migration system overhaul will require updates to multiple documentation fil
 ### Documentation Update Requirements
 
 #### Content Standards
+
 - **Consistency**: All documentation must use the new npm migration scripts instead of direct wrangler commands
-- **Accuracy**: Remove references to old custom migration system (`migrate.ts`)  
+- **Accuracy**: Remove references to old custom migration system (`migrate.ts`)
 - **Completeness**: Include D1 compatibility guidelines and troubleshooting
 - **Clarity**: Provide clear examples for both development and production environments
 
 #### Update Checklist
+
 - [ ] Replace all `npx tsx migrations/migrate.ts` references with appropriate npm scripts
 - [ ] Update all `wrangler d1` commands to use new npm script equivalents where appropriate
 - [ ] Add D1 compatibility sections where database operations are discussed
@@ -357,13 +342,13 @@ The migration system overhaul will require updates to multiple documentation fil
 ## Open Questions
 
 1. **Migration Numbering**: Should we restart from 0001 or continue from current sequence?
-   - *Recommendation*: Restart from 0001 with consolidated baseline for clarity
+   - _Recommendation_: Restart from 0001 with consolidated baseline for clarity
 
 2. **Rollback Strategy**: How many rollback steps should be supported?
-   - *Recommendation*: Single-step rollback for MVP, expand later if needed
+   - _Recommendation_: Single-step rollback for MVP, expand later if needed
 
 3. **CI/CD Integration**: Should migrations run automatically in CI/CD pipeline?
-   - *Recommendation*: Add validation checks in CI, but require manual production deployment
+   - _Recommendation_: Add validation checks in CI, but require manual production deployment
 
 ## Conclusion
 

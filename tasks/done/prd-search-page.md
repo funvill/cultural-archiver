@@ -63,7 +63,7 @@ The Search Page feature enables users to discover artworks through a dedicated s
 
 1. **Creator search functionality** - Only artwork search in MVP
 2. **Advanced search filters** - No location, date, or category filters in MVP
-3. **Tag syntax search (`tag:tagname`)** - Basic string search only for MVP  
+3. **Tag syntax search (`tag:tagname`)** - Basic string search only for MVP
 4. **Creator syntax search (`creator:name`)** - Not included in MVP
 5. **Field syntax search (`field:key:value`)** - Not included in MVP
 6. **Saved searches** - No user account integration for search history

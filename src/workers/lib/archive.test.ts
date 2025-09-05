@@ -64,7 +64,7 @@ describe('Archive Utilities', () => {
         expect(() => {
           archive.addFile('/leading/slash.txt', 'content');
         }).not.toThrow();
-        
+
         expect(() => {
           archive.addFile('back\\slash\\path.txt', 'content');
         }).not.toThrow();
@@ -80,7 +80,7 @@ describe('Archive Utilities', () => {
         expect(() => {
           archive.addFile(null as any, 'content');
         }).toThrow(ApiError);
-        
+
         expect(() => {
           archive.addFile(undefined as any, 'content');
         }).toThrow(ApiError);
@@ -88,14 +88,14 @@ describe('Archive Utilities', () => {
 
       it('should enforce maximum files limit', () => {
         const smallArchive = new SimpleZipArchive({ maxFiles: 2 });
-        
+
         smallArchive.addFile('file1.txt', 'content1');
         smallArchive.addFile('file2.txt', 'content2');
-        
+
         expect(() => {
           smallArchive.addFile('file3.txt', 'content3');
         }).toThrow(ApiError);
-        
+
         expect(() => {
           smallArchive.addFile('file3.txt', 'content3');
         }).toThrow(/Cannot add more than.*files/);
@@ -103,16 +103,16 @@ describe('Archive Utilities', () => {
 
       it('should enforce maximum size limit', () => {
         const smallArchive = new SimpleZipArchive({ maxSize: 100 }); // 100 bytes
-        
+
         // This should work
         smallArchive.addFile('small.txt', 'small');
-        
+
         // This should exceed the limit
         const largeContent = 'x'.repeat(200);
         expect(() => {
           smallArchive.addFile('large.txt', largeContent);
         }).toThrow(ApiError);
-        
+
         expect(() => {
           smallArchive.addFile('large.txt', largeContent);
         }).toThrow(/exceed maximum size/);
@@ -135,35 +135,31 @@ describe('Archive Utilities', () => {
           { path: 'file1.txt', content: 'content1' },
           { path: 'file2.txt', content: 'content2' },
         ];
-        
+
         expect(() => {
           archive.addFilesToFolder('documents', files);
         }).not.toThrow();
       });
 
       it('should handle folder path normalization', () => {
-        const files: ArchiveFile[] = [
-          { path: 'file.txt', content: 'content' },
-        ];
-        
+        const files: ArchiveFile[] = [{ path: 'file.txt', content: 'content' }];
+
         expect(() => {
           archive.addFilesToFolder('/folder/', files);
         }).not.toThrow();
-        
+
         expect(() => {
           archive.addFilesToFolder('folder\\sub\\', files);
         }).not.toThrow();
       });
 
       it('should reject invalid folder path', () => {
-        const files: ArchiveFile[] = [
-          { path: 'file.txt', content: 'content' },
-        ];
-        
+        const files: ArchiveFile[] = [{ path: 'file.txt', content: 'content' }];
+
         expect(() => {
           archive.addFilesToFolder('', files);
         }).toThrow(ApiError);
-        
+
         expect(() => {
           archive.addFilesToFolder(null as any, files);
         }).toThrow(ApiError);
@@ -179,9 +175,9 @@ describe('Archive Utilities', () => {
     describe('generateArchive', () => {
       it('should generate archive with single file', async () => {
         archive.addFile('test.txt', 'Hello, world!');
-        
+
         const result = await archive.generateArchive();
-        
+
         expect(result).toBeDefined();
         expect(result.archiveBuffer).toBeInstanceOf(ArrayBuffer);
         expect(result.totalFiles).toBe(1);
@@ -193,19 +189,19 @@ describe('Archive Utilities', () => {
         archive.addFile('file1.txt', 'Content 1');
         archive.addFile('file2.txt', 'Content 2');
         archive.addFile('folder/file3.txt', 'Content 3');
-        
+
         const result = await archive.generateArchive();
-        
+
         expect(result.totalFiles).toBe(3);
         expect(result.archiveBuffer.byteLength).toBeGreaterThan(0);
       });
 
       it('should generate archive with binary data', async () => {
-        const binaryData = new Uint8Array([0x50, 0x4B, 0x03, 0x04]); // ZIP signature
+        const binaryData = new Uint8Array([0x50, 0x4b, 0x03, 0x04]); // ZIP signature
         archive.addFile('binary.dat', binaryData);
-        
+
         const result = await archive.generateArchive();
-        
+
         expect(result.totalFiles).toBe(1);
         expect(result.archiveBuffer.byteLength).toBeGreaterThan(binaryData.length);
       });
@@ -217,10 +213,10 @@ describe('Archive Utilities', () => {
 
       it('should generate valid ZIP signature', async () => {
         archive.addFile('test.txt', 'test content');
-        
+
         const result = await archive.generateArchive();
         const view = new DataView(result.archiveBuffer);
-        
+
         // Check for ZIP local file header signature (0x04034b50)
         const signature = view.getUint32(0, true);
         expect(signature).toBe(0x04034b50);
@@ -234,27 +230,25 @@ describe('Archive Utilities', () => {
         { path: 'file1.txt', content: 'content1' },
         { path: 'file2.txt', content: 'content2' },
       ];
-      
+
       const result = await createZipArchive(files);
-      
+
       expect(result).toBeDefined();
       expect(result.totalFiles).toBe(2);
       expect(result.archiveBuffer).toBeInstanceOf(ArrayBuffer);
     });
 
     it('should create archive with custom options', async () => {
-      const files: ArchiveFile[] = [
-        { path: 'test.txt', content: 'test' },
-      ];
-      
+      const files: ArchiveFile[] = [{ path: 'test.txt', content: 'test' }];
+
       const options: ArchiveOptions = {
         compression: false,
         maxSize: 1024 * 1024,
         maxFiles: 100,
       };
-      
+
       const result = await createZipArchive(files, options);
-      
+
       expect(result.totalFiles).toBe(1);
     });
 
@@ -273,7 +267,7 @@ describe('Archive Utilities', () => {
       const invalidFiles = [
         { path: '', content: 'content' }, // empty path
       ];
-      
+
       await expect(createZipArchive(invalidFiles as any)).rejects.toThrow(ApiError);
     });
 
@@ -281,12 +275,12 @@ describe('Archive Utilities', () => {
       const files: ArchiveFile[] = [
         {
           path: 'image.jpg',
-          content: new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0]), // JPEG header
+          content: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]), // JPEG header
           mimeType: 'image/jpeg',
           lastModified: new Date('2024-01-01'),
         },
       ];
-      
+
       const result = await createZipArchive(files);
       expect(result.totalFiles).toBe(1);
     });
@@ -309,7 +303,7 @@ describe('Archive Utilities', () => {
       expect(() => {
         addFileToArchive(null as any, 'test.txt', 'content');
       }).toThrow(ApiError);
-      
+
       expect(() => {
         addFileToArchive({} as any, 'test.txt', 'content');
       }).toThrow(ApiError);
@@ -324,20 +318,16 @@ describe('Archive Utilities', () => {
     });
 
     it('should add folder to existing archive', () => {
-      const files: ArchiveFile[] = [
-        { path: 'file.txt', content: 'content' },
-      ];
-      
+      const files: ArchiveFile[] = [{ path: 'file.txt', content: 'content' }];
+
       expect(() => {
         addFolderToArchive(archive, 'documents', files);
       }).not.toThrow();
     });
 
     it('should reject invalid archive', () => {
-      const files: ArchiveFile[] = [
-        { path: 'file.txt', content: 'content' },
-      ];
-      
+      const files: ArchiveFile[] = [{ path: 'file.txt', content: 'content' }];
+
       expect(() => {
         addFolderToArchive(null as any, 'documents', files);
       }).toThrow(ApiError);
@@ -363,7 +353,7 @@ describe('Archive Utilities', () => {
   describe('Error Handling', () => {
     it('should throw ApiError with proper error codes', async () => {
       const archive = new SimpleZipArchive();
-      
+
       // Test various error conditions
       try {
         archive.addFile('', 'content');
@@ -371,7 +361,7 @@ describe('Archive Utilities', () => {
         expect(error).toBeInstanceOf(ApiError);
         expect((error as ApiError).code).toBe('INVALID_FILE_PATH');
       }
-      
+
       try {
         await archive.generateArchive();
       } catch (error) {
@@ -382,9 +372,9 @@ describe('Archive Utilities', () => {
 
     it('should handle memory pressure gracefully', () => {
       const archive = new SimpleZipArchive({ maxSize: 10 }); // Very small limit
-      
+
       archive.addFile('small.txt', 'ok');
-      
+
       expect(() => {
         archive.addFile('large.txt', 'this is too large');
       }).toThrow(ApiError);
@@ -396,24 +386,30 @@ describe('Archive Utilities', () => {
       const files: ArchiveFile[] = [
         // Database dump
         { path: 'database.sql', content: 'CREATE TABLE artwork (id TEXT PRIMARY KEY);' },
-        
+
         // Metadata
-        { path: 'metadata.json', content: JSON.stringify({ 
-          created_at: new Date().toISOString(),
-          version: '1.0.0',
-          type: 'backup'
-        }) },
-        
+        {
+          path: 'metadata.json',
+          content: JSON.stringify({
+            created_at: new Date().toISOString(),
+            version: '1.0.0',
+            type: 'backup',
+          }),
+        },
+
         // Photos
-        { path: 'photos/originals/123.jpg', content: new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0]) },
-        { path: 'photos/thumbnails/123_800.jpg', content: new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0]) },
+        { path: 'photos/originals/123.jpg', content: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]) },
+        {
+          path: 'photos/thumbnails/123_800.jpg',
+          content: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+        },
       ];
-      
+
       const result = await createZipArchive(files);
-      
+
       expect(result.totalFiles).toBe(4);
       expect(result.archiveBuffer.byteLength).toBeGreaterThan(0);
-      
+
       // Should have proper ZIP structure
       const view = new DataView(result.archiveBuffer);
       expect(view.getUint32(0, true)).toBe(0x04034b50); // ZIP signature
@@ -423,35 +419,43 @@ describe('Archive Utilities', () => {
       const files: ArchiveFile[] = [
         // CC0 License
         { path: 'LICENSE.txt', content: 'CC0 1.0 Universal Public Domain Dedication' },
-        
+
         // README
-        { path: 'README.md', content: '# Cultural Archiver Data Dump\n\nThis data is released under CC0...' },
-        
+        {
+          path: 'README.md',
+          content: '# Cultural Archiver Data Dump\n\nThis data is released under CC0...',
+        },
+
         // Data files
-        { path: 'artwork.json', content: JSON.stringify([
-          { id: '123', lat: 49.2827, lon: -123.1207, status: 'approved' }
-        ]) },
-        { path: 'creators.json', content: JSON.stringify([
-          { id: '456', name: 'Artist Name' }
-        ]) },
-        { path: 'tags.json', content: JSON.stringify([
-          { label: 'material', value: 'bronze' }
-        ]) },
-        
+        {
+          path: 'artwork.json',
+          content: JSON.stringify([
+            { id: '123', lat: 49.2827, lon: -123.1207, status: 'approved' },
+          ]),
+        },
+        { path: 'creators.json', content: JSON.stringify([{ id: '456', name: 'Artist Name' }]) },
+        { path: 'tags.json', content: JSON.stringify([{ label: 'material', value: 'bronze' }]) },
+
         // Thumbnail photos only
-        { path: 'photos/thumbnails/123_800.jpg', content: new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0]) },
-        
+        {
+          path: 'photos/thumbnails/123_800.jpg',
+          content: new Uint8Array([0xff, 0xd8, 0xff, 0xe0]),
+        },
+
         // Metadata
-        { path: 'metadata.json', content: JSON.stringify({
-          generated_at: new Date().toISOString(),
-          type: 'data_dump',
-          license: 'CC0',
-          source: 'Cultural Archiver'
-        }) },
+        {
+          path: 'metadata.json',
+          content: JSON.stringify({
+            generated_at: new Date().toISOString(),
+            type: 'data_dump',
+            license: 'CC0',
+            source: 'Cultural Archiver',
+          }),
+        },
       ];
-      
+
       const result = await createZipArchive(files);
-      
+
       expect(result.totalFiles).toBe(7);
       expect(result.archiveBuffer.byteLength).toBeGreaterThan(0);
     });

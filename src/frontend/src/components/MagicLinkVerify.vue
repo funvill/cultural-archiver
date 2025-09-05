@@ -1,129 +1,129 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useAuth } from '../composables/useAuth'
+import { ref, onMounted, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { useAuth } from '../composables/useAuth';
 
 // State
-const isVerifying = ref(true)
-const verificationStatus = ref<'pending' | 'success' | 'error'>('pending')
-const message = ref('')
-const isNewAccount = ref(false)
-const redirectCountdown = ref(5)
+const isVerifying = ref(true);
+const verificationStatus = ref<'pending' | 'success' | 'error'>('pending');
+const message = ref('');
+const isNewAccount = ref(false);
+const redirectCountdown = ref(5);
 
 // Composables
-const route = useRoute()
-const router = useRouter()
-const { verifyMagicLink, initAuth, error } = useAuth()
+const route = useRoute();
+const router = useRouter();
+const { verifyMagicLink, initAuth, error } = useAuth();
 
 // Computed
 const statusIcon = computed(() => {
   switch (verificationStatus.value) {
     case 'success':
       return {
-        class: 'text-green-600 bg-green-100'
-      }
+        class: 'text-green-600 bg-green-100',
+      };
     case 'error':
       return {
-        class: 'text-red-600 bg-red-100'
-      }
+        class: 'text-red-600 bg-red-100',
+      };
     default:
       return {
-        class: 'text-blue-600 bg-blue-100'
-      }
+        class: 'text-blue-600 bg-blue-100',
+      };
   }
-})
+});
 
 const statusTitle = computed(() => {
   switch (verificationStatus.value) {
     case 'success':
-      return isNewAccount.value ? 'Account Created!' : 'Welcome Back!'
+      return isNewAccount.value ? 'Account Created!' : 'Welcome Back!';
     case 'error':
-      return 'Verification Failed'
+      return 'Verification Failed';
     default:
-      return 'Verifying...'
+      return 'Verifying...';
   }
-})
+});
 
 const statusMessage = computed(() => {
-  if (message.value) return message.value
-  
+  if (message.value) return message.value;
+
   switch (verificationStatus.value) {
     case 'success':
-      return isNewAccount.value 
+      return isNewAccount.value
         ? 'Your account has been created successfully. You can now submit artwork and sync across devices.'
-        : 'You have been signed in successfully. Your submissions are now synced across devices.'
+        : 'You have been signed in successfully. Your submissions are now synced across devices.';
     case 'error':
-      return error.value || 'The magic link is invalid or has expired. Please request a new one.'
+      return error.value || 'The magic link is invalid or has expired. Please request a new one.';
     default:
-      return 'Please wait while we verify your magic link...'
+      return 'Please wait while we verify your magic link...';
   }
-})
+});
 
 // Lifecycle
 onMounted(() => {
-  const token = route.query.token as string
-  
+  const token = route.query.token as string;
+
   if (!token) {
-    verificationStatus.value = 'error'
-    message.value = 'No verification token provided'
-    isVerifying.value = false
-    return
+    verificationStatus.value = 'error';
+    message.value = 'No verification token provided';
+    isVerifying.value = false;
+    return;
   }
 
-  performVerification(token)
-})
+  performVerification(token);
+});
 
 // Methods
 async function performVerification(token: string): Promise<void> {
   try {
-    const result = await verifyMagicLink(token)
-    
+    const result = await verifyMagicLink(token);
+
     if (result.success) {
-      verificationStatus.value = 'success'
-      message.value = result.message
-      isNewAccount.value = result.isNewAccount || false
-      
+      verificationStatus.value = 'success';
+      message.value = result.message;
+      isNewAccount.value = result.isNewAccount || false;
+
       // CRITICAL: Re-initialize auth state after successful verification
       // This ensures localStorage, user state, and backend session are all synchronized
-      console.log('[MAGIC LINK VERIFY] Initializing auth state after successful verification')
-      await initAuth()
-      console.log('[MAGIC LINK VERIFY] Auth state re-initialized successfully')
-      
+      console.log('[MAGIC LINK VERIFY] Initializing auth state after successful verification');
+      await initAuth();
+      console.log('[MAGIC LINK VERIFY] Auth state re-initialized successfully');
+
       // Start countdown for redirect
-      startRedirectCountdown()
+      startRedirectCountdown();
     } else {
-      verificationStatus.value = 'error'
-      message.value = result.message
+      verificationStatus.value = 'error';
+      message.value = result.message;
     }
   } catch (err) {
-    verificationStatus.value = 'error'
-    message.value = 'An unexpected error occurred during verification'
+    verificationStatus.value = 'error';
+    message.value = 'An unexpected error occurred during verification';
   } finally {
-    isVerifying.value = false
+    isVerifying.value = false;
   }
 }
 
 function startRedirectCountdown(): void {
   const interval = setInterval(() => {
-    redirectCountdown.value--
-    
+    redirectCountdown.value--;
+
     if (redirectCountdown.value <= 0) {
-      clearInterval(interval)
-      redirectToProfile()
+      clearInterval(interval);
+      redirectToProfile();
     }
-  }, 1000)
+  }, 1000);
 }
 
 function redirectToProfile(): void {
-  router.push('/profile')
+  router.push('/profile');
 }
 
 function redirectToHome(): void {
-  router.push('/')
+  router.push('/');
 }
 
 function redirectToSubmit(): void {
-  router.push('/submit')
+  router.push('/submit');
 }
 </script>
 
@@ -140,41 +140,56 @@ function redirectToSubmit(): void {
       <div class="bg-white py-8 px-4 shadow sm:rounded-lg sm:px-10">
         <div class="text-center">
           <!-- Status Icon -->
-          <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full mb-6" :class="statusIcon.class">
+          <div
+            class="mx-auto flex h-16 w-16 items-center justify-center rounded-full mb-6"
+            :class="statusIcon.class"
+          >
             <!-- Success Icon -->
-            <svg 
-              v-if="verificationStatus === 'success'" 
-              class="h-8 w-8" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke-width="1.5" 
+            <svg
+              v-if="verificationStatus === 'success'"
+              class="h-8 w-8"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
               stroke="currentColor"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
-            
+
             <!-- Error Icon -->
-            <svg 
-              v-else-if="verificationStatus === 'error'" 
-              class="h-8 w-8" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke-width="1.5" 
+            <svg
+              v-else-if="verificationStatus === 'error'"
+              class="h-8 w-8"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
               stroke="currentColor"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"
+              />
             </svg>
-            
+
             <!-- Loading Icon -->
-            <svg 
+            <svg
               v-else
-              class="h-8 w-8 animate-spin" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke-width="1.5" 
+              class="h-8 w-8 animate-spin"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="1.5"
               stroke="currentColor"
             >
-              <path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+              />
             </svg>
           </div>
 
@@ -249,8 +264,8 @@ function redirectToSubmit(): void {
             <!-- Help text -->
             <div class="bg-yellow-50 rounded-md p-3">
               <p class="text-xs text-yellow-800">
-                If you continue to have issues, please try requesting a new magic link 
-                or contact support if the problem persists.
+                If you continue to have issues, please try requesting a new magic link or contact
+                support if the problem persists.
               </p>
             </div>
           </div>
@@ -258,9 +273,7 @@ function redirectToSubmit(): void {
           <!-- Loading state -->
           <div v-else class="space-y-4">
             <div class="bg-blue-50 rounded-md p-3">
-              <p class="text-sm text-blue-800">
-                This may take a few moments...
-              </p>
+              <p class="text-sm text-blue-800">This may take a few moments...</p>
             </div>
           </div>
         </div>
@@ -278,8 +291,12 @@ function redirectToSubmit(): void {
 
 <style scoped>
 @keyframes spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .animate-spin {

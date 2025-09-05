@@ -1,29 +1,40 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue'
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
-import { Bars3Icon, XMarkIcon, PlusIcon, UserIcon, QuestionMarkCircleIcon, ClipboardDocumentListIcon, MapIcon, ArrowLeftOnRectangleIcon, ShieldCheckIcon, MagnifyingGlassIcon } from '@heroicons/vue/24/outline'
-import { useAuthStore } from '../stores/auth'
-import AuthModal from './AuthModal.vue'
-import LiveRegion from './LiveRegion.vue'
-import type { NavigationItem } from '../types'
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from 'vue';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
+import {
+  Bars3Icon,
+  XMarkIcon,
+  PlusIcon,
+  UserIcon,
+  QuestionMarkCircleIcon,
+  ClipboardDocumentListIcon,
+  MapIcon,
+  ArrowLeftOnRectangleIcon,
+  ShieldCheckIcon,
+  MagnifyingGlassIcon,
+} from '@heroicons/vue/24/outline';
+import { useAuthStore } from '../stores/auth';
+import AuthModal from './AuthModal.vue';
+import LiveRegion from './LiveRegion.vue';
+import type { NavigationItem } from '../types';
 
 // Props
 interface Props {
-  title?: string
+  title?: string;
 }
 
-defineProps<Props>()
+defineProps<Props>();
 
 // State
-const showDrawer = ref(false)
-const showAuthModal = ref(false)
-const authMode = ref<'login' | 'signup'>('login')
-const route = useRoute()
-const router = useRouter()
-const authStore = useAuthStore()
+const showDrawer = ref(false);
+const showAuthModal = ref(false);
+const authMode = ref<'login' | 'signup'>('login');
+const route = useRoute();
+const router = useRouter();
+const authStore = useAuthStore();
 
 // Refs for focus management
-const drawerCloseButton = ref<HTMLElement>()
+const drawerCloseButton = ref<HTMLElement>();
 // Note: firstNavLink ref is defined but not used - keeping for future drawer focus enhancement
 
 // Navigation items
@@ -31,118 +42,120 @@ const navigationItems: NavigationItem[] = [
   {
     name: 'Map',
     path: '/',
-    icon: MapIcon
+    icon: MapIcon,
   },
   {
     name: 'Search',
     path: '/search',
-    icon: MagnifyingGlassIcon
+    icon: MagnifyingGlassIcon,
   },
   {
     name: 'Add',
     path: '/submit',
-    icon: PlusIcon
+    icon: PlusIcon,
   },
   {
     name: 'Moderate',
     path: '/review',
     icon: ClipboardDocumentListIcon,
-    requiresReviewer: true
+    requiresReviewer: true,
   },
   {
     name: 'Admin',
     path: '/admin',
     icon: ShieldCheckIcon,
-    requiresAdmin: true
+    requiresAdmin: true,
   },
   {
     name: 'Help',
     path: '/help',
-    icon: QuestionMarkCircleIcon
-  }
-]
+    icon: QuestionMarkCircleIcon,
+  },
+];
 
 // Computed
 const visibleNavItems = computed(() => {
   return navigationItems.filter(item => {
     // Hide auth-required items if not authenticated
     if (item.requiresAuth && !authStore.isAuthenticated) {
-      return false
+      return false;
     }
-    
+
     // Hide reviewer-only items if not a reviewer
     if (item.requiresReviewer && !authStore.isReviewer) {
-      return false
+      return false;
     }
-    
+
     // Hide admin-only items if not an admin
     if (item.requiresAdmin && !authStore.isAdmin) {
-      return false
+      return false;
     }
-    
-    return true
-  })
-})
+
+    return true;
+  });
+});
 
 const userDisplayName = computed(() => {
-  if (!authStore.user) return 'Anonymous'
+  if (!authStore.user) return 'Anonymous';
   if (authStore.user.emailVerified && authStore.user.email) {
-    return authStore.user.email
+    return authStore.user.email;
   }
-  return `Anonymous (${authStore.user.id.slice(0, 8)}...)`
-})
+  return `Anonymous (${authStore.user.id.slice(0, 8)}...)`;
+});
 
 // Methods
 function toggleDrawer(): void {
-  showDrawer.value = !showDrawer.value
-  
+  showDrawer.value = !showDrawer.value;
+
   // Focus management when opening/closing drawer
   if (showDrawer.value) {
-    focusFirstDrawerElement()
+    focusFirstDrawerElement();
   }
 }
 
 function closeDrawer(): void {
-  const wasOpen = showDrawer.value
-  showDrawer.value = false
-  
+  const wasOpen = showDrawer.value;
+  showDrawer.value = false;
+
   // Return focus to mobile menu button when closing drawer
   if (wasOpen) {
     nextTick(() => {
-      const menuButton = document.querySelector('[aria-label="Open navigation menu"]') as HTMLElement
-      menuButton?.focus()
-    })
+      const menuButton = document.querySelector(
+        '[aria-label="Open navigation menu"]'
+      ) as HTMLElement;
+      menuButton?.focus();
+    });
   }
 }
 
 // Authentication methods
 function openAuthModal(mode: 'login' | 'signup' = 'login'): void {
-  authMode.value = mode
-  showAuthModal.value = true
+  authMode.value = mode;
+  showAuthModal.value = true;
 }
 
 function closeAuthModal(): void {
-  showAuthModal.value = false
+  showAuthModal.value = false;
 }
 
 function handleAuthSuccess(payload: { isNewAccount: boolean; email: string }): void {
-  closeAuthModal()
+  closeAuthModal();
   // Could show success toast here if needed
-  console.log('Authentication successful:', payload)
+  console.log('Authentication successful:', payload);
 }
 
 async function handleLogout(): Promise<void> {
   // Show logout confirmation as per PRD requirements
-  const confirmed = confirm('Are you sure you want to sign out?')
+  const confirmed = confirm('Are you sure you want to sign out?');
   if (!confirmed) {
-    return
+    return;
   }
 
   try {
-    await authStore.logout()
+    await authStore.logout();
     // Could show logout success message here
   } catch (error) {
-    console.error('Logout failed:', error)
+    console.error('Logout failed:', error);
   }
 }
 
@@ -150,88 +163,90 @@ async function handleLogout(): Promise<void> {
 function handleHomeNavigation(): void {
   // Check if we're already on the map page
   if (route.path === '/') {
-    return
+    return;
   }
-  
+
   // Check for dirty forms
-  const isDirty = checkForDirtyForms()
-  
+  const isDirty = checkForDirtyForms();
+
   if (isDirty) {
-    const confirmed = confirm('You have unsaved changes. Are you sure you want to leave this page?')
+    const confirmed = confirm(
+      'You have unsaved changes. Are you sure you want to leave this page?'
+    );
     if (!confirmed) {
-      return
+      return;
     }
   }
-  
+
   // Navigate to map
-  router.push('/')
+  router.push('/');
 }
 
 // Check for dirty forms in the current view
 function checkForDirtyForms(): boolean {
   // Look for forms with data-dirty attribute or common form indicators
-  const forms = document.querySelectorAll('form')
-  
+  const forms = document.querySelectorAll('form');
+
   for (const form of forms) {
     // Check if form has been marked as dirty
     if (form.hasAttribute('data-dirty') && form.getAttribute('data-dirty') === 'true') {
-      return true
+      return true;
     }
-    
+
     // Check for input values that might indicate unsaved changes
-    const inputs = form.querySelectorAll('input, textarea, select')
+    const inputs = form.querySelectorAll('input, textarea, select');
     for (const input of inputs) {
       if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
         // Skip empty inputs and default values
         if (input.value && input.value !== input.defaultValue) {
-          return true
+          return true;
         }
       } else if (input instanceof HTMLSelectElement) {
         if (input.selectedIndex !== 0) {
-          return true
+          return true;
         }
       }
     }
   }
-  
-  return false
+
+  return false;
 }
 
 // Enhanced keyboard navigation
 function handleKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape' && showDrawer.value) {
-    closeDrawer()
-    return
+    closeDrawer();
+    return;
   }
-  
+
   // Handle tab trapping in drawer when open
   if (showDrawer.value && event.key === 'Tab') {
-    handleTabTrapping(event)
+    handleTabTrapping(event);
   }
 }
 
 // Tab trapping for modal accessibility
 function handleTabTrapping(event: KeyboardEvent): void {
-  const drawer = document.querySelector('[role="dialog"]') as HTMLElement
-  if (!drawer) return
-  
+  const drawer = document.querySelector('[role="dialog"]') as HTMLElement;
+  if (!drawer) return;
+
   const focusableElements = drawer.querySelectorAll(
     'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-  )
-  const firstElement = focusableElements[0] as HTMLElement
-  const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
-  
+  );
+  const firstElement = focusableElements[0] as HTMLElement;
+  const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
   if (event.shiftKey) {
     // Shift+Tab: moving backwards
     if (document.activeElement === firstElement) {
-      event.preventDefault()
-      lastElement.focus()
+      event.preventDefault();
+      lastElement.focus();
     }
   } else {
     // Tab: moving forwards
     if (document.activeElement === lastElement) {
-      event.preventDefault()
-      firstElement.focus()
+      event.preventDefault();
+      firstElement.focus();
     }
   }
 }
@@ -239,34 +254,34 @@ function handleTabTrapping(event: KeyboardEvent): void {
 // Focus management for drawer
 function focusFirstDrawerElement(): void {
   nextTick(() => {
-    const firstNavLink = document.querySelector('.drawer-link') as HTMLElement
-    firstNavLink?.focus()
-  })
+    const firstNavLink = document.querySelector('.drawer-link') as HTMLElement;
+    firstNavLink?.focus();
+  });
 }
 
 // Close drawer on route change
 function handleRouteChange(): void {
-  closeDrawer()
+  closeDrawer();
 }
 
 // Lifecycle
 onMounted(() => {
-  document.addEventListener('keydown', handleKeydown)
-})
+  document.addEventListener('keydown', handleKeydown);
+});
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
-})
+  document.removeEventListener('keydown', handleKeydown);
+});
 
 // Watch route changes
-watch(() => route.path, handleRouteChange)
+watch(() => route.path, handleRouteChange);
 </script>
 
 <template>
   <div class="app-shell">
     <!-- Skip Navigation Link for Accessibility -->
-    <a 
-      href="#main-content" 
+    <a
+      href="#main-content"
       class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-blue-600 focus:text-white focus:rounded-md"
     >
       Skip to main content
@@ -308,7 +323,7 @@ watch(() => route.path, handleRouteChange)
               {{ item.name }}
             </RouterLink>
           </nav>
-          
+
           <!-- User Menu -->
           <div class="flex items-center space-x-3 border-l border-blue-500 pl-4">
             <!-- User Profile Button -->
@@ -321,14 +336,14 @@ watch(() => route.path, handleRouteChange)
               <UserIcon class="w-5 h-5" aria-hidden="true" />
               <span>{{ userDisplayName }}</span>
             </button>
-            
+
             <!-- Anonymous User Display -->
             <div v-else class="text-right">
               <div class="text-sm font-medium text-white">
                 {{ userDisplayName }}
               </div>
             </div>
-            
+
             <!-- Auth Actions -->
             <div class="flex items-center space-x-2">
               <template v-if="!authStore.isAuthenticated">
@@ -412,26 +427,26 @@ watch(() => route.path, handleRouteChange)
           v-bind="index === 0 ? { ref: 'firstNavLink' } : {}"
           :to="item.path"
           class="drawer-link flex items-center px-4 py-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 focus:bg-blue-50 focus:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
-          :class="{ 'bg-blue-100 text-blue-600 border-r-4 border-blue-600': $route.path === item.path }"
+          :class="{
+            'bg-blue-100 text-blue-600 border-r-4 border-blue-600': $route.path === item.path,
+          }"
           :aria-current="$route.path === item.path ? 'page' : undefined"
           @click="closeDrawer"
         >
-          <component
-            v-if="item.icon"
-            :is="item.icon"
-            class="w-5 h-5 mr-3"
-            aria-hidden="true"
-          />
+          <component v-if="item.icon" :is="item.icon" class="w-5 h-5 mr-3" aria-hidden="true" />
           <span class="font-medium">{{ item.name }}</span>
         </RouterLink>
-        
+
         <!-- Authentication Section in Mobile Drawer -->
         <div class="border-t border-gray-200 mt-4 pt-4">
           <!-- User Status -->
           <div class="px-4 py-2">
             <button
               v-if="authStore.isAuthenticated"
-              @click="$router.push('/profile'); closeDrawer()"
+              @click="
+                $router.push('/profile');
+                closeDrawer();
+              "
               class="w-full flex items-center space-x-2 px-3 py-2 text-left text-sm font-medium text-gray-900 hover:bg-gray-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
               :title="`View profile for ${userDisplayName}`"
             >
@@ -440,11 +455,14 @@ watch(() => route.path, handleRouteChange)
             </button>
             <div v-else class="text-sm font-medium text-gray-900">{{ userDisplayName }}</div>
           </div>
-          
+
           <!-- Auth Actions -->
           <div v-if="!authStore.isAuthenticated" class="px-4 py-2 space-y-2">
             <button
-              @click="openAuthModal('login'); closeDrawer()"
+              @click="
+                openAuthModal('login');
+                closeDrawer();
+              "
               class="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               Sign In
@@ -452,7 +470,10 @@ watch(() => route.path, handleRouteChange)
           </div>
           <div v-else class="px-4 py-2">
             <button
-              @click="handleLogout(); closeDrawer()"
+              @click="
+                handleLogout();
+                closeDrawer();
+              "
               class="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-inset"
             >
               <ArrowLeftOnRectangleIcon class="w-4 h-4 mr-2" aria-hidden="true" />
@@ -464,9 +485,7 @@ watch(() => route.path, handleRouteChange)
 
       <!-- Drawer Footer -->
       <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
-        <div class="text-sm text-gray-600 text-center">
-          Cultural Archiver v1.0
-        </div>
+        <div class="text-sm text-gray-600 text-center">Cultural Archiver v1.0</div>
       </div>
     </div>
 
@@ -477,7 +496,7 @@ watch(() => route.path, handleRouteChange)
 
     <!-- Global Live Region for Screen Reader Announcements -->
     <LiveRegion />
-    
+
     <!-- Authentication Modal -->
     <AuthModal
       :is-open="showAuthModal"

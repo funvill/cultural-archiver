@@ -1,5 +1,5 @@
-import { config } from '@vue/test-utils'
-import { vi, beforeEach } from 'vitest'
+import { config } from '@vue/test-utils';
+import { vi, beforeEach } from 'vitest';
 
 // Mock Vue Router
 config.global.mocks = {
@@ -15,13 +15,13 @@ config.global.mocks = {
     back: vi.fn(),
     forward: vi.fn(),
   },
-}
+};
 
 // Global test setup
 beforeEach(() => {
   // Reset all mocks before each test
-  vi.clearAllMocks()
-})
+  vi.clearAllMocks();
+});
 
 // Mock window.matchMedia for responsive design tests
 Object.defineProperty(window, 'matchMedia', {
@@ -36,7 +36,7 @@ Object.defineProperty(window, 'matchMedia', {
     removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   })),
-})
+});
 
 // Mock navigator.geolocation
 Object.defineProperty(navigator, 'geolocation', {
@@ -46,21 +46,21 @@ Object.defineProperty(navigator, 'geolocation', {
     watchPosition: vi.fn(),
     clearWatch: vi.fn(),
   },
-})
+});
 
 // Mock IntersectionObserver
 global.IntersectionObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   disconnect: vi.fn(),
   unobserve: vi.fn(),
-}))
+}));
 
 // Mock ResizeObserver
 global.ResizeObserver = vi.fn().mockImplementation(() => ({
   observe: vi.fn(),
   disconnect: vi.fn(),
   unobserve: vi.fn(),
-}))
+}));
 
 // Mock fetch API for API service tests
 global.fetch = vi.fn().mockImplementation((url: string) => {
@@ -74,10 +74,10 @@ global.fetch = vi.fn().mockImplementation((url: string) => {
       json: vi.fn().mockResolvedValue({ token: 'mock-token-123' }),
       text: vi.fn().mockResolvedValue('{"token":"mock-token-123"}'),
       url: url,
-      clone: vi.fn()
-    } as unknown as Response)
+      clone: vi.fn(),
+    } as unknown as Response);
   }
-  
+
   // Default response
   return Promise.resolve({
     ok: true,
@@ -87,16 +87,16 @@ global.fetch = vi.fn().mockImplementation((url: string) => {
     json: vi.fn().mockResolvedValue({}),
     text: vi.fn().mockResolvedValue('{}'),
     url: url,
-    clone: vi.fn()
-  } as unknown as Response)
-})
+    clone: vi.fn(),
+  } as unknown as Response);
+});
 
 // Mock import.meta.env for API configuration
 Object.defineProperty(import.meta, 'env', {
   value: {
     PROD: false,
     MODE: 'test',
-    VITE_API_TIMEOUT: '30000'
+    VITE_API_TIMEOUT: '30000',
   },
-  writable: true
-})
+  writable: true,
+});

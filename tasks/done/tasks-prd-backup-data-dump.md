@@ -5,7 +5,7 @@
 - `src/workers/lib/backup.ts` - Core backup system logic for database and R2 photo collection
 - `src/workers/lib/backup.test.ts` - Unit tests for backup functionality
 - `src/workers/lib/data-dump.ts` - Data dump generation logic with data filtering and JSON export
-- `src/workers/lib/data-dump.test.ts` - Unit tests for data dump functionality  
+- `src/workers/lib/data-dump.test.ts` - Unit tests for data dump functionality
 - `src/workers/routes/admin.ts` - Extend existing admin routes with data dump endpoint
 - `src/workers/routes/admin.test.ts` - Unit tests for admin data dump endpoint
 - `src/workers/lib/archive.ts` - ZIP archive creation utilities for both backup and data dump
@@ -37,7 +37,7 @@
   - [x] 1.5 Add error handling for memory limits and file size constraints during ZIP creation
   - [x] 1.6 Create comprehensive unit tests in `src/workers/lib/archive.test.ts` covering ZIP creation and error scenarios
 
-- [x] 2.0 Implement Backup System Infrastructure  
+- [x] 2.0 Implement Backup System Infrastructure
   - [x] 2.1 Create `src/workers/lib/backup.ts` with complete system backup logic
   - [x] 2.2 Implement `generateDatabaseDump(db: D1Database)` to export complete SQL dump with all tables and data
   - [x] 2.3 Add `collectR2Photos(env: WorkerEnv)` to retrieve all photos (originals and thumbnails) from R2 bucket

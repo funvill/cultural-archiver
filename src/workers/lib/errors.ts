@@ -50,9 +50,12 @@ export class ValidationApiError extends ApiError {
   constructor(validationErrors: ValidationError[], message?: string) {
     // Use the first validation error's message if only one error and no custom message
     const firstError = validationErrors[0];
-    const finalMessage = message || 
-      (validationErrors.length === 1 && firstError?.message ? firstError.message : 'Validation failed');
-    
+    const finalMessage =
+      message ||
+      (validationErrors.length === 1 && firstError?.message
+        ? firstError.message
+        : 'Validation failed');
+
     super(finalMessage, 'VALIDATION_ERROR', 400, {
       validationErrors,
       showDetails: true,
@@ -236,7 +239,7 @@ export function sendErrorResponse(
   const apiResponse = {
     ...createApiErrorResponse(errorResponse.error, errorResponse.message),
     ...(errorResponse.details && { details: errorResponse.details }),
-    ...(errorResponse.show_details !== undefined && { show_details: errorResponse.show_details })
+    ...(errorResponse.show_details !== undefined && { show_details: errorResponse.show_details }),
   };
 
   // Add special headers for rate limiting

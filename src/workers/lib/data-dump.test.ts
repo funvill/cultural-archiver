@@ -51,7 +51,7 @@ describe('Data Dump System', () => {
   describe('filterApprovedArtwork', () => {
     it('should filter and return only approved artwork', async () => {
       const mockPrepare = mockDb.prepare as MockedFunction<any>;
-      
+
       mockPrepare.mockReturnValue({
         all: vi.fn().mockResolvedValue({
           success: true,
@@ -101,7 +101,7 @@ describe('Data Dump System', () => {
 
     it('should handle database query failure', async () => {
       const mockPrepare = mockDb.prepare as MockedFunction<any>;
-      
+
       mockPrepare.mockReturnValue({
         all: vi.fn().mockResolvedValue({
           success: false,
@@ -117,7 +117,7 @@ describe('Data Dump System', () => {
 
     it('should handle malformed JSON in tags and photos gracefully', async () => {
       const mockPrepare = mockDb.prepare as MockedFunction<any>;
-      
+
       mockPrepare.mockReturnValue({
         all: vi.fn().mockResolvedValue({
           success: true,
@@ -143,7 +143,7 @@ describe('Data Dump System', () => {
 
       expect(result.success).toBe(true);
       expect(result.artworks).toHaveLength(1);
-      
+
       const artwork = result.artworks![0];
       expect(artwork.tags).toBeUndefined();
       expect(artwork.photos).toBeUndefined();
@@ -208,7 +208,7 @@ describe('Data Dump System', () => {
   describe('exportArtworkAsJSON', () => {
     it('should export artwork as formatted JSON', async () => {
       const mockPrepare = mockDb.prepare as MockedFunction<any>;
-      
+
       mockPrepare.mockReturnValue({
         all: vi.fn().mockResolvedValue({
           success: true,
@@ -241,7 +241,7 @@ describe('Data Dump System', () => {
 
     it('should handle filtering failure', async () => {
       const mockPrepare = mockDb.prepare as MockedFunction<any>;
-      
+
       mockPrepare.mockReturnValue({
         all: vi.fn().mockResolvedValue({
           success: false,
@@ -258,7 +258,7 @@ describe('Data Dump System', () => {
   describe('exportCreatorsAsJSON', () => {
     it('should export creators as formatted JSON', async () => {
       const mockPrepare = mockDb.prepare as MockedFunction<any>;
-      
+
       mockPrepare.mockReturnValue({
         all: vi.fn().mockResolvedValue({
           success: true,
@@ -293,7 +293,7 @@ describe('Data Dump System', () => {
 
     it('should handle database query failure', async () => {
       const mockPrepare = mockDb.prepare as MockedFunction<any>;
-      
+
       mockPrepare.mockReturnValue({
         all: vi.fn().mockResolvedValue({
           success: false,
@@ -310,7 +310,7 @@ describe('Data Dump System', () => {
   describe('exportTagsAsJSON', () => {
     it('should export tags for approved artwork only', async () => {
       const mockPrepare = mockDb.prepare as MockedFunction<any>;
-      
+
       mockPrepare.mockReturnValue({
         all: vi.fn().mockResolvedValue({
           success: true,
@@ -346,7 +346,7 @@ describe('Data Dump System', () => {
   describe('exportArtworkCreatorsAsJSON', () => {
     it('should export artwork-creator relationships', async () => {
       const mockPrepare = mockDb.prepare as MockedFunction<any>;
-      
+
       mockPrepare.mockReturnValue({
         all: vi.fn().mockResolvedValue({
           success: true,
@@ -383,7 +383,7 @@ describe('Data Dump System', () => {
   describe('collectThumbnailPhotos', () => {
     it('should collect thumbnail photos from approved artwork', async () => {
       const mockBucket = mockEnv.PHOTOS_BUCKET as any;
-      
+
       const approvedArtwork: ExportArtworkData[] = [
         {
           id: '123',
@@ -402,14 +402,12 @@ describe('Data Dump System', () => {
           lon: -123.0,
           type_id: 'test',
           created_at: '2024-01-01T12:00:00Z',
-          photos: [
-            'https://photos.domain.com/photos/thumbnails/artwork_456_800.jpg',
-          ],
+          photos: ['https://photos.domain.com/photos/thumbnails/artwork_456_800.jpg'],
         },
       ];
 
       // Mock successful photo downloads
-      const mockImageData = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0]); // JPEG header
+      const mockImageData = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]); // JPEG header
       mockBucket.get.mockResolvedValue({
         arrayBuffer: vi.fn().mockResolvedValue(mockImageData.buffer),
       });
@@ -430,7 +428,7 @@ describe('Data Dump System', () => {
 
     it('should handle missing PHOTOS_BUCKET', async () => {
       const envWithoutBucket = { ...mockEnv, PHOTOS_BUCKET: undefined };
-      
+
       const result = await collectThumbnailPhotos(envWithoutBucket as WorkerEnv, []);
 
       expect(result.success).toBe(false);
@@ -439,7 +437,7 @@ describe('Data Dump System', () => {
 
     it('should handle failed photo downloads gracefully', async () => {
       const mockBucket = mockEnv.PHOTOS_BUCKET as any;
-      
+
       const approvedArtwork: ExportArtworkData[] = [
         {
           id: '123',
@@ -455,7 +453,7 @@ describe('Data Dump System', () => {
       ];
 
       // First photo succeeds, second fails
-      const mockImageData = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0]);
+      const mockImageData = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
       mockBucket.get
         .mockResolvedValueOnce({
           arrayBuffer: vi.fn().mockResolvedValue(mockImageData.buffer),
@@ -486,7 +484,7 @@ describe('Data Dump System', () => {
         },
       ];
 
-      const mockImageData = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0]);
+      const mockImageData = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
       const mockBucket = mockEnv.PHOTOS_BUCKET as any;
       mockBucket.get.mockResolvedValue({
         arrayBuffer: vi.fn().mockResolvedValue(mockImageData.buffer),
@@ -554,9 +552,7 @@ describe('Data Dump System', () => {
       const creatorsJson = JSON.stringify([{ id: '456', name: 'Artist' }]);
       const tagsJson = JSON.stringify([{ id: '789', label: 'material' }]);
       const relationshipsJson = JSON.stringify([{ artwork_id: '123', creator_id: '456' }]);
-      const photos = [
-        { path: 'photo1.jpg', content: new Uint8Array([1, 2, 3]).buffer },
-      ];
+      const photos = [{ path: 'photo1.jpg', content: new Uint8Array([1, 2, 3]).buffer }];
       const metadata: DataDumpMetadata = {
         version: '1.0.0',
         generated_at: '2024-01-01T12:00:00Z',
@@ -564,7 +560,11 @@ describe('Data Dump System', () => {
         source: 'Test',
         description: 'Test data dump',
         data_info: { total_artworks: 1, total_creators: 1, total_tags: 1, total_photos: 1 },
-        filter_info: { status_filter: 'approved', excluded_fields: [], photo_types: 'thumbnails_only' },
+        filter_info: {
+          status_filter: 'approved',
+          excluded_fields: [],
+          photo_types: 'thumbnails_only',
+        },
         file_structure: {},
       };
 
@@ -583,10 +583,10 @@ describe('Data Dump System', () => {
       // Verify that createZipArchive was called with correct files
       const { createZipArchive } = await import('./archive');
       expect(createZipArchive).toHaveBeenCalled();
-      
+
       const callArgs = (createZipArchive as any).mock.calls[0];
       const archiveFiles = callArgs[0];
-      
+
       // Should include all required files
       expect(archiveFiles).toEqual(
         expect.arrayContaining([
@@ -708,7 +708,7 @@ describe('Data Dump System', () => {
 
       expect(result.success).toBe(true);
       expect(result.filename).toMatch(/^datadump-\d{4}-\d{2}-\d{2}\.zip$/);
-      
+
       // Should use date format (not datetime)
       expect(result.filename).not.toContain('T');
       expect(result.filename).not.toContain(':');
@@ -755,8 +755,9 @@ describe('Data Dump System', () => {
       const { createZipArchive } = await import('./archive');
       (createZipArchive as any).mockRejectedValueOnce(new Error('Archive creation failed'));
 
-      await expect(createDataDumpArchive('{}', '{}', '{}', '{}', [], {} as DataDumpMetadata))
-        .rejects.toThrow('Failed to create data dump archive');
+      await expect(
+        createDataDumpArchive('{}', '{}', '{}', '{}', [], {} as DataDumpMetadata)
+      ).rejects.toThrow('Failed to create data dump archive');
     });
   });
 
@@ -807,8 +808,26 @@ describe('Data Dump System', () => {
         all: vi.fn().mockResolvedValue({
           success: true,
           results: [
-            { id: '1', lat: 49.0, lon: -123.0, type_id: 'test', created_at: '2024-01-01T12:00:00Z', tags: '{}', photos: '[]', type_name: 'Test' }, 
-            { id: '2', lat: 49.1, lon: -123.1, type_id: 'test', created_at: '2024-01-02T12:00:00Z', tags: '{}', photos: '[]', type_name: 'Test' }
+            {
+              id: '1',
+              lat: 49.0,
+              lon: -123.0,
+              type_id: 'test',
+              created_at: '2024-01-01T12:00:00Z',
+              tags: '{}',
+              photos: '[]',
+              type_name: 'Test',
+            },
+            {
+              id: '2',
+              lat: 49.1,
+              lon: -123.1,
+              type_id: 'test',
+              created_at: '2024-01-02T12:00:00Z',
+              tags: '{}',
+              photos: '[]',
+              type_name: 'Test',
+            },
           ], // 2 items
         }),
       });
@@ -822,7 +841,7 @@ describe('Data Dump System', () => {
 
       expect(result.success).toBe(true);
       expect(result.metadata).toBeDefined();
-      
+
       const metadata = result.metadata!;
       expect(metadata.version).toBeDefined();
       expect(metadata.generated_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);

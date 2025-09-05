@@ -1,108 +1,114 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import { useAuth } from '../composables/useAuth'
+import { ref, computed, watch } from 'vue';
+import { useAuth } from '../composables/useAuth';
 
 interface Props {
-  isOpen: boolean
-  mode?: 'login' | 'signup'
+  isOpen: boolean;
+  mode?: 'login' | 'signup';
 }
 
 interface Emits {
-  (e: 'close'): void
-  (e: 'success', payload: { isNewAccount: boolean; email: string }): void
+  (e: 'close'): void;
+  (e: 'success', payload: { isNewAccount: boolean; email: string }): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  mode: 'login'
-})
+  mode: 'login',
+});
 
-const emit = defineEmits<Emits>()
+const emit = defineEmits<Emits>();
 
 // Composables
-const { requestMagicLink, isLoading, error, clearError } = useAuth()
+const { requestMagicLink, isLoading, error, clearError } = useAuth();
 
 // State
-const email = ref('')
-const currentStep = ref<'email' | 'sent' | 'verifying'>('email')
-const emailError = ref<string | null>(null)
-const isSignup = ref(false)
+const email = ref('');
+const currentStep = ref<'email' | 'sent' | 'verifying'>('email');
+const emailError = ref<string | null>(null);
+const isSignup = ref(false);
 
 // Computed
 const modalTitle = computed(() => {
   switch (currentStep.value) {
     case 'email':
-      return 'Sign In'
+      return 'Sign In';
     case 'sent':
-      return 'Check Your Email'
+      return 'Check Your Email';
     case 'verifying':
-      return 'Verifying...'
+      return 'Verifying...';
     default:
-      return 'Authentication'
+      return 'Authentication';
   }
-})
+});
 
 const buttonText = computed(() => {
-  if (isLoading.value) return 'Sending...'
-  return 'Send Magic Link'
-})
+  if (isLoading.value) return 'Sending...';
+  return 'Send Magic Link';
+});
 
 // Watch for prop changes
-watch(() => props.mode, (newMode) => {
-  isSignup.value = newMode === 'signup'
-})
-
-watch(() => props.isOpen, (isOpen) => {
-  if (isOpen) {
-    currentStep.value = 'email'
-    email.value = ''
-    emailError.value = null
-    clearError()
-    isSignup.value = props.mode === 'signup'
+watch(
+  () => props.mode,
+  newMode => {
+    isSignup.value = newMode === 'signup';
   }
-})
+);
+
+watch(
+  () => props.isOpen,
+  isOpen => {
+    if (isOpen) {
+      currentStep.value = 'email';
+      email.value = '';
+      emailError.value = null;
+      clearError();
+      isSignup.value = props.mode === 'signup';
+    }
+  }
+);
 
 // Methods
 function validateEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email) && email.length <= 254
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email) && email.length <= 254;
 }
 
 async function handleSubmit(): Promise<void> {
-  clearError()
-  emailError.value = null
+  clearError();
+  emailError.value = null;
 
   // Validate email
   if (!email.value.trim()) {
-    emailError.value = 'Email address is required'
-    return
+    emailError.value = 'Email address is required';
+    return;
   }
 
   if (!validateEmail(email.value.trim())) {
-    emailError.value = 'Please enter a valid email address'
-    return
+    emailError.value = 'Please enter a valid email address';
+    return;
   }
 
   try {
-    const result = await requestMagicLink(email.value.trim())
-    
+    const result = await requestMagicLink(email.value.trim());
+
     if (result.success) {
-      currentStep.value = 'sent'
-      isSignup.value = result.isSignup || false
+      currentStep.value = 'sent';
+      isSignup.value = result.isSignup || false;
     } else {
-      emailError.value = result.message
+      emailError.value = result.message;
     }
   } catch (err) {
-    emailError.value = 'Failed to send magic link. Please try again.'
+    emailError.value = 'Failed to send magic link. Please try again.';
   }
 }
 
 function handleClose(): void {
-  emit('close')
+  emit('close');
 }
 
 function handleKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape') {
-    handleClose()
+    handleClose();
   }
 }
 </script>
@@ -137,7 +143,13 @@ function handleKeydown(event: KeyboardEvent): void {
               @click="handleClose"
             >
               <span class="sr-only">Close</span>
-              <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <svg
+                class="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke-width="1.5"
+                stroke="currentColor"
+              >
                 <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
@@ -155,7 +167,8 @@ function handleKeydown(event: KeyboardEvent): void {
               <div v-if="currentStep === 'email'" class="space-y-6">
                 <!-- Description -->
                 <p class="text-sm text-gray-600">
-                  Enter your email address to sign in or create an account. We'll send you a magic link to verify your identity.
+                  Enter your email address to sign in or create an account. We'll send you a magic
+                  link to verify your identity.
                 </p>
 
                 <!-- Form -->
@@ -171,7 +184,9 @@ function handleKeydown(event: KeyboardEvent): void {
                       autocomplete="email"
                       required
                       class="block w-full rounded-md border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                      :class="{ 'border-red-300 focus:border-red-500 focus:ring-red-500': emailError }"
+                      :class="{
+                        'border-red-300 focus:border-red-500 focus:ring-red-500': emailError,
+                      }"
                       placeholder="Enter your email address"
                       :disabled="isLoading"
                     />
@@ -195,8 +210,9 @@ function handleKeydown(event: KeyboardEvent): void {
                 <!-- Anonymous note -->
                 <div class="bg-blue-50 rounded-md p-3">
                   <p class="text-xs text-blue-800">
-                    <strong>Anonymous usage:</strong> You can submit artwork without an account. 
-                    Creating an account lets you claim your anonymous submissions and sync across devices.
+                    <strong>Anonymous usage:</strong> You can submit artwork without an account.
+                    Creating an account lets you claim your anonymous submissions and sync across
+                    devices.
                   </p>
                 </div>
               </div>
@@ -204,25 +220,33 @@ function handleKeydown(event: KeyboardEvent): void {
               <!-- Email sent step -->
               <div v-else-if="currentStep === 'sent'" class="text-center space-y-4">
                 <!-- Success icon -->
-                <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-                  <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
+                <div
+                  class="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-green-100"
+                >
+                  <svg
+                    class="h-6 w-6 text-green-600"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke-width="1.5"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75"
+                    />
                   </svg>
                 </div>
 
                 <div>
-                  <h4 class="text-lg font-medium text-gray-900 mb-2">
-                    Magic link sent!
-                  </h4>
-                  <p class="text-sm text-gray-600 mb-4">
-                    We've sent a magic link to:
-                  </p>
+                  <h4 class="text-lg font-medium text-gray-900 mb-2">Magic link sent!</h4>
+                  <p class="text-sm text-gray-600 mb-4">We've sent a magic link to:</p>
                   <p class="text-sm font-medium text-gray-900 mb-4">
                     {{ email }}
                   </p>
                   <p class="text-xs text-gray-500">
-                    Click the link in your email to complete authentication. 
-                    The link will expire in 1 hour.
+                    Click the link in your email to complete authentication. The link will expire in
+                    1 hour.
                   </p>
                 </div>
 

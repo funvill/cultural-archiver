@@ -50,18 +50,21 @@ src/frontend/
 The application implements comprehensive accessibility features:
 
 #### Keyboard Navigation
+
 - **Tab navigation**: All interactive elements are keyboard accessible
 - **Focus management**: Proper focus trapping in modal dialogs
 - **Escape handling**: Close modals and menus with Escape key
 - **Arrow keys**: Navigate through lists and map controls
 
 #### Screen Reader Support
+
 - **ARIA labels**: Descriptive labels for all UI elements
 - **Live regions**: Dynamic content announcements
 - **Landmark roles**: Proper semantic structure (navigation, main, etc.)
 - **Form accessibility**: Associated labels and error messages
 
 #### Visual Accessibility
+
 - **Color contrast**: Meets WCAG AA standards (4.5:1 ratio minimum)
 - **Focus indicators**: Clear visual focus rings for keyboard users
 - **Responsive text**: Scales properly at all zoom levels
@@ -70,32 +73,32 @@ The application implements comprehensive accessibility features:
 ### Implementation Examples
 
 #### Modal Dialog Focus Management
+
 ```typescript
 // useFocusManagement.ts
 export function useFocusManagement() {
   const trapFocus = (container: HTMLElement) => {
-    const focusableElements = container.querySelectorAll(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    )
-    const firstElement = focusableElements[0] as HTMLElement
-    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
-    
+    const focusableElements = container.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
+    const firstElement = focusableElements[0] as HTMLElement;
+    const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
     // Focus trapping logic...
-  }
+  };
 }
 ```
 
 #### Screen Reader Announcements
+
 ```typescript
 // useAnnouncer.ts
 export function useAnnouncer() {
   const announceToScreenReader = (message: string, priority: 'polite' | 'assertive' = 'polite') => {
-    const announcement = document.createElement('div')
-    announcement.setAttribute('aria-live', priority)
-    announcement.setAttribute('aria-atomic', 'true')
-    announcement.textContent = message
+    const announcement = document.createElement('div');
+    announcement.setAttribute('aria-live', priority);
+    announcement.setAttribute('aria-atomic', 'true');
+    announcement.textContent = message;
     // Implementation details...
-  }
+  };
 }
 ```
 
@@ -107,16 +110,22 @@ The design system starts with mobile (320px) and progressively enhances for larg
 
 ```css
 /* Base styles for mobile (320px+) */
-.container { padding: 1rem; }
+.container {
+  padding: 1rem;
+}
 
 /* Tablet (768px+) */
 @media (min-width: 768px) {
-  .container { padding: 2rem; }
+  .container {
+    padding: 2rem;
+  }
 }
 
 /* Desktop (1024px+) */
 @media (min-width: 1024px) {
-  .container { padding: 3rem; }
+  .container {
+    padding: 3rem;
+  }
 }
 ```
 
@@ -143,33 +152,35 @@ All interactive elements meet the minimum 44x44px touch target size:
 ### Pinia Stores
 
 #### Authentication Store (auth.ts)
+
 ```typescript
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref<User | null>(null)
-  const token = ref<string | null>(null)
-  const isAuthenticated = computed(() => !!token.value)
-  
+  const user = ref<User | null>(null);
+  const token = ref<string | null>(null);
+  const isAuthenticated = computed(() => !!token.value);
+
   const login = async (userToken: string) => {
-    token.value = userToken
-    await loadUserProfile()
-  }
-  
-  return { user, token, isAuthenticated, login }
-})
+    token.value = userToken;
+    await loadUserProfile();
+  };
+
+  return { user, token, isAuthenticated, login };
+});
 ```
 
 #### Artwork Store (artworks.ts)
+
 ```typescript
 export const useArtworksStore = defineStore('artworks', () => {
-  const artworks = ref<ArtworkPin[]>([])
-  const currentLocation = ref<Coordinates | null>(null)
-  
+  const artworks = ref<ArtworkPin[]>([]);
+  const currentLocation = ref<Coordinates | null>(null);
+
   const fetchNearbyArtworks = async (location: Coordinates) => {
     // Efficient caching and API integration
-  }
-  
-  return { artworks, currentLocation, fetchNearbyArtworks }
-})
+  };
+
+  return { artworks, currentLocation, fetchNearbyArtworks };
+});
 ```
 
 ## Component Patterns
@@ -180,23 +191,23 @@ Components use the `<script setup>` syntax with TypeScript:
 
 ```vue
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue';
 
 interface Props {
-  modelValue: string
-  required?: boolean
+  modelValue: string;
+  required?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  required: false
-})
+  required: false,
+});
 
 const emit = defineEmits<{
-  'update:modelValue': [value: string]
-  'submit': [data: FormData]
-}>()
+  'update:modelValue': [value: string];
+  submit: [data: FormData];
+}>();
 
-const isValid = computed(() => props.required ? !!props.modelValue : true)
+const isValid = computed(() => (props.required ? !!props.modelValue : true));
 </script>
 ```
 
@@ -225,13 +236,13 @@ class ApiClient {
     const response = await fetch(`${this.baseURL}${endpoint}`, {
       ...options,
       headers: this.createHeaders(options.headers),
-    })
-    
-    return this.handleResponse<T>(response)
+    });
+
+    return this.handleResponse<T>(response);
   }
-  
+
   async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: 'GET' })
+    return this.request<T>(endpoint, { method: 'GET' });
   }
 }
 ```
@@ -241,23 +252,23 @@ class ApiClient {
 ```typescript
 // composables/useApi.ts
 export function useApi<T>() {
-  const data = ref<T | null>(null)
-  const error = ref<string | null>(null)
-  const isLoading = ref(false)
-  
+  const data = ref<T | null>(null);
+  const error = ref<string | null>(null);
+  const isLoading = ref(false);
+
   const execute = async (apiCall: () => Promise<T>) => {
     try {
-      isLoading.value = true
-      error.value = null
-      data.value = await apiCall()
+      isLoading.value = true;
+      error.value = null;
+      data.value = await apiCall();
     } catch (err) {
-      error.value = getErrorMessage(err)
+      error.value = getErrorMessage(err);
     } finally {
-      isLoading.value = false
+      isLoading.value = false;
     }
-  }
-  
-  return { data, error, isLoading, execute }
+  };
+
+  return { data, error, isLoading, execute };
 }
 ```
 
@@ -272,13 +283,13 @@ Routes are lazy-loaded for optimal bundle sizes:
 const routes = [
   {
     path: '/',
-    component: () => import('../views/MapView.vue')
+    component: () => import('../views/MapView.vue'),
   },
   {
     path: '/submit',
-    component: () => import('../views/SubmitView.vue')
-  }
-]
+    component: () => import('../views/SubmitView.vue'),
+  },
+];
 ```
 
 ### Image Optimization
@@ -286,19 +297,19 @@ const routes = [
 ```typescript
 // utils/image.ts
 export const optimizeImage = (file: File, maxWidth: number = 800): Promise<Blob> => {
-  return new Promise((resolve) => {
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')!
-    const img = new Image()
-    
+  return new Promise(resolve => {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+    const img = new Image();
+
     img.onload = () => {
       // Resize and compress logic
-      canvas.toBlob(resolve, 'image/jpeg', 0.85)
-    }
-    
-    img.src = URL.createObjectURL(file)
-  })
-}
+      canvas.toBlob(resolve, 'image/jpeg', 0.85);
+    };
+
+    img.src = URL.createObjectURL(file);
+  });
+};
 ```
 
 ## Testing Strategy
@@ -308,8 +319,9 @@ export const optimizeImage = (file: File, maxWidth: number = 800): Promise<Blob>
 The frontend has comprehensive unit test coverage across components, views, and API integration:
 
 **Test Files (9 test files):**
+
 - **AppShell.test.ts**: Navigation rendering and accessibility (2 tests)
-- **MapComponent.test.ts**: Leaflet integration and error handling (2 tests) 
+- **MapComponent.test.ts**: Leaflet integration and error handling (2 tests)
 - **Modal.test.ts**: Global modal system and accessibility (12 tests)
 - **PhotoUpload.test.ts**: File upload workflow and consent management (9 tests)
 - **ArtworkDetailView.test.ts**: Artwork detail pages and data loading (13 tests)
@@ -319,22 +331,24 @@ The frontend has comprehensive unit test coverage across components, views, and 
 - **SubmitView.test.ts**: Photo submission workflow and form validation (3 tests)
 
 **Testing Framework:**
+
 ```typescript
 // vitest.config.ts
-import { defineConfig } from 'vitest/config'
-import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vitest/config';
+import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
   plugins: [vue()],
   test: {
     environment: 'jsdom',
     setupFiles: ['src/test-setup.ts'],
-    globals: true
-  }
-})
+    globals: true,
+  },
+});
 ```
 
 **Component Testing Example:**
+
 ```typescript
 // components/__tests__/Modal.test.ts
 import { describe, it, expect } from 'vitest'
@@ -348,7 +362,7 @@ describe('Modal', () => {
     })
     expect(wrapper.exists()).toBe(true)
   })
-  
+
   it('handles accessibility properly', () => {
     const wrapper = mount(Modal, {
       props: { isOpen: true }
@@ -363,18 +377,20 @@ describe('Modal', () => {
 ### Mocking Strategy
 
 **API Services:**
+
 ```typescript
 // Comprehensive API mocking
 vi.mock('../../services/api', () => ({
   apiService: {
     searchNearbyArtwork: vi.fn().mockResolvedValue([]),
     submitLogbookEntry: vi.fn().mockResolvedValue({ success: true }),
-    getVerificationStatus: vi.fn().mockResolvedValue({ verified: false })
-  }
-}))
+    getVerificationStatus: vi.fn().mockResolvedValue({ verified: false }),
+  },
+}));
 ```
 
 **Leaflet Maps:**
+
 ```typescript
 // Mock Leaflet for component testing
 vi.mock('leaflet', () => ({
@@ -382,10 +398,10 @@ vi.mock('leaflet', () => ({
     setView: vi.fn(),
     on: vi.fn(),
     off: vi.fn(),
-    remove: vi.fn()
+    remove: vi.fn(),
   })),
-  tileLayer: vi.fn(() => ({ addTo: vi.fn() }))
-}))
+  tileLayer: vi.fn(() => ({ addTo: vi.fn() })),
+}));
 ```
 
 ### Accessibility Testing
@@ -395,18 +411,18 @@ Accessibility is validated in unit tests:
 ```typescript
 // Accessibility-focused tests
 it('provides proper ARIA labels', () => {
-  const wrapper = mount(MapComponent)
-  expect(wrapper.attributes('role')).toBe('application')
-  expect(wrapper.attributes('aria-label')).toContain('Interactive map')
-})
+  const wrapper = mount(MapComponent);
+  expect(wrapper.attributes('role')).toBe('application');
+  expect(wrapper.attributes('aria-label')).toContain('Interactive map');
+});
 
 it('supports keyboard navigation', async () => {
-  const wrapper = mount(SubmitView)
-  const fileInput = wrapper.find('input[type="file"]')
-  
-  await fileInput.trigger('keydown', { key: 'Enter' })
-  expect(fileInput.element).toBe(document.activeElement)
-})
+  const wrapper = mount(SubmitView);
+  const fileInput = wrapper.find('input[type="file"]');
+
+  await fileInput.trigger('keydown', { key: 'Enter' });
+  expect(fileInput.element).toBe(document.activeElement);
+});
 ```
 
 ### Test Execution
@@ -427,13 +443,14 @@ npm run test:ui
 ### Target Browsers
 
 - **Chrome**: Latest 2 versions
-- **Firefox**: Latest 2 versions  
+- **Firefox**: Latest 2 versions
 - **Safari**: Latest 2 versions
 - **Edge**: Latest 2 versions
 
 ### Progressive Enhancement
 
 Features degrade gracefully in older browsers:
+
 - Map functionality requires modern JavaScript
 - Photo upload uses native file input fallback
 - CSS Grid with Flexbox fallback
@@ -479,6 +496,7 @@ npm run preview
 ### Cloudflare Pages Integration
 
 The frontend deploys automatically to Cloudflare Pages with:
+
 - **Global CDN**: Sub-100ms response times worldwide
 - **Edge caching**: Optimized static asset delivery
 - **Custom domains**: art.abluestar.com
