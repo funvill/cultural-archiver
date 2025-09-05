@@ -42,7 +42,7 @@ describe('TagBadge', () => {
       });
 
       expect(wrapper.findAll('button').length).toBe(3);
-      expect(wrapper.text()).toContain('material');
+      expect(wrapper.text()).toContain('Material'); // Now uses schema label "Material" instead of "material"
       expect(wrapper.text()).toContain('bronze');
     });
 
@@ -63,9 +63,9 @@ describe('TagBadge', () => {
         },
       });
 
-      // The component actually renders as "material bronze" with a space between
+      // The component uses schema definitions, so it shows "Material" not "material" 
       const text = wrapper.text().replace(/\s+/g, ' ').trim();
-      expect(text).toContain('material');
+      expect(text).toContain('Material'); // Schema label is capitalized
       expect(text).toContain('bronze');
     });
   });
@@ -157,7 +157,12 @@ describe('TagBadge', () => {
       await tagButton.trigger('click');
 
       expect(wrapper.emitted('tagClick')).toBeTruthy();
-      expect(wrapper.emitted('tagClick')?.[0]).toEqual([mockTags[0]]);
+      // The emitted event now contains StructuredTag format with key, value, and definition
+      const emittedEvent = wrapper.emitted('tagClick')?.[0]?.[0];
+      expect(emittedEvent).toBeDefined();
+      expect(emittedEvent.key).toBe('material');
+      expect(emittedEvent.value).toBe('bronze');
+      expect(emittedEvent.definition).toBeDefined();
     });
   });
 
