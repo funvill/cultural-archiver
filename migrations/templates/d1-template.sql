@@ -1,0 +1,50 @@
+-- Migration: [MIGRATION_NAME]
+-- Created: [TIMESTAMP]
+-- Author: [AUTHOR]
+-- Description: [DESCRIPTION]
+--
+-- ================================
+-- D1 COMPATIBILITY NOTES:
+-- ================================
+-- ✅ DO USE:
+--   - Standard CREATE TABLE, INSERT, UPDATE, DELETE, DROP statements
+--   - Standard SQLite data types: TEXT, INTEGER, REAL, BLOB
+--   - Basic indexes: CREATE INDEX
+--   - Foreign key constraints (declared but not enforced)
+--   - CHECK constraints with simple conditions
+--   - DEFAULT values with literals or functions like datetime('now')
+--
+-- ❌ DO NOT USE:
+--   - PRAGMA statements (especially PRAGMA foreign_keys = ON)
+--   - WITHOUT ROWID tables  
+--   - AUTOINCREMENT keyword
+--   - Complex CHECK constraints using functions like length()
+--   - ATTACH/DETACH database commands
+--   - Triggers, views, or stored procedures
+--   - Custom collation sequences
+--   - Full-text search extensions
+--
+-- ================================
+-- MIGRATION CONTENT START
+-- ================================
+
+-- Example table creation (replace with your schema):
+-- CREATE TABLE example_table (
+--     id TEXT PRIMARY KEY,
+--     name TEXT NOT NULL,
+--     email TEXT UNIQUE,
+--     created_at TEXT NOT NULL DEFAULT (datetime('now')),
+--     status TEXT CHECK (status IN ('active', 'inactive')) DEFAULT 'active'
+-- );
+
+-- Example index creation:
+-- CREATE INDEX idx_example_name ON example_table(name);
+-- CREATE INDEX idx_example_status ON example_table(status);
+
+-- Example data insertion:
+-- INSERT INTO example_table (id, name, email) VALUES 
+--   ('example-1', 'Test User', 'test@example.com');
+
+-- ================================
+-- MIGRATION CONTENT END  
+-- ================================

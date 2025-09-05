@@ -33,11 +33,11 @@
   - [x] 1.3 Remove or guard any npm scripts that call the old `migrate.ts` (leave behind clear comments in commits for reviewers).
   - [x] 1.4 Run the test suite and smoke-test local worker to ensure no regressions introduced by archiving.
 
-- [ ] 2.0 Create Wrangler-compatible migration structure
-  - [ ] 2.1 Create `migrations/templates/` with a D1-compatible SQL template and example header (timestamp, author, description).
-  - [ ] 2.2 Add `migrations/README.md` documenting the 4-digit sequential naming convention and D1 compatibility rules.
-  - [ ] 2.3 Create an initial placeholder `0001_initial_schema.sql` (consolidated baseline) and mark as draft for review.
-  - [ ] 2.4 Add a small Node/TS script `scripts/migration-scaffold.ts` (or npm script) to scaffold new migrations with proper name and template.
+- [x] 2.0 Create Wrangler-compatible migration structure
+  - [x] 2.1 Create `migrations/templates/` with a D1-compatible SQL template and example header (timestamp, author, description).
+  - [x] 2.2 Add `migrations/README.md` documenting the 4-digit sequential naming convention and D1 compatibility rules.
+  - [x] 2.3 Create an initial placeholder `0001_initial_schema.sql` (consolidated baseline) and mark as draft for review.
+  - [x] 2.4 Add a small Node/TS script `scripts/migration-scaffold.ts` (or npm script) to scaffold new migrations with proper name and template.
 
 - [ ] 3.0 Replace npm scripts and CLI workflows
   - [ ] 3.1 Add/replace npm scripts in root `package.json` per PRD (migrate:create, migrate:dev, migrate:prod, migrate:status, migrate:rollback, migrate:validate, backup variants).
