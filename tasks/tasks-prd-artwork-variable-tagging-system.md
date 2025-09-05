@@ -27,30 +27,30 @@
 
 ## Tasks
 
-- [ ] 1.0 Tag Schema Definition and Validation Framework
-  - [ ] 1.1 Create `src/shared/tag-schema.ts` with predefined tag keys, data types, and validation rules
-  - [ ] 1.2 Define tag categories (Physical Properties, Historical Info, Location Details, Artwork Classification, Reference Data)
-  - [ ] 1.3 Implement validation functions for each data type (enum, text, number, date, yes/no, URL, Wikidata ID)
-  - [ ] 1.4 Add OpenStreetMap-compatible key mappings with "ca:" prefix for export
-  - [ ] 1.5 Create TypeScript interfaces for structured tags in `src/shared/types.ts`
-  - [ ] 1.6 Add tag schema versioning support for future updates
+- [x] 1.0 Tag Schema Definition and Validation Framework
+  - [x] 1.1 Create `src/shared/tag-schema.ts` with predefined tag keys, data types, and validation rules
+  - [x] 1.2 Define tag categories (Physical Properties, Historical Info, Location Details, Artwork Classification, Reference Data)
+  - [x] 1.3 Implement validation functions for each data type (enum, text, number, date, yes/no, URL, Wikidata ID)
+  - [x] 1.4 Add OpenStreetMap-compatible key mappings with "ca:" prefix for export
+  - [x] 1.5 Create TypeScript interfaces for structured tags in `src/shared/types.ts`
+  - [x] 1.6 Add tag schema versioning support for future updates
 
-- [ ] 2.0 Backend Tag Validation and Processing
-  - [ ] 2.1 Create `src/workers/lib/tag-validation.ts` with server-side validation logic
-  - [ ] 2.2 Implement strict validation for enum, date, number, and URL fields
-  - [ ] 2.3 Add flexible validation for text fields with basic sanitization
-  - [ ] 2.4 Create validation middleware in `src/workers/middleware/validation.ts` for tag submissions
-  - [ ] 2.5 Extend existing `ArtworkEditsService` to handle structured tag validation
-  - [ ] 2.6 Update artwork edit API endpoints to validate against tag schema
-  - [ ] 2.7 Add comprehensive error messages with field-specific guidance
+- [x] 2.0 Backend Tag Validation and Processing
+  - [x] 2.1 Create `src/workers/lib/tag-validation.ts` with server-side validation logic
+  - [x] 2.2 Implement strict validation for enum, date, number, and URL fields
+  - [x] 2.3 Add flexible validation for text fields with basic sanitization
+  - [x] 2.4 Create validation middleware in `src/workers/middleware/validation.ts` for tag submissions
+  - [x] 2.5 Extend existing `ArtworkEditsService` to handle structured tag validation
+  - [x] 2.6 Update artwork edit API endpoints to validate against tag schema
+  - [x] 2.7 Add comprehensive error messages with field-specific guidance
 
-- [ ] 3.0 Database Schema Migration
-  - [ ] 3.1 Create migration `006_structured_tag_schema.sql` to extend artwork table structure
-  - [ ] 3.2 Add indexes for common tag keys that will be frequently searched
-  - [ ] 3.3 Migrate existing artwork.tags JSON data to new structured format
-  - [ ] 3.4 Preserve existing keywords field functionality for backward compatibility
-  - [ ] 3.5 Update database documentation in `docs/database.md` with new tag schema structure
-  - [ ] 3.6 Test migration with sample data and verify no data loss
+- [x] 3.0 Database Schema Migration
+  - [x] 3.1 Create migration `006_structured_tag_schema.sql` to extend artwork table structure
+  - [x] 3.2 Add indexes for common tag keys that will be frequently searched
+  - [x] 3.3 Migrate existing artwork.tags JSON data to new structured format
+  - [x] 3.4 Preserve existing keywords field functionality for backward compatibility
+  - [x] 3.5 Update database documentation in `docs/database.md` with new tag schema structure
+  - [x] 3.6 Test migration with sample data and verify no data loss
 
 - [ ] 4.0 Frontend Tag Editor Component
   - [ ] 4.1 Create `src/frontend/src/components/TagEditor.vue` with category-based organization
