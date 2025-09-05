@@ -24,30 +24,54 @@ Create complete system snapshots including all database tables, user data, and p
 ### File Structure
 ```
 backup-YYYY-MM-DD-HHMMSS.zip
-├── database.sql          # Complete database dump
+├── database.sql           # Complete database dump (via Wrangler D1 export)
+├── migration_state.json   # Current migration status information
 ├── photos/
-│   ├── originals/        # Full resolution images
-│   └── thumbnails/       # 800px versions
-├── metadata.json         # Backup information
-└── README.md            # Restoration instructions
+│   ├── originals/         # Full resolution images  
+│   └── thumbnails/        # 800px versions
+├── metadata.json          # Backup information and integrity checksum
+└── README.md             # Restoration instructions
 ```
 
 ### Usage
 
 #### Command Line
 ```bash
-# Generate backup locally
+# Generate backup using Wrangler D1 export (recommended)
 npm run backup
+
+# Development environment backup  
+npm run backup:dev
+
+# Production environment backup
+npm run backup:remote
+
+# Download only photos to local directory
+npm run backup:photos
+
+# Validate existing backup files
+npm run backup:validate
 
 # Custom output directory
 npm run backup -- --output-dir ./backups
 
-# Remote backup using Cloudflare credentials
-npm run backup:remote -- --output-dir ./production-backups
-
 # Show help
 npm run backup -- --help
 ```
+
+#### New Wrangler Integration Features
+
+**Wrangler D1 Export Mode (Default)**
+- Uses `wrangler d1 export` for database backup instead of direct API calls
+- Includes migration state tracking in backup metadata
+- Provides better D1 compatibility and data consistency
+- Supports environment-specific operations (development vs production)
+
+**Enhanced Commands**
+- `npm run backup` - Uses Wrangler D1 export with remote Cloudflare resources
+- `npm run backup:dev` - Targets development environment D1 database
+- `npm run backup:remote` - Targets production environment D1 database  
+- `npm run backup:validate` - Validates integrity of existing backup archives
 
 #### Environment Variables
 Required for remote backups:

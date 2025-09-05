@@ -403,12 +403,38 @@ ORDER BY l.created_at ASC;
 - Parse JSON at application level, not in SQL queries
 - Consider extracting frequently-queried JSON keys to separate columns if needed
 
-## Migration Notes
+## Migration System
 
-- This schema completely replaces the existing art collection schema
-- Migration is destructive - existing data will be lost
-- Foreign key constraints must be enabled in SQLite configuration
-- Sample data includes realistic Vancouver coordinates for testing
+The Cultural Archiver uses Wrangler's native D1 migration system for schema management:
+
+- **Migration Files**: Located in `migrations/` directory with sequential numbering (0001_, 0002_, etc.)
+- **State Tracking**: Wrangler automatically tracks applied migrations per environment
+- **D1 Compatibility**: All migrations are validated for Cloudflare D1 compatibility
+- **Environment Isolation**: Separate migration tracking for development and production
+
+### Migration Commands
+
+```bash
+# Apply pending migrations to development
+npm run migrate:dev
+
+# Check migration status
+npm run migrate:status
+
+# Apply migrations to production (with confirmation)
+npm run migrate:prod
+
+# Validate migrations for D1 compatibility
+npm run migrate:validate
+```
+
+### Migration Guidelines
+
+- Use sequential 4-digit numbering (0001, 0002, etc.)
+- Avoid D1-incompatible patterns (PRAGMA, WITHOUT ROWID, AUTOINCREMENT)
+- Test migrations in development first
+- Take backups before production migrations
+- See [docs/migrations.md](./migrations.md) for complete migration documentation
 
 ## TypeScript Integration
 

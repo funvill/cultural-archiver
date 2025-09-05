@@ -26,7 +26,7 @@ node verify-deployment.js production
 1. Go to Cloudflare Dashboard > D1
 2. Create database named `cultural-archiver-prod`
 3. Copy the Database ID
-4. Run migrations: `wrangler d1 migrations apply cultural-archiver-prod --remote`
+4. Run migrations using the migration system: `npm run migrate:prod`
 
 #### KV Namespaces:
 1. Go to Cloudflare Dashboard > KV
