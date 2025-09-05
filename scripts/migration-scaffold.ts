@@ -6,10 +6,11 @@
  * Usage: npm run migrate:create "migration_name"
  */
 
-import { readdir, readFile, writeFile } from 'fs/promises';
+import { readdir, readFile, writeFile, mkdir } from 'fs/promises';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
+import { existsSync } from 'fs';
 
 // Get current directory for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -123,6 +124,18 @@ class MigrationScaffolder {
 
     console.log('🚀 Creating new migration...');
 
+    // Ensure migrations directory exists
+    if (!existsSync(migrationsDir)) {
+      console.log('📁 Creating migrations directory...');
+      await mkdir(migrationsDir, { recursive: true });
+    }
+
+    // Ensure templates directory exists  
+    if (!existsSync(templatesDir)) {
+      console.log('📁 Creating templates directory...');
+      await mkdir(templatesDir, { recursive: true });
+    }
+
     const nextNumber = await this.getNextMigrationNumber();
     const sanitizedName = this.sanitizeMigrationName(name);
     const migrationNumber = this.formatMigrationNumber(nextNumber);
@@ -163,6 +176,8 @@ class MigrationScaffolder {
       console.log('See migrations/README.md for compatibility guidelines.');
     } catch (error) {
       console.error('❌ Error creating migration file:', error);
+      console.error('Path:', filepath);
+      console.error('Directory exists:', existsSync(dirname(filepath)));
       process.exit(1);
     }
   }
@@ -179,11 +194,20 @@ class MigrationScaffolder {
     console.log('  npm run migrate:create "create_analytics_table"');
     console.log('  npm run migrate:create "fix_artwork_coordinates"');
     console.log('');
+    console.log('PowerShell (Windows) usage:');
+    console.log('  npm run migrate:create add_user_permissions');
+    console.log('  npm run migrate:create \\"add_user_permissions\\"');
+    console.log('');
     console.log('Features:');
     console.log('  • Automatic sequential numbering (0001, 0002, ...)');
     console.log('  • D1-compatible template with guidelines');
     console.log('  • Name sanitization and validation');
     console.log('  • Metadata injection (timestamp, author)');
+    console.log('');
+    console.log('Troubleshooting:');
+    console.log('  • If no file is created, check write permissions');
+    console.log('  • On Windows, try without quotes around the migration name');
+    console.log('  • Run directly: npx tsx scripts/migration-scaffold.ts your_name');
   }
 }
 
@@ -191,15 +215,43 @@ class MigrationScaffolder {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
 
+  // Handle empty arguments with more helpful messaging
   if (args.length === 0 || args.includes('--help') || args.includes('-h')) {
     const scaffolder = new MigrationScaffolder();
     scaffolder.showHelp();
     return;
   }
 
+  // Check for common argument parsing issues
+  if (args.length === 0 || !args[0] || args[0].trim() === '') {
+    console.error('❌ Error: Migration name is required');
+    console.error('');
+    console.error('Usage: npm run migrate:create "your_migration_name"');
+    console.error('');
+    console.error('Examples:');
+    console.error('  npm run migrate:create "add_user_table"');
+    console.error('  npm run migrate:create "fix_artwork_indexes"');
+    console.error('');
+    console.error('💡 If you\'re on Windows PowerShell, try:');
+    console.error('  npm run migrate:create add_user_table');
+    console.error('  npm run migrate:create \\"add_user_table\\"');
+    process.exit(1);
+  }
+
   const migrationName = args[0];
   const scaffolder = new MigrationScaffolder();
-  await scaffolder.createMigration(migrationName);
+  
+  try {
+    await scaffolder.createMigration(migrationName);
+  } catch (error) {
+    console.error('❌ Failed to create migration:', error instanceof Error ? error.message : String(error));
+    console.error('');
+    console.error('Troubleshooting:');
+    console.error('1. Check that you have write permissions to the migrations directory');
+    console.error('2. Ensure the migrations/templates directory exists');
+    console.error('3. Try running with npx directly: npx tsx scripts/migration-scaffold.ts "your_name"');
+    process.exit(1);
+  }
 }
 
 // Run if called directly
