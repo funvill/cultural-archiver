@@ -126,7 +126,10 @@ onMounted(() => {
 // Methods
 async function loadData() {
   if (!authStore.token) {
-    error.value = 'Authentication required for review access'
+    await globalModal.showError(
+      'You must be signed in to access the review queue.',
+      'Authentication Required'
+    )
     loading.value = false
     return
   }
@@ -142,6 +145,12 @@ async function loadData() {
   } catch (err) {
     console.error('[ReviewView] Error loading data:', err)
     error.value = getErrorMessage(err)
+    
+    // Show user-friendly error modal for critical failures
+    await globalModal.showError(
+      `Failed to load review queue: ${getErrorMessage(err)}`,
+      'Review Queue Error'
+    )
   } finally {
     loading.value = false
   }
@@ -166,6 +175,13 @@ async function loadArtworkEdits() {
     }
   } catch (err) {
     console.error('[ReviewView] Error loading artwork edits:', err)
+    
+    // Show user-friendly error modal
+    await globalModal.showError(
+      `Failed to load artwork edits for review: ${getErrorMessage(err)}`,
+      'Review Queue Error'
+    )
+    
     // Don't throw - let the submission loading continue
   }
 }
@@ -234,11 +250,18 @@ async function loadSubmissions() {
       }
     } catch (statsError) {
       console.warn('[ReviewView] Failed to load statistics:', statsError)
-      // Don't fail the whole operation if stats fail
+      // Don't show error modal for stats - this is non-critical
     }
 
   } catch (err) {
     console.error('[ReviewView] Error loading submissions:', err)
+    
+    // Show user-friendly error modal for submissions loading failure
+    await globalModal.showError(
+      `Failed to load submissions for review: ${getErrorMessage(err)}`,
+      'Review Queue Error'
+    )
+    
     // Let loadData handle the error
     throw err
   }

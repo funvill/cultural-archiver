@@ -449,6 +449,84 @@ app.get('/test', c => {
   });
 });
 
+// Permissions diagnostic endpoint for debugging reviewer access
+app.get('/api/debug/permissions/:userToken', async c => {
+  console.log('[DEBUG] Permissions diagnostic endpoint called');
+  
+  const userToken = c.req.param('userToken');
+  console.log('[DEBUG] Testing permissions for user:', userToken);
+  
+  try {
+    // Test 1: Basic database connection
+    const dbTest = await c.env.DB.prepare('SELECT 1 as test').first();
+    console.log('[DEBUG] Database test result:', dbTest);
+    
+    // Test 2: Check user_permissions table
+    const permStmt = c.env.DB.prepare(`
+      SELECT * FROM user_permissions 
+      WHERE user_uuid = ? AND is_active = 1
+    `);
+    const permissions = await permStmt.bind(userToken).all();
+    console.log('[DEBUG] Direct permissions query result:', permissions);
+    
+    // Test 3: Check legacy logbook count
+    const logbookStmt = c.env.DB.prepare(`
+      SELECT COUNT(*) as count FROM logbook 
+      WHERE user_token = ? AND status = 'approved'
+    `);
+    const logbookResult = await logbookStmt.bind(userToken).first();
+    console.log('[DEBUG] Legacy logbook count:', logbookResult);
+    
+    // Test 4: Import and test isModerator function
+    const { isModerator } = await import('./lib/permissions');
+    const isModeratorResult = await isModerator(c.env.DB, userToken);
+    console.log('[DEBUG] isModerator function result:', isModeratorResult);
+    
+    // Test 5: Test requireReviewer middleware logic manually
+    let legacyReviewerCheck = false;
+    if (!isModeratorResult) {
+      const approvedCount = (logbookResult as { count: number } | null)?.count || 0;
+      legacyReviewerCheck = approvedCount >= 5;
+    }
+    
+    const finalReviewerStatus = isModeratorResult || legacyReviewerCheck;
+    
+    return c.json({
+      user_token: userToken,
+      timestamp: new Date().toISOString(),
+      tests: {
+        database_connection: !!dbTest,
+        direct_permissions: {
+          count: permissions.results?.length || 0,
+          permissions: permissions.results || [],
+        },
+        legacy_logbook: {
+          approved_count: (logbookResult as { count: number } | null)?.count || 0,
+          meets_threshold: ((logbookResult as { count: number } | null)?.count || 0) >= 5,
+        },
+        is_moderator_function: isModeratorResult,
+        legacy_reviewer_check: legacyReviewerCheck,
+        final_reviewer_status: finalReviewerStatus,
+      },
+      debug_info: {
+        middleware_should_pass: finalReviewerStatus,
+        expected_auth_context: {
+          isReviewer: finalReviewerStatus,
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('[DEBUG] Permissions diagnostic error:', error);
+    return c.json({
+      error: 'Permissions diagnostic failed',
+      details: error instanceof Error ? error.message : 'Unknown error',
+      user_token: userToken,
+      timestamp: new Date().toISOString(),
+    }, 500);
+  }
+});
+
 // API status endpoint (no auth required)
 app.get('/api/status', ensureUserToken, addUserTokenToResponse, c => {
   console.log('API status endpoint called'); // Add logging

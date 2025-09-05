@@ -339,4 +339,116 @@ describe('ArtworkEditsService', () => {
       expect(result[0].diffs[0].field_name).toBe('title');
     });
   });
+
+  describe('logbook integration', () => {
+    test('should create logbook entry when edits are successfully applied', async () => {
+      // Mock approval flow with successful field application
+      const editIds = ['edit-1', 'edit-2'];
+      
+      // Mock approved edits
+      const mockApprovedEdits = [
+        {
+          edit_id: 'edit-1',
+          artwork_id: 'artwork-123',
+          user_token: 'user-456',
+          field_name: 'title',
+          field_value_old: 'Old Title',
+          field_value_new: 'New Title',
+          status: 'approved',
+          submitted_at: '2025-01-01T00:00:00.000Z'
+        }
+      ];
+
+      // Mock table schema with editable fields
+      const mockTableInfo = {
+        results: [
+          { name: 'id' },
+          { name: 'lat' },
+          { name: 'lon' },
+          { name: 'title' }, // This field exists, so edit will be applied
+          { name: 'description' },
+          { name: 'created_by' }
+        ]
+      };
+
+      // Mock artwork coordinates
+      const mockArtwork = { lat: 49.2827, lon: -123.1207 };
+
+      // Setup mock call sequence
+      mockStmt.run.mockResolvedValue({ changes: 1 }); // Update edit status
+      
+      // For applyApprovedEditsToArtwork:
+      mockStmt.all
+        .mockResolvedValueOnce({ results: mockApprovedEdits }) // Get approved edits
+        .mockResolvedValueOnce(mockTableInfo) // Get table info (title field exists)
+        .mockResolvedValueOnce(mockTableInfo) // ensureEditableFieldsExist check
+        .mockResolvedValueOnce({ results: mockApprovedEdits }); // Get edits for logbook
+      
+      mockStmt.run.mockResolvedValue({ changes: 1 }); // Apply edits to artwork
+      mockStmt.first.mockResolvedValueOnce(mockArtwork); // Get artwork coordinates
+      mockStmt.run.mockResolvedValue({ changes: 1 }); // Insert logbook entry
+
+      await artworkEditsService.approveEditSubmission(editIds, 'moderator-123', true);
+
+      // Verify logbook entry was created
+      const prepareCalls = mockDb.prepare.mock.calls;
+      const logbookInsertCall = prepareCalls.find(call => 
+        call[0].includes('INSERT INTO logbook')
+      );
+      
+      expect(logbookInsertCall).toBeDefined();
+      expect(logbookInsertCall[0]).toContain('INSERT INTO logbook');
+    });
+
+    test('should not create logbook entry when no fields are applied', async () => {
+      // Mock approval flow with no successful field application
+      const editIds = ['edit-1'];
+      
+      // Mock approved edits
+      const mockApprovedEdits = [
+        {
+          edit_id: 'edit-1',
+          artwork_id: 'artwork-123',
+          user_token: 'user-456',
+          field_name: 'nonexistent_field',
+          field_value_old: 'Old Value',
+          field_value_new: 'New Value',
+          status: 'approved',
+          submitted_at: '2025-01-01T00:00:00.000Z'
+        }
+      ];
+
+      // Mock table schema without editable fields (field doesn't exist)
+      const mockTableInfo = {
+        results: [
+          { name: 'id' },
+          { name: 'lat' },
+          { name: 'lon' }
+          // Missing: title, description, created_by, nonexistent_field
+        ]
+      };
+
+      // Setup mock call sequence
+      mockStmt.run.mockResolvedValue({ changes: 1 }); // Update edit status
+      
+      // For applyApprovedEditsToArtwork:
+      mockStmt.all
+        .mockResolvedValueOnce({ results: mockApprovedEdits }) // Get approved edits
+        .mockResolvedValueOnce(mockTableInfo); // Get table info
+      
+      // ensureEditableFieldsExist will be called
+      mockStmt.all.mockResolvedValueOnce(mockTableInfo); // Get table info again
+      mockStmt.run.mockResolvedValue({ changes: 1 }); // Try to add columns (may fail)
+
+      await artworkEditsService.approveEditSubmission(editIds, 'moderator-123', true);
+
+      // Verify logbook entry was NOT created (no INSERT INTO logbook call should happen)
+      const prepareCalls = mockDb.prepare.mock.calls;
+      const logbookInsertCall = prepareCalls.find(call => 
+        call[0].includes('INSERT INTO logbook')
+      );
+      
+      expect(logbookInsertCall).toBeUndefined();
+    });
+  });
 });

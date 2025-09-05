@@ -101,11 +101,23 @@ The Cultural Archiver API provides a comprehensive backend for crowdsourced publ
 
 ### Authentication
 
-Uses Bearer token authentication with anonymous user tokens:
+Uses anonymous user tokens with multiple authentication methods:
+
+**Primary Method (Recommended):**
+
+```http
+X-User-Token: {user-token-uuid}
+```
+
+**Alternative Methods:**
 
 ```http
 Authorization: Bearer {user-token-uuid}
+# OR
+Cookie: user_token={user-token-uuid}
 ```
+
+The frontend uses `X-User-Token` header by default.
 
 ### Core Endpoints
 
@@ -114,7 +126,7 @@ Authorization: Bearer {user-token-uuid}
 ```http
 POST /api/logbook
 Content-Type: multipart/form-data
-Authorization: Bearer {user-token}
+X-User-Token: {user-token}
 
 # Submit artwork with photos and location
 lat: 49.2827
@@ -138,14 +150,14 @@ GET /api/artworks/{artwork-id}
 ```http
 # Get user's submissions
 GET /api/me/submissions
-Authorization: Bearer {user-token}
+X-User-Token: {user-token}
 
 # Get user profile and stats
 GET /api/me/profile
-Authorization: Bearer {user-token}
+X-User-Token: {user-token}
 ```
 
-#### Authentication
+#### Email Authentication
 
 ```http
 # Request magic link

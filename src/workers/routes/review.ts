@@ -665,8 +665,11 @@ export async function getArtworkEditsForReview(
       throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
-    const limit = parseInt(c.req.query('limit') || '50');
-    const offset = parseInt(c.req.query('offset') || '0');
+    // Handle both frontend parameter styles (page/per_page and limit/offset)
+    const per_page = parseInt(c.req.query('per_page') || c.req.query('limit') || '50');
+    const page = parseInt(c.req.query('page') || '1');
+    const limit = per_page;
+    const offset = (page - 1) * per_page;
 
     const editsService = new ArtworkEditsService(c.env.DB);
     const pendingEdits: ArtworkEditReviewData[] = await editsService.getPendingEditsForReview(limit, offset);
@@ -676,8 +679,15 @@ export async function getArtworkEditsForReview(
     for (const edit of pendingEdits) {
       const artwork = await findArtworkById(c.env.DB, edit.artwork_id);
       if (artwork) {
-        // Parse the tags to get display values
-        const tagsParsed = JSON.parse(artwork.tags || '{}') as Record<string, string>;
+        // Parse the tags to get display values with error handling
+        let tagsParsed: Record<string, string> = {};
+        try {
+          tagsParsed = JSON.parse(artwork.tags || '{}') as Record<string, string>;
+        } catch (jsonError) {
+          console.warn(`[ARTWORK EDITS] Invalid JSON in tags for artwork ${artwork.id}: "${artwork.tags}"`);
+          // If it's not valid JSON, treat the entire string as a title
+          tagsParsed = { title: artwork.tags || 'Unknown Artwork' };
+        }
         
         enrichedEdits.push({
           ...edit,

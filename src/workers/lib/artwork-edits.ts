@@ -205,15 +205,19 @@ export class ArtworkEditsService {
     }
 
     if (applyToArtwork) {
-      await this.applyApprovedEditsToArtwork(editIds);
+      const appliedFields = await this.applyApprovedEditsToArtwork(editIds);
       
-      // Get edit details after approval for logbook entry
-      try {
-        const editDetails = await this.getEditDetailsForLogbook(editIds);
-        await this.createEditLogbookEntry(editDetails, moderatorToken, reviewedAt);
-      } catch (error) {
-        console.warn('Failed to create logbook entry for approved edits:', error);
-        // Don't fail the approval if logbook creation fails
+      // Only create logbook entry if there were actually applied changes
+      if (appliedFields.length > 0) {
+        try {
+          const editDetails = await this.getEditDetailsForLogbook(editIds, appliedFields);
+          await this.createEditLogbookEntry(editDetails, moderatorToken, reviewedAt);
+        } catch (error) {
+          console.warn('Failed to create logbook entry for approved edits:', error);
+          // Don't fail the approval if logbook creation fails
+        }
+      } else {
+        console.info('No fields were actually applied to artwork, skipping logbook entry creation');
       }
     }
   }
@@ -238,8 +242,9 @@ export class ArtworkEditsService {
   /**
    * Apply approved edits to the original artwork record
    * Note: Only updates fields that exist in the artwork table
+   * Returns the list of field names that were actually applied
    */
-  private async applyApprovedEditsToArtwork(editIds: string[]): Promise<void> {
+  private async applyApprovedEditsToArtwork(editIds: string[]): Promise<string[]> {
     // Get all approved edits
     const editsStmt = this.db.prepare(`
       SELECT * FROM artwork_edits 
@@ -250,7 +255,7 @@ export class ArtworkEditsService {
     const editRecords = edits.results as unknown as ArtworkEditRecord[];
 
     if (editRecords.length === 0) {
-      return;
+      return [];
     }
 
     // Group by artwork_id (should be the same for all edits)
@@ -280,7 +285,7 @@ export class ArtworkEditsService {
 
     if (Object.keys(updatedFields).length === 0) {
       console.info('No valid fields to update in artwork table');
-      return;
+      return [];
     }
 
     // Apply updates to artwork table
@@ -295,6 +300,9 @@ export class ArtworkEditsService {
 
     await updateArtworkStmt.bind(...values, artworkId).run();
     console.info(`Applied ${Object.keys(updatedFields).length} field updates to artwork ${artworkId}`);
+    
+    // Return the list of field names that were actually applied
+    return Object.keys(updatedFields);
   }
 
   /**
@@ -385,8 +393,9 @@ export class ArtworkEditsService {
 
   /**
    * Get edit details for logbook entry creation
+   * Only includes edits for fields that were actually applied
    */
-  private async getEditDetailsForLogbook(editIds: string[]): Promise<{
+  private async getEditDetailsForLogbook(editIds: string[], appliedFields: string[]): Promise<{
     artworkId: string;
     userToken: string;
     submittedAt: string;
@@ -414,11 +423,13 @@ export class ArtworkEditsService {
       artworkId: firstRecord.artwork_id,
       userToken: firstRecord.user_token,
       submittedAt: firstRecord.submitted_at,
-      edits: editRecords.map(edit => ({
-        field_name: edit.field_name,
-        field_value_old: edit.field_value_old ?? '',
-        field_value_new: edit.field_value_new ?? ''
-      }))
+      edits: editRecords
+        .filter(edit => appliedFields.includes(edit.field_name)) // Only include edits that were actually applied
+        .map(edit => ({
+          field_name: edit.field_name,
+          field_value_old: edit.field_value_old ?? '',
+          field_value_new: edit.field_value_new ?? ''
+        }))
     };
   }
 
