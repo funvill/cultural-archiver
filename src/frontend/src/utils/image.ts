@@ -2,25 +2,25 @@
  * Image processing and EXIF utilities for photo handling
  */
 
-import exifr from 'exifr'
-import type { Coordinates } from '../types'
+import exifr from 'exifr';
+import type { Coordinates } from '../types';
 
 export interface ExifData {
-  latitude?: number
-  longitude?: number
-  dateTime?: Date
-  make?: string
-  model?: string
-  orientation?: number
-  width?: number
-  height?: number
+  latitude?: number;
+  longitude?: number;
+  dateTime?: Date;
+  make?: string;
+  model?: string;
+  orientation?: number;
+  width?: number;
+  height?: number;
 }
 
 export interface ImageProcessingOptions {
-  maxWidth?: number
-  maxHeight?: number
-  quality?: number
-  format?: 'jpeg' | 'png' | 'webp'
+  maxWidth?: number;
+  maxHeight?: number;
+  quality?: number;
+  format?: 'jpeg' | 'png' | 'webp';
 }
 
 /**
@@ -28,48 +28,48 @@ export interface ImageProcessingOptions {
  */
 export async function extractExifData(file: File): Promise<ExifData> {
   try {
-    const exifData = await exifr.parse(file)
+    const exifData = await exifr.parse(file);
 
-    const result: ExifData = {}
+    const result: ExifData = {};
 
     // Extract GPS coordinates
     if (exifData.latitude && exifData.longitude) {
-      result.latitude = exifData.latitude
-      result.longitude = exifData.longitude
+      result.latitude = exifData.latitude;
+      result.longitude = exifData.longitude;
     }
 
     // Extract date/time
     if (exifData.DateTimeOriginal) {
-      result.dateTime = new Date(exifData.DateTimeOriginal)
+      result.dateTime = new Date(exifData.DateTimeOriginal);
     } else if (exifData.DateTime) {
-      result.dateTime = new Date(exifData.DateTime)
+      result.dateTime = new Date(exifData.DateTime);
     }
 
     // Extract camera info
     if (exifData.Make) {
-      result.make = exifData.Make
+      result.make = exifData.Make;
     }
     if (exifData.Model) {
-      result.model = exifData.Model
+      result.model = exifData.Model;
     }
 
     // Extract orientation
     if (exifData.Orientation) {
-      result.orientation = exifData.Orientation
+      result.orientation = exifData.Orientation;
     }
 
     // Extract dimensions
     if (exifData.ExifImageWidth) {
-      result.width = exifData.ExifImageWidth
+      result.width = exifData.ExifImageWidth;
     }
     if (exifData.ExifImageHeight) {
-      result.height = exifData.ExifImageHeight
+      result.height = exifData.ExifImageHeight;
     }
 
-    return result
+    return result;
   } catch (error) {
-    console.warn('Failed to extract EXIF data:', error)
-    return {}
+    console.warn('Failed to extract EXIF data:', error);
+    return {};
   }
 }
 
@@ -78,151 +78,140 @@ export async function extractExifData(file: File): Promise<ExifData> {
  */
 export async function extractImageCoordinates(file: File): Promise<Coordinates | null> {
   try {
-    const exifData = await extractExifData(file)
-    
+    const exifData = await extractExifData(file);
+
     if (exifData.latitude && exifData.longitude) {
       return {
         latitude: exifData.latitude,
-        longitude: exifData.longitude
-      }
+        longitude: exifData.longitude,
+      };
     }
-    
-    return null
+
+    return null;
   } catch (error) {
-    console.warn('Failed to extract image coordinates:', error)
-    return null
+    console.warn('Failed to extract image coordinates:', error);
+    return null;
   }
 }
 
 /**
  * Resize image to fit within maximum dimensions
  */
-export async function resizeImage(
-  file: File,
-  options: ImageProcessingOptions = {}
-): Promise<File> {
-  const {
-    maxWidth = 1920,
-    maxHeight = 1080,
-    quality = 0.85,
-    format = 'jpeg'
-  } = options
+export async function resizeImage(file: File, options: ImageProcessingOptions = {}): Promise<File> {
+  const { maxWidth = 1920, maxHeight = 1080, quality = 0.85, format = 'jpeg' } = options;
 
   return new Promise((resolve, reject) => {
-    const img = new Image()
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
 
     if (!ctx) {
-      reject(new Error('Canvas context not available'))
-      return
+      reject(new Error('Canvas context not available'));
+      return;
     }
 
     img.onload = (): void => {
       // Calculate new dimensions
-      let { width, height } = img
-      
+      let { width, height } = img;
+
       if (width > maxWidth || height > maxHeight) {
-        const ratio = Math.min(maxWidth / width, maxHeight / height)
-        width = Math.round(width * ratio)
-        height = Math.round(height * ratio)
+        const ratio = Math.min(maxWidth / width, maxHeight / height);
+        width = Math.round(width * ratio);
+        height = Math.round(height * ratio);
       }
 
       // Set canvas dimensions
-      canvas.width = width
-      canvas.height = height
+      canvas.width = width;
+      canvas.height = height;
 
       // Draw resized image
-      ctx.drawImage(img, 0, 0, width, height)
+      ctx.drawImage(img, 0, 0, width, height);
 
       // Convert to blob
       canvas.toBlob(
-        (blob) => {
+        blob => {
           if (blob) {
             const resizedFile = new File([blob], file.name, {
               type: `image/${format}`,
-              lastModified: file.lastModified
-            })
-            resolve(resizedFile)
+              lastModified: file.lastModified,
+            });
+            resolve(resizedFile);
           } else {
-            reject(new Error('Failed to create blob from canvas'))
+            reject(new Error('Failed to create blob from canvas'));
           }
         },
         `image/${format}`,
         quality
-      )
-    }
+      );
+    };
 
     img.onerror = (): void => {
-      reject(new Error('Failed to load image'))
-    }
+      reject(new Error('Failed to load image'));
+    };
 
     // Load image from file
-    const reader = new FileReader()
+    const reader = new FileReader();
     reader.onload = (e): void => {
       if (e.target?.result) {
-        img.src = e.target.result as string
+        img.src = e.target.result as string;
       } else {
-        reject(new Error('Failed to read file'))
+        reject(new Error('Failed to read file'));
       }
-    }
+    };
     reader.onerror = (): void => {
-      reject(new Error('Failed to read file'))
-    }
-    reader.readAsDataURL(file)
-  })
+      reject(new Error('Failed to read file'));
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 /**
  * Create thumbnail from image
  */
-export async function createThumbnail(
-  file: File,
-  size: number = 200
-): Promise<File> {
+export async function createThumbnail(file: File, size: number = 200): Promise<File> {
   return resizeImage(file, {
     maxWidth: size,
     maxHeight: size,
     quality: 0.8,
-    format: 'jpeg'
-  })
+    format: 'jpeg',
+  });
 }
 
 /**
  * Check if file is an image
  */
 export function isImageFile(file: File): boolean {
-  return file.type.startsWith('image/')
+  return file.type.startsWith('image/');
 }
 
 /**
  * Get image dimensions without loading the full image
  */
-export async function getImageDimensions(file: File): Promise<{ width: number, height: number }> {
+export async function getImageDimensions(file: File): Promise<{ width: number; height: number }> {
   return new Promise((resolve, reject) => {
-    const img = new Image()
-    
+    const img = new Image();
+
     img.onload = (): void => {
-      resolve({ width: img.naturalWidth, height: img.naturalHeight })
-    }
-    
+      resolve({ width: img.naturalWidth, height: img.naturalHeight });
+    };
+
     img.onerror = (): void => {
-      reject(new Error('Failed to load image'))
-    }
-    
-    const reader = new FileReader()
+      reject(new Error('Failed to load image'));
+    };
+
+    const reader = new FileReader();
     reader.onload = (e): void => {
       if (e.target?.result) {
-        img.src = e.target.result as string
+        img.src = e.target.result as string;
       } else {
-        reject(new Error('Failed to read file'))
+        reject(new Error('Failed to read file'));
       }
-    }
+    };
     reader.onerror = (): void => {
-      reject(new Error('Failed to read file'))
-    }
-    reader.readAsDataURL(file)
-  })
+      reject(new Error('Failed to read file'));
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 /**
@@ -234,72 +223,72 @@ export async function convertImageFormat(
   quality: number = 0.9
 ): Promise<File> {
   return new Promise((resolve, reject) => {
-    const img = new Image()
-    const canvas = document.createElement('canvas')
-    const ctx = canvas.getContext('2d')
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
 
     if (!ctx) {
-      reject(new Error('Canvas context not available'))
-      return
+      reject(new Error('Canvas context not available'));
+      return;
     }
 
     img.onload = (): void => {
-      canvas.width = img.naturalWidth
-      canvas.height = img.naturalHeight
-      
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+
       // Set white background for JPEG
       if (format === 'jpeg') {
-        ctx.fillStyle = '#ffffff'
-        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
       }
-      
-      ctx.drawImage(img, 0, 0)
+
+      ctx.drawImage(img, 0, 0);
 
       canvas.toBlob(
-        (blob) => {
+        blob => {
           if (blob) {
             const convertedFile = new File([blob], changeFileExtension(file.name, format), {
               type: `image/${format}`,
-              lastModified: file.lastModified
-            })
-            resolve(convertedFile)
+              lastModified: file.lastModified,
+            });
+            resolve(convertedFile);
           } else {
-            reject(new Error('Failed to convert image'))
+            reject(new Error('Failed to convert image'));
           }
         },
         `image/${format}`,
         quality
-      )
-    }
+      );
+    };
 
     img.onerror = (): void => {
-      reject(new Error('Failed to load image'))
-    }
+      reject(new Error('Failed to load image'));
+    };
 
-    const reader = new FileReader()
+    const reader = new FileReader();
     reader.onload = (e): void => {
       if (e.target?.result) {
-        img.src = e.target.result as string
+        img.src = e.target.result as string;
       } else {
-        reject(new Error('Failed to read file'))
+        reject(new Error('Failed to read file'));
       }
-    }
+    };
     reader.onerror = (): void => {
-      reject(new Error('Failed to read file'))
-    }
-    reader.readAsDataURL(file)
-  })
+      reject(new Error('Failed to read file'));
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 /**
  * Change file extension
  */
 function changeFileExtension(filename: string, newExtension: string): string {
-  const lastDotIndex = filename.lastIndexOf('.')
+  const lastDotIndex = filename.lastIndexOf('.');
   if (lastDotIndex === -1) {
-    return `${filename}.${newExtension}`
+    return `${filename}.${newExtension}`;
   }
-  return `${filename.substring(0, lastDotIndex)}.${newExtension}`
+  return `${filename.substring(0, lastDotIndex)}.${newExtension}`;
 }
 
 /**
@@ -308,22 +297,22 @@ function changeFileExtension(filename: string, newExtension: string): string {
 export async function optimizeImageForUpload(
   file: File,
   options: {
-    maxSize?: number // in bytes
-    maxWidth?: number
-    maxHeight?: number
+    maxSize?: number; // in bytes
+    maxWidth?: number;
+    maxHeight?: number;
   } = {}
 ): Promise<File> {
   const {
     maxSize = 2 * 1024 * 1024, // 2MB
     maxWidth = 1920,
-    maxHeight = 1080
-  } = options
+    maxHeight = 1080,
+  } = options;
 
-  let optimizedFile = file
+  let optimizedFile = file;
 
   // If file is already small enough, return as-is
   if (file.size <= maxSize) {
-    return file
+    return file;
   }
 
   // Try resizing first
@@ -331,25 +320,25 @@ export async function optimizeImageForUpload(
     maxWidth,
     maxHeight,
     quality: 0.8,
-    format: 'jpeg'
-  })
+    format: 'jpeg',
+  });
 
   // If still too large, reduce quality
   if (optimizedFile.size > maxSize) {
-    let quality = 0.6
-    
+    let quality = 0.6;
+
     while (quality > 0.1 && optimizedFile.size > maxSize) {
       optimizedFile = await resizeImage(file, {
         maxWidth,
         maxHeight,
         quality,
-        format: 'jpeg'
-      })
-      quality -= 0.1
+        format: 'jpeg',
+      });
+      quality -= 0.1;
     }
   }
 
-  return optimizedFile
+  return optimizedFile;
 }
 
 /**
@@ -357,22 +346,22 @@ export async function optimizeImageForUpload(
  */
 export function createImagePreview(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    
+    const reader = new FileReader();
+
     reader.onload = (e): void => {
       if (e.target?.result) {
-        resolve(e.target.result as string)
+        resolve(e.target.result as string);
       } else {
-        reject(new Error('Failed to create preview'))
+        reject(new Error('Failed to create preview'));
       }
-    }
-    
+    };
+
     reader.onerror = (): void => {
-      reject(new Error('Failed to read file'))
-    }
-    
-    reader.readAsDataURL(file)
-  })
+      reject(new Error('Failed to read file'));
+    };
+
+    reader.readAsDataURL(file);
+  });
 }
 
 /**
@@ -383,25 +372,25 @@ export async function processImageBatch(
   processor: (file: File) => Promise<File>,
   onProgress?: (progress: number) => void
 ): Promise<File[]> {
-  const results: File[] = []
-  
+  const results: File[] = [];
+
   for (let i = 0; i < files.length; i++) {
-    const file = files[i]
-    if (!file) continue
-    
+    const file = files[i];
+    if (!file) continue;
+
     try {
-      const processed = await processor(file)
-      results.push(processed)
-      
+      const processed = await processor(file);
+      results.push(processed);
+
       if (onProgress) {
-        onProgress((i + 1) / files.length * 100)
+        onProgress(((i + 1) / files.length) * 100);
       }
     } catch (error) {
-      console.error(`Failed to process image ${i + 1}:`, error)
+      console.error(`Failed to process image ${i + 1}:`, error);
       // Keep original file if processing fails
-      results.push(file)
+      results.push(file);
     }
   }
-  
-  return results
+
+  return results;
 }

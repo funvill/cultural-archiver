@@ -56,7 +56,7 @@ export async function hasPermission(
     if (result) {
       // Update cache
       updatePermissionCache(userUuid, [permission]);
-      
+
       return {
         hasPermission: true,
         permission: result.permission as Permission,
@@ -111,7 +111,7 @@ export async function hasAnyPermission(
     if (result) {
       // Update cache with found permission
       updatePermissionCache(userUuid, [result.permission as Permission]);
-      
+
       return {
         hasPermission: true,
         permission: result.permission as Permission,
@@ -130,10 +130,7 @@ export async function hasAnyPermission(
 /**
  * Get all active permissions for a user
  */
-export async function getUserPermissions(
-  db: D1Database,
-  userUuid: string
-): Promise<Permission[]> {
+export async function getUserPermissions(db: D1Database, userUuid: string): Promise<Permission[]> {
   try {
     // Check cache first
     const cached = getCachedPermissions(userUuid);
@@ -157,7 +154,9 @@ export async function getUserPermissions(
     const results = await stmt.bind(userUuid).all();
 
     if (results.success) {
-      const permissions = results.results.map(row => (row as { permission: Permission }).permission);
+      const permissions = results.results.map(
+        row => (row as { permission: Permission }).permission
+      );
       updatePermissionCache(userUuid, permissions);
       return permissions;
     }
@@ -195,12 +194,14 @@ export async function grantPermission(
       VALUES (?, ?, ?, ?, ?)
     `);
 
-    const result = await stmt.bind(permissionId, userUuid, permission, grantedBy, notes || null).run();
+    const result = await stmt
+      .bind(permissionId, userUuid, permission, grantedBy, notes || null)
+      .run();
 
     if (result.success) {
       // Clear cache for this user
       clearUserPermissionCache(userUuid);
-      
+
       return { success: true, permissionId };
     }
 
@@ -241,7 +242,7 @@ export async function revokePermission(
     if (result.success && result.meta.changes > 0) {
       // Clear cache for this user
       clearUserPermissionCache(userUuid);
-      
+
       return { success: true };
     }
 
@@ -258,15 +259,17 @@ export async function revokePermission(
 export async function listUsersWithPermissions(
   db: D1Database,
   permission?: Permission
-): Promise<Array<{
-  user_uuid: string;
-  permissions: Array<{
-    permission: Permission;
-    granted_at: string;
-    granted_by: string;
-    notes?: string | undefined;
-  }>;
-}>> {
+): Promise<
+  Array<{
+    user_uuid: string;
+    permissions: Array<{
+      permission: Permission;
+      granted_at: string;
+      granted_by: string;
+      notes?: string | undefined;
+    }>;
+  }>
+> {
   try {
     let whereClause = 'WHERE is_active = 1';
     let bindings: unknown[] = [];
@@ -295,12 +298,15 @@ export async function listUsersWithPermissions(
     }
 
     // Group by user
-    const userMap = new Map<string, Array<{
-      permission: Permission;
-      granted_at: string;
-      granted_by: string;
-      notes?: string;
-    }>>();
+    const userMap = new Map<
+      string,
+      Array<{
+        permission: Permission;
+        granted_at: string;
+        granted_by: string;
+        notes?: string;
+      }>
+    >();
 
     for (const row of results.results) {
       const record = row as {
@@ -357,7 +363,7 @@ export async function enhanceAuthContext(
   authContext: AuthContext
 ): Promise<EnhancedAuthContext> {
   const permissions = await getUserPermissions(db, authContext.userToken);
-  
+
   return {
     ...authContext,
     permissions,
@@ -367,7 +373,9 @@ export async function enhanceAuthContext(
 }
 
 // Cache management functions
-function getCachedPermissions(userUuid: string): { permissions: Permission[]; timestamp: number } | null {
+function getCachedPermissions(
+  userUuid: string
+): { permissions: Permission[]; timestamp: number } | null {
   const cached = permissionCache.get(userUuid);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
     return cached;

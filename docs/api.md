@@ -646,6 +646,7 @@ Authorization: Bearer {admin-token}
 ```
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -676,10 +677,12 @@ Authorization: Bearer {admin-token}
 ```
 
 **Query Parameters**:
+
 - `page` (optional): Page number for pagination (default: 1)
 - `limit` (optional): Results per page (max 100, default: 20)
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -709,12 +712,14 @@ Authorization: Bearer {admin-token}
 ```
 
 **Error Responses**:
+
 - `401 Unauthorized`: Invalid or missing admin token
 - `500 Internal Server Error`: Data dump generation failed
 
 ### Data Dump Contents
 
 Each data dump contains:
+
 - **artwork.json**: Approved artwork with public metadata only
 - **creators.json**: Artist information (name, public details)
 - **tags.json**: Metadata tags and categories
@@ -731,6 +736,7 @@ Each data dump contains:
 The platform includes command-line tools for backup generation:
 
 ### Local Backup
+
 ```bash
 # Generate backup to current directory
 npm run backup
@@ -743,12 +749,14 @@ npm run backup -- --help
 ```
 
 ### Remote Backup
+
 ```bash
 # Generate backup using Cloudflare credentials
 npm run backup:remote -- --output-dir ./production-backups
 ```
 
 **Required Environment Variables**:
+
 ```bash
 CLOUDFLARE_ACCOUNT_ID=your-account-id
 DATABASE_ID=your-d1-database-id

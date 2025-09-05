@@ -1,9 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount, type VueWrapper } from '@vue/test-utils'
-import { createRouter, createWebHistory, type Router } from 'vue-router'
-import { createPinia, type Pinia } from 'pinia'
-import ProfileView from '../ProfileView.vue'
-import { useAuthStore } from '../../stores/auth'
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { mount, type VueWrapper } from '@vue/test-utils';
+import { createRouter, createWebHistory, type Router } from 'vue-router';
+import { createPinia, type Pinia } from 'pinia';
+import ProfileView from '../ProfileView.vue';
+import { useAuthStore } from '../../stores/auth';
 
 // Mock stores
 vi.mock('../../stores/auth', () => ({
@@ -16,7 +16,7 @@ vi.mock('../../stores/auth', () => ({
       verified: true,
     },
   })),
-}))
+}));
 
 const createMockRouter = (): Router => {
   return createRouter({
@@ -25,8 +25,8 @@ const createMockRouter = (): Router => {
       { path: '/', component: { template: '<div>Home</div>' } },
       { path: '/profile', component: { template: '<div>Profile</div>' } },
     ],
-  })
-}
+  });
+};
 
 // Mock submission data - currently unused but available for future tests
 // const _mockSubmissions = [
@@ -54,15 +54,15 @@ const createMockRouter = (): Router => {
 // ]
 
 describe('ProfileView', () => {
-  let wrapper: VueWrapper<any> // eslint-disable-line @typescript-eslint/no-explicit-any
-  let router: Router
-  let pinia: Pinia
-  let mockAuthStore: any // eslint-disable-line @typescript-eslint/no-explicit-any
+  let wrapper: VueWrapper<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let router: Router;
+  let pinia: Pinia;
+  let mockAuthStore: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 
   beforeEach(async (): Promise<void> => {
-    pinia = createPinia()
-    router = createMockRouter()
-    
+    pinia = createPinia();
+    router = createMockRouter();
+
     mockAuthStore = {
       isAuthenticated: true,
       userToken: 'test-token',
@@ -71,10 +71,10 @@ describe('ProfileView', () => {
         email: 'test@example.com',
         verified: true,
       },
-    }
-    
-    vi.mocked(useAuthStore).mockReturnValue(mockAuthStore)
-    
+    };
+
+    vi.mocked(useAuthStore).mockReturnValue(mockAuthStore);
+
     wrapper = mount(ProfileView, {
       global: {
         plugins: [router, pinia],
@@ -82,137 +82,137 @@ describe('ProfileView', () => {
           RouterLink: true,
         },
       },
-    })
-    
-    await router.isReady()
-    await wrapper.vm.$nextTick()
-  })
+    });
+
+    await router.isReady();
+    await wrapper.vm.$nextTick();
+  });
 
   describe('Basic Rendering', (): void => {
     it('renders without errors', (): void => {
-      expect(wrapper.exists()).toBe(true)
-    })
+      expect(wrapper.exists()).toBe(true);
+    });
 
     it('shows profile header', (): void => {
-      expect(wrapper.text()).toContain('Profile')
-    })
+      expect(wrapper.text()).toContain('Profile');
+    });
 
     it('displays user interface when authenticated', (): void => {
-      expect(wrapper.vm.authStore.isAuthenticated).toBe(true)
-      expect(wrapper.text()).toContain('Profile')
-    })
-  })
+      expect(wrapper.vm.authStore.isAuthenticated).toBe(true);
+      expect(wrapper.text()).toContain('Profile');
+    });
+  });
 
   describe('Authentication States', (): void => {
     it('shows authenticated content when user is logged in', (): void => {
-      expect(wrapper.vm.authStore.isAuthenticated).toBe(true)
-      expect(wrapper.text()).toContain('Overview')
-    })
+      expect(wrapper.vm.authStore.isAuthenticated).toBe(true);
+      expect(wrapper.text()).toContain('Overview');
+    });
 
     it('handles unauthenticated state', async (): Promise<void> => {
-      mockAuthStore.isAuthenticated = false
-      
+      mockAuthStore.isAuthenticated = false;
+
       const unauthWrapper = mount(ProfileView, {
         global: {
           plugins: [router, pinia],
         },
-      })
-      
-      await unauthWrapper.vm.$nextTick()
-      expect(unauthWrapper.text()).toContain('Please sign in')
-    })
+      });
+
+      await unauthWrapper.vm.$nextTick();
+      expect(unauthWrapper.text()).toContain('Please sign in');
+    });
 
     it('shows verification status', (): void => {
-      expect(wrapper.vm.authStore.isVerified).toBe(true)
-    })
-  })
+      expect(wrapper.vm.authStore.isVerified).toBe(true);
+    });
+  });
 
   describe('Tab Navigation', (): void => {
     it('shows tab navigation', (): void => {
-      expect(wrapper.text()).toContain('Overview')
-    })
+      expect(wrapper.text()).toContain('Overview');
+    });
 
     it('switches between tabs', async (): Promise<void> => {
-      expect(wrapper.vm.activeTab).toBe('overview')
-      
-      wrapper.vm.activeTab = 'pending'
-      await wrapper.vm.$nextTick()
-      
-      expect(wrapper.vm.activeTab).toBe('pending')
-    })
+      expect(wrapper.vm.activeTab).toBe('overview');
+
+      wrapper.vm.activeTab = 'pending';
+      await wrapper.vm.$nextTick();
+
+      expect(wrapper.vm.activeTab).toBe('pending');
+    });
 
     it('has tab structure', (): void => {
-      const tabs = wrapper.vm.tabs
-      expect(Array.isArray(tabs)).toBe(true)
-      expect(tabs.length).toBeGreaterThan(0)
-    })
-  })
+      const tabs = wrapper.vm.tabs;
+      expect(Array.isArray(tabs)).toBe(true);
+      expect(tabs.length).toBeGreaterThan(0);
+    });
+  });
 
   describe('Submissions Display', (): void => {
     it('has submissions array', (): void => {
-      expect(Array.isArray(wrapper.vm.submissions)).toBe(true)
-    })
+      expect(Array.isArray(wrapper.vm.submissions)).toBe(true);
+    });
 
     it('has loading state', (): void => {
-      expect(typeof wrapper.vm.loading).toBe('boolean')
-    })
+      expect(typeof wrapper.vm.loading).toBe('boolean');
+    });
 
     it('has error state handling', (): void => {
-      expect(wrapper.vm.error === null || typeof wrapper.vm.error === 'string').toBe(true)
-    })
-  })
+      expect(wrapper.vm.error === null || typeof wrapper.vm.error === 'string').toBe(true);
+    });
+  });
 
   describe('Sorting and Filtering', (): void => {
     it('has default sort settings', (): void => {
-      expect(wrapper.vm.sortBy).toBe('created_at')
-      expect(wrapper.vm.sortOrder).toBe('desc')
-    })
+      expect(wrapper.vm.sortBy).toBe('created_at');
+      expect(wrapper.vm.sortOrder).toBe('desc');
+    });
 
     it('can change sort order', async (): Promise<void> => {
-      wrapper.vm.sortOrder = 'asc'
-      await wrapper.vm.$nextTick()
-      expect(wrapper.vm.sortOrder).toBe('asc')
-    })
+      wrapper.vm.sortOrder = 'asc';
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.sortOrder).toBe('asc');
+    });
 
     it('has filtering capability', (): void => {
-      expect(typeof wrapper.vm.filteredSubmissions).toBe('object')
-    })
-  })
+      expect(typeof wrapper.vm.filteredSubmissions).toBe('object');
+    });
+  });
 
   describe('Pagination', (): void => {
     it('has pagination settings', (): void => {
-      expect(wrapper.vm.currentPage).toBe(1)
-      expect(wrapper.vm.pageSize).toBe(10)
-    })
+      expect(wrapper.vm.currentPage).toBe(1);
+      expect(wrapper.vm.pageSize).toBe(10);
+    });
 
     it('can navigate pages', async (): Promise<void> => {
-      wrapper.vm.currentPage = 2
-      await wrapper.vm.$nextTick()
-      expect(wrapper.vm.currentPage).toBe(2)
-    })
+      wrapper.vm.currentPage = 2;
+      await wrapper.vm.$nextTick();
+      expect(wrapper.vm.currentPage).toBe(2);
+    });
 
     it('has pagination functionality', (): void => {
-      expect(Array.isArray(wrapper.vm.paginatedSubmissions)).toBe(true)
-    })
-  })
+      expect(Array.isArray(wrapper.vm.paginatedSubmissions)).toBe(true);
+    });
+  });
 
   describe('Loading and Error States', (): void => {
     it('has loading state property', (): void => {
-      expect(typeof wrapper.vm.loading).toBe('boolean')
-    })
+      expect(typeof wrapper.vm.loading).toBe('boolean');
+    });
 
     it('has error state handling', (): void => {
-      expect(wrapper.vm.error === null || typeof wrapper.vm.error === 'string').toBe(true)
-    })
-  })
+      expect(wrapper.vm.error === null || typeof wrapper.vm.error === 'string').toBe(true);
+    });
+  });
 
   describe('Statistics', (): void => {
     it('has statistics interface', (): void => {
-      expect(wrapper.vm).toBeDefined() // Just check component exists
-    })
+      expect(wrapper.vm).toBeDefined(); // Just check component exists
+    });
 
     it('displays profile content', (): void => {
-      expect(wrapper.text()).toContain('Profile')
-    })
-  })
-})
+      expect(wrapper.text()).toContain('Profile');
+    });
+  });
+});

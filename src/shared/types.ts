@@ -340,13 +340,13 @@ export function createApiSuccessResponse<T>(data: T, message?: string): ApiRespo
   const response: ApiResponse<T> = {
     success: true,
     data,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
-  
+
   if (message) {
     response.message = message;
   }
-  
+
   return response;
 }
 
@@ -357,13 +357,13 @@ export function createApiErrorResponse(error: string, message?: string): ApiResp
   const response: ApiResponse<never> = {
     success: false,
     error,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   };
-  
+
   if (message) {
     response.message = message;
   }
-  
+
   return response;
 }
 
@@ -474,10 +474,19 @@ export interface ConsentValidationResult {
 
 export interface AuditLogRecord {
   id: string;
-  action_type: 'submission_created' | 'submission_approved' | 'submission_rejected' | 
-               'artwork_created' | 'artwork_updated' | 'artwork_removed' |
-               'consent_collected' | 'consent_updated' | 'email_verified' |
-               'photo_uploaded' | 'photo_processed' | 'batch_processed';
+  action_type:
+    | 'submission_created'
+    | 'submission_approved'
+    | 'submission_rejected'
+    | 'artwork_created'
+    | 'artwork_updated'
+    | 'artwork_removed'
+    | 'consent_collected'
+    | 'consent_updated'
+    | 'email_verified'
+    | 'photo_uploaded'
+    | 'photo_processed'
+    | 'batch_processed';
   entity_type: 'artwork' | 'logbook' | 'user' | 'photo' | 'consent';
   entity_id: string;
   user_token: string;
@@ -673,7 +682,7 @@ export interface AuthContext {
   isReviewer: boolean;
   isAdmin?: boolean;
   permissions?: Permission[];
-  user?: UserRecord;  // Full user record for authenticated users
+  user?: UserRecord; // Full user record for authenticated users
 }
 
 // Rate Limiting Types
@@ -686,7 +695,7 @@ export interface RateLimitInfo {
   blocked_until?: string;
 }
 
-// Session Management Types  
+// Session Management Types
 export interface SessionInfo {
   id: string;
   user_uuid: string;
@@ -827,7 +836,9 @@ export const isValidUserStatus = (status: string): status is UserRecord['status'
   return ['active', 'suspended'].includes(status);
 };
 
-export const isValidRateLimitIdentifierType = (type: string): type is RateLimitRecord['identifier_type'] => {
+export const isValidRateLimitIdentifierType = (
+  type: string
+): type is RateLimitRecord['identifier_type'] => {
   return ['email', 'ip'].includes(type);
 };
 
@@ -873,7 +884,7 @@ export const MIN_SEARCH_RADIUS = 50; // 50m
 export const RATE_LIMIT_SUBMISSIONS_PER_HOUR = 60;
 export const RATE_LIMIT_QUERIES_PER_HOUR = 60;
 
-// Authentication rate limiting constants  
+// Authentication rate limiting constants
 export const RATE_LIMIT_MAGIC_LINKS_PER_EMAIL_PER_HOUR = 10;
 export const RATE_LIMIT_MAGIC_LINKS_PER_IP_PER_HOUR = 20;
 export const MAGIC_LINK_EXPIRY_HOURS = 1;
@@ -1061,7 +1072,11 @@ export const isValidAdminActionType = (action: string): action is AdminActionTyp
 // Permission constants
 export const PERMISSIONS = ['moderator', 'admin'] as const;
 export const MODERATION_DECISIONS = ['approved', 'rejected', 'skipped'] as const;
-export const ADMIN_ACTION_TYPES = ['grant_permission', 'revoke_permission', 'view_audit_logs'] as const;
+export const ADMIN_ACTION_TYPES = [
+  'grant_permission',
+  'revoke_permission',
+  'view_audit_logs',
+] as const;
 
 // ================================
 // Backup and Data Dump System Types

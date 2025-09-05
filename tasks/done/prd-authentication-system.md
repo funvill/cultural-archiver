@@ -115,7 +115,7 @@ The authentication system will use a UUID-based approach with optional email ver
 ### Error States
 
 - Invalid email format: Clear inline validation message
-- Magic link expired: Explanation with option to request new link  
+- Magic link expired: Explanation with option to request new link
 - Magic link already used: Explanation with option to request new link
 - Rate limit exceeded: Clear message with time until next request allowed
 - Authentication required: Modal explaining benefits of logging in with sign-in option
@@ -138,7 +138,7 @@ The authentication system will use a UUID-based approach with optional email ver
 ### API Endpoints Needed
 
 - `POST /auth/request-magic-link` - Request magic link (with rate limiting)
-- `POST /auth/verify-magic-link` - Verify and consume magic link token  
+- `POST /auth/verify-magic-link` - Verify and consume magic link token
 - `POST /auth/logout` - Clear user session
 - `GET /auth/status` - Check current authentication status
 
@@ -193,6 +193,6 @@ The authentication system will use a UUID-based approach with optional email ver
 
 **Answer**: UUID v4 collisions are astronomically rare (1 in 2^122 probability). If a collision occurs during user registration, generate a new UUID and retry. Log collision events for monitoring but no special user messaging needed since the probability is effectively zero in practice.
 
-10. **Cloudflare managed auth evaluation**: Why was Cloudflare Zero Trust Access not chosen over custom implementation? 
+10. **Cloudflare managed auth evaluation**: Why was Cloudflare Zero Trust Access not chosen over custom implementation?
 
 **Answer**: Zero Trust costs $3/user/month making it prohibitively expensive for public applications, designed for enterprise internal apps not consumer-facing websites with anonymous users, and lacks support for custom UUID claiming logic. MailChannels integration with Cloudflare Workers provides free email delivery for magic links without additional authentication service costs.

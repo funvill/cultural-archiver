@@ -104,7 +104,7 @@ This feature enables logged-in users to edit artwork details directly from the a
 - **Reuse Logic:** Extend existing moderation code to handle artwork edits with minimal changes.
 - **Schema Fields:**
   - `edit_id` (primary key), `artwork_id`, `user_token`, `submitted_at`
-  - `field_name` (e.g., 'title', 'description', 'created_by', 'tags') 
+  - `field_name` (e.g., 'title', 'description', 'created_by', 'tags')
   - `field_value_old` (original value before edit)
   - `field_value_new` (proposed new value)
   - `status` (pending/approved/rejected), `moderator_notes`, `reviewed_at`, `reviewed_by`

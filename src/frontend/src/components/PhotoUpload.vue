@@ -1,391 +1,397 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, withDefaults, defineProps, defineEmits } from 'vue'
-import ConsentForm from './ConsentForm.vue'
-import { useAnnouncer } from '../composables/useAnnouncer'
-import { extractExifData } from '../utils/image'
-import { createApiUrl } from '../utils/api-config'
-import type { ExifData } from '../utils/image'
+import { ref, computed, onMounted, withDefaults, defineProps, defineEmits } from 'vue';
+import ConsentForm from './ConsentForm.vue';
+import { useAnnouncer } from '../composables/useAnnouncer';
+import { extractExifData } from '../utils/image';
+import { createApiUrl } from '../utils/api-config';
+import type { ExifData } from '../utils/image';
 
 // File interface
 interface PhotoFile {
-  id: string
-  name: string
-  size: number
-  type: string
-  file: File
-  preview: string
-  exifData?: ExifData
-  uploading?: boolean
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  file: File;
+  preview: string;
+  exifData?: ExifData;
+  uploading?: boolean;
 }
 
 // Submission response interface
 interface SubmissionResponse {
-  submission_id: string
-  photos: string[]
-  message?: string
+  submission_id: string;
+  photos: string[];
+  message?: string;
 }
 
 // Component props
 interface Props {
-  userToken?: string
+  userToken?: string;
 }
 
-const props = withDefaults(defineProps<Props>(), {})
+const props = withDefaults(defineProps<Props>(), {});
 
 // Component emits
 interface Emits {
-  (e: 'uploadSuccess', data: SubmissionResponse): void
-  (e: 'uploadError', error: string): void
-  (e: 'cancel'): void
-  (e: 'error', error: string): void
+  (e: 'uploadSuccess', data: SubmissionResponse): void;
+  (e: 'uploadError', error: string): void;
+  (e: 'cancel'): void;
+  (e: 'error', error: string): void;
 }
 
-const emit = defineEmits<Emits>()
+const emit = defineEmits<Emits>();
 
 // Announcer for screen reader feedback
-const { announceSuccess, announceError, announceInfo } = useAnnouncer()
+const { announceSuccess, announceError, announceInfo } = useAnnouncer();
 
 // State
-const selectedFiles = ref<PhotoFile[]>([])
-const showConsentForm = ref(false)
-const hasValidConsent = ref(false)
-const isDragging = ref(false)
-const isSubmitting = ref(false)
-const isGettingLocation = ref(false)
-const fileInput = ref<HTMLInputElement>()
+const selectedFiles = ref<PhotoFile[]>([]);
+const showConsentForm = ref(false);
+const hasValidConsent = ref(false);
+const isDragging = ref(false);
+const isSubmitting = ref(false);
+const isGettingLocation = ref(false);
+const fileInput = ref<HTMLInputElement>();
 
 const locationData = ref({
   latitude: null as number | null,
-  longitude: null as number | null
-})
+  longitude: null as number | null,
+});
 
-const description = ref('')
-const errors = ref<string[]>([])
-const consentError = ref<string>('')
+const description = ref('');
+const errors = ref<string[]>([]);
+const consentError = ref<string>('');
 
 // Constants
-const MAX_FILES = 3
-const MAX_FILE_SIZE = 15 * 1024 * 1024 // 15MB
-const SUPPORTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic']
+const MAX_FILES = 3;
+const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
+const SUPPORTED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic'];
 
 // Helper functions for validation
 const isValidLatitude = (lat: number | null): boolean => {
-  return lat !== null && !isNaN(lat) && lat >= -90 && lat <= 90
-}
+  return lat !== null && !isNaN(lat) && lat >= -90 && lat <= 90;
+};
 
 const isValidLongitude = (lon: number | null): boolean => {
-  return lon !== null && !isNaN(lon) && lon >= -180 && lon <= 180
-}
+  return lon !== null && !isNaN(lon) && lon >= -180 && lon <= 180;
+};
 
 // Computed properties
 const canSubmit = computed(() => {
-  return selectedFiles.value.length > 0 &&
-         isValidLatitude(locationData.value.latitude) &&
-         isValidLongitude(locationData.value.longitude) &&
-         hasValidConsent.value &&
-         !isSubmitting.value
-})
+  return (
+    selectedFiles.value.length > 0 &&
+    isValidLatitude(locationData.value.latitude) &&
+    isValidLongitude(locationData.value.longitude) &&
+    hasValidConsent.value &&
+    !isSubmitting.value
+  );
+});
 
 // Lifecycle
 onMounted(() => {
-  checkConsentStatus()
-})
+  checkConsentStatus();
+});
 
 // Methods
 async function checkConsentStatus() {
   try {
     if (!props.userToken) {
-      hasValidConsent.value = false
-      return
+      hasValidConsent.value = false;
+      return;
     }
-    
+
     const response = await fetch(createApiUrl('/consent'), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${props.userToken}`
-      }
-    })
-    
+        Authorization: `Bearer ${props.userToken}`,
+      },
+    });
+
     if (response.ok) {
-      const data = await response.json()
-      hasValidConsent.value = data.hasConsent || false
+      const data = await response.json();
+      hasValidConsent.value = data.hasConsent || false;
     } else {
-      hasValidConsent.value = false
+      hasValidConsent.value = false;
     }
   } catch (error) {
-    console.error('Failed to check consent status:', error)
-    hasValidConsent.value = false
+    console.error('Failed to check consent status:', error);
+    hasValidConsent.value = false;
   }
 }
 
 function triggerFileInput() {
-  fileInput.value?.click()
+  fileInput.value?.click();
 }
 
 function handleFileSelect(event: Event) {
-  const input = event.target as HTMLInputElement
+  const input = event.target as HTMLInputElement;
   if (input.files) {
-    addFiles(Array.from(input.files))
+    addFiles(Array.from(input.files));
   }
 }
 
 function handleDrop(event: DragEvent) {
-  event.preventDefault()
-  isDragging.value = false
-  
+  event.preventDefault();
+  isDragging.value = false;
+
   if (event.dataTransfer?.files) {
-    addFiles(Array.from(event.dataTransfer.files))
+    addFiles(Array.from(event.dataTransfer.files));
   }
 }
 
 async function addFiles(files: File[]) {
-  errors.value = []
-  
+  errors.value = [];
+
   for (const file of files) {
     if (selectedFiles.value.length >= MAX_FILES) {
-      errors.value.push(`Maximum ${MAX_FILES} files allowed`)
-      break
+      errors.value.push(`Maximum ${MAX_FILES} files allowed`);
+      break;
     }
-    
+
     if (!validateFile(file)) {
-      continue
+      continue;
     }
-    
+
     const photoFile: PhotoFile = {
       id: generateId(),
       name: file.name,
       size: file.size,
       type: file.type,
       file,
-      preview: await createPreview(file)
-    }
-    
+      preview: await createPreview(file),
+    };
+
     // Extract EXIF data
     try {
-      photoFile.exifData = await extractExifData(file)
+      photoFile.exifData = await extractExifData(file);
     } catch (error) {
-      console.warn('Failed to extract EXIF data:', error)
+      console.warn('Failed to extract EXIF data:', error);
     }
-    
-    selectedFiles.value.push(photoFile)
+
+    selectedFiles.value.push(photoFile);
   }
-  
+
   // Announce to screen readers when files are added
   if (files.length > 0) {
-    const fileCount = files.length
-    const totalFiles = selectedFiles.value.length
-    announceSuccess(`${fileCount} photo${fileCount > 1 ? 's' : ''} added. Total: ${totalFiles} of ${MAX_FILES} photos.`)
+    const fileCount = files.length;
+    const totalFiles = selectedFiles.value.length;
+    announceSuccess(
+      `${fileCount} photo${fileCount > 1 ? 's' : ''} added. Total: ${totalFiles} of ${MAX_FILES} photos.`
+    );
   }
 }
 
 function validateFile(file: File): boolean {
   if (!SUPPORTED_TYPES.includes(file.type)) {
-    const errorMsg = `Unsupported file type: ${file.name}`
-    errors.value.push(errorMsg)
-    announceError(errorMsg)
-    return false
+    const errorMsg = `Unsupported file type: ${file.name}`;
+    errors.value.push(errorMsg);
+    announceError(errorMsg);
+    return false;
   }
-  
+
   if (file.size > MAX_FILE_SIZE) {
-    const errorMsg = `File too large: ${file.name} (max ${formatFileSize(MAX_FILE_SIZE)})`
-    errors.value.push(errorMsg)
-    announceError(errorMsg)
-    return false
+    const errorMsg = `File too large: ${file.name} (max ${formatFileSize(MAX_FILE_SIZE)})`;
+    errors.value.push(errorMsg);
+    announceError(errorMsg);
+    return false;
   }
-  
+
   if (file.size === 0) {
-    const errorMsg = `File is empty: ${file.name}`
-    errors.value.push(errorMsg)
-    announceError(errorMsg)
-    return false
+    const errorMsg = `File is empty: ${file.name}`;
+    errors.value.push(errorMsg);
+    announceError(errorMsg);
+    return false;
   }
-  
-  return true
+
+  return true;
 }
 
 function removeFile(index: number) {
-  const file = selectedFiles.value[index]
+  const file = selectedFiles.value[index];
   if (file) {
-    URL.revokeObjectURL(file.preview)
-    selectedFiles.value.splice(index, 1)
-    
+    URL.revokeObjectURL(file.preview);
+    selectedFiles.value.splice(index, 1);
+
     // Announce to screen readers when file is removed
-    const remainingFiles = selectedFiles.value.length
-    announceInfo(`Photo "${file.name}" removed. ${remainingFiles} photo${remainingFiles !== 1 ? 's' : ''} remaining.`)
+    const remainingFiles = selectedFiles.value.length;
+    announceInfo(
+      `Photo "${file.name}" removed. ${remainingFiles} photo${remainingFiles !== 1 ? 's' : ''} remaining.`
+    );
   }
 }
 
 async function createPreview(file: File): Promise<string> {
-  return new Promise((resolve) => {
-    const reader = new FileReader()
-    reader.onload = (e) => resolve(e.target?.result as string)
-    reader.readAsDataURL(file)
-  })
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target?.result as string);
+    reader.readAsDataURL(file);
+  });
 }
 
 function getCurrentLocation() {
   if (!navigator.geolocation) {
-    errors.value.push('Geolocation is not supported by this browser')
-    return
+    errors.value.push('Geolocation is not supported by this browser');
+    return;
   }
-  
-  isGettingLocation.value = true
-  
+
+  isGettingLocation.value = true;
+
   navigator.geolocation.getCurrentPosition(
-    (position) => {
-      locationData.value.latitude = position.coords.latitude
-      locationData.value.longitude = position.coords.longitude
-      isGettingLocation.value = false
+    position => {
+      locationData.value.latitude = position.coords.latitude;
+      locationData.value.longitude = position.coords.longitude;
+      isGettingLocation.value = false;
     },
-    (error) => {
-      console.error('Geolocation error:', error)
-      errors.value.push('Failed to get current location')
-      isGettingLocation.value = false
+    error => {
+      console.error('Geolocation error:', error);
+      errors.value.push('Failed to get current location');
+      isGettingLocation.value = false;
     },
     {
       enableHighAccuracy: true,
       timeout: 10000,
-      maximumAge: 300000 // 5 minutes
+      maximumAge: 300000, // 5 minutes
     }
-  )
+  );
 }
 
 async function handleSubmit() {
-  if (!canSubmit.value) return
-  
-  errors.value = []
-  
+  if (!canSubmit.value) return;
+
+  errors.value = [];
+
   // Additional client-side validation
   if (!isValidLatitude(locationData.value.latitude)) {
-    errors.value.push('Invalid latitude. Must be between -90 and 90.')
-    return
+    errors.value.push('Invalid latitude. Must be between -90 and 90.');
+    return;
   }
-  
+
   if (!isValidLongitude(locationData.value.longitude)) {
-    errors.value.push(`Invalid longitude: ${locationData.value.longitude}. Must be between -180 and 180.`)
-    return
+    errors.value.push(
+      `Invalid longitude: ${locationData.value.longitude}. Must be between -180 and 180.`
+    );
+    return;
   }
-  
-  isSubmitting.value = true
-  
+
+  isSubmitting.value = true;
+
   try {
-    const formData = new FormData()
-    
+    const formData = new FormData();
+
     // Add files
-    selectedFiles.value.forEach((photoFile) => {
-      formData.append(`photos`, photoFile.file)
-    })
-    
+    selectedFiles.value.forEach(photoFile => {
+      formData.append(`photos`, photoFile.file);
+    });
+
     // Add location data
-    formData.append('latitude', locationData.value.latitude!.toString())
-    formData.append('longitude', locationData.value.longitude!.toString())
-    
+    formData.append('latitude', locationData.value.latitude!.toString());
+    formData.append('longitude', locationData.value.longitude!.toString());
+
     // Add description
     if (description.value.trim()) {
-      formData.append('note', description.value.trim())
+      formData.append('note', description.value.trim());
     }
-    
+
     // Submit to API
     const response = await fetch(createApiUrl('/logbook'), {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${props.userToken}`
+        Authorization: `Bearer ${props.userToken}`,
       },
-      body: formData
-    })
-    
+      body: formData,
+    });
+
     if (!response.ok) {
-      const error = await response.json()
-      throw new Error(error.message || 'Upload failed')
+      const error = await response.json();
+      throw new Error(error.message || 'Upload failed');
     }
-    
-    const result = await response.json()
-    emit('uploadSuccess', result)
-    
+
+    const result = await response.json();
+    emit('uploadSuccess', result);
   } catch (error) {
-    console.error('Upload error:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Upload failed'
-    errors.value.push(errorMessage)
-    emit('uploadError', errorMessage)
+    console.error('Upload error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Upload failed';
+    errors.value.push(errorMessage);
+    emit('uploadError', errorMessage);
   } finally {
-    isSubmitting.value = false
+    isSubmitting.value = false;
   }
 }
 
 async function handleConsentSubmit(consentData: any) {
   try {
     // Clear any previous consent errors
-    consentError.value = ''
-    
+    consentError.value = '';
+
     // Submit consent to API
     const response = await fetch(createApiUrl('/consent'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${props.userToken}`
+        Authorization: `Bearer ${props.userToken}`,
       },
-      body: JSON.stringify(consentData)
-    })
-    
+      body: JSON.stringify(consentData),
+    });
+
     if (!response.ok) {
-      let errorMessage = 'Failed to submit consent'
-      
+      let errorMessage = 'Failed to submit consent';
+
       try {
-        const errorData = await response.json()
+        const errorData = await response.json();
         if (response.status === 429) {
           // Rate limit exceeded
-          errorMessage = 'Too many consent submissions. Please wait before trying again.'
+          errorMessage = 'Too many consent submissions. Please wait before trying again.';
           if (errorData.error?.retryAfter) {
-            const minutes = Math.ceil(errorData.error.retryAfter / 60000)
-            errorMessage += ` Try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`
+            const minutes = Math.ceil(errorData.error.retryAfter / 60000);
+            errorMessage += ` Try again in ${minutes} minute${minutes !== 1 ? 's' : ''}.`;
           }
         } else if (errorData.error?.message) {
-          errorMessage = errorData.error.message
+          errorMessage = errorData.error.message;
         }
       } catch {
         // If we can't parse the error response, use the default message
         if (response.status === 429) {
-          errorMessage = 'Too many consent submissions. Please wait before trying again.'
+          errorMessage = 'Too many consent submissions. Please wait before trying again.';
         }
       }
-      
-      consentError.value = errorMessage
-      return
+
+      consentError.value = errorMessage;
+      return;
     }
-    
-    hasValidConsent.value = true
-    closeConsentForm()
-    
+
+    hasValidConsent.value = true;
+    closeConsentForm();
   } catch (error) {
-    console.error('Consent submission error:', error)
-    consentError.value = 'Network error. Please check your connection and try again.'
+    console.error('Consent submission error:', error);
+    consentError.value = 'Network error. Please check your connection and try again.';
   }
 }
 
 function openConsentForm() {
-  consentError.value = ''
-  showConsentForm.value = true
+  consentError.value = '';
+  showConsentForm.value = true;
 }
 
 function closeConsentForm() {
-  consentError.value = ''
-  showConsentForm.value = false
+  consentError.value = '';
+  showConsentForm.value = false;
 }
 
 // Utility functions
 function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 Bytes'
-  
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  if (bytes === 0) return '0 Bytes';
+
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 function generateId(): string {
-  return Math.random().toString(36).substring(2) + Date.now().toString(36)
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
 }
 </script>
 
@@ -393,24 +399,20 @@ function generateId(): string {
   <div class="photo-upload bg-white rounded-lg shadow-lg p-4 sm:p-6 max-w-2xl mx-auto">
     <!-- Header -->
     <div class="mb-4 sm:mb-6">
-      <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
-        Upload Photos
-      </h2>
+      <h2 class="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Upload Photos</h2>
       <p class="text-sm sm:text-base text-gray-600">
-        Share photos of public art to contribute to the cultural archive.
-        You can upload up to 3 photos per submission.
+        Share photos of public art to contribute to the cultural archive. You can upload up to 3
+        photos per submission.
       </p>
     </div>
 
     <!-- Consent Check -->
     <div v-if="!hasValidConsent" class="mb-6">
       <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-        <h3 class="text-sm font-medium text-yellow-800 mb-2">
-          Consent Required
-        </h3>
+        <h3 class="text-sm font-medium text-yellow-800 mb-2">Consent Required</h3>
         <p class="text-sm text-yellow-700 mb-3">
-          Before uploading photos, you need to provide consent for legal use
-          and distribution of your contributions.
+          Before uploading photos, you need to provide consent for legal use and distribution of
+          your contributions.
         </p>
         <button
           @click="openConsentForm"
@@ -463,7 +465,8 @@ function generateId(): string {
             </label>
           </p>
           <p class="text-sm text-gray-600 mt-2" id="file-help upload-help">
-            Supports JPEG, PNG, WebP, and HEIC files up to 15MB each. You can drag and drop files or use keyboard navigation to select files.
+            Supports JPEG, PNG, WebP, and HEIC files up to 15MB each. You can drag and drop files or
+            use keyboard navigation to select files.
           </p>
         </div>
       </div>
@@ -473,7 +476,7 @@ function generateId(): string {
         <h3 class="text-lg font-medium text-gray-900">
           Selected Photos ({{ selectedFiles.length }}/3)
         </h3>
-        
+
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div
             v-for="(file, index) in selectedFiles"
@@ -488,7 +491,7 @@ function generateId(): string {
                 class="w-full h-32 object-cover"
               />
             </div>
-            
+
             <!-- File Info -->
             <div class="p-2 sm:p-3">
               <p class="text-xs sm:text-sm font-medium text-gray-900 truncate">
@@ -497,18 +500,19 @@ function generateId(): string {
               <p class="text-xs text-gray-600">
                 {{ formatFileSize(file.size) }}
               </p>
-              
+
               <!-- EXIF Info -->
               <div v-if="file.exifData" class="mt-2 text-xs text-gray-600">
                 <p v-if="file.exifData.latitude && file.exifData.longitude">
-                  📍 GPS: {{ file.exifData.latitude.toFixed(4) }}, {{ file.exifData.longitude.toFixed(4) }}
+                  📍 GPS: {{ file.exifData.latitude.toFixed(4) }},
+                  {{ file.exifData.longitude.toFixed(4) }}
                 </p>
                 <p v-if="file.exifData.make">
                   📷 {{ file.exifData.make }} {{ file.exifData.model || '' }}
                 </p>
               </div>
             </div>
-            
+
             <!-- Remove Button -->
             <button
               @click="removeFile(index)"
@@ -517,13 +521,32 @@ function generateId(): string {
             >
               <span aria-hidden="true">×</span>
             </button>
-            
+
             <!-- Upload Progress -->
-            <div v-if="file.uploading" class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+            <div
+              v-if="file.uploading"
+              class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+            >
               <div class="text-white text-center">
-                <svg class="animate-spin h-8 w-8 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                <svg
+                  class="animate-spin h-8 w-8 mx-auto mb-2"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                >
+                  <circle
+                    class="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    stroke-width="4"
+                  ></circle>
+                  <path
+                    class="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                  ></path>
                 </svg>
                 <p class="text-sm">Uploading...</p>
               </div>
@@ -534,10 +557,8 @@ function generateId(): string {
 
       <!-- Location Input -->
       <div class="space-y-4">
-        <h3 class="text-lg font-medium text-gray-900">
-          Artwork Location
-        </h3>
-        
+        <h3 class="text-lg font-medium text-gray-900">Artwork Location</h3>
+
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label for="latitude" class="block text-sm font-medium text-gray-700 mb-1">
@@ -551,15 +572,19 @@ function generateId(): string {
               placeholder="49.2827"
               :class="[
                 'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:border-transparent',
-                isValidLatitude(locationData.latitude) ? 'border-gray-300 focus:ring-blue-500' : 'border-red-300 focus:ring-red-500'
+                isValidLatitude(locationData.latitude)
+                  ? 'border-gray-300 focus:ring-blue-500'
+                  : 'border-red-300 focus:ring-red-500',
               ]"
             />
-            <p v-if="locationData.latitude !== null && !isValidLatitude(locationData.latitude)" 
-               class="mt-1 text-sm text-red-600">
+            <p
+              v-if="locationData.latitude !== null && !isValidLatitude(locationData.latitude)"
+              class="mt-1 text-sm text-red-600"
+            >
               Latitude must be between -90 and 90
             </p>
           </div>
-          
+
           <div>
             <label for="longitude" class="block text-sm font-medium text-gray-700 mb-1">
               Longitude
@@ -572,16 +597,20 @@ function generateId(): string {
               placeholder="-123.1207"
               :class="[
                 'w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:border-transparent',
-                isValidLongitude(locationData.longitude) ? 'border-gray-300 focus:ring-blue-500' : 'border-red-300 focus:ring-red-500'
+                isValidLongitude(locationData.longitude)
+                  ? 'border-gray-300 focus:ring-blue-500'
+                  : 'border-red-300 focus:ring-red-500',
               ]"
             />
-            <p v-if="locationData.longitude !== null && !isValidLongitude(locationData.longitude)" 
-               class="mt-1 text-sm text-red-600">
-              Longitude must be between -180 and 180 (current: {{locationData.longitude}})
+            <p
+              v-if="locationData.longitude !== null && !isValidLongitude(locationData.longitude)"
+              class="mt-1 text-sm text-red-600"
+            >
+              Longitude must be between -180 and 180 (current: {{ locationData.longitude }})
             </p>
           </div>
         </div>
-        
+
         <button
           @click="getCurrentLocation"
           :disabled="isGettingLocation"
@@ -604,16 +633,12 @@ function generateId(): string {
           placeholder="Describe the artwork, its context, or any interesting details..."
           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         ></textarea>
-        <p class="text-xs text-gray-600 mt-1">
-          {{ description.length }}/500 characters
-        </p>
+        <p class="text-xs text-gray-600 mt-1">{{ description.length }}/500 characters</p>
       </div>
 
       <!-- Error Messages -->
       <div v-if="errors.length > 0" class="bg-red-50 border border-red-200 rounded-lg p-4">
-        <h3 class="text-sm font-medium text-red-800 mb-2">
-          Please correct the following errors:
-        </h3>
+        <h3 class="text-sm font-medium text-red-800 mb-2">Please correct the following errors:</h3>
         <ul class="text-sm text-red-700 space-y-1">
           <li v-for="error in errors" :key="error">• {{ error }}</li>
         </ul>
@@ -634,15 +659,29 @@ function generateId(): string {
           class="px-6 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <span v-if="isSubmitting" class="flex items-center">
-            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <svg
+              class="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              ></circle>
+              <path
+                class="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
             </svg>
             Submitting...
           </span>
-          <span v-else>
-            Submit Photos
-          </span>
+          <span v-else> Submit Photos </span>
         </button>
       </div>
     </div>
@@ -655,7 +694,7 @@ function generateId(): string {
       multiple
       accept="image/jpeg,image/jpg,image/png,image/webp,image/heic"
       @change="handleFileSelect"
-      style="position: absolute; left: -9999px; opacity: 0; width: 1px; height: 1px;"
+      style="position: absolute; left: -9999px; opacity: 0; width: 1px; height: 1px"
     />
 
     <!-- Consent Form Modal -->
@@ -676,7 +715,8 @@ function generateId(): string {
 
 <style scoped>
 .photo-upload {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
 }
 
 /* Aspect ratio utilities for image previews */
@@ -719,7 +759,7 @@ function generateId(): string {
   .photo-upload {
     @apply p-4;
   }
-  
+
   .grid-cols-3 {
     @apply grid-cols-1;
   }
@@ -733,7 +773,7 @@ button:focus {
 }
 
 /* File input hidden styling */
-input[type="file"] {
+input[type='file'] {
   position: absolute;
   opacity: 0;
   pointer-events: none;

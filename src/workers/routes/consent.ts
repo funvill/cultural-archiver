@@ -1,6 +1,6 @@
 /**
  * Consent management route handlers for Cultural Archiver
- * 
+ *
  * Handles consent collection, storage, and retrieval operations
  * required for the user consent workflow.
  */
@@ -8,7 +8,7 @@
 import type { Context } from 'hono';
 import type { WorkerEnv } from '../types';
 import { ApiError } from '../lib/errors';
-import { 
+import {
   validateConsentFromRequest,
   createConsentData,
   storeConsentData,
@@ -16,7 +16,7 @@ import {
   hasValidConsent,
   generateConsentFormData,
   createConsentAuditLog,
-  CURRENT_CONSENT_VERSION 
+  CURRENT_CONSENT_VERSION,
 } from '../lib/consent';
 
 /**
@@ -34,7 +34,7 @@ export async function submitConsent(
 
     // Parse request body
     const requestData = await c.req.json();
-    
+
     // Validate consent data from request
     const validation = validateConsentFromRequest(requestData);
     if (!validation.isValid) {
@@ -43,8 +43,8 @@ export async function submitConsent(
           message: 'Your consent is incomplete or invalid',
           missingConsents: validation.missingConsents,
           errors: validation.errors,
-          consentVersion: CURRENT_CONSENT_VERSION
-        }
+          consentVersion: CURRENT_CONSENT_VERSION,
+        },
       });
     }
 
@@ -53,7 +53,7 @@ export async function submitConsent(
       ageVerification: Boolean(requestData.ageVerification),
       cc0Licensing: Boolean(requestData.cc0Licensing),
       publicCommons: Boolean(requestData.publicCommons),
-      freedomOfPanorama: Boolean(requestData.freedomOfPanorama)
+      freedomOfPanorama: Boolean(requestData.freedomOfPanorama),
     });
 
     // Store consent data
@@ -63,20 +63,22 @@ export async function submitConsent(
     const auditLog = createConsentAuditLog(userToken, consentData, 'granted');
     console.info('Consent granted:', auditLog);
 
-    return c.json({
-      message: 'Consent submitted successfully',
-      consentVersion: consentData.consentVersion,
-      consentedAt: consentData.consentedAt,
-      userToken: userToken
-    }, 201);
-
+    return c.json(
+      {
+        message: 'Consent submitted successfully',
+        consentVersion: consentData.consentVersion,
+        consentedAt: consentData.consentedAt,
+        userToken: userToken,
+      },
+      201
+    );
   } catch (error) {
     console.error('Consent submission error:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
+
     throw new ApiError('Failed to submit consent', 'CONSENT_SUBMISSION_ERROR', 500);
   }
 }
@@ -96,7 +98,7 @@ export async function getConsentStatus(
 
     // Get consent data from storage
     const consentData = await getConsentData(c.env, userToken);
-    
+
     if (!consentData) {
       return c.json({
         hasConsent: false,
@@ -104,7 +106,7 @@ export async function getConsentStatus(
         consentedAt: null,
         requiresConsent: true,
         currentVersion: CURRENT_CONSENT_VERSION,
-        formData: generateConsentFormData()
+        formData: generateConsentFormData(),
       });
     }
 
@@ -119,16 +121,15 @@ export async function getConsentStatus(
       requiresConsent: !isValid || needsUpdate,
       currentVersion: CURRENT_CONSENT_VERSION,
       isCurrentVersion: !needsUpdate,
-      ...((!isValid || needsUpdate) && { formData: generateConsentFormData() })
+      ...((!isValid || needsUpdate) && { formData: generateConsentFormData() }),
     });
-
   } catch (error) {
     console.error('Consent status check error:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
+
     throw new ApiError('Failed to check consent status', 'CONSENT_STATUS_ERROR', 500);
   }
 }
@@ -137,21 +138,18 @@ export async function getConsentStatus(
  * GET /api/consent/form-data
  * Get consent form configuration data
  */
-export async function getConsentFormData(
-  c: Context<{ Bindings: WorkerEnv }>
-): Promise<Response> {
+export async function getConsentFormData(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   try {
     const formData = generateConsentFormData();
-    
+
     return c.json({
       ...formData,
       endpoint: '/api/consent',
-      method: 'POST'
+      method: 'POST',
     });
-
   } catch (error) {
     console.error('Consent form data error:', error);
-    
+
     throw new ApiError('Failed to get consent form data', 'CONSENT_FORM_DATA_ERROR', 500);
   }
 }
@@ -171,7 +169,7 @@ export async function revokeConsent(
 
     // Get existing consent data for audit log
     const existingConsentData = await getConsentData(c.env, userToken);
-    
+
     if (existingConsentData) {
       // Create audit log entry
       const auditLog = createConsentAuditLog(userToken, existingConsentData, 'revoked');
@@ -185,16 +183,15 @@ export async function revokeConsent(
     return c.json({
       message: 'Consent revoked successfully',
       revokedAt: new Date().toISOString(),
-      userToken: userToken
+      userToken: userToken,
     });
-
   } catch (error) {
     console.error('Consent revocation error:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
+
     throw new ApiError('Failed to revoke consent', 'CONSENT_REVOCATION_ERROR', 500);
   }
 }

@@ -150,9 +150,9 @@ class MigrationRunner {
       // Execute with wrangler using npx to ensure it's found
       // Change to workers directory where wrangler.toml is located
       const workersDir = join(dirname(this.migrationsDir), 'src', 'workers');
-      
+
       const result = await new Promise<boolean>((resolve, reject) => {
-        const wrangler = spawn('npx', ['wrangler', ...wranglerArgs], { 
+        const wrangler = spawn('npx', ['wrangler', ...wranglerArgs], {
           stdio: 'inherit',
           cwd: workersDir, // Run from workers directory
           env: {
@@ -232,7 +232,9 @@ class MigrationRunner {
         } else {
           // Fall back to showing SQL for manual execution
           console.warn('⚠️  Missing required environment variables for automatic execution.');
-          console.log('💡 Either set D1_DATABASE_ID and CLOUDFLARE_API_TOKEN in .env, or copy the SQL below:');
+          console.log(
+            '💡 Either set D1_DATABASE_ID and CLOUDFLARE_API_TOKEN in .env, or copy the SQL below:'
+          );
           success = await this.executeSqlDirect(sql, migration.name);
         }
 
@@ -338,7 +340,8 @@ async function main(): Promise<void> {
 
 // Only run if this file is executed directly
 // Check if this file is being run directly (not imported)
-const isMainModule = import.meta.url.includes('migrate.ts') && 
+const isMainModule =
+  import.meta.url.includes('migrate.ts') &&
   (process.argv[1]?.includes('migrate.ts') || process.argv[1]?.includes('tsx'));
 
 if (isMainModule) {

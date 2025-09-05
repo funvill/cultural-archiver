@@ -1,26 +1,26 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { useAuthStore } from '../stores/auth'
-import { apiService } from '../services/api'
-import type { UserSubmissionInfo } from '../../../shared/types'
-import type { UserProfile } from '../types/index'
+import { ref, computed, onMounted } from 'vue';
+import { useAuthStore } from '../stores/auth';
+import { apiService } from '../services/api';
+import type { UserSubmissionInfo } from '../../../shared/types';
+import type { UserProfile } from '../types/index';
 
 // Type alias for compatibility
-type UserSubmission = UserSubmissionInfo
+type UserSubmission = UserSubmissionInfo;
 
 // Store and router
-const authStore = useAuthStore()
+const authStore = useAuthStore();
 
 // State
-const loading = ref(true)
-const error = ref<string | null>(null)
-const submissions = ref<UserSubmission[]>([])
-const userProfile = ref<UserProfile | null>(null)
-const activeTab = ref('overview')
-const sortBy = ref('created_at')
-const sortOrder = ref<'asc' | 'desc'>('desc')
-const currentPage = ref(1)
-const pageSize = 10
+const loading = ref(true);
+const error = ref<string | null>(null);
+const submissions = ref<UserSubmission[]>([]);
+const userProfile = ref<UserProfile | null>(null);
+const activeTab = ref('overview');
+const sortBy = ref('created_at');
+const sortOrder = ref<'asc' | 'desc'>('desc');
+const currentPage = ref(1);
+const pageSize = 10;
 
 // Tab configuration
 const tabs = computed(() => [
@@ -28,152 +28,146 @@ const tabs = computed(() => [
     id: 'overview',
     name: 'Overview',
     icon: 'svg',
-    count: submissions.value.length
+    count: submissions.value.length,
   },
   {
     id: 'pending',
     name: 'Pending',
     icon: 'svg',
-    count: pendingCount.value
+    count: pendingCount.value,
   },
   {
     id: 'approved',
     name: 'Approved',
     icon: 'svg',
-    count: approvedCount.value
+    count: approvedCount.value,
   },
   {
     id: 'rejected',
     name: 'Rejected',
     icon: 'svg',
-    count: rejectedCount.value
+    count: rejectedCount.value,
   },
   {
     id: 'debug',
     name: 'Debug Info',
     icon: 'svg',
-    count: undefined
-  }
-])
+    count: undefined,
+  },
+]);
 
 // Computed
-const approvedCount = computed(() => 
-  submissions.value.filter((s: UserSubmission) => s.status === 'approved').length
-)
+const approvedCount = computed(
+  () => submissions.value.filter((s: UserSubmission) => s.status === 'approved').length
+);
 
-const pendingCount = computed(() => 
-  submissions.value.filter((s: UserSubmission) => s.status === 'pending').length
-)
+const pendingCount = computed(
+  () => submissions.value.filter((s: UserSubmission) => s.status === 'pending').length
+);
 
-const rejectedCount = computed(() => 
-  submissions.value.filter((s: UserSubmission) => s.status === 'rejected').length
-)
+const rejectedCount = computed(
+  () => submissions.value.filter((s: UserSubmission) => s.status === 'rejected').length
+);
 
 const filteredSubmissions = computed(() => {
-  let filtered = submissions.value
+  let filtered = submissions.value;
 
   // Filter by tab
   if (activeTab.value !== 'overview') {
-    filtered = filtered.filter((s: UserSubmission) => s.status === activeTab.value)
+    filtered = filtered.filter((s: UserSubmission) => s.status === activeTab.value);
   }
 
   // Sort
   filtered.sort((a: UserSubmission, b: UserSubmission) => {
-    let aVal: any = a[sortBy.value as keyof UserSubmission]
-    let bVal: any = b[sortBy.value as keyof UserSubmission]
+    let aVal: any = a[sortBy.value as keyof UserSubmission];
+    let bVal: any = b[sortBy.value as keyof UserSubmission];
 
     if (sortBy.value === 'created_at') {
-      aVal = new Date(aVal).getTime()
-      bVal = new Date(bVal).getTime()
+      aVal = new Date(aVal).getTime();
+      bVal = new Date(bVal).getTime();
     }
 
     if (sortOrder.value === 'asc') {
-      return aVal > bVal ? 1 : -1
+      return aVal > bVal ? 1 : -1;
     } else {
-      return aVal < bVal ? 1 : -1
+      return aVal < bVal ? 1 : -1;
     }
-  })
+  });
 
-  return filtered
-})
+  return filtered;
+});
 
-const totalPages = computed(() => 
-  Math.ceil(filteredSubmissions.value.length / pageSize)
-)
+const totalPages = computed(() => Math.ceil(filteredSubmissions.value.length / pageSize));
 
-const startIndex = computed(() => 
-  (currentPage.value - 1) * pageSize
-)
+const startIndex = computed(() => (currentPage.value - 1) * pageSize);
 
-const endIndex = computed(() => 
-  startIndex.value + pageSize
-)
+const endIndex = computed(() => startIndex.value + pageSize);
 
-const paginatedSubmissions = computed(() => 
+const paginatedSubmissions = computed(() =>
   filteredSubmissions.value.slice(startIndex.value, endIndex.value)
-)
+);
 
 // Lifecycle
 onMounted(() => {
-  loadSubmissions()
-})
+  loadSubmissions();
+});
 
 // Methods
 async function loadSubmissions() {
   if (!authStore.token) {
-    error.value = 'Please sign in to view your submissions'
-    loading.value = false
-    return
+    error.value = 'Please sign in to view your submissions';
+    loading.value = false;
+    return;
   }
 
-  loading.value = true
-  error.value = null
+  loading.value = true;
+  error.value = null;
 
   try {
     // Load both submissions and profile data
     const [submissionsResponse, profileResponse] = await Promise.all([
       apiService.getUserSubmissions(),
-      apiService.getUserProfile()
-    ])
-    
-    submissions.value = submissionsResponse.items || []
-    userProfile.value = profileResponse.data || null
+      apiService.getUserProfile(),
+    ]);
+
+    submissions.value = submissionsResponse.items || [];
+    userProfile.value = profileResponse.data || null;
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load profile data'
+    error.value = err instanceof Error ? err.message : 'Failed to load profile data';
   } finally {
-    loading.value = false
+    loading.value = false;
   }
 }
 
 function getTabTitle(tabId: string): string {
   const titleMap: Record<string, string> = {
-    'overview': 'All Submissions',
-    'pending': 'Pending Review',
-    'approved': 'Approved Submissions',
-    'rejected': 'Rejected Submissions'
-  }
-  return titleMap[tabId] || 'Submissions'
+    overview: 'All Submissions',
+    pending: 'Pending Review',
+    approved: 'Approved Submissions',
+    rejected: 'Rejected Submissions',
+  };
+  return titleMap[tabId] || 'Submissions';
 }
 
 function getStatusBadgeClass(status: string): string {
   const statusMap: Record<string, string> = {
-    'approved': 'bg-green-100 text-green-800 border border-green-200',
-    'pending': 'bg-yellow-100 text-yellow-900 border border-yellow-200',
-    'rejected': 'bg-red-100 text-red-800 border border-red-200'
-  }
-  return statusMap[status] || 'bg-gray-100 text-gray-900 border border-gray-200'
+    approved: 'bg-green-100 text-green-800 border border-green-200',
+    pending: 'bg-yellow-100 text-yellow-900 border border-yellow-200',
+    rejected: 'bg-red-100 text-red-800 border border-red-200',
+  };
+  return statusMap[status] || 'bg-gray-100 text-gray-900 border border-gray-200';
 }
 
 function formatDate(dateString: string): string {
   try {
-    const date = new Date(dateString)
+    const date = new Date(dateString);
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric'
-    })
+      day: 'numeric',
+    });
   } catch {
-    return 'Unknown'
+    return 'Unknown';
   }
 }
 </script>
@@ -183,7 +177,9 @@ function formatDate(dateString: string): string {
     <!-- Page Header -->
     <div class="bg-white border-b border-gray-200 py-4 sm:py-6">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+        <div
+          class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0"
+        >
           <div>
             <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">My Profile</h1>
             <p class="mt-2 text-base sm:text-lg text-gray-600">
@@ -196,15 +192,25 @@ function formatDate(dateString: string): string {
                 {{ authStore.isEmailVerified ? 'Verified User' : 'Anonymous User' }}
               </p>
               <p class="text-xs text-gray-600">
-                {{ authStore.token ? `ID: ${authStore.token.slice(0, 8)}...` : 'Not authenticated' }}
+                {{
+                  authStore.token ? `ID: ${authStore.token.slice(0, 8)}...` : 'Not authenticated'
+                }}
               </p>
             </div>
-            <div 
+            <div
               class="w-10 h-10 rounded-full flex items-center justify-center"
-              :class="authStore.isEmailVerified ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'"
+              :class="
+                authStore.isEmailVerified
+                  ? 'bg-green-100 text-green-600'
+                  : 'bg-gray-100 text-gray-600'
+              "
             >
               <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd" />
+                <path
+                  fill-rule="evenodd"
+                  d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
+                  clip-rule="evenodd"
+                />
               </svg>
             </div>
           </div>
@@ -223,14 +229,19 @@ function formatDate(dateString: string): string {
               :key="tab.id"
               @click="activeTab = tab.id"
               class="w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              :class="activeTab === tab.id 
-                ? 'bg-blue-100 text-blue-700' 
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'"
+              :class="
+                activeTab === tab.id
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+              "
             >
               <div class="flex items-center">
                 <component :is="tab.icon" class="mr-3 h-5 w-5" />
                 {{ tab.name }}
-                <span v-if="tab.count !== undefined" class="ml-auto text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full">
+                <span
+                  v-if="tab.count !== undefined"
+                  class="ml-auto text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full"
+                >
                   {{ tab.count }}
                 </span>
               </div>
@@ -245,8 +256,18 @@ function formatDate(dateString: string): string {
             <div class="bg-white p-6 rounded-lg border border-gray-200">
               <div class="flex items-center">
                 <div class="flex-shrink-0">
-                  <svg class="h-8 w-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  <svg
+                    class="h-8 w-8 text-blue-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
                   </svg>
                 </div>
                 <div class="ml-4">
@@ -259,8 +280,18 @@ function formatDate(dateString: string): string {
             <div class="bg-white p-6 rounded-lg border border-gray-200">
               <div class="flex items-center">
                 <div class="flex-shrink-0">
-                  <svg class="h-8 w-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    class="h-8 w-8 text-green-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 </div>
                 <div class="ml-4">
@@ -273,8 +304,18 @@ function formatDate(dateString: string): string {
             <div class="bg-white p-6 rounded-lg border border-gray-200">
               <div class="flex items-center">
                 <div class="flex-shrink-0">
-                  <svg class="h-8 w-8 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    class="h-8 w-8 text-yellow-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 </div>
                 <div class="ml-4">
@@ -313,17 +354,43 @@ function formatDate(dateString: string): string {
 
             <!-- Loading State -->
             <div v-if="loading" class="p-8 text-center">
-              <svg class="animate-spin h-8 w-8 mx-auto mb-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              <svg
+                class="animate-spin h-8 w-8 mx-auto mb-4 text-blue-600"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  class="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  stroke-width="4"
+                ></circle>
+                <path
+                  class="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                ></path>
               </svg>
               <p class="text-gray-600">Loading submissions...</p>
             </div>
 
             <!-- Error State -->
             <div v-else-if="error" class="p-8 text-center">
-              <svg class="h-12 w-12 mx-auto mb-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              <svg
+                class="h-12 w-12 mx-auto mb-4 text-red-400"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
               </svg>
               <p class="text-gray-600 mb-4">{{ error }}</p>
               <button
@@ -336,11 +403,23 @@ function formatDate(dateString: string): string {
 
             <!-- Empty State -->
             <div v-else-if="filteredSubmissions.length === 0" class="p-8 text-center">
-              <svg class="h-12 w-12 mx-auto mb-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <svg
+                class="h-12 w-12 mx-auto mb-4 text-gray-600"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
               </svg>
               <p class="text-gray-600 mb-4">
-                {{ activeTab === 'overview' ? 'No submissions yet' : `No ${activeTab} submissions` }}
+                {{
+                  activeTab === 'overview' ? 'No submissions yet' : `No ${activeTab} submissions`
+                }}
               </p>
               <button
                 @click="$router.push('/submit')"
@@ -365,7 +444,7 @@ function formatDate(dateString: string): string {
                         <h3 class="text-lg font-medium text-gray-900">
                           {{ submission.artwork_type_name || 'Artwork Submission' }}
                         </h3>
-                        <span 
+                        <span
                           class="inline-block px-2 py-1 text-xs font-medium rounded-full"
                           :class="getStatusBadgeClass(submission.status)"
                         >
@@ -378,7 +457,10 @@ function formatDate(dateString: string): string {
                     </div>
 
                     <!-- Photos Preview -->
-                    <div v-if="submission.photos_parsed && submission.photos_parsed.length > 0" class="flex space-x-2 mb-3">
+                    <div
+                      v-if="submission.photos_parsed && submission.photos_parsed.length > 0"
+                      class="flex space-x-2 mb-3"
+                    >
                       <img
                         v-if="submission.photos_parsed[0]"
                         :src="submission.photos_parsed[0]"
@@ -395,9 +477,14 @@ function formatDate(dateString: string): string {
                     <!-- Location -->
                     <div class="flex items-center text-sm text-gray-600 mb-3">
                       <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clip-rule="evenodd" />
+                        <path
+                          fill-rule="evenodd"
+                          d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
+                          clip-rule="evenodd"
+                        />
                       </svg>
-                      {{ submission.artwork_lat?.toFixed(4) }}, {{ submission.artwork_lon?.toFixed(4) }}
+                      {{ submission.artwork_lat?.toFixed(4) }},
+                      {{ submission.artwork_lon?.toFixed(4) }}
                     </div>
 
                     <!-- Actions -->
@@ -419,7 +506,9 @@ function formatDate(dateString: string): string {
             <div v-if="totalPages > 1" class="px-6 py-4 border-t border-gray-200">
               <div class="flex items-center justify-between">
                 <div class="text-sm text-gray-700">
-                  Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, filteredSubmissions.length) }} of {{ filteredSubmissions.length }} submissions
+                  Showing {{ startIndex + 1 }} to
+                  {{ Math.min(endIndex, filteredSubmissions.length) }} of
+                  {{ filteredSubmissions.length }} submissions
                 </div>
                 <div class="flex space-x-2">
                   <button
@@ -444,21 +533,51 @@ function formatDate(dateString: string): string {
           <!-- Debug Information Tab -->
           <div v-if="activeTab === 'debug'" class="bg-white rounded-lg border border-gray-200 p-6">
             <h2 class="text-lg font-semibold text-gray-900 mb-6">Debug Information</h2>
-            
+
             <div v-if="userProfile?.debug" class="space-y-6">
               <!-- User Information Section -->
               <div class="border-b border-gray-200 pb-6">
                 <h3 class="text-md font-medium text-gray-900 mb-4">User Information</h3>
-                <div v-if="userProfile.debug.user_info" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div
+                  v-if="userProfile.debug.user_info"
+                  class="grid grid-cols-1 md:grid-cols-2 gap-4"
+                >
                   <div class="space-y-2">
-                    <div><strong>UUID:</strong> <code class="bg-gray-100 px-2 py-1 rounded text-sm">{{ userProfile.debug.user_info.uuid }}</code></div>
-                    <div><strong>Email:</strong> {{ userProfile.debug.user_info.email || 'None' }}</div>
-                    <div><strong>Status:</strong> <span class="px-2 py-1 rounded text-xs" :class="userProfile.debug.user_info.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">{{ userProfile.debug.user_info.status }}</span></div>
+                    <div>
+                      <strong>UUID:</strong>
+                      <code class="bg-gray-100 px-2 py-1 rounded text-sm">{{
+                        userProfile.debug.user_info.uuid
+                      }}</code>
+                    </div>
+                    <div>
+                      <strong>Email:</strong> {{ userProfile.debug.user_info.email || 'None' }}
+                    </div>
+                    <div>
+                      <strong>Status:</strong>
+                      <span
+                        class="px-2 py-1 rounded text-xs"
+                        :class="
+                          userProfile.debug.user_info.status === 'active'
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        "
+                        >{{ userProfile.debug.user_info.status }}</span
+                      >
+                    </div>
                   </div>
                   <div class="space-y-2">
-                    <div><strong>Created:</strong> {{ formatDate(userProfile.debug.user_info.created_at) }}</div>
-                    <div><strong>Updated:</strong> {{ formatDate(userProfile.debug.user_info.updated_at) }}</div>
-                    <div><strong>Email Verified:</strong> {{ userProfile.debug.user_info.email_verified ? 'Yes' : 'No' }}</div>
+                    <div>
+                      <strong>Created:</strong>
+                      {{ formatDate(userProfile.debug.user_info.created_at) }}
+                    </div>
+                    <div>
+                      <strong>Updated:</strong>
+                      {{ formatDate(userProfile.debug.user_info.updated_at) }}
+                    </div>
+                    <div>
+                      <strong>Email Verified:</strong>
+                      {{ userProfile.debug.user_info.email_verified ? 'Yes' : 'No' }}
+                    </div>
                   </div>
                 </div>
                 <div v-else class="text-gray-500 italic">No user information found in database</div>
@@ -468,28 +587,49 @@ function formatDate(dateString: string): string {
               <div class="border-b border-gray-200 pb-6">
                 <h3 class="text-md font-medium text-gray-900 mb-4">User Permissions</h3>
                 <div v-if="userProfile.debug.permissions.length > 0" class="space-y-3">
-                  <div 
-                    v-for="permission in userProfile.debug.permissions" 
+                  <div
+                    v-for="permission in userProfile.debug.permissions"
                     :key="`${permission.permission}-${permission.granted_at}`"
                     class="border border-gray-200 rounded-lg p-4"
                   >
                     <div class="flex items-center justify-between mb-2">
                       <div class="flex items-center space-x-2">
-                        <span class="px-3 py-1 rounded-full text-sm font-medium" 
-                              :class="permission.permission === 'admin' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'">
+                        <span
+                          class="px-3 py-1 rounded-full text-sm font-medium"
+                          :class="
+                            permission.permission === 'admin'
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-blue-100 text-blue-800'
+                          "
+                        >
                           {{ permission.permission }}
                         </span>
-                        <span class="px-2 py-1 rounded text-xs" 
-                              :class="permission.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'">
+                        <span
+                          class="px-2 py-1 rounded text-xs"
+                          :class="
+                            permission.is_active
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-gray-100 text-gray-800'
+                          "
+                        >
                           {{ permission.is_active ? 'Active' : 'Revoked' }}
                         </span>
                       </div>
-                      <span class="text-sm text-gray-600">{{ formatDate(permission.granted_at) }}</span>
+                      <span class="text-sm text-gray-600">{{
+                        formatDate(permission.granted_at)
+                      }}</span>
                     </div>
                     <div class="text-sm text-gray-600">
-                      <div><strong>Granted by:</strong> {{ permission.granted_by_email || permission.granted_by }}</div>
-                      <div v-if="permission.revoked_at"><strong>Revoked at:</strong> {{ formatDate(permission.revoked_at) }}</div>
-                      <div v-if="permission.notes"><strong>Notes:</strong> {{ permission.notes }}</div>
+                      <div>
+                        <strong>Granted by:</strong>
+                        {{ permission.granted_by_email || permission.granted_by }}
+                      </div>
+                      <div v-if="permission.revoked_at">
+                        <strong>Revoked at:</strong> {{ formatDate(permission.revoked_at) }}
+                      </div>
+                      <div v-if="permission.notes">
+                        <strong>Notes:</strong> {{ permission.notes }}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -501,13 +641,62 @@ function formatDate(dateString: string): string {
                 <h3 class="text-md font-medium text-gray-900 mb-4">Authentication Context</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div class="space-y-2">
-                    <div><strong>Token:</strong> <code class="bg-gray-100 px-2 py-1 rounded text-sm">{{ userProfile.debug.auth_context.user_token.substring(0, 12) }}...</code></div>
-                    <div><strong>Is Reviewer:</strong> <span class="px-2 py-1 rounded text-xs" :class="userProfile.debug.auth_context.is_reviewer ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'">{{ userProfile.debug.auth_context.is_reviewer ? 'Yes' : 'No' }}</span></div>
-                    <div><strong>Is Authenticated:</strong> <span class="px-2 py-1 rounded text-xs" :class="userProfile.debug.auth_context.is_authenticated ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'">{{ userProfile.debug.auth_context.is_authenticated ? 'Yes' : 'No' }}</span></div>
+                    <div>
+                      <strong>Token:</strong>
+                      <code class="bg-gray-100 px-2 py-1 rounded text-sm"
+                        >{{ userProfile.debug.auth_context.user_token.substring(0, 12) }}...</code
+                      >
+                    </div>
+                    <div>
+                      <strong>Is Reviewer:</strong>
+                      <span
+                        class="px-2 py-1 rounded text-xs"
+                        :class="
+                          userProfile.debug.auth_context.is_reviewer
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        "
+                        >{{ userProfile.debug.auth_context.is_reviewer ? 'Yes' : 'No' }}</span
+                      >
+                    </div>
+                    <div>
+                      <strong>Is Authenticated:</strong>
+                      <span
+                        class="px-2 py-1 rounded text-xs"
+                        :class="
+                          userProfile.debug.auth_context.is_authenticated
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-red-100 text-red-800'
+                        "
+                        >{{ userProfile.debug.auth_context.is_authenticated ? 'Yes' : 'No' }}</span
+                      >
+                    </div>
                   </div>
                   <div class="space-y-2">
-                    <div><strong>Email Verified:</strong> <span class="px-2 py-1 rounded text-xs" :class="userProfile.debug.auth_context.is_verified_email ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'">{{ userProfile.debug.auth_context.is_verified_email ? 'Yes' : 'No' }}</span></div>
-                    <div><strong>Is Admin:</strong> <span class="px-2 py-1 rounded text-xs" :class="userProfile.debug.auth_context.is_admin ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800'">{{ userProfile.debug.auth_context.is_admin ? 'Yes' : 'No' }}</span></div>
+                    <div>
+                      <strong>Email Verified:</strong>
+                      <span
+                        class="px-2 py-1 rounded text-xs"
+                        :class="
+                          userProfile.debug.auth_context.is_verified_email
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-gray-100 text-gray-800'
+                        "
+                        >{{ userProfile.debug.auth_context.is_verified_email ? 'Yes' : 'No' }}</span
+                      >
+                    </div>
+                    <div>
+                      <strong>Is Admin:</strong>
+                      <span
+                        class="px-2 py-1 rounded text-xs"
+                        :class="
+                          userProfile.debug.auth_context.is_admin
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-gray-100 text-gray-800'
+                        "
+                        >{{ userProfile.debug.auth_context.is_admin ? 'Yes' : 'No' }}</span
+                      >
+                    </div>
                   </div>
                 </div>
               </div>
@@ -516,9 +705,20 @@ function formatDate(dateString: string): string {
               <div class="border-b border-gray-200 pb-6">
                 <h3 class="text-md font-medium text-gray-900 mb-4">Request Headers</h3>
                 <div class="space-y-2">
-                  <div><strong>Authorization:</strong> {{ userProfile.debug.request_headers.authorization }}</div>
-                  <div><strong>X-User-Token:</strong> {{ userProfile.debug.request_headers.user_token }}</div>
-                  <div><strong>User Agent:</strong> <code class="bg-gray-100 px-2 py-1 rounded text-sm break-all">{{ userProfile.debug.request_headers.user_agent }}</code></div>
+                  <div>
+                    <strong>Authorization:</strong>
+                    {{ userProfile.debug.request_headers.authorization }}
+                  </div>
+                  <div>
+                    <strong>X-User-Token:</strong>
+                    {{ userProfile.debug.request_headers.user_token }}
+                  </div>
+                  <div>
+                    <strong>User Agent:</strong>
+                    <code class="bg-gray-100 px-2 py-1 rounded text-sm break-all">{{
+                      userProfile.debug.request_headers.user_agent
+                    }}</code>
+                  </div>
                 </div>
               </div>
 
@@ -527,17 +727,45 @@ function formatDate(dateString: string): string {
                 <h3 class="text-md font-medium text-gray-900 mb-4">Rate Limits</h3>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div class="space-y-2">
-                    <div><strong>Submissions Remaining:</strong> {{ userProfile.debug.rate_limits.submissions_remaining }}</div>
-                    <div><strong>Email Blocked:</strong> <span class="px-2 py-1 rounded text-xs" :class="userProfile.debug.rate_limits.email_blocked === 'Yes' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'">{{ userProfile.debug.rate_limits.email_blocked }}</span></div>
+                    <div>
+                      <strong>Submissions Remaining:</strong>
+                      {{ userProfile.debug.rate_limits.submissions_remaining }}
+                    </div>
+                    <div>
+                      <strong>Email Blocked:</strong>
+                      <span
+                        class="px-2 py-1 rounded text-xs"
+                        :class="
+                          userProfile.debug.rate_limits.email_blocked === 'Yes'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-green-100 text-green-800'
+                        "
+                        >{{ userProfile.debug.rate_limits.email_blocked }}</span
+                      >
+                    </div>
                   </div>
                   <div class="space-y-2">
-                    <div><strong>Queries Remaining:</strong> {{ userProfile.debug.rate_limits.queries_remaining }}</div>
-                    <div><strong>IP Blocked:</strong> <span class="px-2 py-1 rounded text-xs" :class="userProfile.debug.rate_limits.ip_blocked === 'Yes' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'">{{ userProfile.debug.rate_limits.ip_blocked }}</span></div>
+                    <div>
+                      <strong>Queries Remaining:</strong>
+                      {{ userProfile.debug.rate_limits.queries_remaining }}
+                    </div>
+                    <div>
+                      <strong>IP Blocked:</strong>
+                      <span
+                        class="px-2 py-1 rounded text-xs"
+                        :class="
+                          userProfile.debug.rate_limits.ip_blocked === 'Yes'
+                            ? 'bg-red-100 text-red-800'
+                            : 'bg-green-100 text-green-800'
+                        "
+                        >{{ userProfile.debug.rate_limits.ip_blocked }}</span
+                      >
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-            
+
             <div v-else class="text-gray-500 italic">No debug information available</div>
           </div>
         </div>
@@ -579,11 +807,11 @@ function formatDate(dateString: string): string {
   .profile-view .grid {
     @apply grid-cols-1;
   }
-  
+
   .profile-view .lg\:col-span-1 {
     @apply order-2;
   }
-  
+
   .profile-view .lg\:col-span-3 {
     @apply order-1;
   }

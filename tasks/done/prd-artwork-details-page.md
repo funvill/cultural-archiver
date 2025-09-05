@@ -28,76 +28,43 @@ The Artwork Details Page is the central view for any individual artwork in the C
 
 ### 1. Page Access and Navigation
 
-1.1. Users can access the page by clicking map markers or from search results
-1.2. Page URL follows the pattern `/artwork/[id]` where `id` is the artwork's unique identifier
-1.3. Page is accessible to anonymous users without authentication
-1.4. Display 404 error page if artwork ID doesn't exist or has no approved data
+1.1. Users can access the page by clicking map markers or from search results 1.2. Page URL follows the pattern `/artwork/[id]` where `id` is the artwork's unique identifier 1.3. Page is accessible to anonymous users without authentication 1.4. Display 404 error page if artwork ID doesn't exist or has no approved data
 
 ### 2. Photo Gallery
 
-2.1. Display approved photos in a carousel format with left/right arrow navigation
-2.2. Support keyboard navigation (arrow keys) and touch/swipe gestures on mobile
-2.3. Include dot indicators showing current photo position
-2.4. Enable full-screen photo viewing when photos are clicked
-2.5. Display CC0 license as small watermark in corner of each photo
-2.6. Show submission date overlay on each photo (from logbook submission date)
-2.7. Show submitter username or "Anonymous" (default to Anonymous in MVP)
-2.8. Display "No photos available" placeholder when no photos exist
-2.9. Implement lazy loading for gallery images
+2.1. Display approved photos in a carousel format with left/right arrow navigation 2.2. Support keyboard navigation (arrow keys) and touch/swipe gestures on mobile 2.3. Include dot indicators showing current photo position 2.4. Enable full-screen photo viewing when photos are clicked 2.5. Display CC0 license as small watermark in corner of each photo 2.6. Show submission date overlay on each photo (from logbook submission date) 2.7. Show submitter username or "Anonymous" (default to Anonymous in MVP) 2.8. Display "No photos available" placeholder when no photos exist 2.9. Implement lazy loading for gallery images
 
 ### 3. Required Information Sections
 
-3.1. **Title**: Display artwork title or "Unknown Artwork Title" if not available
-3.2. **Description**: Show rendered markdown description or "Add description" placeholder text
-3.3. **Creators**: Display comma-separated list of creator names (no links in MVP)
-3.4. **Location**: Show interactive mini map with zoom controls and "Get Directions" link
+3.1. **Title**: Display artwork title or "Unknown Artwork Title" if not available 3.2. **Description**: Show rendered markdown description or "Add description" placeholder text 3.3. **Creators**: Display comma-separated list of creator names (no links in MVP) 3.4. **Location**: Show interactive mini map with zoom controls and "Get Directions" link
 
 ### 4. Creator Information Management
 
-4.1. Build full creator table structure in database (artwork-creator relationship table)
-4.2. Display creator names as plain text in comma-separated format
-4.3. Show "Unknown" when no creator information is available
-4.4. Support multiple creators per artwork
+4.1. Build full creator table structure in database (artwork-creator relationship table) 4.2. Display creator names as plain text in comma-separated format 4.3. Show "Unknown" when no creator information is available 4.4. Support multiple creators per artwork
 
 ### 5. Mini Map Component
 
-5.1. Display interactive map at city block zoom level
-5.2. Include zoom in/out controls (no panning required)
-5.3. Show artwork location with marker
-5.4. Include "Get Directions" button that generates Google Maps URL
-5.5. Use same map provider as main application map
+5.1. Display interactive map at city block zoom level 5.2. Include zoom in/out controls (no panning required) 5.3. Show artwork location with marker 5.4. Include "Get Directions" button that generates Google Maps URL 5.5. Use same map provider as main application map
 
 ### 6. Tags and Metadata
 
-6.1. Display tags as styled badge/pill components
-6.2. Show maximum 5 tags initially with "show more" option for additional tags
-6.3. Display key-value metadata fields (Style, Medium, Creation Date, etc.) only when data exists
-6.4. Hide metadata sections entirely when no data is available
+6.1. Display tags as styled badge/pill components 6.2. Show maximum 5 tags initially with "show more" option for additional tags 6.3. Display key-value metadata fields (Style, Medium, Creation Date, etc.) only when data exists 6.4. Hide metadata sections entirely when no data is available
 
 ### 7. Journal/Timeline
 
-7.1. Display approved logbook entries in chronological order (most recent first)
-7.2. Show simplified date and note text only for each entry
-7.3. Implement pagination with "Load more" button (10 entries per page)
-7.4. Hide journal section if no entries exist
+7.1. Display approved logbook entries in chronological order (most recent first) 7.2. Show simplified date and note text only for each entry 7.3. Implement pagination with "Load more" button (10 entries per page) 7.4. Hide journal section if no entries exist
 
 ### 8. Data Handling
 
-8.1. For conflicting information, display most recent approved entry
-8.2. Progressive loading: show sections as data becomes available
-8.3. Handle missing optional sections by hiding them entirely
-8.4. Display required sections with appropriate placeholder text when data is missing
+8.1. For conflicting information, display most recent approved entry 8.2. Progressive loading: show sections as data becomes available 8.3. Handle missing optional sections by hiding them entirely 8.4. Display required sections with appropriate placeholder text when data is missing
 
 ### 9. Mobile Responsiveness
 
-9.1. Stack all sections vertically on mobile devices
-9.2. Ensure touch-friendly navigation for photo carousel
-9.3. Optimize mini map size and controls for mobile interaction
+9.1. Stack all sections vertically on mobile devices 9.2. Ensure touch-friendly navigation for photo carousel 9.3. Optimize mini map size and controls for mobile interaction
 
 ### 10. Licensing and Attribution
 
-10.1. Display CC0 license disclaimer: "All user-contributed content is CC0. Underlying artworks may still be copyrighted."
-10.2. Show license information prominently but unobtrusively
+10.1. Display CC0 license disclaimer: "All user-contributed content is CC0. Underlying artworks may still be copyrighted." 10.2. Show license information prominently but unobtrusively
 
 ## Non-Goals (Out of Scope)
 

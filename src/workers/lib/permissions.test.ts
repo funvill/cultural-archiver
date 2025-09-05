@@ -207,9 +207,9 @@ describe('Permission Management', () => {
           // Second call - revoke permission UPDATE
           return {
             bind: vi.fn().mockReturnValue({
-              run: vi.fn().mockResolvedValue({ 
-                success: true, 
-                meta: { changes: 1 } 
+              run: vi.fn().mockResolvedValue({
+                success: true,
+                meta: { changes: 1 },
               }),
             }),
           };
@@ -217,7 +217,13 @@ describe('Permission Management', () => {
       });
       (db.prepare as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockPrepare);
 
-      const result = await revokePermission(db, 'user-revoke', 'moderator', 'admin-1', 'Test revoke');
+      const result = await revokePermission(
+        db,
+        'user-revoke',
+        'moderator',
+        'admin-1',
+        'Test revoke'
+      );
       expect(result.success).toBe(true);
     });
 

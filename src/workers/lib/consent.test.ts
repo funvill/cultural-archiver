@@ -17,7 +17,7 @@ import {
   CURRENT_CONSENT_VERSION,
   REQUIRED_CONSENTS,
   FREEDOM_OF_PANORAMA_RESOURCES,
-  type ConsentData
+  type ConsentData,
 } from '../lib/consent';
 
 // Mock WorkerEnv for testing
@@ -26,8 +26,8 @@ const mockEnv: Partial<WorkerEnv> = {
     get: vi.fn(),
     put: vi.fn(),
     delete: vi.fn(),
-    list: vi.fn()
-  } as unknown as WorkerEnv['SESSIONS']
+    list: vi.fn(),
+  } as unknown as WorkerEnv['SESSIONS'],
 };
 
 describe('Consent Validation', () => {
@@ -38,7 +38,7 @@ describe('Consent Validation', () => {
       publicCommons: true,
       freedomOfPanorama: true,
       consentVersion: CURRENT_CONSENT_VERSION,
-      consentedAt: new Date().toISOString()
+      consentedAt: new Date().toISOString(),
     };
 
     const result = validateConsent(validConsent);
@@ -69,7 +69,7 @@ describe('Consent Validation', () => {
       ageVerification: false,
       cc0Licensing: true,
       publicCommons: true,
-      freedomOfPanorama: true
+      freedomOfPanorama: true,
     };
 
     const result = validateConsent(consentWithoutAge);
@@ -84,7 +84,7 @@ describe('Consent Validation', () => {
       cc0Licensing: true,
       publicCommons: true,
       freedomOfPanorama: true,
-      consentVersion: '0.9.0' // Outdated version
+      consentVersion: '0.9.0', // Outdated version
     };
 
     const result = validateConsent(outdatedConsent);
@@ -99,7 +99,7 @@ describe('Consent Validation', () => {
       cc0Licensing: true,
       publicCommons: true,
       freedomOfPanorama: true,
-      consentedAt: 'invalid-date'
+      consentedAt: 'invalid-date',
     };
 
     const result = validateConsent(invalidTimestamp);
@@ -116,7 +116,7 @@ describe('Consent Data Creation', () => {
       ageVerification: true,
       cc0Licensing: true,
       publicCommons: true,
-      freedomOfPanorama: true
+      freedomOfPanorama: true,
     };
 
     const consentData = createConsentData(userToken, consents);
@@ -128,7 +128,7 @@ describe('Consent Data Creation', () => {
     expect(consentData.freedomOfPanorama).toBe(true);
     expect(consentData.consentVersion).toBe(CURRENT_CONSENT_VERSION);
     expect(consentData.consentedAt).toBeDefined();
-    
+
     // Validate timestamp format
     const timestamp = new Date(consentData.consentedAt);
     expect(timestamp.getTime()).not.toBeNaN();
@@ -142,7 +142,7 @@ describe('Consent Storage', () => {
 
   it('should store consent data in KV', async () => {
     const putSpy = vi.spyOn(mockEnv.SESSIONS!, 'put').mockResolvedValue();
-    
+
     const consentData: ConsentData = {
       userToken: 'test-user-456',
       ageVerification: true,
@@ -150,7 +150,7 @@ describe('Consent Storage', () => {
       publicCommons: true,
       freedomOfPanorama: true,
       consentVersion: CURRENT_CONSENT_VERSION,
-      consentedAt: new Date().toISOString()
+      consentedAt: new Date().toISOString(),
     };
 
     await storeConsentData(mockEnv as WorkerEnv, consentData);
@@ -164,7 +164,7 @@ describe('Consent Storage', () => {
 
   it('should handle storage errors', async () => {
     vi.spyOn(mockEnv.SESSIONS!, 'put').mockRejectedValue(new Error('KV error'));
-    
+
     const consentData: ConsentData = {
       userToken: 'test-user-789',
       ageVerification: true,
@@ -172,11 +172,12 @@ describe('Consent Storage', () => {
       publicCommons: true,
       freedomOfPanorama: true,
       consentVersion: CURRENT_CONSENT_VERSION,
-      consentedAt: new Date().toISOString()
+      consentedAt: new Date().toISOString(),
     };
 
-    await expect(storeConsentData(mockEnv as WorkerEnv, consentData))
-      .rejects.toThrow('Failed to store consent data');
+    await expect(storeConsentData(mockEnv as WorkerEnv, consentData)).rejects.toThrow(
+      'Failed to store consent data'
+    );
   });
 });
 
@@ -193,12 +194,12 @@ describe('Consent Retrieval', () => {
       publicCommons: true,
       freedomOfPanorama: true,
       consentVersion: CURRENT_CONSENT_VERSION,
-      consentedAt: new Date().toISOString()
+      consentedAt: new Date().toISOString(),
     };
 
     const storedData = JSON.stringify({
       ...consentData,
-      storedAt: new Date().toISOString()
+      storedAt: new Date().toISOString(),
     });
 
     vi.spyOn(mockEnv.SESSIONS!, 'get').mockResolvedValue(storedData as any); // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -241,7 +242,7 @@ describe('Consent Validation Checks', () => {
       publicCommons: true,
       freedomOfPanorama: true,
       consentVersion: CURRENT_CONSENT_VERSION,
-      consentedAt: new Date().toISOString()
+      consentedAt: new Date().toISOString(),
     };
 
     vi.spyOn(mockEnv.SESSIONS!, 'get').mockResolvedValue(JSON.stringify(validConsentData) as any); // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -267,10 +268,12 @@ describe('Consent Validation Checks', () => {
       publicCommons: true,
       freedomOfPanorama: true,
       consentVersion: '0.9.0', // Outdated
-      consentedAt: new Date().toISOString()
+      consentedAt: new Date().toISOString(),
     };
 
-    vi.spyOn(mockEnv.SESSIONS!, 'get').mockResolvedValue(JSON.stringify(outdatedConsentData) as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+    vi.spyOn(mockEnv.SESSIONS!, 'get').mockResolvedValue(
+      JSON.stringify(outdatedConsentData) as any
+    ); // eslint-disable-line @typescript-eslint/no-explicit-any
 
     const result = await needsReConsent(mockEnv as WorkerEnv, 'outdated-user');
 
@@ -299,7 +302,7 @@ describe('Request Validation', () => {
       cc0Licensing: true,
       publicCommons: true,
       freedomOfPanorama: true,
-      consentVersion: CURRENT_CONSENT_VERSION
+      consentVersion: CURRENT_CONSENT_VERSION,
     };
 
     const result = validateConsentFromRequest(requestData);
@@ -332,7 +335,7 @@ describe('Audit Logging', () => {
       publicCommons: true,
       freedomOfPanorama: true,
       consentVersion: CURRENT_CONSENT_VERSION,
-      consentedAt: new Date().toISOString()
+      consentedAt: new Date().toISOString(),
     };
 
     const auditLog = createConsentAuditLog(userToken, consentData, 'granted');

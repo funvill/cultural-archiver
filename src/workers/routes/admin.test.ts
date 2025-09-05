@@ -59,7 +59,7 @@ const createMockContext = (
     req: {
       query: vi.fn().mockReturnValue(queryParams),
     },
-    json: vi.fn().mockImplementation((data) => new Response(JSON.stringify(data))),
+    json: vi.fn().mockImplementation(data => new Response(JSON.stringify(data))),
   } as any;
 };
 
@@ -116,20 +116,16 @@ describe('Admin Data Dump Routes', () => {
       vi.mocked(logAdminAction).mockResolvedValue({ success: true });
 
       const mockContext = createMockContext(mockAuthContext);
-      
+
       // Execute
       const response = await generateDataDump(mockContext);
       const responseData = await response.json();
 
       // Verify
-      expect(hasPermission).toHaveBeenCalledWith(
-        mockContext.env.DB, 
-        'admin-user-123', 
-        'admin'
-      );
+      expect(hasPermission).toHaveBeenCalledWith(mockContext.env.DB, 'admin-user-123', 'admin');
       expect(generatePublicDataDump).toHaveBeenCalledWith(mockContext.env);
       expect(mockContext.env.PHOTOS_BUCKET!.put).toHaveBeenCalled();
-      
+
       expect(responseData.success).toBe(true);
       expect(responseData.data).toBeDefined();
       expect(responseData.data.filename).toMatch(/datadump-\d{4}-\d{2}-\d{2}\.zip/);
@@ -146,7 +142,9 @@ describe('Admin Data Dump Routes', () => {
 
       // Execute & Verify
       await expect(generateDataDump(mockContext)).rejects.toThrow(ApiError);
-      await expect(generateDataDump(mockContext)).rejects.toThrow('Administrator permissions required');
+      await expect(generateDataDump(mockContext)).rejects.toThrow(
+        'Administrator permissions required'
+      );
     });
 
     it('should handle data dump generation failure', async () => {
@@ -213,7 +211,7 @@ describe('Admin Data Dump Routes', () => {
     it('should list data dumps successfully for admin user', async () => {
       // Setup mocks
       vi.mocked(hasPermission).mockResolvedValue({ hasPermission: true });
-      
+
       const mockDumps = [
         {
           id: 'dump-1',
@@ -257,12 +255,8 @@ describe('Admin Data Dump Routes', () => {
       const responseData = await response.json();
 
       // Verify
-      expect(hasPermission).toHaveBeenCalledWith(
-        mockContext.env.DB, 
-        'admin-user-123', 
-        'admin'
-      );
-      
+      expect(hasPermission).toHaveBeenCalledWith(mockContext.env.DB, 'admin-user-123', 'admin');
+
       expect(responseData.success).toBe(true);
       expect(responseData.data.dumps).toHaveLength(2);
       expect(responseData.data.dumps[0].id).toBe('dump-1');
@@ -279,13 +273,15 @@ describe('Admin Data Dump Routes', () => {
 
       // Execute & Verify
       await expect(listDataDumps(mockContext)).rejects.toThrow(ApiError);
-      await expect(listDataDumps(mockContext)).rejects.toThrow('Administrator permissions required');
+      await expect(listDataDumps(mockContext)).rejects.toThrow(
+        'Administrator permissions required'
+      );
     });
 
     it('should handle pagination parameters', async () => {
       // Setup mocks
       vi.mocked(hasPermission).mockResolvedValue({ hasPermission: true });
-      
+
       const mockContext = createMockContext(mockAuthContext, {}, { page: '2', limit: '10' });
       mockContext.env.DB.prepare().bind().all.mockResolvedValue({
         success: true,

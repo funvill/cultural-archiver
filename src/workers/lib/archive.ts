@@ -58,7 +58,11 @@ export class SimpleZipArchive {
   /**
    * Add a single file to the archive
    */
-  addFile(path: string, content: ArrayBuffer | string | Uint8Array, options?: { mimeType?: string; lastModified?: Date }): void {
+  addFile(
+    path: string,
+    content: ArrayBuffer | string | Uint8Array,
+    options?: { mimeType?: string; lastModified?: Date }
+  ): void {
     if (this.files.length >= this.options.maxFiles) {
       throw new ApiError(
         `Cannot add more than ${this.options.maxFiles} files to archive`,
@@ -79,9 +83,15 @@ export class SimpleZipArchive {
     let arrayBuffer: ArrayBuffer;
     if (typeof content === 'string') {
       const encoder = new TextEncoder().encode(content);
-      arrayBuffer = encoder.buffer.slice(encoder.byteOffset, encoder.byteOffset + encoder.byteLength) as ArrayBuffer;
+      arrayBuffer = encoder.buffer.slice(
+        encoder.byteOffset,
+        encoder.byteOffset + encoder.byteLength
+      ) as ArrayBuffer;
     } else if (content instanceof Uint8Array) {
-      arrayBuffer = content.buffer.slice(content.byteOffset, content.byteOffset + content.byteLength) as ArrayBuffer;
+      arrayBuffer = content.buffer.slice(
+        content.byteOffset,
+        content.byteOffset + content.byteLength
+      ) as ArrayBuffer;
     } else {
       arrayBuffer = content;
     }
@@ -112,11 +122,11 @@ export class SimpleZipArchive {
       content: arrayBuffer,
       lastModified: options?.lastModified || new Date(),
     };
-    
+
     if (options?.mimeType) {
       fileEntry.mimeType = options.mimeType;
     }
-    
+
     this.files.push(fileEntry);
   }
 
@@ -135,15 +145,15 @@ export class SimpleZipArchive {
     for (const file of files) {
       const fullPath = `${folderPrefix}${file.path}`;
       const options: { mimeType?: string; lastModified?: Date } = {};
-      
+
       if (file.mimeType) {
         options.mimeType = file.mimeType;
       }
-      
+
       if (file.lastModified) {
         options.lastModified = file.lastModified;
       }
-      
+
       this.addFile(fullPath, file.content, options);
     }
   }
@@ -159,11 +169,11 @@ export class SimpleZipArchive {
 
     try {
       const startTime = Date.now();
-      
+
       // For MVP, we'll create a simple archive format that can be extracted
       // This is a simplified implementation focused on functionality over full ZIP compliance
       const archive = await this.createSimpleZip();
-      
+
       const endTime = Date.now();
       console.log(`Archive created in ${endTime - startTime}ms with ${this.files.length} files`);
 
@@ -175,17 +185,14 @@ export class SimpleZipArchive {
       };
     } catch (error) {
       console.error('Archive generation failed:', error);
-      
+
       if (error instanceof ApiError) {
         throw error;
       }
-      
-      throw new ApiError(
-        'Failed to generate archive',
-        'ARCHIVE_GENERATION_FAILED',
-        500,
-        { details: { error: error instanceof Error ? error.message : 'Unknown error' } }
-      );
+
+      throw new ApiError('Failed to generate archive', 'ARCHIVE_GENERATION_FAILED', 500, {
+        details: { error: error instanceof Error ? error.message : 'Unknown error' },
+      });
     }
   }
 
@@ -213,16 +220,19 @@ export class SimpleZipArchive {
 
     // Process each file and calculate sizes
     for (const file of this.files) {
-      const content = file.content instanceof ArrayBuffer ? file.content : 
-                     typeof file.content === 'string' ? new TextEncoder().encode(file.content).buffer :
-                     file.content.buffer;
-      
+      const content =
+        file.content instanceof ArrayBuffer
+          ? file.content
+          : typeof file.content === 'string'
+            ? new TextEncoder().encode(file.content).buffer
+            : file.content.buffer;
+
       const pathBytes = new TextEncoder().encode(file.path);
       const uncompressedSize = content.byteLength;
-      
+
       // For MVP, we don't compress (store method)
       const compressedSize = uncompressedSize;
-      
+
       // Calculate CRC32 (simplified - just use length for MVP)
       const crc32 = this.simpleCrc32(new Uint8Array(content));
 
@@ -243,12 +253,12 @@ export class SimpleZipArchive {
     // Add central directory size
     const centralDirStart = currentOffset;
     let centralDirSize = 0;
-    
+
     for (const entry of entries) {
       const pathBytes = new TextEncoder().encode(entry.file.path);
       centralDirSize += 46 + pathBytes.length; // Central directory header + filename
     }
-    
+
     // Add end of central directory record size
     const endOfCentralDirSize = 22;
     totalSize += centralDirSize + endOfCentralDirSize;
@@ -262,9 +272,12 @@ export class SimpleZipArchive {
     // Write local file headers and data
     for (const entry of entries) {
       const pathBytes = new TextEncoder().encode(entry.file.path);
-      const content = entry.file.content instanceof ArrayBuffer ? entry.file.content : 
-                     typeof entry.file.content === 'string' ? new TextEncoder().encode(entry.file.content).buffer :
-                     entry.file.content.buffer;
+      const content =
+        entry.file.content instanceof ArrayBuffer
+          ? entry.file.content
+          : typeof entry.file.content === 'string'
+            ? new TextEncoder().encode(entry.file.content).buffer
+            : entry.file.content.buffer;
 
       // Local file header
       view.setUint32(offset, LOCAL_FILE_HEADER_SIGNATURE, true); // Signature
@@ -375,7 +388,7 @@ export class SimpleZipArchive {
     for (let i = 0; i < data.length; i++) {
       const byte = data[i];
       if (byte !== undefined) {
-        crc = ((crc << 1) ^ byte) & 0xFFFFFFFF;
+        crc = ((crc << 1) ^ byte) & 0xffffffff;
       }
     }
     return crc >>> 0; // Ensure unsigned 32-bit integer
@@ -385,7 +398,10 @@ export class SimpleZipArchive {
 /**
  * Utility function to create a ZIP archive from files
  */
-export async function createZipArchive(files: ArchiveFile[], options?: ArchiveOptions): Promise<ArchiveResult> {
+export async function createZipArchive(
+  files: ArchiveFile[],
+  options?: ArchiveOptions
+): Promise<ArchiveResult> {
   if (!files || !Array.isArray(files)) {
     throw new ApiError('Files must be provided as an array', 'INVALID_FILES_ARRAY', 400);
   }
@@ -395,23 +411,23 @@ export async function createZipArchive(files: ArchiveFile[], options?: ArchiveOp
   }
 
   const archive = new SimpleZipArchive(options);
-  
+
   // Add all files to the archive
   for (const file of files) {
     if (!file.path || !file.content) {
       throw new ApiError('Each file must have a path and content', 'INVALID_FILE_STRUCTURE', 400);
     }
-    
+
     const options: { mimeType?: string; lastModified?: Date } = {};
-    
+
     if (file.mimeType) {
       options.mimeType = file.mimeType;
     }
-    
+
     if (file.lastModified) {
       options.lastModified = file.lastModified;
     }
-    
+
     archive.addFile(file.path, file.content, options);
   }
 
@@ -421,7 +437,11 @@ export async function createZipArchive(files: ArchiveFile[], options?: ArchiveOp
 /**
  * Utility function to add a single file to an archive
  */
-export function addFileToArchive(archive: SimpleZipArchive, path: string, content: ArrayBuffer | string): void {
+export function addFileToArchive(
+  archive: SimpleZipArchive,
+  path: string,
+  content: ArrayBuffer | string
+): void {
   if (!archive || !(archive instanceof SimpleZipArchive)) {
     throw new ApiError('Invalid archive instance provided', 'INVALID_ARCHIVE', 400);
   }
@@ -432,7 +452,11 @@ export function addFileToArchive(archive: SimpleZipArchive, path: string, conten
 /**
  * Utility function to add files to a folder within an archive
  */
-export function addFolderToArchive(archive: SimpleZipArchive, folderPath: string, files: ArchiveFile[]): void {
+export function addFolderToArchive(
+  archive: SimpleZipArchive,
+  folderPath: string,
+  files: ArchiveFile[]
+): void {
   if (!archive || !(archive instanceof SimpleZipArchive)) {
     throw new ApiError('Invalid archive instance provided', 'INVALID_ARCHIVE', 400);
   }
@@ -445,10 +469,10 @@ export function addFolderToArchive(archive: SimpleZipArchive, folderPath: string
  */
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
-  
+
   const k = 1024;
   const sizes = ['Bytes', 'KB', 'MB', 'GB'];
   const i = Math.floor(Math.log(bytes) / Math.log(k));
-  
+
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
 }

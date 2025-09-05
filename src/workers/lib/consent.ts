@@ -41,9 +41,9 @@ export const CURRENT_CONSENT_VERSION = '1.0.0';
  */
 export const REQUIRED_CONSENTS = [
   'ageVerification',
-  'cc0Licensing', 
+  'cc0Licensing',
   'publicCommons',
-  'freedomOfPanorama'
+  'freedomOfPanorama',
 ] as const;
 
 /**
@@ -52,7 +52,7 @@ export const REQUIRED_CONSENTS = [
 export const FREEDOM_OF_PANORAMA_RESOURCES = {
   canadianCopyright: 'https://laws-lois.justice.gc.ca/eng/acts/C-42/index.html',
   publicArtGuidance: 'https://www.ic.gc.ca/eic/site/cipointernet-internetopic.nsf/eng/wr03719.html',
-  creativeCommons: 'https://creativecommons.org/publicdomain/zero/1.0/'
+  creativeCommons: 'https://creativecommons.org/publicdomain/zero/1.0/',
 };
 
 /**
@@ -91,7 +91,9 @@ export function validateConsent(consentData: Partial<ConsentData>): ConsentValid
 
   // Validate consent version
   if (consentData.consentVersion && consentData.consentVersion !== CURRENT_CONSENT_VERSION) {
-    errors.push(`Consent version ${consentData.consentVersion} is outdated. Current version: ${CURRENT_CONSENT_VERSION}`);
+    errors.push(
+      `Consent version ${consentData.consentVersion} is outdated. Current version: ${CURRENT_CONSENT_VERSION}`
+    );
   }
 
   // Validate timestamp format
@@ -109,7 +111,7 @@ export function validateConsent(consentData: Partial<ConsentData>): ConsentValid
   return {
     isValid: missingConsents.length === 0 && errors.length === 0,
     missingConsents,
-    errors
+    errors,
   };
 }
 
@@ -129,33 +131,30 @@ export function createConsentData(
     ...consents,
     consentVersion: CURRENT_CONSENT_VERSION,
     consentedAt: new Date().toISOString(),
-    userToken
+    userToken,
   };
 }
 
 /**
  * Store consent data in KV storage
  */
-export async function storeConsentData(
-  env: WorkerEnv,
-  consentData: ConsentData
-): Promise<void> {
+export async function storeConsentData(env: WorkerEnv, consentData: ConsentData): Promise<void> {
   try {
     const key = `consent:${consentData.userToken}:${consentData.consentVersion}`;
     const value = JSON.stringify({
       ...consentData,
-      storedAt: new Date().toISOString()
+      storedAt: new Date().toISOString(),
     });
 
     // Store in SESSIONS KV (reusing existing namespace for simplicity)
     await env.SESSIONS.put(key, value, {
-      expirationTtl: 365 * 24 * 60 * 60 // 1 year expiration
+      expirationTtl: 365 * 24 * 60 * 60, // 1 year expiration
     });
 
     console.info('Consent data stored successfully:', {
       userToken: consentData.userToken,
       version: consentData.consentVersion,
-      consentedAt: consentData.consentedAt
+      consentedAt: consentData.consentedAt,
     });
   } catch (error) {
     console.error('Failed to store consent data:', error);
@@ -174,18 +173,18 @@ export async function getConsentData(
   try {
     const consentVersion = version || CURRENT_CONSENT_VERSION;
     const key = `consent:${userToken}:${consentVersion}`;
-    
+
     const stored = await env.SESSIONS.get(key);
     if (!stored) {
       return null;
     }
 
     const consentData = JSON.parse(stored) as ConsentData & { storedAt: string };
-    
+
     // Remove storage metadata before returning
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { storedAt, ...cleanConsentData } = consentData;
-    
+
     return cleanConsentData;
   } catch (error) {
     console.warn('Failed to retrieve consent data:', error);
@@ -196,10 +195,7 @@ export async function getConsentData(
 /**
  * Check if user has valid consent for current version
  */
-export async function hasValidConsent(
-  env: WorkerEnv,
-  userToken: string
-): Promise<boolean> {
+export async function hasValidConsent(env: WorkerEnv, userToken: string): Promise<boolean> {
   try {
     const consentData = await getConsentData(env, userToken);
     if (!consentData) {
@@ -217,10 +213,7 @@ export async function hasValidConsent(
 /**
  * Check if user needs to re-consent due to version update
  */
-export async function needsReConsent(
-  env: WorkerEnv,
-  userToken: string
-): Promise<boolean> {
+export async function needsReConsent(env: WorkerEnv, userToken: string): Promise<boolean> {
   try {
     const consentData = await getConsentData(env, userToken);
     if (!consentData) {
@@ -249,24 +242,31 @@ export function generateConsentFormData(): {
     requiredConsents: REQUIRED_CONSENTS,
     consentDescriptions: {
       ageVerification: 'I confirm that I am 18 years of age or older',
-      cc0Licensing: 'I dedicate my photo submissions to the public domain under CC0 (no rights reserved)',
-      publicCommons: 'I understand that my submissions will be publicly accessible and may be used by others',
-      freedomOfPanorama: 'I acknowledge that I have reviewed Canadian copyright law regarding public art photography'
-    }
+      cc0Licensing:
+        'I dedicate my photo submissions to the public domain under CC0 (no rights reserved)',
+      publicCommons:
+        'I understand that my submissions will be publicly accessible and may be used by others',
+      freedomOfPanorama:
+        'I acknowledge that I have reviewed Canadian copyright law regarding public art photography',
+    },
   };
 }
 
 /**
  * Validate consent middleware data from request
  */
-export function validateConsentFromRequest(requestData: Record<string, unknown>): ConsentValidationResult {
+export function validateConsentFromRequest(
+  requestData: Record<string, unknown>
+): ConsentValidationResult {
   // Extract consent fields from request
   const consentData: Partial<ConsentData> = {
     ageVerification: Boolean(requestData.ageVerification),
     cc0Licensing: Boolean(requestData.cc0Licensing),
     publicCommons: Boolean(requestData.publicCommons),
     freedomOfPanorama: Boolean(requestData.freedomOfPanorama),
-    ...(typeof requestData.consentVersion === 'string' && { consentVersion: requestData.consentVersion })
+    ...(typeof requestData.consentVersion === 'string' && {
+      consentVersion: requestData.consentVersion,
+    }),
   };
 
   return validateConsent(consentData);
@@ -290,7 +290,7 @@ export function createConsentAuditLog(
       cc0Licensing: consentData.cc0Licensing,
       publicCommons: consentData.publicCommons,
       freedomOfPanorama: consentData.freedomOfPanorama,
-      originalConsentDate: consentData.consentedAt
-    }
+      originalConsentDate: consentData.consentedAt,
+    },
   };
 }

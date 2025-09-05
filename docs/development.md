@@ -51,14 +51,29 @@ REVIEWER_EMAIL=reviewer@example.com
 
 ### 4. Database Setup
 
-Initialize the local D1 database:
+Initialize the local D1 database using the new migration system:
 
 ```bash
-# From the workers directory
+# Create D1 database (if not already done)
 cd src/workers
 npx wrangler d1 create cultural-archiver-dev
-npx wrangler d1 execute cultural-archiver-dev --local --file=../../migrations/002_mvp_schema.sql
+
+# Apply all migrations to set up the schema
+cd ../..  # Back to project root
+npm run migrate:dev
+
+# Verify migration status
+npm run migrate:status
 ```
+
+The migration system will:
+
+- Apply all pending migrations in sequence (0001, 0002, etc.)
+- Track migration state automatically
+- Ensure D1 compatibility
+- Set up the complete database schema
+
+For more details on the migration system, see [docs/migrations.md](./migrations.md).
 
 ## Development Workflow
 

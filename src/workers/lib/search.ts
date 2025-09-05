@@ -31,13 +31,9 @@ export async function searchArtworks(
   options: SearchOptions = {}
 ): Promise<SearchResult> {
   const dbService = createDatabaseService(db);
-  
+
   // Default options
-  const {
-    limit = 20,
-    offset = 0,
-    status = 'approved'
-  } = options;
+  const { limit = 20, offset = 0, status = 'approved' } = options;
 
   // Validate query
   if (!query || query.trim().length === 0) {
@@ -45,12 +41,12 @@ export async function searchArtworks(
       artworks: [],
       total: 0,
       has_more: false,
-      query: query.trim()
+      query: query.trim(),
     };
   }
 
   const searchTerm = query.trim();
-  
+
   try {
     // Enhanced search query that searches across artwork types, tags, and logbook notes
     // Uses LIKE queries for MVP - can be enhanced with SQLite FTS later
@@ -80,17 +76,19 @@ export async function searchArtworks(
     `);
 
     const likePattern = `%${searchTerm}%`;
-    const results = await stmt.bind(
-      likePattern, // type name relevance
-      likePattern, // tags relevance  
-      likePattern, // logbook notes relevance
-      status,
-      likePattern, // type name search
-      likePattern, // tags search
-      likePattern, // logbook notes search
-      limit + 1, // Get one extra to check if there are more results
-      offset
-    ).all();
+    const results = await stmt
+      .bind(
+        likePattern, // type name relevance
+        likePattern, // tags relevance
+        likePattern, // logbook notes relevance
+        status,
+        likePattern, // type name search
+        likePattern, // tags search
+        likePattern, // logbook notes search
+        limit + 1, // Get one extra to check if there are more results
+        offset
+      )
+      .all();
 
     // Check if there are more results
     const has_more = results.results.length > limit;
@@ -131,12 +129,7 @@ export async function searchArtworks(
         )
     `);
 
-    const countResult = await countStmt.bind(
-      status,
-      likePattern,
-      likePattern,
-      likePattern
-    ).first();
+    const countResult = await countStmt.bind(status, likePattern, likePattern, likePattern).first();
 
     const total = (countResult as { total: number })?.total || 0;
 
@@ -144,7 +137,7 @@ export async function searchArtworks(
       artworks: artworksWithPhotos,
       total,
       has_more,
-      query: searchTerm
+      query: searchTerm,
     };
   } catch (error) {
     console.error('Search failed:', error);
@@ -162,13 +155,13 @@ export function parseSearchQuery(query: string): {
   filters: Record<string, string>;
 } {
   const trimmed = query.trim();
-  
+
   // For MVP, return simple text search
   // Future enhancement: parse "tag:value" and other advanced syntax
   return {
     text: trimmed,
     tags: [],
-    filters: {}
+    filters: {},
   };
 }
 
@@ -181,29 +174,29 @@ export function validateSearchQuery(query: string): {
   sanitized: string;
 } {
   const trimmed = query.trim();
-  
+
   if (trimmed.length === 0) {
     return {
       valid: false,
       error: 'Search query cannot be empty',
-      sanitized: ''
+      sanitized: '',
     };
   }
-  
+
   if (trimmed.length > 200) {
     return {
       valid: false,
       error: 'Search query too long (max 200 characters)',
-      sanitized: trimmed.substring(0, 200)
+      sanitized: trimmed.substring(0, 200),
     };
   }
-  
+
   // Basic sanitization - remove excessive whitespace
   const sanitized = trimmed.replace(/\s+/g, ' ');
-  
+
   return {
     valid: true,
-    sanitized
+    sanitized,
   };
 }
 
@@ -225,10 +218,10 @@ export async function getSearchSuggestions(
       ORDER BY name
       LIMIT ?
     `);
-    
+
     const likePattern = `%${partial.trim()}%`;
     const results = await stmt.bind(likePattern, limit).all();
-    
+
     return results.results.map((row: any) => row.name);
   } catch (error) {
     console.error('Failed to get search suggestions:', error);

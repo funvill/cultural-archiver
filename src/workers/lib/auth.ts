@@ -5,17 +5,14 @@
  */
 
 import type { WorkerEnv } from '../types';
-import type { 
-  UserRecord, 
-  AuthSessionRecord, 
+import type {
+  UserRecord,
+  AuthSessionRecord,
   UUIDClaimInfo,
   CreateSessionRequest,
-  SessionInfo
+  SessionInfo,
 } from '../../shared/types';
-import { 
-  isValidUUID, 
-  isValidEmail
-} from '../../shared/types';
+import { isValidUUID, isValidEmail } from '../../shared/types';
 
 // ================================
 // UUID Generation and Validation
@@ -36,11 +33,11 @@ export function validateUUID(uuid: string): { isValid: boolean; error?: string }
   if (!uuid) {
     return { isValid: false, error: 'UUID is required' };
   }
-  
+
   if (!isValidUUID(uuid)) {
     return { isValid: false, error: 'Invalid UUID format' };
   }
-  
+
   return { isValid: true };
 }
 
@@ -50,26 +47,26 @@ export function validateUUID(uuid: string): { isValid: boolean; error?: string }
  */
 export async function generateUniqueUUID(env: WorkerEnv): Promise<string> {
   const maxRetries = 3;
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     const uuid = generateUUID();
-    
+
     // Check for collision in users table
     const stmt = env.DB.prepare('SELECT uuid FROM users WHERE uuid = ?');
     const existing = await stmt.bind(uuid).first();
-    
+
     if (!existing) {
       return uuid;
     }
-    
+
     // Log collision (extremely rare event worth monitoring)
     console.warn(`UUID collision detected on attempt ${attempt}: ${uuid}`);
-    
+
     if (attempt === maxRetries) {
       throw new Error('Failed to generate unique UUID after maximum retries');
     }
   }
-  
+
   throw new Error('UUID generation failed');
 }
 
@@ -90,35 +87,35 @@ export async function createUserWithUUIDClaim(
   if (!isValidEmail(email)) {
     throw new Error('Invalid email address format');
   }
-  
+
   const uuidValidation = validateUUID(anonymousUUID);
   if (!uuidValidation.isValid) {
     throw new Error(uuidValidation.error || 'Invalid UUID');
   }
-  
+
   const now = new Date().toISOString();
-  
+
   try {
     // Check if email already exists
     const existingUser = await getUserByEmail(env, email);
     if (existingUser) {
       throw new Error('Email address is already registered');
     }
-    
+
     // Check if UUID is already claimed by another user
     const existingUUIDUser = await getUserByUUID(env, anonymousUUID);
     if (existingUUIDUser) {
       throw new Error('UUID is already claimed by another account');
     }
-    
+
     // Create the user with claimed UUID
     const stmt = env.DB.prepare(`
       INSERT INTO users (uuid, email, created_at, status)
       VALUES (?, ?, ?, 'active')
     `);
-    
+
     await stmt.bind(anonymousUUID, email.toLowerCase().trim(), now).run();
-    
+
     // Return the created user
     const user: UserRecord = {
       uuid: anonymousUUID,
@@ -126,12 +123,11 @@ export async function createUserWithUUIDClaim(
       created_at: now,
       last_login: null,
       email_verified_at: null,
-      status: 'active'
+      status: 'active',
     };
-    
+
     console.info(`User created with UUID claim: ${email} -> ${anonymousUUID}`);
     return user;
-    
   } catch (error) {
     console.error('Failed to create user with UUID claim:', error);
     throw error;
@@ -153,10 +149,10 @@ export async function getUUIDClaimInfo(
       anonymous_uuid: anonymousUUID,
       email: email,
       can_claim: false,
-      existing_submissions_count: 0
+      existing_submissions_count: 0,
     };
   }
-  
+
   // Check if UUID is already claimed
   const existingUser = await getUserByUUID(env, anonymousUUID);
   if (existingUser) {
@@ -164,10 +160,10 @@ export async function getUUIDClaimInfo(
       anonymous_uuid: anonymousUUID,
       email: email,
       can_claim: false,
-      existing_submissions_count: 0
+      existing_submissions_count: 0,
     };
   }
-  
+
   // Count existing submissions for this UUID
   const stmt = env.DB.prepare(`
     SELECT COUNT(*) as count 
@@ -176,12 +172,12 @@ export async function getUUIDClaimInfo(
   `);
   const result = await stmt.bind(anonymousUUID).first();
   const submissionCount = (result as { count: number } | null)?.count || 0;
-  
+
   return {
     anonymous_uuid: anonymousUUID,
     email: email,
     can_claim: true,
-    existing_submissions_count: submissionCount
+    existing_submissions_count: submissionCount,
   };
 }
 
@@ -261,27 +257,29 @@ export async function createSession(
   const sessionToken = generateSessionToken();
   const tokenHash = await hashToken(sessionToken);
   const now = new Date().toISOString();
-  
+
   const stmt = env.DB.prepare(`
     INSERT INTO auth_sessions (
       id, user_uuid, token_hash, created_at, last_accessed_at,
       ip_address, user_agent, is_active, device_info
     ) VALUES (?, ?, ?, ?, ?, ?, ?, TRUE, ?)
   `);
-  
+
   const deviceInfo = request.device_info ? JSON.stringify(request.device_info) : null;
-  
-  await stmt.bind(
-    sessionId,
-    request.user_uuid,
-    tokenHash,
-    now,
-    now,
-    request.ip_address,
-    request.user_agent,
-    deviceInfo
-  ).run();
-  
+
+  await stmt
+    .bind(
+      sessionId,
+      request.user_uuid,
+      tokenHash,
+      now,
+      now,
+      request.ip_address,
+      request.user_agent,
+      deviceInfo
+    )
+    .run();
+
   const session: AuthSessionRecord = {
     id: sessionId,
     user_uuid: request.user_uuid,
@@ -292,9 +290,9 @@ export async function createSession(
     ip_address: request.ip_address || null,
     user_agent: request.user_agent || null,
     is_active: true,
-    device_info: deviceInfo
+    device_info: deviceInfo,
   };
-  
+
   return { session, token: sessionToken };
 }
 
@@ -307,14 +305,14 @@ export async function validateSession(
 ): Promise<AuthSessionRecord | null> {
   try {
     const tokenHash = await hashToken(token);
-    
+
     const stmt = env.DB.prepare(`
       SELECT * FROM auth_sessions 
       WHERE token_hash = ? AND is_active = TRUE
     `);
-    
-    const session = await stmt.bind(tokenHash).first() as AuthSessionRecord | null;
-    
+
+    const session = (await stmt.bind(tokenHash).first()) as AuthSessionRecord | null;
+
     if (session) {
       // Update last accessed timestamp
       const now = new Date().toISOString();
@@ -324,10 +322,10 @@ export async function validateSession(
         WHERE id = ?
       `);
       await updateStmt.bind(now, session.id).run();
-      
+
       session.last_accessed_at = now;
     }
-    
+
     return session;
   } catch (error) {
     console.error('Session validation error:', error);
@@ -361,26 +359,26 @@ export async function getUserSessions(env: WorkerEnv, userUUID: string): Promise
     WHERE user_uuid = ? AND is_active = TRUE
     ORDER BY last_accessed_at DESC
   `);
-  
+
   const results = await stmt.bind(userUUID).all();
-  
+
   return (results.results || []).map((row: Record<string, unknown>): SessionInfo => {
     const session: SessionInfo = {
       id: row.id as string,
       user_uuid: row.user_uuid as string,
       created_at: row.created_at as string,
       last_accessed_at: row.last_accessed_at as string,
-      is_current: false // Will be set by caller based on current session
+      is_current: false, // Will be set by caller based on current session
     };
-    
+
     if (row.ip_address && row.ip_address !== null) {
       session.ip_address = row.ip_address as string;
     }
-    
+
     if (row.user_agent && row.user_agent !== null) {
       session.user_agent = row.user_agent as string;
     }
-    
+
     return session;
   });
 }
@@ -400,16 +398,16 @@ export function replaceUUIDForCrossDeviceLogin(
   if (browserUUID === accountUUID) {
     return {
       needsReplacement: false,
-      newUUID: accountUUID
+      newUUID: accountUUID,
     };
   }
-  
+
   // Different UUIDs - replace browser UUID with account UUID
   console.info(`Cross-device login detected: ${browserUUID} -> ${accountUUID}`);
-  
+
   return {
     needsReplacement: true,
-    newUUID: accountUUID
+    newUUID: accountUUID,
   };
 }
 
@@ -425,15 +423,15 @@ export async function cleanupExpiredSessions(env: WorkerEnv): Promise<number> {
   // Remove inactive sessions older than 30 days
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-  
+
   const stmt = env.DB.prepare(`
     DELETE FROM auth_sessions 
     WHERE is_active = FALSE 
     AND last_accessed_at < ?
   `);
-  
+
   const result = await stmt.bind(thirtyDaysAgo.toISOString()).run();
-  
+
   const changes = (result as { changes?: number }).changes || 0;
   console.info(`Cleaned up ${changes} expired sessions`);
   return changes;
@@ -449,20 +447,24 @@ export async function getAuthStats(env: WorkerEnv): Promise<{
   users_created_today: number;
 }> {
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
-  
+
   const queries = await Promise.all([
     env.DB.prepare('SELECT COUNT(*) as count FROM users').first(),
-    env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE email_verified_at IS NOT NULL').first(),
+    env.DB.prepare(
+      'SELECT COUNT(*) as count FROM users WHERE email_verified_at IS NOT NULL'
+    ).first(),
     env.DB.prepare('SELECT COUNT(*) as count FROM auth_sessions WHERE is_active = TRUE').first(),
-    env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE created_at LIKE ?').bind(`${today}%`).first()
+    env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE created_at LIKE ?')
+      .bind(`${today}%`)
+      .first(),
   ]);
-  
+
   type CountResult = { count: number } | null;
-  
+
   return {
     total_users: (queries[0] as CountResult)?.count || 0,
     verified_users: (queries[1] as CountResult)?.count || 0,
     active_sessions: (queries[2] as CountResult)?.count || 0,
-    users_created_today: (queries[3] as CountResult)?.count || 0
+    users_created_today: (queries[3] as CountResult)?.count || 0,
   };
 }

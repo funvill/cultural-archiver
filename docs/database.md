@@ -12,21 +12,23 @@ The Cultural Archiver MVP uses a SQLite database (Cloudflare D1) with core table
 
 Core table for authenticated users with UUID claiming functionality.
 
-| Field              | Type | Constraints                       | Description                              |
-| ------------------ | ---- | --------------------------------- | ---------------------------------------- |
-| `uuid`             | TEXT | PRIMARY KEY                       | User's claimed UUID (same as anonymous token) |
-| `email`            | TEXT | NOT NULL, UNIQUE                  | User's email address                     |
-| `created_at`       | TEXT | NOT NULL, DEFAULT datetime('now') | Account creation timestamp               |
-| `last_login`       | TEXT | NULL                              | Last login timestamp                     |
-| `email_verified_at`| TEXT | NULL                              | When email was verified via magic link  |
-| `status`           | TEXT | CHECK('active','suspended')       | Account status                           |
+| Field               | Type | Constraints                       | Description                                   |
+| ------------------- | ---- | --------------------------------- | --------------------------------------------- |
+| `uuid`              | TEXT | PRIMARY KEY                       | User's claimed UUID (same as anonymous token) |
+| `email`             | TEXT | NOT NULL, UNIQUE                  | User's email address                          |
+| `created_at`        | TEXT | NOT NULL, DEFAULT datetime('now') | Account creation timestamp                    |
+| `last_login`        | TEXT | NULL                              | Last login timestamp                          |
+| `email_verified_at` | TEXT | NULL                              | When email was verified via magic link        |
+| `status`            | TEXT | CHECK('active','suspended')       | Account status                                |
 
 **Indexes:**
+
 - `idx_users_email` on `email` for login lookups
-- `idx_users_status` on `status` for filtering  
+- `idx_users_status` on `status` for filtering
 - `idx_users_last_login` on `last_login` for analytics
 
 **Status Workflow:**
+
 - `active` - Normal account in good standing
 - `suspended` - Account temporarily restricted
 
@@ -34,28 +36,31 @@ Core table for authenticated users with UUID claiming functionality.
 
 Secure tokens for email-based authentication and account creation.
 
-| Field         | Type    | Constraints                       | Description                              |
-| ------------- | ------- | --------------------------------- | ---------------------------------------- |
-| `token`       | TEXT    | PRIMARY KEY                       | Cryptographically secure token (64+ chars) |
-| `email`       | TEXT    | NOT NULL                          | Target email address                     |
-| `user_uuid`   | TEXT    | NULL, FK→users.uuid               | Associated user UUID (NULL for signup)  |
-| `created_at`  | TEXT    | NOT NULL, DEFAULT datetime('now') | Token generation timestamp               |
-| `expires_at`  | TEXT    | NOT NULL                          | Token expiration (1 hour)               |
-| `used_at`     | TEXT    | NULL                              | When token was consumed                  |
-| `ip_address`  | TEXT    | NULL                              | Requesting IP address                    |
-| `user_agent`  | TEXT    | NULL                              | Requesting user agent                    |
-| `is_signup`   | BOOLEAN | NOT NULL, DEFAULT FALSE           | TRUE for account creation                |
+| Field        | Type    | Constraints                       | Description                                |
+| ------------ | ------- | --------------------------------- | ------------------------------------------ |
+| `token`      | TEXT    | PRIMARY KEY                       | Cryptographically secure token (64+ chars) |
+| `email`      | TEXT    | NOT NULL                          | Target email address                       |
+| `user_uuid`  | TEXT    | NULL, FK→users.uuid               | Associated user UUID (NULL for signup)     |
+| `created_at` | TEXT    | NOT NULL, DEFAULT datetime('now') | Token generation timestamp                 |
+| `expires_at` | TEXT    | NOT NULL                          | Token expiration (1 hour)                  |
+| `used_at`    | TEXT    | NULL                              | When token was consumed                    |
+| `ip_address` | TEXT    | NULL                              | Requesting IP address                      |
+| `user_agent` | TEXT    | NULL                              | Requesting user agent                      |
+| `is_signup`  | BOOLEAN | NOT NULL, DEFAULT FALSE           | TRUE for account creation                  |
 
 **Indexes:**
+
 - `idx_magic_links_email` on `email` for user lookups
 - `idx_magic_links_expires_at` on `expires_at` for cleanup
 - `idx_magic_links_used_at` on `used_at` for filtering
 - `idx_magic_links_created_at` on `created_at` for analytics
 
 **Foreign Keys:**
+
 - `user_uuid` → `users.uuid` ON DELETE CASCADE
 
 **Security Features:**
+
 - Single-use tokens (marked via `used_at`)
 - 1-hour expiration enforced via `expires_at`
 - Minimum 64-character token length (32 secure bytes)
@@ -64,23 +69,25 @@ Secure tokens for email-based authentication and account creation.
 
 Track request rates for magic link abuse prevention.
 
-| Field              | Type | Constraints                       | Description                              |
-| ------------------ | ---- | --------------------------------- | ---------------------------------------- |
-| `identifier`       | TEXT | NOT NULL                          | Email address or IP address             |
-| `identifier_type`  | TEXT | CHECK('email','ip')               | Type of identifier being limited         |
-| `request_count`    | INT  | NOT NULL, DEFAULT 0               | Requests in current window               |
-| `window_start`     | TEXT | NOT NULL, DEFAULT datetime('now') | Start of rate limit window               |
-| `last_request_at`  | TEXT | NOT NULL, DEFAULT datetime('now') | Most recent request timestamp            |
-| `blocked_until`    | TEXT | NULL                              | Block until this time (NULL if not blocked) |
+| Field             | Type | Constraints                       | Description                                 |
+| ----------------- | ---- | --------------------------------- | ------------------------------------------- |
+| `identifier`      | TEXT | NOT NULL                          | Email address or IP address                 |
+| `identifier_type` | TEXT | CHECK('email','ip')               | Type of identifier being limited            |
+| `request_count`   | INT  | NOT NULL, DEFAULT 0               | Requests in current window                  |
+| `window_start`    | TEXT | NOT NULL, DEFAULT datetime('now') | Start of rate limit window                  |
+| `last_request_at` | TEXT | NOT NULL, DEFAULT datetime('now') | Most recent request timestamp               |
+| `blocked_until`   | TEXT | NULL                              | Block until this time (NULL if not blocked) |
 
 **Primary Key:** `(identifier, identifier_type)`
 
 **Indexes:**
+
 - `idx_rate_limiting_identifier` on `identifier`
 - `idx_rate_limiting_window_start` on `window_start` for cleanup
 - `idx_rate_limiting_blocked_until` on `blocked_until` for filtering
 
 **Rate Limits:**
+
 - **Email**: 5 magic link requests per email per hour
 - **IP**: 10 magic link requests per IP per hour
 
@@ -88,20 +95,21 @@ Track request rates for magic link abuse prevention.
 
 Track active authentication sessions across devices.
 
-| Field               | Type    | Constraints                       | Description                              |
-| ------------------- | ------- | --------------------------------- | ---------------------------------------- |
-| `id`                | TEXT    | PRIMARY KEY                       | Session identifier (UUID)               |
-| `user_uuid`         | TEXT    | NOT NULL, FK→users.uuid           | Associated user UUID                     |
-| `token_hash`        | TEXT    | NOT NULL                          | SHA-256 hash of session token           |
-| `created_at`        | TEXT    | NOT NULL, DEFAULT datetime('now') | Session creation timestamp               |
-| `last_accessed_at`  | TEXT    | NOT NULL, DEFAULT datetime('now') | Last access timestamp                    |
-| `expires_at`        | TEXT    | NULL                              | Session expiration (NULL = persistent)  |
-| `ip_address`        | TEXT    | NULL                              | Session IP address                       |
-| `user_agent`        | TEXT    | NULL                              | Session user agent                       |
-| `is_active`         | BOOLEAN | NOT NULL, DEFAULT TRUE            | Session active status                    |
-| `device_info`       | TEXT    | NULL                              | Device fingerprint (JSON)               |
+| Field              | Type    | Constraints                       | Description                            |
+| ------------------ | ------- | --------------------------------- | -------------------------------------- |
+| `id`               | TEXT    | PRIMARY KEY                       | Session identifier (UUID)              |
+| `user_uuid`        | TEXT    | NOT NULL, FK→users.uuid           | Associated user UUID                   |
+| `token_hash`       | TEXT    | NOT NULL                          | SHA-256 hash of session token          |
+| `created_at`       | TEXT    | NOT NULL, DEFAULT datetime('now') | Session creation timestamp             |
+| `last_accessed_at` | TEXT    | NOT NULL, DEFAULT datetime('now') | Last access timestamp                  |
+| `expires_at`       | TEXT    | NULL                              | Session expiration (NULL = persistent) |
+| `ip_address`       | TEXT    | NULL                              | Session IP address                     |
+| `user_agent`       | TEXT    | NULL                              | Session user agent                     |
+| `is_active`        | BOOLEAN | NOT NULL, DEFAULT TRUE            | Session active status                  |
+| `device_info`      | TEXT    | NULL                              | Device fingerprint (JSON)              |
 
 **Indexes:**
+
 - `idx_auth_sessions_user_uuid` on `user_uuid` for user sessions
 - `idx_auth_sessions_token_hash` on `token_hash` for validation
 - `idx_auth_sessions_expires_at` on `expires_at` for cleanup
@@ -109,9 +117,11 @@ Track active authentication sessions across devices.
 - `idx_auth_sessions_active` on `is_active` for filtering
 
 **Foreign Keys:**
+
 - `user_uuid` → `users.uuid` ON DELETE CASCADE
 
 **Security Features:**
+
 - Token hashes stored (never plain tokens)
 - Multi-device support
 - Persistent sessions (NULL expiration)
@@ -174,19 +184,19 @@ Core table storing public artwork locations and metadata.
 
 Community-proposed edits to existing artwork records stored in flexible key-value format.
 
-| Field             | Type | Constraints                                | Description                           |
-| ----------------- | ---- | ------------------------------------------ | ------------------------------------- |
-| `edit_id`         | TEXT | PRIMARY KEY                                | Unique edit identifier (UUID)        |
-| `artwork_id`      | TEXT | NOT NULL, FK→artwork.id                    | Reference to artwork being edited     |
-| `user_token`      | TEXT | NOT NULL                                   | User proposing the edit               |
-| `field_name`      | TEXT | NOT NULL                                   | Field being edited (e.g., 'title')   |
-| `field_value_old` | TEXT | NULL                                       | Original value before edit (JSON)    |
-| `field_value_new` | TEXT | NULL                                       | Proposed new value (JSON)            |
-| `status`          | TEXT | CHECK('pending','approved','rejected')    | Moderation status                     |
-| `moderator_notes` | TEXT | NULL                                       | Feedback from moderator on rejection |
-| `reviewed_at`     | TEXT | NULL                                       | Timestamp when moderated              |
-| `reviewed_by`     | TEXT | NULL                                       | Moderator who reviewed                |
-| `submitted_at`    | TEXT | NOT NULL, DEFAULT datetime('now')         | When edit was submitted               |
+| Field             | Type | Constraints                            | Description                          |
+| ----------------- | ---- | -------------------------------------- | ------------------------------------ |
+| `edit_id`         | TEXT | PRIMARY KEY                            | Unique edit identifier (UUID)        |
+| `artwork_id`      | TEXT | NOT NULL, FK→artwork.id                | Reference to artwork being edited    |
+| `user_token`      | TEXT | NOT NULL                               | User proposing the edit              |
+| `field_name`      | TEXT | NOT NULL                               | Field being edited (e.g., 'title')   |
+| `field_value_old` | TEXT | NULL                                   | Original value before edit (JSON)    |
+| `field_value_new` | TEXT | NULL                                   | Proposed new value (JSON)            |
+| `status`          | TEXT | CHECK('pending','approved','rejected') | Moderation status                    |
+| `moderator_notes` | TEXT | NULL                                   | Feedback from moderator on rejection |
+| `reviewed_at`     | TEXT | NULL                                   | Timestamp when moderated             |
+| `reviewed_by`     | TEXT | NULL                                   | Moderator who reviewed               |
+| `submitted_at`    | TEXT | NOT NULL, DEFAULT datetime('now')      | When edit was submitted              |
 
 **Indexes:**
 
@@ -210,15 +220,16 @@ Community-proposed edits to existing artwork records stored in flexible key-valu
 **Editable Fields:**
 
 - `title` - Artwork title
-- `description` - Artwork description  
+- `description` - Artwork description
 - `created_by` - Creator information (comma-separated)
 - `tags` - JSON object with key-value metadata tags
 
 **Key-Value Design:**
 
 Each field change is stored as a separate row with old/new values, enabling:
+
 - Atomic approval/rejection of entire edit submissions
-- Clear diff views for moderation  
+- Clear diff views for moderation
 - Future extensibility for new editable fields
 - Complete audit trail of all changes
 
@@ -282,11 +293,11 @@ Flexible tagging system for additional metadata.
 
 ```text
 users ──────┐
- │          │ 1:N      
- │ 1:N      ▼          
- ▼       auth_sessions 
-magic_links              
- │                      
+ │          │ 1:N
+ │ 1:N      ▼
+ ▼       auth_sessions
+magic_links
+ │
  │ rate_limiting (identifier joins)
  │
 artwork_types ──┐
@@ -306,7 +317,7 @@ artwork_types ──┐
 ### Account Creation Flow
 
 1. **Anonymous user** gets UUID on first visit (stored in cookie)
-2. **User submits content** using anonymous UUID  
+2. **User submits content** using anonymous UUID
 3. **Account creation**: User enters email → magic link sent
 4. **Magic link clicked** → account created with current UUID claimed
 5. **User authenticated** → can see all content from claimed UUID
@@ -403,12 +414,38 @@ ORDER BY l.created_at ASC;
 - Parse JSON at application level, not in SQL queries
 - Consider extracting frequently-queried JSON keys to separate columns if needed
 
-## Migration Notes
+## Migration System
 
-- This schema completely replaces the existing art collection schema
-- Migration is destructive - existing data will be lost
-- Foreign key constraints must be enabled in SQLite configuration
-- Sample data includes realistic Vancouver coordinates for testing
+The Cultural Archiver uses Wrangler's native D1 migration system for schema management:
+
+- **Migration Files**: Located in `migrations/` directory with sequential numbering (0001*, 0002*, etc.)
+- **State Tracking**: Wrangler automatically tracks applied migrations per environment
+- **D1 Compatibility**: All migrations are validated for Cloudflare D1 compatibility
+- **Environment Isolation**: Separate migration tracking for development and production
+
+### Migration Commands
+
+```bash
+# Apply pending migrations to development
+npm run migrate:dev
+
+# Check migration status
+npm run migrate:status
+
+# Apply migrations to production (with confirmation)
+npm run migrate:prod
+
+# Validate migrations for D1 compatibility
+npm run migrate:validate
+```
+
+### Migration Guidelines
+
+- Use sequential 4-digit numbering (0001, 0002, etc.)
+- Avoid D1-incompatible patterns (PRAGMA, WITHOUT ROWID, AUTOINCREMENT)
+- Test migrations in development first
+- Take backups before production migrations
+- See [docs/migrations.md](./migrations.md) for complete migration documentation
 
 ## TypeScript Integration
 

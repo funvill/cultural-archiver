@@ -1,44 +1,48 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
-import { useRoute } from 'vue-router'
-import AppShell from './components/AppShell.vue'
-import ErrorBoundary from './components/ErrorBoundary.vue'
-import Modal from './components/Modal.vue'
-import PromptModal from './components/PromptModal.vue'
-import { useAuth } from './composables/useAuth'
-import { globalModal } from './composables/useModal'
+import { onMounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
+import AppShell from './components/AppShell.vue';
+import ErrorBoundary from './components/ErrorBoundary.vue';
+import Modal from './components/Modal.vue';
+import PromptModal from './components/PromptModal.vue';
+import { useAuth } from './composables/useAuth';
+import { globalModal } from './composables/useModal';
 
-const { initAuth } = useAuth()
-const route = useRoute()
+const { initAuth } = useAuth();
+const route = useRoute();
 
 // Initialize authentication on app startup
 onMounted(async () => {
   try {
-    await initAuth()
+    await initAuth();
   } catch (error) {
-    console.error('Failed to initialize authentication:', error)
+    console.error('Failed to initialize authentication:', error);
   }
-})
+});
 
 // Watch for query parameters that might trigger authentication
-watch(() => route.query, (newQuery) => {
-  // Handle login requirement from router guard
-  if (newQuery.login === 'required') {
-    console.log('Authentication required for this route')
-    // Could trigger auth modal here if needed
-  }
-  
-  // Handle errors from router guard
-  if (newQuery.error === 'reviewer_required') {
-    console.log('Reviewer access required for this route')
-    // Could show error message here if needed
-  }
-  
-  if (newQuery.error === 'admin_required') {
-    console.log('Admin access required for this route')
-    // Could show error message here if needed
-  }
-}, { immediate: true })
+watch(
+  () => route.query,
+  newQuery => {
+    // Handle login requirement from router guard
+    if (newQuery.login === 'required') {
+      console.log('Authentication required for this route');
+      // Could trigger auth modal here if needed
+    }
+
+    // Handle errors from router guard
+    if (newQuery.error === 'reviewer_required') {
+      console.log('Reviewer access required for this route');
+      // Could show error message here if needed
+    }
+
+    if (newQuery.error === 'admin_required') {
+      console.log('Admin access required for this route');
+      // Could show error message here if needed
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
@@ -46,7 +50,7 @@ watch(() => route.query, (newQuery) => {
     <ErrorBoundary>
       <AppShell />
     </ErrorBoundary>
-    
+
     <!-- Global Modal -->
     <Modal
       :is-open="globalModal.modalState.isOpen"
@@ -64,7 +68,7 @@ watch(() => route.query, (newQuery) => {
       @cancel="globalModal.handleCancel"
       @close="globalModal.handleCancel"
     />
-    
+
     <!-- Global Prompt Modal -->
     <PromptModal
       :is-open="globalModal.promptState.isOpen"
@@ -78,9 +82,13 @@ watch(() => route.query, (newQuery) => {
       :variant="globalModal.promptState.config.variant || 'primary'"
       :required="globalModal.promptState.config.required || false"
       :multiline="globalModal.promptState.config.multiline || false"
-      v-bind="{ 
-        ...(globalModal.promptState.config.maxLength !== undefined ? { maxLength: globalModal.promptState.config.maxLength } : {}),
-        ...(globalModal.promptState.config.validator !== undefined ? { validator: globalModal.promptState.config.validator } : {})
+      v-bind="{
+        ...(globalModal.promptState.config.maxLength !== undefined
+          ? { maxLength: globalModal.promptState.config.maxLength }
+          : {}),
+        ...(globalModal.promptState.config.validator !== undefined
+          ? { validator: globalModal.promptState.config.validator }
+          : {}),
       }"
       @update:is-open="globalModal.updatePromptOpen"
       @confirm="globalModal.handlePromptConfirm"
@@ -92,13 +100,21 @@ watch(() => route.query, (newQuery) => {
 
 <style>
 #app {
-  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
 /* Ensure full height */
-html, body {
+html,
+body {
   height: 100%;
   margin: 0;
   padding: 0;

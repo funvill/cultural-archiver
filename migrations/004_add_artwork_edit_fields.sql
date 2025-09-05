@@ -2,9 +2,9 @@
 -- Generated on: 2025-01-09T00:00:00.000Z
 -- Purpose: Add missing fields that can be edited through the artwork editing system
 -- Related to: tasks-prd-artwork-editing-system.md
+-- Updated for D1 compatibility: 2025-01-08 (removed PRAGMA)
 
--- Enable foreign key constraints
-PRAGMA foreign_keys = ON;
+-- D1 COMPATIBILITY NOTE: Removed PRAGMA foreign_keys = ON (not supported in D1)
 
 -- Add editable fields to artwork table
 ALTER TABLE artwork ADD COLUMN title TEXT;

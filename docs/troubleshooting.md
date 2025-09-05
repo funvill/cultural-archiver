@@ -6,6 +6,7 @@ This guide covers common issues, debugging techniques, and solutions for the Cul
 
 - [API Issues](#api-issues)
 - [Database Problems](#database-problems)
+- [Migration Issues](#migration-issues)
 - [Authentication & Rate Limiting](#authentication--rate-limiting)
 - [Photo Processing](#photo-processing)
 - [Cloudflare Services](#cloudflare-services)
@@ -174,14 +175,264 @@ const executeQuery = async (env: Env, query: string, params: any[] = []) => {
 **Solutions:**
 
 ```bash
-# Check database schema
-wrangler d1 execute cultural-archiver-db --command=".schema"
+# Check database schema using new migration system
+npm run migrate:status
 
-# Re-run migrations
-wrangler d1 execute cultural-archiver-db --local --file=migrations/002_mvp_schema.sql
+# Re-run migrations using migration system
+npm run migrate:dev     # Development environment
+npm run migrate:prod    # Production environment (use with caution)
 
-# Verify table structure
-wrangler d1 execute cultural-archiver-db --command="PRAGMA table_info(artwork);"
+# Validate migrations for D1 compatibility
+npm run migrate:validate
+
+# Check database structure via Wrangler
+cd src/workers
+npx wrangler d1 execute cultural-archiver --command=".schema" --env development
+```
+
+## Migration Issues
+
+### SQLITE_AUTH Errors During Migration
+
+**Symptoms:**
+
+- Migration fails with `SQLITE_AUTH` error
+- Error messages about unauthorized operations
+- Migration appears to hang or fail silently
+
+**Common Causes:**
+
+1. **D1-incompatible SQL patterns** in migration files
+2. **PRAGMA statements** not supported in D1
+3. **Complex CHECK constraints** using unsupported functions
+4. **WITHOUT ROWID tables** or **AUTOINCREMENT** usage
+
+**Solutions:**
+
+```bash
+# Validate all migrations for D1 compatibility
+npm run migrate:validate
+
+# Check specific migration file for issues
+npx tsx scripts/validate-migration.ts migrations/0003_problematic_migration.sql
+
+# Fix common D1 compatibility issues:
+# - Remove PRAGMA statements
+# - Replace AUTOINCREMENT with UUIDs
+# - Simplify CHECK constraints
+# - Remove WITHOUT ROWID modifiers
+```
+
+### Migration State Mismatch
+
+**Symptoms:**
+
+- Migrations report different state than expected
+- "Migration already applied" errors when migration seems missing
+- Inconsistent state between development and production
+
+**Diagnosis:**
+
+```bash
+# Check migration status in both environments
+npm run migrate:status      # Development
+npm run migrate:status:prod # Production
+
+# Compare migration file lists
+ls -la migrations/
+
+# Check Wrangler authentication
+cd src/workers && npx wrangler whoami
+```
+
+**Solutions:**
+
+```bash
+# Re-authenticate with Wrangler if needed
+npx wrangler login
+
+# Verify wrangler.toml configuration
+cd src/workers && cat wrangler.toml
+
+# Manual state reconciliation (use with caution)
+cd src/workers
+npx wrangler d1 migrations list cultural-archiver --env development
+npx wrangler d1 migrations list cultural-archiver --env production
+```
+
+### Failed Migration Recovery
+
+**Symptoms:**
+
+- Migration fails partway through execution
+- Database left in inconsistent state
+- Subsequent migrations won't run
+
+**Recovery Steps:**
+
+```bash
+# 1. Take immediate backup
+npm run backup:dev  # or backup:remote for production
+
+# 2. Check migration status
+npm run migrate:status
+
+# 3. Identify the failed migration
+# Look for partial application or error logs
+
+# 4. Fix the problematic migration file
+# Edit the SQL to address D1 compatibility issues
+
+# 5. Try to rollback if possible (development only)
+npm run migrate:rollback
+
+# 6. Re-apply corrected migration
+npm run migrate:dev
+```
+
+**For production recovery:**
+
+1. **DO NOT attempt rollback without full backup**
+2. **Test recovery procedure in development first**
+3. **Consider manual database repair if needed**
+4. **Document all recovery steps taken**
+
+### Migration Validation Errors
+
+**Common D1 Validation Issues:**
+
+**PRAGMA Statements**
+
+```sql
+-- ❌ This will fail validation
+PRAGMA foreign_keys = ON;
+
+-- ✅ Remove PRAGMA statements - D1 handles these automatically
+-- (No replacement needed)
+```
+
+**AUTOINCREMENT Usage**
+
+```sql
+-- ❌ Not supported in D1
+CREATE TABLE example (
+    id INTEGER PRIMARY KEY AUTOINCREMENT
+);
+
+-- ✅ Use UUIDs instead
+CREATE TABLE example (
+    id TEXT PRIMARY KEY  -- Generate UUID in application
+);
+```
+
+**Complex CHECK Constraints**
+
+```sql
+-- ❌ Functions in CHECK may not work
+CHECK (length(email) > 0 AND email LIKE '%@%')
+
+-- ✅ Use simple checks
+CHECK (email != '')
+```
+
+**WITHOUT ROWID Tables**
+
+```sql
+-- ❌ Not supported in D1
+CREATE TABLE cache (key TEXT PRIMARY KEY, value TEXT) WITHOUT ROWID;
+
+-- ✅ Standard table structure
+CREATE TABLE cache (key TEXT PRIMARY KEY, value TEXT);
+```
+
+### Wrangler CLI Issues
+
+**Command Not Found**
+
+```bash
+# Install Wrangler globally
+npm install -g wrangler
+
+# Or use npx for project-local version
+npx wrangler --version
+
+# Check PATH if global install doesn't work
+echo $PATH
+which wrangler
+```
+
+**Authentication Problems**
+
+```bash
+# Login to Wrangler
+npx wrangler login
+
+# Verify authentication
+npx wrangler whoami
+
+# Check API token permissions (if using token)
+# Ensure token has D1:Edit permissions
+```
+
+**Configuration Issues**
+
+```bash
+# Verify wrangler.toml exists and is valid
+cd src/workers
+cat wrangler.toml
+
+# Check database binding configuration
+npx wrangler d1 list
+
+# Validate environment configuration
+npx wrangler d1 migrations list cultural-archiver --env development
+```
+
+### Migration Performance Issues
+
+**Slow Migration Execution**
+
+- Large migrations may timeout in Wrangler
+- Network latency affecting remote operations
+- Complex queries taking too long
+
+**Solutions:**
+
+```bash
+# Break large migrations into smaller chunks
+# Use batch operations for data migrations
+# Consider separate data migration scripts for complex transformations
+
+# Monitor migration progress
+WRANGLER_LOG=debug npm run migrate:dev
+
+# Check D1 database size and limits
+cd src/workers && npx wrangler d1 info cultural-archiver
+```
+
+### Emergency Migration Recovery
+
+**When migrations are completely broken:**
+
+1. **Take full backup immediately**
+2. **Document current database state**
+3. **Identify last known good migration**
+4. **Plan recovery strategy**
+5. **Test recovery in development first**
+
+**Recovery Commands:**
+
+```bash
+# Create emergency backup
+npm run backup:validate  # Check existing backups first
+npm run backup:remote    # Create new backup
+
+# Export current schema for analysis
+cd src/workers
+npx wrangler d1 export cultural-archiver --env production > emergency-schema.sql
+
+# Compare with expected schema from migration files
+# Plan manual reconciliation if needed
 ```
 
 ## Authentication & Rate Limiting

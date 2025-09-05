@@ -50,23 +50,20 @@ describe('Backup System', () => {
     it('should generate complete database dump', async () => {
       // Mock database responses
       const mockPrepare = mockDb.prepare as MockedFunction<any>;
-      
+
       // Mock tables query
       mockPrepare.mockReturnValueOnce({
         all: vi.fn().mockResolvedValue({
           success: true,
-          results: [
-            { name: 'artwork' },
-            { name: 'logbook' },
-          ],
+          results: [{ name: 'artwork' }, { name: 'logbook' }],
         }),
       });
-      
+
       // Mock schema and data queries for each table
       mockPrepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
           first: vi.fn().mockResolvedValue({
-            sql: 'CREATE TABLE artwork (id TEXT PRIMARY KEY, lat REAL, lon REAL);'
+            sql: 'CREATE TABLE artwork (id TEXT PRIMARY KEY, lat REAL, lon REAL);',
           }),
         }),
         all: vi.fn().mockResolvedValue({
@@ -93,18 +90,18 @@ describe('Backup System', () => {
 
     it('should handle empty tables', async () => {
       const mockPrepare = mockDb.prepare as MockedFunction<any>;
-      
+
       mockPrepare.mockReturnValueOnce({
         all: vi.fn().mockResolvedValue({
           success: true,
           results: [{ name: 'empty_table' }],
         }),
       });
-      
+
       mockPrepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
           first: vi.fn().mockResolvedValue({
-            sql: 'CREATE TABLE empty_table (id TEXT PRIMARY KEY);'
+            sql: 'CREATE TABLE empty_table (id TEXT PRIMARY KEY);',
           }),
         }),
         all: vi.fn().mockResolvedValue({
@@ -122,7 +119,7 @@ describe('Backup System', () => {
 
     it('should handle database errors gracefully', async () => {
       const mockPrepare = mockDb.prepare as MockedFunction<any>;
-      
+
       mockPrepare.mockReturnValue({
         all: vi.fn().mockResolvedValue({
           success: false,
@@ -139,18 +136,18 @@ describe('Backup System', () => {
 
     it('should escape SQL strings properly', async () => {
       const mockPrepare = mockDb.prepare as MockedFunction<any>;
-      
+
       mockPrepare.mockReturnValueOnce({
         all: vi.fn().mockResolvedValue({
           success: true,
           results: [{ name: 'test_table' }],
         }),
       });
-      
+
       mockPrepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
           first: vi.fn().mockResolvedValue({
-            sql: 'CREATE TABLE test_table (id TEXT, note TEXT);'
+            sql: 'CREATE TABLE test_table (id TEXT, note TEXT);',
           }),
         }),
         all: vi.fn().mockResolvedValue({
@@ -173,7 +170,7 @@ describe('Backup System', () => {
   describe('collectR2Photos', () => {
     it('should collect all photos from R2 bucket', async () => {
       const mockBucket = mockEnv.PHOTOS_BUCKET as any;
-      
+
       // Mock list response
       mockBucket.list.mockResolvedValue({
         objects: [
@@ -184,7 +181,7 @@ describe('Backup System', () => {
       });
 
       // Mock get responses
-      const mockImageData = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0]); // JPEG header
+      const mockImageData = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]); // JPEG header
       mockBucket.get.mockResolvedValue({
         arrayBuffer: vi.fn().mockResolvedValue(mockImageData.buffer),
       });
@@ -206,7 +203,7 @@ describe('Backup System', () => {
 
     it('should handle empty R2 bucket', async () => {
       const mockBucket = mockEnv.PHOTOS_BUCKET as any;
-      
+
       mockBucket.list.mockResolvedValue({
         objects: [],
       });
@@ -231,7 +228,7 @@ describe('Backup System', () => {
 
     it('should handle R2 errors gracefully', async () => {
       const mockBucket = mockEnv.PHOTOS_BUCKET as any;
-      
+
       mockBucket.list.mockRejectedValue(new Error('R2 connection failed'));
 
       const result = await collectR2Photos(mockEnv);
@@ -242,7 +239,7 @@ describe('Backup System', () => {
 
     it('should handle individual photo download failures', async () => {
       const mockBucket = mockEnv.PHOTOS_BUCKET as any;
-      
+
       mockBucket.list.mockResolvedValue({
         objects: [
           { key: 'good_photo.jpg', size: 1024 },
@@ -251,7 +248,7 @@ describe('Backup System', () => {
       });
 
       // First photo succeeds, second fails
-      const mockImageData = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0]);
+      const mockImageData = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
       mockBucket.get
         .mockResolvedValueOnce({
           arrayBuffer: vi.fn().mockResolvedValue(mockImageData.buffer),
@@ -268,7 +265,7 @@ describe('Backup System', () => {
 
     it('should correctly identify photo types by naming convention', async () => {
       const mockBucket = mockEnv.PHOTOS_BUCKET as any;
-      
+
       mockBucket.list.mockResolvedValue({
         objects: [
           { key: 'image.jpg', size: 1024 },
@@ -277,7 +274,7 @@ describe('Backup System', () => {
         ],
       });
 
-      const mockImageData = new Uint8Array([0xFF, 0xD8, 0xFF, 0xE0]);
+      const mockImageData = new Uint8Array([0xff, 0xd8, 0xff, 0xe0]);
       mockBucket.get.mockResolvedValue({
         arrayBuffer: vi.fn().mockResolvedValue(mockImageData.buffer),
       });
@@ -313,11 +310,11 @@ describe('Backup System', () => {
       expect(metadata.created_at).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
       expect(metadata.backup_type).toBe('full');
       expect(metadata.generator).toContain('Cultural Archiver');
-      
+
       expect(metadata.database_info.tables).toEqual(['artwork', 'logbook']);
       expect(metadata.database_info.total_records).toBe(100);
       expect(metadata.database_info.size_estimate).toBeGreaterThan(0);
-      
+
       expect(metadata.photos_info.total_photos).toBe(100);
       expect(metadata.photos_info.originals_count).toBe(50);
       expect(metadata.photos_info.thumbnails_count).toBe(50);
@@ -339,9 +336,7 @@ describe('Backup System', () => {
   describe('createBackupArchive', () => {
     it('should create archive with database, photos, and metadata', async () => {
       const databaseDump = 'CREATE TABLE test (id TEXT);';
-      const photos = [
-        { path: 'photo1.jpg', content: new Uint8Array([1, 2, 3]).buffer },
-      ];
+      const photos = [{ path: 'photo1.jpg', content: new Uint8Array([1, 2, 3]).buffer }];
       const metadata: BackupMetadata = {
         version: '1.0.0',
         created_at: new Date().toISOString(),
@@ -364,28 +359,33 @@ describe('Backup System', () => {
         version: '1.0.0',
         created_at: '2024-01-01T12:00:00Z',
         database_info: { tables: ['artwork', 'logbook'], total_records: 1000, size_estimate: 5000 },
-        photos_info: { total_photos: 50, originals_count: 25, thumbnails_count: 25, total_size: 10485760 },
+        photos_info: {
+          total_photos: 50,
+          originals_count: 25,
+          thumbnails_count: 25,
+          total_size: 10485760,
+        },
         backup_type: 'full',
         generator: 'Cultural Archiver Backup System',
       };
 
       const archiveBuffer = await createBackupArchive(databaseDump, photos, metadata);
-      
+
       // Archive should be created successfully
       expect(archiveBuffer).toBeInstanceOf(ArrayBuffer);
-      
+
       // The createZipArchive mock should have been called with proper files
       const { createZipArchive } = await import('./archive');
       expect(createZipArchive).toHaveBeenCalled();
-      
+
       const callArgs = (createZipArchive as any).mock.calls[0];
       const archiveFiles = callArgs[0];
-      
+
       expect(archiveFiles).toHaveLength(3); // database.sql, metadata.json, README.md
       expect(archiveFiles.some((f: any) => f.path === 'database.sql')).toBe(true);
       expect(archiveFiles.some((f: any) => f.path === 'metadata.json')).toBe(true);
       expect(archiveFiles.some((f: any) => f.path === 'README.md')).toBe(true);
-      
+
       // Check README content
       const readmeFile = archiveFiles.find((f: any) => f.path === 'README.md');
       expect(readmeFile.content).toContain('Cultural Archiver Backup');
@@ -408,11 +408,13 @@ describe('Backup System', () => {
 
       const photoResult: PhotoCollectionResult = {
         success: true,
-        photos: [{
-          path: 'photos/test.jpg',
-          content: new Uint8Array([1, 2, 3]).buffer,
-          mimeType: 'image/jpeg',
-        }],
+        photos: [
+          {
+            path: 'photos/test.jpg',
+            content: new Uint8Array([1, 2, 3]).buffer,
+            mimeType: 'image/jpeg',
+          },
+        ],
         originals_count: 1,
         thumbnails_count: 0,
         total_size: 1024,
@@ -522,7 +524,7 @@ describe('Backup System', () => {
       mockPrepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
           first: vi.fn().mockResolvedValue({
-            sql: 'CREATE TABLE artwork (id TEXT);'
+            sql: 'CREATE TABLE artwork (id TEXT);',
           }),
         }),
         all: vi.fn().mockResolvedValue({
@@ -577,7 +579,7 @@ describe('Backup System', () => {
       mockPrepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
           first: vi.fn().mockResolvedValue({
-            sql: 'CREATE TABLE artwork (id TEXT);'
+            sql: 'CREATE TABLE artwork (id TEXT);',
           }),
         }),
         all: vi.fn().mockResolvedValue({
@@ -608,7 +610,7 @@ describe('Backup System', () => {
       mockPrepare.mockReturnValue({
         bind: vi.fn().mockReturnValue({
           first: vi.fn().mockResolvedValue({
-            sql: 'CREATE TABLE artwork (id TEXT);'
+            sql: 'CREATE TABLE artwork (id TEXT);',
           }),
         }),
         all: vi.fn().mockResolvedValue({
@@ -659,7 +661,7 @@ describe('Backup System', () => {
 
       expect(result.success).toBe(true);
       expect(result.filename).toMatch(/^backup-\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.zip$/);
-      
+
       // Should not contain colons (replaced with dashes)
       expect(result.filename).not.toContain(':');
       expect(result.filename!.endsWith('.zip')).toBe(true);
@@ -694,8 +696,9 @@ describe('Backup System', () => {
       const { createZipArchive } = await import('./archive');
       (createZipArchive as any).mockRejectedValueOnce(new Error('Archive creation failed'));
 
-      await expect(createBackupArchive('sql', [], {} as BackupMetadata))
-        .rejects.toThrow('Failed to create backup archive');
+      await expect(createBackupArchive('sql', [], {} as BackupMetadata)).rejects.toThrow(
+        'Failed to create backup archive'
+      );
     });
   });
 });

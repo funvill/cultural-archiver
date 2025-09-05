@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { mount, type VueWrapper } from '@vue/test-utils'
-import { createPinia, type Pinia } from 'pinia'
-import MapComponent from '../MapComponent.vue'
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { mount, type VueWrapper } from '@vue/test-utils';
+import { createPinia, type Pinia } from 'pinia';
+import MapComponent from '../MapComponent.vue';
 
 // Mock Leaflet completely
 vi.mock('leaflet', () => ({
@@ -19,8 +19,8 @@ vi.mock('leaflet', () => ({
         addTo: vi.fn(() => mockTileLayer), // Return self for chaining
         on: vi.fn(() => mockTileLayer), // Return self for chaining
         off: vi.fn(() => mockTileLayer), // Return self for chaining
-      }
-      return mockTileLayer
+      };
+      return mockTileLayer;
     }),
     layerGroup: vi.fn(() => ({
       addTo: vi.fn(),
@@ -29,34 +29,34 @@ vi.mock('leaflet', () => ({
       clearLayers: vi.fn(),
     })),
   },
-}))
+}));
 
 // Mock vue-leaflet
 vi.mock('@vue-leaflet/vue-leaflet', () => ({
   LMap: { name: 'LMap', template: '<div data-testid="leaflet-map"><slot /></div>' },
   LTileLayer: { name: 'LTileLayer', template: '<div></div>' },
-}))
+}));
 
 // Mock useAnnouncer
 vi.mock('../../composables/useAnnouncer', () => ({
   useAnnouncer: (): {
-    announceToScreenReader: ReturnType<typeof vi.fn>
-    announceMapUpdate: ReturnType<typeof vi.fn>
-    announceError: ReturnType<typeof vi.fn>
+    announceToScreenReader: ReturnType<typeof vi.fn>;
+    announceMapUpdate: ReturnType<typeof vi.fn>;
+    announceError: ReturnType<typeof vi.fn>;
   } => ({
     announceToScreenReader: vi.fn(),
     announceMapUpdate: vi.fn(),
     announceError: vi.fn(),
   }),
-}))
+}));
 
 describe('MapComponent', () => {
-  let wrapper: VueWrapper<any> // eslint-disable-line @typescript-eslint/no-explicit-any
-  let pinia: Pinia
+  let wrapper: VueWrapper<any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  let pinia: Pinia;
 
   beforeEach(async (): Promise<void> => {
-    pinia = createPinia()
-    
+    pinia = createPinia();
+
     wrapper = mount(MapComponent, {
       global: {
         plugins: [pinia],
@@ -70,18 +70,18 @@ describe('MapComponent', () => {
         zoom: 13,
         height: '400px',
       },
-    })
-    
-    await wrapper.vm.$nextTick()
-  })
+    });
+
+    await wrapper.vm.$nextTick();
+  });
 
   describe('Basic Rendering', (): void => {
     it('renders without errors', (): void => {
-      expect(wrapper.exists()).toBe(true)
-    })
+      expect(wrapper.exists()).toBe(true);
+    });
 
     it('contains map component wrapper', (): void => {
-      expect(wrapper.find('.map-component').exists()).toBe(true)
-    })
-  })
-})
+      expect(wrapper.find('.map-component').exists()).toBe(true);
+    });
+  });
+});

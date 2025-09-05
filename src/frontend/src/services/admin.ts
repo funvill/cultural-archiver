@@ -67,7 +67,7 @@ export class AdminService {
    */
   async getAuditLogs(query?: AuditLogQuery): Promise<AuditLogsResponse> {
     const filters: Record<string, string> = {};
-    
+
     if (query?.type) {
       filters.type = query.type;
     }

@@ -45,75 +45,47 @@ The review system includes a fully functional frontend interface with card-stack
 
 ### 1. Permission System Enhancement (**🚧 New Requirements**)
 
-1.1. Create `user_permissions` table with `user_uuid` and `permission` columns supporting 'moderator' and 'admin' roles
-1.2. Extend existing authentication middleware to check moderator permissions using database records instead of hardcoded logic
-1.3. Admin role must include all moderator permissions plus permission management capabilities
-1.4. System must validate permissions on every moderation action using database lookups
-1.5. Add permission caching layer to avoid database queries on every request
+1.1. Create `user_permissions` table with `user_uuid` and `permission` columns supporting 'moderator' and 'admin' roles 1.2. Extend existing authentication middleware to check moderator permissions using database records instead of hardcoded logic 1.3. Admin role must include all moderator permissions plus permission management capabilities 1.4. System must validate permissions on every moderation action using database lookups 1.5. Add permission caching layer to avoid database queries on every request
 
 ### 2. Review Queue Interface
 
-2.1. `/review` route accessible only to users with moderator permissions
-2.2. Card-stack interface showing one submission at a time
-2.3. Submission details including photo, location, timestamp, and action buttons
-2.4. Pagination with submission navigation
-2.5. Oldest submissions first ordering
-2.6. Auto-scroll and navigation features
+2.1. `/review` route accessible only to users with moderator permissions 2.2. Card-stack interface showing one submission at a time 2.3. Submission details including photo, location, timestamp, and action buttons 2.4. Pagination with submission navigation 2.5. Oldest submissions first ordering 2.6. Auto-scroll and navigation features
 
 ### 3. Moderation Actions
 
-3.1. **Approve** button functionality
-3.2. **Reject** button with reason tracking
-3.3. **Skip** button for uncertain submissions
-3.4. Success feedback and auto-advance
-3.5. Backend logging via existing API endpoints
+3.1. **Approve** button functionality 3.2. **Reject** button with reason tracking 3.3. **Skip** button for uncertain submissions 3.4. Success feedback and auto-advance 3.5. Backend logging via existing API endpoints
 
 ### 4. Keyboard Shortcuts
 
-4.1. `A` key for approve action
-4.2. `R` key for reject action
-4.3. `S` key for skip action
-4.4. `?` Keyboard shortcuts help display
-4.5. Arrow key navigation
+4.1. `A` key for approve action 4.2. `R` key for reject action 4.3. `S` key for skip action 4.4. `?` Keyboard shortcuts help display 4.5. Arrow key navigation
 
 ### 5. Access Control & Navigation
 
-5.1. Non-moderator redirect to home page
-5.2. "Access denied" toast notification
-5.3. Authentication requirement handling
-5.4. Review link in navigation for moderators
+5.1. Non-moderator redirect to home page 5.2. "Access denied" toast notification 5.3. Authentication requirement handling 5.4. Review link in navigation for moderators
 
 ### 6. Data Persistence & Audit (**🚧 Enhancement Required**)
 
-6.1. **NEW:** Create `moderation_decisions` audit table with fields: `id`, `submission_id`, `moderator_uuid`, `decision`, `timestamp`, `notes`
-6.2. **NEW:** Log every moderation action in audit table (approve, reject, skip) with moderator identity
-6.3. **NEW:** Link decisions to existing logbook submissions via `submission_id`
-6.4. **NEW:** Preserve audit trail even when submissions are deleted
-6.5. **NEW:** Add audit query capabilities for admin review
+6.1. **NEW:** Create `moderation_decisions` audit table with fields: `id`, `submission_id`, `moderator_uuid`, `decision`, `timestamp`, `notes` 6.2. **NEW:** Log every moderation action in audit table (approve, reject, skip) with moderator identity 6.3. **NEW:** Link decisions to existing logbook submissions via `submission_id` 6.4. **NEW:** Preserve audit trail even when submissions are deleted 6.5. **NEW:** Add audit query capabilities for admin review
 
 ### 7. Error Handling
 
-7.1. Network failure handling with retry options
-7.2. Clear error messages with recovery guidance
-7.3. Empty queue state handling
+7.1. Network failure handling with retry options 7.2. Clear error messages with recovery guidance 7.3. Empty queue state handling
 
 ### 8. Integration with Existing System
 
-8.1. Uses existing `/api/review/queue` endpoint
-8.2. Uses existing `/api/review/approve` and `/api/review/reject` endpoints
-8.3. Integrates with existing `AuthContext` and `isReviewer` system
+8.1. Uses existing `/api/review/queue` endpoint 8.2. Uses existing `/api/review/approve` and `/api/review/reject` endpoints 8.3. Integrates with existing `AuthContext` and `isReviewer` system
 
 ## Non-Goals (Out of Scope)
 
-- **Advanced Moderation Features**: No crowdsourced voting, trust scores, or user reputation systems *(unchanged)*
-- **Fact-Checking Workflows**: Moderators only check for abuse, not content accuracy *(unchanged)*
-- **Metadata Editing**: No capability to edit submission content during review *(future feature)*
-- **Batch Operations**: No multi-select or bulk approve/reject functionality *(future feature)*  
-- **Mobile Optimization**: Desktop-first interface *(mobile support via responsive design already implemented)*
-- **Performance Metrics Dashboard**: No detailed moderation speed tracking or moderator leaderboards *(basic statistics already implemented)*
-- **Advanced Filtering**: No filtering by submission type, location, or date ranges *(basic filtering already implemented)*
-- **Appeal Process**: No mechanism for users to contest rejected submissions *(future feature)*
-- **UI/UX Changes**: The existing ReviewView.vue interface will not be redesigned *(interface already optimized)*
+- **Advanced Moderation Features**: No crowdsourced voting, trust scores, or user reputation systems _(unchanged)_
+- **Fact-Checking Workflows**: Moderators only check for abuse, not content accuracy _(unchanged)_
+- **Metadata Editing**: No capability to edit submission content during review _(future feature)_
+- **Batch Operations**: No multi-select or bulk approve/reject functionality _(future feature)_
+- **Mobile Optimization**: Desktop-first interface _(mobile support via responsive design already implemented)_
+- **Performance Metrics Dashboard**: No detailed moderation speed tracking or moderator leaderboards _(basic statistics already implemented)_
+- **Advanced Filtering**: No filtering by submission type, location, or date ranges _(basic filtering already implemented)_
+- **Appeal Process**: No mechanism for users to contest rejected submissions _(future feature)_
+- **UI/UX Changes**: The existing ReviewView.vue interface will not be redesigned _(interface already optimized)_
 
 ## Design Considerations
 
@@ -159,7 +131,7 @@ CREATE TABLE user_permissions (
   FOREIGN KEY (revoked_by) REFERENCES users(uuid) ON DELETE SET NULL
 );
 
--- Enhanced moderation decisions audit table  
+-- Enhanced moderation decisions audit table
 CREATE TABLE moderation_decisions (
   id TEXT PRIMARY KEY,
   submission_id TEXT NOT NULL,

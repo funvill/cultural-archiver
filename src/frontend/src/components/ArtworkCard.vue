@@ -1,118 +1,113 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import type { SearchResult } from '../types'
+import { computed } from 'vue';
+import type { SearchResult } from '../types';
 
 // Props interface
 interface Props {
-  artwork: SearchResult
-  loading?: boolean
-  compact?: boolean
-  showDistance?: boolean
-  clickable?: boolean
+  artwork: SearchResult;
+  loading?: boolean;
+  compact?: boolean;
+  showDistance?: boolean;
+  clickable?: boolean;
 }
 
 // Emits interface
 interface Emits {
-  (e: 'click', artwork: SearchResult): void
-  (e: 'imageLoad'): void
-  (e: 'imageError'): void
+  (e: 'click', artwork: SearchResult): void;
+  (e: 'imageLoad'): void;
+  (e: 'imageError'): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   loading: false,
   compact: false,
   showDistance: false,
-  clickable: true
-})
+  clickable: true,
+});
 
-const emit = defineEmits<Emits>()
+const emit = defineEmits<Emits>();
 
 // Computed
 const artworkTitle = computed(() => {
   // Try to get title from tags
   if (props.artwork.tags && typeof props.artwork.tags === 'object') {
-    const title = props.artwork.tags.title || props.artwork.tags.name
+    const title = props.artwork.tags.title || props.artwork.tags.name;
     if (title && typeof title === 'string') {
-      return title
+      return title;
     }
   }
-  
+
   // Fallback to type name
-  return props.artwork.type_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-})
+  return props.artwork.type_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+});
 
 const artworkType = computed(() => {
-  return props.artwork.type_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-})
+  return props.artwork.type_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+});
 
-const hasPhoto = computed(() => !!props.artwork.recent_photo)
+const hasPhoto = computed(() => !!props.artwork.recent_photo);
 
 const photoUrl = computed(() => {
-  if (!props.artwork.recent_photo) return null
-  
+  if (!props.artwork.recent_photo) return null;
+
   // Handle different photo URL formats
   if (props.artwork.recent_photo.startsWith('http')) {
-    return props.artwork.recent_photo
+    return props.artwork.recent_photo;
   }
-  
+
   // Assume it's a relative path from the API
-  return props.artwork.recent_photo
-})
+  return props.artwork.recent_photo;
+});
 
 const distanceText = computed(() => {
-  if (!props.showDistance || !props.artwork.distance_km) return null
-  
-  const distance = props.artwork.distance_km
+  if (!props.showDistance || !props.artwork.distance_km) return null;
+
+  const distance = props.artwork.distance_km;
   if (distance < 1) {
-    return `${Math.round(distance * 1000)}m away`
+    return `${Math.round(distance * 1000)}m away`;
   }
-  return `${distance.toFixed(1)}km away`
-})
+  return `${distance.toFixed(1)}km away`;
+});
 
 const photoCount = computed(() => {
-  const count = props.artwork.photo_count || 0
-  if (count === 0) return 'No photos'
-  if (count === 1) return '1 photo'
-  return `${count} photos`
-})
+  const count = props.artwork.photo_count || 0;
+  if (count === 0) return 'No photos';
+  if (count === 1) return '1 photo';
+  return `${count} photos`;
+});
 
 // Methods
 function handleClick(): void {
   if (props.clickable && !props.loading) {
-    emit('click', props.artwork)
+    emit('click', props.artwork);
   }
 }
 
 function handleImageLoad(): void {
-  emit('imageLoad')
+  emit('imageLoad');
 }
 
 function handleImageError(): void {
-  emit('imageError')
+  emit('imageError');
 }
 
 function handleKeydown(event: KeyboardEvent): void {
   if (props.clickable && (event.key === 'Enter' || event.key === ' ')) {
-    event.preventDefault()
-    handleClick()
+    event.preventDefault();
+    handleClick();
   }
 }
 </script>
 
 <template>
   <article
-    class="
-      bg-white rounded-lg shadow-sm border border-gray-200
-      transition-all duration-200 ease-in-out
-      hover:shadow-md hover:border-gray-300
-      focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2
-    "
+    class="bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-200 ease-in-out hover:shadow-md hover:border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2"
     :class="{
       'cursor-pointer': clickable && !loading,
       'cursor-default': !clickable || loading,
       'opacity-50': loading,
       'h-32': compact,
-      'h-auto': !compact
+      'h-auto': !compact,
     }"
     :tabindex="clickable ? 0 : -1"
     role="button"
@@ -131,27 +126,22 @@ function handleKeydown(event: KeyboardEvent): void {
           class="w-full h-full object-cover"
           @load="handleImageLoad"
           @error="handleImageError"
-        >
+        />
         <div
           v-else
           class="w-full h-full flex items-center justify-center bg-gray-50"
           aria-hidden="true"
         >
-          <svg 
-            class="w-8 h-8 text-gray-300" 
-            fill="none" 
-            viewBox="0 0 24 24" 
-            stroke="currentColor"
-          >
-            <path 
-              stroke-linecap="round" 
-              stroke-linejoin="round" 
-              stroke-width="2" 
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
+          <svg class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
             />
           </svg>
         </div>
-        
+
         <!-- Loading overlay -->
         <div
           v-if="loading"
@@ -187,27 +177,27 @@ function handleKeydown(event: KeyboardEvent): void {
           class="w-full h-48 object-cover"
           @load="handleImageLoad"
           @error="handleImageError"
-        >
+        />
         <div
           v-else
           class="w-full h-48 flex items-center justify-center bg-gray-50"
           aria-hidden="true"
         >
-          <svg 
-            class="w-12 h-12 text-gray-300" 
-            fill="none" 
-            viewBox="0 0 24 24" 
+          <svg
+            class="w-12 h-12 text-gray-300"
+            fill="none"
+            viewBox="0 0 24 24"
             stroke="currentColor"
           >
-            <path 
-              stroke-linecap="round" 
-              stroke-linejoin="round" 
-              stroke-width="2" 
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" 
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
             />
           </svg>
         </div>
-        
+
         <!-- Loading overlay -->
         <div
           v-if="loading"
@@ -230,9 +220,11 @@ function handleKeydown(event: KeyboardEvent): void {
         <h3 class="text-lg font-medium text-gray-900 mb-2 line-clamp-2">
           {{ artworkTitle }}
         </h3>
-        
+
         <div class="flex items-center justify-between text-sm text-gray-600 mb-2">
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+          <span
+            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+          >
             {{ artworkType }}
           </span>
           <span v-if="distanceText" class="text-xs">

@@ -140,20 +140,21 @@ export class DatabaseService {
 
     const results = await stmt
       .bind(
-        south,  // min lat
-        north,  // max lat
-        west,   // min lon
-        east,   // max lon
+        south, // min lat
+        north, // max lat
+        west, // min lon
+        east, // max lon
         limit
       )
       .all();
 
     // For bounds queries, we don't calculate distance, so set to 0
-    return (results.results as unknown as (ArtworkRecord & { type_name: string })[])
-      .map(artwork => ({
+    return (results.results as unknown as (ArtworkRecord & { type_name: string })[]).map(
+      artwork => ({
         ...artwork,
         distance_km: 0,
-      }));
+      })
+    );
   }
 
   async updateArtworkStatus(id: string, status: ArtworkRecord['status']): Promise<void> {
@@ -172,7 +173,7 @@ export class DatabaseService {
     // First try with lat/lon columns, fallback to basic columns if they don't exist
     let stmt;
     let bindParams;
-    
+
     try {
       // Try the full schema with lat/lon columns
       stmt = this.db.prepare(`
@@ -182,20 +183,20 @@ export class DatabaseService {
 
       const photosJson = data.photos ? JSON.stringify(data.photos) : null;
       bindParams = [
-        id, 
-        data.artwork_id || null, 
-        data.user_token, 
+        id,
+        data.artwork_id || null,
+        data.user_token,
         data.lat || null,
         data.lon || null,
-        data.note || null, 
-        photosJson, 
-        now
+        data.note || null,
+        photosJson,
+        now,
       ];
-      
+
       await stmt.bind(...bindParams).run();
     } catch (error) {
       console.log('[DATABASE] lat/lon columns not found, trying fallback schema...', error);
-      
+
       // Fallback to basic schema without lat/lon columns
       stmt = this.db.prepare(`
         INSERT INTO logbook (id, artwork_id, user_token, note, photos, status, created_at)
@@ -204,19 +205,19 @@ export class DatabaseService {
 
       const photosJson = data.photos ? JSON.stringify(data.photos) : null;
       bindParams = [
-        id, 
-        data.artwork_id || null, 
-        data.user_token, 
-        data.note || null, 
-        photosJson, 
-        now
+        id,
+        data.artwork_id || null,
+        data.user_token,
+        data.note || null,
+        photosJson,
+        now,
       ];
-      
+
       await stmt.bind(...bindParams).run();
     }
 
     const photosJson = data.photos ? JSON.stringify(data.photos) : null;
-    
+
     return {
       id,
       artwork_id: data.artwork_id || null,
@@ -236,7 +237,11 @@ export class DatabaseService {
     return result ? (result as unknown as LogbookRecord) : null;
   }
 
-  async getLogbookEntriesForArtwork(artworkId: string, limit: number = 10, offset: number = 0): Promise<LogbookRecord[]> {
+  async getLogbookEntriesForArtwork(
+    artworkId: string,
+    limit: number = 10,
+    offset: number = 0
+  ): Promise<LogbookRecord[]> {
     const stmt = this.db.prepare(`
       SELECT * FROM logbook 
       WHERE artwork_id = ? AND status = 'approved'
@@ -259,7 +264,9 @@ export class DatabaseService {
     })[];
     total: number;
   }> {
-    console.log(`[DB DEBUG] getUserSubmissions called with token: ${userToken}, page: ${page}, perPage: ${perPage}`);
+    console.log(
+      `[DB DEBUG] getUserSubmissions called with token: ${userToken}, page: ${page}, perPage: ${perPage}`
+    );
     const offset = (page - 1) * perPage;
 
     // Get submissions (exclude rejected)
@@ -274,7 +281,7 @@ export class DatabaseService {
     `;
     console.log(`[DB DEBUG] Executing query: ${query}`);
     console.log(`[DB DEBUG] Query parameters: [${userToken}, ${perPage}, ${offset}]`);
-    
+
     const stmt = this.db.prepare(query);
     const results = await stmt.bind(userToken, perPage, offset).all();
     console.log(`[DB DEBUG] Query returned ${results.results?.length || 0} results`);
@@ -466,12 +473,14 @@ export class DatabaseService {
       `);
 
       const results = await stmt.bind(artworkId).all();
-      return results.results.map((row): ArtworkCreatorInfo => ({
-        id: row.id as string,
-        name: row.name as string,
-        bio: row.bio as string | null,
-        role: row.role as string,
-      }));
+      return results.results.map(
+        (row): ArtworkCreatorInfo => ({
+          id: row.id as string,
+          name: row.name as string,
+          bio: row.bio as string | null,
+          role: row.role as string,
+        })
+      );
     } catch (error) {
       // Return empty array if creators tables don't exist yet
       console.warn('Creators tables not found, returning empty creators list:', error);
@@ -611,18 +620,12 @@ export async function getArtworkTypeByName(
 // Creator Helper Functions
 // ================================
 
-export async function createCreator(
-  db: D1Database,
-  data: CreateCreatorRequest
-): Promise<string> {
+export async function createCreator(db: D1Database, data: CreateCreatorRequest): Promise<string> {
   const service = createDatabaseService(db);
   return service.createCreator(data);
 }
 
-export async function findCreatorById(
-  db: D1Database,
-  id: string
-): Promise<CreatorRecord | null> {
+export async function findCreatorById(db: D1Database, id: string): Promise<CreatorRecord | null> {
   const service = createDatabaseService(db);
   return service.getCreatorById(id);
 }

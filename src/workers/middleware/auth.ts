@@ -50,7 +50,7 @@ export async function ensureUserToken(
   if (!userToken) {
     // Check for token in cookie (for browser requests)
     const cookieHeader = c.req.header('Cookie');
-    
+
     userToken = cookieHeader
       ?.split(';')
       .find(cookie => cookie.trim().startsWith('user_token='))
@@ -59,7 +59,7 @@ export async function ensureUserToken(
 
   // Validate token format if we have one (should be UUID)
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  
+
   if (userToken && !uuidRegex.test(userToken)) {
     userToken = undefined; // Clear invalid token
   }

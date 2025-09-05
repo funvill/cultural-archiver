@@ -1,17 +1,12 @@
 <script setup lang="ts">
-import { useAnnouncer } from '../composables/useAnnouncer'
+import { useAnnouncer } from '../composables/useAnnouncer';
 
-const { announcement, announcementLevel } = useAnnouncer()
+const { announcement, announcementLevel } = useAnnouncer();
 </script>
 
 <template>
   <!-- Screen Reader Live Region for Announcements -->
-  <div 
-    class="sr-only" 
-    :aria-live="announcementLevel"
-    aria-atomic="true"
-    role="status"
-  >
+  <div class="sr-only" :aria-live="announcementLevel" aria-atomic="true" role="status">
     {{ announcement }}
   </div>
 </template>

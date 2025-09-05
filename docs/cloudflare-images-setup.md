@@ -40,7 +40,7 @@ wrangler secret put CLOUDFLARE_ACCOUNT_ID
 Create a Cloudflare API token with the following permissions:
 
 - **Account**: Cultural Archiver Account
-- **Permissions**: 
+- **Permissions**:
   - `Cloudflare Images:Edit`
   - `Zone:Read` (if using custom domains)
 - **Account Resources**: Include specific account
@@ -51,6 +51,7 @@ Create a Cloudflare API token with the following permissions:
 ### Automatic Fallback
 
 The system automatically falls back to R2 storage if Cloudflare Images is:
+
 - Disabled (`CLOUDFLARE_IMAGES_ENABLED = "false"`)
 - Unavailable (API errors)
 - Not properly configured
@@ -67,16 +68,19 @@ When Cloudflare Images is enabled:
 ### URL Structure
 
 #### Cloudflare Images URLs
+
 ```
 https://imagedelivery.net/{account-id}/{image-id}/{transformation}
 ```
 
 Example transformations:
+
 - `w=800` - Resize to 800px width
 - `w=400,h=400,fit=crop` - 400x400 crop
 - `quality=85` - Set JPEG quality
 
 #### R2 Fallback URLs
+
 ```
 https://art-photos.abluestar.com/{date-path}/{filename}
 ```
@@ -112,7 +116,7 @@ const metadata = {
   submissionId: '...',
   originalFilename: '...',
   exifProcessed: 'true',
-  permalinkInjected: '...'
+  permalinkInjected: '...',
 };
 ```
 
@@ -148,9 +152,9 @@ The system logs key events:
 
 ```typescript
 // Successful Cloudflare Images upload
-console.info('Photo uploaded to Cloudflare Images:', { 
-  imageId: 'abc123', 
-  originalKey: 'submissions/2024/12/27/filename.jpg' 
+console.info('Photo uploaded to Cloudflare Images:', {
+  imageId: 'abc123',
+  originalKey: 'submissions/2024/12/27/filename.jpg',
 });
 
 // Fallback to R2
@@ -160,7 +164,7 @@ console.warn('Cloudflare Images upload failed, falling back to R2:', error);
 console.info('Photo processing completed:', {
   cloudflareImages: true,
   thumbnailGenerated: true,
-  exifProcessed: true
+  exifProcessed: true,
 });
 ```
 

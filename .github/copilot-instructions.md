@@ -1,13 +1,13 @@
 # GitHub Copilot Instructions
 
-## Very important, Read and understand these first. 
+## Very important, Read and understand these first.
 
 - Developed on a Windows computer using PowerShell. Commands should be PowerShell compliant. Use PowerShell syntax instead
   - Use `Invoke-WebRequest` instead of `curl`
 - Use Playwright-MCP over `simple browser` tools when available.
-- When starting a devlopment server for testing, use `npm run dev` in the project root to start the frontend and backend test servers. 
+- When starting a devlopment server for testing, use `npm run dev` in the project root to start the frontend and backend test servers.
 - All unit tests must pass. Run `npm run test` in the project root.
-- Build must work `npm run build`. 
+- Build must work `npm run build`.
 
 ## Settings
 
@@ -31,14 +31,14 @@
   - **NOT Cloudflare Pages** - Uses Cloudflare Worker with static assets
   - Configured via `src/frontend/wrangler.jsonc` with `assets.directory: "./dist"`
   - Serves static files through Worker runtime at `art.abluestar.com`
-  - Uses `assets.not_found_handling: "single-page-application"` for automatic SPA   routing
+  - Uses `assets.not_found_handling: "single-page-application"` for automatic SPA routing
   - Cloudflare automatically serves `index.html` for client-side routes like `/ verify`, `/artwork/*`, etc.
   - No custom worker script needed - built-in SPA configuration handles routing
 - **Backend Deployment**
   - Separate Cloudflare Worker at `art-api.abluestar.com`
   - Configured via `src/workers/wrangler.toml`
   - Handles API endpoints, database operations, and business logic
-- **Test Framework**: 
+- **Test Framework**:
   - Frontend: Vitest with Vue Test Utils and jsdom environment
   - Backend: Vitest with Miniflare for Workers environment
   - Testing Best Practices
@@ -79,6 +79,7 @@
 ### Frontend Component Development
 
 #### Vue.js Best Practices
+
 - Use Composition API with `<script setup lang="ts">`
 - Follow mobile-first responsive design principles
 - Use Tailwind CSS utility classes with semantic component structure

@@ -16,7 +16,7 @@ import {
   sendMagicLinkEmail,
   requestMagicLink,
   consumeMagicLink,
-  cleanupExpiredMagicLinks
+  cleanupExpiredMagicLinks,
 } from './email-auth';
 import { generateMagicLinkEmailTemplate } from './resend-email';
 import * as authModule from './auth';
@@ -42,7 +42,7 @@ const mockEnv = {
   SESSIONS: {
     put: vi.fn().mockResolvedValue(undefined),
     get: vi.fn().mockResolvedValue(null),
-    delete: vi.fn().mockResolvedValue(undefined)
+    delete: vi.fn().mockResolvedValue(undefined),
   },
   CACHE: {},
   RATE_LIMITS: {},
@@ -52,22 +52,25 @@ const mockEnv = {
   FRONTEND_URL: 'http://localhost:3000',
   LOG_LEVEL: 'debug',
   API_VERSION: '1.0.0',
-  EMAIL_FROM: 'test@cultural-archiver.com'
+  EMAIL_FROM: 'test@cultural-archiver.com',
 } as unknown as WorkerEnv;
 
 // Mock database statement
-const createMockStatement = (result: unknown = null, runResult: MockDBResult = { changes: 1 }): MockDBStatement => ({
+const createMockStatement = (
+  result: unknown = null,
+  runResult: MockDBResult = { changes: 1 }
+): MockDBStatement => ({
   bind: vi.fn().mockReturnThis(),
   first: vi.fn().mockResolvedValue(result),
   all: vi.fn().mockResolvedValue({ results: Array.isArray(result) ? result : [result] }),
-  run: vi.fn().mockResolvedValue(runResult)
+  run: vi.fn().mockResolvedValue(runResult),
 });
 
 // Mock auth module functions
 vi.mock('./auth', () => ({
   getUserByEmail: vi.fn(),
   createUserWithUUIDClaim: vi.fn(),
-  updateUserEmailVerified: vi.fn()
+  updateUserEmailVerified: vi.fn(),
 }));
 
 describe('Magic Link Email System', () => {
@@ -79,7 +82,7 @@ describe('Magic Link Email System', () => {
   describe('Token Generation and Validation', () => {
     it('should generate valid magic link tokens', () => {
       const token = generateMagicLinkToken();
-      
+
       expect(token).toBeDefined();
       expect(typeof token).toBe('string');
       expect(token.length).toBe(64); // 32 bytes as hex
@@ -89,7 +92,7 @@ describe('Magic Link Email System', () => {
     it('should generate unique tokens', () => {
       const token1 = generateMagicLinkToken();
       const token2 = generateMagicLinkToken();
-      
+
       expect(token1).not.toBe(token2);
     });
 
@@ -97,21 +100,21 @@ describe('Magic Link Email System', () => {
       // Valid token
       const validToken = 'a'.repeat(64);
       expect(validateMagicLinkToken(validToken)).toEqual({ isValid: true });
-      
+
       // Invalid tokens
-      expect(validateMagicLinkToken('')).toEqual({ 
-        isValid: false, 
-        error: 'Token is required' 
+      expect(validateMagicLinkToken('')).toEqual({
+        isValid: false,
+        error: 'Token is required',
       });
-      
-      expect(validateMagicLinkToken('short')).toEqual({ 
-        isValid: false, 
-        error: 'Token must be 64 characters long' 
+
+      expect(validateMagicLinkToken('short')).toEqual({
+        isValid: false,
+        error: 'Token must be 64 characters long',
       });
-      
-      expect(validateMagicLinkToken('x'.repeat(64))).toEqual({ 
-        isValid: false, 
-        error: 'Token must be hexadecimal' 
+
+      expect(validateMagicLinkToken('x'.repeat(64))).toEqual({
+        isValid: false,
+        error: 'Token must be hexadecimal',
       });
     });
   });
@@ -136,13 +139,14 @@ describe('Magic Link Email System', () => {
         request_count: 2,
         window_start: new Date().toISOString(),
         last_request_at: new Date().toISOString(),
-        blocked_until: null
+        blocked_until: null,
       };
 
       const selectStatement = createMockStatement(existingRecord);
       const updateStatement = createMockStatement();
-      
-      mockEnv.DB.prepare = vi.fn()
+
+      mockEnv.DB.prepare = vi
+        .fn()
         .mockReturnValueOnce(selectStatement)
         .mockReturnValueOnce(updateStatement);
 
@@ -159,13 +163,14 @@ describe('Magic Link Email System', () => {
         request_count: 10, // At limit
         window_start: new Date().toISOString(),
         last_request_at: new Date().toISOString(),
-        blocked_until: null
+        blocked_until: null,
       };
 
       const selectStatement = createMockStatement(existingRecord);
       const updateStatement = createMockStatement();
-      
-      mockEnv.DB.prepare = vi.fn()
+
+      mockEnv.DB.prepare = vi
+        .fn()
         .mockReturnValueOnce(selectStatement)
         .mockReturnValueOnce(updateStatement);
 
@@ -184,13 +189,14 @@ describe('Magic Link Email System', () => {
         request_count: 5,
         window_start: oldDate.toISOString(),
         last_request_at: oldDate.toISOString(),
-        blocked_until: null
+        blocked_until: null,
       };
 
       const selectStatement = createMockStatement(existingRecord);
       const updateStatement = createMockStatement();
-      
-      mockEnv.DB.prepare = vi.fn()
+
+      mockEnv.DB.prepare = vi
+        .fn()
         .mockReturnValueOnce(selectStatement)
         .mockReturnValueOnce(updateStatement);
 
@@ -208,7 +214,7 @@ describe('Magic Link Email System', () => {
         request_count: 5,
         window_start: new Date().toISOString(),
         last_request_at: new Date().toISOString(),
-        blocked_until: futureDate.toISOString()
+        blocked_until: futureDate.toISOString(),
       };
 
       const selectStatement = createMockStatement(existingRecord);
@@ -225,10 +231,10 @@ describe('Magic Link Email System', () => {
     it('should create magic link record for new user signup', async () => {
       const email = 'new@example.com';
       const uuid = '123e4567-e89b-12d3-a456-426614174000';
-      
+
       // Mock no existing user (signup)
       vi.mocked(authModule.getUserByEmail).mockResolvedValue(null);
-      
+
       const insertStatement = createMockStatement();
       mockEnv.DB.prepare = vi.fn().mockReturnValue(insertStatement);
 
@@ -245,10 +251,10 @@ describe('Magic Link Email System', () => {
       const email = 'existing@example.com';
       const uuid = '123e4567-e89b-12d3-a456-426614174000';
       const existingUser = { uuid, email, status: 'active' };
-      
+
       // Mock existing user (login)
       vi.mocked(authModule.getUserByEmail).mockResolvedValue(existingUser as UserRecord);
-      
+
       const insertStatement = createMockStatement();
       mockEnv.DB.prepare = vi.fn().mockReturnValue(insertStatement);
 
@@ -270,7 +276,7 @@ describe('Magic Link Email System', () => {
         used_at: null,
         ip_address: null,
         user_agent: null,
-        is_signup: true
+        is_signup: true,
       };
 
       const statement = createMockStatement(mockRecord);
@@ -358,22 +364,22 @@ describe('Magic Link Email System', () => {
         used_at: null,
         ip_address: null,
         user_agent: null,
-        is_signup: true
+        is_signup: true,
       };
 
-      const prodEnv = { 
-        ...mockEnv, 
+      const prodEnv = {
+        ...mockEnv,
         RESEND_API_KEY: 'test-resend-key',
         EMAIL_ENABLED: 'true',
         EMAIL_FROM_ADDRESS: 'noreply@example.com',
         EMAIL_FROM_NAME: 'Cultural Archiver Test',
         EMAIL_REPLY_TO: 'noreply@example.com',
-        ENVIRONMENT: 'production' as const
+        ENVIRONMENT: 'production' as const,
       };
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: vi.fn().mockResolvedValue({ id: 'test-email-id-123' })
+        json: vi.fn().mockResolvedValue({ id: 'test-email-id-123' }),
       });
 
       await sendMagicLinkEmail(prodEnv, mockRecord, 'http://localhost:3000');
@@ -384,8 +390,8 @@ describe('Magic Link Email System', () => {
           method: 'POST',
           headers: expect.objectContaining({
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer test-resend-key'
-          })
+            Authorization: 'Bearer test-resend-key',
+          }),
         })
       );
     });
@@ -400,29 +406,29 @@ describe('Magic Link Email System', () => {
         used_at: null,
         ip_address: null,
         user_agent: null,
-        is_signup: true
+        is_signup: true,
       };
 
-      const prodEnv = { 
-        ...mockEnv, 
+      const prodEnv = {
+        ...mockEnv,
         RESEND_API_KEY: 'test-resend-key',
         EMAIL_ENABLED: 'true',
         EMAIL_FROM_ADDRESS: 'noreply@example.com',
         EMAIL_FROM_NAME: 'Cultural Archiver Test',
         EMAIL_REPLY_TO: 'noreply@example.com',
-        ENVIRONMENT: 'production' as const
+        ENVIRONMENT: 'production' as const,
       };
       global.fetch = vi.fn().mockResolvedValue({
         ok: false,
         status: 500,
-        json: () => Promise.resolve({ message: 'Server error' })
+        json: () => Promise.resolve({ message: 'Server error' }),
       });
 
       // Should throw an error when email delivery fails, but gracefully handle it with fallback logging
       await expect(
         sendMagicLinkEmail(prodEnv, mockRecord, 'http://localhost:3000')
       ).rejects.toThrow('Email delivery failed');
-      
+
       // Verify that SESSIONS.put was called for fallback storage
       expect(prodEnv.SESSIONS.put).toHaveBeenCalledWith(
         `dev-magic-link:${mockRecord.email}`,
@@ -433,7 +439,7 @@ describe('Magic Link Email System', () => {
 
     it('should log email in development mode', async () => {
       const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-      
+
       const mockRecord: MagicLinkRecord = {
         token: 'a'.repeat(64),
         email: 'test@example.com',
@@ -443,7 +449,7 @@ describe('Magic Link Email System', () => {
         used_at: null,
         ip_address: null,
         user_agent: null,
-        is_signup: true
+        is_signup: true,
       };
 
       await sendMagicLinkEmail(mockEnv, mockRecord, 'http://localhost:3000');
@@ -452,10 +458,10 @@ describe('Magic Link Email System', () => {
         'Email sending disabled, logging magic link:',
         expect.objectContaining({
           email: 'test@example.com',
-          isSignup: true
+          isSignup: true,
         })
       );
-      
+
       consoleSpy.mockRestore();
     });
   });
@@ -464,13 +470,13 @@ describe('Magic Link Email System', () => {
     it('should handle valid magic link request', async () => {
       const email = 'test@example.com';
       const uuid = '123e4567-e89b-12d3-a456-426614174000';
-      
+
       // Mock successful rate limit check - no existing record
       const rateLimitSelectStmt = createMockStatement(null);
       const rateLimitInsertStmt = createMockStatement();
       const submissionsStmt = createMockStatement({ count: 2 });
       const magicLinkInsertStmt = createMockStatement();
-      
+
       let callCount = 0;
       mockEnv.DB.prepare = vi.fn().mockImplementation(() => {
         callCount++;
@@ -480,27 +486,17 @@ describe('Magic Link Email System', () => {
         if (callCount === 4) return magicLinkInsertStmt; // Insert magic link
         return createMockStatement();
       });
-      
+
       vi.mocked(authModule.getUserByEmail).mockResolvedValue(null);
 
-      const result = await requestMagicLink(
-        mockEnv,
-        { email },
-        uuid,
-        '192.168.1.1',
-        'Test Agent'
-      );
+      const result = await requestMagicLink(mockEnv, { email }, uuid, '192.168.1.1', 'Test Agent');
 
       expect(result.success).toBe(true);
       expect(result.message).toContain('Account creation email sent');
     });
 
     it('should reject invalid email', async () => {
-      const result = await requestMagicLink(
-        mockEnv,
-        { email: 'invalid-email' },
-        'uuid'
-      );
+      const result = await requestMagicLink(mockEnv, { email: 'invalid-email' }, 'uuid');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('valid email address');
@@ -513,17 +509,13 @@ describe('Magic Link Email System', () => {
         request_count: 5,
         window_start: new Date().toISOString(),
         last_request_at: new Date().toISOString(),
-        blocked_until: new Date(Date.now() + 30 * 60 * 1000).toISOString()
+        blocked_until: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
       };
 
       const statement = createMockStatement(blockedRecord);
       mockEnv.DB.prepare = vi.fn().mockReturnValue(statement);
 
-      const result = await requestMagicLink(
-        mockEnv,
-        { email: 'test@example.com' },
-        'uuid'
-      );
+      const result = await requestMagicLink(mockEnv, { email: 'test@example.com' }, 'uuid');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Too many requests');
@@ -535,7 +527,7 @@ describe('Magic Link Email System', () => {
       const token = 'a'.repeat(64);
       const email = 'test@example.com';
       const currentUUID = '123e4567-e89b-12d3-a456-426614174000';
-      
+
       const mockRecord: MagicLinkRecord = {
         token,
         email,
@@ -545,25 +537,19 @@ describe('Magic Link Email System', () => {
         used_at: null,
         ip_address: null,
         user_agent: null,
-        is_signup: true
+        is_signup: true,
       };
 
       const selectStmt = createMockStatement(mockRecord);
       const updateStmt = createMockStatement();
-      
-      mockEnv.DB.prepare = vi.fn()
-        .mockReturnValueOnce(selectStmt)
-        .mockReturnValueOnce(updateStmt);
+
+      mockEnv.DB.prepare = vi.fn().mockReturnValueOnce(selectStmt).mockReturnValueOnce(updateStmt);
 
       const mockUser = { uuid: currentUUID, email, status: 'active' } as UserRecord;
       vi.mocked(authModule.createUserWithUUIDClaim).mockResolvedValue(mockUser);
       vi.mocked(authModule.updateUserEmailVerified).mockResolvedValue();
 
-      const result = await consumeMagicLink(
-        mockEnv,
-        { token },
-        currentUUID
-      );
+      const result = await consumeMagicLink(mockEnv, { token }, currentUUID);
 
       expect(result.success).toBe(true);
       expect(result.is_new_account).toBe(true);
@@ -576,7 +562,7 @@ describe('Magic Link Email System', () => {
       const email = 'test@example.com';
       const userUUID = '123e4567-e89b-12d3-a456-426614174000';
       const currentUUID = 'different-uuid';
-      
+
       const mockRecord: MagicLinkRecord = {
         token,
         email,
@@ -586,23 +572,17 @@ describe('Magic Link Email System', () => {
         used_at: null,
         ip_address: null,
         user_agent: null,
-        is_signup: false
+        is_signup: false,
       };
 
       const selectStmt = createMockStatement(mockRecord);
       const updateStmt = createMockStatement();
-      
-      mockEnv.DB.prepare = vi.fn()
-        .mockReturnValueOnce(selectStmt)
-        .mockReturnValueOnce(updateStmt);
+
+      mockEnv.DB.prepare = vi.fn().mockReturnValueOnce(selectStmt).mockReturnValueOnce(updateStmt);
 
       vi.mocked(authModule.updateUserEmailVerified).mockResolvedValue();
 
-      const result = await consumeMagicLink(
-        mockEnv,
-        { token },
-        currentUUID
-      );
+      const result = await consumeMagicLink(mockEnv, { token }, currentUUID);
 
       expect(result.success).toBe(true);
       expect(result.is_new_account).toBe(false);
@@ -611,11 +591,7 @@ describe('Magic Link Email System', () => {
     });
 
     it('should reject invalid token format', async () => {
-      const result = await consumeMagicLink(
-        mockEnv,
-        { token: 'invalid' },
-        'uuid'
-      );
+      const result = await consumeMagicLink(mockEnv, { token: 'invalid' }, 'uuid');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Invalid verification link format');
@@ -626,11 +602,7 @@ describe('Magic Link Email System', () => {
       const statement = createMockStatement(null);
       mockEnv.DB.prepare = vi.fn().mockReturnValue(statement);
 
-      const result = await consumeMagicLink(
-        mockEnv,
-        { token },
-        'uuid'
-      );
+      const result = await consumeMagicLink(mockEnv, { token }, 'uuid');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('Invalid or expired verification link');
@@ -647,17 +619,13 @@ describe('Magic Link Email System', () => {
         used_at: new Date().toISOString(), // Already used
         ip_address: null,
         user_agent: null,
-        is_signup: true
+        is_signup: true,
       };
 
       const statement = createMockStatement(mockRecord);
       mockEnv.DB.prepare = vi.fn().mockReturnValue(statement);
 
-      const result = await consumeMagicLink(
-        mockEnv,
-        { token },
-        'uuid'
-      );
+      const result = await consumeMagicLink(mockEnv, { token }, 'uuid');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('already been used');
@@ -674,17 +642,13 @@ describe('Magic Link Email System', () => {
         used_at: null,
         ip_address: null,
         user_agent: null,
-        is_signup: true
+        is_signup: true,
       };
 
       const statement = createMockStatement(mockRecord);
       mockEnv.DB.prepare = vi.fn().mockReturnValue(statement);
 
-      const result = await consumeMagicLink(
-        mockEnv,
-        { token },
-        'uuid'
-      );
+      const result = await consumeMagicLink(mockEnv, { token }, 'uuid');
 
       expect(result.success).toBe(false);
       expect(result.message).toContain('expired');
@@ -695,8 +659,9 @@ describe('Magic Link Email System', () => {
     it('should cleanup expired records', async () => {
       const magicLinkStmt = createMockStatement(null, { changes: 5 });
       const rateLimitStmt = createMockStatement(null, { changes: 3 });
-      
-      mockEnv.DB.prepare = vi.fn()
+
+      mockEnv.DB.prepare = vi
+        .fn()
         .mockReturnValueOnce(magicLinkStmt)
         .mockReturnValueOnce(rateLimitStmt);
 
@@ -709,9 +674,9 @@ describe('Magic Link Email System', () => {
     it('should handle cleanup errors gracefully', async () => {
       const errorStmt = {
         bind: vi.fn().mockReturnThis(),
-        run: vi.fn().mockRejectedValue(new Error('Database error'))
+        run: vi.fn().mockRejectedValue(new Error('Database error')),
       };
-      
+
       mockEnv.DB.prepare = vi.fn().mockReturnValue(errorStmt);
 
       const result = await cleanupExpiredMagicLinks(mockEnv);

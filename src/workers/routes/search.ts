@@ -67,7 +67,7 @@ export async function handleSearchRequest(c: Context<{ Bindings: WorkerEnv }>): 
     const searchResult = await searchArtworks(c.env.DB, validation.sanitized, {
       limit: perPage,
       offset,
-      status
+      status,
     });
 
     // Calculate pagination info
@@ -86,13 +86,13 @@ export async function handleSearchRequest(c: Context<{ Bindings: WorkerEnv }>): 
         per_page: perPage,
         total: searchResult.total,
         total_pages: totalPages,
-        has_more: searchResult.has_more
+        has_more: searchResult.has_more,
       },
       query: {
         original: query,
-        sanitized: validation.sanitized
+        sanitized: validation.sanitized,
       },
-      ...(suggestions && { suggestions })
+      ...(suggestions && { suggestions }),
     };
 
     return c.json(createSuccessResponse(response));
@@ -108,7 +108,9 @@ export async function handleSearchRequest(c: Context<{ Bindings: WorkerEnv }>): 
  * - q: partial search query (required)
  * - limit: number of suggestions (default: 5, max: 10)
  */
-export async function handleSearchSuggestions(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+export async function handleSearchSuggestions(
+  c: Context<{ Bindings: WorkerEnv }>
+): Promise<Response> {
   try {
     const query = c.req.query('q') || '';
     const limit = Math.min(parseInt(c.req.query('limit') || '5', 10), 10);

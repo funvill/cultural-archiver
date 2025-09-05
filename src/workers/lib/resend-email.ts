@@ -18,36 +18,38 @@ interface EmailOptions {
 /**
  * Send email using Resend API directly
  */
-async function sendEmailWithResend(apiKey: string, emailData: EmailOptions): Promise<{ success: boolean; id?: string; error?: string }> {
+async function sendEmailWithResend(
+  apiKey: string,
+  emailData: EmailOptions
+): Promise<{ success: boolean; id?: string; error?: string }> {
   try {
     const response = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        Authorization: `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(emailData)
+      body: JSON.stringify(emailData),
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result = await response.json() as any;
+    const result = (await response.json()) as any;
 
     if (!response.ok) {
       return {
         success: false,
-        error: result.message || `HTTP ${response.status}`
+        error: result.message || `HTTP ${response.status}`,
       };
     }
 
     return {
       success: true,
-      id: result.id
+      id: result.id,
     };
-
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
@@ -63,16 +65,17 @@ export function generateMagicLinkEmailTemplate(
   anonymousSubmissions?: number
 ): string {
   const subject = isSignup ? 'Welcome to Cultural Archiver' : 'Sign in to Cultural Archiver';
-  const welcomeText = isSignup 
+  const welcomeText = isSignup
     ? 'Welcome to Cultural Archiver! Click the link below to verify your email and complete your account setup.'
     : 'Click the link below to sign in to your Cultural Archiver account.';
-  
-  const anonymousText = anonymousSubmissions && anonymousSubmissions > 0
-    ? `<p style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; color: #495057; margin: 20px 0;">
+
+  const anonymousText =
+    anonymousSubmissions && anonymousSubmissions > 0
+      ? `<p style="background-color: #f8f9fa; padding: 15px; border-radius: 5px; color: #495057; margin: 20px 0;">
          <strong>Account Claim:</strong> You have ${anonymousSubmissions} anonymous submission${anonymousSubmissions > 1 ? 's' : ''} 
          that will be linked to your account after verification.
        </p>`
-    : '';
+      : '';
 
   return `
 <!DOCTYPE html>
@@ -158,7 +161,7 @@ export async function sendMagicLinkEmailWithResend(
       magicLink,
       isSignup,
       expiresAt,
-      anonymousSubmissions
+      anonymousSubmissions,
     });
     return;
   }
@@ -199,13 +202,13 @@ export async function sendMagicLinkEmailWithResend(
       tags: [
         {
           name: 'category',
-          value: 'authentication'
+          value: 'authentication',
         },
         {
           name: 'type',
-          value: isSignup ? 'signup' : 'signin'
-        }
-      ]
+          value: isSignup ? 'signup' : 'signin',
+        },
+      ],
     };
 
     // Add replyTo only if it's configured
@@ -217,7 +220,7 @@ export async function sendMagicLinkEmailWithResend(
       to: email,
       from: emailData.from,
       subject: subject,
-      replyTo: env.EMAIL_REPLY_TO
+      replyTo: env.EMAIL_REPLY_TO,
     });
 
     const result = await sendEmailWithResend(env.RESEND_API_KEY, emailData);
@@ -230,12 +233,11 @@ export async function sendMagicLinkEmailWithResend(
     console.log('Magic link email sent successfully via Resend:', {
       id: result.id,
       email: email,
-      subject: subject
+      subject: subject,
     });
-
   } catch (error) {
     console.error('Failed to send email via Resend:', error);
-    
+
     // Log for development purposes
     console.log('=== EMAIL SEND FAILED - MAGIC LINK INFO ===');
     console.log('To:', email);
@@ -247,7 +249,7 @@ export async function sendMagicLinkEmailWithResend(
     }
     console.log('Error:', error);
     console.log('==========================================');
-    
+
     throw error;
   }
 }
@@ -262,14 +264,14 @@ export async function sendTestEmail(
   if (!env.RESEND_API_KEY) {
     return {
       success: false,
-      error: 'RESEND_API_KEY not configured'
+      error: 'RESEND_API_KEY not configured',
     };
   }
 
   if (env.EMAIL_ENABLED !== 'true') {
     return {
       success: false,
-      error: 'Email sending is disabled'
+      error: 'Email sending is disabled',
     };
   }
 
@@ -317,9 +319,9 @@ export async function sendTestEmail(
       tags: [
         {
           name: 'category',
-          value: 'test'
-        }
-      ]
+          value: 'test',
+        },
+      ],
     };
 
     // Add replyTo only if it's configured
@@ -330,11 +332,10 @@ export async function sendTestEmail(
     const result = await sendEmailWithResend(env.RESEND_API_KEY, emailData);
 
     return result;
-
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }

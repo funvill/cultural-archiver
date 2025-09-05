@@ -7,6 +7,7 @@ The production API at `https://art-api.abluestar.com` is returning "Hello World!
 ## Root Cause
 
 The production environment in `wrangler.toml` has placeholder values for critical Cloudflare bindings:
+
 - D1 Database ID: `PLACEHOLDER_PROD_DB_ID`
 - KV Namespace IDs: `PLACEHOLDER_PROD_*_ID`
 - Missing actual resource configurations
@@ -23,12 +24,14 @@ node verify-deployment.js production
 ### 2. Create Production Resources in Cloudflare Dashboard
 
 #### D1 Database:
+
 1. Go to Cloudflare Dashboard > D1
 2. Create database named `cultural-archiver-prod`
 3. Copy the Database ID
-4. Run migrations: `wrangler d1 migrations apply cultural-archiver-prod --remote`
+4. Run migrations using the migration system: `npm run migrate:prod`
 
 #### KV Namespaces:
+
 1. Go to Cloudflare Dashboard > KV
 2. Create namespaces:
    - `cultural-archiver-sessions-prod`
@@ -38,6 +41,7 @@ node verify-deployment.js production
 3. Copy each namespace ID
 
 #### R2 Bucket:
+
 1. Go to Cloudflare Dashboard > R2
 2. Verify bucket `cultural-archiver-photos` exists
 3. Ensure it's in the correct account
@@ -107,20 +111,24 @@ node debug-deployment.js https://art-api.abluestar.com
 ## Common Issues
 
 ### "Hello World!" Response
+
 - **Cause**: Wrong worker deployed or missing bindings
 - **Fix**: Verify custom domain points to correct worker name
 
 ### 500 Errors with Missing Bindings Message
+
 - **Cause**: Worker deployed but resource IDs are placeholders
 - **Fix**: Update wrangler.toml with actual resource IDs
 
 ### 404 on All Endpoints
+
 - **Cause**: Worker not deployed or routing issue
 - **Fix**: Redeploy worker and check domain configuration
 
 ## Verification
 
 After deployment, the health endpoint should return:
+
 ```json
 {
   "status": "healthy",
@@ -138,6 +146,7 @@ After deployment, the health endpoint should return:
 ## Contact
 
 If issues persist after following this guide, check:
+
 1. Cloudflare Dashboard for worker deployment status
 2. Worker logs: `wrangler tail --name cultural-archiver-workers-prod`
 3. Custom domain configuration in Cloudflare Dashboard

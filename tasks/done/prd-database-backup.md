@@ -23,41 +23,18 @@ This feature will create tools to extract the current production database schema
 
 ## Functional Requirements
 
-1. **Schema Extraction Script**
-   1.1. The system must provide a script that connects to the production Cloudflare D1 database
-   1.2. The script must extract complete table structures including CREATE TABLE statements
-   1.3. The script must extract all indexes, constraints, and triggers
-   1.4. The script must save the extracted schema to a versioned SQL file
-   1.5. The script must exclude data content (schema only)
+1. **Schema Extraction Script** 1.1. The system must provide a script that connects to the production Cloudflare D1 database 1.2. The script must extract complete table structures including CREATE TABLE statements 1.3. The script must extract all indexes, constraints, and triggers 1.4. The script must save the extracted schema to a versioned SQL file 1.5. The script must exclude data content (schema only)
 
-2. **Database Recreation Script**
-   2.1. The system must provide a script that drops all existing tables (with confirmation)
-   2.2. The script must apply the extracted schema to rebuild the database structure
-   2.3. The script must insert predefined sample data for all tables
-   2.4. The script must maintain referential integrity during sample data insertion
-   2.5. The script must verify the rebuilt database matches the extracted schema
+2. **Database Recreation Script** 2.1. The system must provide a script that drops all existing tables (with confirmation) 2.2. The script must apply the extracted schema to rebuild the database structure 2.3. The script must insert predefined sample data for all tables 2.4. The script must maintain referential integrity during sample data insertion 2.5. The script must verify the rebuilt database matches the extracted schema
 
-3. **Migration System Integration**
-   3.1. The system must preserve the existing migration infrastructure (`migrate.ts`, npm scripts)
-   3.2. The system must continue migration numbering from 009+ for future changes
-   3.3. The system must delete existing migration files (001-008)
-   3.4. The system must document the consolidation process in migration README
+3. **Migration System Integration** 3.1. The system must preserve the existing migration infrastructure (`migrate.ts`, npm scripts) 3.2. The system must continue migration numbering from 009+ for future changes 3.3. The system must delete existing migration files (001-008) 3.4. The system must document the consolidation process in migration README
 
-4. **Sample Data Requirements**
-   4.1. The system must include sample artwork records with valid coordinates
-   4.2. The system must include sample user tokens and authentication data
-      - UUID: `00000000-0000-0000-0000-000000000001`, Email: `sampledata@funvill.com`
-      - UUID: `00000000-0000-0000-0000-000000000002`, Email: `massimport@funvill.com`
-      - UUID: `6c970b24-f64a-49d9-8c5f-8ae23cc2af47`, Email: `steven@abluestar.com`
-   4.3. The system must include sample logbook entries linked to artwork
-   4.4. The system must include sample moderation records in various states
-   4.5. All sample data must be clearly marked as test data
+4. **Sample Data Requirements** 4.1. The system must include sample artwork records with valid coordinates 4.2. The system must include sample user tokens and authentication data
+   - UUID: `00000000-0000-0000-0000-000000000001`, Email: `sampledata@funvill.com`
+   - UUID: `00000000-0000-0000-0000-000000000002`, Email: `massimport@funvill.com`
+   - UUID: `6c970b24-f64a-49d9-8c5f-8ae23cc2af47`, Email: `steven@abluestar.com` 4.3. The system must include sample logbook entries linked to artwork 4.4. The system must include sample moderation records in various states 4.5. All sample data must be clearly marked as test data
 
-5. **Safety and Validation**
-   5.1. The system must require explicit confirmation before dropping tables
-   5.2. The system must validate database connection before destructive operations
-   5.3. The system must verify schema integrity after recreation
-   5.4. The system must provide clear error messages for any failures
+5. **Safety and Validation** 5.1. The system must require explicit confirmation before dropping tables 5.2. The system must validate database connection before destructive operations 5.3. The system must verify schema integrity after recreation 5.4. The system must provide clear error messages for any failures
 
 ## Non-Goals (Out of Scope)
 

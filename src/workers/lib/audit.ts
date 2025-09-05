@@ -95,7 +95,7 @@ export async function logModerationDecision(
 ): Promise<{ success: boolean; auditId?: string; error?: string }> {
   try {
     const auditId = crypto.randomUUID();
-    
+
     // Prepare metadata JSON
     const metadataJson = auditData.metadata ? JSON.stringify(auditData.metadata) : null;
 
@@ -106,17 +106,19 @@ export async function logModerationDecision(
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const result = await stmt.bind(
-      auditId,
-      auditData.submissionId,
-      auditData.moderatorUuid,
-      auditData.decision,
-      auditData.reason || null,
-      metadataJson,
-      auditData.artworkId || null,
-      auditData.actionTaken || null,
-      auditData.photosProcessed || 0
-    ).run();
+    const result = await stmt
+      .bind(
+        auditId,
+        auditData.submissionId,
+        auditData.moderatorUuid,
+        auditData.decision,
+        auditData.reason || null,
+        metadataJson,
+        auditData.artworkId || null,
+        auditData.actionTaken || null,
+        auditData.photosProcessed || 0
+      )
+      .run();
 
     if (result.success) {
       return { success: true, auditId };
@@ -125,9 +127,9 @@ export async function logModerationDecision(
     return { success: false, error: 'Failed to insert audit record' };
   } catch (error) {
     console.error('Moderation audit logging error:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
@@ -141,7 +143,7 @@ export async function logAdminAction(
 ): Promise<{ success: boolean; auditId?: string; error?: string }> {
   try {
     const auditId = crypto.randomUUID();
-    
+
     // Prepare metadata JSON
     const metadataJson = auditData.metadata ? JSON.stringify(auditData.metadata) : null;
 
@@ -152,17 +154,19 @@ export async function logAdminAction(
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    const result = await stmt.bind(
-      auditId,
-      auditData.adminUuid,
-      auditData.actionType,
-      auditData.targetUuid || null,
-      auditData.permissionType || null,
-      auditData.oldValue || null,
-      auditData.newValue || null,
-      auditData.reason || null,
-      metadataJson
-    ).run();
+    const result = await stmt
+      .bind(
+        auditId,
+        auditData.adminUuid,
+        auditData.actionType,
+        auditData.targetUuid || null,
+        auditData.permissionType || null,
+        auditData.oldValue || null,
+        auditData.newValue || null,
+        auditData.reason || null,
+        metadataJson
+      )
+      .run();
 
     if (result.success) {
       return { success: true, auditId };
@@ -171,9 +175,9 @@ export async function logAdminAction(
     return { success: false, error: 'Failed to insert admin audit record' };
   } catch (error) {
     console.error('Admin audit logging error:', error);
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
     };
   }
 }
@@ -219,7 +223,7 @@ export async function getAuditLogs(
         FROM moderation_decisions
       `;
       countQuery = 'SELECT COUNT(*) as total FROM moderation_decisions';
-      
+
       if (userUuid) {
         conditions.push('moderator_uuid = ?');
         bindings.push(userUuid);
@@ -245,7 +249,7 @@ export async function getAuditLogs(
         FROM admin_actions
       `;
       countQuery = 'SELECT COUNT(*) as total FROM admin_actions';
-      
+
       if (userUuid) {
         conditions.push('admin_uuid = ?');
         bindings.push(userUuid);
@@ -331,8 +335,14 @@ export async function getAuditLogs(
 
     // Execute queries
     const [recordsResult, countResult] = await Promise.all([
-      db.prepare(sqlQuery).bind(...bindings).all(),
-      db.prepare(countQuery).bind(...(type !== undefined ? bindings.slice(0, -2) : [])).first(),
+      db
+        .prepare(sqlQuery)
+        .bind(...bindings)
+        .all(),
+      db
+        .prepare(countQuery)
+        .bind(...(type !== undefined ? bindings.slice(0, -2) : []))
+        .first(),
     ]);
 
     if (!recordsResult.success) {
@@ -501,14 +511,18 @@ export async function getAuditStatistics(
 
     return {
       moderation: {
-        totalDecisions: moderationCounts.approved + moderationCounts.rejected + moderationCounts.skipped,
+        totalDecisions:
+          moderationCounts.approved + moderationCounts.rejected + moderationCounts.skipped,
         approved: moderationCounts.approved,
         rejected: moderationCounts.rejected,
         skipped: moderationCounts.skipped,
         recentActivity: moderationRecentActivity,
       },
       admin: {
-        totalActions: adminCounts.grant_permission + adminCounts.revoke_permission + adminCounts.view_audit_logs,
+        totalActions:
+          adminCounts.grant_permission +
+          adminCounts.revoke_permission +
+          adminCounts.view_audit_logs,
         permissionGrants: adminCounts.grant_permission,
         permissionRevokes: adminCounts.revoke_permission,
         recentActivity: adminRecentActivity,
@@ -545,26 +559,26 @@ export function extractSessionMetadata(c: Context): {
 } {
   try {
     const headers = c.req.header();
-    
+
     const result: {
       ip?: string;
       userAgent?: string;
       referrer?: string;
       sessionId?: string;
     } = {};
-    
+
     const ip = headers['cf-connecting-ip'] || headers['x-forwarded-for'] || headers['x-real-ip'];
     if (ip) result.ip = ip;
-    
+
     const userAgent = headers['user-agent'];
     if (userAgent) result.userAgent = userAgent;
-    
+
     const referrer = headers['referer'] || headers['referrer'];
     if (referrer) result.referrer = referrer;
-    
+
     const sessionId = headers['x-session-id'];
     if (sessionId) result.sessionId = sessionId;
-    
+
     return result;
   } catch (error) {
     console.warn('Failed to extract session metadata:', error);
@@ -588,7 +602,7 @@ export function createModerationAuditContext(
   } = {}
 ): ModerationAuditData {
   const metadata = extractSessionMetadata(c);
-  
+
   return {
     submissionId,
     moderatorUuid,
@@ -617,7 +631,7 @@ export function createAdminAuditContext(
   } = {}
 ): AdminAuditData {
   const metadata = extractSessionMetadata(c);
-  
+
   return {
     adminUuid,
     actionType,

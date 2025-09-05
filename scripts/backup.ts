@@ -2,10 +2,10 @@
 /**
  * Cultural Archiver Backup Command
  * Generates complete system backups including database and R2 photos
- * 
+ *
  * Usage:
  *   npm run backup [options]
- *   
+ *
  * Options:
  *   --output-dir <dir>  Directory to save backup file (default: current directory)
  *   --remote           Use remote Cloudflare resources (default: local development)
@@ -31,6 +31,9 @@ interface BackupOptions {
   help: boolean;
   photosOnly: boolean;
   photosDir: string;
+  wranglerExport: boolean;
+  validateOnly: boolean;
+  env: string;
 }
 
 /**
@@ -108,6 +111,9 @@ function parseArguments(): BackupOptions {
     help: false,
     photosOnly: false,
     photosDir: './r2-photos-backup',
+    wranglerExport: false,
+    validateOnly: false,
+    env: 'development',
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -134,6 +140,23 @@ function parseArguments(): BackupOptions {
 
       case '--remote':
         options.remote = true;
+        break;
+
+      case '--wrangler-export':
+        options.wranglerExport = true;
+        break;
+
+      case '--validate-only':
+        options.validateOnly = true;
+        break;
+
+      case '--env':
+        if (i + 1 < args.length) {
+          options.env = args[++i];
+        } else {
+          console.error('Error: --env requires an environment name');
+          process.exit(1);
+        }
         break;
 
       case '--photos-only':
@@ -169,14 +192,27 @@ OPTIONS:
   --output-dir <dir>   Directory to save backup file (default: current directory)
   --photos-dir <dir>   Directory to save photos when using --photos-only (default: ./r2-photos-backup)
   --remote             Use remote Cloudflare resources (REQUIRED for real backups)
+  --wrangler-export    Use Wrangler CLI for D1 database export (recommended)
+  --env <environment>  Environment for Wrangler operations (default: development)
   --photos-only        Download only photos to local directory (implies --remote)
+  --validate-only      Validate existing backup files without creating new backup
   --help, -h           Show this help message
 
 EXAMPLES:
   npm run backup -- --help
-  npm run backup -- --remote
-  npm run backup -- --remote --output-dir ./backups
+  npm run backup -- --remote --wrangler-export
+  npm run backup -- --remote --wrangler-export --env production
+  npm run backup -- --remote --output-dir ./backups --wrangler-export
   npm run backup -- --photos-only --photos-dir ./my-photos
+  npm run backup -- --validate-only
+
+WRANGLER EXPORT MODE:
+  The --wrangler-export flag uses Wrangler's native D1 export functionality:
+  - Uses wrangler d1 export command for database export
+  - Includes migration state information in backup
+  - Supports environment-specific operations (--env development|production)
+  - Requires wrangler.toml configuration in src/workers/
+  - Provides better compatibility with D1 schema and data formats
 
 PHOTO-ONLY MODE:
   The --photos-only flag downloads all R2 photos directly to a local directory:
@@ -247,7 +283,194 @@ function getCloudflareConfig(): CloudflareConfig {
 }
 
 /**
- * Export D1 database using Cloudflare API
+ * Export D1 database using Wrangler CLI
+ */
+async function exportD1DatabaseWithWrangler(
+  config: CloudflareConfig,
+  env: string = 'development'
+): Promise<DatabaseExportResult> {
+  try {
+    console.log(`📊 Exporting D1 database using Wrangler CLI (${env})...`);
+
+    const { spawn } = await import('child_process');
+    const { resolve } = await import('path');
+
+    // Change to workers directory where wrangler.toml exists
+    const workersDir = resolve(process.cwd(), 'src/workers');
+
+    // Run wrangler d1 export command
+    const wranglerArgs = ['d1', 'export', 'cultural-archiver'];
+    if (env && env !== 'development') {
+      wranglerArgs.push('--env', env);
+    }
+
+    console.log(`   Running: wrangler ${wranglerArgs.join(' ')} (from ${workersDir})`);
+
+    return new Promise((resolve, reject) => {
+      let sqlOutput = '';
+      let errorOutput = '';
+
+      const wranglerProcess = spawn('npx', ['wrangler', ...wranglerArgs], {
+        cwd: workersDir,
+        stdio: 'pipe',
+      });
+
+      wranglerProcess.stdout?.on('data', data => {
+        sqlOutput += data.toString();
+      });
+
+      wranglerProcess.stderr?.on('data', data => {
+        errorOutput += data.toString();
+        console.log(`   Wrangler: ${data.toString().trim()}`);
+      });
+
+      wranglerProcess.on('close', code => {
+        if (code === 0) {
+          console.log('   Wrangler export completed successfully');
+
+          // Extract table names from SQL output for metadata
+          const tableMatches =
+            sqlOutput.match(/CREATE TABLE (?:IF NOT EXISTS )?`?([^`\s]+)`?/g) || [];
+          const tables = tableMatches
+            .map(match => {
+              const tableMatch = match.match(/CREATE TABLE (?:IF NOT EXISTS )?`?([^`\s]+)`?/);
+              return tableMatch ? tableMatch[1] : '';
+            })
+            .filter(Boolean);
+
+          // Estimate record count from INSERT statements
+          const insertMatches = sqlOutput.match(/INSERT INTO/g) || [];
+          const totalRecords = insertMatches.length;
+
+          console.log(
+            `   Database export: ${sqlOutput.length} characters, estimated ${totalRecords} records`
+          );
+          console.log(`   Found ${tables.length} tables: ${tables.join(', ')}`);
+
+          resolve({
+            success: true,
+            sqlDump: sqlOutput,
+            tables,
+            totalRecords,
+          });
+        } else {
+          console.error('   Wrangler export failed with code:', code);
+          console.error('   Error output:', errorOutput);
+          reject(new Error(`Wrangler export failed: ${errorOutput || 'Unknown error'}`));
+        }
+      });
+
+      wranglerProcess.on('error', error => {
+        console.error('   Failed to spawn wrangler process:', error);
+        reject(error);
+      });
+    });
+  } catch (error) {
+    console.error('❌ Wrangler database export failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown wrangler export error',
+    };
+  }
+}
+
+/**
+ * Get migration status using Wrangler CLI
+ */
+async function getMigrationStatus(
+  env: string = 'development'
+): Promise<{ success: boolean; status?: any; error?: string }> {
+  try {
+    console.log(`📋 Getting migration status using Wrangler CLI (${env})...`);
+
+    const { spawn } = await import('child_process');
+    const { resolve } = await import('path');
+
+    // Change to workers directory where wrangler.toml exists
+    const workersDir = resolve(process.cwd(), 'src/workers');
+
+    // Run wrangler d1 migrations list command
+    const wranglerArgs = ['d1', 'migrations', 'list', 'cultural-archiver'];
+    if (env && env !== 'development') {
+      wranglerArgs.push('--env', env);
+    }
+
+    console.log(`   Running: wrangler ${wranglerArgs.join(' ')} (from ${workersDir})`);
+
+    return new Promise((resolve, reject) => {
+      let jsonOutput = '';
+      let errorOutput = '';
+
+      const wranglerProcess = spawn('npx', ['wrangler', ...wranglerArgs], {
+        cwd: workersDir,
+        stdio: 'pipe',
+      });
+
+      wranglerProcess.stdout?.on('data', data => {
+        jsonOutput += data.toString();
+      });
+
+      wranglerProcess.stderr?.on('data', data => {
+        errorOutput += data.toString();
+        console.log(`   Wrangler: ${data.toString().trim()}`);
+      });
+
+      wranglerProcess.on('close', code => {
+        if (code === 0) {
+          try {
+            // Try to parse JSON output
+            let migrationStatus;
+            try {
+              migrationStatus = JSON.parse(jsonOutput);
+            } catch (parseError) {
+              // If JSON parsing fails, create a simple status object
+              migrationStatus = {
+                environment: env,
+                output: jsonOutput.trim(),
+                timestamp: new Date().toISOString(),
+              };
+            }
+
+            console.log('   Migration status retrieved successfully');
+            resolve({
+              success: true,
+              status: migrationStatus,
+            });
+          } catch (error) {
+            console.error('   Failed to parse migration status:', error);
+            resolve({
+              success: false,
+              error: `Failed to parse migration status: ${error}`,
+            });
+          }
+        } else {
+          console.error('   Migration status failed with code:', code);
+          resolve({
+            success: false,
+            error: `Migration status failed: ${errorOutput || 'Unknown error'}`,
+          });
+        }
+      });
+
+      wranglerProcess.on('error', error => {
+        console.error('   Failed to spawn wrangler process:', error);
+        resolve({
+          success: false,
+          error: error.message,
+        });
+      });
+    });
+  } catch (error) {
+    console.error('❌ Migration status failed:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown migration status error',
+    };
+  }
+}
+
+/**
+ * Export D1 database using Cloudflare API (legacy method)
  */
 async function exportD1Database(config: CloudflareConfig): Promise<DatabaseExportResult> {
   try {
@@ -259,7 +482,7 @@ async function exportD1Database(config: CloudflareConfig): Promise<DatabaseExpor
       {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${config.apiToken}`,
+          Authorization: `Bearer ${config.apiToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -301,7 +524,7 @@ async function exportD1Database(config: CloudflareConfig): Promise<DatabaseExpor
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${config.apiToken}`,
+            Authorization: `Bearer ${config.apiToken}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -328,7 +551,7 @@ async function exportD1Database(config: CloudflareConfig): Promise<DatabaseExpor
         {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${config.apiToken}`,
+            Authorization: `Bearer ${config.apiToken}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -383,7 +606,9 @@ async function exportD1Database(config: CloudflareConfig): Promise<DatabaseExpor
     sqlDump += `-- Backup completed: ${new Date().toISOString()}\n`;
     sqlDump += `-- Total records: ${totalRecords}\n`;
 
-    console.log(`   Database export completed: ${sqlDump.length} characters, ${totalRecords} records`);
+    console.log(
+      `   Database export completed: ${sqlDump.length} characters, ${totalRecords} records`
+    );
 
     return {
       success: true,
@@ -413,17 +638,19 @@ async function downloadR2Files(config: CloudflareConfig): Promise<R2ListResult> 
 
     do {
       // List objects in bucket
-      const listUrl = new URL(`https://api.cloudflare.com/client/v4/accounts/${config.accountId}/r2/buckets/${config.bucketName}/objects`);
+      const listUrl = new URL(
+        `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/r2/buckets/${config.bucketName}/objects`
+      );
       if (continuationToken) {
         listUrl.searchParams.set('cursor', continuationToken);
       }
 
       console.log(`   🔍 API Request: ${listUrl.toString()}`);
-      
+
       const listResponse = await fetch(listUrl.toString(), {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${config.apiToken}`,
+          Authorization: `Bearer ${config.apiToken}`,
         },
       });
 
@@ -436,15 +663,22 @@ async function downloadR2Files(config: CloudflareConfig): Promise<R2ListResult> 
       }
 
       const listResult = await listResponse.json();
-      console.log(`   📋 API Response Structure:`, JSON.stringify({
-        success: listResult.success,
-        resultType: typeof listResult.result,
-        resultIsArray: Array.isArray(listResult.result),
-        resultLength: Array.isArray(listResult.result) ? listResult.result.length : 0,
-        errors: listResult.errors,
-        messages: listResult.messages
-      }, null, 2));
-      
+      console.log(
+        `   📋 API Response Structure:`,
+        JSON.stringify(
+          {
+            success: listResult.success,
+            resultType: typeof listResult.result,
+            resultIsArray: Array.isArray(listResult.result),
+            resultLength: Array.isArray(listResult.result) ? listResult.result.length : 0,
+            errors: listResult.errors,
+            messages: listResult.messages,
+          },
+          null,
+          2
+        )
+      );
+
       if (!listResult.success) {
         console.error(`   ❌ Cloudflare API Error:`, JSON.stringify(listResult, null, 2));
         throw new Error(`R2 list failed: ${JSON.stringify(listResult.errors)}`);
@@ -457,7 +691,7 @@ async function downloadR2Files(config: CloudflareConfig): Promise<R2ListResult> 
       } else if (listResult.result?.objects && Array.isArray(listResult.result.objects)) {
         objects = listResult.result.objects;
       }
-      
+
       console.log(`   Found ${objects.length} objects in this batch`);
       console.log(`   Found ${objects.length} objects in this batch`);
 
@@ -469,7 +703,7 @@ async function downloadR2Files(config: CloudflareConfig): Promise<R2ListResult> 
           const downloadResponse = await downloadWithRetry(
             `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/r2/buckets/${config.bucketName}/objects/${encodeURIComponent(obj.key)}`,
             {
-              'Authorization': `Bearer ${config.apiToken}`,
+              Authorization: `Bearer ${config.apiToken}`,
             }
           );
 
@@ -539,27 +773,33 @@ export interface R2LocalDownloadResult {
 }
 
 export async function downloadR2PhotosToDirectory(
-  config: CloudflareConfig, 
+  config: CloudflareConfig,
   localDirectory: string = './r2-photos-backup'
 ): Promise<R2LocalDownloadResult> {
   try {
     console.log(`📸 Downloading R2 photos to local directory: ${localDirectory}`);
     console.log(`🔧 Using bucket: ${config.bucketName}`);
-    console.log(`🏢 Account ID: ${config.accountId.substring(0, 8)}...${config.accountId.substring(config.accountId.length - 4)}`);
-    console.log(`🔑 API Token: ${config.apiToken.substring(0, 8)}...${config.apiToken.substring(config.apiToken.length - 4)}`);
-    console.log(`🗂️  Database ID: ${config.databaseId.substring(0, 8)}...${config.databaseId.substring(config.databaseId.length - 4)}`);
-    
+    console.log(
+      `🏢 Account ID: ${config.accountId.substring(0, 8)}...${config.accountId.substring(config.accountId.length - 4)}`
+    );
+    console.log(
+      `🔑 API Token: ${config.apiToken.substring(0, 8)}...${config.apiToken.substring(config.apiToken.length - 4)}`
+    );
+    console.log(
+      `🗂️  Database ID: ${config.databaseId.substring(0, 8)}...${config.databaseId.substring(config.databaseId.length - 4)}`
+    );
+
     // Test bucket accessibility first
     console.log(`🔍 Testing bucket accessibility...`);
     const testUrl = `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/r2/buckets/${config.bucketName}`;
     const testResponse = await fetch(testUrl, {
       method: 'GET',
       headers: {
-        'Authorization': `Bearer ${config.apiToken}`,
+        Authorization: `Bearer ${config.apiToken}`,
         'Content-Type': 'application/json',
       },
     });
-    
+
     console.log(`   Bucket test result: ${testResponse.status} ${testResponse.statusText}`);
     if (!testResponse.ok) {
       const errorText = await testResponse.text();
@@ -567,15 +807,28 @@ export async function downloadR2PhotosToDirectory(
       console.log(`   This might indicate permission issues or incorrect bucket name`);
     } else {
       const bucketInfo = await testResponse.json();
-      console.log(`   ✅ Bucket accessible:`, JSON.stringify({
-        success: bucketInfo.success,
-        bucketName: bucketInfo.result?.name,
-        created: bucketInfo.result?.creation_date
-      }, null, 2));
+      console.log(
+        `   ✅ Bucket accessible:`,
+        JSON.stringify(
+          {
+            success: bucketInfo.success,
+            bucketName: bucketInfo.result?.name,
+            created: bucketInfo.result?.creation_date,
+          },
+          null,
+          2
+        )
+      );
     }
-    console.log(`🏢 Account ID: ${config.accountId.substring(0, 8)}...${config.accountId.substring(config.accountId.length - 4)}`);
-    console.log(`🔑 API Token: ${config.apiToken.substring(0, 8)}...${config.apiToken.substring(config.apiToken.length - 4)}`);
-    console.log(`🗂️  Database ID: ${config.databaseId.substring(0, 8)}...${config.databaseId.substring(config.databaseId.length - 4)}`);
+    console.log(
+      `🏢 Account ID: ${config.accountId.substring(0, 8)}...${config.accountId.substring(config.accountId.length - 4)}`
+    );
+    console.log(
+      `🔑 API Token: ${config.apiToken.substring(0, 8)}...${config.apiToken.substring(config.apiToken.length - 4)}`
+    );
+    console.log(
+      `🗂️  Database ID: ${config.databaseId.substring(0, 8)}...${config.databaseId.substring(config.databaseId.length - 4)}`
+    );
 
     // Create the local directory if it doesn't exist
     const fullPath = resolve(localDirectory);
@@ -593,18 +846,20 @@ export async function downloadR2PhotosToDirectory(
 
     do {
       // List objects in bucket with pagination
-      const listUrl = new URL(`https://api.cloudflare.com/client/v4/accounts/${config.accountId}/r2/buckets/${config.bucketName}/objects`);
+      const listUrl = new URL(
+        `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/r2/buckets/${config.bucketName}/objects`
+      );
       if (continuationToken) {
         listUrl.searchParams.set('cursor', continuationToken);
       }
       listUrl.searchParams.set('per_page', '1000'); // Maximum items per page
 
       console.log(`   🔍 API Request: ${listUrl.toString()}`);
-      
+
       const listResponse = await fetch(listUrl.toString(), {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${config.apiToken}`,
+          Authorization: `Bearer ${config.apiToken}`,
           'Content-Type': 'application/json',
         },
       });
@@ -618,19 +873,28 @@ export async function downloadR2PhotosToDirectory(
       }
 
       const listResult = await listResponse.json();
-      
-      console.log(`   📋 API Response Analysis:`, JSON.stringify({
-        success: listResult.success,
-        resultType: typeof listResult.result,
-        resultIsArray: Array.isArray(listResult.result),
-        resultLength: Array.isArray(listResult.result) ? listResult.result.length : 0,
-        errors: listResult.errors,
-        messages: listResult.messages
-      }, null, 2));
-      
+
+      console.log(
+        `   📋 API Response Analysis:`,
+        JSON.stringify(
+          {
+            success: listResult.success,
+            resultType: typeof listResult.result,
+            resultIsArray: Array.isArray(listResult.result),
+            resultLength: Array.isArray(listResult.result) ? listResult.result.length : 0,
+            errors: listResult.errors,
+            messages: listResult.messages,
+          },
+          null,
+          2
+        )
+      );
+
       if (!listResult.success) {
         console.error(`   ❌ Cloudflare API Error:`, JSON.stringify(listResult, null, 2));
-        throw new Error(`R2 list failed: ${JSON.stringify(listResult.errors || listResult.messages)}`);
+        throw new Error(
+          `R2 list failed: ${JSON.stringify(listResult.errors || listResult.messages)}`
+        );
       }
 
       // Handle two possible response structures:
@@ -649,15 +913,18 @@ export async function downloadR2PhotosToDirectory(
         console.log(`   📄 Objects structure: Unknown - result:`, typeof listResult.result);
         objects = [];
       }
-      
+
       console.log(`   Processing batch: ${objects.length} objects`);
-      
+
       if (objects.length > 0) {
-        console.log(`   📄 First few objects:`, objects.slice(0, 3).map(obj => ({
-          key: obj.key,
-          size: obj.size,
-          uploaded: obj.uploaded
-        })));
+        console.log(
+          `   📄 First few objects:`,
+          objects.slice(0, 3).map(obj => ({
+            key: obj.key,
+            size: obj.size,
+            uploaded: obj.uploaded,
+          }))
+        );
       }
 
       // Process each object in the batch
@@ -665,7 +932,7 @@ export async function downloadR2PhotosToDirectory(
         totalFiles++;
         const fileName = obj.key;
         const localFilePath = join(fullPath, fileName);
-        
+
         try {
           // Create subdirectories if the key contains path separators
           const localFileDir = dirname(localFilePath);
@@ -689,13 +956,15 @@ export async function downloadR2PhotosToDirectory(
           const downloadResponse = await downloadWithRetry(
             `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/r2/buckets/${config.bucketName}/objects/${encodeURIComponent(obj.key)}`,
             {
-              'Authorization': `Bearer ${config.apiToken}`,
+              Authorization: `Bearer ${config.apiToken}`,
             }
           );
 
           if (!downloadResponse.ok) {
             const errorText = await downloadResponse.text();
-            warnings.push(`Failed to download ${fileName}: ${downloadResponse.status} ${errorText}`);
+            warnings.push(
+              `Failed to download ${fileName}: ${downloadResponse.status} ${errorText}`
+            );
             console.warn(`   Warning: Failed to download ${fileName}: ${downloadResponse.status}`);
             skippedFiles.push(fileName);
             continue;
@@ -703,14 +972,16 @@ export async function downloadR2PhotosToDirectory(
 
           // Get file content
           const fileBuffer = Buffer.from(await downloadResponse.arrayBuffer());
-          
+
           // Write to local file
           writeFileSync(localFilePath, fileBuffer);
-          
+
           downloadedFiles.push(fileName);
           totalSize += obj.size || fileBuffer.length;
-          
-          console.log(`   Saved: ${localFilePath} (${formatFileSize(obj.size || fileBuffer.length)})`);
+
+          console.log(
+            `   Saved: ${localFilePath} (${formatFileSize(obj.size || fileBuffer.length)})`
+          );
         } catch (downloadError) {
           const errorMsg = `Failed to process ${fileName}: ${downloadError}`;
           warnings.push(errorMsg);
@@ -729,9 +1000,11 @@ export async function downloadR2PhotosToDirectory(
       } else {
         continuationToken = null;
       }
-      
+
       if (continuationToken) {
-        console.log(`   Continuing with next batch (cursor: ${continuationToken.substring(0, 20)}...)`);
+        console.log(
+          `   Continuing with next batch (cursor: ${continuationToken.substring(0, 20)}...)`
+        );
       } else {
         console.log(`   No cursor found - this is the last batch`);
       }
@@ -745,7 +1018,7 @@ export async function downloadR2PhotosToDirectory(
     console.log(`Downloaded: ${downloadedFiles.length} files`);
     console.log(`Skipped: ${skippedFiles.length} files`);
     console.log(`Total Size: ${formatFileSize(totalSize)}`);
-    
+
     if (warnings.length > 0) {
       console.log(`Warnings: ${warnings.length}`);
       console.log('='.repeat(50));
@@ -762,7 +1035,7 @@ export async function downloadR2PhotosToDirectory(
     };
   } catch (error) {
     console.error('❌ R2 local download failed:', error);
-    
+
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Unknown R2 local download error',
@@ -771,11 +1044,86 @@ export async function downloadR2PhotosToDirectory(
 }
 
 /**
+ * Validate backup by attempting restore and migration validation
+ */
+async function validateBackupRestore(
+  filepath: string
+): Promise<{ success: boolean; errors: string[]; warnings: string[] }> {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  try {
+    console.log('🔍 Starting backup restore validation...');
+
+    // Check if backup file exists
+    if (!existsSync(filepath)) {
+      errors.push(`Backup file does not exist: ${filepath}`);
+      return { success: false, errors, warnings };
+    }
+
+    console.log(`   Validating backup file: ${filepath}`);
+
+    // For now, implement basic validation
+    // In a full implementation, this would:
+    // 1. Extract the backup archive to a temp directory
+    // 2. Create a temporary SQLite database
+    // 3. Import the database.sql file
+    // 4. Run migration validation against the restored database
+    // 5. Clean up temporary files
+
+    const { createReadStream } = await import('fs');
+    const { createGunzip } = await import('zlib');
+
+    // Basic integrity check - ensure file is readable and not corrupted
+    const stream = createReadStream(filepath);
+
+    return new Promise(resolve => {
+      let hasData = false;
+
+      stream.on('data', chunk => {
+        hasData = true;
+        // Check if this looks like a ZIP file
+        const zipHeader = Buffer.from([0x50, 0x4b, 0x03, 0x04]); // ZIP file header
+        if (chunk.length >= 4 && chunk.subarray(0, 4).equals(zipHeader)) {
+          console.log('   ✅ File appears to be a valid ZIP archive');
+        }
+      });
+
+      stream.on('end', () => {
+        if (hasData) {
+          console.log('   ✅ Backup file is readable and contains data');
+          warnings.push(
+            'Full restore validation not yet implemented - only basic checks performed'
+          );
+          resolve({ success: true, errors, warnings });
+        } else {
+          errors.push('Backup file appears to be empty');
+          resolve({ success: false, errors, warnings });
+        }
+      });
+
+      stream.on('error', error => {
+        errors.push(`Failed to read backup file: ${error.message}`);
+        resolve({ success: false, errors, warnings });
+      });
+    });
+  } catch (error) {
+    errors.push(
+      `Backup validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
+    return { success: false, errors, warnings };
+  }
+}
+
+/**
  * Validate backup archive integrity
  */
-async function validateBackupArchive(filepath: string, expectedMetadata: any): Promise<{ valid: boolean; errors: string[] }> {
+async function validateBackupArchive(
+  filepath: string,
+  expectedMetadata: any
+): Promise<{ valid: boolean; errors: string[] }> {
   const errors: string[] = [];
-  
+
   try {
     // Check if file exists and is readable
     if (!existsSync(filepath)) {
@@ -786,25 +1134,28 @@ async function validateBackupArchive(filepath: string, expectedMetadata: any): P
     // Check file size (should be > 0)
     const { stat } = await import('fs').then(fs => fs.promises);
     const stats = await stat(filepath);
-    
+
     if (stats.size === 0) {
       errors.push('Backup file is empty');
     }
-    
-    if (stats.size < 100) { // Very small files are likely corrupt
+
+    if (stats.size < 100) {
+      // Very small files are likely corrupt
       errors.push('Backup file is suspiciously small');
     }
 
     console.log(`   Archive validation: ${filepath} (${formatFileSize(stats.size)})`);
-    
+
     // Additional integrity checks could include:
     // - ZIP header validation
     // - File count verification
     // - Critical file presence check
-    
+
     return { valid: errors.length === 0, errors };
   } catch (error) {
-    errors.push(`Archive validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    errors.push(
+      `Archive validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
     return { valid: false, errors };
   }
 }
@@ -815,9 +1166,10 @@ async function validateBackupArchive(filepath: string, expectedMetadata: any): P
 async function createBackupArchive(
   outputDir: string,
   databaseResult: DatabaseExportResult,
-  r2Result: R2ListResult
+  r2Result: R2ListResult,
+  migrationStatus?: any
 ): Promise<BackupResult> {
-  return new Promise(async (resolve) => {
+  return new Promise(async resolve => {
     const timestamp = generateTimestamp();
     const filename = `backup-${timestamp}.zip`;
     const filepath = join(outputDir, filename);
@@ -830,7 +1182,7 @@ async function createBackupArchive(
     });
 
     let filesAdded = 0;
-    const expectedFiles = 3 + (r2Result.totalFiles || 0); // database.sql, metadata.json, README.md + photos
+    const expectedFiles = 4 + (r2Result.totalFiles || 0); // database.sql, metadata.json, migration_state.json, README.md + photos
 
     output.on('close', async () => {
       const metadata = {
@@ -853,7 +1205,7 @@ async function createBackupArchive(
 
       // Perform integrity validation
       const validation = await validateBackupArchive(filepath, metadata);
-      
+
       if (!validation.valid) {
         console.warn('⚠️ Archive validation warnings:');
         validation.errors.forEach(error => console.warn(`   - ${error}`));
@@ -870,7 +1222,7 @@ async function createBackupArchive(
       });
     });
 
-    output.on('error', (error) => {
+    output.on('error', error => {
       console.error('❌ Archive creation failed:', error);
       resolve({
         success: false,
@@ -878,11 +1230,11 @@ async function createBackupArchive(
       });
     });
 
-    archive.on('warning', (warning) => {
+    archive.on('warning', warning => {
       console.warn('⚠️ Archive warning:', warning);
     });
 
-    archive.on('error', (error) => {
+    archive.on('error', error => {
       console.error('❌ Archive error:', error);
       resolve({
         success: false,
@@ -925,6 +1277,13 @@ async function createBackupArchive(
     console.log('   Added: metadata.json');
     filesAdded++;
 
+    // Add migration state if available
+    if (migrationStatus) {
+      archive.append(JSON.stringify(migrationStatus, null, 2), { name: 'migration_state.json' });
+      console.log('   Added: migration_state.json');
+      filesAdded++;
+    }
+
     // Add README
     const readme = generateBackupReadme(metadata);
     archive.append(readme, { name: 'README.md' });
@@ -935,18 +1294,18 @@ async function createBackupArchive(
     if (r2Result.files && r2Result.files.length > 0) {
       console.log(`   Adding ${r2Result.files.length} photos...`);
       let photoCount = 0;
-      
+
       for (const file of r2Result.files) {
         if (file.content) {
           const pathInArchive = `photos/${file.key}`;
-          archive.append(file.content, { 
+          archive.append(file.content, {
             name: pathInArchive,
             date: new Date(file.lastModified),
           });
-          
+
           photoCount++;
           filesAdded++;
-          
+
           // Progress reporting for large numbers of files
           if (photoCount % 50 === 0 || photoCount === r2Result.files.length) {
             console.log(`   Progress: ${photoCount}/${r2Result.files.length} photos added`);
@@ -964,7 +1323,10 @@ async function createBackupArchive(
 /**
  * Generate validation checksum for backup integrity
  */
-function generateMetadataChecksum(databaseResult: DatabaseExportResult, r2Result: R2ListResult): string {
+function generateMetadataChecksum(
+  databaseResult: DatabaseExportResult,
+  r2Result: R2ListResult
+): string {
   const checksumData = {
     database_tables: (databaseResult.tables || []).sort(),
     database_records: databaseResult.totalRecords || 0,
@@ -973,37 +1335,42 @@ function generateMetadataChecksum(databaseResult: DatabaseExportResult, r2Result
     photos_size: r2Result.totalSize || 0,
     timestamp: Date.now(),
   };
-  
+
   // Simple checksum based on JSON representation
   const jsonStr = JSON.stringify(checksumData);
   let hash = 0;
   for (let i = 0; i < jsonStr.length; i++) {
     const char = jsonStr.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32-bit integer
   }
-  
+
   return Math.abs(hash).toString(16).padStart(8, '0');
 }
 
 /**
  * Enhanced download with retry logic for failed R2 operations
  */
-async function downloadWithRetry(url: string, headers: HeadersInit, maxRetries: number = 3, baseDelay: number = 1000): Promise<Response> {
+async function downloadWithRetry(
+  url: string,
+  headers: HeadersInit,
+  maxRetries: number = 3,
+  baseDelay: number = 1000
+): Promise<Response> {
   let lastError: Error;
-  
+
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
       const response = await fetch(url, { method: 'GET', headers });
-      
+
       if (response.ok) {
         return response;
       }
-      
+
       throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error('Unknown download error');
-      
+
       if (attempt < maxRetries) {
         const delay = baseDelay * Math.pow(2, attempt - 1); // Exponential backoff
         console.log(`   Retry ${attempt}/${maxRetries - 1} in ${delay}ms for ${url}`);
@@ -1011,7 +1378,7 @@ async function downloadWithRetry(url: string, headers: HeadersInit, maxRetries: 
       }
     }
   }
-  
+
   throw lastError!;
 }
 
@@ -1136,11 +1503,11 @@ function validateEnvironment(options: BackupOptions): void {
       'CLOUDFLARE_ACCOUNT_ID',
       'CLOUDFLARE_API_TOKEN',
       'D1_DATABASE_ID',
-      'R2_BUCKET_NAME'
+      'R2_BUCKET_NAME',
     ];
 
     const missing = requiredVars.filter(varName => !process.env[varName]);
-    
+
     if (missing.length > 0) {
       console.error('❌ Error: Missing required environment variables for remote backup:');
       missing.forEach(varName => console.error(`  - ${varName}`));
@@ -1157,12 +1524,16 @@ function validateEnvironment(options: BackupOptions): void {
     // Additional security validation
     const apiToken = process.env.CLOUDFLARE_API_TOKEN;
     if (apiToken && apiToken.length < 20) {
-      console.warn('⚠️ Warning: API token appears to be too short. Please verify it\'s a valid Cloudflare API token.');
+      console.warn(
+        "⚠️ Warning: API token appears to be too short. Please verify it's a valid Cloudflare API token."
+      );
     }
-    
+
     const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
     if (accountId && !/^[a-f0-9]{32}$/.test(accountId)) {
-      console.warn('⚠️ Warning: Account ID format appears invalid. Should be 32 character hex string.');
+      console.warn(
+        '⚠️ Warning: Account ID format appears invalid. Should be 32 character hex string.'
+      );
     }
 
     console.log('🔒 Environment security validation passed');
@@ -1191,7 +1562,7 @@ function generateTimestamp(): string {
   const hours = String(now.getHours()).padStart(2, '0');
   const minutes = String(now.getMinutes()).padStart(2, '0');
   const seconds = String(now.getSeconds()).padStart(2, '0');
-  
+
   return `${year}-${month}-${day}-${hours}${minutes}${seconds}`;
 }
 
@@ -1202,12 +1573,12 @@ function formatFileSize(bytes: number): string {
   const units = ['B', 'KB', 'MB', 'GB'];
   let size = bytes;
   let unitIndex = 0;
-  
+
   while (size >= 1024 && unitIndex < units.length - 1) {
     size /= 1024;
     unitIndex++;
   }
-  
+
   return `${size.toFixed(2)} ${units[unitIndex]}`;
 }
 
@@ -1222,7 +1593,7 @@ async function performBackup(options: BackupOptions): Promise<BackupResult> {
     console.log('   Local mode would require Miniflare integration for D1/R2 simulation.');
     console.log('   Please use --remote flag for actual production backups.');
     console.log();
-    
+
     return {
       success: false,
       error: 'Local mode not implemented. Use --remote for actual backups.',
@@ -1233,11 +1604,55 @@ async function performBackup(options: BackupOptions): Promise<BackupResult> {
     // Get Cloudflare configuration
     const config = getCloudflareConfig();
 
+    // Handle validate-only mode
+    if (options.validateOnly) {
+      console.log('🔍 Running in validation-only mode');
+
+      // Look for existing backup files in output directory
+      const { readdir } = await import('fs').then(fs => fs.promises);
+      const files = await readdir(options.outputDir);
+      const backupFiles = files.filter(f => f.startsWith('backup-') && f.endsWith('.zip'));
+
+      if (backupFiles.length === 0) {
+        return {
+          success: false,
+          error: 'No backup files found to validate. Create a backup first.',
+        };
+      }
+
+      // Validate the most recent backup file
+      const mostRecentBackup = backupFiles.sort().reverse()[0];
+      const backupPath = join(options.outputDir, mostRecentBackup);
+
+      console.log(`   Validating: ${mostRecentBackup}`);
+      const validation = await validateBackupRestore(backupPath);
+
+      if (validation.success) {
+        console.log('✅ Backup validation completed');
+        if (validation.warnings.length > 0) {
+          console.log('   Warnings:');
+          validation.warnings.forEach(w => console.log(`   - ${w}`));
+        }
+        return {
+          success: true,
+          filename: mostRecentBackup,
+          filepath: backupPath,
+        };
+      } else {
+        console.log('❌ Backup validation failed');
+        validation.errors.forEach(e => console.log(`   - ${e}`));
+        return {
+          success: false,
+          error: `Validation failed: ${validation.errors.join(', ')}`,
+        };
+      }
+    }
+
     // Handle photos-only mode
     if (options.photosOnly) {
       console.log('📸 Running in photos-only mode - downloading R2 photos to local directory');
       const photosResult = await downloadR2PhotosToDirectory(config, options.photosDir);
-      
+
       if (photosResult.success) {
         return {
           success: true,
@@ -1266,8 +1681,16 @@ async function performBackup(options: BackupOptions): Promise<BackupResult> {
       }
     }
 
-    // Step 1: Export D1 database
-    const databaseResult = await exportD1Database(config);
+    // Step 1: Export D1 database (choose method based on options)
+    let databaseResult: DatabaseExportResult;
+    if (options.wranglerExport) {
+      console.log('Using Wrangler D1 export...');
+      databaseResult = await exportD1DatabaseWithWrangler(config, options.env);
+    } else {
+      console.log('Using Cloudflare API export...');
+      databaseResult = await exportD1Database(config);
+    }
+
     if (!databaseResult.success) {
       return {
         success: false,
@@ -1275,7 +1698,18 @@ async function performBackup(options: BackupOptions): Promise<BackupResult> {
       };
     }
 
-    // Step 2: Download R2 files
+    // Step 2: Get migration status if using wrangler export
+    let migrationStatus = undefined;
+    if (options.wranglerExport) {
+      const statusResult = await getMigrationStatus(options.env);
+      if (statusResult.success) {
+        migrationStatus = statusResult.status;
+      } else {
+        console.warn(`Warning: Failed to get migration status: ${statusResult.error}`);
+      }
+    }
+
+    // Step 3: Download R2 files
     const r2Result = await downloadR2Files(config);
     if (!r2Result.success) {
       return {
@@ -1284,8 +1718,13 @@ async function performBackup(options: BackupOptions): Promise<BackupResult> {
       };
     }
 
-    // Step 3: Create ZIP archive
-    const archiveResult = await createBackupArchive(options.outputDir, databaseResult, r2Result);
+    // Step 4: Create ZIP archive
+    const archiveResult = await createBackupArchive(
+      options.outputDir,
+      databaseResult,
+      r2Result,
+      migrationStatus
+    );
     if (!archiveResult.success) {
       return {
         success: false,
@@ -1327,38 +1766,40 @@ async function main(): Promise<void> {
       console.log(`📸 Photos directory: ${options.photosDir}`);
       console.log(`🔄 Mode: Photos-only download`);
     }
-    console.log(`☁️  Environment: ${options.remote ? 'Remote (Cloudflare)' : 'Local (Development)'}`);
+    console.log(
+      `☁️  Environment: ${options.remote ? 'Remote (Cloudflare)' : 'Local (Development)'}`
+    );
     console.log();
 
     // Perform backup
     console.log('🚀 Starting backup process...');
     const startTime = Date.now();
-    
+
     const result = await performBackup(options);
-    
+
     const endTime = Date.now();
     const duration = endTime - startTime;
 
     console.log('\n' + '='.repeat(50));
-    
+
     if (result.success) {
       if (options.photosOnly) {
         console.log('✅ PHOTOS DOWNLOAD COMPLETED SUCCESSFULLY');
         console.log('='.repeat(50));
-        
+
         console.log(`\nLocal Directory: ${result.filepath}`);
         console.log(`Total Files: ${result.metadata?.photosInfo.totalFiles.toLocaleString() || 0}`);
         console.log(`Total Size: ${formatFileSize(result.size || 0)}`);
         console.log(`Duration: ${(duration / 1000).toFixed(1)}s`);
-        
+
         console.log('\n🎯 All R2 photos have been downloaded to your local directory.');
         console.log('📁 You can now browse, backup, or process the photos locally.');
-        
+
         // Try to open the photos directory
         try {
           const { spawn } = await import('child_process');
           const platform = process.platform;
-          
+
           if (platform === 'win32') {
             spawn('explorer', [result.filepath!.replace(/\//g, '\\')]);
           } else if (platform === 'darwin') {
@@ -1366,7 +1807,7 @@ async function main(): Promise<void> {
           } else {
             spawn('xdg-open', [result.filepath!]);
           }
-          
+
           console.log('\n📂 Opening photos directory...');
         } catch (error) {
           // Ignore errors opening directory
@@ -1374,23 +1815,25 @@ async function main(): Promise<void> {
       } else {
         console.log('✅ BACKUP COMPLETED SUCCESSFULLY');
         console.log('='.repeat(50));
-        
+
         console.log(`\nBackup File: ${result.filename}`);
         console.log(`File Path: ${result.filepath}`);
         console.log(`File Size: ${formatFileSize(result.size || 0)}`);
         console.log(`Duration: ${(duration / 1000).toFixed(1)}s`);
-        
+
         if (result.metadata) {
           console.log(`\nDatabase:`);
-          console.log(`  Tables: ${result.metadata.databaseInfo.tables.length} (${result.metadata.databaseInfo.tables.join(', ')})`);
+          console.log(
+            `  Tables: ${result.metadata.databaseInfo.tables.length} (${result.metadata.databaseInfo.tables.join(', ')})`
+          );
           console.log(`  Records: ${result.metadata.databaseInfo.totalRecords.toLocaleString()}`);
           console.log(`  SQL Size: ${formatFileSize(result.metadata.databaseInfo.size)}`);
-          
+
           console.log(`\nPhotos:`);
           console.log(`  Files: ${result.metadata.photosInfo.totalFiles.toLocaleString()}`);
           console.log(`  Total Size: ${formatFileSize(result.metadata.photosInfo.totalSize)}`);
         }
-        
+
         console.log('\n✨ Backup archive contains:');
         console.log('  • database.sql - Complete database dump');
         console.log('  • photos/ - All original and thumbnail images');
@@ -1401,7 +1844,7 @@ async function main(): Promise<void> {
         try {
           const { spawn } = await import('child_process');
           const platform = process.platform;
-          
+
           if (platform === 'win32') {
             spawn('explorer', ['/select,', result.filepath!.replace(/\//g, '\\')]);
           } else if (platform === 'darwin') {
@@ -1409,7 +1852,7 @@ async function main(): Promise<void> {
           } else {
             spawn('xdg-open', [options.outputDir]);
           }
-          
+
           console.log('\n📂 Opening file location...');
         } catch (error) {
           // Ignore errors opening file location
@@ -1420,7 +1863,7 @@ async function main(): Promise<void> {
       console.log('='.repeat(50));
       console.log(`\nError: ${result.error}`);
       console.log(`Duration: ${(duration / 1000).toFixed(1)}s`);
-      
+
       if (!options.remote) {
         console.log('\n💡 Suggestions:');
         console.log('  • Use --remote flag for production backups');
@@ -1428,16 +1871,15 @@ async function main(): Promise<void> {
         console.log('  • Check Cloudflare API credentials and permissions');
       }
     }
-    
-    console.log('\n' + '='.repeat(50));
 
+    console.log('\n' + '='.repeat(50));
   } catch (error) {
     console.error('\n❌ Backup failed:', error);
-    
+
     if (error instanceof Error) {
       console.error('Error details:', error.message);
     }
-    
+
     process.exit(1);
   }
 }

@@ -425,15 +425,7 @@ describe('Cultural Archiver API Integration Tests', (): void => {
           'admin_comments',
         ];
 
-        const publicFields = [
-          'id',
-          'lat',
-          'lon',
-          'type_id',
-          'status',
-          'created_at',
-          'tags',
-        ];
+        const publicFields = ['id', 'lat', 'lon', 'type_id', 'status', 'created_at', 'tags'];
 
         // Ensure sensitive fields are not in public fields
         sensitiveFields.forEach(field => {
@@ -539,11 +531,7 @@ describe('Cultural Archiver API Integration Tests', (): void => {
 
     describe('NPM Command Integration', (): void => {
       it('should validate backup command arguments', (): void => {
-        const validArguments = [
-          '--output-dir',
-          '--remote',
-          '--help',
-        ];
+        const validArguments = ['--output-dir', '--remote', '--help'];
 
         const expectedCommands = {
           local: 'npm run backup',
@@ -559,11 +547,7 @@ describe('Cultural Archiver API Integration Tests', (): void => {
       });
 
       it('should validate required environment variables for remote backup', (): void => {
-        const requiredEnvVars = [
-          'CLOUDFLARE_ACCOUNT_ID',
-          'DATABASE_ID',
-          'PHOTOS_BUCKET',
-        ];
+        const requiredEnvVars = ['CLOUDFLARE_ACCOUNT_ID', 'DATABASE_ID', 'PHOTOS_BUCKET'];
 
         requiredEnvVars.forEach(envVar => {
           expect(envVar).toMatch(/^[A-Z_]+$/);
@@ -573,7 +557,7 @@ describe('Cultural Archiver API Integration Tests', (): void => {
       it('should generate timestamped backup filenames', (): void => {
         const now = new Date();
         const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`;
-        
+
         const expectedFilename = `backup-${timestamp}.zip`;
         const timestampRegex = /^\d{4}-\d{2}-\d{2}-\d{6}$/;
 
