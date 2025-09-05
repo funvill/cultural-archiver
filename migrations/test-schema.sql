@@ -152,3 +152,28 @@ VALUES
     ('audit-001', '6c970b24-f64a-49d9-8c5f-8ae23cc2af47', NULL, 'artwork_approve', 'artwork', 'artwork-sample-001', '{"status": "pending"}', '{"status": "approved"}', '2025-01-01T00:00:00.000Z'),
     ('audit-002', '6c970b24-f64a-49d9-8c5f-8ae23cc2af47', NULL, 'artwork_approve', 'artwork', 'artwork-sample-002', '{"status": "pending"}', '{"status": "approved"}', '2025-01-01T00:00:00.000Z'),
     ('audit-003', '6c970b24-f64a-49d9-8c5f-8ae23cc2af47', '6c970b24-f64a-49d9-8c5f-8ae23cc2af47', 'permission_grant', 'user_permissions', 'perm-001', '{}', '{"permission": "admin"}', '2025-01-01T00:00:00.000Z');
+-- Add editable fields to artwork table for editing system
+-- Generated on: 2025-01-09T00:00:00.000Z
+-- Purpose: Add missing fields that can be edited through the artwork editing system
+-- Related to: tasks-prd-artwork-editing-system.md
+
+-- Enable foreign key constraints
+PRAGMA foreign_keys = ON;
+
+-- Add editable fields to artwork table
+ALTER TABLE artwork ADD COLUMN title TEXT;
+ALTER TABLE artwork ADD COLUMN description TEXT;
+ALTER TABLE artwork ADD COLUMN created_by TEXT; -- Creator/artist name(s)
+
+-- Create index for text search on title and description
+CREATE INDEX idx_artwork_title ON artwork(title);
+CREATE INDEX idx_artwork_description ON artwork(description);
+CREATE INDEX idx_artwork_created_by ON artwork(created_by);
+
+-- Update existing artwork records to have empty values for new fields
+-- This prevents NULL issues in the edit system
+UPDATE artwork SET 
+    title = '',
+    description = '',
+    created_by = ''
+WHERE title IS NULL OR description IS NULL OR created_by IS NULL;

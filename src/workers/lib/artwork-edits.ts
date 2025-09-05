@@ -237,7 +237,7 @@ export class ArtworkEditsService {
 
   /**
    * Apply approved edits to the original artwork record
-   * Note: This assumes artwork table has the fields being edited
+   * Note: Only updates fields that exist in the artwork table
    */
   private async applyApprovedEditsToArtwork(editIds: string[]): Promise<void> {
     // Get all approved edits
@@ -259,22 +259,28 @@ export class ArtworkEditsService {
       throw new Error('Invalid edit record: missing artwork_id');
     }
     const artworkId = firstRecord.artwork_id;
+
+    // Get artwork table structure to verify which fields exist
+    const tableInfo = await this.db.prepare(`PRAGMA table_info(artwork)`).all();
+    const artworkColumns = new Set((tableInfo.results as { name: string }[]).map(col => col.name));
+
     const updatedFields: Record<string, string> = {};
 
-    // Build update query dynamically based on which fields are being edited
+    // Build update query dynamically based on which fields are being edited AND exist in the table
     for (const edit of editRecords) {
-      if (edit.field_value_new !== null) {
+      if (edit.field_value_new !== null && artworkColumns.has(edit.field_name)) {
         updatedFields[edit.field_name] = edit.field_value_new;
+      } else if (!artworkColumns.has(edit.field_name)) {
+        console.warn(`Field ${edit.field_name} does not exist in artwork table, skipping update`);
       }
     }
 
     if (Object.keys(updatedFields).length === 0) {
+      console.info('No valid fields to update in artwork table');
       return;
     }
 
     // Apply updates to artwork table
-    // Note: This is a simplified version - in reality you might need more complex logic
-    // depending on the actual artwork table schema
     const setClause = Object.keys(updatedFields).map(field => `${field} = ?`).join(', ');
     const values = Object.values(updatedFields);
 
@@ -285,6 +291,7 @@ export class ArtworkEditsService {
     `);
 
     await updateArtworkStmt.bind(...values, artworkId).run();
+    console.info(`Applied ${Object.keys(updatedFields).length} field updates to artwork ${artworkId}`);
   }
 
   /**
