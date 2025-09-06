@@ -47,6 +47,7 @@
     "migrate:validate": "npx tsx scripts/validate-migration.ts",
     "migrate:validate:sequence": "npx tsx scripts/validate-migration-sequence.ts",
     "migrate:checklist": "npx tsx scripts/migration-checklist.ts",
+    "migrate:006:prod": "npx tsx scripts/run-migration-006.ts",
     "log": "npx wrangler tail cultural-archiver-api --format pretty",
     "test": "npm run test:frontend && npm run test:workers",
     "test:frontend": "cd src/frontend && npm run test",
