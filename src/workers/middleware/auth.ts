@@ -57,8 +57,8 @@ export async function ensureUserToken(
       ?.split('=')[1];
   }
 
-  // Validate token format if we have one (should be UUID)
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  // Validate token format if we have one (should be UUID v4 only)
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
   if (userToken && !uuidRegex.test(userToken)) {
     userToken = undefined; // Clear invalid token
@@ -97,22 +97,9 @@ export async function requireReviewer(
   }
 
   try {
-    // First, check database-backed permissions
+    // Check database-backed permissions only - no legacy fallbacks
     const { isModerator } = await import('../lib/permissions');
-    const hasModeratorPermission = await isModerator(c.env.DB, userToken);
-
-    let isReviewer = hasModeratorPermission;
-
-    // Fallback to legacy logic if no database permissions found
-    if (!hasModeratorPermission) {
-      const stmt = c.env.DB.prepare(`
-        SELECT COUNT(*) as count FROM logbook 
-        WHERE user_token = ? AND status = 'approved'
-      `);
-      const result = await stmt.bind(userToken).first();
-      const approvedCount = (result as { count: number } | null)?.count || 0;
-      isReviewer = approvedCount >= 5; // Users with 5+ approved submissions can review (legacy fallback)
-    }
+    const isReviewer = await isModerator(c.env.DB, userToken);
 
     if (!isReviewer) {
       throw new ForbiddenError('Reviewer permissions required');

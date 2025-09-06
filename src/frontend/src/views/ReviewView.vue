@@ -6,6 +6,7 @@ import { useArtworksStore } from '../stores/artworks';
 import { globalModal } from '../composables/useModal';
 import { apiService, getErrorMessage } from '../services/api';
 import { createApiUrl } from '../utils/api-config';
+import ArtworkEditDiffs from '../components/ArtworkEditDiffs.vue';
 import type { ArtworkEditReviewData } from '../../../shared/types';
 
 // Types
@@ -539,8 +540,24 @@ async function rejectArtworkEdit(edit: ArtworkEditReviewData) {
 
 function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
   const fieldCount = edit.diffs.length;
-  const fields = edit.diffs.map(diff => diff.field_name).join(', ');
-  return `${fieldCount} field${fieldCount > 1 ? 's' : ''}: ${fields}`;
+  const fields = edit.diffs.map(diff => {
+    // Provide more descriptive field names
+    switch (diff.field_name) {
+      case 'tags': return 'structured tags';
+      case 'created_by': return 'artist/creator';
+      default: return diff.field_name;
+    }
+  });
+  
+  // Check if this is primarily a tag edit
+  const hasTagEdit = edit.diffs.some(diff => diff.field_name === 'tags');
+  const tagOnlyEdit = fieldCount === 1 && hasTagEdit;
+  
+  if (tagOnlyEdit) {
+    return 'Structured tag updates';
+  }
+  
+  return `${fieldCount} field${fieldCount > 1 ? 's' : ''}: ${fields.join(', ')}`;
 }
 </script>
 
@@ -1000,6 +1017,35 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
                   <h3 class="text-lg font-medium text-gray-900">
                     {{ extractArtworkTitle(edit.artwork_id) }}
                   </h3>
+                  
+                  <!-- Change type indicators -->
+                  <div class="flex items-center space-x-1">
+                    <span
+                      v-if="edit.diffs.some(d => d.field_name === 'tags')"
+                      class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-700"
+                      title="Includes structured tag changes"
+                    >
+                      🏷️ Tags
+                    </span>
+                    <span
+                      v-if="edit.diffs.some(d => d.field_name === 'title')"
+                      class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700"
+                    >
+                      📝 Title
+                    </span>
+                    <span
+                      v-if="edit.diffs.some(d => d.field_name === 'description')"
+                      class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"
+                    >
+                      📖 Description
+                    </span>
+                    <span
+                      v-if="edit.diffs.some(d => d.field_name === 'created_by')"
+                      class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-700"
+                    >
+                      👤 Artist
+                    </span>
+                  </div>
                   <router-link
                     :to="`/artwork/${edit.artwork_id}`"
                     class="text-blue-600 hover:text-blue-800 text-sm underline flex items-center"
@@ -1092,32 +1138,8 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
               </div>
             </div>
 
-            <!-- Diff Display -->
-            <div class="space-y-4">
-              <div
-                v-for="diff in edit.diffs"
-                :key="`${edit.edit_ids?.[0] || edit.artwork_id}-${diff.field_name}`"
-                class="border border-gray-200 rounded-md p-4"
-              >
-                <h4 class="font-medium text-gray-900 mb-2">{{ diff.field_name }}</h4>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p class="text-sm font-medium text-gray-600 mb-1">Before:</p>
-                    <div class="bg-red-50 border border-red-200 rounded-md p-3 text-sm">
-                      <span v-if="diff.old_value" class="text-gray-800">{{ diff.old_value }}</span>
-                      <span v-else class="text-gray-400 italic">Empty</span>
-                    </div>
-                  </div>
-                  <div>
-                    <p class="text-sm font-medium text-gray-600 mb-1">After:</p>
-                    <div class="bg-green-50 border border-green-200 rounded-md p-3 text-sm">
-                      <span v-if="diff.new_value" class="text-gray-800">{{ diff.new_value }}</span>
-                      <span v-else class="text-gray-400 italic">Empty</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <!-- Enhanced Diff Display with Structured Tag Support -->
+            <ArtworkEditDiffs :diffs="edit.diffs" />
           </div>
         </div>
       </template>

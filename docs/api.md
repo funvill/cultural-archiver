@@ -170,6 +170,86 @@ GET /api/artworks/nearby
 const response = await fetch(`/api/artworks/nearby?lat=49.2827&lon=-123.1207&radius=1000&limit=20`);
 ```
 
+#### Advanced Search
+
+Search artworks using text queries and structured tag filters with enhanced relevance scoring.
+
+```http
+GET /api/search
+```
+
+**Parameters**:
+
+- `q` (required): Search query with support for:
+  - Text search: `"mural downtown"`
+  - Tag filters: `"tag:artwork_type:statue"`
+  - Tag keys: `"tag:artist_name"`
+  - Combined: `"banksy tag:year:2020"`
+- `lat` (optional): Center latitude for geographic relevance
+- `lon` (optional): Center longitude for geographic relevance 
+- `radius` (optional): Geographic search radius in meters (default: 10000)
+- `limit` (optional): Maximum results (1-100, default: 20)
+- `offset` (optional): Result offset for pagination (default: 0)
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "artworks": [
+      {
+        "id": "artwork-uuid",
+        "lat": 49.2827,
+        "lon": -123.1207,
+        "type_name": "Street Art",
+        "status": "approved",
+        "distance_km": 0.15,
+        "photos": ["https://art-photos.abluestar.com/photo.jpg"],
+        "tags": {
+          "artwork_type": "mural",
+          "artist_name": "banksy",
+          "year": "2020",
+          "material": "paint"
+        },
+        "relevance_score": 0.95,
+        "created_at": "2024-01-15T10:30:00Z"
+      }
+    ],
+    "query": {
+      "text": "banksy tag:year:2020",
+      "parsed_tags": [
+        { "key": "year", "value": "2020" }
+      ],
+      "center": { "lat": 49.2827, "lon": -123.1207 },
+      "radius_km": 10,
+      "total_found": 1
+    },
+    "suggestions": [
+      "tag:artwork_type:mural",
+      "tag:material:paint", 
+      "tag:artist_name:banksy"
+    ]
+  }
+}
+```
+
+**Search Examples**:
+
+```javascript
+// Find all statues
+const response = await fetch('/api/search?q=tag:artwork_type:statue');
+
+// Find bronze artworks by specific artist
+const response = await fetch('/api/search?q=tag:material:bronze tag:artist_name:doe');
+
+// Find murals from 2020 with text search
+const response = await fetch('/api/search?q=mural tag:year:2020');
+
+// Geographic search for accessible art
+const response = await fetch('/api/search?q=tag:access:yes&lat=49.2827&lon=-123.1207&radius=1000');
+```
+
 #### Get Artwork Details
 
 Retrieve detailed information about a specific artwork.
@@ -207,6 +287,272 @@ GET /api/artworks/{id}
         "status": "approved"
       }
     ]
+  }
+}
+```
+
+### Tag and Metadata Endpoints
+
+#### Edit Artwork Tags
+
+Edit structured tags for an approved artwork. Supports validation against the predefined tag schema.
+
+```http
+PUT /api/artworks/{id}/tags
+```
+
+**Authentication**: Required (Reviewer or artwork creator)
+
+**Content-Type**: `application/json`
+
+**Body**:
+
+```json
+{
+  "tags": {
+    "artwork_type": "statue",
+    "name": "Victory Angel",
+    "artist_name": "Jane Doe",
+    "material": "bronze",
+    "height": 5.5,
+    "condition": "excellent",
+    "access": "yes",
+    "year": "1995",
+    "wikidata_id": "Q12345678"
+  }
+}
+```
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "artwork_id": "artwork-uuid",
+    "tags_updated": {
+      "version": "1.0.0",
+      "lastModified": "2024-12-19T12:00:00.000Z",
+      "tags": {
+        "artwork_type": "statue",
+        "name": "Victory Angel",
+        "artist_name": "Jane Doe",
+        "material": "bronze",
+        "height": 5.5,
+        "condition": "excellent",
+        "access": "yes",
+        "year": "1995",
+        "wikidata_id": "Q12345678"
+      }
+    },
+    "validation_status": {
+      "valid": true,
+      "warnings": []
+    }
+  }
+}
+```
+
+**Tag Schema Validation**:
+
+The API validates tags against a predefined schema with 15 essential tags across 5 categories:
+
+- **Artwork Classification**: `tourism`, `artwork_type`, `name`, `inscription`
+- **Physical Properties**: `material`, `height`, `width`, `condition`
+- **Historical Information**: `artist_name`, `year`, `heritage`
+- **Location Details**: `access`, `operator`
+- **Reference Data**: `website`, `wikidata_id`
+
+**Validation Error Response** (400 Bad Request):
+
+```json
+{
+  "success": false,
+  "error": {
+    "message": "Tag validation failed",
+    "code": "VALIDATION_ERROR",
+    "validationErrors": [
+      {
+        "field": "height",
+        "message": "Must be a positive number",
+        "code": "INVALID_NUMBER"
+      },
+      {
+        "field": "year", 
+        "message": "Must be a valid year (1000-2025)",
+        "code": "INVALID_YEAR"
+      }
+    ]
+  }
+}
+```
+
+### OpenStreetMap Export Endpoints
+
+#### Export Single Artwork
+
+Export a specific artwork in OpenStreetMap-compatible format.
+
+```http
+GET /api/artwork/{id}/export/osm
+```
+
+**Parameters**:
+
+- `format` (optional): Export format - `json` (default), `xml`, or `validation`
+
+**Response** (200 OK) - JSON format:
+
+```json
+{
+  "success": true,
+  "data": {
+    "artwork": {
+      "id": "artwork-123",
+      "lat": 49.2827,
+      "lon": -123.1207,
+      "osm_tags": {
+        "tourism": "artwork",
+        "artwork_type": "statue",
+        "name": "Victory Angel", 
+        "artist_name": "Jane Doe",
+        "material": "bronze",
+        "height": "5.5",
+        "access": "yes",
+        "ca:artwork_id": "artwork-123",
+        "ca:source": "Cultural Archiver"
+      }
+    },
+    "metadata": {
+      "export_timestamp": "2024-12-19T20:15:00.000Z",
+      "schema_version": "1.0.0"
+    }
+  }
+}
+```
+
+**Response** - XML format (`?format=xml`):
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<osm version="0.6" generator="Cultural Archiver">
+  <node id="-1" lat="49.2827" lon="-123.1207">
+    <tag k="tourism" v="artwork"/>
+    <tag k="artwork_type" v="statue"/>
+    <tag k="name" v="Victory Angel"/>
+    <tag k="artist_name" v="Jane Doe"/>
+    <tag k="material" v="bronze"/>
+    <tag k="height" v="5.5"/>
+    <tag k="access" v="yes"/>
+    <tag k="ca:artwork_id" v="artwork-123"/>
+    <tag k="ca:source" v="Cultural Archiver"/>
+  </node>
+</osm>
+```
+
+**Response** - Validation format (`?format=validation`):
+
+```json
+{
+  "success": true,
+  "data": {
+    "artwork_id": "artwork-123",
+    "validation": {
+      "valid": true,
+      "osm_compatible": true,
+      "warnings": [],
+      "errors": []
+    },
+    "osm_preview": {
+      "tourism": "artwork",
+      "artwork_type": "statue",
+      "name": "Victory Angel"
+    }
+  }
+}
+```
+
+#### Bulk Export Artworks
+
+Export multiple artworks in OpenStreetMap-compatible format with filtering options.
+
+```http
+GET /api/export/osm
+```
+
+**Parameters**:
+
+- `format` (optional): Export format - `json` (default) or `xml`
+- `bounds` (optional): Geographic bounds as `north,west,south,east` (e.g., `49.3,-123.1,49.2,-123.0`)
+- `artwork_ids` (optional): Comma-separated list of specific artwork IDs
+- `limit` (optional): Maximum number of artworks (default: 1000, max: 5000)
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "artworks": [
+      {
+        "id": "artwork-123",
+        "lat": 49.2827,
+        "lon": -123.1207,
+        "osm_tags": {
+          "tourism": "artwork",
+          "artwork_type": "statue",
+          "name": "Victory Angel",
+          "ca:artwork_id": "artwork-123"
+        }
+      }
+    ],
+    "metadata": {
+      "total_artworks": 1,
+      "export_timestamp": "2024-12-19T20:15:00.000Z",
+      "schema_version": "1.0.0",
+      "bounds_used": "49.3,-123.1,49.2,-123.0"
+    }
+  }
+}
+```
+
+#### Export Statistics
+
+Get statistics about artwork data suitable for OpenStreetMap export.
+
+```http
+GET /api/export/osm/stats
+```
+
+**Parameters**:
+
+- `bounds` (optional): Geographic bounds for filtering
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "total_artworks": 1250,
+    "exportable_artworks": 987,
+    "validation_summary": {
+      "valid": 900,
+      "warnings": 87,
+      "errors": 0
+    },
+    "tag_coverage": {
+      "name": 856,
+      "artwork_type": 987,
+      "material": 654,
+      "artist_name": 432,
+      "year": 378
+    },
+    "geographic_distribution": {
+      "bounds": "49.2,-123.2,49.3,-123.1",
+      "center": { "lat": 49.25, "lon": -123.15 }
+    },
+    "last_updated": "2024-12-19T20:15:00.000Z"
   }
 }
 ```

@@ -1,5 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
+import {
+  getCategoriesOrderedForDisplay,
+  getTagDefinition,
+  formatTagValueForDisplay,
+  type TagDefinition,
+} from '../services/tagSchema';
 
 // Types
 interface Tag {
@@ -7,20 +13,29 @@ interface Tag {
   value: string;
 }
 
+interface StructuredTag {
+  key: string;
+  value: string;
+  definition: TagDefinition | undefined;
+}
+
 // Props interface
 interface Props {
-  tags: Tag[] | Record<string, string>;
+  tags: Tag[] | Record<string, string> | StructuredTag[];
   maxVisible?: number;
   variant?: 'default' | 'outline' | 'compact';
   size?: 'sm' | 'md' | 'lg';
   colorScheme?: 'blue' | 'gray' | 'green' | 'purple' | 'orange';
   expandable?: boolean;
+  showCategories?: boolean;
+  collapsible?: boolean;
 }
 
 // Emits interface
 interface Emits {
-  (e: 'tagClick', tag: Tag): void;
+  (e: 'tagClick', tag: Tag | StructuredTag): void;
   (e: 'expandToggle', expanded: boolean): void;
+  (e: 'categoryToggle', category: string, expanded: boolean): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -29,27 +44,80 @@ const props = withDefaults(defineProps<Props>(), {
   size: 'md',
   colorScheme: 'blue',
   expandable: true,
+  showCategories: false,
+  collapsible: false,
 });
 
 const emit = defineEmits<Emits>();
 
 // State
 const isExpanded = ref(false);
+const expandedCategories = ref<Set<string>>(new Set());
 
 // Computed
-const normalizedTags = computed((): Tag[] => {
+const normalizedTags = computed((): StructuredTag[] => {
   if (Array.isArray(props.tags)) {
-    return props.tags;
+    // Handle existing Tag[] or StructuredTag[] format
+    if (props.tags.length > 0 && props.tags[0] && 'key' in props.tags[0]) {
+      return props.tags as StructuredTag[];
+    } else {
+      // Convert Tag[] to StructuredTag[]
+      return (props.tags as Tag[]).map(tag => ({
+        key: tag.label,
+        value: tag.value,
+        definition: getTagDefinition(tag.label),
+      }));
+    }
   }
 
-  // Convert record to array of tags
-  return Object.entries(props.tags).map(([label, value]) => ({
-    label,
+  // Convert record to array of structured tags
+  return Object.entries(props.tags).map(([key, value]) => ({
+    key,
     value: String(value),
+    definition: getTagDefinition(key),
   }));
 });
 
-const visibleTags = computed((): Tag[] => {
+const tagsByCategory = computed(() => {
+  if (!props.showCategories) {
+    return { all: normalizedTags.value };
+  }
+
+  const categories = getCategoriesOrderedForDisplay();
+  const result: Record<string, StructuredTag[]> = {};
+
+  // Initialize all categories
+  categories.forEach(category => {
+    result[category.key] = [];
+  });
+  
+  // Add 'other' category for unrecognized tags
+  result.other = [];
+
+  // Organize tags by category
+  normalizedTags.value.forEach(tag => {
+    const categoryKey = tag.definition?.category || 'other';
+    if (!result[categoryKey]) {
+      result[categoryKey] = [];
+    }
+    const category = result[categoryKey];
+    if (category) {
+      category.push(tag);
+    }
+  });
+
+  // Remove empty categories
+  Object.keys(result).forEach(key => {
+    const category = result[key];
+    if (category && category.length === 0) {
+      delete result[key];
+    }
+  });
+
+  return result;
+});
+
+const visibleTags = computed((): StructuredTag[] => {
   if (!props.expandable || isExpanded.value || normalizedTags.value.length <= props.maxVisible) {
     return normalizedTags.value;
   }
@@ -67,48 +135,48 @@ const hasHiddenTags = computed((): boolean => {
 });
 
 const sizeClasses = computed((): string => {
-  const sizeMap = {
+  const sizeMap: Record<string, string> = {
     sm: 'text-xs px-2 py-1',
     md: 'text-sm px-3 py-1',
     lg: 'text-base px-4 py-2',
   };
-  return sizeMap[props.size];
+  return sizeMap[props.size] ?? sizeMap.md!;
 });
 
 const colorClasses = computed((): string => {
   const baseClasses = 'transition-colors duration-200';
 
   if (props.variant === 'outline') {
-    const outlineMap = {
+    const outlineMap: Record<string, string> = {
       blue: 'border-blue-300 text-blue-700 hover:bg-blue-50 focus:ring-blue-500',
       gray: 'border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500',
       green: 'border-green-300 text-green-700 hover:bg-green-50 focus:ring-green-500',
       purple: 'border-purple-300 text-purple-700 hover:bg-purple-50 focus:ring-purple-500',
       orange: 'border-orange-300 text-orange-700 hover:bg-orange-50 focus:ring-orange-500',
     };
-    return `${baseClasses} border ${outlineMap[props.colorScheme]}`;
+    return `${baseClasses} border ${outlineMap[props.colorScheme] ?? outlineMap.blue!}`;
   }
 
   if (props.variant === 'compact') {
-    const compactMap = {
+    const compactMap: Record<string, string> = {
       blue: 'bg-blue-100 text-blue-800 hover:bg-blue-200',
       gray: 'bg-gray-100 text-gray-800 hover:bg-gray-200',
       green: 'bg-green-100 text-green-800 hover:bg-green-200',
       purple: 'bg-purple-100 text-purple-800 hover:bg-purple-200',
       orange: 'bg-orange-100 text-orange-800 hover:bg-orange-200',
     };
-    return `${baseClasses} ${compactMap[props.colorScheme]}`;
+    return `${baseClasses} ${compactMap[props.colorScheme] ?? compactMap.blue!}`;
   }
 
   // Default variant
-  const defaultMap = {
+  const defaultMap: Record<string, string> = {
     blue: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
     gray: 'bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500',
     green: 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500',
     purple: 'bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500',
     orange: 'bg-orange-600 text-white hover:bg-orange-700 focus:ring-orange-500',
   };
-  return `${baseClasses} ${defaultMap[props.colorScheme]}`;
+  return `${baseClasses} ${defaultMap[props.colorScheme] ?? defaultMap.blue!}`;
 });
 
 const tagClasses = computed((): string => {
@@ -118,7 +186,7 @@ const tagClasses = computed((): string => {
 });
 
 // Methods
-function handleTagClick(tag: Tag): void {
+function handleTagClick(tag: StructuredTag): void {
   emit('tagClick', tag);
 }
 
@@ -127,10 +195,42 @@ function toggleExpanded(): void {
   emit('expandToggle', isExpanded.value);
 }
 
-function formatTagDisplay(tag: Tag): string {
-  // Capitalize first letter of label for display
-  const formattedLabel = tag.label.charAt(0).toUpperCase() + tag.label.slice(1);
+function toggleCategory(categoryKey: string): void {
+  if (expandedCategories.value.has(categoryKey)) {
+    expandedCategories.value.delete(categoryKey);
+  } else {
+    expandedCategories.value.add(categoryKey);
+  }
+  emit('categoryToggle', categoryKey, expandedCategories.value.has(categoryKey));
+}
+
+function isCategoryExpanded(categoryKey: string): boolean {
+  return !props.collapsible || expandedCategories.value.has(categoryKey);
+}
+
+function formatTagDisplay(tag: StructuredTag): string {
+  if (tag.definition) {
+    const formattedValue = formatTagValueForDisplay(tag.key, tag.value);
+    return `${tag.definition.label}: ${formattedValue}`;
+  }
+  
+  // Fallback for unknown tags
+  const formattedLabel = tag.key.charAt(0).toUpperCase() + tag.key.slice(1);
   return `${formattedLabel}: ${tag.value}`;
+}
+
+function getCategoryLabel(categoryKey: string): string {
+  const categories = getCategoriesOrderedForDisplay();
+  const category = categories.find(cat => cat.key === categoryKey);
+  return category?.label || (categoryKey === 'other' ? 'Other' : categoryKey);
+}
+
+// Initialize expanded categories (start with first category expanded if collapsible)
+if (props.collapsible) {
+  const categories = Object.keys(tagsByCategory.value);
+  if (categories.length > 0 && categories[0]) {
+    expandedCategories.value.add(categories[0]);
+  }
 }
 </script>
 
@@ -141,19 +241,86 @@ function formatTagDisplay(tag: Tag): string {
       No tags available
     </div>
 
-    <!-- Tags display -->
+    <!-- Category-based display -->
+    <div v-else-if="showCategories" class="space-y-4">
+      <div
+        v-for="(categoryTags, categoryKey) in tagsByCategory"
+        :key="categoryKey"
+        class="border border-gray-200 rounded-lg overflow-hidden"
+      >
+        <!-- Category header -->
+        <div
+          v-if="collapsible"
+          class="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
+          @click="toggleCategory(categoryKey)"
+          :aria-expanded="isCategoryExpanded(categoryKey)"
+          role="button"
+        >
+          <h4 class="text-sm font-medium text-gray-900">
+            {{ getCategoryLabel(categoryKey) }}
+            <span class="text-xs text-gray-500 ml-1">({{ categoryTags.length }})</span>
+          </h4>
+          <svg
+            class="h-4 w-4 text-gray-500 transition-transform duration-200"
+            :class="{ 'rotate-180': isCategoryExpanded(categoryKey) }"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 9l-7 7-7-7"
+            />
+          </svg>
+        </div>
+
+        <div
+          v-else
+          class="px-4 py-2 bg-gray-50 border-b border-gray-200"
+        >
+          <h4 class="text-sm font-medium text-gray-900">
+            {{ getCategoryLabel(categoryKey) }}
+            <span class="text-xs text-gray-500 ml-1">({{ categoryTags.length }})</span>
+          </h4>
+        </div>
+
+        <!-- Category tags -->
+        <div
+          v-show="isCategoryExpanded(categoryKey)"
+          class="p-3"
+        >
+          <div class="flex flex-wrap gap-2">
+            <button
+              v-for="(tag, index) in categoryTags"
+              :key="`${tag.key}-${tag.value}-${index}`"
+              :class="tagClasses"
+              @click="handleTagClick(tag)"
+              :aria-label="`Tag: ${formatTagDisplay(tag)}`"
+              type="button"
+            >
+              <span class="capitalize">{{ tag.definition?.label || tag.key }}</span>
+              <span class="ml-1">{{ formatTagValueForDisplay(tag.key, tag.value) }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Simple list display (original behavior) -->
     <div v-else class="flex flex-wrap gap-2 items-center">
       <!-- Visible tags -->
       <button
         v-for="(tag, index) in visibleTags"
-        :key="`${tag.label}-${tag.value}-${index}`"
+        :key="`${tag.key}-${tag.value}-${index}`"
         :class="tagClasses"
         @click="handleTagClick(tag)"
         :aria-label="`Tag: ${formatTagDisplay(tag)}`"
         type="button"
       >
-        <span class="capitalize">{{ tag.label }}</span>
-        <span class="ml-1">{{ tag.value }}</span>
+        <span class="capitalize">{{ tag.definition?.label || tag.key }}</span>
+        <span class="ml-1">{{ formatTagValueForDisplay(tag.key, tag.value) }}</span>
       </button>
 
       <!-- Show more/less toggle -->
@@ -191,11 +358,16 @@ function formatTagDisplay(tag: Tag): string {
     <div class="sr-only" aria-live="polite">
       <span v-if="normalizedTags.length > 0">
         {{ normalizedTags.length }} tags available.
-        {{
-          isExpanded
-            ? 'All tags shown.'
-            : `Showing ${visibleTags.length} of ${normalizedTags.length} tags.`
-        }}
+        <span v-if="!showCategories">
+          {{
+            isExpanded
+              ? 'All tags shown.'
+              : `Showing ${visibleTags.length} of ${normalizedTags.length} tags.`
+          }}
+        </span>
+        <span v-else>
+          Organized by {{ Object.keys(tagsByCategory).length }} categories.
+        </span>
       </span>
     </div>
   </div>

@@ -14,6 +14,21 @@ Use https://domains.cloudflare.com/ to find the domain.
 
 ## Mass Import
 
+
+Update tasks\prd-mass-import-system.md to include information about tags from this PRD tasks\prd-artwork-variable-tagging-system.md
+
+Use a tag for the "data source attribution".
+
+Add functionality to set tags for mass imported artworks.
+
+Allow for dry runs of importing, so i can see what the import looks like before actually importing the data set.
+
+Allow for Automatic approval. OR mass approval of these imported artworks and logbook entries.
+
+This PRD has two parts. Creating the tools that all the improt scripts will use. Then creating the import script for tasks\public-art.json vancouver-public-art as an example.
+
+
+
 Data sets
 
 - City of Vancouver Public Art: Contains artist info and geolocated artwork data, updated weekly. It’s available in GIS-friendly formats like CSV or GeoJSON https://opendata.vancouver.ca/explore/dataset/public-art/

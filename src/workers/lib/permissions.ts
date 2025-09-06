@@ -25,8 +25,10 @@ export interface PermissionCheckResult {
 }
 
 // Cache for permission lookups to reduce database queries
+// Implemented as LRU cache with size limits to prevent memory leaks
 const permissionCache = new Map<string, { permissions: Permission[]; timestamp: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const MAX_CACHE_SIZE = 1000; // Maximum number of entries to prevent memory leaks
 
 /**
  * Check if a user has a specific permission
@@ -372,18 +374,38 @@ export async function enhanceAuthContext(
   };
 }
 
-// Cache management functions
+// Cache management functions with LRU eviction
 function getCachedPermissions(
   userUuid: string
 ): { permissions: Permission[]; timestamp: number } | null {
   const cached = permissionCache.get(userUuid);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    // Move to end (most recently used) in LRU order
+    permissionCache.delete(userUuid);
+    permissionCache.set(userUuid, cached);
     return cached;
+  }
+  // Remove expired entry
+  if (cached) {
+    permissionCache.delete(userUuid);
   }
   return null;
 }
 
 function updatePermissionCache(userUuid: string, permissions: Permission[]): void {
+  // Implement LRU eviction if cache is full
+  if (permissionCache.size >= MAX_CACHE_SIZE && !permissionCache.has(userUuid)) {
+    // Remove least recently used (first entry)
+    const firstKey = permissionCache.keys().next().value;
+    if (firstKey) {
+      permissionCache.delete(firstKey);
+    }
+  }
+  
+  // Remove existing entry if present (for LRU reordering)
+  permissionCache.delete(userUuid);
+  
+  // Add to end (most recently used)
   permissionCache.set(userUuid, {
     permissions,
     timestamp: Date.now(),

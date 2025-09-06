@@ -58,7 +58,7 @@ describe('ArtworkEditsService', () => {
 
       expect(editIds).toHaveLength(2);
       expect(editIds[0]).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-      expect(mockDb.prepare).toHaveBeenCalledWith('SELECT id FROM artwork WHERE id = ?');
+      expect(mockDb.prepare).toHaveBeenCalledWith('SELECT id, tags FROM artwork WHERE id = ?');
       expect(mockStmt.bind).toHaveBeenCalledWith('artwork-123');
       expect(mockStmt.run).toHaveBeenCalledTimes(2);
     });
@@ -275,8 +275,8 @@ describe('ArtworkEditsService', () => {
 
       const formatted = artworkEditsService.formatDiffsForDisplay(diffs);
 
-      expect(formatted[0].formatted_old).toBe('tag1, tag2');
-      expect(formatted[0].formatted_new).toBe('tag2, tag3, tag4');
+      expect(formatted[0].formatted_old).toBe('Other: 0: tag1, 1: tag2');
+      expect(formatted[0].formatted_new).toBe('Other: 0: tag2, 1: tag3, 2: tag4');
       expect(formatted[1].formatted_old).toBe('Old Title');
       expect(formatted[1].formatted_new).toBe('New Title');
     });
@@ -292,8 +292,8 @@ describe('ArtworkEditsService', () => {
 
       const formatted = artworkEditsService.formatDiffsForDisplay(diffs);
 
-      expect(formatted[0].formatted_old).toBe('material: bronze, style: modern');
-      expect(formatted[0].formatted_new).toBe('material: steel, style: contemporary, color: blue');
+      expect(formatted[0].formatted_old).toBe('Physical Properties: Material: bronze | Artwork Classification: Artistic Style: modern');
+      expect(formatted[0].formatted_new).toBe('Physical Properties: Material: steel | Artwork Classification: Artistic Style: contemporary | Other: color: blue');
     });
 
     test('should handle invalid JSON in tags gracefully', () => {
@@ -307,8 +307,8 @@ describe('ArtworkEditsService', () => {
 
       const formatted = artworkEditsService.formatDiffsForDisplay(diffs);
 
-      expect(formatted[0].formatted_old).toBe('invalid json');
-      expect(formatted[0].formatted_new).toBe('also invalid');
+      expect(formatted[0].formatted_old).toBe('(no tags)');
+      expect(formatted[0].formatted_new).toBe('(no tags)');
     });
   });
 

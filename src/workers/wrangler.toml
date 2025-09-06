@@ -6,11 +6,11 @@ compatibility_flags = ["nodejs_compat"]
 # D1 migrations directory
 [env.development]
 name = "cultural-archiver-api"
-migrations_dir = "../../migrations"
+migrations_dir = "./migrations"
 
 [env.production]
 name = "cultural-archiver-api"
-migrations_dir = "../../migrations"
+migrations_dir = "./migrations"
 
 # D1 Database bindings
 [[env.development.d1_databases]]
@@ -21,7 +21,7 @@ database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "cultural-archiver"
-database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"  # Must be filled with actual database ID before production deployment
+database_id = "CHANGE_ME_PRODUCTION_DATABASE_ID"  # Must be replaced with actual production database ID before deployment
 
 # KV namespace bindings
 [[env.development.kv_namespaces]]
@@ -44,19 +44,19 @@ id = "5b69d7c338734f3aa56cea9c1f3930f7"
 
 [[env.production.kv_namespaces]]
 binding = "SESSIONS"
-id = "c991e608759d45bdae4198b72955da5f"  # Must be filled with actual KV namespace ID
+id = "CHANGE_ME_PRODUCTION_SESSIONS_KV_ID"  # Must be replaced with actual production KV namespace ID
 
 [[env.production.kv_namespaces]]
 binding = "CACHE"
-id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Must be filled with actual KV namespace ID
+id = "CHANGE_ME_PRODUCTION_CACHE_KV_ID"  # Must be replaced with actual production KV namespace ID
 
 [[env.production.kv_namespaces]]
 binding = "RATE_LIMITS"
-id = "81aa51ca054d46b18977670c3dff6c04"  # Must be filled with actual KV namespace ID
+id = "CHANGE_ME_PRODUCTION_RATE_LIMITS_KV_ID"  # Must be replaced with actual production KV namespace ID
 
 [[env.production.kv_namespaces]]
 binding = "MAGIC_LINKS"
-id = "5b69d7c338734f3aa56cea9c1f3930f7"  # Must be filled with actual KV namespace ID
+id = "CHANGE_ME_PRODUCTION_MAGIC_LINKS_KV_ID"  # Must be replaced with actual production KV namespace ID
 
 # R2 bucket bindings
 [[env.development.r2_buckets]]

@@ -27,13 +27,16 @@ const error = computed(() => searchStore.error);
 const suggestions = computed(() => searchStore.suggestions);
 const recentQueries = computed(() => searchStore.recentQueries);
 
-// Sample search tips
+// Enhanced search tips with structured tag examples
 const searchTips = [
-  'Try searching for "mural" to find street art',
-  'Search "sculpture" to discover 3D artworks',
-  'Look for "monument" to find commemorative pieces',
-  'Use "street_art" to find graffiti and urban art',
-  'Search specific materials like "bronze" or "stone"',
+  'Try "tag:artwork_type:statue" to find specific artwork types',
+  'Search "tag:material:bronze" to find artworks by material',
+  'Use "tag:artist_name:banksy" to find works by specific artists',
+  'Search "tag:access:yes" to find publicly accessible artworks',
+  'Try "mural tag:year:2020" to combine text and tag searches',
+  'Use "tag:condition:excellent" to find well-preserved pieces',
+  'Search "sculpture downtown" for location-based queries',
+  'Try "tag:height" to find artworks with height information',
 ];
 
 // Infinite scroll setup
@@ -209,6 +212,16 @@ onUnmounted(() => {
           <p class="text-gray-600 mb-6">
             Discover public art, murals, sculptures, and monuments in your area
           </p>
+
+          <!-- Tag Search Help -->
+          <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <h3 class="text-sm font-medium text-blue-900 mb-2">🏷️ Advanced Tag Search</h3>
+            <div class="text-xs text-blue-700 space-y-1">
+              <div><strong>tag:key</strong> - Find artworks with a specific tag (e.g., <em>tag:material</em>)</div>
+              <div><strong>tag:key:value</strong> - Find specific tag values (e.g., <em>tag:artist_name:banksy</em>)</div>
+              <div><strong>Mix searches</strong> - Combine text and tags (e.g., <em>mural tag:year:2020</em>)</div>
+            </div>
+          </div>
 
           <!-- Search Tips -->
           <div class="space-y-2 text-sm text-gray-500">

@@ -25,7 +25,7 @@ interface Emits {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  placeholder: 'Search artworks... try: mural, tag:street-art',
+  placeholder: 'Search artworks... try: mural, tag:material:bronze, tag:artist_name:banksy',
   suggestions: () => [],
   loading: false,
   showClearButton: true,

@@ -152,7 +152,7 @@ Lookup table for predefined artwork categories.
 
 ### artwork
 
-Core table storing public artwork locations and metadata.
+Core table storing public artwork locations and metadata with structured tagging system.
 
 | Field        | Type | Constraints                           | Description                        |
 | ------------ | ---- | ------------------------------------- | ---------------------------------- |
@@ -162,13 +162,24 @@ Core table storing public artwork locations and metadata.
 | `type_id`    | TEXT | NOT NULL, FK→artwork_types.id         | Reference to artwork type          |
 | `created_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Creation timestamp                 |
 | `status`     | TEXT | CHECK('pending','approved','removed') | Moderation status                  |
-| `tags`       | TEXT | NULL                                  | JSON object for key-value metadata |
+| `tags`       | TEXT | NULL                                  | JSON object for structured metadata (see Structured Tags section) |
+| `title`      | TEXT | NULL                                  | Artwork title (editable field)    |
+| `description`| TEXT | NULL                                  | Artwork description (editable field) |
+| `created_by` | TEXT | NULL                                  | Creator/artist name (editable field) |
 
 **Indexes:**
 
 - `idx_artwork_lat_lon` on `(lat, lon)` for spatial queries
 - `idx_artwork_status` on `status` for filtering
 - `idx_artwork_type_id` on `type_id` for type-based filtering
+- `idx_artwork_tags_fts` on `tags` for full-text search on tags
+- `idx_artwork_tourism_tag` on `json_extract(tags, '$.tags.tourism')` for OSM compatibility
+- `idx_artwork_type_tag` on `json_extract(tags, '$.tags.artwork_type')` for artwork type filtering
+- `idx_artwork_artist_tag` on `json_extract(tags, '$.tags.artist_name')` for artist searches
+- `idx_artwork_name_tag` on `json_extract(tags, '$.tags.name')` for artwork name searches
+- `idx_artwork_title` on `title` for text search
+- `idx_artwork_description` on `description` for text search  
+- `idx_artwork_created_by` on `created_by` for creator search
 
 **Foreign Keys:**
 
@@ -179,6 +190,82 @@ Core table storing public artwork locations and metadata.
 - `pending` - Newly submitted, awaiting moderation
 - `approved` - Verified and visible on public map
 - `removed` - Removed from public view (soft delete)
+
+#### Structured Tags System
+
+The `tags` field contains a JSON object with the following structure:
+
+```json
+{
+  "tags": {
+    "tourism": "artwork",
+    "artwork_type": "statue",
+    "name": "Victory Angel",
+    "artist_name": "Jane Doe",
+    "material": "bronze",
+    "height": 5.5,
+    "start_date": "1995-06",
+    "access": "yes",
+    "fee": "no",
+    "subject": "historical figure",
+    "style": "classical",
+    "condition": "excellent",
+    "website": "https://example.org/artwork-info",
+    "wikipedia": "en:Victory_Angel_Statue",
+    "description": "Large bronze statue commemorating local history"
+  },
+  "version": "1.0.0",
+  "lastModified": "2024-12-19T12:00:00.000Z"
+}
+```
+
+**Tag Categories:**
+
+1. **Physical Properties**: `material`, `height`, `condition`
+2. **Historical Information**: `artist_name`, `start_date`
+3. **Location Details**: `access`, `fee` 
+4. **Artwork Classification**: `tourism`, `artwork_type`, `name`, `subject`, `style`, `description`
+5. **Reference Data**: `website`, `wikipedia`
+
+**Tag Data Types:**
+
+- **enum**: Fixed set of values (e.g., `artwork_type`, `access`, `condition`)
+- **text**: Free text with length limits (e.g., `name`, `artist_name`, `material`)
+- **number**: Numeric values with range validation (e.g., `height`)
+- **date**: ISO date formats: YYYY, YYYY-MM, or YYYY-MM-DD (e.g., `start_date`)
+- **yes_no**: Boolean values as "yes" or "no" strings (e.g., `fee`)
+- **url**: Valid HTTP/HTTPS URLs (e.g., `website`)
+
+**Required Tags:**
+
+- `tourism`: Must be "artwork" for OpenStreetMap compatibility
+
+**OpenStreetMap Export:**
+
+Tags can be exported in OpenStreetMap-compatible format with "ca:" prefixes for custom tags:
+- `tourism=artwork` (direct mapping)
+- `artwork_type=statue` (direct mapping)  
+- `ca:condition=excellent` (custom tag with prefix)
+
+**Tag Queries:**
+
+```sql
+-- Find artwork by specific tag value
+SELECT * FROM artwork 
+WHERE json_extract(tags, '$.tags.artwork_type') = 'statue';
+
+-- Find artwork by artist
+SELECT * FROM artwork 
+WHERE json_extract(tags, '$.tags.artist_name') LIKE '%Jane Doe%';
+
+-- Find artwork with specific material
+SELECT * FROM artwork 
+WHERE json_extract(tags, '$.tags.material') = 'bronze';
+
+-- Find artwork accessible to public
+SELECT * FROM artwork 
+WHERE json_extract(tags, '$.tags.access') = 'yes';
+```
 
 ### artwork_edits
 

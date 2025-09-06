@@ -4,6 +4,7 @@
  * Provides endpoints for community editing of artwork details:
  * - POST /api/artwork/{id}/edit - Submit edit proposals
  * - GET /api/artwork/{id}/pending-edits - Check user's pending edits
+ * - GET /api/artwork/{id}/export/osm - Export artwork in OpenStreetMap format
  */
 
 import type { Context } from 'hono';
@@ -16,6 +17,7 @@ import type { WorkerEnv } from '../types';
 import { ArtworkEditsService } from '../lib/artwork-edits';
 import { createSuccessResponse, ValidationApiError, NotFoundError } from '../lib/errors';
 import { getUserToken } from '../middleware/auth';
+import { validateOSMExportData, createExportResponse, generateOSMXMLFile } from '../lib/osm-export';
 
 /**
  * POST /api/artwork/:id/edit - Submit artwork edit proposals
@@ -317,5 +319,93 @@ export async function validateArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): 
     );
   }
 
+  return c.json(createSuccessResponse(response));
+}
+
+/**
+ * GET /api/artwork/:id/export/osm - Export artwork in OpenStreetMap format
+ * Generates OSM-compatible export of artwork data with structured tags
+ */
+export async function exportArtworkToOSM(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  const artworkId = c.req.param('id');
+
+  if (!artworkId) {
+    throw new ValidationApiError([
+      {
+        field: 'artwork_id',
+        message: 'Artwork ID is required',
+        code: 'REQUIRED_FIELD',
+      },
+    ]);
+  }
+
+  const query = c.req.query();
+  const format = query.format || 'json'; // json, xml, or validation
+
+  // Validate format parameter
+  if (!['json', 'xml', 'validation'].includes(format)) {
+    throw new ValidationApiError([
+      {
+        field: 'format',
+        message: 'Invalid format. Supported: json, xml, validation',
+        code: 'INVALID_PARAMETER',
+      },
+    ]);
+  }
+
+  // Get artwork data
+  const artworkResult = await c.env.DB.prepare(
+    'SELECT * FROM artwork WHERE id = ? AND status = ?'
+  )
+    .bind(artworkId, 'approved')
+    .first();
+
+  if (!artworkResult) {
+    throw new NotFoundError(`Approved artwork not found: ${artworkId}`);
+  }
+
+  const artwork = artworkResult as any;
+
+  // Handle different export formats
+  if (format === 'validation') {
+    // Return validation results only
+    const validation = validateOSMExportData(artwork);
+    return c.json(createSuccessResponse({
+      artwork_id: artworkId,
+      valid: validation.valid,
+      errors: validation.errors,
+      warnings: validation.warnings,
+    }));
+  }
+
+  if (format === 'xml') {
+    // Return OSM XML format
+    try {
+      const xmlContent = generateOSMXMLFile([artwork]);
+      return new Response(xmlContent, {
+        status: 200,
+        headers: {
+          'Content-Type': 'application/xml',
+          'Content-Disposition': `attachment; filename="artwork-${artworkId}.osm"`,
+        },
+      });
+    } catch (error) {
+      throw new ValidationApiError([
+        {
+          field: 'export',
+          message: error instanceof Error ? error.message : 'Export failed',
+          code: 'EXPORT_ERROR',
+        },
+      ]);
+    }
+  }
+
+  // Default JSON format
+  const exportRequest = {
+    artwork_ids: [artworkId],
+  };
+
+  const response = createExportResponse([artwork], exportRequest);
+  
   return c.json(createSuccessResponse(response));
 }
