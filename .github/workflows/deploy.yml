@@ -1,13 +1,8 @@
-name: Deploy Workers
+name: Deploy
 
 on:
   push:
     branches: [main]
-    paths:
-      - 'src/workers/**'
-      - 'src/shared/**'
-      - 'migrations/**'
-      - '.github/workflows/deploy-workers.yml'
 
 jobs:
   deploy:
@@ -29,11 +24,6 @@ jobs:
       - name: Install dependencies
         run: |
           npm ci
-          cd src/workers && npm ci
-
-      - name: Build workers
-        run: |
-          npm run build:workers
 
       - name: Run database migrations
         env:
@@ -53,19 +43,18 @@ jobs:
           CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }} \
           node migrate.ts
 
-      - name: Deploy to Cloudflare Workers
+      - name: Run unified deployment
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          cd src/workers
-          npx wrangler deploy --env production
+          npm run deploy
 
       - name: Add deployment summary
         run: |
-          echo "## 🚀 Workers Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ✅ Deployed successfully" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
+          echo "- **Components**: Frontend + Workers + Migrations" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Migrations**: Executed" >> $GITHUB_STEP_SUMMARY
