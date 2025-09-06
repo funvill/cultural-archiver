@@ -25,6 +25,26 @@ jobs:
         run: |
           npm ci
 
+      - name: Configure production database
+        env:
+          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
+        run: |
+          # Replace placeholder database ID with actual production database ID
+          if [ -z "${{ secrets.D1_DATABASE_ID }}" ]; then
+            echo "❌ Error: D1_DATABASE_ID secret is not set"
+            exit 1
+          fi
+          
+          sed -i 's/CHANGE_ME_PRODUCTION_DATABASE_ID/${{ secrets.D1_DATABASE_ID }}/g' src/workers/wrangler.toml
+          
+          # Verify the replacement worked
+          if grep -q "CHANGE_ME_PRODUCTION_DATABASE_ID" src/workers/wrangler.toml; then
+            echo "❌ Error: Database ID placeholder was not replaced"
+            exit 1
+          fi
+          
+          echo "✅ Production database configuration updated with database ID: ${{ secrets.D1_DATABASE_ID }}"
+
       - name: Run database migrations
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -35,13 +55,8 @@ jobs:
           # Install wrangler globally for migrations
           npm install -g wrangler
 
-          # Run migrations against production database
-          cd migrations
-          D1_DATABASE_ID=${{ secrets.D1_DATABASE_ID }} \
-          D1_DATABASE_NAME=${{ secrets.D1_DATABASE_NAME }} \
-          CLOUDFLARE_ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }} \
-          CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }} \
-          node migrate.ts
+          # Run production migrations with safety checks (--yes for CI)
+          npm run migrate:prod -- --yes
 
       - name: Run unified deployment
         env:
