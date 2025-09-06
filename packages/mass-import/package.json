@@ -1,0 +1,43 @@
+{
+  "name": "@cultural-archiver/mass-import",
+  "version": "1.0.0",
+  "description": "TypeScript library for mass importing public art data",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "type": "module",
+  "bin": {
+    "ca-import": "./bin/ca-import.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix"
+  },
+  "keywords": [
+    "cultural-archiver",
+    "mass-import",
+    "public-art",
+    "data-processing"
+  ],
+  "author": "Steven Smethurst",
+  "license": "MIT",
+  "dependencies": {
+    "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0",
+    "eslint": "^8.57.0"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}

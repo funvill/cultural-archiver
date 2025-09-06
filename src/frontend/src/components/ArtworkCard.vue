@@ -76,6 +76,20 @@ const photoCount = computed(() => {
   return `${count} photos`;
 });
 
+const sourceInfo = computed(() => {
+  if (!props.artwork.tags || typeof props.artwork.tags !== 'object') return null;
+  
+  const tags = props.artwork.tags;
+  const source = tags.source || tags['source:type'];
+  
+  if (!source) return null;
+  
+  return {
+    source: String(source).replace(/^source:/, '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+    type: tags['source:type'] as string || 'data-import',
+  };
+});
+
 // Methods
 function handleClick(): void {
   if (props.clickable && !props.loading) {
@@ -245,6 +259,14 @@ function handleKeydown(event: KeyboardEvent): void {
           <div v-if="artwork.tags.year" class="flex items-center">
             <span class="font-medium">Year:</span>
             <span class="ml-1">{{ artwork.tags.year }}</span>
+          </div>
+          <div v-if="sourceInfo" class="flex items-center">
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+              <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              {{ sourceInfo.source }}
+            </span>
           </div>
         </div>
       </div>
