@@ -5,7 +5,8 @@
   "private": true,
   "workspaces": [
     "src/frontend",
-    "src/workers"
+    "src/workers",
+    "packages/mass-import"
   ],
   "type": "module",
   "engines": {

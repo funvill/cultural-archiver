@@ -1,0 +1,5 @@
+{
+  "apiBaseUrl": "https://art-api.abluestar.com",
+  "apiToken": "mass-import-test-token",
+  "source": "vancouver-public-art"
+}
