@@ -18,6 +18,10 @@ import {
   MAX_SEARCH_RADIUS,
 } from '../types';
 
+// Request size limits for DoS protection
+const MAX_JSON_BODY_SIZE = 1 * 1024 * 1024; // 1MB for JSON requests
+const MAX_FILE_UPLOAD_SIZE = 50 * 1024 * 1024; // 50MB for file uploads
+
 // Extend the Hono context types
 declare module 'hono' {
   interface ContextVariableMap {
@@ -28,6 +32,48 @@ declare module 'hono' {
     validated_tags: Record<string, string | number | boolean>;
     tag_warnings: Array<{ key: string; message: string }>;
   }
+}
+
+/**
+ * Middleware to validate request body size and prevent DoS attacks
+ */
+export async function validateRequestSize(
+  c: Context<{ Bindings: WorkerEnv }>,
+  next: Next
+): Promise<void | Response> {
+  const contentLength = c.req.header('Content-Length');
+  const contentType = c.req.header('Content-Type') || '';
+
+  if (contentLength) {
+    const size = parseInt(contentLength, 10);
+    
+    // Check file upload size limits
+    if (contentType.includes('multipart/form-data')) {
+      if (size > MAX_FILE_UPLOAD_SIZE) {
+        throw new ValidationApiError([
+          { 
+            field: 'file', 
+            message: `File upload too large. Maximum size is ${MAX_FILE_UPLOAD_SIZE / 1024 / 1024}MB`, 
+            code: 'FILE_TOO_LARGE' 
+          },
+        ]);
+      }
+    }
+    // Check JSON body size limits
+    else if (contentType.includes('application/json')) {
+      if (size > MAX_JSON_BODY_SIZE) {
+        throw new ValidationApiError([
+          { 
+            field: 'body', 
+            message: `JSON body too large. Maximum size is ${MAX_JSON_BODY_SIZE / 1024 / 1024}MB`, 
+            code: 'BODY_TOO_LARGE' 
+          },
+        ]);
+      }
+    }
+  }
+
+  await next();
 }
 
 // ================================

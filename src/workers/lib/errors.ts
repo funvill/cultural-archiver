@@ -346,10 +346,17 @@ export function createSuccessResponse<T>(data: T, message?: string): ApiResponse
 }
 
 /**
- * Helper to safely parse JSON with error handling
+ * Helper to safely parse JSON with error handling and size limits
  */
-export function safeJsonParse<T>(jsonString: string | null, defaultValue: T): T {
+export function safeJsonParse<T>(jsonString: string | null, defaultValue: T, maxSizeBytes: number = 1024 * 1024): T {
   if (!jsonString) return defaultValue;
+
+  // Check size limit to prevent DoS attacks
+  const sizeBytes = new TextEncoder().encode(jsonString).length;
+  if (sizeBytes > maxSizeBytes) {
+    console.warn(`JSON string too large: ${sizeBytes} bytes > ${maxSizeBytes} limit`);
+    return defaultValue;
+  }
 
   try {
     return JSON.parse(jsonString) as T;
