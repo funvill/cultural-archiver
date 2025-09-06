@@ -66,7 +66,8 @@
     "backup:dev": "npx tsx scripts/backup.ts --wrangler-export --env development",
     "backup:photos": "npx tsx scripts/backup.ts --photos-only",
     "backup:validate": "npx tsx scripts/backup.ts --validate-only",
-    "test:backup": "npx tsx scripts/test-backup.ts"
+    "test:backup": "npx tsx scripts/test-backup.ts",
+    "test:workflow": "npx tsx scripts/test-workflow-fix.ts"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.3",
