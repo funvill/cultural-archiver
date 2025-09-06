@@ -263,7 +263,7 @@ export class MassImportLibrary {
       const artworks = nearby.data?.artworks || [];
 
       // Check for exact title matches
-      const titleMatches = artworks.filter((artwork: any) => 
+      const titleMatches = artworks.filter((artwork: { title?: string }) => 
         artwork.title && this.fuzzyMatch(record.title, artwork.title, DEFAULT_FUZZY_THRESHOLD)
       );
 
@@ -404,7 +404,7 @@ export class MassImportLibrary {
    * Fuzzy string matching
    */
   private fuzzyMatch(str1: string, str2: string, threshold: number): boolean {
-    const normalize = (s: string) => s.toLowerCase().trim().replace(/[^\w\s]/g, '');
+    const normalize = (s: string): string => s.toLowerCase().trim().replace(/[^\w\s]/g, '');
     const a = normalize(str1);
     const b = normalize(str2);
     

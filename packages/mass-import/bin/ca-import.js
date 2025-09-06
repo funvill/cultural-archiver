@@ -8,7 +8,6 @@ import {
   mapVancouverRecord,
   isValidVancouverRecord,
   getVancouverDataQuality,
-  VANCOUVER_BOUNDS,
 } from '../dist/index.js';
 
 /**
