@@ -23,6 +23,11 @@ interface MigrationStep {
 class Migration006Deployer {
   private readonly steps: MigrationStep[] = [
     {
+      name: 'Migration Synchronization',
+      description: 'Synchronize migration files for Windows PowerShell compatibility',
+      command: 'npm run migrate:sync'
+    },
+    {
       name: 'Pre-flight Validation',
       description: 'Validate migration file syntax and D1 compatibility',
       command: 'npm run migrate:validate 006_structured_tag_schema.sql'

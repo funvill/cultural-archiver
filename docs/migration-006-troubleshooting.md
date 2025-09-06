@@ -12,23 +12,29 @@ This guide helps resolve common issues when deploying migration 006 (Structured 
 ▲ [WARNING] No migrations folder found
 ```
 
-**Solution:**
+**Solution (Windows PowerShell Compatible):**
 1. Check that migrations exist in the correct location:
-   ```bash
-   ls -la migrations/006_structured_tag_schema.sql
+   ```powershell
+   Get-ChildItem migrations/006_structured_tag_schema.sql
    ```
 
-2. Create symbolic link if needed:
-   ```bash
-   cd src/workers
-   ln -sf ../../migrations migrations
+2. Synchronize migrations for Windows compatibility:
+   ```powershell
+   npm run migrate:sync
    ```
 
 3. Verify wrangler.toml configuration:
    ```toml
    [env.production]
-   migrations_dir = "../../migrations"
+   migrations_dir = "./migrations"
    ```
+
+**Background:**
+The system uses dual migration directories for cross-platform compatibility:
+- `/migrations` - Authoritative source
+- `/src/workers/migrations` - Copy for wrangler (Windows compatible)
+
+The `migrate:sync` command copies files instead of using symbolic links, ensuring Windows PowerShell compatibility.
 
 ### Issue: "Not authorized: SQLITE_AUTH" 
 
@@ -120,18 +126,23 @@ Fix failing tests before proceeding to production
 ### Step 1: Environment Setup
 
 1. **Install Dependencies:**
-   ```bash
+   ```powershell
    npm install
    ```
 
-2. **Set Environment Variables:**
-   ```bash
-   # Get your API token from: https://dash.cloudflare.com/profile/api-tokens
-   export CLOUDFLARE_API_TOKEN="your-token-with-d1-permissions"
+2. **Synchronize Migrations (Windows Compatible):**
+   ```powershell
+   npm run migrate:sync
    ```
 
-3. **Verify Database Access:**
-   ```bash
+3. **Set Environment Variables:**
+   ```powershell
+   # Get your API token from: https://dash.cloudflare.com/profile/api-tokens
+   $env:CLOUDFLARE_API_TOKEN="your-token-with-d1-permissions"
+   ```
+
+4. **Verify Database Access:**
+   ```powershell
    cd src/workers
    npx wrangler d1 info cultural-archiver --env production
    ```
@@ -139,17 +150,17 @@ Fix failing tests before proceeding to production
 ### Step 2: Pre-flight Checks
 
 1. **Validate Migration:**
-   ```bash
+   ```powershell
    npm run migrate:validate 006_structured_tag_schema.sql
    ```
 
 2. **Test Migration Logic:**
-   ```bash
+   ```powershell
    npx vitest migrations/test/006_structured_tag_schema.test.ts --run
    ```
 
 3. **Check Current Migration State:**
-   ```bash
+   ```powershell
    npm run migrate:status:prod
    ```
 
