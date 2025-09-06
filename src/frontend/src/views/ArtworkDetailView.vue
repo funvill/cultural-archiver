@@ -115,6 +115,11 @@ const artworkTags = computed(() => {
   delete filteredTags.description;
   delete filteredTags.artist;
   delete filteredTags.creator;
+  // Remove source attribution fields as they're handled separately
+  delete filteredTags.source;
+  delete filteredTags['source:type'];
+  delete filteredTags['source:url'];
+  delete filteredTags['source:date'];
 
   // Convert to structured tags format (string values only)
   const structuredTags: Record<string, string> = {};
@@ -125,6 +130,22 @@ const artworkTags = computed(() => {
   });
 
   return structuredTags;
+});
+
+const sourceAttribution = computed(() => {
+  if (!artwork.value?.tags_parsed) return null;
+  
+  const tags = artwork.value.tags_parsed;
+  const source = tags.source || tags['source:type'];
+  
+  if (!source) return null;
+  
+  return {
+    source: String(source),
+    url: tags['source:url'] as string || null,
+    date: tags['source:date'] as string || null,
+    type: tags['source:type'] as string || 'data-import',
+  };
 });
 
 const artworkPhotos = computed(() => {
@@ -799,6 +820,37 @@ onUnmounted(() => {
                 @tag-added="(key) => announceSuccess(`Tag '${key}' added`)"
                 @tag-removed="(key) => announceSuccess(`Tag '${key}' removed`)"
               />
+            </div>
+            
+            <!-- Source Attribution (display only) -->
+            <div v-if="sourceAttribution && !isEditMode" class="mt-4 p-3 bg-gray-50 rounded-lg border">
+              <h3 class="text-sm font-medium text-gray-700 mb-2">Data Source</h3>
+              <div class="space-y-1">
+                <p class="text-sm text-gray-600">
+                  <span class="font-medium">Source:</span>
+                  <span class="ml-1">{{ sourceAttribution.source.replace(/^source:/, '').replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) }}</span>
+                </p>
+                <p v-if="sourceAttribution.date" class="text-sm text-gray-600">
+                  <span class="font-medium">Import Date:</span>
+                  <span class="ml-1">{{ new Date(sourceAttribution.date).toLocaleDateString() }}</span>
+                </p>
+                <p v-if="sourceAttribution.url" class="text-sm">
+                  <a 
+                    :href="sourceAttribution.url" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    class="text-blue-600 hover:text-blue-800 underline"
+                  >
+                    View Original Data Source
+                    <svg class="inline w-3 h-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                  </a>
+                </p>
+                <p class="text-xs text-gray-500 mt-2">
+                  This artwork data was imported from a public data source. Original attribution and licensing may apply.
+                </p>
+              </div>
             </div>
           </section>
 

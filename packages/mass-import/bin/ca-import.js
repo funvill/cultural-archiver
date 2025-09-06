@@ -161,7 +161,10 @@ EXAMPLES:
   ca-import validate --data ./public-art.json --source vancouver-public-art
 
   # Bulk approve all Vancouver imports
-  ca-import bulk-approve --source vancouver-public-art --confirm
+  ca-import bulk-approve --source vancouver-public-art --config ./config.json --confirm
+
+  # Bulk approve with geographic bounds
+  ca-import bulk-approve --source vancouver-public-art --config ./config.json --bounds "49.3,-123.2,49.2,-123.1" --confirm
 
 CONFIGURATION FILE FORMAT:
   {
@@ -419,9 +422,179 @@ async function executeBulkApprove(options) {
     process.exit(1);
   }
 
-  console.warn('BULK APPROVAL: This feature is not yet implemented');
-  console.warn('This will require admin authentication and integration with the review system');
-  process.exit(1);
+  const config = loadConfig(options);
+  
+  console.info('Fetching pending submissions for bulk approval...');
+  
+  try {
+    // First, get list of pending submissions filtered by source
+    const submissionsResponse = await fetch(
+      `${config.apiBaseUrl}/api/review/submissions?status=pending&limit=1000`,
+      {
+        headers: {
+          'Authorization': `Bearer ${config.apiToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!submissionsResponse.ok) {
+      throw new Error(`Failed to fetch submissions: ${submissionsResponse.status} ${submissionsResponse.statusText}`);
+    }
+
+    const submissionsData = await submissionsResponse.json();
+    let submissions = submissionsData.submissions || [];
+
+    // Filter by source if it's from mass import
+    if (options.source) {
+      // Look for submissions that have source attribution tags
+      submissions = submissions.filter(sub => {
+        if (sub.tags && typeof sub.tags === 'object') {
+          return sub.tags.source === options.source || 
+                 sub.tags.source === `source:${options.source}` ||
+                 sub.tags['source:type'] === options.source;
+        }
+        return false;
+      });
+    }
+
+    if (submissions.length === 0) {
+      console.info(`No pending submissions found for source: ${options.source}`);
+      process.exit(0);
+    }
+
+    console.info(`Found ${submissions.length} pending submissions for source: ${options.source}`);
+    
+    // Apply bounds filter if specified
+    if (options.bounds) {
+      const coords = options.bounds.split(',').map(n => parseFloat(n.trim()));
+      if (coords.length !== 4 || coords.some(isNaN)) {
+        console.error('Error: --bounds must be "north,south,east,west" coordinates');
+        process.exit(1);
+      }
+      const [north, south, east, west] = coords;
+      
+      const originalCount = submissions.length;
+      submissions = submissions.filter(sub => 
+        sub.lat >= south && sub.lat <= north &&
+        sub.lon >= west && sub.lon <= east
+      );
+      
+      console.info(`Filtered to ${submissions.length} submissions within bounds (${originalCount - submissions.length} excluded)`);
+    }
+
+    if (submissions.length === 0) {
+      console.info('No submissions match the specified criteria');
+      process.exit(0);
+    }
+
+    // Show summary before approval
+    console.info('\n=== BULK APPROVAL SUMMARY ===');
+    console.info(`Source: ${options.source}`);
+    console.info(`Submissions to approve: ${submissions.length}`);
+    console.info(`Batch size: ${options.batchSize}`);
+    if (options.bounds) {
+      console.info(`Geographic bounds: ${options.bounds}`);
+    }
+    console.info('================================\n');
+
+    // Process in batches
+    const results = {
+      approved: 0,
+      failed: 0,
+      errors: [],
+    };
+
+    for (let i = 0; i < submissions.length; i += options.batchSize) {
+      const batch = submissions.slice(i, i + options.batchSize);
+      const batchNum = Math.floor(i / options.batchSize) + 1;
+      const totalBatches = Math.ceil(submissions.length / options.batchSize);
+      
+      console.info(`Processing batch ${batchNum}/${totalBatches} (${batch.length} submissions)...`);
+
+      try {
+        const batchData = batch.map(sub => ({
+          id: sub.id,
+          action: 'approve'
+        }));
+
+        const response = await fetch(
+          `${config.apiBaseUrl}/api/review/batch`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${config.apiToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ submissions: batchData }),
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Batch approval failed: ${response.status} ${response.statusText}`);
+        }
+
+        const batchResult = await response.json();
+        results.approved += batchResult.results.approved;
+        results.failed += batchResult.results.errors.length;
+        
+        if (batchResult.results.errors.length > 0) {
+          results.errors.push(...batchResult.results.errors);
+        }
+
+        console.info(`  ✓ Approved: ${batchResult.results.approved}, Failed: ${batchResult.results.errors.length}`);
+
+        // Rate limiting delay between batches
+        if (i + options.batchSize < submissions.length) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+      } catch (error) {
+        console.error(`  ✗ Batch ${batchNum} failed:`, error instanceof Error ? error.message : String(error));
+        results.failed += batch.length;
+        results.errors.push({
+          batch: batchNum,
+          error: error instanceof Error ? error.message : String(error),
+          submission_ids: batch.map(s => s.id),
+        });
+      }
+    }
+
+    // Final summary
+    console.info('\n=== BULK APPROVAL COMPLETED ===');
+    console.info(`Total submissions processed: ${submissions.length}`);
+    console.info(`Successfully approved: ${results.approved}`);
+    console.info(`Failed: ${results.failed}`);
+    
+    if (results.errors.length > 0) {
+      console.error(`\n${results.errors.length} errors occurred:`);
+      results.errors.forEach((error, index) => {
+        console.error(`  ${index + 1}. ${error.error || error.message || JSON.stringify(error)}`);
+      });
+      
+      // Save error details
+      const timestamp = new Date().toISOString().split('T')[0];
+      const errorFile = resolve(options.outputDir, `bulk-approve-errors-${timestamp}.json`);
+      
+      // Ensure output directory exists
+      const fs = await import('node:fs');
+      if (!fs.existsSync(options.outputDir)) {
+        fs.mkdirSync(options.outputDir, { recursive: true });
+      }
+      
+      writeFileSync(errorFile, JSON.stringify(results.errors, null, 2));
+      console.error(`Detailed errors saved to: ${errorFile}`);
+    }
+
+    console.info('================================\n');
+
+    // Exit with appropriate code
+    process.exit(results.failed > 0 ? 1 : 0);
+
+  } catch (error) {
+    console.error('Bulk approval failed:', error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  }
 }
 
 /**
@@ -450,6 +623,10 @@ async function main() {
         break;
 
       case 'bulk-approve':
+        if (!options.config) {
+          console.error(`Error: --config file is required for ${options.command}`);
+          process.exit(1);
+        }
         await executeBulkApprove(options);
         break;
 
