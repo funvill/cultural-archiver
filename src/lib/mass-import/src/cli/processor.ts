@@ -209,30 +209,30 @@ export class MassImportProcessor {
     rawRecord: any,
     options: { source: string; dryRun?: boolean }
   ): Promise<ImportResult> {
-    // Step 1: Validate raw data format
-    const parseResult = RawImportDataSchema.safeParse({
-      ...rawRecord,
-      source: options.source,
-    });
-
-    if (!parseResult.success) {
-      const recordId = this.extractRecordId(rawRecord);
-      return {
-        id: recordId,
-        success: false,
-        error: `Invalid data format: ${parseResult.error.errors.map(e => e.message).join(', ')}`,
-        warnings: [],
-        duplicateDetection: { isDuplicate: false, candidates: [] },
-        photosProcessed: 0,
-        photosFailed: 0,
-      };
-    }
-
-    // Step 2: Use mapper if available
+    // Step 1: Use mapper if available (for non-standard data formats like Vancouver)
     let validationResult;
     if (this.mapper) {
       validationResult = this.mapper.mapData(rawRecord);
     } else {
+      // Step 1b: Validate raw data format using schema for standard format
+      const parseResult = RawImportDataSchema.safeParse({
+        ...rawRecord,
+        source: options.source,
+      });
+
+      if (!parseResult.success) {
+        const recordId = this.extractRecordId(rawRecord);
+        return {
+          id: recordId,
+          success: false,
+          error: `Invalid data format: ${parseResult.error.errors.map(e => e.message).join(', ')}`,
+          warnings: [],
+          duplicateDetection: { isDuplicate: false, candidates: [] },
+          photosProcessed: 0,
+          photosFailed: 0,
+        };
+      }
+
       validationResult = validateImportData(parseResult.data, this.config);
     }
 
@@ -249,7 +249,7 @@ export class MassImportProcessor {
       };
     }
 
-    // Step 3: Submit to API
+    // Step 2: Submit to API
     return await this.apiClient.submitImportRecord(validationResult.data!);
   }
 
