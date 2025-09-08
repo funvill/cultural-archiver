@@ -47,7 +47,7 @@ const editData = ref({
   title: '',
   description: '',
   creators: '',
-  tags: {} as Record<string, string>, // Structured tags instead of string array
+  tags: { keywords: '' } as Record<string, string>, // Structured tags instead of string array
 });
 
 // Computed
@@ -126,6 +126,38 @@ const artworkTags = computed(() => {
 
   return structuredTags;
 });
+
+// Extract keywords (comma separated) from structured tags if present
+const keywordList = computed(() => {
+  const kwRaw = (artworkTags.value as any).keywords || (artwork.value?.tags_parsed?.keywords as string);
+  if (!kwRaw) return [] as string[];
+  return kwRaw
+  .split(',')
+  .map((k: string) => k.trim())
+  .filter((k: string) => k.length > 0)
+    .slice(0, 100); // safety limit
+});
+
+// Tags to show in details exclude keywords (handled separately)
+const displayTags = computed(() => {
+  const clone = { ...artworkTags.value } as Record<string, string>;
+  delete clone.keywords; // keywords rendered separately
+  return clone;
+});
+
+// Two-way binding helper to guarantee string type for keywords input
+const keywordsField = computed<string>({
+  get() {
+    const kw = (editData.value.tags as any).keywords;
+    return typeof kw === 'string' ? kw : '';
+  },
+  set(val: string) {
+    editData.value.tags.keywords = val;
+  },
+});
+
+// Ref to TagEditor for triggering edit on tag click while in edit mode
+const tagEditorRef = ref<any | null>(null);
 
 const artworkPhotos = computed(() => {
   return artwork.value?.photos || [];
@@ -229,8 +261,17 @@ function closeFullscreenPhoto(): void {
 }
 
 function handleTagClick(tag: { label?: string; value?: string; key?: string }): void {
-  // Future: implement tag filtering or search
-  console.log('Tag clicked:', tag);
+  if (isEditMode.value) {
+    // In edit mode clicking a tag should open it for editing inside TagEditor
+    // We emit a custom DOM event to TagEditor via a ref approach (future improvement).
+    // For now just announce.
+    announceSuccess(`Ready to edit tag ${tag.key || tag.label}`);
+    return;
+  }
+  // Navigate to search using tag key/value
+  if (tag.key && tag.value) {
+    router.push(`/search/tag:${encodeURIComponent(tag.key)}:${encodeURIComponent(tag.value)}`);
+  }
 }
 
 function handleLogbookEntryClick(entry: any): void {
@@ -260,7 +301,7 @@ function enterEditMode(): void {
     title: artworkTitle.value,
     description: artworkDescription.value || '',
     creators: artworkCreators.value,
-    tags: { ...artworkTags.value }, // Copy structured tags
+  tags: { keywords: '', ...artworkTags.value }, // Copy structured tags, ensure keywords key exists
   };
 
   isEditMode.value = true;
@@ -784,66 +825,86 @@ function getArtworkTypeEmoji(typeName: string): string {
               </div>
             </section>
 
-            <!-- Artwork Info -->
+            <!-- Combined Info + Details Section -->
             <section
-              aria-labelledby="info-heading"
+              aria-labelledby="info-details-heading"
               class="bg-white rounded-lg border border-gray-200 p-6"
             >
-              <h2 id="info-heading" class="text-lg font-semibold text-gray-900 mb-4">
-                Information
+              <h2 id="info-details-heading" class="text-lg font-semibold text-gray-900 mb-4">
+                Information & Details
               </h2>
 
-              <dl class="space-y-3">
-                <div>
-                  <dt class="text-sm font-medium text-gray-600">Added</dt>
-                  <dd class="text-sm text-gray-900">
-                    {{
-                      new Date(artwork.created_at).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })
-                    }}
-                  </dd>
+              <!-- Always show Added first -->
+              <div class="mb-4">
+                <dt class="text-sm font-medium text-gray-600">Added</dt>
+                <dd class="text-sm text-gray-900">
+                  {{
+                    new Date(artwork.created_at).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })
+                  }}
+                </dd>
+              </div>
+
+              <!-- Keywords separate row -->
+              <div v-if="!isEditMode && keywordList.length" class="mb-4">
+                <div class="text-sm font-medium text-gray-600 mb-1">Keywords</div>
+                <div class="flex flex-wrap gap-1">
+                  <button
+                    v-for="kw in keywordList"
+                    :key="kw"
+                    class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    @click="router.push(`/search/${encodeURIComponent(kw)}`)"
+                  >
+                    {{ kw }}
+                  </button>
                 </div>
-              </dl>
-            </section>
+              </div>
 
-            <!-- Tags Section -->
-            <section
-              aria-labelledby="tags-heading"
-              class="bg-white rounded-lg border border-gray-200 p-6"
-            >
-              <h2 id="tags-heading" class="text-lg font-semibold text-gray-900 mb-4">
-                Details
-              </h2>
-
-              <!-- Display mode -->
-              <div v-if="!isEditMode && Object.keys(artworkTags).length > 0">
+              <!-- Display mode tags (excluding keywords) -->
+              <div v-if="!isEditMode && Object.keys(displayTags).length > 0">
                 <TagBadge
-                  :tags="artworkTags"
+                  :tags="displayTags"
                   :max-visible="8"
                   color-scheme="blue"
                   variant="compact"
                   :show-categories="true"
-                  :collapsible="true"
+                  :collapsible="false"
                   @tag-click="handleTagClick"
                 />
               </div>
-
-              <!-- Empty tags in display mode -->
               <div v-else-if="!isEditMode" class="text-gray-500 italic text-sm">
                 No additional details available.
               </div>
 
               <!-- Edit mode -->
-              <div v-else class="space-y-2">
+              <div v-else class="space-y-4">
+                <!-- Keywords editor (simple textarea) -->
+                <div>
+                  <label for="edit-keywords" class="block text-sm font-medium text-gray-700 mb-1"
+                    >Keywords (comma separated)</label
+                  >
+                  <textarea
+                    id="edit-keywords"
+                    v-model="keywordsField"
+                    maxlength="500"
+                    rows="2"
+                    class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="outdoor, landmark, bronze, abstract"
+                  ></textarea>
+                  <p class="text-xs text-gray-500 mt-1">
+                    {{ (editData.tags.keywords || '').length }}/500 characters. Separate with commas.
+                  </p>
+                </div>
                 <TagEditor
+                  ref="tagEditorRef"
                   v-model="editData.tags"
                   :disabled="editLoading"
                   :max-tags="30"
-                  @tag-added="(key) => announceSuccess(`Tag '${key}' added`)"
-                  @tag-removed="(key) => announceSuccess(`Tag '${key}' removed`)"
+                  @tagAdded="(key) => announceSuccess(`Tag '${key}' added`)"
+                  @tagRemoved="(key) => announceSuccess(`Tag '${key}' removed`)"
                 />
               </div>
             </section>

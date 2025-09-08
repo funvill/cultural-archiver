@@ -268,6 +268,19 @@ export const TAG_DEFINITIONS: Record<string, TagDefinition> = {
     helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:wikipedia',
     examples: ['en:Statue_of_Liberty', 'fr:Tour_Eiffel'],
   },
+  // Classification helper - free-form keyword indexing
+  keywords: {
+    key: 'keywords',
+    label: 'Keywords',
+    description: 'Comma separated list of descriptive keywords used for search refinement',
+    category: 'artwork_classification',
+    dataType: 'text',
+    required: false,
+    validation: {
+      maxLength: 500,
+    },
+    examples: ['landmark, outdoor, bronze, abstract'],
+  },
 };
 
 // ================================

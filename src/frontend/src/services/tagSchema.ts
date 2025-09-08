@@ -74,6 +74,16 @@ export const TAG_DEFINITIONS: TagDefinition[] = [
     helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:artwork_type',
   },
   {
+    key: 'keywords',
+    label: 'Keywords',
+    description: 'Comma separated list of descriptive keywords (max 500 chars). Each becomes searchable.',
+    category: 'classification',
+    dataType: 'text',
+    maxLength: 500,
+    placeholder: 'e.g., outdoor, landmark, bronze, abstract',
+    helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:description',
+  },
+  {
     key: 'subject',
     label: 'Subject Matter',
     description: 'What the artwork depicts or represents',
@@ -194,11 +204,14 @@ export function getAllTagKeysAlphabetically(): TagDefinition[] {
 /**
  * Validate a tag value against its definition
  */
-export function validateTagValue(key: string, value: string): { valid: boolean; error?: string } {
+export function validateTagValue(key: string, rawValue: unknown): { valid: boolean; error?: string } {
   const definition = getTagDefinition(key);
   if (!definition) {
     return { valid: false, error: 'Unknown tag key' };
   }
+
+  // Coerce any incoming value (number, boolean, etc.) to string for consistent validation
+  const value = rawValue == null ? '' : String(rawValue);
 
   if (!value.trim()) {
     if (definition.required) {

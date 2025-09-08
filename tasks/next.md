@@ -1,29 +1,22 @@
 # Know things to do
 
 2. Variables files
-3. mass import
+3. Mass import
 
 
 ## Artwork Details page
 
-- [x] Move the tags section from below the description into the "informaiton" side bar
-- [x] Remove "status", "Creators", and "Type" from information side bar.
-- Tags
-  - [x] Remove "Description", "Artwork name", and "Artist name" from the possiable tags. These are already part of the artwork table.
-  - [x] Remove "Tourist type" from the possiable tags. This value will always be "artwork" when exported.
-  - [x] Add "Tiny Libary", to the "Artwork Type" tag enumerations.
-  - [x] Change tag "Creation date" to "Installtion date"
+- The artwork description should render as Markdown. On the edit page add some quick markdown tips under the description text box. For example: Bold, header, link, list, etc...
 
-- At the top of the page, move the replace the "Map" in the breadcrumbs with "< Back to Map".
-- [x] The "Edit" button should be right aligned in the same row as the breadcrumbs. Make the edit button larger.
-- [x] The "Community Journal" entries, have a icon button in the top right hand corner (open in new window). Remove this icon.
-- [x] The visual look should be bold tag label: Value... instead of blue box chiplets
+- Above the title there is an icon "🏛️" and Chiplet "Other". Remove this Row from the artwork details page.
 
-When viewing an artwork. Remove the ability to collapse the different tag sections.
+Map page
 
-In edit mode
-- The different tags should show as a full row value instead of a block floating. 
-- A user should be able to click the tags and edit the value in the form as the add tag. 
+- The icon used as the marker on the map should be based off of the tag "Artwork Type". If the artwork does not have a "Artwork Type", then use a default. Each "Artwork Type" should have a different icon.
+
+- The map page should remember where what your last location was and the zoom level. So if you refresh the page again, it will return to the old location. Use local storage for this.
+
+- Zooming out should cluster artwork markers on the map.
 
 
 ## App Bar
