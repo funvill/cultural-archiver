@@ -82,6 +82,9 @@ wrangler.toml.bak
 *.sqlite
 *.sqlite3
 
+# Database backups - don't commit backup files
+_backup_database/
+
 # Package manager lock files (keep package-lock.json, exclude others)
 yarn.lock
 pnpm-lock.yaml

@@ -41,12 +41,14 @@
     "test:workers:coverage": "cd src/workers && npm run test:coverage",
     "quality": "npm run lint && npm run type-check && npm run test",
     "setup": "npm install && npm run build",
-    "backup": "npx tsx scripts/backup.ts --wrangler-export --remote",
-    "backup:remote": "npx tsx scripts/backup.ts --wrangler-export --remote --env production",
-    "backup:dev": "npx tsx scripts/backup.ts --wrangler-export --env development",
-    "backup:photos": "npx tsx scripts/backup.ts --photos-only",
-    "backup:validate": "npx tsx scripts/backup.ts --validate-only",
-    "test:backup": "npx tsx scripts/test-backup.ts"
+    "database:export": "wrangler d1 export cultural-archiver --output _backup_database/database_production.sql --env production --remote --config src/workers/wrangler.toml",
+    "database:export:dev": "wrangler d1 export cultural-archiver --output _backup_database/database_development.sql --env development --local --config src/workers/wrangler.toml",
+    "database:migration": "wrangler d1 migrations apply cultural-archiver --env production --config src/workers/wrangler.toml",
+    "database:migration:dev": "wrangler d1 migrations apply cultural-archiver --env development --config src/workers/wrangler.toml",
+    "database:status": "wrangler d1 migrations list cultural-archiver --env production --config src/workers/wrangler.toml",
+    "database:status:dev": "wrangler d1 migrations list cultural-archiver --env development --config src/workers/wrangler.toml",
+    "database:create-migration": "echo 'Usage: cd src/workers && wrangler d1 migrations create cultural-archiver \"migration_message\" --env development'",
+    "database:import": "wrangler d1 execute cultural-archiver --env development --local --config src/workers/wrangler.toml"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.3",

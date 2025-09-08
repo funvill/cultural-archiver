@@ -503,36 +503,47 @@ ORDER BY l.created_at ASC;
 
 ## Migration System
 
-The Cultural Archiver uses Wrangler's native D1 migration system for schema management:
+The Cultural Archiver uses a comprehensive database migration system for managing Cloudflare D1 schema changes and data operations:
 
-- **Migration Files**: Located in `migrations/` directory with sequential numbering (0001*, 0002*, etc.)
-- **State Tracking**: Wrangler automatically tracks applied migrations per environment
-- **D1 Compatibility**: All migrations are validated for Cloudflare D1 compatibility
-- **Environment Isolation**: Separate migration tracking for development and production
+- **Migration Files**: Located in `src/workers/migrations/` directory with sequential numbering (0001_description.sql, 0002_add_table.sql, etc.)
+- **State Tracking**: Applied migrations are tracked in `d1_migrations` table automatically
+- **Backup System**: Export commands create timestamped backups in `_backup_database/` directory
+- **Environment Isolation**: Separate commands for development, staging, and production environments
 
-### Migration Commands
+### Migration Commands (PowerShell Compatible)
 
-```bash
-# Apply pending migrations to development
-npm run migrate:dev
+```powershell
+# Export database backups
+npm run database:export:dev     # Export development database
+npm run database:export:prod    # Export production database  
+npm run database:export:staging # Export staging database
+
+# Apply migrations
+npm run database:migration:dev     # Apply migrations to development
+npm run database:migration:prod    # Apply migrations to production
+npm run database:migration:staging # Apply migrations to staging
+
+# Import SQL files
+npm run database:import:dev <file.sql>     # Import to development
+npm run database:import:prod <file.sql>    # Import to production
+npm run database:import:staging <file.sql> # Import to staging
 
 # Check migration status
-npm run migrate:status
-
-# Apply migrations to production (with confirmation)
-npm run migrate:prod
-
-# Validate migrations for D1 compatibility
-npm run migrate:validate
+npm run database:status:dev     # Check development status
+npm run database:status:prod    # Check production status
+npm run database:status:staging # Check staging status
 ```
 
 ### Migration Guidelines
 
-- Use sequential 4-digit numbering (0001, 0002, etc.)
-- Avoid D1-incompatible patterns (PRAGMA, WITHOUT ROWID, AUTOINCREMENT)
+- Use sequential 4-digit numbering with descriptions (0001_initial_schema.sql, 0002_add_users.sql)
+- Use SQLite-compatible syntax (Cloudflare D1 is SQLite-based)
+- Use `TEXT` for JSON storage, not native JSON type
+- Use `REAL` for floating-point numbers (lat/lon coordinates)
 - Test migrations in development first
-- Take backups before production migrations
-- See [docs/migrations.md](./migrations.md) for complete migration documentation
+- Create backups before production migrations using export commands
+- Follow existing table naming conventions (snake_case)
+- Include proper constraints and indexes for performance
 
 ## TypeScript Integration
 
