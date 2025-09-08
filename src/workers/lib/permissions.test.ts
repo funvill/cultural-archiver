@@ -3,6 +3,8 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+// Ensure D1Database type is available (declared in global.d.ts)
+/// <reference types="../global" />
 import {
   hasPermission,
   hasAnyPermission,
@@ -17,6 +19,22 @@ import {
   isValidPermission,
 } from './permissions';
 import type { AuthContext } from '../types';
+
+// Fallback declaration if global augmentation not picked up in test environment
+// (Vitest isolated modules may skip the global.d.ts without explicit import)
+// This mirrors minimal subset used in tests.
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+interface D1PreparedStatementTest {
+  bind: (...values: unknown[]) => D1PreparedStatementTest;
+  first: <T = unknown>() => Promise<T | null>;
+  run: () => Promise<{ success: boolean; meta?: { changes?: number } }>;
+  all: <T = unknown>() => Promise<{ success: boolean; results: T[] }>;
+}
+// eslint-disable-next-line @typescript-eslint/no-empty-interface
+interface D1Database {
+  prepare: (query: string) => D1PreparedStatementTest;
+  exec?: (query: string) => Promise<unknown>;
+}
 
 // Mock D1Database for testing
 const createMockDB = (): D1Database => {
@@ -254,6 +272,7 @@ describe('Permission Management', () => {
                 granted_at: '2025-01-03T15:30:00Z',
                 granted_by: 'admin-1',
                 notes: 'Test permission',
+                email: 'user1@example.com'
               },
               {
                 user_uuid: 'user-2',
@@ -261,6 +280,7 @@ describe('Permission Management', () => {
                 granted_at: '2025-01-03T15:35:00Z',
                 granted_by: 'system',
                 notes: null,
+                email: 'admin@example.com'
               },
             ],
           }),
@@ -274,6 +294,44 @@ describe('Permission Management', () => {
       expect(users[0]?.permissions[0]?.permission).toBe('moderator');
       expect(users[1]?.user_uuid).toBe('user-2');
       expect(users[1]?.permissions[0]?.permission).toBe('admin');
+      // Email should be preserved
+      expect(users.find(u => u.user_uuid === 'user-1')?.email).toBe('user1@example.com');
+      expect(users.find(u => u.user_uuid === 'user-2')?.email).toBe('admin@example.com');
+    });
+
+    it('should apply search filter (email match) when provided', async () => {
+      const capturedQueries: string[] = [];
+      const mockAll = vi.fn().mockResolvedValue({
+        success: true,
+        results: [
+          {
+            user_uuid: 'user-2',
+            permission: 'admin',
+            granted_at: '2025-01-03T15:35:00Z',
+            granted_by: 'system',
+            notes: null,
+            email: 'admin@example.com'
+          },
+        ],
+      });
+
+      const mockPrepare = vi.fn().mockImplementation((q: string) => {
+        capturedQueries.push(q);
+        return {
+          bind: vi.fn().mockReturnValue({
+            all: mockAll,
+          }),
+        };
+      });
+
+      (db.prepare as unknown as ReturnType<typeof vi.fn>).mockImplementation(mockPrepare);
+
+      const users = await listUsersWithPermissions(db, undefined, 'admin');
+      expect(users).toHaveLength(1);
+      expect(users[0]?.email).toBe('admin@example.com');
+      // Ensure SQL added the search predicate referencing LOWER(u.email)
+      const joinedQuery = capturedQueries.join('\n');
+      expect(joinedQuery).toContain('LOWER(u.email) LIKE');
     });
   });
 

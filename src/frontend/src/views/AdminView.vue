@@ -170,7 +170,7 @@ onMounted(async () => {
                       Total Decisions
                     </dt>
                     <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                      {{ statistics.total_decisions.toLocaleString() }}
+                      {{ (statistics.total_decisions ?? 0).toLocaleString() }}
                     </dd>
                   </dl>
                 </div>
@@ -266,7 +266,7 @@ onMounted(async () => {
                       Admin Actions
                     </dt>
                     <dd class="text-lg font-medium text-gray-900 dark:text-white">
-                      {{ statistics.total_admin_actions.toLocaleString() }}
+                      {{ (statistics.total_admin_actions ?? 0).toLocaleString() }}
                     </dd>
                   </dl>
                 </div>

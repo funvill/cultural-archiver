@@ -457,7 +457,7 @@ export const apiService = {
     status: 'approved' | 'pending' | 'removed' = 'approved'
   ): Promise<
     ApiResponse<{
-      artworks: any[];
+  artworks: unknown[];
       pagination: {
         page: number;
         per_page: number;
@@ -802,10 +802,16 @@ export const apiService = {
   /**
    * Get users with permissions
    */
-  async getAdminPermissions(permission?: string): Promise<ApiResponse<GetPermissionsResponse>> {
+  async getAdminPermissions(
+    permission?: string,
+    search?: string
+  ): Promise<ApiResponse<GetPermissionsResponse>> {
     const params: Record<string, string> = {};
     if (permission) {
       params.permission = permission;
+    }
+    if (search && search.trim()) {
+      params.search = search.trim();
     }
     return client.get('/admin/permissions', params);
   },

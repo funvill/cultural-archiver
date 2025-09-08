@@ -510,13 +510,21 @@ export class DatabaseService {
       `);
 
       const results = await stmt.bind(artworkId).all();
-      return results.results.map(
-        (row): ArtworkCreatorInfo => ({
-          id: row.id as string,
-          name: row.name as string,
-          bio: row.bio as string | null,
-          role: row.role as string,
-        })
+      return (results.results as unknown[]).map(
+        (rowRaw): ArtworkCreatorInfo => {
+          const row = rowRaw as {
+            id: string;
+            name: string;
+            bio: string | null;
+            role: string;
+          };
+          return {
+            id: row.id,
+            name: row.name,
+            bio: row.bio,
+            role: row.role,
+          };
+        }
       );
     } catch (error) {
       // Return empty array if creators tables don't exist yet
