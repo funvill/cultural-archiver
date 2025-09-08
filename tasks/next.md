@@ -3,20 +3,46 @@
 2. Variables files
 3. Mass import
 
-
 ## Artwork Details page
 
-- The artwork description should render as Markdown. On the edit page add some quick markdown tips under the description text box. For example: Bold, header, link, list, etc...
-
-- Above the title there is an icon "🏛️" and Chiplet "Other". Remove this Row from the artwork details page.
-
-Map page
+## Map page
 
 - The icon used as the marker on the map should be based off of the tag "Artwork Type". If the artwork does not have a "Artwork Type", then use a default. Each "Artwork Type" should have a different icon.
 
 - The map page should remember where what your last location was and the zoom level. So if you refresh the page again, it will return to the old location. Use local storage for this.
 
 - Zooming out should cluster artwork markers on the map.
+
+## Add artwork
+
+After adding a new artwork. Then approving it in the moderators queue. I can see the artwork pin on the map. But when I click the map pin I get a error
+
+```txt
+Artwork Not Found
+Artwork with ID "2d74d47e-af12-45bb-b1a2-295a17839c4d" was not found. It may have been removed or is pending approval.
+```
+
+## Admin page
+
+The admin page is a super user that can give moderators permissions to other users
+
+When I click the link in the header for "admin", I get the following error 
+
+```txt
+{
+  "referenceId": "mfbid4ri-90w97t",
+  "message": "Cannot read properties of undefined (reading 'toLocaleString')",
+  "stack": "TypeError: Cannot read properties of undefined (reading 'toLocaleString')\n    at Proxy.<anonymous> (https://art.abluestar.com/assets/AdminView-BzvBEEUH.js:1:48675)\n    at Xs (https://art.abluestar.com/assets/vendor-2hKZjCc7.js:13:26655)\n    at zr.R [as fn] (https://art.abluestar.com/assets/vendor-2hKZjCc7.js:13:19154)\n    at zr.run (https://art.abluestar.com/assets/vendor-2hKZjCc7.js:9:1907)\n    at zr.runIfDirty (https://art.abluestar.com/assets/vendor-2hKZjCc7.js:9:2216)\n    at rn (https://art.abluestar.com/assets/vendor-2hKZjCc7.js:13:46)\n    at mo (https://art.abluestar.com/assets/vendor-2hKZjCc7.js:13:1795)",
+  "component": "Unknown",
+  "trace": "https://vuejs.org/error-reference/#runtime-1",
+  "url": "https://art.abluestar.com/admin",
+  "artworkId": null,
+  "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
+  "timestamp": "2025-09-08T19:22:28.002Z",
+  "appVersion": "unknown"
+}
+```
+
 
 
 ## App Bar

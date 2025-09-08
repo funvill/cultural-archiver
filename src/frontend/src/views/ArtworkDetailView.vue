@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
+import { marked } from 'marked';
 import { useRouter } from 'vue-router';
 import { useArtworksStore } from '../stores/artworks';
 import { useAuthStore } from '../stores/auth';
@@ -179,6 +180,32 @@ const displayTitle = computed(() => {
 const displayDescription = computed(() => {
   return isEditMode.value ? editData.value.description : artworkDescription.value;
 });
+
+// Render markdown (very limited) for safe display
+const renderedDescription = computed(() => {
+  const raw = displayDescription.value || '';
+  if (!raw) return '';
+  // Configure marked for very basic output (no HTML by default)
+  marked.setOptions({
+    breaks: true,
+    gfm: true,
+  });
+  const html = marked.parse(raw);
+  return sanitizeMarkdownHtml(html as string);
+});
+
+// Basic sanitizer (not full-proof; for stronger security consider a library like DOMPurify)
+function sanitizeMarkdownHtml(input: string): string {
+  return input
+    // Remove script tags
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    // Remove on*="..." event handlers
+    .replace(/ on[a-zA-Z]+="[^"]*"/g, '')
+    .replace(/ on[a-zA-Z]+='[^']*'/g, '')
+    // Remove javascript: URLs
+    .replace(/href\s*=\s*"javascript:[^"]*"/gi, 'href="#"')
+    .replace(/href\s*=\s*'javascript:[^']*'/gi, "href='#'");
+}
 
 const displayCreators = computed(() => {
   return isEditMode.value ? editData.value.creators : artworkCreators.value;
@@ -421,16 +448,7 @@ async function checkPendingEdits(): Promise<void> {
   }
 }
 
-function getArtworkTypeEmoji(typeName: string): string {
-  const typeMap: Record<string, string> = {
-    public_art: '🎨',
-    street_art: '🎭',
-    monument: '🗿',
-    sculpture: '⚱️',
-    other: '🏛️',
-  };
-  return typeMap[typeName] || '🏛️';
-}
+// (Previously had getArtworkTypeEmoji() for icon display above title; removed per product request.)
 </script>
 
 <template>
@@ -554,25 +572,8 @@ function getArtworkTypeEmoji(typeName: string): string {
         </div>
       </div>
 
-      <!-- Header with artwork info -->
-      <div class="mb-6">
-        <!-- Title and Type -->
-        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-          <div class="flex items-center gap-2">
-            <span class="text-2xl sm:text-3xl" aria-hidden="true">{{
-              getArtworkTypeEmoji(artwork.type_name || '')
-            }}</span>
-            <span
-              class="text-xs sm:text-sm font-medium text-blue-600 bg-blue-100 px-2 sm:px-3 py-1 rounded-full"
-            >
-              {{
-                (artwork.type_name || 'other')
-                  .replace('_', ' ')
-                  .replace(/\b\w/g, l => l.toUpperCase())
-              }}
-            </span>
-          </div>
-        </div>
+  <!-- Header with artwork info (icon/type row removed as requested) -->
+  <div class="mb-6">
 
         <!-- Title (editable in edit mode) -->
         <div v-if="!isEditMode">
@@ -741,9 +742,12 @@ function getArtworkTypeEmoji(typeName: string): string {
             </h2>
 
             <!-- Display mode -->
-            <div v-if="!isEditMode && displayDescription" class="prose prose-gray max-w-none">
-              <p class="text-gray-700 leading-relaxed">{{ displayDescription }}</p>
-            </div>
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <div
+              v-if="!isEditMode && displayDescription"
+              class="prose prose-gray max-w-none text-gray-700 leading-relaxed"
+              v-html="renderedDescription"
+            ></div>
 
             <!-- Empty description in display mode -->
             <div v-else-if="!isEditMode" class="text-gray-500 italic bg-gray-100 p-4 rounded-lg">
@@ -760,7 +764,16 @@ function getArtworkTypeEmoji(typeName: string): string {
                 class="block w-full bg-white border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
                 placeholder="Enter artwork description..."
               ></textarea>
-              <p class="text-sm text-gray-500">Supports markdown formatting</p>
+              <div class="text-xs text-gray-500 space-y-1">
+                <p class="font-medium">Markdown tips:</p>
+                <ul class="list-disc ml-4 space-y-0.5">
+                  <li><code>**bold**</code> → <strong>bold</strong></li>
+                  <li><code># Heading 1</code>, <code>## Heading 2</code></li>
+                  <li><code>* item</code> for bullet lists</li>
+                  <li><code>[text](https://link)</code> for links</li>
+                  <li><code>_italic_</code> → <em>italic</em></li>
+                </ul>
+              </div>
             </div>
           </section>
 
