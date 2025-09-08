@@ -13,6 +13,7 @@ import type {
   NearbyArtworksResponse,
   ArtworkCreatorInfo,
 } from '../types';
+import type { StructuredTagsData } from '../../shared/types';
 import { DEFAULT_SEARCH_RADIUS } from '../types';
 import { createDatabaseService } from '../lib/database';
 import { createSuccessResponse, NotFoundError } from '../lib/errors';
@@ -144,8 +145,17 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       allPhotos.push(...entry.photos_parsed);
     });
 
-    // Parse artwork tags
-    const tagsParsed = safeJsonParse<Record<string, string>>(artwork.tags, {});
+    // Parse artwork tags from structured format
+    const structuredTags = safeJsonParse<StructuredTagsData>(
+      artwork.tags || '{}', 
+      { tags: {}, version: '1.0.0', lastModified: new Date().toISOString() }
+    );
+    
+    // Extract just the tags portion and ensure all values are strings for the frontend
+    const tagsParsed: Record<string, string> = {};
+    Object.entries(structuredTags.tags).forEach(([key, value]) => {
+      tagsParsed[key] = String(value);
+    });
 
     const response: ArtworkDetailResponse = {
       ...artwork,

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "wrangler dev --env development",
-    "deploy": "wrangler deploy --env production",
+    "deploy": "npm run build && wrangler deploy --env production",
     "build": "tsc",
     "type-check": "tsc --noEmit",
     "lint": "eslint .",

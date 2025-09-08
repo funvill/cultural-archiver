@@ -69,6 +69,7 @@ const createMockStore = (): any => ({
   cacheArtwork: vi.fn(),
   fetchNearbyArtworks: vi.fn(),
   fetchArtwork: vi.fn(),
+  refreshArtwork: vi.fn(),
   fetchArtworksInBounds: vi.fn(),
   getArtworksForSubmission: vi.fn(),
   calculateDistance: vi.fn(),
@@ -255,6 +256,7 @@ describe('ArtworkDetailView', () => {
       const artworkByIdFunction = vi.fn(() => null); // Always return null (artwork not found)
       tempMockStore.artworkById = artworkByIdFunction;
       tempMockStore.fetchArtwork.mockResolvedValue(null);
+      tempMockStore.refreshArtwork.mockResolvedValue(null);
 
       // Use a valid UUID format but non-existent artwork
       const validUuid = '550e8400-e29b-41d4-a716-446655440000';
@@ -348,6 +350,7 @@ describe('ArtworkDetailView', () => {
       );
       artworkStore.artworkById.mockImplementation(artworkByIdFunction);
       artworkStore.fetchArtwork.mockResolvedValue(mockArtwork);
+      artworkStore.refreshArtwork.mockResolvedValue(mockArtwork);
       vi.mocked(useArtworksStore).mockReturnValue(artworkStore);
 
       // Mock API service for edit operations

@@ -44,12 +44,18 @@ export class ServerTagValidationService {
    */
   validateTags(tags: StructuredTags): TagValidationResponse {
     try {
+      console.log('[TAG VALIDATION DEBUG] Starting tag validation:', { tags, timestamp: new Date().toISOString() });
+      
       // First sanitize the tags
       const sanitizedTags = sanitizeStructuredTags(tags, this.tagDefinitions);
+      console.log('[TAG VALIDATION DEBUG] Tags sanitized:', { sanitizedTags });
 
       // Then validate the sanitized tags
       const validationResults = validateStructuredTags(sanitizedTags, this.tagDefinitions);
+      console.log('[TAG VALIDATION DEBUG] Validation results:', { validationResults });
+      
       const summary = getValidationSummary(validationResults);
+      console.log('[TAG VALIDATION DEBUG] Validation summary:', { summary });
 
       // Convert validation results to API format
       const errors: TagValidationError[] = [];
@@ -57,6 +63,7 @@ export class ServerTagValidationService {
 
       Object.entries(validationResults).forEach(([key, result]) => {
         result.errors.forEach(message => {
+          console.log('[TAG VALIDATION DEBUG] Adding validation error:', { key, message });
           errors.push({
             key,
             field: key,
@@ -75,6 +82,13 @@ export class ServerTagValidationService {
             suggestions: this.generateSuggestions(key, message),
           });
         });
+      });
+
+      console.log('[TAG VALIDATION DEBUG] Final validation response:', { 
+        valid: summary.isValid, 
+        errorCount: errors.length, 
+        warningCount: warnings.length, 
+        errors: errors.map(e => ({ key: e.key, message: e.message }))
       });
 
       return {
@@ -382,10 +396,11 @@ export function convertToValidationApiError(
 
 /**
  * Check if tags contain any required fields
+ * NOTE: Currently no tags are required - all tags are optional
  */
-export function hasRequiredTags(tags: StructuredTags): boolean {
-  // Check for the base tourism tag which is required for OSM compatibility
-  return 'tourism' in tags && tags.tourism === 'artwork';
+export function hasRequiredTags(_tags: StructuredTags): boolean {
+  // All tags are optional, so this always returns true
+  return true;
 }
 
 /**

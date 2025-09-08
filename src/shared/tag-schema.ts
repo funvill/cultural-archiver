@@ -108,14 +108,14 @@ export const TAG_CATEGORIES: Record<TagCategory, CategoryInfo> = {
 // ================================
 
 export const TAG_DEFINITIONS: Record<string, TagDefinition> = {
-  // Required base tag for OpenStreetMap compatibility
+  // Base tag for OpenStreetMap compatibility (optional)
   tourism: {
     key: 'tourism',
     label: 'Tourism Type',
     description: 'Base classification for tourism/artwork objects',
     category: 'artwork_classification',
     dataType: 'enum',
-    required: true,
+    required: false,
     enumValues: ['artwork'],
     osmMapping: 'tourism',
     helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:tourism',

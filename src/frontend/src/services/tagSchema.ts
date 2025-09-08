@@ -71,7 +71,7 @@ export const TAG_DEFINITIONS: TagDefinition[] = [
     category: 'classification',
     dataType: 'enum',
     enumValues: ['artwork'],
-    required: true,
+    required: false,
     helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:tourism',
   },
   {

@@ -1,8 +1,36 @@
 # Know things to do
 
-1. User editable fields
 2. Variables files
 3. mass import
+
+
+## Artwork Details page
+
+- Move the tags section from below the description into the "informaiton" side bar
+- Remove "status", "Creators", and "Type" from information side bar.
+- Tags
+  - Remove "Description", "Artwork name", and "Artist name" from the possiable tags. These are already part of the artwork table.
+  - Remove "Tourist type" from the possiable tags. This value will always be "artwork" when exported.
+  - Add "Tiny Libary", to the "Artwork Type" tag enumerations.
+  - Change tag "Creation date" to "Installtion date"
+- At the top of the page, move the replace the "Map" in the breadcrumbs with "< Back to Map".
+- The "Edit" button should be right aligned in the same row as the breadcrumbs. Make the edit button larger.
+- The "Community Journal" entries, have a icon button in the top right hand corner (open in new window). Remove this icon.
+
+## App Bar
+
+- The search should be centered on all screen sizes. and enlarged to be a single icon.
+- Help, Admin, and Moderator should automaticly be put in to the menu. The menu should always be shown.
+
+## Add Artwork
+
+- Update this workflow
+  1) Customer uploads a photo first
+  2) The system uses the photo's GPS, and the browsers GPS, and if all else fails, the IP address IP Address to find a list of artworks that are near by.
+  3) The user can either
+    3A) "Add new artwork" - The user reviews the close by artworks and determins that this is a new artwork.
+    3B) The user clicks one of the existing artworks to add the logbook entry to the existing artwork.
+  4) After they fill in the addtional information. They are asked for consent to use this inforamtion then its submitted to the website.
 
 ## Choose a name
 

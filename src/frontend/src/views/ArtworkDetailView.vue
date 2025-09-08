@@ -186,19 +186,13 @@ onMounted(async () => {
       return;
     }
 
-    // Try to load artwork from store first
-    let artworkData = artworksStore.artworkById(props.id);
+    // Always refresh artwork data to get latest updates (including approved edits)
+    const artworkData = await artworksStore.refreshArtwork(props.id);
 
     if (!artworkData) {
-      // If not in store, fetch from API
-      await artworksStore.fetchArtwork(props.id);
-      artworkData = artworksStore.artworkById(props.id);
-
-      if (!artworkData) {
-        error.value = `Artwork with ID "${props.id}" was not found. It may have been removed or is pending approval.`;
-        announceError('Artwork not found');
-        return;
-      }
+      error.value = `Artwork with ID "${props.id}" was not found. It may have been removed or is pending approval.`;
+      announceError('Artwork not found');
+      return;
     }
 
     announceSuccess(`Loaded artwork details: ${artworkTitle.value}`);
@@ -333,23 +327,15 @@ async function saveEdit(): Promise<void> {
       });
     }
 
-    // Tags edit - convert structured tags to format expected by backend
+    // Tags edit - send structured tags as JSON to backend
     const originalTags = artworkTags.value;
     const hasTagChanges = JSON.stringify(editData.value.tags) !== JSON.stringify(originalTags);
     
     if (hasTagChanges) {
-      // For now, convert to legacy format for backend compatibility
-      const originalTagsArray = Object.entries(originalTags).map(([key, value]) => 
-        value.toLowerCase() === key.toLowerCase() ? key : `${key}: ${value}`
-      );
-      const newTagsArray = Object.entries(editData.value.tags).map(([key, value]) => 
-        value.toLowerCase() === key.toLowerCase() ? key : `${key}: ${value}`
-      );
-
       edits.push({
         field_name: 'tags',
-        field_value_old: originalTagsArray.join('\n'),
-        field_value_new: newTagsArray.join('\n'),
+        field_value_old: JSON.stringify(originalTags),
+        field_value_new: JSON.stringify(editData.value.tags),
       });
     }
 
@@ -391,6 +377,30 @@ async function checkPendingEdits(): Promise<void> {
   } catch (err) {
     // Silently fail - this is not critical functionality
     console.log('Failed to check pending edits:', err);
+  }
+}
+
+// Refresh artwork data manually
+async function refreshArtworkData(): Promise<void> {
+  if (!props.id) return;
+  
+  loading.value = true;
+  error.value = null;
+  
+  try {
+    const artworkData = await artworksStore.refreshArtwork(props.id);
+    if (!artworkData) {
+      error.value = `Artwork with ID "${props.id}" was not found.`;
+      announceError('Artwork not found');
+    } else {
+      announceSuccess('Artwork data refreshed');
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to refresh artwork';
+    error.value = message;
+    announceError('Failed to refresh artwork: ' + message);
+  } finally {
+    loading.value = false;
   }
 }
 
@@ -509,20 +519,39 @@ onUnmounted(() => {
 
       <!-- Header with back button -->
       <div class="mb-6">
-        <button
-          @click="goToMap"
-          class="inline-flex items-center text-blue-600 hover:text-blue-800 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-        >
-          <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 19l-7-7 7-7"
-            />
-          </svg>
-          Back to Map
-        </button>
+        <div class="flex items-center gap-2 mb-4">
+          <button
+            @click="goToMap"
+            class="inline-flex items-center text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+          >
+            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            Back to Map
+          </button>
+
+          <!-- Refresh button for all users -->
+          <button
+            @click="refreshArtworkData"
+            aria-label="Refresh artwork data"
+            class="inline-flex items-center px-2 py-1 text-sm text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 rounded"
+            title="Refresh artwork data"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+              />
+            </svg>
+          </button>
+        </div>
 
         <!-- Title and Type -->
         <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
@@ -553,6 +582,23 @@ onUnmounted(() => {
             >
               Changes pending review
             </div>
+
+            <!-- Refresh button -->
+            <button
+              @click="refreshArtworkData"
+              aria-label="Refresh artwork data"
+              class="inline-flex items-center px-2 py-1.5 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
+              title="Refresh artwork data"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </button>
 
             <button
               @click="enterEditMode"

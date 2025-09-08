@@ -3,6 +3,11 @@ main = "index.ts"
 compatibility_date = "2024-11-06"
 compatibility_flags = ["nodejs_compat"]
 
+# Routes for custom domains
+[[env.production.routes]]
+pattern = "art-api.abluestar.com/*"
+zone_name = "abluestar.com"
+
 # D1 Database bindings
 [[env.development.d1_databases]]
 binding = "DB"
@@ -35,19 +40,19 @@ id = "5b69d7c338734f3aa56cea9c1f3930f7"
 
 [[env.production.kv_namespaces]]
 binding = "SESSIONS"
-id = "CHANGE_ME_PRODUCTION_SESSIONS_KV_ID"  # Must be replaced with actual production KV namespace ID
+id = "c991e608759d45bdae4198b72955da5f"  # Must be replaced with actual production KV namespace ID
 
 [[env.production.kv_namespaces]]
 binding = "CACHE"
-id = "CHANGE_ME_PRODUCTION_CACHE_KV_ID"  # Must be replaced with actual production KV namespace ID
+id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Must be replaced with actual production KV namespace ID
 
 [[env.production.kv_namespaces]]
 binding = "RATE_LIMITS"
-id = "CHANGE_ME_PRODUCTION_RATE_LIMITS_KV_ID"  # Must be replaced with actual production KV namespace ID
+id = "81aa51ca054d46b18977670c3dff6c04"  # Must be replaced with actual production KV namespace ID
 
 [[env.production.kv_namespaces]]
 binding = "MAGIC_LINKS"
-id = "CHANGE_ME_PRODUCTION_MAGIC_LINKS_KV_ID"  # Must be replaced with actual production KV namespace ID
+id = "5b69d7c338734f3aa56cea9c1f3930f7"  # Must be replaced with actual production KV namespace ID
 
 # R2 bucket bindings
 [[env.development.r2_buckets]]

@@ -544,7 +544,8 @@ npm run database:status:staging # Check staging status
 - Create backups before production migrations using export commands
 - Follow existing table naming conventions (snake_case)
 - Include proper constraints and indexes for performance
-
+- Avoid D1-incompatible patterns (PRAGMA, WITHOUT ROWID, AUTOINCREMENT)
+- See [docs/migrations.md](./migrations.md) for complete migration documentation
 ## TypeScript Integration
 
 The database schema is reflected in TypeScript types in `src/shared/types.ts`:

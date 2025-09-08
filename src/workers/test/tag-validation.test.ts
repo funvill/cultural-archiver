@@ -70,8 +70,8 @@ describe('ServerTagValidationService', () => {
     it('should handle empty tags gracefully', () => {
       const result = service.validateTags({});
 
-      expect(result.valid).toBe(false); // tourism is required
-      expect(result.errors.some(e => e.key === 'tourism' && e.code === 'required')).toBe(true);
+      expect(result.valid).toBe(true); // no tags are required anymore
+      expect(result.errors.length).toBe(0);
     });
   });
 
@@ -226,8 +226,8 @@ describe('ServerTagValidationService', () => {
 
       const result = service.validateForArtworkEdit(oldTags, newTags);
 
-      expect(result.valid).toBe(false); // tourism is required
-      expect(result.errors.some(e => e.key === 'tourism' && e.code === 'required')).toBe(true);
+      expect(result.valid).toBe(true); // no tags are required anymore
+      expect(result.errors.length).toBe(0);
     });
   });
 
@@ -269,9 +269,7 @@ describe('ServerTagValidationService', () => {
 
       expect(result.valid).toBe(false);
       
-      const tourismError = result.errors.find(e => e.key === 'tourism');
-      expect(tourismError?.code).toBe('required');
-
+      // Check that validation fails for invalid values, not missing required tags
       const artworkTypeError = result.errors.find(e => e.key === 'artwork_type');
       expect(artworkTypeError?.code).toBe('invalid_enum');
 
