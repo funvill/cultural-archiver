@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useArtworksStore } from '../stores/artworks';
 import { useAuthStore } from '../stores/auth';
@@ -380,30 +380,6 @@ async function checkPendingEdits(): Promise<void> {
   }
 }
 
-// Refresh artwork data manually
-async function refreshArtworkData(): Promise<void> {
-  if (!props.id) return;
-  
-  loading.value = true;
-  error.value = null;
-  
-  try {
-    const artworkData = await artworksStore.refreshArtwork(props.id);
-    if (!artworkData) {
-      error.value = `Artwork with ID "${props.id}" was not found.`;
-      announceError('Artwork not found');
-    } else {
-      announceSuccess('Artwork data refreshed');
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to refresh artwork';
-    error.value = message;
-    announceError('Failed to refresh artwork: ' + message);
-  } finally {
-    loading.value = false;
-  }
-}
-
 function getArtworkTypeEmoji(typeName: string): string {
   const typeMap: Record<string, string> = {
     public_art: '🎨',
@@ -414,22 +390,6 @@ function getArtworkTypeEmoji(typeName: string): string {
   };
   return typeMap[typeName] || '🏛️';
 }
-
-// Keyboard shortcuts
-function handleKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape' && showFullscreenPhoto.value) {
-    closeFullscreenPhoto();
-  }
-}
-
-// Add keyboard listener
-onMounted(() => {
-  document.addEventListener('keydown', handleKeydown);
-});
-
-onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown);
-});
 </script>
 
 <template>
@@ -490,69 +450,71 @@ onUnmounted(() => {
 
     <!-- Artwork Content -->
     <div v-else-if="artwork" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-      <!-- Breadcrumb Navigation -->
-      <nav aria-label="Breadcrumb" class="mb-4">
-        <ol class="flex items-center space-x-2 text-sm text-gray-500">
-          <li>
-            <button
-              @click="goToMap"
-              class="hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-            >
-              Map
-            </button>
-          </li>
-          <li>
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </li>
-          <li class="text-gray-900 font-medium" aria-current="page">
-            {{ artworkTitle }}
-          </li>
-        </ol>
-      </nav>
+      <!-- Breadcrumb Navigation and Edit Button -->
+      <div class="flex items-center justify-between mb-4">
+        <nav aria-label="Breadcrumb">
+          <ol class="flex items-center space-x-2 text-sm text-gray-500">
+            <li>
+              <button
+                @click="goToMap"
+                class="hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+              >
+                ← Back to Map
+              </button>
+            </li>
+            <li>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 5l7 7-7 7"
+                />
+              </svg>
+            </li>
+            <li class="text-gray-900 font-medium" aria-current="page">
+              {{ artworkTitle }}
+            </li>
+          </ol>
+        </nav>
 
-      <!-- Header with back button -->
-      <div class="mb-6">
-        <div class="flex items-center gap-2 mb-4">
-          <button
-            @click="goToMap"
-            class="inline-flex items-center text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+        <!-- Edit button for authenticated users -->
+        <div v-if="canEdit && !isEditMode" class="flex items-center gap-3">
+          <!-- Pending edits indicator -->
+          <div
+            v-if="hasPendingEdits"
+            class="px-3 py-1 text-sm font-medium text-amber-700 bg-amber-100 rounded-full"
           >
-            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Back to Map
-          </button>
+            Changes pending review
+          </div>
 
-          <!-- Refresh button for all users -->
+          <!-- Edit button - larger and prominent -->
           <button
-            @click="refreshArtworkData"
-            aria-label="Refresh artwork data"
-            class="inline-flex items-center px-2 py-1 text-sm text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 rounded"
-            title="Refresh artwork data"
+            @click="enterEditMode"
+            :disabled="hasPendingEdits"
+            aria-label="Edit artwork details"
+            class="inline-flex items-center px-6 py-3 text-base font-medium rounded-lg transition-colors focus:outline-none focus:ring-2"
+            :class="
+              hasPendingEdits
+                ? 'text-gray-500 bg-gray-100 cursor-not-allowed'
+                : 'text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 shadow-sm'
+            "
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
               />
             </svg>
+            {{ hasPendingEdits ? 'Edit Disabled' : 'Edit Artwork' }}
           </button>
         </div>
+      </div>
 
+      <!-- Header with artwork info -->
+      <div class="mb-6">
         <!-- Title and Type -->
         <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
           <div class="flex items-center gap-2">
@@ -568,59 +530,6 @@ onUnmounted(() => {
                   .replace(/\b\w/g, l => l.toUpperCase())
               }}
             </span>
-          </div>
-
-          <!-- Edit button for authenticated users -->
-          <div
-            v-if="canEdit && !isEditMode"
-            class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 sm:ml-auto"
-          >
-            <!-- Pending edits indicator -->
-            <div
-              v-if="hasPendingEdits"
-              class="px-2 py-1 text-xs font-medium text-amber-700 bg-amber-100 rounded-full"
-            >
-              Changes pending review
-            </div>
-
-            <!-- Refresh button -->
-            <button
-              @click="refreshArtworkData"
-              aria-label="Refresh artwork data"
-              class="inline-flex items-center px-2 py-1.5 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
-              title="Refresh artwork data"
-            >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                />
-              </svg>
-            </button>
-
-            <button
-              @click="enterEditMode"
-              :disabled="hasPendingEdits"
-              aria-label="Edit artwork details"
-              class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2"
-              :class="
-                hasPendingEdits
-                  ? 'text-gray-500 bg-gray-100 cursor-not-allowed'
-                  : 'text-blue-700 bg-blue-50 hover:bg-blue-100 focus:ring-blue-500'
-              "
-            >
-              <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                />
-              </svg>
-              {{ hasPendingEdits ? 'Edit Disabled' : 'Edit' }}
-            </button>
           </div>
         </div>
 
@@ -814,40 +723,6 @@ onUnmounted(() => {
             </div>
           </section>
 
-          <!-- Tags and Metadata -->
-          <section aria-labelledby="metadata-heading">
-            <h2 id="metadata-heading" class="text-xl font-semibold text-gray-900 mb-3">Details</h2>
-
-            <!-- Display mode -->
-            <div v-if="!isEditMode && Object.keys(artworkTags).length > 0">
-              <TagBadge
-                :tags="artworkTags"
-                :max-visible="8"
-                color-scheme="blue"
-                variant="compact"
-                :show-categories="true"
-                :collapsible="true"
-                @tag-click="handleTagClick"
-              />
-            </div>
-
-            <!-- Empty tags in display mode -->
-            <div v-else-if="!isEditMode" class="text-gray-500 italic">
-              No additional details available.
-            </div>
-
-            <!-- Edit mode -->
-            <div v-else class="space-y-2">
-              <TagEditor
-                v-model="editData.tags"
-                :disabled="editLoading"
-                :max-tags="30"
-                @tag-added="(key) => announceSuccess(`Tag '${key}' added`)"
-                @tag-removed="(key) => announceSuccess(`Tag '${key}' removed`)"
-              />
-            </div>
-          </section>
-
           <!-- Journal Timeline -->
           <section aria-labelledby="journal-heading">
             <LogbookTimeline
@@ -920,38 +795,6 @@ onUnmounted(() => {
 
               <dl class="space-y-3">
                 <div>
-                  <dt class="text-sm font-medium text-gray-600">Creators</dt>
-                  <dd class="text-sm text-gray-900">{{ artworkCreators }}</dd>
-                </div>
-
-                <div>
-                  <dt class="text-sm font-medium text-gray-600">Type</dt>
-                  <dd class="text-sm text-gray-900">
-                    {{
-                      (artwork.type_name || 'other')
-                        .replace('_', ' ')
-                        .replace(/\b\w/g, l => l.toUpperCase())
-                    }}
-                  </dd>
-                </div>
-
-                <div>
-                  <dt class="text-sm font-medium text-gray-600">Status</dt>
-                  <dd class="text-sm">
-                    <span
-                      class="inline-block px-2 py-1 text-xs font-medium rounded-full"
-                      :class="{
-                        'bg-green-100 text-green-800': artwork.status === 'approved',
-                        'bg-yellow-100 text-yellow-800': artwork.status === 'pending',
-                        'bg-red-100 text-red-800': artwork.status === 'removed',
-                      }"
-                    >
-                      {{ artwork.status }}
-                    </span>
-                  </dd>
-                </div>
-
-                <div>
                   <dt class="text-sm font-medium text-gray-600">Added</dt>
                   <dd class="text-sm text-gray-900">
                     {{
@@ -964,6 +807,45 @@ onUnmounted(() => {
                   </dd>
                 </div>
               </dl>
+            </section>
+
+            <!-- Tags Section -->
+            <section
+              aria-labelledby="tags-heading"
+              class="bg-white rounded-lg border border-gray-200 p-6"
+            >
+              <h2 id="tags-heading" class="text-lg font-semibold text-gray-900 mb-4">
+                Details
+              </h2>
+
+              <!-- Display mode -->
+              <div v-if="!isEditMode && Object.keys(artworkTags).length > 0">
+                <TagBadge
+                  :tags="artworkTags"
+                  :max-visible="8"
+                  color-scheme="blue"
+                  variant="compact"
+                  :show-categories="true"
+                  :collapsible="true"
+                  @tag-click="handleTagClick"
+                />
+              </div>
+
+              <!-- Empty tags in display mode -->
+              <div v-else-if="!isEditMode" class="text-gray-500 italic text-sm">
+                No additional details available.
+              </div>
+
+              <!-- Edit mode -->
+              <div v-else class="space-y-2">
+                <TagEditor
+                  v-model="editData.tags"
+                  :disabled="editLoading"
+                  :max-tags="30"
+                  @tag-added="(key) => announceSuccess(`Tag '${key}' added`)"
+                  @tag-removed="(key) => announceSuccess(`Tag '${key}' removed`)"
+                />
+              </div>
             </section>
 
             <!-- CC0 License Information -->

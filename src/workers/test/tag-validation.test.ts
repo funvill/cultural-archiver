@@ -16,12 +16,12 @@ describe('ServerTagValidationService', () => {
   describe('Tag Validation', () => {
     it('should validate valid structured tags', () => {
       const validTags: StructuredTags = {
-        tourism: 'artwork',
         artwork_type: 'statue',
-        name: 'Test Statue',
+        material: 'bronze',
         height: 5.5,
         access: 'yes',
         fee: 'no',
+        condition: 'excellent',
       };
 
       const result = service.validateTags(validTags);
@@ -33,20 +33,20 @@ describe('ServerTagValidationService', () => {
 
     it('should reject invalid tags', () => {
       const invalidTags: StructuredTags = {
-        tourism: 'invalid_value',
         artwork_type: 'not_an_enum_value',
         height: 'not_a_number',
         website: 'not-a-url',
+        unknown_tag: 'some_value',
       };
 
       const result = service.validateTags(invalidTags);
 
       expect(result.valid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
-      expect(result.errors.some(e => e.key === 'tourism')).toBe(true);
       expect(result.errors.some(e => e.key === 'artwork_type')).toBe(true);
       expect(result.errors.some(e => e.key === 'height')).toBe(true);
       expect(result.errors.some(e => e.key === 'website')).toBe(true);
+      expect(result.errors.some(e => e.key === 'unknown_tag')).toBe(true);
     });
 
     it('should provide helpful suggestions for errors', () => {
@@ -145,45 +145,43 @@ describe('ServerTagValidationService', () => {
   describe('OSM Export Generation', () => {
     it('should generate OpenStreetMap compatible tags', () => {
       const tags: StructuredTags = {
-        tourism: 'artwork',
         artwork_type: 'statue',
-        name: 'Test Statue',
+        material: 'bronze',
         height: 5.5,
         website: 'https://example.com',
       };
 
       const osmTags = service.generateOSMExport(tags);
 
-      expect(osmTags.tourism).toBe('artwork');
       expect(osmTags.artwork_type).toBe('statue');
-      expect(osmTags.name).toBe('Test Statue');
+      expect(osmTags.material).toBe('bronze');
       expect(osmTags.height).toBe('5.5');
       expect(osmTags.website).toBe('https://example.com');
     });
 
     it('should exclude empty values from OSM export', () => {
       const tags: StructuredTags = {
-        tourism: 'artwork',
-        name: '',
+        artwork_type: 'statue',
+        material: '',
         height: 0, // This should be included as it's a valid value
       };
 
       const osmTags = service.generateOSMExport(tags);
 
-      expect(osmTags.tourism).toBe('artwork');
-      expect(osmTags.name).toBeUndefined();
+      expect(osmTags.artwork_type).toBe('statue');
+      expect(osmTags.material).toBeUndefined();
       expect(osmTags.height).toBe('0');
     });
 
     it('should use ca: prefix for unmapped tags', () => {
       const tags: StructuredTags = {
-        tourism: 'artwork',
+        artwork_type: 'sculpture',
         condition: 'good', // This doesn't have explicit OSM mapping in our schema
       };
 
       const osmTags = service.generateOSMExport(tags);
 
-      expect(osmTags.tourism).toBe('artwork');
+      expect(osmTags.artwork_type).toBe('sculpture');
       // condition should either use its OSM mapping or get ca: prefix
       expect(osmTags.condition || osmTags['ca:condition']).toBe('good');
     });
@@ -192,15 +190,13 @@ describe('ServerTagValidationService', () => {
   describe('Artwork Edit Validation', () => {
     it('should validate tags for artwork editing', () => {
       const oldTags: StructuredTags = {
-        tourism: 'artwork',
         artwork_type: 'mural',
-        name: 'Old Name',
+        material: 'paint',
       };
 
       const newTags: StructuredTags = {
-        tourism: 'artwork',
         artwork_type: 'statue', // Changed type
-        name: 'New Name',
+        material: 'bronze', // Changed material
         height: 5.5, // Added new tag
       };
 
@@ -215,13 +211,14 @@ describe('ServerTagValidationService', () => {
 
     it('should warn about removing required tags', () => {
       const oldTags: StructuredTags = {
-        tourism: 'artwork',
-        name: 'Test Name',
+        artwork_type: 'statue',
+        material: 'bronze',
       };
 
       const newTags: StructuredTags = {
-        // tourism removed!
-        name: 'Test Name',
+        // artwork_type still present
+        artwork_type: 'statue',
+        // material removed - this is allowed since no tags are required
       };
 
       const result = service.validateForArtworkEdit(oldTags, newTags);
@@ -234,8 +231,8 @@ describe('ServerTagValidationService', () => {
   describe('Structured Tags Data Creation', () => {
     it('should create structured tags data with metadata', () => {
       const tags: StructuredTags = {
-        tourism: 'artwork',
-        name: 'Test',
+        artwork_type: 'statue',
+        material: 'bronze',
       };
 
       const structuredData = service.createStructuredTagsData(tags, '1.0.0');
@@ -247,7 +244,7 @@ describe('ServerTagValidationService', () => {
     });
 
     it('should use default version if not provided', () => {
-      const tags: StructuredTags = { tourism: 'artwork' };
+      const tags: StructuredTags = { artwork_type: 'statue' };
       const structuredData = service.createStructuredTagsData(tags);
 
       expect(structuredData.version).toBe('1.0.0');
@@ -257,7 +254,7 @@ describe('ServerTagValidationService', () => {
   describe('Error Code Generation', () => {
     it('should generate appropriate error codes', () => {
       const invalidTags: StructuredTags = {
-        // Missing required tourism tag
+        // Testing various invalid tag values
         artwork_type: 'invalid_enum_value',
         height: 'not_a_number',
         start_date: 'invalid_date_format',

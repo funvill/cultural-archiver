@@ -65,32 +65,13 @@ export const TAG_CATEGORIES: TagCategory[] = [
 export const TAG_DEFINITIONS: TagDefinition[] = [
   // Artwork Classification
   {
-    key: 'tourism',
-    label: 'Tourism Type',
-    description: 'OpenStreetMap tourism classification (always "artwork")',
-    category: 'classification',
-    dataType: 'enum',
-    enumValues: ['artwork'],
-    required: false,
-    helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:tourism',
-  },
-  {
     key: 'artwork_type',
     label: 'Artwork Type',
     description: 'Primary type or form of the artwork',
     category: 'classification',
     dataType: 'enum',
-    enumValues: ['statue', 'mural', 'sculpture', 'installation', 'mosaic', 'painting', 'relief', 'fountain'],
+    enumValues: ['statue', 'mural', 'sculpture', 'installation', 'monument', 'mosaic', 'graffiti', 'street_art', 'tiny_library'],
     helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:artwork_type',
-  },
-  {
-    key: 'name',
-    label: 'Artwork Name',
-    description: 'Official or common name of the artwork',
-    category: 'classification',
-    dataType: 'text',
-    maxLength: 100,
-    placeholder: 'Enter artwork name (e.g., "Angel of Victory")',
   },
   {
     key: 'subject',
@@ -109,15 +90,6 @@ export const TAG_DEFINITIONS: TagDefinition[] = [
     dataType: 'text',
     maxLength: 100,
     placeholder: 'e.g., "modern", "classical", "street art"',
-  },
-  {
-    key: 'description',
-    label: 'Description',
-    description: 'Detailed description of the artwork',
-    category: 'classification',
-    dataType: 'text',
-    maxLength: 500,
-    placeholder: 'Detailed description of the artwork...',
   },
 
   // Physical Properties
@@ -151,17 +123,8 @@ export const TAG_DEFINITIONS: TagDefinition[] = [
 
   // Historical Information
   {
-    key: 'artist_name',
-    label: 'Artist Name',
-    description: 'Name of the artist or creator',
-    category: 'historical',
-    dataType: 'text',
-    maxLength: 200,
-    placeholder: 'e.g., "Jane Doe", "Unknown", "Community Project"',
-  },
-  {
     key: 'start_date',
-    label: 'Creation Date',
+    label: 'Installation Date',
     description: 'When the artwork was created or installed',
     category: 'historical',
     dataType: 'date',
@@ -357,7 +320,7 @@ export function exportToOpenStreetMapFormat(tags: Record<string, string>): Recor
   
   for (const [key, value] of Object.entries(tags)) {
     // Core OSM tags don't get prefixed
-    if (['tourism', 'name', 'artwork_type', 'artist_name', 'material', 'height', 'start_date', 'access', 'fee', 'website', 'wikipedia'].includes(key)) {
+    if (['artwork_type', 'material', 'height', 'start_date', 'access', 'fee', 'website', 'wikipedia'].includes(key)) {
       osmTags[key] = value;
     } else {
       // Custom tags get "ca:" prefix
@@ -373,7 +336,12 @@ export function exportToOpenStreetMapFormat(tags: Record<string, string>): Recor
  */
 export const SCHEMA_VERSION = '1.0.0';
 
-export function getSchemaInfo() {
+export function getSchemaInfo(): {
+  version: string;
+  lastModified: string;
+  tagCount: number;
+  categoryCount: number;
+} {
   return {
     version: SCHEMA_VERSION,
     lastModified: '2024-12-19',

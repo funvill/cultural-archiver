@@ -52,10 +52,9 @@ describe('Export Integration Tests', () => {
         status: 'approved',
         tags: JSON.stringify({
           tags: {
-            tourism: 'artwork',
             artwork_type: 'statue',
-            name: 'Victory Angel',
-            artist_name: 'Jane Doe',
+            material: 'bronze',
+            height: 3.5,
           },
           version: '1.0.0',
         }),
@@ -91,8 +90,8 @@ describe('Export Integration Tests', () => {
         osm_tags: expect.objectContaining({
           tourism: 'artwork',
           artwork_type: 'statue',
-          name: 'Victory Angel',
-          artist_name: 'Jane Doe',
+          material: 'bronze',
+          height: '3.5',
         }),
       });
     });
@@ -105,8 +104,8 @@ describe('Export Integration Tests', () => {
         status: 'approved',
         tags: JSON.stringify({
           tags: {
-            tourism: 'artwork',
-            name: 'Test Art',
+            artwork_type: 'sculpture',
+            material: 'stone',
           },
           version: '1.0.0',
         }),
@@ -140,7 +139,7 @@ describe('Export Integration Tests', () => {
       expect(xmlContent).toContain('lat="49.2827"');
       expect(xmlContent).toContain('lon="-123.1207"');
       expect(xmlContent).toContain('<tag k="tourism" v="artwork"');
-      expect(xmlContent).toContain('<tag k="name" v="Test Art"');
+      expect(xmlContent).toContain('<tag k="artwork_type" v="sculpture"');
     });
 
     it('should return validation results for validation format', async () => {

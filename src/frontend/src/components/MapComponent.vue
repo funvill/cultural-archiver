@@ -233,9 +233,21 @@ async function initializeMap() {
       if (map.value) {
         console.log('Forcing map resize...');
         map.value.invalidateSize();
-        console.log('Map bounds after resize:', map.value.getBounds());
-        console.log('Map center after resize:', map.value.getCenter());
-        console.log('Map zoom after resize:', map.value.getZoom());
+        
+        // Safe debug logging with error handling
+        try {
+          if (typeof map.value.getBounds === 'function') {
+            console.log('Map bounds after resize:', map.value.getBounds());
+          }
+          if (typeof map.value.getCenter === 'function') {
+            console.log('Map center after resize:', map.value.getCenter());
+          }
+          if (typeof map.value.getZoom === 'function') {
+            console.log('Map zoom after resize:', map.value.getZoom());
+          }
+        } catch (error) {
+          console.warn('Debug logging failed:', error);
+        }
       }
     }, 100);
 

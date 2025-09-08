@@ -6,16 +6,25 @@
 
 ## Artwork Details page
 
-- Move the tags section from below the description into the "informaiton" side bar
-- Remove "status", "Creators", and "Type" from information side bar.
+- [x] Move the tags section from below the description into the "informaiton" side bar
+- [x] Remove "status", "Creators", and "Type" from information side bar.
 - Tags
-  - Remove "Description", "Artwork name", and "Artist name" from the possiable tags. These are already part of the artwork table.
-  - Remove "Tourist type" from the possiable tags. This value will always be "artwork" when exported.
-  - Add "Tiny Libary", to the "Artwork Type" tag enumerations.
-  - Change tag "Creation date" to "Installtion date"
+  - [x] Remove "Description", "Artwork name", and "Artist name" from the possiable tags. These are already part of the artwork table.
+  - [x] Remove "Tourist type" from the possiable tags. This value will always be "artwork" when exported.
+  - [x] Add "Tiny Libary", to the "Artwork Type" tag enumerations.
+  - [x] Change tag "Creation date" to "Installtion date"
+
 - At the top of the page, move the replace the "Map" in the breadcrumbs with "< Back to Map".
-- The "Edit" button should be right aligned in the same row as the breadcrumbs. Make the edit button larger.
-- The "Community Journal" entries, have a icon button in the top right hand corner (open in new window). Remove this icon.
+- [x] The "Edit" button should be right aligned in the same row as the breadcrumbs. Make the edit button larger.
+- [x] The "Community Journal" entries, have a icon button in the top right hand corner (open in new window). Remove this icon.
+- [x] The visual look should be bold tag label: Value... instead of blue box chiplets
+
+When viewing an artwork. Remove the ability to collapse the different tag sections.
+
+In edit mode
+- The different tags should show as a full row value instead of a block floating. 
+- A user should be able to click the tags and edit the value in the form as the add tag. 
+
 
 ## App Bar
 

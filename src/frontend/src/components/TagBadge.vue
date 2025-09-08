@@ -134,57 +134,6 @@ const hasHiddenTags = computed((): boolean => {
   return props.expandable && normalizedTags.value.length > props.maxVisible;
 });
 
-const sizeClasses = computed((): string => {
-  const sizeMap: Record<string, string> = {
-    sm: 'text-xs px-2 py-1',
-    md: 'text-sm px-3 py-1',
-    lg: 'text-base px-4 py-2',
-  };
-  return sizeMap[props.size] ?? sizeMap.md!;
-});
-
-const colorClasses = computed((): string => {
-  const baseClasses = 'transition-colors duration-200';
-
-  if (props.variant === 'outline') {
-    const outlineMap: Record<string, string> = {
-      blue: 'border-blue-300 text-blue-700 hover:bg-blue-50 focus:ring-blue-500',
-      gray: 'border-gray-300 text-gray-700 hover:bg-gray-50 focus:ring-gray-500',
-      green: 'border-green-300 text-green-700 hover:bg-green-50 focus:ring-green-500',
-      purple: 'border-purple-300 text-purple-700 hover:bg-purple-50 focus:ring-purple-500',
-      orange: 'border-orange-300 text-orange-700 hover:bg-orange-50 focus:ring-orange-500',
-    };
-    return `${baseClasses} border ${outlineMap[props.colorScheme] ?? outlineMap.blue!}`;
-  }
-
-  if (props.variant === 'compact') {
-    const compactMap: Record<string, string> = {
-      blue: 'bg-blue-100 text-blue-800 hover:bg-blue-200',
-      gray: 'bg-gray-100 text-gray-800 hover:bg-gray-200',
-      green: 'bg-green-100 text-green-800 hover:bg-green-200',
-      purple: 'bg-purple-100 text-purple-800 hover:bg-purple-200',
-      orange: 'bg-orange-100 text-orange-800 hover:bg-orange-200',
-    };
-    return `${baseClasses} ${compactMap[props.colorScheme] ?? compactMap.blue!}`;
-  }
-
-  // Default variant
-  const defaultMap: Record<string, string> = {
-    blue: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
-    gray: 'bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500',
-    green: 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500',
-    purple: 'bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500',
-    orange: 'bg-orange-600 text-white hover:bg-orange-700 focus:ring-orange-500',
-  };
-  return `${baseClasses} ${defaultMap[props.colorScheme] ?? defaultMap.blue!}`;
-});
-
-const tagClasses = computed((): string => {
-  const baseClasses =
-    'inline-flex items-center rounded-full font-medium focus:outline-none focus:ring-2 focus:ring-offset-2';
-  return `${baseClasses} ${sizeClasses.value} ${colorClasses.value}`;
-});
-
 // Methods
 function handleTagClick(tag: StructuredTag): void {
   emit('tagClick', tag);
@@ -291,37 +240,35 @@ if (props.collapsible) {
           v-show="isCategoryExpanded(categoryKey)"
           class="p-3"
         >
-          <div class="flex flex-wrap gap-2">
-            <button
+          <div class="space-y-1">
+            <div
               v-for="(tag, index) in categoryTags"
               :key="`${tag.key}-${tag.value}-${index}`"
-              :class="tagClasses"
+              class="text-sm"
               @click="handleTagClick(tag)"
               :aria-label="`Tag: ${formatTagDisplay(tag)}`"
-              type="button"
             >
-              <span class="capitalize">{{ tag.definition?.label || tag.key }}</span>
-              <span class="ml-1">{{ formatTagValueForDisplay(tag.key, tag.value) }}</span>
-            </button>
+              <span class="font-bold">{{ tag.definition?.label || tag.key }}:</span>
+              <span class="ml-1"> {{ formatTagValueForDisplay(tag.key, tag.value) }}</span>
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     <!-- Simple list display (original behavior) -->
-    <div v-else class="flex flex-wrap gap-2 items-center">
+    <div v-else class="space-y-1">
       <!-- Visible tags -->
-      <button
+      <div
         v-for="(tag, index) in visibleTags"
         :key="`${tag.key}-${tag.value}-${index}`"
-        :class="tagClasses"
+        class="text-sm cursor-pointer hover:bg-gray-50 p-1 rounded"
         @click="handleTagClick(tag)"
         :aria-label="`Tag: ${formatTagDisplay(tag)}`"
-        type="button"
       >
-        <span class="capitalize">{{ tag.definition?.label || tag.key }}</span>
-        <span class="ml-1">{{ formatTagValueForDisplay(tag.key, tag.value) }}</span>
-      </button>
+        <span class="font-bold">{{ tag.definition?.label || tag.key }}:</span>
+        <span class="ml-1"> {{ formatTagValueForDisplay(tag.key, tag.value) }}</span>
+      </div>
 
       <!-- Show more/less toggle -->
       <button
