@@ -9,6 +9,10 @@
 // Core Tag Schema Types
 // ================================
 
+// Prefix used for internal/system-only tag keys that should never be user-editable
+// or pass through validation/output (e.g. _photos). These are stripped server-side.
+export const INTERNAL_TAG_PREFIX = '_';
+
 export type TagDataType = 'enum' | 'text' | 'number' | 'date' | 'yes_no' | 'url' | 'wikidata_id';
 
 export interface TagDefinition {

@@ -55,14 +55,51 @@ export class DatabaseService {
   }
 
   async getArtworkWithDetails(id: string): Promise<(ArtworkRecord & { type_name: string }) | null> {
-    const stmt = this.db.prepare(`
-      SELECT a.*, at.name as type_name
-      FROM artwork a
-      JOIN artwork_types at ON a.type_id = at.id
-      WHERE a.id = ? AND a.status = 'approved'
-    `);
-    const result = await stmt.bind(id).first();
-    return result ? (result as unknown as ArtworkRecord & { type_name: string }) : null;
+    try {
+      // Primary query with LEFT JOIN for type name (safe if table exists)
+      const stmt = this.db.prepare(`
+        SELECT a.*, COALESCE(at.name, 'Unknown') as type_name
+        FROM artwork a
+        LEFT JOIN artwork_types at ON a.type_id = at.id
+        WHERE a.id = ? AND a.status = 'approved'
+      `);
+      const result = await stmt.bind(id).first();
+      if (!result) {
+        console.log('[DB DEBUG] getArtworkWithDetails: Artwork not found or not approved', { id });
+        return null;
+      }
+      const typedResult = result as unknown as ArtworkRecord & { type_name: string };
+      if (typedResult.type_name === 'Unknown') {
+        console.warn('[DB WARN] Artwork found but artwork_types entry missing or unmapped', {
+          id,
+          type_id: typedResult.type_id,
+        });
+      }
+      return typedResult;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (/no such table: artwork_types/i.test(message)) {
+        // Fallback: table not present (older prod schema). Return artwork anyway.
+        console.warn('[DB WARN] artwork_types table missing; falling back to artwork-only query');
+        try {
+          const fallbackStmt = this.db.prepare(`
+            SELECT a.*, 'Unknown' as type_name
+            FROM artwork a
+            WHERE a.id = ? AND a.status = 'approved'
+          `);
+          const fallbackResult = await fallbackStmt.bind(id).first();
+            if (!fallbackResult) {
+              return null;
+            }
+            return fallbackResult as unknown as ArtworkRecord & { type_name: string };
+        } catch (innerErr) {
+          console.error('[DB ERROR] Fallback artwork-only query failed', innerErr);
+          throw innerErr;
+        }
+      }
+      console.error('[DB ERROR] getArtworkWithDetails failed unexpectedly', err);
+      throw err;
+    }
   }
 
   async findNearbyArtworks(

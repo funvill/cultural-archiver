@@ -300,6 +300,16 @@ describe('ArtworkDetailView', () => {
       // Check that the component has basic structure
       expect(wrapper.exists()).toBe(true);
     });
+
+    it('filters out internal underscore-prefixed tags from display', async (): Promise<void> => {
+      // Inject an internal tag into mock artwork
+      (wrapper.vm as any).artwork.tags_parsed._photo = 'internal-value';
+      await wrapper.vm.$nextTick();
+
+      // Access computed displayTags
+      const displayTags = (wrapper.vm as any).displayTags;
+      expect(Object.keys(displayTags)).not.toContain('_photo');
+    });
   });
 
   describe('Error Handling', (): void => {

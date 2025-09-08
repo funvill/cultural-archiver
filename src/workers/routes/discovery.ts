@@ -146,16 +146,36 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
     });
 
     // Parse artwork tags from structured format
-    const structuredTags = safeJsonParse<StructuredTagsData>(
-      artwork.tags || '{}', 
-      { tags: {}, version: '1.0.0', lastModified: new Date().toISOString() }
-    );
-    
-    // Extract just the tags portion and ensure all values are strings for the frontend
+    const rawTagsFallback: StructuredTagsData = { tags: {}, version: '1.0.0', lastModified: new Date().toISOString() };
+    const structuredTags = safeJsonParse<StructuredTagsData>(artwork.tags || '{}', rawTagsFallback);
+
+    // Defensive: some legacy rows may have plain JSON without wrapping { tags: {..} }
+    let tagObject: unknown = structuredTags?.tags;
+    if (!tagObject || typeof tagObject !== 'object' || Array.isArray(tagObject)) {
+      // Try interpreting artwork.tags as a flat map if possible
+      try {
+        const parsedRaw = safeJsonParse<Record<string, unknown>>(artwork.tags || '{}', {});
+        if ('version' in parsedRaw) {
+          // Already a structured object but malformed tags field
+          tagObject = {};
+        } else {
+          tagObject = parsedRaw; // treat top-level keys as tags
+        }
+      } catch {
+        tagObject = {};
+      }
+    }
+
     const tagsParsed: Record<string, string> = {};
-    Object.entries(structuredTags.tags).forEach(([key, value]) => {
-      tagsParsed[key] = String(value);
-    });
+    try {
+      Object.entries(tagObject as Record<string, unknown>).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          tagsParsed[key] = String(value);
+        }
+      });
+    } catch (e) {
+      console.warn('Failed to iterate tags object; returning empty tags_parsed', e);
+    }
 
     const response: ArtworkDetailResponse = {
       ...artwork,

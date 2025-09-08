@@ -116,6 +116,12 @@ const artworkTags = computed(() => {
   delete filteredTags.description;
   delete filteredTags.artist;
   delete filteredTags.creator;
+  // Remove internal/system tags (prefixed with underscore)
+  Object.keys(filteredTags).forEach(k => {
+    if (k.startsWith('_')) {
+      delete (filteredTags as any)[k];
+    }
+  });
 
   // Convert to structured tags format (string values only)
   const structuredTags: Record<string, string> = {};
@@ -143,6 +149,8 @@ const keywordList = computed(() => {
 const displayTags = computed(() => {
   const clone = { ...artworkTags.value } as Record<string, string>;
   delete clone.keywords; // keywords rendered separately
+  // Double-safety: ensure no internal tags leak
+  Object.keys(clone).forEach(k => { if (k.startsWith('_')) delete clone[k]; });
   return clone;
 });
 

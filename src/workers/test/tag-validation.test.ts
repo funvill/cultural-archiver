@@ -285,6 +285,22 @@ describe('ServerTagValidationService', () => {
   });
 
   describe('Integration Edge Cases', () => {
+    it('should ignore internal underscore-prefixed tags', () => {
+      const tags: StructuredTags = {
+        artwork_type: 'statue',
+        _photos: 'https://example.com/internal.jpg',
+        _internal_meta: 'ignore-me',
+      } as unknown as StructuredTags; // casting to allow underscore keys
+
+      const result = service.validateTags(tags);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors.length).toBe(0);
+      // Sanitized tags should not contain the internal keys
+      expect(result.sanitized_tags?._photos).toBeUndefined();
+      expect(result.sanitized_tags?._internal_meta).toBeUndefined();
+      expect(result.sanitized_tags?.artwork_type).toBe('statue');
+    });
     it('should handle malformed input gracefully', () => {
       // Test with various malformed inputs
       expect(() => service.validateTags(null as unknown as StructuredTags)).not.toThrow();

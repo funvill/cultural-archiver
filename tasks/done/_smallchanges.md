@@ -25,3 +25,12 @@ These are small changes that I did inline.
   - [x] The different tags should show as a full row value instead of a block floating.
   - [x] A user should be able to click the tags and edit the value in the form as the add tag.
   - [x] Couldn't enter in height, produced error.
+
+## Add artwork
+
+[x] After adding a new artwork. Then approving it in the moderators queue. I can see the artwork pin on the map. But when I click the map pin I get a error
+
+```txt
+Artwork Not Found
+Artwork with ID "2d74d47e-af12-45bb-b1a2-295a17839c4d" was not found. It may have been removed or is pending approval.
+```

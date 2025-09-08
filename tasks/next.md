@@ -3,9 +3,24 @@
 2. Variables files
 3. Mass import
 
+## Add artwork
+
+---
+
+- Update this workflow
+  1) Customer uploads a photo first
+  2) The system uses the photo's GPS, and the browsers GPS, and if all else fails, the IP address IP Address to find a list of artworks that are near by.
+  3) The user can either
+    3A) "Add new artwork" - The user reviews the close by artworks and determins that this is a new artwork.
+    3B) The user clicks one of the existing artworks to add the logbook entry to the existing artwork.
+  4) After they fill in the addtional information. They are asked for consent to use this inforamtion then its submitted to the website.
+
+
 ## Artwork Details page
 
 ## Map page
+
+- The artwork search radius should be the visable screen based on the zoom level and the screen size.
 
 - The icon used as the marker on the map should be based off of the tag "Artwork Type". If the artwork does not have a "Artwork Type", then use a default. Each "Artwork Type" should have a different icon.
 
@@ -13,20 +28,18 @@
 
 - Zooming out should cluster artwork markers on the map.
 
-## Add artwork
 
-After adding a new artwork. Then approving it in the moderators queue. I can see the artwork pin on the map. But when I click the map pin I get a error
-
-```txt
-Artwork Not Found
-Artwork with ID "2d74d47e-af12-45bb-b1a2-295a17839c4d" was not found. It may have been removed or is pending approval.
-```
 
 ## Admin page
 
-The admin page is a super user that can give moderators permissions to other users
+The admin page is a super user that can give moderators permissions to other users.
 
-When I click the link in the header for "admin", I get the following error 
+- List existing users that have email address.
+- The ability to give moderators permissions to users with email address.
+
+
+
+When I click the link in the header for "admin", I get the following error
 
 ```txt
 {
@@ -43,22 +56,15 @@ When I click the link in the header for "admin", I get the following error
 }
 ```
 
+## Review Queue / Moderate page
 
+- Move the tabs "New Submissions", and "Artwork Edits" to below the Moderate stats.
+- The "pending review" stat should also include the "Artwork Edits" pending.
 
 ## App Bar
 
 - The search should be centered on all screen sizes. and enlarged to be a single icon.
 - Help, Admin, and Moderator should automaticly be put in to the menu. The menu should always be shown.
-
-## Add Artwork
-
-- Update this workflow
-  1) Customer uploads a photo first
-  2) The system uses the photo's GPS, and the browsers GPS, and if all else fails, the IP address IP Address to find a list of artworks that are near by.
-  3) The user can either
-    3A) "Add new artwork" - The user reviews the close by artworks and determins that this is a new artwork.
-    3B) The user clicks one of the existing artworks to add the logbook entry to the existing artwork.
-  4) After they fill in the addtional information. They are asked for consent to use this inforamtion then its submitted to the website.
 
 ## Choose a name
 

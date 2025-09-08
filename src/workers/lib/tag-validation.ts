@@ -15,6 +15,7 @@ import {
   getTagDefinition,
   isValidTagKey,
   generateOSMTags,
+  INTERNAL_TAG_PREFIX,
 } from '../../shared/tag-schema.js';
 import {
   validateTagValue,
@@ -45,9 +46,19 @@ export class ServerTagValidationService {
   validateTags(tags: StructuredTags): TagValidationResponse {
     try {
       console.log('[TAG VALIDATION DEBUG] Starting tag validation:', { tags, timestamp: new Date().toISOString() });
+      // Strip internal/system tags (underscore-prefixed) before any sanitization/validation
+      // These are reserved for internal metadata (_photos, _internal, etc.) and not user-editable
+      const externalTags: StructuredTags = {};
+      Object.entries(tags || {}).forEach(([k, v]) => {
+        if (!k.startsWith(INTERNAL_TAG_PREFIX)) {
+          externalTags[k] = v as any;
+        } else {
+          console.log('[TAG VALIDATION DEBUG] Ignoring internal tag key:', k);
+        }
+      });
       
       // First sanitize the tags
-      const sanitizedTags = sanitizeStructuredTags(tags, this.tagDefinitions);
+      const sanitizedTags = sanitizeStructuredTags(externalTags, this.tagDefinitions);
       console.log('[TAG VALIDATION DEBUG] Tags sanitized:', { sanitizedTags });
 
       // Then validate the sanitized tags
