@@ -38,18 +38,18 @@ Artwork with ID "2d74d47e-af12-45bb-b1a2-295a17839c4d" was not found. It may hav
 ## Map
 
 - [x] The artwork search radius should be the visable screen based on the zoom level and the screen size.
-
 - [x] The icon used as the marker on the map should be based off of the tag "Artwork Type". If the artwork does not have a "Artwork Type", then use a default. Each "Artwork Type" should have a different icon.
-
 - [x] Zooming out should cluster artwork markers on the map.
-
 
 ## Admin page
 
 The admin page is a super user that can give moderators permissions to other users.
 
-- List existing users that have email address.
-- The ability to give moderators permissions to users with email address.
+- [x] List existing users that have email address.
+- [x] The ability to give moderators permissions to users with email address.
+- [x] The ability to give moderators permissions to users with email address.
+- [x] All of the users on the admin index page have "Unknown Email", including "6c970b24-f64a-49d9-8c5f-8ae23cc2af47" user that i know has a email address.
+- [x] The search always returns all of the results, regarless of what I search for
 
 ----
 

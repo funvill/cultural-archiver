@@ -25,12 +25,6 @@
 
 The admin page is a super user that can give moderators permissions to other users.
 
-- The ability to give moderators permissions to users with email address.
-
-- All of the users on the admin index page have "Unknown Email", including "6c970b24-f64a-49d9-8c5f-8ae23cc2af47" user that i know has a email address.
-
-- The search always returns all of the results, regarless of what I search for
-
 ## Review Queue / Moderate page
 
 - Move the tabs "New Submissions", and "Artwork Edits" to below the Moderate stats. (Simlare to the admin page)
