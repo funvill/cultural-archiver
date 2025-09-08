@@ -45,18 +45,18 @@ export {
   validateImportData,
   MASS_IMPORT_USER_TOKEN,
   VANCOUVER_BOUNDS,
-} from './lib/validation';
+} from './lib/validation.js';
 
 export {
   detectDuplicates,
   checkExternalIdDuplicate,
   type ExistingArtwork,
-} from './lib/duplicate-detection';
+} from './lib/duplicate-detection.js';
 
 export {
   MassImportAPIClient,
   DryRunAPIClient,
-} from './lib/api-client';
+} from './lib/api-client.js';
 
 // ================================
 // Data Source Importers
@@ -65,7 +65,7 @@ export {
 export {
   VancouverMapper,
   validateVancouverData,
-} from './importers/vancouver';
+} from './importers/vancouver.js';
 
 // ================================
 // CLI and Processing
@@ -73,7 +73,7 @@ export {
 
 export {
   MassImportProcessor,
-} from './cli/processor';
+} from './cli/processor.js';
 
 import type { MassImportConfig } from './types';
 

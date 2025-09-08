@@ -14,9 +14,9 @@ import type {
   ImportResult,
   DataSourceMapper,
 } from '../types';
-import { MassImportAPIClient, DryRunAPIClient } from '../lib/api-client';
-import { validateImportData } from '../lib/validation';
-import { RawImportDataSchema } from '../types';
+import { MassImportAPIClient, DryRunAPIClient } from '../lib/api-client.js';
+import { validateImportData } from '../lib/validation.js';
+import { RawImportDataSchema } from '../types/index.js';
 
 // ================================
 // Main Processor Class

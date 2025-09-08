@@ -12,7 +12,7 @@ import type {
   DataSourceMapper,
   PhotoInfo,
 } from '../types';
-import { validateImportData, VANCOUVER_BOUNDS } from '../lib/validation';
+import { validateImportData, VANCOUVER_BOUNDS } from '../lib/validation.js';
 
 // ================================
 // Vancouver Data Mapper

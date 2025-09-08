@@ -11,9 +11,9 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import fs from 'fs/promises';
-import { MassImportProcessor } from './processor';
-import { VancouverMapper } from '../importers/vancouver';
-import type { MassImportConfig, DryRunReport } from '../types';
+import { MassImportProcessor } from './processor.js';
+import { VancouverMapper } from '../importers/vancouver.js';
+import type { MassImportConfig, DryRunReport } from '../types/index.js';
 
 const program = new Command();
 

@@ -12,8 +12,8 @@ import type {
   MassImportConfig,
   PhotoInfo,
 } from '../types';
-import type { ExistingArtwork } from './duplicate-detection';
-import { detectDuplicates, checkExternalIdDuplicate } from './duplicate-detection';
+import type { ExistingArtwork } from './duplicate-detection.js';
+import { detectDuplicates, checkExternalIdDuplicate } from './duplicate-detection.js';
 
 // ================================
 // API Client Configuration

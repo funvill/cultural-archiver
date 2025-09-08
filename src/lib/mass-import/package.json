@@ -5,6 +5,9 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "mass-import": "./dist/cli/index.js"
+  },
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -20,6 +23,7 @@
     "dev": "tsc --watch",
     "test": "vitest",
     "test:basic": "tsx test/test-basic.ts",
+    "test:integration": "npm run build && tsx test/test-integration.ts",
     "lint": "eslint src/",
     "clean": "rm -rf dist"
   },
