@@ -51,29 +51,15 @@ REVIEWER_EMAIL=reviewer@example.com
 
 ### 4. Database Setup
 
-Initialize the local D1 database using the new migration system:
+Set up the local D1 database:
 
 ```bash
 # Create D1 database (if not already done)
 cd src/workers
 npx wrangler d1 create cultural-archiver-dev
-
-# Apply all migrations to set up the schema
-cd ../..  # Back to project root
-npm run migrate:dev
-
-# Verify migration status
-npm run migrate:status
 ```
 
-The migration system will:
-
-- Apply all pending migrations in sequence (0001, 0002, etc.)
-- Track migration state automatically
-- Ensure D1 compatibility
-- Set up the complete database schema
-
-For more details on the migration system, see [docs/migrations.md](./migrations.md).
+You will need to create and apply your own database schema as needed.
 
 ## Development Workflow
 
@@ -254,8 +240,8 @@ Import the collection from `postman-collection.json` in the repository root. It 
 
 ### Schema Changes
 
-1. Create new migration file in `migrations/`
-2. Apply locally: `npx wrangler d1 execute cultural-archiver-dev --local --file=migrations/new-migration.sql`
+1. Create database schema files as needed
+2. Apply manually to your development database
 3. Test with existing data
 4. Update TypeScript types in `src/shared/types.ts`
 

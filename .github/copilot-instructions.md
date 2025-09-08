@@ -61,11 +61,12 @@
   - `/routes/` - API endpoint handlers (auth, discovery, submissions, user, review)
   - `/middleware/` - Authentication, rate limiting, and validation middleware
   - `/lib/` - Utilities for database, photos, email, spatial queries, and errors
+  - `/migrations/` - Database migration SQL files with sequential numbering
   - `/test/` - Comprehensive test suite with 170+ tests across 5 test suites
 - `/src/shared/` - Shared TypeScript types and utilities
-- `/migrations/` - Database migration files with current schema
 - `/docs/` - Complete project documentation including API specs, deployment guides, and troubleshooting
-- `/tests/` - Current tasks
+- `/tasks/` - Current tasks and project requirements documents
+- `/_backup_database/` - Database export files and backup storage (excluded from git)
 
 ## Development Guidelines
 
@@ -143,3 +144,126 @@
 - Use ±0.0045 degrees (~500m) for initial filtering
 - Implement haversine formula for precise distance calculations
 - Default radius is 500 meters for nearby artwork searches
+
+## Database Migration System
+
+The project includes a comprehensive database migration system for managing Cloudflare D1 database schema changes and data operations.
+
+### Migration Commands (PowerShell Compatible)
+
+**Export Database:**
+```powershell
+npm run database:export:dev     # Export development database
+npm run database:export:prod    # Export production database  
+npm run database:export:staging # Export staging database
+```
+
+**Apply Migrations:**
+```powershell
+npm run database:migration:dev     # Apply migrations to development
+npm run database:migration:prod    # Apply migrations to production
+npm run database:migration:staging # Apply migrations to staging
+```
+
+**Import SQL Files:**
+```powershell
+npm run database:import:dev <file.sql>     # Import to development
+npm run database:import:prod <file.sql>    # Import to production
+npm run database:import:staging <file.sql> # Import to staging
+```
+
+**Migration Status:**
+```powershell
+npm run database:status:dev     # Check migration status for development
+npm run database:status:prod    # Check migration status for production
+npm run database:status:staging # Check migration status for staging
+```
+
+### Migration File Structure
+
+- **Location**: `src/workers/migrations/`
+- **Naming**: Use sequential numbering: `0001_description.sql`, `0002_add_table.sql`
+- **Tracking**: Applied migrations are tracked in `d1_migrations` table automatically
+- **Backup**: Database exports are stored in `_backup_database/` directory
+
+### Migration File Guidelines
+
+**File Naming Convention:**
+```
+0001_initial_schema.sql
+0002_add_user_table.sql  
+0003_add_indexes.sql
+0004_modify_constraints.sql
+```
+
+**SQL Compatibility Requirements:**
+- Use SQLite-compatible syntax (Cloudflare D1 is SQLite-based)
+- Avoid MySQL/PostgreSQL specific features
+- Use `TEXT` for JSON storage, not native JSON type
+- Use `REAL` for floating-point numbers (lat/lon coordinates)
+- Include proper constraints and indexes
+
+**Migration Best Practices:**
+- Include rollback instructions in comments when possible
+- Test migrations on development database first
+- Use transactions for multi-statement migrations
+- Document schema changes in `/docs/database.md`
+- Follow existing table naming conventions (snake_case)
+
+**Example Migration File:**
+```sql
+-- Migration: Add artwork tagging system
+-- Date: 2025-09-07
+-- Description: Creates tags table for flexible artwork categorization
+
+CREATE TABLE tags (
+    id TEXT PRIMARY KEY,
+    artwork_id TEXT,
+    logbook_id TEXT,
+    label TEXT NOT NULL,
+    value TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    FOREIGN KEY (artwork_id) REFERENCES artwork(id) ON DELETE CASCADE,
+    FOREIGN KEY (logbook_id) REFERENCES logbook(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_tags_artwork_id ON tags(artwork_id);
+CREATE INDEX idx_tags_logbook_id ON tags(logbook_id);
+CREATE INDEX idx_tags_label ON tags(label);
+
+-- Sample data for testing
+INSERT INTO tags (id, artwork_id, label, value) 
+VALUES ('sample-tag-1', 'SAMPLE-artwork-approved-1', 'material', 'bronze');
+```
+
+### Backup and Recovery
+
+**Automatic Backups:**
+- Export commands create timestamped SQL files in `_backup_database/`
+- Files include complete schema and data dumps
+- Backups are excluded from git via `.gitignore`
+
+**Recovery Process:**
+1. Use `npm run database:import:dev backup_file.sql` to restore from backup
+2. Verify data integrity after restoration
+3. Re-apply any migrations if needed
+
+### Database Schema Management
+
+**Schema Documentation:**
+- Current schema is documented in `/docs/database.md`
+- Update documentation when migrations change schema
+- Include relationship diagrams and constraints
+
+**Type Safety:**
+- Database interfaces are defined in `src/shared/types.ts`
+- Update TypeScript types when adding/modifying tables
+- Use proper type guards for status validation
+
+**AI Agent Guidelines for Migration Creation:**
+- Check existing schema in `/docs/database.md` before creating migrations
+- Use sequential numbering starting from next available number
+- Follow SQLite syntax and D1 compatibility requirements  
+- Include proper indexes for performance
+- Test migrations in development environment first
+- Document breaking changes and provide migration instructions

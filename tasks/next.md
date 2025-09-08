@@ -27,8 +27,6 @@ Allow for Automatic approval. OR mass approval of these imported artworks and lo
 
 This PRD has two parts. Creating the tools that all the improt scripts will use. Then creating the import script for tasks\public-art.json vancouver-public-art as an example.
 
-
-
 Data sets
 
 - City of Vancouver Public Art: Contains artist info and geolocated artwork data, updated weekly. It’s available in GIS-friendly formats like CSV or GeoJSON https://opendata.vancouver.ca/explore/dataset/public-art/
@@ -46,3 +44,24 @@ Find people that would be willing to partner with me on this project. Be specifi
 Optimize the adgent session. See if there is a way to have `vitest` pre installed.
 
 `I see there's an issue with vitest not being found. Let me check if dependencies are installed and try to fix this:`
+
+## Migration system
+
+Goal:
+
+1) Export
+I should be able to run `npm run database:export` in the root project directory and it will create an export of the current production database in the `_backup_database/database_YYYY-MMM-DD.sql`
+
+2) Migrate
+I should be able to run `npm run database:migration` in the root project directory and it will use "wrangler" to migrate the production database to the new version using the migrations created by `wrangler migrations create`. The migration files are stored in a `migration` folder either in the root project directory or the `src\workers\migration` folder.
+
+3) Import
+I should be able to run `npm run database:import file.sql` in the root project directory. The system will ask me if I am sure and tell me that this is a destructive process. Then it will. A) clear the old database, B) Import a new database `file.sql`.
+
+Notes:
+
+- This might involve changing directories to the `/src/workers/` directory first to take advantage of the existing `src\workers\wrangler.toml` file.
+- Use `.env`, or `src\workers\wrangler.toml` to store the required settings.
+- Ths migration system should use CloudFlare D1 build in migration system. https://developers.cloudflare.com/d1/reference/migrations/
+- See the list of D1 commands https://developers.cloudflare.com/workers/wrangler/commands/#d1 Such as "wrangler migrations create", "migrations list", "migrations apply", and "export"
+- It should use wrangler, it should not using any nodejs scripts, or powershell scripts, or bash scripts.

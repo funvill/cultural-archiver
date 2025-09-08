@@ -1,5 +1,4 @@
 name: Test
-
 on:
   push:
     branches: [main, develop]
@@ -31,12 +30,6 @@ jobs:
 
       - name: Run tests
         run: npm run test
-
-      - name: Validate migrations (D1 compatibility)
-        run: npm run migrate:validate
-
-      - name: Validate migration sequence
-        run: npm run migrate:validate:sequence
 
       - name: Check code formatting
         run: npm run format:check

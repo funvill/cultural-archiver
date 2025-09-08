@@ -37,7 +37,7 @@
       "@workers/*": ["./src/workers/*"]
     }
   },
-  "include": ["src/**/*", "migrations/**/*", "*.ts", "*.js"],
+  "include": ["src/**/*", "*.ts", "*.js"],
   "exclude": [
     "node_modules",
     "dist",
