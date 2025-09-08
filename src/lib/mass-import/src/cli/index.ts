@@ -38,6 +38,10 @@ program
   .option('--retry-delay <number>', 'Delay between retries in ms', '1000')
   .option('--duplicate-radius <number>', 'Duplicate detection radius in meters', '50')
   .option('--similarity-threshold <number>', 'Title similarity threshold (0-1)', '0.8')
+  .option('--limit <number>', 'Limit number of records processed (testing / first-record import)')
+  .option('--offset <number>', 'Skip first N records before processing (windowing)')
+  .option('--new-artwork-report <file>', 'Write list of newly created artwork URLs to file (non-dry-run only)')
+  .option('--frontend-base <url>', 'Frontend base URL for artwork links (defaults to https://art.abluestar.com)')
   .option('--config <file>', 'Configuration file path')
   .option('--verbose', 'Enable verbose logging', false);
 
@@ -55,7 +59,12 @@ program
   .option('--continue-on-error', 'Continue processing when individual records fail', false)
   .action(async (file, options) => {
     try {
-      const config = await loadConfig(options);
+  // Merge global options (defined on root program) with command options so flags
+  // like --batch-size propagate correctly. Commander only passes command-local
+  // options to the action handler by default.
+  const globalOptions = program.opts();
+  const mergedOptions = { ...globalOptions, ...options };
+  const config = await loadConfig(mergedOptions);
       const processor = new MassImportProcessor(config);
 
       console.log(chalk.blue('🚀 Starting mass import process...'));
@@ -66,10 +75,29 @@ program
       // Load and parse input file
       const spinner = ora('Loading input file...').start();
       const data = await loadInputFile(file);
+      // Apply optional record limit
+      let limitedData = data;
+      const offset = mergedOptions.offset ? parseInt(mergedOptions.offset, 10) : 0;
+      if (!isNaN(offset) && offset > 0) {
+        if (offset >= data.length) {
+          console.log(chalk.red(`⚠️ Offset ${offset} exceeds dataset length (${data.length}). No records to process.`));
+          limitedData = [];
+        } else {
+          limitedData = data.slice(offset);
+          console.log(chalk.yellow(`⚠️ Offset applied: skipping first ${offset} records`));
+        }
+      }
+      if (mergedOptions.limit) {
+        const limit = parseInt(mergedOptions.limit, 10);
+        if (!isNaN(limit) && limit > 0 && limitedData.length > limit) {
+          limitedData = limitedData.slice(0, limit);
+          console.log(chalk.yellow(`⚠️ Record limit applied: processing ${limit} records (window ${offset}-${offset + limit - 1})`));
+        }
+      }
       spinner.succeed(`Loaded ${data.length} records from ${file}`);
 
       // Process data
-      const results = await processor.processData(data, {
+  const results = await processor.processData(limitedData, {
         source: options.source,
         dryRun: options.dryRun,
         continueOnError: options.continueOnError,
@@ -77,6 +105,11 @@ program
 
       // Display results
       displayResults(results);
+
+      // Save newly created artwork URL list if requested
+      if (!options.dryRun && mergedOptions.newArtworkReport) {
+        await saveNewArtworkReport(results, mergedOptions, 'import');
+      }
 
       // Save report if requested
       if (options.output) {
@@ -102,7 +135,9 @@ program
   .option('--output <file>', 'Output validation report file path')
   .action(async (file, options) => {
     try {
-      const config = await loadConfig(options);
+  const globalOptions = program.opts();
+  const mergedOptions = { ...globalOptions, ...options };
+  const config = await loadConfig(mergedOptions);
       config.dryRun = true; // Force dry-run mode for validation
       
       const processor = new MassImportProcessor(config);
@@ -113,10 +148,28 @@ program
       // Load and parse input file
       const spinner = ora('Loading input file...').start();
       const data = await loadInputFile(file);
+      let limitedData = data;
+      const offset = mergedOptions.offset ? parseInt(mergedOptions.offset, 10) : 0;
+      if (!isNaN(offset) && offset > 0) {
+        if (offset >= data.length) {
+          console.log(chalk.red(`⚠️ Offset ${offset} exceeds dataset length (${data.length}). No records to validate.`));
+          limitedData = [];
+        } else {
+          limitedData = data.slice(offset);
+          console.log(chalk.yellow(`⚠️ Offset applied: skipping first ${offset} records`));
+        }
+      }
+      if (mergedOptions.limit) {
+        const limit = parseInt(mergedOptions.limit, 10);
+        if (!isNaN(limit) && limit > 0 && limitedData.length > limit) {
+          limitedData = limitedData.slice(0, limit);
+          console.log(chalk.yellow(`⚠️ Record limit applied: validating ${limit} records (window ${offset}-${offset + limit - 1})`));
+        }
+      }
       spinner.succeed(`Loaded ${data.length} records from ${file}`);
 
       // Validate data
-      const results = await processor.processData(data, {
+  const results = await processor.processData(limitedData, {
         source: options.source,
         dryRun: true,
         continueOnError: true,
@@ -149,7 +202,9 @@ program
   .option('--output <file>', 'Output report file path')
   .action(async (options) => {
     try {
-      const config = await loadConfig(options);
+  const globalOptions = program.opts();
+  const mergedOptions = { ...globalOptions, ...options };
+  const config = await loadConfig(mergedOptions);
       const processor = new MassImportProcessor(config);
 
       console.log(chalk.blue('🏢 Starting Vancouver Open Data import...'));
@@ -159,13 +214,31 @@ program
       // Load Vancouver data
       const spinner = ora('Loading Vancouver data...').start();
       const data = await loadInputFile(options.input);
+      let limitedData = data;
+      const offset = mergedOptions.offset ? parseInt(mergedOptions.offset, 10) : 0;
+      if (!isNaN(offset) && offset > 0) {
+        if (offset >= data.length) {
+          console.log(chalk.red(`⚠️ Offset ${offset} exceeds Vancouver dataset length (${data.length}). No records to process.`));
+          limitedData = [];
+        } else {
+          limitedData = data.slice(offset);
+          console.log(chalk.yellow(`⚠️ Offset applied: skipping first ${offset} Vancouver records`));
+        }
+      }
+      if (mergedOptions.limit) {
+        const limit = parseInt(mergedOptions.limit, 10);
+        if (!isNaN(limit) && limit > 0 && limitedData.length > limit) {
+          limitedData = limitedData.slice(0, limit);
+          console.log(chalk.yellow(`⚠️ Record limit applied: processing ${limit} Vancouver records (window ${offset}-${offset + limit - 1})`));
+        }
+      }
       spinner.succeed(`Loaded ${data.length} Vancouver artworks`);
 
       // Use Vancouver-specific mapper
       processor.setMapper(VancouverMapper);
 
       // Process Vancouver data
-      const results = await processor.processData(data, {
+  const results = await processor.processData(limitedData, {
         source: 'vancouver-opendata',
         dryRun: options.dryRun,
         continueOnError: true,
@@ -173,6 +246,10 @@ program
 
       // Display results
       displayResults(results);
+
+      if (!options.dryRun && mergedOptions.newArtworkReport) {
+        await saveNewArtworkReport(results, mergedOptions, 'vancouver');
+      }
 
       // Save report if requested
       if (options.output) {
@@ -198,7 +275,9 @@ program
   .option('--output <file>', 'Output report file path')
   .action(async (file, options) => {
     try {
-      const config = await loadConfig(options);
+  const globalOptions = program.opts();
+  const mergedOptions = { ...globalOptions, ...options };
+  const config = await loadConfig(mergedOptions);
       config.dryRun = true;
       
       const processor = new MassImportProcessor(config);
@@ -209,9 +288,27 @@ program
       // Load and process data in dry-run mode
       const spinner = ora('Loading input file...').start();
       const data = await loadInputFile(file);
+      let limitedData = data;
+      const offset = mergedOptions.offset ? parseInt(mergedOptions.offset, 10) : 0;
+      if (!isNaN(offset) && offset > 0) {
+        if (offset >= data.length) {
+          console.log(chalk.red(`⚠️ Offset ${offset} exceeds dataset length (${data.length}). No records for dry-run.`));
+          limitedData = [];
+        } else {
+          limitedData = data.slice(offset);
+          console.log(chalk.yellow(`⚠️ Offset applied: dry-run skipping first ${offset} records`));
+        }
+      }
+      if (mergedOptions.limit) {
+        const limit = parseInt(mergedOptions.limit, 10);
+        if (!isNaN(limit) && limit > 0 && limitedData.length > limit) {
+          limitedData = limitedData.slice(0, limit);
+          console.log(chalk.yellow(`⚠️ Record limit applied: dry-run on ${limit} records (window ${offset}-${offset + limit - 1})`));
+        }
+      }
       spinner.succeed(`Loaded ${data.length} records from ${file}`);
 
-      const results = await processor.processData(data, {
+  const results = await processor.processData(limitedData, {
         source: options.source,
         dryRun: true,
         continueOnError: true,
@@ -377,6 +474,42 @@ async function saveDryRunReport(report: DryRunReport, filePath: string): Promise
   };
 
   await fs.writeFile(filePath, JSON.stringify(fullReport, null, 2));
+}
+
+/**
+ * Save list of newly created artwork URLs
+ */
+async function saveNewArtworkReport(results: any, options: any, mode: string): Promise<void> {
+  const filePath = options.newArtworkReport as string;
+  const frontendBase: string = (options.frontendBase as string) || 'https://art.abluestar.com';
+
+  // Collect submission IDs from successful import results
+  const newIds: string[] = [];
+  for (const batch of results.batches || []) {
+    for (const r of batch.results) {
+      if (r.success && r.submissionId) {
+        newIds.push(r.submissionId);
+      }
+    }
+  }
+
+  if (newIds.length === 0) {
+    await fs.writeFile(filePath, '# No new artwork submissions created\n');
+    console.log(chalk.yellow(`⚠️ No new artwork URLs to write (${mode})`));
+    return;
+  }
+
+  // Build URL list (frontend uses /artwork/:id)
+  const lines = [
+    '# Newly Created Artwork URLs',
+    `# Mode: ${mode}`,
+    `# Generated: ${new Date().toISOString()}`,
+    ...newIds.map(id => `${frontendBase.replace(/\/$/, '')}/artwork/${id}`),
+    '',
+  ];
+
+  await fs.writeFile(filePath, lines.join('\n'));
+  console.log(chalk.green(`🔗 New artwork URL report written: ${filePath} (${newIds.length} entries)`));
 }
 
 // ================================

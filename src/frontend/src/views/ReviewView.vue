@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, computed, onMounted, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useArtworksStore } from '../stores/artworks';
 import { globalModal } from '../composables/useModal';
@@ -12,6 +12,8 @@ import type { ArtworkEditReviewData } from '../../../shared/types';
 // Types
 interface ReviewSubmission {
   id: string;
+  // If the submission already has an associated artwork record (pending or linked), include it
+  artwork_id?: string;
   title?: string;
   note?: string;
   photos: string[];
@@ -37,6 +39,7 @@ interface Statistics {
 const authStore = useAuthStore();
 const artworksStore = useArtworksStore();
 const router = useRouter();
+const route = useRoute();
 
 // State
 const loading = ref(true);
@@ -52,6 +55,8 @@ const statistics = ref<Statistics>({
 });
 
 const filterType = ref('all');
+// Search box for locating a specific submission/artwork UUID
+const searchId = ref('');
 const sortBy = ref('created_at');
 const currentPage = ref(1);
 const pageSize = 6;
@@ -62,35 +67,60 @@ const action = ref<'approve' | 'reject' | null>(null);
 const filteredSubmissions = computed(() => {
   if (currentTab.value !== 'submissions') return [];
 
-  let filtered = submissions.value.filter(s => s.status === 'pending');
+  const searching = !!searchId.value.trim();
 
-  // Filter by type
+  // If searching, start from ALL submissions (any status) so deep links work even if status changed.
+  // Otherwise default to pending-only view.
+  let base = searching
+    ? submissions.value.slice()
+    : submissions.value.filter((s: ReviewSubmission) => s.status === 'pending');
+
+  // Filter by type only when not searching (keep search broad). If searching and filterType != all, still respect filter.
   if (filterType.value !== 'all') {
-    filtered = filtered.filter(s => s.type === filterType.value);
+    base = base.filter((s: ReviewSubmission) => s.type === filterType.value);
   }
 
-  // Sort
-  filtered.sort((a, b) => {
+  if (searching) {
+    const term = searchId.value.trim().toLowerCase();
+    base = base.filter((s: ReviewSubmission) => {
+      if (s.id.toLowerCase().includes(term)) return true;
+      if (s.artwork_id && s.artwork_id.toLowerCase().includes(term)) return true;
+      return false;
+    });
+  }
+
+  // Sort: prioritize pending + high priority when mixed results from search
+  base.sort((a: ReviewSubmission, b: ReviewSubmission) => {
     if (sortBy.value === 'priority') {
-      // High priority first
       if (a.priority === 'high' && b.priority !== 'high') return -1;
       if (b.priority === 'high' && a.priority !== 'high') return 1;
     }
-
-    // Then by created date (newest first)
+    // Keep pending before non-pending when searching to surface actionable items
+    if (searching && a.status !== b.status) {
+      if (a.status === 'pending') return -1;
+      if (b.status === 'pending') return 1;
+    }
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
-  return filtered;
+  return base;
 });
 
 const filteredArtworkEdits = computed(() => {
   if (currentTab.value !== 'edits') return [];
 
-  let filtered = artworkEdits.value;
+  let filtered = artworkEdits.value.slice();
+
+  if (searchId.value.trim()) {
+    const term = searchId.value.trim().toLowerCase();
+    filtered = filtered.filter((e: any) =>
+      (e.id && e.id.toLowerCase().includes(term)) ||
+      (e.artwork_id && e.artwork_id.toLowerCase().includes(term))
+    );
+  }
 
   // Sort by submitted date (newest first)
-  filtered.sort((a, b) => {
+  filtered.sort((a: any, b: any) => {
     return new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime();
   });
 
@@ -117,8 +147,24 @@ const paginatedArtworkEdits = computed(() =>
 
 // Lifecycle
 onMounted(() => {
-  // TODO: Check if user has reviewer permissions
+  // Pre-populate search from query parameter (deep link support)
+  const initial = (route.query.searchId as string) || '';
+  if (initial) {
+    searchId.value = initial;
+  }
   loadData();
+});
+
+// Sync searchId changes into the route query (replace to avoid history spam)
+watch(searchId, (val: string) => {
+  const q = { ...route.query } as Record<string, any>;
+  if (val) q.searchId = val; else delete q.searchId;
+  router.replace({ query: q });
+  currentPage.value = 1; // reset pagination when searching
+  // Attempt on-demand fetch of a specific submission if not already present
+  if (val.trim()) {
+    ensureSubmissionLoaded(val.trim());
+  }
 });
 
 // Methods
@@ -137,6 +183,10 @@ async function loadData() {
 
   try {
     await Promise.all([loadSubmissions(), loadArtworkEdits()]);
+    // After initial load, if a deep link searchId was provided ensure it's loaded
+    if (searchId.value.trim()) {
+      await ensureSubmissionLoaded(searchId.value.trim());
+    }
   } catch (err) {
     console.error('[ReviewView] Error loading data:', err);
     error.value = getErrorMessage(err);
@@ -148,6 +198,44 @@ async function loadData() {
     );
   } finally {
     loading.value = false;
+  }
+}
+
+/**
+ * Ensure a submission for the given ID is loaded (deep-link support).
+ * If not in current submissions list, attempt direct fetch via API.
+ */
+async function ensureSubmissionLoaded(id: string) {
+  const lower = id.toLowerCase();
+  const exists = submissions.value.some((s: ReviewSubmission) => s.id.toLowerCase() === lower || (s.artwork_id && s.artwork_id.toLowerCase() === lower));
+  if (exists) return;
+  // Basic UUID format check to avoid unnecessary requests
+  if (!/^[0-9a-fA-F-]{32,36}$/.test(id)) return;
+  try {
+    const resp = await apiService.getSubmissionForReview(id);
+    const data: any = (resp as any).data || resp; // handle wrapped/unwrapped
+    if (data && data.id) {
+      const mapped: ReviewSubmission = {
+        id: data.id,
+        artwork_id: data.artwork_id || data.artworkId || undefined,
+        title: data.title || '',
+        note: data.note || '',
+        photos: data.photos || [],
+        latitude: data.lat || data.latitude || 0,
+        longitude: data.lon || data.longitude || 0,
+        type: data.type || 'other',
+        status: data.status || 'pending',
+        created_at: data.created_at || new Date().toISOString(),
+        user_token: data.user_token || '',
+        priority: data.priority || 'normal',
+        nearby_artworks: data.nearby_artworks || [],
+        currentPhotoIndex: 0,
+      };
+      submissions.value = [mapped, ...submissions.value];
+    }
+  } catch (e) {
+    // Silent: not found or permission issue
+    console.warn('[ReviewView] ensureSubmissionLoaded failed for', id, e);
   }
 }
 
@@ -203,6 +291,7 @@ async function loadSubmissions() {
     if (responseData.submissions && Array.isArray(responseData.submissions)) {
       submissions.value = responseData.submissions.map((item: any) => ({
         id: item.id,
+        artwork_id: item.artwork_id || item.artworkId || undefined,
         title: item.title || '',
         note: item.note || '',
         photos: item.photos || [],
@@ -574,6 +663,28 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
           <div class="flex items-center space-x-4">
             <!-- Filter Controls (only for submissions tab) -->
             <template v-if="currentTab === 'submissions'">
+              <!-- ID Search -->
+              <div class="relative">
+                <input
+                  v-model="searchId"
+                  type="text"
+                  placeholder="Search UUID..."
+                  class="border border-gray-300 rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-44"
+                />
+                <svg
+                  class="w-4 h-4 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M21 21l-4.35-4.35M17 10a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
+                </svg>
+              </div>
               <select
                 v-model="filterType"
                 class="border border-gray-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"

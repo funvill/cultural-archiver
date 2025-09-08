@@ -148,7 +148,12 @@ export class MassImportAPIClient {
    */
   protected async fetchNearbyArtworks(lat: number, lon: number): Promise<ExistingArtwork[]> {
     try {
-      const response = await this.axios.get('/api/artwork/nearby', {
+      // NOTE: Backend exposes /api/artworks/nearby (plural). Previous implementation
+      // used singular '/api/artwork/nearby' which returned 404 and disabled
+      // duplicate detection. Keep a fallback request path for any legacy
+      // deployments just in case.
+      const endpoint = '/api/artworks/nearby';
+      const response = await this.axios.get(endpoint, {
         params: {
           lat,
           lon,
@@ -156,8 +161,16 @@ export class MassImportAPIClient {
           limit: 20, // Limit to prevent large responses
         },
       });
+      // Worker responses are wrapped with ApiResponse { success, data: { artworks: [...] }}
+      const raw: unknown = response.data;
 
-      return response.data.artworks || [];
+      interface NearbyWrapped { data?: { artworks?: ExistingArtwork[] }; artworks?: ExistingArtwork[] }
+      const candidate = raw as NearbyWrapped;
+      if (candidate) {
+        if (Array.isArray(candidate.artworks)) return candidate.artworks;
+        if (candidate.data && Array.isArray(candidate.data.artworks)) return candidate.data.artworks;
+      }
+      return [];
     } catch (error) {
       console.warn('Failed to fetch nearby artworks for duplicate detection:', error);
       return []; // Continue without duplicate detection rather than failing
@@ -181,10 +194,26 @@ export class MassImportAPIClient {
     };
 
     const response = await this.axios.post('/api/logbook', payload);
-    
+    // Normalize response (wrapped ApiSuccess vs legacy direct object)
+    const raw: unknown = response.data;
+    type SubmissionShape = { id: string; warnings?: string[] };
+    let submission: SubmissionShape | undefined;
+    if (raw && typeof raw === 'object') {
+      if ('data' in (raw as Record<string, unknown>)) {
+        const inner = (raw as { data?: unknown }).data;
+        if (inner && typeof inner === 'object' && 'id' in inner) {
+          submission = inner as SubmissionShape;
+        }
+      } else if ('id' in (raw as Record<string, unknown>)) {
+        submission = raw as SubmissionShape;
+      }
+    }
+    if (!submission) {
+      throw new Error('Unexpected logbook submission response shape');
+    }
     return {
-      id: response.data.id,
-      warnings: response.data.warnings || [],
+      id: submission.id,
+      warnings: submission.warnings || [],
     };
   }
 
@@ -249,7 +278,9 @@ export class MassImportAPIClient {
     this.axios.interceptors.response.use(
       response => response,
       async (error: AxiosError) => {
-        const config = error.config as any; // Cast to any to add custom properties
+  // Extend axios request config with retry metadata dynamically
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const config = error.config as Record<string, any> | undefined;
         
         if (!config || config.retry === false) {
           return Promise.reject(error);

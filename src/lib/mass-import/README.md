@@ -16,11 +16,13 @@ A comprehensive library and CLI tool for automated ingestion of public art data 
 ## Installation
 
 ```bash
-# Install in your project
-npm install @cultural-archiver/mass-import
 
-# Or install globally for CLI usage
-npm install -g @cultural-archiver/mass-import
+cd src\lib\mass-import
+npm run build
+npm link
+
+
+
 ```
 
 ## CLI Usage

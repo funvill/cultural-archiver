@@ -99,3 +99,5 @@ pnpm-lock.yaml
 .playwright-mcp/
 
 env_2025Sep04-143129.zip
+
+src/lib/mass-import/new-artworks.txt
