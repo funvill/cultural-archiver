@@ -83,39 +83,19 @@ database_name = "cultural-archiver-db"
 database_id = "your-database-id-from-step-1"
 ```
 
-### 3. Run Migrations
+### 3. Database Schema Setup
 
-Apply database migrations using the new migration system:
+Set up your database schema as needed for your application.
 
 ```bash
-# From project root directory
-# Check current migration status
-npm run migrate:status:prod
-
-# Apply pending migrations to production
-npm run migrate:prod
-
-# Verify migrations were applied successfully
-npm run migrate:status:prod
-
-# Alternative: Manual verification via Wrangler
+# From src/workers directory
 cd src/workers
 npx wrangler d1 execute cultural-archiver --command="SELECT name FROM sqlite_master WHERE type='table';" --env production
 ```
 
-**Important Migration Notes:**
-
-- Always run `migrate:status:prod` before applying production migrations
-- Take a backup before major migration changes: `npm run backup:remote`
-- Test migrations in development first: `npm run migrate:dev`
-- See [docs/migrations.md](./migrations.md) for detailed migration documentation
-
 ### 4. Load Sample Data (Optional)
 
-```bash
-# Load sample artwork types and data
-wrangler d1 execute cultural-archiver-db --file=../../migrations/sample_data.sql
-```
+Load any sample data you need for your application.
 
 ## KV Storage Setup
 

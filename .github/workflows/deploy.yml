@@ -25,24 +25,6 @@ jobs:
         run: |
           npm ci
 
-      - name: Run database migrations
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          D1_DATABASE_ID: ${{ secrets.D1_DATABASE_ID }}
-          D1_DATABASE_NAME: ${{ secrets.D1_DATABASE_NAME }}
-        run: |
-          # Install wrangler globally for migrations
-          npm install -g wrangler
-
-          # Run migrations against production database
-          cd migrations
-          D1_DATABASE_ID=${{ secrets.D1_DATABASE_ID }} \
-          D1_DATABASE_NAME=${{ secrets.D1_DATABASE_NAME }} \
-          CLOUDFLARE_ACCOUNT_ID=${{ secrets.CLOUDFLARE_ACCOUNT_ID }} \
-          CLOUDFLARE_API_TOKEN=${{ secrets.CLOUDFLARE_API_TOKEN }} \
-          node migrate.ts
-
       - name: Run unified deployment
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -55,6 +37,6 @@ jobs:
           echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ✅ Deployed successfully" >> $GITHUB_STEP_SUMMARY
           echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
-          echo "- **Components**: Frontend + Workers + Migrations" >> $GITHUB_STEP_SUMMARY
+          echo "- **Components**: Frontend + Workers" >> $GITHUB_STEP_SUMMARY
           echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY

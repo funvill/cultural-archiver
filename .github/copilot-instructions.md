@@ -63,7 +63,6 @@
   - `/lib/` - Utilities for database, photos, email, spatial queries, and errors
   - `/test/` - Comprehensive test suite with 170+ tests across 5 test suites
 - `/src/shared/` - Shared TypeScript types and utilities
-- `/migrations/` - Database migration files with current schema
 - `/docs/` - Complete project documentation including API specs, deployment guides, and troubleshooting
 - `/tests/` - Current tasks
 

@@ -3,15 +3,6 @@ main = "index.ts"
 compatibility_date = "2024-11-06"
 compatibility_flags = ["nodejs_compat"]
 
-# D1 migrations directory
-[env.development]
-name = "cultural-archiver-api"
-migrations_dir = "./migrations"
-
-[env.production]
-name = "cultural-archiver-api"
-migrations_dir = "./migrations"
-
 # D1 Database bindings
 [[env.development.d1_databases]]
 binding = "DB"
@@ -21,7 +12,7 @@ database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "cultural-archiver"
-database_id = "CHANGE_ME_PRODUCTION_DATABASE_ID"  # Must be replaced with actual production database ID before deployment
+database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"
 
 # KV namespace bindings
 [[env.development.kv_namespaces]]
