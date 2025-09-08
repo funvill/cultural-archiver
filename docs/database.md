@@ -514,24 +514,25 @@ The Cultural Archiver uses a comprehensive database migration system for managin
 
 ```powershell
 # Export database backups
-npm run database:export:dev     # Export development database
-npm run database:export:prod    # Export production database  
-npm run database:export:staging # Export staging database
+npm run database:export:dev        # Export development database
+npm run database:export            # Export production database  
+npm run database:export:staging    # Export staging database
 
 # Apply migrations
-npm run database:migration:dev     # Apply migrations to development
-npm run database:migration:prod    # Apply migrations to production
-npm run database:migration:staging # Apply migrations to staging
+npm run database:migration:dev        # Apply migrations to development
+npm run database:migration            # Apply migrations to production
+npm run database:migration:staging    # Apply migrations to staging
 
-# Import SQL files
-npm run database:import:dev <file.sql>     # Import to development
-npm run database:import:prod <file.sql>    # Import to production
-npm run database:import:staging <file.sql> # Import to staging
+# Import SQL files (development: destructive reset logic handled automatically)
+# For production/staging set IMPORT_FILE env var then run import (confirmation prompt will appear)
+$env:IMPORT_FILE="_backup_database\\database_production.sql"; npm run database:import        # Import to production (prompts YES)
+$env:IMPORT_FILE="_backup_database\\some_staging_dump.sql";   npm run database:import:staging # Import to staging (prompts YES)
+npm run database:import:dev <file.sql>                           # Import to development (local, drops tables automatically)
 
 # Check migration status
-npm run database:status:dev     # Check development status
-npm run database:status:prod    # Check production status
-npm run database:status:staging # Check staging status
+npm run database:status:dev        # Check development status
+npm run database:status            # Check production status
+npm run database:status:staging    # Check staging status
 ```
 
 ### Migration Guidelines
@@ -545,7 +546,11 @@ npm run database:status:staging # Check staging status
 - Follow existing table naming conventions (snake_case)
 - Include proper constraints and indexes for performance
 - Avoid D1-incompatible patterns (PRAGMA, WITHOUT ROWID, AUTOINCREMENT)
+- Use `$env:IMPORT_FILE` with `database:import` / `database:import:staging` to avoid accidental path typos.
+- Always run an export before a production import or migration application.
+- After applying a data-cleanup migration (e.g., removing internal tags) verify effect with a SELECT count query.
 - See [docs/migrations.md](./migrations.md) for complete migration documentation
+
 ## TypeScript Integration
 
 The database schema is reflected in TypeScript types in `src/shared/types.ts`:

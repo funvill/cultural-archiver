@@ -1,28 +1,11 @@
 # Know things to do
 
 2. Variables files
-3. mass import
+3. Mass import
 
+## Add artwork
 
-## Artwork Details page
-
-- Move the tags section from below the description into the "informaiton" side bar
-- Remove "status", "Creators", and "Type" from information side bar.
-- Tags
-  - Remove "Description", "Artwork name", and "Artist name" from the possiable tags. These are already part of the artwork table.
-  - Remove "Tourist type" from the possiable tags. This value will always be "artwork" when exported.
-  - Add "Tiny Libary", to the "Artwork Type" tag enumerations.
-  - Change tag "Creation date" to "Installtion date"
-- At the top of the page, move the replace the "Map" in the breadcrumbs with "< Back to Map".
-- The "Edit" button should be right aligned in the same row as the breadcrumbs. Make the edit button larger.
-- The "Community Journal" entries, have a icon button in the top right hand corner (open in new window). Remove this icon.
-
-## App Bar
-
-- The search should be centered on all screen sizes. and enlarged to be a single icon.
-- Help, Admin, and Moderator should automaticly be put in to the menu. The menu should always be shown.
-
-## Add Artwork
+---
 
 - Update this workflow
   1) Customer uploads a photo first
@@ -31,6 +14,26 @@
     3A) "Add new artwork" - The user reviews the close by artworks and determins that this is a new artwork.
     3B) The user clicks one of the existing artworks to add the logbook entry to the existing artwork.
   4) After they fill in the addtional information. They are asked for consent to use this inforamtion then its submitted to the website.
+
+## Artwork Details page
+
+## Map page
+
+- [ ] The map page should remember where what your last location was and the zoom level. So if you refresh the page again, it will return to the old location. Use local storage for this.
+
+## Admin page
+
+The admin page is a super user that can give moderators permissions to other users.
+
+## Review Queue / Moderate page
+
+- Move the tabs "New Submissions", and "Artwork Edits" to below the Moderate stats. (Simlare to the admin page)
+- The "pending review" stat should also include the "Artwork Edits" pending.
+
+## App Bar
+
+- The search should be centered on all screen sizes. and enlarged to be a single icon.
+- Help, Admin, and Moderator should automaticly be put in to the menu. The menu should always be shown.
 
 ## Choose a name
 

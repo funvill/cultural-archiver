@@ -21,14 +21,12 @@ describe('OSM Export Service', () => {
     status: 'approved',
     tags: JSON.stringify({
       tags: {
-        tourism: 'artwork',
         artwork_type: 'statue',
-        name: 'Test Statue',
-        artist_name: 'Jane Doe',
         material: 'bronze',
         height: 3.5,
         access: 'yes',
         condition: 'excellent', // This should have an OSM mapping
+        start_date: '2020',
       },
       version: '1.0.0',
       lastModified: '2024-12-19T12:00:00.000Z',
@@ -67,12 +65,11 @@ describe('OSM Export Service', () => {
       expect(result.tags).toMatchObject({
         tourism: 'artwork',
         artwork_type: 'statue',
-        name: 'Test Statue',
-        artist_name: 'Jane Doe',
         material: 'bronze',
         height: '3.5',
         access: 'yes',
         condition: 'excellent',
+        start_date: '2020',
       });
 
       // Check that year gets ca: prefix since it has no OSM mapping
@@ -216,8 +213,8 @@ describe('OSM Export Service', () => {
       expect(xml).toContain('lat="49.2827"');
       expect(xml).toContain('lon="-123.1207"');
       expect(xml).toContain('<tag k="tourism" v="artwork"');
-      expect(xml).toContain('<tag k="name" v="Test Statue"');
-      expect(xml).toContain('<tag k="artist_name" v="Jane Doe"');
+      expect(xml).toContain('<tag k="artwork_type" v="statue"');
+      expect(xml).toContain('<tag k="material" v="bronze"');
       expect(xml).toContain('</node>');
     });
 
@@ -226,9 +223,8 @@ describe('OSM Export Service', () => {
         ...mockArtwork,
         tags: JSON.stringify({
           tags: {
-            tourism: 'artwork',
-            name: 'Art & "Culture" <Test>',
-            description: 'A statue with <special> characters & "quotes"',
+            artwork_type: 'sculpture',
+            subject: 'Art & "Culture" <Test>',
           },
         }),
       };
@@ -236,7 +232,6 @@ describe('OSM Export Service', () => {
       const xml = generateOSMXML(artworkWithSpecialChars);
 
       expect(xml).toContain('Art &amp; &quot;Culture&quot; &lt;Test&gt;');
-      expect(xml).toContain('A statue with &lt;special&gt; characters &amp; &quot;quotes&quot;');
     });
 
     it('should throw error for invalid artwork', () => {

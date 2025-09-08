@@ -9,6 +9,10 @@
 // Core Tag Schema Types
 // ================================
 
+// Prefix used for internal/system-only tag keys that should never be user-editable
+// or pass through validation/output (e.g. _photos). These are stripped server-side.
+export const INTERNAL_TAG_PREFIX = '_';
+
 export type TagDataType = 'enum' | 'text' | 'number' | 'date' | 'yes_no' | 'url' | 'wikidata_id';
 
 export interface TagDefinition {
@@ -108,20 +112,6 @@ export const TAG_CATEGORIES: Record<TagCategory, CategoryInfo> = {
 // ================================
 
 export const TAG_DEFINITIONS: Record<string, TagDefinition> = {
-  // Base tag for OpenStreetMap compatibility (optional)
-  tourism: {
-    key: 'tourism',
-    label: 'Tourism Type',
-    description: 'Base classification for tourism/artwork objects',
-    category: 'artwork_classification',
-    dataType: 'enum',
-    required: false,
-    enumValues: ['artwork'],
-    osmMapping: 'tourism',
-    helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:tourism',
-    examples: ['artwork'],
-  },
-
   // Artwork Classification
   artwork_type: {
     key: 'artwork_type',
@@ -130,40 +120,10 @@ export const TAG_DEFINITIONS: Record<string, TagDefinition> = {
     category: 'artwork_classification',
     dataType: 'enum',
     required: false,
-    enumValues: ['statue', 'mural', 'sculpture', 'installation', 'monument', 'mosaic', 'graffiti', 'street_art'],
+    enumValues: ['statue', 'mural', 'sculpture', 'installation', 'monument', 'mosaic', 'graffiti', 'street_art', 'tiny_library'],
     osmMapping: 'artwork_type',
     helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:artwork_type',
-    examples: ['statue', 'mural', 'sculpture'],
-  },
-
-  name: {
-    key: 'name',
-    label: 'Artwork Name',
-    description: 'Official or common name of the artwork',
-    category: 'artwork_classification',
-    dataType: 'text',
-    required: false,
-    validation: {
-      maxLength: 200,
-    },
-    osmMapping: 'name',
-    helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:name',
-    examples: ['Angel of Victory', 'Untitled', 'The Thinker'],
-  },
-
-  description: {
-    key: 'description',
-    label: 'Description',
-    description: 'Detailed description of the artwork',
-    category: 'artwork_classification',
-    dataType: 'text',
-    required: false,
-    validation: {
-      maxLength: 1000,
-    },
-    osmMapping: 'description',
-    helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:description',
-    examples: ['Large bronze statue commemorating local history'],
+    examples: ['statue', 'mural', 'sculpture', 'tiny_library'],
   },
 
   subject: {
@@ -196,24 +156,9 @@ export const TAG_DEFINITIONS: Record<string, TagDefinition> = {
   },
 
   // Historical Information
-  artist_name: {
-    key: 'artist_name',
-    label: 'Artist Name',
-    description: 'Name of the artist or creator',
-    category: 'historical_info',
-    dataType: 'text',
-    required: false,
-    validation: {
-      maxLength: 200,
-    },
-    osmMapping: 'artist_name',
-    helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:artist_name',
-    examples: ['Jane Doe', 'Unknown', 'Community Project'],
-  },
-
   start_date: {
     key: 'start_date',
-    label: 'Creation Date',
+    label: 'Installation Date',
     description: 'Date when the artwork was created or installed (YYYY, YYYY-MM, or YYYY-MM-DD)',
     category: 'historical_info',
     dataType: 'date',
@@ -326,6 +271,19 @@ export const TAG_DEFINITIONS: Record<string, TagDefinition> = {
     osmMapping: 'wikipedia',
     helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:wikipedia',
     examples: ['en:Statue_of_Liberty', 'fr:Tour_Eiffel'],
+  },
+  // Classification helper - free-form keyword indexing
+  keywords: {
+    key: 'keywords',
+    label: 'Keywords',
+    description: 'Comma separated list of descriptive keywords used for search refinement',
+    category: 'artwork_classification',
+    dataType: 'text',
+    required: false,
+    validation: {
+      maxLength: 500,
+    },
+    examples: ['landmark, outdoor, bronze, abstract'],
   },
 };
 

@@ -299,6 +299,36 @@ export async function approveSubmission(
     let finalArtworkId: string = '';
     let newArtworkCreated = false;
 
+    // Validate referenced artwork type exists (defensive – prevents orphan type_id)
+    if (submission.type_id) {
+      try {
+        const typeCheck = await c.env.DB.prepare('SELECT id FROM artwork_types WHERE id = ?')
+          .bind(submission.type_id)
+          .first();
+        if (!typeCheck) {
+          console.warn('[REVIEW] Submission references non-existent artwork_types row', {
+            submission_id: submission.id,
+            missing_type_id: submission.type_id,
+          });
+          // Downgrade to fallback type to avoid later 500s
+            // Option: Force reviewer to choose? For now fallback for resiliency.
+          submission.type_id = 'other';
+        }
+      } catch (e: unknown) {
+        let msg = '';
+        if (typeof e === 'object' && e !== null) {
+          const maybeMsg = (e as { message?: unknown }).message;
+          if (typeof maybeMsg === 'string') msg = maybeMsg;
+        }
+        if (/no such table: artwork_types/i.test(msg)) {
+          console.warn('[REVIEW] artwork_types table missing during approval; using fallback type_id="other"');
+          submission.type_id = 'other';
+        } else {
+          console.error('[REVIEW] Unexpected error validating artwork type', e);
+        }
+      }
+    }
+
     if (action === 'create_new') {
       // Create new artwork from submission
       const artworkData: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'> = {

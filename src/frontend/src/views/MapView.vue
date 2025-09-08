@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import MapComponent from '../components/MapComponent.vue';
 import { useArtworksStore } from '../stores/artworks';
@@ -32,10 +32,45 @@ function handleLocationFound(location: Coordinates) {
 
 // Initialize on mount
 onMounted(() => {
+  // Restore last map position from localStorage if available
+  try {
+    const saved = localStorage.getItem('map:lastState');
+    if (saved) {
+      const parsed = JSON.parse(saved) as { center: Coordinates; zoom: number };
+      if (parsed?.center?.latitude && parsed?.center?.longitude && typeof parsed.zoom === 'number') {
+        artworksStore.setMapCenter(parsed.center);
+        artworksStore.setMapZoom(parsed.zoom);
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to restore map state', e);
+  }
+
   // Load artworks if we have a location
   if (artworksStore.currentLocation) {
     artworksStore.fetchNearbyArtworks();
   }
+
+  // Watch for changes to persist (simple interval to avoid adding watchers here)
+  const persist = () => {
+    try {
+      localStorage.setItem(
+        'map:lastState',
+        JSON.stringify({ center: artworksStore.mapCenter, zoom: artworksStore.mapZoom })
+      );
+    } catch (e) {
+      /* ignore */
+    }
+  };
+  // Persist immediately and then periodically
+  persist();
+  const interval = setInterval(persist, 4000);
+  window.addEventListener('beforeunload', persist);
+
+  onUnmounted(() => {
+    clearInterval(interval);
+    window.removeEventListener('beforeunload', persist);
+  });
 });
 </script>
 

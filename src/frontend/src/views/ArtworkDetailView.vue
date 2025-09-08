@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import { marked } from 'marked';
 import { useRouter } from 'vue-router';
 import { useArtworksStore } from '../stores/artworks';
 import { useAuthStore } from '../stores/auth';
@@ -47,7 +48,7 @@ const editData = ref({
   title: '',
   description: '',
   creators: '',
-  tags: {} as Record<string, string>, // Structured tags instead of string array
+  tags: { keywords: '' } as Record<string, string>, // Structured tags instead of string array
 });
 
 // Computed
@@ -115,6 +116,12 @@ const artworkTags = computed(() => {
   delete filteredTags.description;
   delete filteredTags.artist;
   delete filteredTags.creator;
+  // Remove internal/system tags (prefixed with underscore)
+  Object.keys(filteredTags).forEach(k => {
+    if (k.startsWith('_')) {
+      delete (filteredTags as any)[k];
+    }
+  });
 
   // Convert to structured tags format (string values only)
   const structuredTags: Record<string, string> = {};
@@ -126,6 +133,40 @@ const artworkTags = computed(() => {
 
   return structuredTags;
 });
+
+// Extract keywords (comma separated) from structured tags if present
+const keywordList = computed(() => {
+  const kwRaw = (artworkTags.value as any).keywords || (artwork.value?.tags_parsed?.keywords as string);
+  if (!kwRaw) return [] as string[];
+  return kwRaw
+  .split(',')
+  .map((k: string) => k.trim())
+  .filter((k: string) => k.length > 0)
+    .slice(0, 100); // safety limit
+});
+
+// Tags to show in details exclude keywords (handled separately)
+const displayTags = computed(() => {
+  const clone = { ...artworkTags.value } as Record<string, string>;
+  delete clone.keywords; // keywords rendered separately
+  // Double-safety: ensure no internal tags leak
+  Object.keys(clone).forEach(k => { if (k.startsWith('_')) delete clone[k]; });
+  return clone;
+});
+
+// Two-way binding helper to guarantee string type for keywords input
+const keywordsField = computed<string>({
+  get() {
+    const kw = (editData.value.tags as any).keywords;
+    return typeof kw === 'string' ? kw : '';
+  },
+  set(val: string) {
+    editData.value.tags.keywords = val;
+  },
+});
+
+// Ref to TagEditor for triggering edit on tag click while in edit mode
+const tagEditorRef = ref<any | null>(null);
 
 const artworkPhotos = computed(() => {
   return artwork.value?.photos || [];
@@ -147,6 +188,32 @@ const displayTitle = computed(() => {
 const displayDescription = computed(() => {
   return isEditMode.value ? editData.value.description : artworkDescription.value;
 });
+
+// Render markdown (very limited) for safe display
+const renderedDescription = computed(() => {
+  const raw = displayDescription.value || '';
+  if (!raw) return '';
+  // Configure marked for very basic output (no HTML by default)
+  marked.setOptions({
+    breaks: true,
+    gfm: true,
+  });
+  const html = marked.parse(raw);
+  return sanitizeMarkdownHtml(html as string);
+});
+
+// Basic sanitizer (not full-proof; for stronger security consider a library like DOMPurify)
+function sanitizeMarkdownHtml(input: string): string {
+  return input
+    // Remove script tags
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    // Remove on*="..." event handlers
+    .replace(/ on[a-zA-Z]+="[^"]*"/g, '')
+    .replace(/ on[a-zA-Z]+='[^']*'/g, '')
+    // Remove javascript: URLs
+    .replace(/href\s*=\s*"javascript:[^"]*"/gi, 'href="#"')
+    .replace(/href\s*=\s*'javascript:[^']*'/gi, "href='#'");
+}
 
 const displayCreators = computed(() => {
   return isEditMode.value ? editData.value.creators : artworkCreators.value;
@@ -229,8 +296,17 @@ function closeFullscreenPhoto(): void {
 }
 
 function handleTagClick(tag: { label?: string; value?: string; key?: string }): void {
-  // Future: implement tag filtering or search
-  console.log('Tag clicked:', tag);
+  if (isEditMode.value) {
+    // In edit mode clicking a tag should open it for editing inside TagEditor
+    // We emit a custom DOM event to TagEditor via a ref approach (future improvement).
+    // For now just announce.
+    announceSuccess(`Ready to edit tag ${tag.key || tag.label}`);
+    return;
+  }
+  // Navigate to search using tag key/value
+  if (tag.key && tag.value) {
+    router.push(`/search/tag:${encodeURIComponent(tag.key)}:${encodeURIComponent(tag.value)}`);
+  }
 }
 
 function handleLogbookEntryClick(entry: any): void {
@@ -260,7 +336,7 @@ function enterEditMode(): void {
     title: artworkTitle.value,
     description: artworkDescription.value || '',
     creators: artworkCreators.value,
-    tags: { ...artworkTags.value }, // Copy structured tags
+  tags: { keywords: '', ...artworkTags.value }, // Copy structured tags, ensure keywords key exists
   };
 
   isEditMode.value = true;
@@ -380,56 +456,7 @@ async function checkPendingEdits(): Promise<void> {
   }
 }
 
-// Refresh artwork data manually
-async function refreshArtworkData(): Promise<void> {
-  if (!props.id) return;
-  
-  loading.value = true;
-  error.value = null;
-  
-  try {
-    const artworkData = await artworksStore.refreshArtwork(props.id);
-    if (!artworkData) {
-      error.value = `Artwork with ID "${props.id}" was not found.`;
-      announceError('Artwork not found');
-    } else {
-      announceSuccess('Artwork data refreshed');
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to refresh artwork';
-    error.value = message;
-    announceError('Failed to refresh artwork: ' + message);
-  } finally {
-    loading.value = false;
-  }
-}
-
-function getArtworkTypeEmoji(typeName: string): string {
-  const typeMap: Record<string, string> = {
-    public_art: '🎨',
-    street_art: '🎭',
-    monument: '🗿',
-    sculpture: '⚱️',
-    other: '🏛️',
-  };
-  return typeMap[typeName] || '🏛️';
-}
-
-// Keyboard shortcuts
-function handleKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape' && showFullscreenPhoto.value) {
-    closeFullscreenPhoto();
-  }
-}
-
-// Add keyboard listener
-onMounted(() => {
-  document.addEventListener('keydown', handleKeydown);
-});
-
-onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown);
-});
+// (Previously had getArtworkTypeEmoji() for icon display above title; removed per product request.)
 </script>
 
 <template>
@@ -490,139 +517,71 @@ onUnmounted(() => {
 
     <!-- Artwork Content -->
     <div v-else-if="artwork" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-      <!-- Breadcrumb Navigation -->
-      <nav aria-label="Breadcrumb" class="mb-4">
-        <ol class="flex items-center space-x-2 text-sm text-gray-500">
-          <li>
-            <button
-              @click="goToMap"
-              class="hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-            >
-              Map
-            </button>
-          </li>
-          <li>
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </li>
-          <li class="text-gray-900 font-medium" aria-current="page">
-            {{ artworkTitle }}
-          </li>
-        </ol>
-      </nav>
-
-      <!-- Header with back button -->
-      <div class="mb-6">
-        <div class="flex items-center gap-2 mb-4">
-          <button
-            @click="goToMap"
-            class="inline-flex items-center text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-          >
-            <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Back to Map
-          </button>
-
-          <!-- Refresh button for all users -->
-          <button
-            @click="refreshArtworkData"
-            aria-label="Refresh artwork data"
-            class="inline-flex items-center px-2 py-1 text-sm text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 rounded"
-            title="Refresh artwork data"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-              />
-            </svg>
-          </button>
-        </div>
-
-        <!-- Title and Type -->
-        <div class="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-          <div class="flex items-center gap-2">
-            <span class="text-2xl sm:text-3xl" aria-hidden="true">{{
-              getArtworkTypeEmoji(artwork.type_name || '')
-            }}</span>
-            <span
-              class="text-xs sm:text-sm font-medium text-blue-600 bg-blue-100 px-2 sm:px-3 py-1 rounded-full"
-            >
-              {{
-                (artwork.type_name || 'other')
-                  .replace('_', ' ')
-                  .replace(/\b\w/g, l => l.toUpperCase())
-              }}
-            </span>
-          </div>
-
-          <!-- Edit button for authenticated users -->
-          <div
-            v-if="canEdit && !isEditMode"
-            class="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3 sm:ml-auto"
-          >
-            <!-- Pending edits indicator -->
-            <div
-              v-if="hasPendingEdits"
-              class="px-2 py-1 text-xs font-medium text-amber-700 bg-amber-100 rounded-full"
-            >
-              Changes pending review
-            </div>
-
-            <!-- Refresh button -->
-            <button
-              @click="refreshArtworkData"
-              aria-label="Refresh artwork data"
-              class="inline-flex items-center px-2 py-1.5 text-sm font-medium text-gray-600 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500"
-              title="Refresh artwork data"
-            >
+      <!-- Breadcrumb Navigation and Edit Button -->
+      <div class="flex items-center justify-between mb-4">
+        <nav aria-label="Breadcrumb">
+          <ol class="flex items-center space-x-2 text-sm text-gray-500">
+            <li>
+              <button
+                @click="goToMap"
+                class="hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
+              >
+                ← Back to Map
+              </button>
+            </li>
+            <li>
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   stroke-width="2"
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  d="M9 5l7 7-7 7"
                 />
               </svg>
-            </button>
+            </li>
+            <li class="text-gray-900 font-medium" aria-current="page">
+              {{ artworkTitle }}
+            </li>
+          </ol>
+        </nav>
 
-            <button
-              @click="enterEditMode"
-              :disabled="hasPendingEdits"
-              aria-label="Edit artwork details"
-              class="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2"
-              :class="
-                hasPendingEdits
-                  ? 'text-gray-500 bg-gray-100 cursor-not-allowed'
-                  : 'text-blue-700 bg-blue-50 hover:bg-blue-100 focus:ring-blue-500'
-              "
-            >
-              <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                />
-              </svg>
-              {{ hasPendingEdits ? 'Edit Disabled' : 'Edit' }}
-            </button>
+        <!-- Edit button for authenticated users -->
+        <div v-if="canEdit && !isEditMode" class="flex items-center gap-3">
+          <!-- Pending edits indicator -->
+          <div
+            v-if="hasPendingEdits"
+            class="px-3 py-1 text-sm font-medium text-amber-700 bg-amber-100 rounded-full"
+          >
+            Changes pending review
           </div>
+
+          <!-- Edit button - larger and prominent -->
+          <button
+            @click="enterEditMode"
+            :disabled="hasPendingEdits"
+            aria-label="Edit artwork details"
+            class="inline-flex items-center px-6 py-3 text-base font-medium rounded-lg transition-colors focus:outline-none focus:ring-2"
+            :class="
+              hasPendingEdits
+                ? 'text-gray-500 bg-gray-100 cursor-not-allowed'
+                : 'text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 shadow-sm'
+            "
+          >
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+              />
+            </svg>
+            {{ hasPendingEdits ? 'Edit Disabled' : 'Edit Artwork' }}
+          </button>
         </div>
+      </div>
+
+  <!-- Header with artwork info (icon/type row removed as requested) -->
+  <div class="mb-6">
 
         <!-- Title (editable in edit mode) -->
         <div v-if="!isEditMode">
@@ -791,9 +750,12 @@ onUnmounted(() => {
             </h2>
 
             <!-- Display mode -->
-            <div v-if="!isEditMode && displayDescription" class="prose prose-gray max-w-none">
-              <p class="text-gray-700 leading-relaxed">{{ displayDescription }}</p>
-            </div>
+            <!-- eslint-disable-next-line vue/no-v-html -->
+            <div
+              v-if="!isEditMode && displayDescription"
+              class="prose prose-gray max-w-none text-gray-700 leading-relaxed"
+              v-html="renderedDescription"
+            ></div>
 
             <!-- Empty description in display mode -->
             <div v-else-if="!isEditMode" class="text-gray-500 italic bg-gray-100 p-4 rounded-lg">
@@ -810,41 +772,16 @@ onUnmounted(() => {
                 class="block w-full bg-white border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
                 placeholder="Enter artwork description..."
               ></textarea>
-              <p class="text-sm text-gray-500">Supports markdown formatting</p>
-            </div>
-          </section>
-
-          <!-- Tags and Metadata -->
-          <section aria-labelledby="metadata-heading">
-            <h2 id="metadata-heading" class="text-xl font-semibold text-gray-900 mb-3">Details</h2>
-
-            <!-- Display mode -->
-            <div v-if="!isEditMode && Object.keys(artworkTags).length > 0">
-              <TagBadge
-                :tags="artworkTags"
-                :max-visible="8"
-                color-scheme="blue"
-                variant="compact"
-                :show-categories="true"
-                :collapsible="true"
-                @tag-click="handleTagClick"
-              />
-            </div>
-
-            <!-- Empty tags in display mode -->
-            <div v-else-if="!isEditMode" class="text-gray-500 italic">
-              No additional details available.
-            </div>
-
-            <!-- Edit mode -->
-            <div v-else class="space-y-2">
-              <TagEditor
-                v-model="editData.tags"
-                :disabled="editLoading"
-                :max-tags="30"
-                @tag-added="(key) => announceSuccess(`Tag '${key}' added`)"
-                @tag-removed="(key) => announceSuccess(`Tag '${key}' removed`)"
-              />
+              <div class="text-xs text-gray-500 space-y-1">
+                <p class="font-medium">Markdown tips:</p>
+                <ul class="list-disc ml-4 space-y-0.5">
+                  <li><code>**bold**</code> → <strong>bold</strong></li>
+                  <li><code># Heading 1</code>, <code>## Heading 2</code></li>
+                  <li><code>* item</code> for bullet lists</li>
+                  <li><code>[text](https://link)</code> for links</li>
+                  <li><code>_italic_</code> → <em>italic</em></li>
+                </ul>
+              </div>
             </div>
           </section>
 
@@ -909,61 +846,88 @@ onUnmounted(() => {
               </div>
             </section>
 
-            <!-- Artwork Info -->
+            <!-- Combined Info + Details Section -->
             <section
-              aria-labelledby="info-heading"
+              aria-labelledby="info-details-heading"
               class="bg-white rounded-lg border border-gray-200 p-6"
             >
-              <h2 id="info-heading" class="text-lg font-semibold text-gray-900 mb-4">
-                Information
+              <h2 id="info-details-heading" class="text-lg font-semibold text-gray-900 mb-4">
+                Information & Details
               </h2>
 
-              <dl class="space-y-3">
-                <div>
-                  <dt class="text-sm font-medium text-gray-600">Creators</dt>
-                  <dd class="text-sm text-gray-900">{{ artworkCreators }}</dd>
-                </div>
+              <!-- Always show Added first -->
+              <div class="mb-4">
+                <dt class="text-sm font-medium text-gray-600">Added</dt>
+                <dd class="text-sm text-gray-900">
+                  {{
+                    new Date(artwork.created_at).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })
+                  }}
+                </dd>
+              </div>
 
-                <div>
-                  <dt class="text-sm font-medium text-gray-600">Type</dt>
-                  <dd class="text-sm text-gray-900">
-                    {{
-                      (artwork.type_name || 'other')
-                        .replace('_', ' ')
-                        .replace(/\b\w/g, l => l.toUpperCase())
-                    }}
-                  </dd>
+              <!-- Keywords separate row -->
+              <div v-if="!isEditMode && keywordList.length" class="mb-4">
+                <div class="text-sm font-medium text-gray-600 mb-1">Keywords</div>
+                <div class="flex flex-wrap gap-1">
+                  <button
+                    v-for="kw in keywordList"
+                    :key="kw"
+                    class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    @click="router.push(`/search/${encodeURIComponent(kw)}`)"
+                  >
+                    {{ kw }}
+                  </button>
                 </div>
+              </div>
 
-                <div>
-                  <dt class="text-sm font-medium text-gray-600">Status</dt>
-                  <dd class="text-sm">
-                    <span
-                      class="inline-block px-2 py-1 text-xs font-medium rounded-full"
-                      :class="{
-                        'bg-green-100 text-green-800': artwork.status === 'approved',
-                        'bg-yellow-100 text-yellow-800': artwork.status === 'pending',
-                        'bg-red-100 text-red-800': artwork.status === 'removed',
-                      }"
-                    >
-                      {{ artwork.status }}
-                    </span>
-                  </dd>
-                </div>
+              <!-- Display mode tags (excluding keywords) -->
+              <div v-if="!isEditMode && Object.keys(displayTags).length > 0">
+                <TagBadge
+                  :tags="displayTags"
+                  :max-visible="8"
+                  color-scheme="blue"
+                  variant="compact"
+                  :show-categories="true"
+                  :collapsible="false"
+                  @tag-click="handleTagClick"
+                />
+              </div>
+              <div v-else-if="!isEditMode" class="text-gray-500 italic text-sm">
+                No additional details available.
+              </div>
 
+              <!-- Edit mode -->
+              <div v-else class="space-y-4">
+                <!-- Keywords editor (simple textarea) -->
                 <div>
-                  <dt class="text-sm font-medium text-gray-600">Added</dt>
-                  <dd class="text-sm text-gray-900">
-                    {{
-                      new Date(artwork.created_at).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })
-                    }}
-                  </dd>
+                  <label for="edit-keywords" class="block text-sm font-medium text-gray-700 mb-1"
+                    >Keywords (comma separated)</label
+                  >
+                  <textarea
+                    id="edit-keywords"
+                    v-model="keywordsField"
+                    maxlength="500"
+                    rows="2"
+                    class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="outdoor, landmark, bronze, abstract"
+                  ></textarea>
+                  <p class="text-xs text-gray-500 mt-1">
+                    {{ (editData.tags.keywords || '').length }}/500 characters. Separate with commas.
+                  </p>
                 </div>
-              </dl>
+                <TagEditor
+                  ref="tagEditorRef"
+                  v-model="editData.tags"
+                  :disabled="editLoading"
+                  :max-tags="30"
+                  @tagAdded="(key) => announceSuccess(`Tag '${key}' added`)"
+                  @tagRemoved="(key) => announceSuccess(`Tag '${key}' removed`)"
+                />
+              </div>
             </section>
 
             <!-- CC0 License Information -->

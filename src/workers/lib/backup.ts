@@ -92,7 +92,7 @@ export async function generateDatabaseDump(db: D1Database): Promise<DatabaseDump
       throw new Error('Failed to retrieve database tables');
     }
 
-    const tables = tablesResult.results.map((row: any) => row.name);
+  const tables = tablesResult.results.map(row => (row as { name: string }).name);
     console.log(`[BACKUP] Found ${tables.length} tables:`, tables);
 
     let sqlDump = '';
@@ -114,7 +114,7 @@ export async function generateDatabaseDump(db: D1Database): Promise<DatabaseDump
 
       try {
         // Get table schema
-        const schemaResult = await db
+        const schemaResult = (await db
           .prepare(
             `
           SELECT sql FROM sqlite_master 
@@ -122,9 +122,9 @@ export async function generateDatabaseDump(db: D1Database): Promise<DatabaseDump
         `
           )
           .bind(tableName)
-          .first();
+          .first()) as { sql?: string } | null;
 
-        if (schemaResult?.sql) {
+        if (schemaResult && typeof schemaResult.sql === 'string') {
           sqlDump += `-- Table structure for ${tableName}\n`;
           sqlDump += `DROP TABLE IF EXISTS ${tableName};\n`;
           sqlDump += `${schemaResult.sql};\n\n`;
@@ -140,17 +140,17 @@ export async function generateDatabaseDump(db: D1Database): Promise<DatabaseDump
           sqlDump += `-- Data for table ${tableName}\n`;
 
           // Get column names
-          const firstRow = dataResult.results[0] as Record<string, any>;
+          const firstRow = dataResult.results[0] as Record<string, unknown>;
           const columns = Object.keys(firstRow);
 
           // Generate INSERT statements in batches for better performance
           const batchSize = 100;
           for (let i = 0; i < dataResult.results.length; i += batchSize) {
-            const batch = dataResult.results.slice(i, i + batchSize);
+            const batch = dataResult.results.slice(i, i + batchSize) as Record<string, unknown>[];
 
             for (const row of batch) {
               const values = columns.map(col => {
-                const value = row[col];
+                const value = (row as Record<string, unknown>)[col];
                 if (value === null || value === undefined) {
                   return 'NULL';
                 } else if (typeof value === 'string') {

@@ -66,8 +66,8 @@ export async function getUserPermissions(
       throw new ApiError('Administrator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
-    // Get query parameters
-    const { permission: filterPermission } = c.req.query();
+  // Get query parameters
+  const { permission: filterPermission, search } = c.req.query();
 
     // Validate permission filter if provided
     if (filterPermission && !isValidPermission(filterPermission)) {
@@ -81,7 +81,8 @@ export async function getUserPermissions(
     // Get users with permissions
     const users = await listUsersWithPermissions(
       c.env.DB,
-      filterPermission as Permission | undefined
+      filterPermission as Permission | undefined,
+      search
     );
 
     // Log admin action for audit trail
@@ -99,7 +100,8 @@ export async function getUserPermissions(
       data: {
         users,
         total: users.length,
-        filter: filterPermission || null,
+  filter: filterPermission || null,
+  search: search || null,
         retrieved_at: new Date().toISOString(),
       },
     });
@@ -725,21 +727,36 @@ export async function listDataDumps(
     }
 
     // Format the response data
-    const dumps = dumpsQuery.results.map((row: any) => ({
-      id: row.id,
-      filename: row.filename,
-      size: row.size,
-      download_url: row.download_url,
-      generated_at: row.generated_at,
-      generated_by: row.generated_by,
-      metadata: {
-        total_artworks: row.total_artworks,
-        total_creators: row.total_creators,
-        total_tags: row.total_tags,
-        total_photos: row.total_photos,
-      },
-      warnings: row.warnings ? JSON.parse(row.warnings) : undefined,
-    }));
+    const dumps = dumpsQuery.results.map(row => {
+      const r = row as {
+        id: string;
+        filename: string;
+        size: number;
+        download_url: string;
+        generated_at: string;
+        generated_by: string;
+        total_artworks: number;
+        total_creators: number;
+        total_tags: number;
+        total_photos: number;
+        warnings?: string | null;
+      };
+      return {
+        id: r.id,
+        filename: r.filename,
+        size: r.size,
+        download_url: r.download_url,
+        generated_at: r.generated_at,
+        generated_by: r.generated_by,
+        metadata: {
+          total_artworks: r.total_artworks,
+          total_creators: r.total_creators,
+          total_tags: r.total_tags,
+          total_photos: r.total_photos,
+        },
+        warnings: r.warnings ? JSON.parse(r.warnings) : undefined,
+      };
+    });
 
     // Log admin action for audit trail
     const auditContext = createAdminAuditContext(c, authContext.userToken, 'view_audit_logs', {

@@ -53,11 +53,13 @@ export async function hasPermission(
       LIMIT 1
     `);
 
-    const result = await stmt.bind(userUuid, permission).first();
+    const result = (await stmt.bind(userUuid, permission).first()) as
+      | { permission: string; granted_at?: string; granted_by?: string }
+      | null;
 
-    if (result) {
+    if (result && typeof result.permission === 'string') {
       // Update cache
-      updatePermissionCache(userUuid, [permission]);
+      updatePermissionCache(userUuid, [result.permission as Permission]);
 
       return {
         hasPermission: true,
@@ -108,9 +110,11 @@ export async function hasAnyPermission(
       LIMIT 1
     `);
 
-    const result = await stmt.bind(userUuid, ...permissions).first();
+    const result = (await stmt.bind(userUuid, ...permissions).first()) as
+      | { permission: string; granted_at?: string; granted_by?: string }
+      | null;
 
-    if (result) {
+    if (result && typeof result.permission === 'string') {
       // Update cache with found permission
       updatePermissionCache(userUuid, [result.permission as Permission]);
 
@@ -239,9 +243,9 @@ export async function revokePermission(
     `);
 
     const revokeReason = reason || 'Permission revoked';
-    const result = await stmt.bind(revokedBy, revokeReason, userUuid, permission).run();
+  const result = await stmt.bind(revokedBy, revokeReason, userUuid, permission).run();
 
-    if (result.success && result.meta.changes > 0) {
+  if (result.success && result.meta && result.meta.changes && result.meta.changes > 0) {
       // Clear cache for this user
       clearUserPermissionCache(userUuid);
 
@@ -260,10 +264,12 @@ export async function revokePermission(
  */
 export async function listUsersWithPermissions(
   db: D1Database,
-  permission?: Permission
+  permission?: Permission,
+  search?: string
 ): Promise<
   Array<{
     user_uuid: string;
+    email?: string;
     permissions: Array<{
       permission: Permission;
       granted_at: string;
@@ -273,20 +279,30 @@ export async function listUsersWithPermissions(
   }>
 > {
   try {
-    let whereClause = 'WHERE is_active = 1';
-    let bindings: unknown[] = [];
+    let whereClause = 'WHERE up.is_active = 1';
+    const bindings: unknown[] = [];
 
     if (permission) {
-      whereClause += ' AND permission = ?';
+      whereClause += ' AND up.permission = ?';
       bindings.push(permission);
     }
 
+    if (search && search.trim()) {
+      whereClause += ' AND (LOWER(u.email) LIKE ? OR up.user_uuid LIKE ?)';
+      const pattern = `%${search.trim().toLowerCase()}%`;
+      bindings.push(pattern, pattern);
+    }
+
+    // NOTE: users table primary key column is 'uuid' (see docs/database.md), not 'user_uuid'.
+    // The previous JOIN used u.user_uuid which caused a runtime SQL error ("no such column: u.user_uuid")
+    // leading to the catch block returning an empty array and the admin UI showing no users.
     const stmt = db.prepare(`
-      SELECT user_uuid, permission, granted_at, granted_by, notes
-      FROM user_permissions
+      SELECT up.user_uuid, up.permission, up.granted_at, up.granted_by, up.notes, u.email
+      FROM user_permissions up
+      LEFT JOIN users u ON u.uuid = up.user_uuid
       ${whereClause}
-      ORDER BY user_uuid, 
-        CASE permission 
+      ORDER BY up.user_uuid,
+        CASE up.permission 
           WHEN 'admin' THEN 1 
           WHEN 'moderator' THEN 2 
           ELSE 3 
@@ -317,6 +333,7 @@ export async function listUsersWithPermissions(
         granted_at: string;
         granted_by: string;
         notes?: string;
+        email?: string | null;
       };
 
       if (!userMap.has(record.user_uuid)) {
@@ -331,10 +348,23 @@ export async function listUsersWithPermissions(
       });
     }
 
-    return Array.from(userMap.entries()).map(([user_uuid, permissions]) => ({
-      user_uuid,
-      permissions,
-    }));
+    // To preserve email we need a secondary map (since we only stored permissions array above)
+    const emailMap = new Map<string, string | undefined>();
+    for (const row of results.results) {
+      const r = row as { user_uuid: string; email?: string | null };
+      if (!emailMap.has(r.user_uuid)) {
+        emailMap.set(r.user_uuid, r.email ?? undefined);
+      }
+    }
+
+    return Array.from(userMap.entries()).map(([user_uuid, permissions]) => {
+      const email = emailMap.get(user_uuid);
+      return {
+        user_uuid,
+        ...(email ? { email } : {}),
+        permissions,
+      };
+    });
   } catch (error) {
     console.error('List users with permissions error:', error);
     return [];

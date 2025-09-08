@@ -60,7 +60,8 @@ describe('AdminService', () => {
 
       const result = await adminService.getUserPermissions();
 
-      expect(apiService.getAdminPermissions).toHaveBeenCalledWith(undefined);
+  // Updated expectation: method now takes (permission, search)
+  expect(apiService.getAdminPermissions).toHaveBeenCalledWith(undefined, undefined);
       expect(result).toEqual(mockResponse.data);
     });
 
@@ -87,7 +88,8 @@ describe('AdminService', () => {
 
       await adminService.getUserPermissions(filters);
 
-      expect(apiService.getAdminPermissions).toHaveBeenCalledWith('admin');
+  // Updated expectation: includes search term as second argument
+  expect(apiService.getAdminPermissions).toHaveBeenCalledWith('admin', 'test@example.com');
     });
 
     it('should handle API errors when fetching permissions', async () => {

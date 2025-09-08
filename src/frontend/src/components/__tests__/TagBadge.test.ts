@@ -31,7 +31,7 @@ describe('TagBadge', () => {
       });
 
       expect(wrapper.find('.tag-badge-container').exists()).toBe(true);
-      expect(wrapper.findAll('button').length).toBe(3);
+      expect(wrapper.findAll('div.text-sm.cursor-pointer').length).toBe(3);
     });
 
     it('renders correctly with record of tags', () => {
@@ -41,7 +41,7 @@ describe('TagBadge', () => {
         },
       });
 
-      expect(wrapper.findAll('button').length).toBe(3);
+      expect(wrapper.findAll('div.text-sm.cursor-pointer').length).toBe(3);
       expect(wrapper.text()).toContain('Material'); // Now uses schema label "Material" instead of "material"
       expect(wrapper.text()).toContain('bronze');
     });
@@ -90,8 +90,9 @@ describe('TagBadge', () => {
         },
       });
 
-      // Should show 3 tag buttons + 1 expand button
-      expect(wrapper.findAll('button').length).toBe(4);
+      // Should show 3 tag divs + 1 expand button
+      expect(wrapper.findAll('div.text-sm.cursor-pointer').length).toBe(3);
+      expect(wrapper.findAll('button').length).toBe(1); // Only the expand button
     });
 
     it('expands to show all tags when expand button clicked', async () => {
@@ -107,8 +108,9 @@ describe('TagBadge', () => {
       if (expandButton) {
         await expandButton.trigger('click');
 
-        // Should now show all 6 tag buttons + 1 collapse button
-        expect(wrapper.findAll('button').length).toBe(7);
+        // Should now show all 6 tag divs + 1 collapse button
+        expect(wrapper.findAll('div.text-sm.cursor-pointer').length).toBe(6);
+        expect(wrapper.findAll('button').length).toBe(1); // Only the collapse button
         expect(wrapper.text()).toContain('Show less');
       }
     });
@@ -141,7 +143,8 @@ describe('TagBadge', () => {
 
       expect(wrapper.text()).not.toContain('more');
       // Should show all tags when not expandable
-      expect(wrapper.findAll('button').length).toBe(6);
+      expect(wrapper.findAll('div.text-sm.cursor-pointer').length).toBe(6);
+      expect(wrapper.findAll('button').length).toBe(0); // No expand button
     });
   });
 
@@ -153,8 +156,8 @@ describe('TagBadge', () => {
         },
       });
 
-      const tagButton = wrapper.find('button');
-      await tagButton.trigger('click');
+      const tagDiv = wrapper.find('div.text-sm.cursor-pointer');
+      await tagDiv.trigger('click');
 
       expect(wrapper.emitted('tagClick')).toBeTruthy();
       // The emitted event now contains StructuredTag format with key, value, and definition
@@ -166,71 +169,31 @@ describe('TagBadge', () => {
     });
   });
 
-  describe('Styling Variants', () => {
-    it('applies default variant classes', () => {
+  describe('Styling', () => {
+    it('uses bold text for tag labels', () => {
       const wrapper = mount(TagBadge, {
         props: {
-          tags: [{ label: 'test', value: 'value' }],
-          variant: 'default',
-          colorScheme: 'blue',
+          tags: [{ label: 'material', value: 'bronze' }],
         },
       });
 
-      const tagButton = wrapper.find('button');
-      expect(tagButton.classes()).toContain('bg-blue-600');
-      expect(tagButton.classes()).toContain('text-white');
+      const tagDiv = wrapper.find('div.text-sm.cursor-pointer');
+      const boldSpan = tagDiv.find('span.font-bold');
+      expect(boldSpan.exists()).toBe(true);
+      expect(boldSpan.text()).toContain('Material:');
     });
 
-    it('applies outline variant classes', () => {
+    it('displays tag values after labels', () => {
       const wrapper = mount(TagBadge, {
         props: {
-          tags: [{ label: 'test', value: 'value' }],
-          variant: 'outline',
-          colorScheme: 'blue',
+          tags: [{ label: 'material', value: 'bronze' }],
         },
       });
 
-      const tagButton = wrapper.find('button');
-      expect(tagButton.classes()).toContain('border');
-      expect(tagButton.classes()).toContain('border-blue-300');
-    });
-
-    it('applies compact variant classes', () => {
-      const wrapper = mount(TagBadge, {
-        props: {
-          tags: [{ label: 'test', value: 'value' }],
-          variant: 'compact',
-          colorScheme: 'gray',
-        },
-      });
-
-      const tagButton = wrapper.find('button');
-      expect(tagButton.classes()).toContain('bg-gray-100');
-    });
-
-    it('applies different color schemes', () => {
-      const wrapper = mount(TagBadge, {
-        props: {
-          tags: [{ label: 'test', value: 'value' }],
-          colorScheme: 'green',
-        },
-      });
-
-      const tagButton = wrapper.find('button');
-      expect(tagButton.classes()).toContain('bg-green-600');
-    });
-
-    it('applies different sizes', () => {
-      const wrapper = mount(TagBadge, {
-        props: {
-          tags: [{ label: 'test', value: 'value' }],
-          size: 'lg',
-        },
-      });
-
-      const tagButton = wrapper.find('button');
-      expect(tagButton.classes()).toContain('text-base');
-      expect(tagButton.classes()).toContain('px-4');
+      const tagDiv = wrapper.find('div.text-sm.cursor-pointer');
+      expect(tagDiv.text()).toContain('Material:');
+      expect(tagDiv.text()).toContain('bronze');
+      expect(tagDiv.find('span.font-bold').text()).toBe('Material:');
     });
   });
 
@@ -242,9 +205,8 @@ describe('TagBadge', () => {
         },
       });
 
-      const tagButton = wrapper.find('button');
-      expect(tagButton.attributes('aria-label')).toContain('Tag: Material: bronze');
-      expect(tagButton.attributes('type')).toBe('button');
+      const tagDiv = wrapper.find('div.text-sm.cursor-pointer');
+      expect(tagDiv.attributes('aria-label')).toContain('Tag: Material: bronze');
     });
 
     it('has proper ARIA attributes for expand button', () => {
@@ -303,7 +265,7 @@ describe('TagBadge', () => {
       });
 
       expect(wrapper.text()).toContain('empty');
-      expect(wrapper.find('button').exists()).toBe(true);
+      expect(wrapper.find('div.text-sm.cursor-pointer').exists()).toBe(true);
     });
 
     it('handles undefined values in record', () => {
@@ -325,7 +287,7 @@ describe('TagBadge', () => {
       });
 
       expect(wrapper.text()).not.toContain('more');
-      expect(wrapper.findAll('button').length).toBe(2);
+      expect(wrapper.findAll('div.text-sm.cursor-pointer').length).toBe(2);
     });
   });
 });

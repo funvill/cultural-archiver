@@ -29,7 +29,7 @@
     "type-check:frontend": "cd src/frontend && npm run type-check",
     "type-check:workers": "cd src/workers && npm run type-check",
     "type-check:shared": "tsc --noEmit --project src/shared/tsconfig.json",
-    "log": "npx wrangler tail cultural-archiver-api --format pretty",
+    "log": "npx wrangler tail cultural-archiver-api --format pretty --env production",
     "test": "npm run test:frontend && npm run test:workers",
     "test:frontend": "cd src/frontend && npm run test",
     "test:workers": "cd src/workers && npm run test",
@@ -43,12 +43,17 @@
     "setup": "npm install && npm run build",
     "database:export": "wrangler d1 export cultural-archiver --output _backup_database/database_production.sql --env production --remote --config src/workers/wrangler.toml",
     "database:export:dev": "wrangler d1 export cultural-archiver --output _backup_database/database_development.sql --env development --local --config src/workers/wrangler.toml",
+  "database:export:staging": "wrangler d1 export cultural-archiver --output _backup_database/database_staging.sql --env staging --remote --config src/workers/wrangler.toml",
     "database:migration": "wrangler d1 migrations apply cultural-archiver --env production --config src/workers/wrangler.toml",
     "database:migration:dev": "wrangler d1 migrations apply cultural-archiver --env development --config src/workers/wrangler.toml",
+  "database:migration:staging": "wrangler d1 migrations apply cultural-archiver --env staging --config src/workers/wrangler.toml",
     "database:status": "wrangler d1 migrations list cultural-archiver --env production --config src/workers/wrangler.toml",
     "database:status:dev": "wrangler d1 migrations list cultural-archiver --env development --config src/workers/wrangler.toml",
+  "database:status:staging": "wrangler d1 migrations list cultural-archiver --env staging --config src/workers/wrangler.toml",
     "database:create-migration": "echo 'Usage: cd src/workers && wrangler d1 migrations create cultural-archiver \"migration_message\" --env development'",
-    "database:import": "wrangler d1 execute cultural-archiver --env development --local --config src/workers/wrangler.toml"
+  "database:import": "powershell -Command \"$file=$env:IMPORT_FILE; if(-not $file){ Write-Host 'Set IMPORT_FILE env var to path of .sql file'; exit 1 }; Write-Host 'IMPORT WARNING: This will execute SQL against PRODUCTION database cultural-archiver.'; $c = Read-Host 'Type YES to continue'; if($c -ne 'YES'){ Write-Host 'Aborted.'; exit 1 }; wrangler d1 execute cultural-archiver --env production --config src/workers/wrangler.toml --file $file\"",
+  "database:import:staging": "powershell -Command \"$file=$env:IMPORT_FILE; if(-not $file){ Write-Host 'Set IMPORT_FILE env var to path of .sql file'; exit 1 }; Write-Host 'IMPORT (staging) WARNING: This will execute SQL against STAGING database cultural-archiver.'; $c = Read-Host 'Type YES to continue'; if($c -ne 'YES'){ Write-Host 'Aborted.'; exit 1 }; wrangler d1 execute cultural-archiver --env staging --config src/workers/wrangler.toml --file $file\"",
+    "database:import:dev": "powershell -Command \"wrangler d1 execute cultural-archiver --env development --local --config src/workers/wrangler.toml --command 'SELECT name FROM sqlite_master WHERE type=\\\"table\\\" AND name NOT LIKE \\\"sqlite_%\\\";' --json | ConvertFrom-Json | ForEach-Object { $_.results | ForEach-Object { \\\"DROP TABLE IF EXISTS [\\\" + $_.name + \\\"];\\\"; } } | Out-File -FilePath _backup_database/drop_tables.sql -Encoding UTF8\" && wrangler d1 execute cultural-archiver --env development --local --config src/workers/wrangler.toml --file _backup_database/drop_tables.sql && wrangler d1 execute cultural-archiver --env development --local --config src/workers/wrangler.toml"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.3",

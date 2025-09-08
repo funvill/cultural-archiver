@@ -36,10 +36,12 @@ const isLoading = ref(true);
 const isLocating = ref(false);
 const error = ref<string | null>(null);
 const showLocationNotice = ref(false);
-const hasGeolocation = ref(!!navigator.geolocation);
+// Guard navigator for SSR / non-browser test environments
+const hasGeolocation = ref(typeof navigator !== 'undefined' && !!navigator.geolocation);
 const userLocationMarker = ref<L.Marker | null>(null);
 const artworkMarkers = ref<L.Marker[]>([]);
-const markerClusterGroup = ref<L.LayerGroup | null>(null);
+// Use any for cluster type to avoid type issues if markercluster types not available
+const markerClusterGroup = ref<any | null>(null);
 
 // Store
 const artworksStore = useArtworksStore();
@@ -52,16 +54,26 @@ const DEFAULT_CENTER = { latitude: 49.2815, longitude: -123.122 };
 
 // Custom icon for artworks
 const createArtworkIcon = (type: string) => {
-  const iconMap: { [key: string]: string } = {
-    public_art: '🎨',
-    street_art: '🎭',
-    monument: '🗿',
-    sculpture: '⚱️',
-    other: '📍',
+  const normalized = (type || 'other').toLowerCase();
+  const iconMap: Record<string, { emoji: string; color: string }> = {
+    statue: { emoji: '🗿', color: 'bg-amber-600' },
+    sculpture: { emoji: '🗽', color: 'bg-emerald-600' },
+    mural: { emoji: '🖼️', color: 'bg-indigo-600' },
+    installation: { emoji: '🛠️', color: 'bg-fuchsia-600' },
+    monument: { emoji: '🏛️', color: 'bg-rose-600' },
+    mosaic: { emoji: '🧩', color: 'bg-cyan-600' },
+    graffiti: { emoji: '🎨', color: 'bg-yellow-600' },
+    street_art: { emoji: '🎭', color: 'bg-pink-600' },
+    tiny_library: { emoji: '�', color: 'bg-teal-600' },
+    unknown: { emoji: '❔', color: 'bg-gray-500' },
+    other: { emoji: '📍', color: 'bg-blue-600' },
   };
-
+  const chosen = (iconMap[normalized] ? iconMap[normalized] : iconMap.other) as {
+    emoji: string;
+    color: string;
+  };
   return L.divIcon({
-    html: `<div class="artwork-marker bg-blue-600 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm shadow-lg border-2 border-white cursor-pointer">${iconMap[type] || '📍'}</div>`,
+    html: `<div class="artwork-marker ${chosen.color} text-white rounded-full w-8 h-8 flex items-center justify-center text-sm shadow-lg border-2 border-white cursor-pointer">${chosen.emoji}</div>`,
     className: 'custom-artwork-icon',
     iconSize: [32, 32],
     iconAnchor: [16, 16],
@@ -81,6 +93,12 @@ const createUserLocationIcon = () => {
 
 // Initialize map
 async function initializeMap() {
+  // Skip initialization in non-browser environments (e.g., unit tests / SSR) to avoid window usage errors
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    console.warn('Map initialization skipped: non-browser environment');
+    isLoading.value = false;
+    return;
+  }
   if (!mapContainer.value) {
     console.error('Map container not found');
     return;
@@ -160,7 +178,7 @@ async function initializeMap() {
 
         // Force dimensions on all Leaflet elements
         const mapPanes = mapContainer.value.querySelectorAll('.leaflet-pane');
-        mapPanes.forEach(pane => {
+  mapPanes.forEach((pane: any) => {
           if (pane.classList.contains('leaflet-map-pane')) {
             (pane as HTMLElement).style.width = '100%';
             (pane as HTMLElement).style.height = '100%';
@@ -178,7 +196,7 @@ async function initializeMap() {
 
             // Force tile images to display
             const tileImages = pane.querySelectorAll('img');
-            tileImages.forEach(img => {
+            tileImages.forEach((img: any) => {
               (img as HTMLImageElement).style.width = '256px';
               (img as HTMLImageElement).style.height = '256px';
               (img as HTMLImageElement).style.display = 'block';
@@ -233,16 +251,50 @@ async function initializeMap() {
       if (map.value) {
         console.log('Forcing map resize...');
         map.value.invalidateSize();
-        console.log('Map bounds after resize:', map.value.getBounds());
-        console.log('Map center after resize:', map.value.getCenter());
-        console.log('Map zoom after resize:', map.value.getZoom());
+        
+        // Safe debug logging with error handling
+        try {
+          if (typeof map.value.getBounds === 'function') {
+            console.log('Map bounds after resize:', map.value.getBounds());
+          }
+          if (typeof map.value.getCenter === 'function') {
+            console.log('Map center after resize:', map.value.getCenter());
+          }
+          if (typeof map.value.getZoom === 'function') {
+            console.log('Map zoom after resize:', map.value.getZoom());
+          }
+        } catch (error) {
+          console.warn('Debug logging failed:', error);
+        }
       }
     }, 100);
 
     // Initialize marker cluster group
     // Note: We would need to install leaflet.markercluster for this
     // For now, we'll use a simple layer group
-    markerClusterGroup.value = L.layerGroup().addTo(map.value);
+    // Attempt dynamic import of marker cluster plugin only in browser environments
+    if (typeof window !== 'undefined') {
+      try {
+        if (!(L as any).markerClusterGroup) {
+          await import('leaflet.markercluster');
+          await import('leaflet.markercluster/dist/MarkerCluster.css');
+          await import('leaflet.markercluster/dist/MarkerCluster.Default.css');
+        }
+      } catch (e) {
+        console.warn('MarkerCluster plugin not available, falling back to simple layer group', e);
+      }
+    }
+
+    if ((L as any).markerClusterGroup) {
+      markerClusterGroup.value = (L as any).markerClusterGroup({
+        showCoverageOnHover: false,
+        disableClusteringAtZoom: 18,
+        spiderfyOnMaxZoom: true,
+      });
+    } else {
+      markerClusterGroup.value = L.layerGroup();
+    }
+    markerClusterGroup.value!.addTo(map.value);
 
     // Setup event listeners
     map.value.on('moveend', handleMapMove);
@@ -384,7 +436,7 @@ function updateArtworkMarkers() {
   if (!map.value || !markerClusterGroup.value) return;
 
   // Clear existing markers
-  artworkMarkers.value.forEach(marker => {
+  artworkMarkers.value.forEach((marker: any) => {
     if (markerClusterGroup.value) {
       markerClusterGroup.value.removeLayer(marker as any);
     }
@@ -403,7 +455,7 @@ function updateArtworkMarkers() {
     );
 
     const marker = L.marker([artwork.latitude, artwork.longitude], {
-      icon: createArtworkIcon(artwork.type),
+      icon: createArtworkIcon(artwork.type || 'other'),
     });
 
     // Remove popup binding - we want direct navigation instead of popups
@@ -443,6 +495,14 @@ function handleMapMove() {
 
   // Emit map move event
   emit('mapMove', { center: coordinates, zoom });
+
+  // Persist map state
+  try {
+    localStorage.setItem(
+      'map:lastState',
+      JSON.stringify({ center: coordinates, zoom })
+    );
+  } catch {/* ignore */}
 
   // Debounced artwork loading to prevent infinite loops
   debounceLoadArtworks();
@@ -490,9 +550,12 @@ function retryMapLoad() {
 }
 
 // Global function for popup buttons
-(window as any).viewArtworkDetails = (artworkId: string) => {
-  router.push(`/artwork/${artworkId}`);
-};
+// Only attach helper to window in browser environments
+if (typeof window !== 'undefined') {
+  (window as any).viewArtworkDetails = (artworkId: string) => {
+    router.push(`/artwork/${artworkId}`);
+  };
+}
 
 // Watch for props changes
 watch(
@@ -505,7 +568,7 @@ watch(
 
 watch(
   () => props.center,
-  newCenter => {
+  (newCenter: Coordinates | undefined) => {
     if (newCenter && map.value) {
       const current = map.value.getCenter();
       // Only update if the new center is different (avoid recursive updates)
@@ -530,7 +593,7 @@ const handleResize = () => {
 // Watch for container size changes
 watch(
   () => mapContainer.value,
-  newContainer => {
+  (newContainer: HTMLDivElement | undefined) => {
     if (newContainer && map.value) {
       console.log('Map container changed, invalidating size');
       nextTick(() => {
@@ -545,13 +608,17 @@ onMounted(async () => {
   await nextTick();
   await initializeMap();
 
-  // Add window resize listener
-  window.addEventListener('resize', handleResize);
+  // Add window resize listener (guarded for non-browser envs)
+  if (typeof window !== 'undefined') {
+    window.addEventListener('resize', handleResize);
+  }
 });
 
 onUnmounted(() => {
-  // Remove window resize listener
-  window.removeEventListener('resize', handleResize);
+  // Remove window resize listener (guarded)
+  if (typeof window !== 'undefined') {
+    window.removeEventListener('resize', handleResize);
+  }
 
   if (map.value) {
     map.value.remove();

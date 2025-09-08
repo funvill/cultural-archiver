@@ -293,11 +293,6 @@ import('leaflet/dist/leaflet.css');
           </svg>
         </button>
       </div>
-
-      <!-- Keyboard shortcuts help - hidden on mobile -->
-      <div class="hidden sm:block text-xs text-gray-500">
-        <p>Keyboard: Enter/Space for directions, +/- to zoom</p>
-      </div>
     </div>
   </div>
 </template>

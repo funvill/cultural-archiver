@@ -56,12 +56,27 @@ export const useArtworksStore = defineStore('artworks', () => {
     }
   }
 
+  // Persist map state to localStorage
+  function persistMapState(): void {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(
+        'map:lastState',
+        JSON.stringify({ center: mapCenter.value, zoom: mapZoom.value })
+      );
+    } catch {
+      /* ignore */
+    }
+  }
+
   function setMapCenter(center: Coordinates): void {
     mapCenter.value = center;
+    persistMapState();
   }
 
   function setMapZoom(zoom: number): void {
     mapZoom.value = zoom;
+    persistMapState();
   }
 
   function setMapBounds(bounds: MapBounds): void {
@@ -139,11 +154,22 @@ export const useArtworksStore = defineStore('artworks', () => {
       // Convert the API response to ArtworkPin format
       const artworkPins: ArtworkPin[] = apiArtworks.map(
         (artwork: ArtworkWithPhotos): ArtworkPin => {
+          let derivedType = artwork.type_name || 'unknown';
+          // Parse tags to override type if artwork_type present
+          if (artwork.tags) {
+            try {
+              const parsedTags =
+                typeof artwork.tags === 'string' ? JSON.parse(artwork.tags) : artwork.tags;
+              if (parsedTags?.artwork_type) {
+                derivedType = parsedTags.artwork_type;
+              }
+            } catch {/* ignore */}
+          }
           const pin: ArtworkPin = {
             id: artwork.id,
             latitude: artwork.lat,
             longitude: artwork.lon,
-            type: artwork.type_name || 'unknown',
+            type: derivedType,
             photos: [],
           };
 
@@ -262,11 +288,9 @@ export const useArtworksStore = defineStore('artworks', () => {
         ) / 2
       );
 
-      const response = await apiService.getNearbyArtworks(
-        centerLat,
-        centerLon,
-        Math.max(radius, 500) // Minimum 500m radius
-      );
+  const effectiveRadius = Math.max(radius, 200); // Allow smaller than 500 for tighter view but minimum 200m
+  fetchRadius.value = Math.round(effectiveRadius);
+  const response = await apiService.getNearbyArtworks(centerLat, centerLon, effectiveRadius);
 
       console.log('[DEBUG] API response received:', response);
       console.log('[DEBUG] Response structure:', {
@@ -289,11 +313,21 @@ export const useArtworksStore = defineStore('artworks', () => {
       const artworkPins: ArtworkPin[] = apiArtworks.map(
         (artwork: ArtworkWithPhotos): ArtworkPin => {
           console.log('[DEBUG] Converting artwork to pin:', artwork);
+          let derivedType = artwork.type_name || 'unknown';
+          if (artwork.tags) {
+            try {
+              const parsedTags =
+                typeof artwork.tags === 'string' ? JSON.parse(artwork.tags) : artwork.tags;
+              if (parsedTags?.artwork_type) {
+                derivedType = parsedTags.artwork_type;
+              }
+            } catch {/* ignore */}
+          }
           const pin: ArtworkPin = {
             id: artwork.id,
             latitude: artwork.lat,
             longitude: artwork.lon,
-            type: artwork.type_name || 'unknown',
+            type: derivedType,
             photos: [],
           };
 
@@ -322,8 +356,31 @@ export const useArtworksStore = defineStore('artworks', () => {
       console.log('[DEBUG] Converted to ArtworkPin format:', artworkPins.length, 'pins');
       console.log('[DEBUG] Pin details:', artworkPins);
 
-      setArtworks(artworkPins);
-      console.log('[DEBUG] Artworks set in store. Total count:', artworks.value.length);
+      // ==============================================
+      // Session Cache Merge Strategy
+      // ==============================================
+      // Requirement: "The map pins should be cached in the browsers memory only for that session"
+      // We therefore DO NOT replace the existing list. We merge new/updated pins into the
+      // reactive in‑memory array and keep previously fetched pins even if they fall outside
+      // the current viewport. They will naturally clear on page refresh (session scope).
+
+      const existingIndexById = new Map<string, number>();
+      artworks.value.forEach((a, i) => existingIndexById.set(a.id, i));
+
+      artworkPins.forEach(pin => {
+        const existingIdx = existingIndexById.get(pin.id);
+        if (existingIdx !== undefined) {
+          // Merge (keep any existing fields like title/photos if already populated)
+            artworks.value[existingIdx] = {
+            ...artworks.value[existingIdx],
+            ...pin,
+          };
+        } else {
+          artworks.value.push(pin);
+        }
+      });
+
+      console.log('[DEBUG] Session artwork cache size:', artworks.value.length);
     } catch (err) {
       const message = getErrorMessage(err);
       setError(message);
@@ -349,11 +406,21 @@ export const useArtworksStore = defineStore('artworks', () => {
       // Convert the API response to ArtworkPin format
       const artworkPins: ArtworkPin[] = apiArtworks.map(
         (artwork: ArtworkWithPhotos): ArtworkPin => {
+          let derivedType = artwork.type_name || 'unknown';
+          if (artwork.tags) {
+            try {
+              const parsedTags =
+                typeof artwork.tags === 'string' ? JSON.parse(artwork.tags) : artwork.tags;
+              if (parsedTags?.artwork_type) {
+                derivedType = parsedTags.artwork_type;
+              }
+            } catch {/* ignore */}
+          }
           const pin: ArtworkPin = {
             id: artwork.id,
             latitude: artwork.lat,
             longitude: artwork.lon,
-            type: artwork.type_name || 'unknown',
+            type: derivedType,
             photos: [],
           };
 

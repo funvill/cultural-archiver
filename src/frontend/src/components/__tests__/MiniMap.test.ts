@@ -109,15 +109,7 @@ describe('MiniMap', () => {
       expect(mapElement.attributes('aria-label')).toContain('Interactive map');
       expect(mapElement.attributes('aria-label')).toContain('Test Artwork');
       expect(mapElement.attributes('tabindex')).toBe('0');
-    });
-
-    it('includes keyboard shortcuts help', () => {
-      const wrapper = mount(MiniMap, {
-        props: defaultProps,
-      });
-
-      expect(wrapper.text()).toContain('Keyboard: Enter/Space for directions');
-    });
+    });    
   });
 
   describe('Directions', () => {

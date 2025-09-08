@@ -13,6 +13,9 @@ vi.mock('leaflet', () => ({
       remove: vi.fn(),
       whenReady: vi.fn((callback: () => void) => callback()),
       invalidateSize: vi.fn(),
+      getBounds: vi.fn(() => ({ toBBoxString: (): string => '49.1,49.3,-123.2,-123.1' })),
+      getCenter: vi.fn(() => ({ lat: 49.2827, lng: -123.1207 })),
+      getZoom: vi.fn(() => 13),
     })),
     tileLayer: vi.fn(() => {
       const mockTileLayer = {

@@ -35,21 +35,21 @@ describe('Tag JSON Format Fix', () => {
     // Mock artwork exists
     const mockArtwork = {
       id: 'test-artwork-123',
-      tags: '{"tourism": "artwork", "existing": "tag"}',
+      tags: '{"material": "bronze", "existing": "tag"}',
     };
     
     mockStmt.first.mockResolvedValueOnce(mockArtwork);
     mockStmt.run.mockResolvedValue({ changes: 1 });
 
-    // This should work - proper JSON format with required tourism tag
+    // This should work - proper JSON format with valid tags
     const validTagsEdit = {
       artwork_id: 'test-artwork-123',
       user_token: 'test-user',
       edits: [
         {
           field_name: 'tags',
-          field_value_old: '{"tourism": "artwork", "existing": "tag"}',
-          field_value_new: '{"tourism": "artwork", "material": "wood"}',
+          field_value_old: '{"material": "bronze", "existing": "tag"}',
+          field_value_new: '{"material": "wood", "artwork_type": "statue"}',
         },
       ],
     };
@@ -98,7 +98,7 @@ describe('Tag JSON Format Fix', () => {
     mockStmt.first.mockResolvedValueOnce(mockArtwork);
     mockStmt.run.mockResolvedValue({ changes: 1 });
 
-    // Test with structured tags as JSON string (the correct format) with required tourism tag
+    // Test with structured tags as JSON string (the correct format) with valid tags
     const structuredTagsEdit = {
       artwork_id: 'test-artwork-123',
       user_token: 'test-user',
@@ -106,7 +106,7 @@ describe('Tag JSON Format Fix', () => {
         {
           field_name: 'tags',
           field_value_old: null,
-          field_value_new: JSON.stringify({ tourism: 'artwork', material: 'wood', artwork_type: 'statue' }), // JSON string format
+          field_value_new: JSON.stringify({ material: 'wood', artwork_type: 'statue', height: '2.5' }), // JSON string format
         },
       ],
     };
