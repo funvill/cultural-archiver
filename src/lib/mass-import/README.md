@@ -41,6 +41,12 @@ mass-import validate data.json --source generic
 
 # Perform comprehensive dry-run analysis
 mass-import dry-run data.json --source generic --output report.json
+
+# Check system status and configuration
+mass-import status
+
+# Check configuration without API connectivity test
+mass-import status --config-only
 ```
 
 ### Configuration
@@ -221,6 +227,29 @@ npm run build
 
 # Test with sample data
 npm run test:basic
+```
+
+## Documentation
+
+### Configuration Examples
+- [`examples/config-dev.json`](examples/config-dev.json) - Development configuration
+- [`examples/config-production.json`](examples/config-production.json) - Production configuration  
+- [`examples/README.md`](examples/README.md) - Configuration documentation
+
+### Guides
+- [`BULK_APPROVAL_GUIDE.md`](BULK_APPROVAL_GUIDE.md) - Administrator guide for bulk approvals
+- [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) - Common issues and solutions
+- [`IMPLEMENTATION_SUMMARY.md`](IMPLEMENTATION_SUMMARY.md) - Technical implementation details
+
+### Help System
+```bash
+# Get help for any command
+mass-import --help
+mass-import vancouver --help
+mass-import bulk-approve --help
+
+# Check system status and configuration
+mass-import status
 ```
 
 ## API Integration

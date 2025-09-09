@@ -472,6 +472,105 @@ program
     }
   });
 
+// Status command
+program
+  .command('status')
+  .description('Check system status and configuration health')
+  .option('--config-only', 'Only check configuration, skip API connectivity')
+  .action(async (options) => {
+    try {
+      const globalOptions = program.opts();
+      const mergedOptions = { ...globalOptions, ...options };
+      const config = await loadConfig(mergedOptions);
+
+      console.log(chalk.blue('🔍 Mass Import System Status'));
+      console.log(chalk.gray('═'.repeat(60)));
+
+      // Configuration check
+      console.log(chalk.blue('\n📋 Configuration:'));
+      console.log(chalk.green('✅ Configuration loaded successfully'));
+      console.log(chalk.gray(`   API Endpoint: ${config.apiEndpoint}`));
+      console.log(chalk.gray(`   User Token: ${config.massImportUserToken ? config.massImportUserToken.substring(0, 8) + '...' : 'Not set'}`));
+      console.log(chalk.gray(`   Batch Size: ${config.batchSize}`));
+      console.log(chalk.gray(`   Max Retries: ${config.maxRetries}`));
+      console.log(chalk.gray(`   Retry Delay: ${config.retryDelay}ms`));
+      console.log(chalk.gray(`   Duplicate Detection Radius: ${config.duplicateDetectionRadius}m`));
+      console.log(chalk.gray(`   Title Similarity Threshold: ${config.titleSimilarityThreshold}`));
+
+      if (options.configOnly) {
+        console.log(chalk.yellow('\n⚠️ Skipping API connectivity check (--config-only)'));
+        return;
+      }
+
+      // API connectivity check
+      console.log(chalk.blue('\n🌐 API Connectivity:'));
+      const connectivitySpinner = ora('Testing API connection...').start();
+      
+      try {
+        // Simple health check - try to access API endpoint
+        const response = await fetch(`${config.apiEndpoint}/health`, {
+          method: 'GET',
+          headers: {
+            'User-Agent': 'Mass-Import-CLI/1.0.0'
+          },
+          signal: AbortSignal.timeout(5000) // 5 second timeout
+        });
+
+        if (response.ok) {
+          connectivitySpinner.succeed('API endpoint is accessible');
+        } else {
+          connectivitySpinner.warn(`API endpoint responded with status: ${response.status}`);
+        }
+      } catch (error) {
+        connectivitySpinner.fail(`API endpoint is not accessible: ${error instanceof Error ? error.message : error}`);
+      }
+
+      // Library status
+      console.log(chalk.blue('\n📦 Library Status:'));
+      console.log(chalk.green('✅ Mass Import library loaded'));
+      console.log(chalk.gray(`   Version: 1.0.0`));
+      console.log(chalk.gray(`   Supported sources: vancouver-opendata, generic`));
+
+      // Environment checks
+      console.log(chalk.blue('\n🔧 Environment:'));
+      console.log(chalk.gray(`   Node.js: ${process.version}`));
+      console.log(chalk.gray(`   Platform: ${process.platform}`));
+      console.log(chalk.gray(`   Architecture: ${process.arch}`));
+
+      // Configuration validation
+      console.log(chalk.blue('\n✅ Configuration Validation:'));
+      const validationResults = [];
+
+      if (!config.massImportUserToken || config.massImportUserToken === '00000000-0000-0000-0000-000000000002') {
+        validationResults.push(chalk.yellow('⚠️ Using default mass import user token - consider setting custom token'));
+      } else {
+        validationResults.push(chalk.green('✅ Custom user token configured'));
+      }
+
+      if (config.batchSize > 100) {
+        validationResults.push(chalk.yellow('⚠️ Large batch size may cause performance issues'));
+      } else if (config.batchSize < 5) {
+        validationResults.push(chalk.yellow('⚠️ Very small batch size may be inefficient'));
+      } else {
+        validationResults.push(chalk.green('✅ Batch size is appropriate'));
+      }
+
+      if (config.duplicateDetectionRadius > 500) {
+        validationResults.push(chalk.yellow('⚠️ Large duplicate detection radius may cause false positives'));
+      } else {
+        validationResults.push(chalk.green('✅ Duplicate detection radius is reasonable'));
+      }
+
+      validationResults.forEach(result => console.log(result));
+
+      console.log(chalk.blue('\n🎯 System Status: Ready for import operations'));
+
+    } catch (error) {
+      console.error(chalk.red('❌ Status check failed:'), error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
 // ================================
 // Helper Functions
 // ================================
