@@ -3,11 +3,11 @@
  */
 
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { submitArtworkEdit, getUserPendingEdits, validateArtworkEdit } from '../routes/artwork';
-import type { WorkerEnv } from '../types';
+import { submitArtworkEdit, getUserPendingEdits, validateArtworkEdit } from '../artwork';
+import type { WorkerEnv } from '../../types';
 
 // Mock the artwork edits service
-vi.mock('../lib/artwork-edits', () => ({
+vi.mock('../../lib/artwork-edits', () => ({
   ArtworkEditsService: vi.fn().mockImplementation(() => ({
     submitArtworkEdit: vi.fn(),
     getUserPendingEdits: vi.fn(),
@@ -16,17 +16,17 @@ vi.mock('../lib/artwork-edits', () => ({
 }));
 
 // Mock auth middleware
-vi.mock('../middleware/auth', () => ({
+vi.mock('../../middleware/auth', () => ({
   getUserToken: vi.fn().mockReturnValue('test-user-token'),
 }));
 
 // Mock validation middleware
-vi.mock('../middleware/validation', () => ({
+vi.mock('../../middleware/validation', () => ({
   getValidatedData: vi.fn(),
 }));
 
 // Mock error handling
-vi.mock('../lib/errors', () => ({
+vi.mock('../../lib/errors', () => ({
   createSuccessResponse: vi.fn().mockImplementation(data => ({ success: true, data })),
   ValidationApiError: class ValidationApiError extends Error {
     constructor(

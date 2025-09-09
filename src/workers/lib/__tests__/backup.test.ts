@@ -14,8 +14,8 @@ import {
   type PhotoCollectionResult,
   type BackupMetadata,
   type BackupResult,
-} from './backup';
-import type { WorkerEnv } from '../types';
+} from '../backup';
+import type { WorkerEnv } from '../../types';
 
 // Mock the archive module
 vi.mock('./archive', () => ({

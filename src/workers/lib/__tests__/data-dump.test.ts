@@ -17,8 +17,8 @@ import {
   generatePublicDataDump,
   type ExportArtworkData,
   type DataDumpMetadata,
-} from './data-dump';
-import type { WorkerEnv } from '../types';
+} from '../data-dump';
+import type { WorkerEnv } from '../../types';
 
 // Mock the archive module
 vi.mock('./archive', () => ({

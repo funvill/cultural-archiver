@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { WorkerEnv } from '../types';
+import type { WorkerEnv } from '../../types';
 import type { MagicLinkRecord, RateLimitRecord, UserRecord } from '../../shared/types';
 import {
   generateMagicLinkToken,
@@ -17,9 +17,9 @@ import {
   requestMagicLink,
   consumeMagicLink,
   cleanupExpiredMagicLinks,
-} from './email-auth';
-import { generateMagicLinkEmailTemplate } from './resend-email';
-import * as authModule from './auth';
+} from '../email-auth';
+import { generateMagicLinkEmailTemplate } from '../resend-email';
+import * as authModule from '../auth';
 
 // Mock environment
 // Mock objects interfaces for testing

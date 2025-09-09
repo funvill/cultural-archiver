@@ -11,8 +11,8 @@ import {
   formatBytes,
   type ArchiveFile,
   type ArchiveOptions,
-} from './archive';
-import { ApiError } from './errors';
+} from '../archive';
+import { ApiError } from '../errors';
 
 describe('Archive Utilities', () => {
   describe('SimpleZipArchive', () => {

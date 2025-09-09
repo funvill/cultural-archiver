@@ -6,8 +6,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { adminService } from './admin';
-import { apiService } from './api';
+import { adminService } from '../admin';
+import { apiService } from '../api';
 import type {
   GrantPermissionRequest,
   RevokePermissionRequest,
@@ -15,7 +15,7 @@ import type {
 } from '../../../shared/types';
 
 // Mock the API service
-vi.mock('./api', () => ({
+vi.mock('../api', () => ({
   apiService: {
     getAdminPermissions: vi.fn(),
     grantAdminPermission: vi.fn(),

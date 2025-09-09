@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { WorkerEnv } from '../types';
+import type { WorkerEnv } from '../../types';
 import {
   validateConsent,
   createConsentData,
@@ -18,7 +18,7 @@ import {
   REQUIRED_CONSENTS,
   FREEDOM_OF_PANORAMA_RESOURCES,
   type ConsentData,
-} from '../lib/consent';
+} from '../consent';
 
 // Mock WorkerEnv for testing
 const mockEnv: Partial<WorkerEnv> = {

@@ -3,7 +3,7 @@
  */
 
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { ArtworkEditsService } from './artwork-edits';
+import { ArtworkEditsService } from '../artwork-edits';
 import type { CreateArtworkEditRequest } from '../../shared/types';
 
 // Mock D1Database

@@ -15,7 +15,7 @@ import {
   type ModerationAuditData,
   type AdminAuditData,
   type AuditLogQuery,
-} from './audit';
+} from '../audit';
 
 // Mock D1Database for testing
 const createMockDB = (): D1Database => {

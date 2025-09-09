@@ -15,8 +15,8 @@ import {
   generatePhotoUrl,
   deleteFromR2,
   type FileValidationResult,
-} from './photos';
-import type { WorkerEnv } from '../types';
+} from '../photos';
+import type { WorkerEnv } from '../../types';
 
 // Mock environment
 const mockEnv: WorkerEnv = {

@@ -6,8 +6,8 @@
  * If a real D1 test harness becomes available, replace mocks accordingly.
  */
 import { describe, it, expect } from 'vitest';
-import { enhanceAuthContext } from './permissions';
-import type { AuthContext } from '../types';
+import { enhanceAuthContext } from '../permissions';
+import type { AuthContext } from '../../types';
 
 // Minimal mock D1Database that records queries
 interface D1PreparedStatementTest {

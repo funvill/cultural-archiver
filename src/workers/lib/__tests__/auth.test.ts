@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import type { WorkerEnv } from '../types';
+import type { WorkerEnv } from '../../types';
 import {
   generateUUID,
   validateUUID,
@@ -25,7 +25,7 @@ import {
   replaceUUIDForCrossDeviceLogin,
   cleanupExpiredSessions,
   getAuthStats,
-} from './auth';
+} from '../auth';
 
 // Mock objects interfaces for testing
 interface MockDBStatement {

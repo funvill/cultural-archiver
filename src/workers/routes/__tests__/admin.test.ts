@@ -5,12 +5,12 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { Context } from 'hono';
-import type { WorkerEnv, AuthContext } from '../types';
-import { generateDataDump, listDataDumps } from './admin';
-import { ApiError } from '../lib/errors';
+import type { WorkerEnv, AuthContext } from '../../types';
+import { generateDataDump, listDataDumps } from '../admin';
+import { ApiError } from '../../lib/errors';
 
 // Mock dependencies
-vi.mock('../lib/data-dump', () => ({
+vi.mock('../../lib/data-dump', () => ({
   generatePublicDataDump: vi.fn(),
 }));
 

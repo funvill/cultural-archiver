@@ -12,7 +12,7 @@ import {
   hasExifData,
   type ExifData,
   type ExifProcessingOptions,
-} from '../lib/exif';
+} from '../exif';
 
 // Helper function to create a basic JPEG buffer for testing
 function createJpegBuffer(includeExif = false): ArrayBuffer {

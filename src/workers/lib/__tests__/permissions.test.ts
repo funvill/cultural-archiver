@@ -17,8 +17,8 @@ import {
   enhanceAuthContext,
   clearPermissionCache,
   isValidPermission,
-} from './permissions';
-import type { AuthContext } from '../types';
+} from '../permissions';
+import type { AuthContext } from '../../types';
 
 // Fallback declaration if global augmentation not picked up in test environment
 // (Vitest isolated modules may skip the global.d.ts without explicit import)
