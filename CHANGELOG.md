@@ -38,6 +38,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - URL parameter validation with UUID format checking
 - Error handling for invalid artwork IDs and network issues
 
+- Migration 0008 normalizes legacy 'reviewer' role entries to 'moderator'
+
+### Deprecated
+
+- The legacy permission flag/alias `is_reviewer` / `isReviewer` is deprecated in favor of:
+	- `is_moderator` (canonical role)
+	- `can_review` / `canReview` (capability abstraction for any entity allowed to perform review actions)
+- Runtime now emits a one-time warning on first access of the deprecated alias in backend code.
+- Frontend/store retains a transitional computed `isReviewer` that mirrors `isModerator`; scheduled for removal after the deprecation window.
+- Update any downstream integrations to rely on `is_moderator` and/or `can_review` before the next minor release.
+
+### Removal (Planned)
+
+- Future release will remove `is_reviewer` from API responses and the `isReviewer` field from auth contexts & user types once external consumers confirm migration.
+
 ## [1.0.0] - 2024-12-XX
 
 ### Added

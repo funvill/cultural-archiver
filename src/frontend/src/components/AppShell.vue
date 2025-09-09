@@ -58,7 +58,10 @@ const navigationItems: NavigationItem[] = [
     name: 'Moderate',
     path: '/review',
     icon: ClipboardDocumentListIcon,
-    requiresReviewer: true,
+  // New canonical flag
+  requiresModerator: true,
+  // Backward compatibility legacy flag (to remove later)
+  requiresReviewer: true,
   },
   {
     name: 'Admin',
@@ -81,8 +84,11 @@ const visibleNavItems = computed(() => {
       return false;
     }
 
-    // Hide reviewer-only items if not a reviewer
-    if (item.requiresReviewer && !authStore.isReviewer) {
+  // Hide moderator-only items if user cannot review (support both legacy & new flags)
+  if ((item as any).requiresModerator && !authStore.canReview) {
+      return false;
+    }
+  if (item.requiresReviewer && !authStore.canReview) {
       return false;
     }
 

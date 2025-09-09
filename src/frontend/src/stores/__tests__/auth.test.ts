@@ -228,7 +228,7 @@ describe('Auth Store', () => {
         id: 'test-uuid',
         email: 'test@example.com',
         emailVerified: true,
-        isReviewer: false,
+        // Deprecated field intentionally omitted
         createdAt: '2025-01-01',
       });
 
@@ -307,7 +307,6 @@ describe('Auth Store', () => {
         id: 'test-uuid',
         email: '',
         emailVerified: false,
-        isReviewer: false,
         createdAt: '2025-01-01',
       });
       store.setToken('test-token');
@@ -323,7 +322,6 @@ describe('Auth Store', () => {
         id: 'test-uuid',
         email: 'test@example.com',
         emailVerified: true,
-        isReviewer: false,
         createdAt: '2025-01-01',
       });
 
@@ -334,15 +332,12 @@ describe('Auth Store', () => {
     it('returns correct reviewer status', () => {
       const store = useAuthStore();
 
-      store.setUser({
-        id: 'test-uuid',
-        email: 'reviewer@example.com',
-        emailVerified: true,
-        isReviewer: true,
-        createdAt: '2025-01-01',
-      });
-
-      expect(store.isReviewer).toBe(true);
+  // Simulate moderator privilege (new canonical flag path)
+  store.setPermissions(['moderator']);
+  expect(store.isModerator).toBe(true);
+  expect(store.canReview).toBe(true);
+  // Backward compatibility alias still true
+  expect(store.isReviewer).toBe(true);
     });
   });
 

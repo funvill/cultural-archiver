@@ -69,3 +69,42 @@ The admin page is a super user that can give moderators permissions to other use
   "appVersion": "unknown"
 }
 ```
+
+
+## Users
+
+These are the different types of users.
+
+- Anonymous - Can view artworks, and submit new artworks
+- Verified - Can edit fields, while logged in.
+- Moderator - Can approve new artworks, or updates to the fields
+- Admin - Can give moderator permissions to logged in users
+
+Note: There is no "Reviewer" user. there is only a Moderator user.
+
+If any user is currently marked as a "Reviewer", make a migration step to assign them to "Moderator", and remove the "Reviewer" type.
+
+Do an audit and list any other user type.
+
+
+
+## Migration system
+
+Goal:
+
+1) Export
+I should be able to run `npm run database:export` in the root project directory and it will create an export of the current production database in the `_backup_database/database_YYYY-MMM-DD.sql`
+
+2) Migrate
+I should be able to run `npm run database:migration` in the root project directory and it will use "wrangler" to migrate the production database to the new version using the migrations created by `wrangler migrations create`. The migration files are stored in a `migration` folder either in the root project directory or the `src\workers\migration` folder.
+
+3) Import
+I should be able to run `npm run database:import file.sql` in the root project directory. The system will ask me if I am sure and tell me that this is a destructive process. Then it will. A) clear the old database, B) Import a new database `file.sql`.
+
+Notes:
+
+- This might involve changing directories to the `/src/workers/` directory first to take advantage of the existing `src\workers\wrangler.toml` file.
+- Use `.env`, or `src\workers\wrangler.toml` to store the required settings.
+- Ths migration system should use CloudFlare D1 build in migration system. https://developers.cloudflare.com/d1/reference/migrations/
+- See the list of D1 commands https://developers.cloudflare.com/workers/wrangler/commands/#d1 Such as "wrangler migrations create", "migrations list", "migrations apply", and "export"
+- It should use wrangler, it should not using any nodejs scripts, or powershell scripts, or bash scripts.

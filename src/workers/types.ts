@@ -340,7 +340,14 @@ export interface AppConfig {
 export interface AuthContext {
   userToken: string;
   isVerifiedEmail: boolean;
+  /**
+   * Deprecated: use isModerator or canReview instead. Will be removed after frontend migration.
+   */
   isReviewer: boolean;
+  /** True if user has moderator permission (or higher). */
+  isModerator: boolean;
+  /** Convenience flag: user can review (moderator or admin). Mirrors isModerator for now. */
+  canReview: boolean;
   isAdmin: boolean;
 }
 

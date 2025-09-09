@@ -619,11 +619,14 @@ GET /api/me/profile
   "success": true,
   "data": {
     "user_token": "user-uuid",
+    "is_moderator": false,
+    "can_review": false,
+    "is_reviewer": false, // deprecated alias (to be removed after deprecation period)
+    "is_admin": false,
     "statistics": {
       "total_submissions": 12,
       "approved_submissions": 8,
-      "pending_submissions": 2,
-      "is_reviewer": false
+      "pending_submissions": 2
     },
     "rate_limits": {
       "submissions": {
@@ -640,6 +643,13 @@ GET /api/me/profile
   }
 }
 ```
+
+Fields:
+
+- `is_moderator` – True if the user has active moderator permission.
+- `can_review` – Convenience flag (currently mirrors `is_moderator` or `is_admin`).
+- `is_reviewer` – Deprecated legacy alias retained temporarily for backward compatibility.
+- `is_admin` – User has administrative privileges (implies moderation capabilities).
 
 ### Authentication Endpoints
 

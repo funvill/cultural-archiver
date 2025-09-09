@@ -110,7 +110,10 @@ export async function getUserProfile(c: Context<{ Bindings: WorkerEnv }>): Promi
 
     const profile = {
       user_token: userToken,
-      is_reviewer: isUserModerator, // Use database-backed check
+      // Deprecated: is_reviewer mirrors is_moderator for backward compatibility
+      is_reviewer: isUserModerator,
+      is_moderator: isUserModerator,
+      can_review: isUserModerator || isUserAdmin,
       is_verified_email: authContext.isVerifiedEmail,
       statistics: submissionStats,
       rate_limits: rateLimitStatus,
@@ -129,8 +132,11 @@ export async function getUserProfile(c: Context<{ Bindings: WorkerEnv }>): Promi
         })),
         auth_context: {
           user_token: userToken,
-          is_reviewer: isUserModerator, // Use database-backed check
-          is_admin: isUserAdmin, // Use database-backed check
+          // Deprecated alias
+          is_reviewer: isUserModerator,
+          is_moderator: isUserModerator,
+          can_review: isUserModerator || isUserAdmin,
+          is_admin: isUserAdmin,
           is_verified_email: authContext.isVerifiedEmail,
           is_authenticated: !!userDetailedInfo,
         },

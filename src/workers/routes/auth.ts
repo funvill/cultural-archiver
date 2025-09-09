@@ -369,6 +369,15 @@ export async function getAuthStatus(
       user_token: authContext.userToken,
       is_authenticated: isAuthenticated,
       is_anonymous: !isAuthenticated,
+      // Transitional role exposure (kept minimal – profile endpoint has full detail)
+      // Deprecated: is_reviewer mirrors is_moderator
+      // Not part of original AuthStatusResponse type; appended dynamically for migration period
+      ...(authContext && {
+        is_reviewer: authContext.isReviewer || authContext.isModerator || false,
+        is_moderator: authContext.isModerator || authContext.isReviewer || false,
+        can_review: authContext.canReview || authContext.isModerator || authContext.isReviewer || false,
+        is_admin: !!authContext.isAdmin,
+      }),
       user: user
         ? {
             uuid: user.uuid,

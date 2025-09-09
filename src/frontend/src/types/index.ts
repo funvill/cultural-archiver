@@ -11,7 +11,12 @@ export interface User {
   id: string;
   email: string;
   emailVerified: boolean;
-  isReviewer: boolean;
+  /** Deprecated: will be removed after migration. Use isModerator/canReview */
+  isReviewer?: boolean;
+  /** True if user has moderator (or higher) permission */
+  isModerator?: boolean;
+  /** Alias convenience flag for components performing review actions */
+  canReview?: boolean;
   createdAt: string;
 }
 
@@ -113,7 +118,10 @@ export interface NavigationItem {
   path: string;
   icon?: unknown; // Vue component or string
   requiresAuth?: boolean;
+  /** @deprecated Use requiresModerator. Will be removed after deprecation period. */
   requiresReviewer?: boolean;
+  /** True if route requires moderator/canReview permission */
+  requiresModerator?: boolean;
   requiresAdmin?: boolean;
 }
 
@@ -197,7 +205,8 @@ export interface UseAuthReturn {
   user: Ref<User | null>;
   token: Ref<string | null>;
   isAuthenticated: ComputedRef<boolean>;
-  isReviewer: ComputedRef<boolean>;
+  isModerator: ComputedRef<boolean>;
+  canReview: ComputedRef<boolean>; // alias for clarity
   login: (email: string) => Promise<void>;
   logout: () => void;
   verifyEmail: (token: string) => Promise<void>;
@@ -320,6 +329,8 @@ export interface UserProfile {
     auth_context: {
       user_token: string;
       is_reviewer: boolean;
+  // Newly added moderator flag (backend may add later). Optional for backward compatibility.
+  is_moderator?: boolean;
       is_admin: boolean;
       is_verified_email: boolean;
       is_authenticated: boolean;
@@ -485,7 +496,9 @@ declare module 'vue-router' {
   interface RouteMeta {
     title?: string;
     requiresAuth?: boolean;
-    requiresReviewer?: boolean;
+  /** @deprecated Use requiresModerator instead. */
+  requiresReviewer?: boolean;
+  requiresModerator?: boolean;
   }
 }
 
@@ -519,7 +532,7 @@ export interface SearchResult {
   lat: number;
   lon: number;
   type_name: string;
-  tags: Record<string, any> | null;
+  tags: Record<string, unknown> | null;
   recent_photo?: string;
   photo_count: number;
   distance_km?: number;

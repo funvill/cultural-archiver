@@ -261,8 +261,8 @@ onMounted(async () => {
     if (!artworkData) {
       error.value = `Artwork with ID "${props.id}" was not found. It may have been removed or is pending approval.`;
       announceError('Artwork not found');
-      // Try to locate a submission whose artwork_id matches this ID (best-effort, reviewer only)
-  if (authStore?.isReviewer) {
+    // Try to locate a submission whose artwork_id matches this ID (best-effort, moderator only)
+  if (authStore?.canReview) {
         try {
           // Heuristic: call review queue (small limit) and scan for matching artwork_id
           // Use apiService.getReviewQueue if available in this scope; lazy import fallback
@@ -293,7 +293,7 @@ onMounted(async () => {
     const message = err instanceof Error ? err.message : 'Failed to load artwork';
     if (message.includes('404') || message.includes('not found')) {
       error.value = `Artwork with ID "${props.id}" was not found. It may have been removed or is pending approval.`;
-  if (authStore?.isReviewer) {
+  if (authStore?.canReview) {
         try {
           const reviewModule = await import('../services/api');
           const queueResp: any = await reviewModule.apiService.getReviewQueue('pending', undefined, 1, 25);
@@ -539,7 +539,7 @@ async function checkPendingEdits(): Promise<void> {
           />
         </svg>
         <h1 class="text-2xl font-bold text-gray-900 mb-2">
-          <template v-if="(authStore?.isReviewer) && error?.includes('pending approval')">
+          <template v-if="(authStore?.canReview) && error?.includes('pending approval')">
             Artwork Pending Approval
           </template>
           <template v-else>
@@ -547,12 +547,12 @@ async function checkPendingEdits(): Promise<void> {
           </template>
         </h1>
         <p class="text-gray-600 mb-6">{{ error }}</p>
-        <div v-if="authStore?.isReviewer && originatingSubmissionId" class="mb-4 text-sm text-gray-700">
+  <div v-if="authStore?.canReview && originatingSubmissionId" class="mb-4 text-sm text-gray-700">
           <p class="mb-1">Originating submission ID:</p>
           <code class="px-2 py-1 bg-gray-100 rounded text-gray-800 text-xs">{{ originatingSubmissionId }}</code>
         </div>
         <!-- Moderator deep link: only show if user has reviewer permissions -->
-  <div v-if="authStore?.isReviewer && props.id && error?.includes('pending approval')" class="mb-6">
+  <div v-if="authStore?.canReview && props.id && error?.includes('pending approval')" class="mb-6">
           <p class="text-sm text-gray-700 mb-2">If this artwork was just submitted it may still be pending. You can review it now:</p>
           <router-link
             :to="{ path: '/review', query: { searchId: originatingSubmissionId || props.id } }"

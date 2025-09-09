@@ -32,7 +32,7 @@ watch(
 
     // Handle errors from router guard
     if (newQuery.error === 'reviewer_required') {
-      console.log('Reviewer access required for this route');
+      console.log('Moderator access required for this route');
       // Could show error message here if needed
     }
 
