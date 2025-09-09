@@ -58,18 +58,18 @@ export interface SimilarityResult {
 
 export interface SimilarityQuery {
   coordinates: Coordinates;
-  title?: string;
-  tags?: string[];
-  radiusMeters?: number;
+  title?: string | undefined;
+  tags?: string[] | undefined;
+  radiusMeters?: number | undefined;
 }
 
 export interface CandidateArtwork {
   id: string;
   coordinates: Coordinates;
-  title?: string | null;
-  tags?: string | null; // JSON string or null
-  type_name?: string;
-  distance_meters?: number;
+  title?: string | null | undefined;
+  tags?: string | null | undefined; // JSON string or null
+  type_name?: string | undefined;
+  distance_meters?: number | undefined;
 }
 
 // ================================
