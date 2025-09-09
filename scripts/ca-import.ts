@@ -30,12 +30,22 @@ import {
   MASS_IMPORT_CONSTANTS 
 } from '../../shared/mass-import';
 
+// CLI-specific interfaces
+interface ImportOptions {
+  source?: string;
+  config?: string;
+  dryRun?: boolean;
+  verbose?: boolean;
+  all?: boolean;
+  confirm?: boolean;
+}
+
 /**
  * CLI Application Class
  */
 class MassImportCLI {
   private library: MassImportLibrary;
-  private spinner: any;
+  private spinner: unknown;
   private verbose: boolean = false;
 
   constructor() {
@@ -93,7 +103,7 @@ class MassImportCLI {
   /**
    * Execute import operation
    */
-  private async executeImport(options: any): Promise<void> {
+  private async executeImport(options: ImportOptions): Promise<void> {
     try {
       this.verbose = options.verbose;
 
@@ -180,7 +190,7 @@ class MassImportCLI {
   /**
    * Execute bulk approval
    */
-  private async executeBulkApproval(options: any): Promise<void> {
+  private async executeBulkApproval(options: ImportOptions): Promise<void> {
     try {
       this.verbose = options.verbose;
 
@@ -246,14 +256,14 @@ class MassImportCLI {
   /**
    * Execute photo retry
    */
-  private async executePhotoRetry(options: any): Promise<void> {
+  private async executePhotoRetry(_options: ImportOptions): Promise<void> {
     this.error('Photo retry functionality not yet implemented');
   }
 
   /**
    * Validate configuration file
    */
-  private async validateConfiguration(options: any): Promise<void> {
+  private async validateConfiguration(options: ImportOptions): Promise<void> {
     try {
       const config = await this.loadConfiguration(options.config);
       const validation = await this.library.validateConfig(config);
@@ -324,7 +334,7 @@ class MassImportCLI {
   /**
    * Load data file
    */
-  private async loadDataFile(dataPath: string): Promise<any[]> {
+  private async loadDataFile(dataPath: string): Promise<unknown[]> {
     try {
       if (!fs.existsSync(dataPath)) {
         throw new Error(`Data file not found: ${dataPath}`);

@@ -4,7 +4,7 @@
  */
 
 import type { Context } from 'hono';
-import type { WorkerEnv } from '../types';
+import type { WorkerEnv, ArtworkRecord } from '../types'; // Use local workers type
 import { createSuccessResponse, ApiError } from '../lib/errors';
 import { searchArtworks, validateSearchQuery, getSearchSuggestions } from '../lib/search';
 
@@ -16,7 +16,7 @@ export interface SearchQuery {
 }
 
 export interface SearchResponse {
-  artworks: any[];
+  artworks: ArtworkRecord[];
   pagination: {
     page: number;
     per_page: number;

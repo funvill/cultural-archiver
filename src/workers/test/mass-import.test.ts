@@ -10,9 +10,9 @@ import { MassImportLibrary } from '../lib/mass-import';
 import {
   MassImportConfig,
   ImportContext,
-  MASS_IMPORT_CONSTANTS,
-  ImportProgress,
-  ImportError
+  MASS_IMPORT_CONSTANTS
+  // ImportProgress,
+  // ImportError - Commented out as unused
 } from '../../shared/mass-import';
 
 describe('Mass Import System', () => {

@@ -10,7 +10,7 @@ import {
   artworkToCandidate,
   parseTagsForSimilarity,
 } from '../lib/similarity';
-import type { SimilarityQuery, CandidateArtwork } from '../../shared/similarity';
+import type { SimilarityQuery, CandidateArtwork, SimilarityResult } from '../../shared/similarity';
 
 describe('Similarity Service', () => {
   let service: SimilarityService;
@@ -153,8 +153,8 @@ describe('Similarity Service', () => {
       const nearbyArtworks = [createTestArtwork()];
       
       // Mock the similarity calculation to throw an error
-      const originalCalculate = failingService.calculateSimilarityScores;
-      failingService.calculateSimilarityScores = () => {
+      // const _originalCalculate = failingService.calculateSimilarityScores; // Commented out as unused
+      failingService.calculateSimilarityScores = (): SimilarityResult[] => {
         throw new Error('Simulated similarity service failure');
       };
       
