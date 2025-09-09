@@ -10,14 +10,55 @@
 
 <template>
   <div class="fast-artwork-form max-w-4xl mx-auto p-6 space-y-8">
+    <!-- Enhanced Header with Workflow Options -->
     <header class="text-center">
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">
         Add Cultural Artwork
       </h1>
-      <p class="mt-2 text-gray-600 dark:text-gray-300">
-        Quick photo-first workflow with duplicate detection
-      </p>
+      
+      <!-- Quick Workflow Choice -->
+      <div class="max-w-2xl mx-auto mb-8">
+        <p class="text-gray-600 dark:text-gray-300 mb-6">
+          Choose your approach: search first to avoid duplicates, or skip ahead if you know this is new
+        </p>
+        
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <button
+            type="button"
+            @click="$router.push('/search?mode=photo')"
+            class="px-6 py-3 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 focus:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition-colors"
+          >
+            🔍 Search First (Recommended)
+          </button>
+          <button
+            type="button"
+            @click="showWorkflow = true"
+            v-if="!showWorkflow"
+            class="px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+          >
+            📸 Skip to Submit
+          </button>
+        </div>
+        
+        <div v-if="!showWorkflow" class="mt-4 text-sm text-gray-500">
+          💡 Searching first helps avoid duplicate submissions and finds existing artworks you can add photos to
+        </div>
+      </div>
     </header>
+
+    <!-- Workflow Steps (shown when user chooses to submit) -->
+    <div v-if="showWorkflow" class="workflow-container">
+      <div class="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+        <div class="flex items-center">
+          <svg class="w-5 h-5 text-blue-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+          </svg>
+          <div>
+            <p class="text-blue-900 dark:text-blue-100 font-medium">Smart Duplicate Detection Active</p>
+            <p class="text-sm text-blue-700 dark:text-blue-300">We'll automatically check for similar artworks as you upload</p>
+          </div>
+        </div>
+      </div>
 
     <!-- Progress Indicator -->
     <div class="progress-steps flex justify-between items-center mb-8">
@@ -199,6 +240,8 @@
         </Transition>
       </section>
     </form>
+    
+    </div> <!-- Close workflow container -->
 
     <!-- Success Modal -->
     <Modal 
@@ -256,6 +299,7 @@ const submission = useArtworkSubmissionStore();
 // Local State
 const currentStep = ref<string>('photos');
 const submissionComplete = ref(false);
+const showWorkflow = ref(false); // New state for workflow visibility
 
 // Steps Configuration
 const steps = computed(() => [

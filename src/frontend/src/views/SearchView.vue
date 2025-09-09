@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { MagnifyingGlassIcon, CameraIcon } from '@heroicons/vue/24/outline';
 import SearchInput from '../components/SearchInput.vue';
+import PhotoSearch from '../components/PhotoSearch.vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
 import SkeletonCard from '../components/SkeletonCard.vue';
 import { useSearchStore } from '../stores/search';
@@ -17,6 +19,7 @@ const searchInputRef = ref<InstanceType<typeof SearchInput>>();
 const searchResultsRef = ref<HTMLElement>();
 const showEmptyState = ref(false);
 const showSearchTips = ref(true);
+const searchMode = ref<'text' | 'photo'>('text'); // New search mode state
 
 // Computed
 const currentQuery = computed(() => (route.params.query as string) || '');
@@ -109,7 +112,7 @@ function performSearch(query: string): void {
   searchStore.performSearch(query.trim());
 }
 
-// Watch for route changes
+// Watch for route changes and mode parameter
 watch(
   () => route.params.query,
   newQuery => {
@@ -118,6 +121,19 @@ watch(
     if (query !== searchStore.query) {
       searchStore.setQuery(query);
       performSearch(query);
+    }
+  },
+  { immediate: true }
+);
+
+// Watch for mode query parameter
+watch(
+  () => route.query.mode,
+  (newMode) => {
+    if (newMode === 'photo') {
+      searchMode.value = 'photo';
+    } else {
+      searchMode.value = 'text';
     }
   },
   { immediate: true }
@@ -150,10 +166,41 @@ onUnmounted(() => {
 
 <template>
   <div class="search-view min-h-screen bg-gray-50">
-    <!-- Header with Search Input -->
+    <!-- Header with Search Mode Tabs -->
     <div class="bg-white border-b border-gray-200 sticky top-0 z-10">
       <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div class="flex items-center space-x-4">
+        <!-- Search Mode Selector -->
+        <div class="flex justify-center mb-4">
+          <div class="flex space-x-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
+            <button
+              @click="searchMode = 'text'"
+              :class="[
+                'px-6 py-2 rounded-md font-medium transition-all text-sm',
+                searchMode === 'text'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              ]"
+            >
+              <MagnifyingGlassIcon class="w-4 h-4 inline mr-2" />
+              Text Search
+            </button>
+            <button
+              @click="searchMode = 'photo'"
+              :class="[
+                'px-6 py-2 rounded-md font-medium transition-all text-sm',
+                searchMode === 'photo'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-600 hover:text-gray-900'
+              ]"
+            >
+              <CameraIcon class="w-4 h-4 inline mr-2" />
+              Photo Search
+            </button>
+          </div>
+        </div>
+
+        <!-- Text Search Input -->
+        <div v-if="searchMode === 'text'" class="flex items-center space-x-4">
           <!-- Back Button for Mobile -->
           <button
             class="lg:hidden p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
@@ -185,13 +232,30 @@ onUnmounted(() => {
             />
           </div>
         </div>
+
+        <!-- Photo Search Indicator -->
+        <div v-else class="text-center">
+          <div class="inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+            <CameraIcon class="w-5 h-5 text-blue-600 mr-2" />
+            <span class="text-blue-900 font-medium text-sm">
+              Photo Search Mode - Upload an image below to find similar artworks
+            </span>
+          </div>
+        </div>
       </div>
     </div>
 
     <!-- Main Content -->
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <!-- Search Tips (shown when no active search) -->
-      <div v-if="showSearchTips && !isSearchActive" class="text-center py-12">
+      <!-- Photo Search Component -->
+      <div v-if="searchMode === 'photo'">
+        <PhotoSearch />
+      </div>
+
+      <!-- Text Search Results -->
+      <div v-else>
+        <!-- Search Tips (shown when no active search) -->
+        <div v-if="showSearchTips && !isSearchActive" class="text-center py-12">
         <div class="mx-auto max-w-md">
           <svg
             class="mx-auto h-12 w-12 text-gray-400 mb-4"
@@ -377,6 +441,8 @@ onUnmounted(() => {
           </button>
         </div>
       </div>
+      
+      </div> <!-- Close text search results -->
     </div>
   </div>
 </template>
