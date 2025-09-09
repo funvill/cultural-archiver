@@ -14,6 +14,14 @@ import {
   sortBySimilarity,
   filterByThreshold,
 } from '../../shared/similarity';
+import type { SimilarityConfig } from '../../shared/config/similarity.config';
+import { createSimilarityConfig } from '../../shared/config/similarity.config';
+import {
+  SimilarityCalculationError,
+  SimilarityServiceError,
+  DuplicateDetectionError,
+  wrapAsyncSimilarityOperation,
+} from '../../shared/errors/similarity.errors';
 
 // ================================
 // Service Interface
@@ -21,6 +29,7 @@ import {
 
 export interface SimilarityServiceOptions {
   strategy?: SimilarityStrategy;
+  config?: SimilarityConfig;
   maxCandidates?: number;
   includeMetadata?: boolean;
 }
@@ -53,7 +62,14 @@ export class SimilarityService {
   private includeMetadata: boolean;
 
   constructor(options: SimilarityServiceOptions = {}) {
-    this.strategy = options.strategy || new DefaultSimilarityStrategy();
+    // Use provided strategy or create default with configuration
+    if (options.strategy) {
+      this.strategy = options.strategy;
+    } else {
+      const config = options.config || createSimilarityConfig();
+      this.strategy = new DefaultSimilarityStrategy(config);
+    }
+    
     this.includeMetadata = options.includeMetadata ?? false;
   }
 
@@ -71,7 +87,14 @@ export class SimilarityService {
         const result = this.strategy.calculateSimilarity(query, candidate);
         results.push(result);
       } catch (error) {
-        console.warn(`Similarity calculation failed for artwork ${candidate.id}:`, error);
+        // Log specific similarity calculation failure but continue with other candidates
+        const similarityError = new SimilarityCalculationError(
+          candidate.id,
+          error instanceof Error ? error : new Error(String(error)),
+          { query: this.sanitizeQueryForLogging(query) }
+        );
+        
+        console.error('Similarity calculation failed:', similarityError.toJSON());
         // Continue with other candidates - don't let one failure break everything
       }
     }
@@ -110,7 +133,14 @@ export class SimilarityService {
     try {
       similarityResults = this.calculateSimilarityScores(query, candidates);
     } catch (error) {
-      console.error('Similarity service failed, falling back to distance-only results:', error);
+      const serviceError = new SimilarityServiceError(
+        'enhanceNearbyResults',
+        error instanceof Error ? error : new Error(String(error)),
+        { candidateCount: candidates.length, query: this.sanitizeQueryForLogging(query) }
+      );
+      
+      console.error('Similarity service failed, falling back to distance-only results:', serviceError.toJSON());
+      
       // Graceful degradation - return original results without similarity scores
       return nearbyArtworks.map(artwork => ({
         ...artwork,
@@ -212,7 +242,13 @@ export class SimilarityService {
         topMatch: allResults.length > 0 ? allResults[0] : undefined,
       };
     } catch (error) {
-      console.error('Duplicate check failed:', error);
+      const duplicateError = new DuplicateDetectionError(
+        this.sanitizeQueryForLogging(query),
+        error instanceof Error ? error : new Error(String(error))
+      );
+      
+      console.error('Duplicate check failed:', duplicateError.toJSON());
+      
       // Graceful degradation
       return {
         hasHighSimilarity: false,
@@ -237,6 +273,20 @@ export class SimilarityService {
     return {
       name: this.strategy.name,
       version: this.strategy.version,
+    };
+  }
+
+  /**
+   * Sanitize query data for logging (remove potentially sensitive information)
+   */
+  private sanitizeQueryForLogging(query: SimilarityQuery): Record<string, unknown> {
+    return {
+      hasCoordinates: !!(query.coordinates?.lat && query.coordinates?.lon),
+      hasTitle: !!query.title,
+      titleLength: query.title?.length || 0,
+      hasTagsArray: Array.isArray(query.tags),
+      tagCount: query.tags?.length || 0,
+      radiusMeters: query.radiusMeters,
     };
   }
 }

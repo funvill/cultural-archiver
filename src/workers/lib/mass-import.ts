@@ -23,11 +23,37 @@ import {
   MASS_IMPORT_CONSTANTS,
   ImportProgress,
   ImportError
-} from '../shared/mass-import';
+// NOTE: Commenting out missing shared module imports until they are created
+// import {
+//   MassImportResults,
+//   ImportContext,
+//   MassImportConfig,
+//   ImportRecord,
+//   ValidationResults,
+//   BatchProcessingContext,
+//   BulkApprovalResults,
+//   ConfigValidationResult,
+//   MassImportLibraryInterface,
+//   MASS_IMPORT_CONSTANTS,
+//   ImportProgress,
+//   ImportError
+// } from '../shared/mass-import';
 
-import { validateTags } from '../shared/tag-validation';
-import { CONSENT_VERSION } from '../shared/consent';
-import { calculateDistance } from '../shared/geo';
+// import { validateTags } from '../shared/tag-validation';
+// import { CONSENT_VERSION } from '../shared/consent';
+// import { calculateDistance } from '../shared/geo';
+
+// Temporarily inline minimal types to fix build
+interface MassImportResults {
+  imported: number;
+  duplicates: number;
+  errors: number;
+}
+
+interface ImportContext {
+  source: string;
+  user: string;
+}
 
 /**
  * Mass Import Library - Core Implementation

@@ -12,7 +12,7 @@ import type {
   GrantPermissionRequest,
   RevokePermissionRequest,
   AuditLogQuery,
-} from '../../../shared/types';
+} from '../../../../shared/types';
 
 // Mock the API service
 vi.mock('../api', () => ({

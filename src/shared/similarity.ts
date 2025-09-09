@@ -5,33 +5,15 @@
 
 import type { Coordinates } from './geo';
 import { calculateDistance } from './geo';
-
-// ================================
-// Similarity Configuration Constants
-// ================================
-
-// Similarity thresholds for duplicate detection
-export const SIMILARITY_THRESHOLD_WARN = 0.65; // Show warning badge
-export const SIMILARITY_THRESHOLD_HIGH = 0.80; // Require explicit confirmation
-
-// Weights for different similarity signals (must sum to 1.0)
-export const SIMILARITY_WEIGHTS = {
-  distance: 0.5,     // Geographic proximity
-  title: 0.35,       // Title fuzzy matching
-  tags: 0.15,        // Tag/type overlap
-} as const;
-
-// Distance normalization parameters
-export const DISTANCE_NORMALIZATION = {
-  maxDistanceMeters: 1000, // Distance beyond which similarity = 0
-  optimalDistanceMeters: 50, // Distance at which similarity = 1
-} as const;
-
-// Title matching parameters
-export const TITLE_MATCHING = {
-  minTitleLength: 3, // Minimum title length for comparison
-  stopWords: ['the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by'] as const,
-} as const;
+import type { SimilarityConfig } from './config/similarity.config';
+import { DEFAULT_SIMILARITY_CONFIG } from './config/similarity.config';
+import {
+  DistanceCalculationError,
+  TitleSimilarityError,
+  TagSimilarityError,
+  SimilarityInputError,
+  wrapSimilarityOperation,
+} from './errors/similarity.errors';
 
 // ================================
 // Similarity Types
@@ -79,6 +61,7 @@ export interface CandidateArtwork {
 export interface SimilarityStrategy {
   name: string;
   version: string;
+  config: SimilarityConfig;
   calculateSimilarity(query: SimilarityQuery, candidate: CandidateArtwork): SimilarityResult;
 }
 
@@ -89,95 +72,127 @@ export interface SimilarityStrategy {
 export class DefaultSimilarityStrategy implements SimilarityStrategy {
   name = 'default';
   version = '1.0.0';
+  config: SimilarityConfig;
+
+  constructor(config: SimilarityConfig = DEFAULT_SIMILARITY_CONFIG) {
+    this.config = config;
+  }
 
   calculateSimilarity(query: SimilarityQuery, candidate: CandidateArtwork): SimilarityResult {
-    const signals: SimilaritySignal[] = [];
+    // Input validation
+    this.validateInputs(query, candidate);
 
-    // Distance signal (always calculated)
-    const distanceSignal = this.calculateDistanceSignal(query.coordinates, candidate.coordinates);
-    signals.push(distanceSignal);
+    return wrapSimilarityOperation('calculateSimilarity', () => {
+      const signals: SimilaritySignal[] = [];
 
-    // Title signal (if both have titles)
-    if (query.title && candidate.title) {
-      const titleSignal = this.calculateTitleSignal(query.title, candidate.title);
-      signals.push(titleSignal);
-    }
+      // Distance signal (always calculated)
+      const distanceSignal = this.calculateDistanceSignal(query.coordinates, candidate.coordinates);
+      signals.push(distanceSignal);
 
-    // Tag signal (if both have tags)
-    if (query.tags && candidate.tags) {
-      const parsedCandidateTags = this.parseTags(candidate.tags);
-      if (parsedCandidateTags.length > 0) {
-        const tagSignal = this.calculateTagSignal(query.tags, parsedCandidateTags);
-        signals.push(tagSignal);
+      // Title signal (if both have titles)
+      if (query.title && candidate.title) {
+        const titleSignal = this.calculateTitleSignal(query.title, candidate.title);
+        signals.push(titleSignal);
       }
+
+      // Tag signal (if both have tags)
+      if (query.tags && candidate.tags) {
+        const parsedCandidateTags = this.parseTags(candidate.tags);
+        if (parsedCandidateTags.length > 0) {
+          const tagSignal = this.calculateTagSignal(query.tags, parsedCandidateTags);
+          signals.push(tagSignal);
+        }
+      }
+
+      // Calculate overall score
+      const overallScore = this.calculateOverallScore(signals);
+
+      // Determine threshold
+      const threshold = this.getThreshold(overallScore);
+
+      return {
+        artworkId: candidate.id,
+        overallScore,
+        signals,
+        threshold,
+        metadata: {
+          distance: candidate.distance_meters,
+          title: candidate.title || undefined,
+          tags: this.parseTags(candidate.tags || ''),
+        },
+      };
+    })();
+  }
+
+  private validateInputs(query: SimilarityQuery, candidate: CandidateArtwork): void {
+    if (!query.coordinates || typeof query.coordinates.lat !== 'number' || typeof query.coordinates.lon !== 'number') {
+      throw new SimilarityInputError('query.coordinates', query.coordinates, 'Must provide valid lat/lon coordinates');
     }
 
-    // Calculate overall score
-    const overallScore = this.calculateOverallScore(signals);
+    if (!candidate.coordinates || typeof candidate.coordinates.lat !== 'number' || typeof candidate.coordinates.lon !== 'number') {
+      throw new SimilarityInputError('candidate.coordinates', candidate.coordinates, 'Must provide valid lat/lon coordinates');
+    }
 
-    // Determine threshold
-    const threshold = this.getThreshold(overallScore);
-
-    return {
-      artworkId: candidate.id,
-      overallScore,
-      signals,
-      threshold,
-      metadata: {
-        distance: candidate.distance_meters,
-        title: candidate.title || undefined,
-        tags: this.parseTags(candidate.tags || ''),
-      },
-    };
+    if (!candidate.id || typeof candidate.id !== 'string') {
+      throw new SimilarityInputError('candidate.id', candidate.id, 'Must provide valid string ID');
+    }
   }
 
   private calculateDistanceSignal(queryCoords: Coordinates, candidateCoords: Coordinates): SimilaritySignal {
-    const distance = calculateDistance(queryCoords, candidateCoords);
-    
-    // Normalize distance to 0-1 score (closer = higher score)
-    let rawScore = 0;
-    if (distance <= DISTANCE_NORMALIZATION.optimalDistanceMeters) {
-      rawScore = 1;
-    } else if (distance <= DISTANCE_NORMALIZATION.maxDistanceMeters) {
-      rawScore = 1 - (distance - DISTANCE_NORMALIZATION.optimalDistanceMeters) / 
-                     (DISTANCE_NORMALIZATION.maxDistanceMeters - DISTANCE_NORMALIZATION.optimalDistanceMeters);
-    }
+    try {
+      const distance = calculateDistance(queryCoords, candidateCoords);
+      
+      // Normalize distance to 0-1 score (closer = higher score)
+      let rawScore = 0;
+      if (distance <= this.config.distance.optimalDistanceMeters) {
+        rawScore = 1;
+      } else if (distance <= this.config.distance.maxDistanceMeters) {
+        rawScore = 1 - (distance - this.config.distance.optimalDistanceMeters) / 
+                       (this.config.distance.maxDistanceMeters - this.config.distance.optimalDistanceMeters);
+      }
 
-    return {
-      type: 'distance',
-      rawScore,
-      weightedScore: rawScore * SIMILARITY_WEIGHTS.distance,
-      metadata: { distanceMeters: distance },
-    };
+      return {
+        type: 'distance',
+        rawScore,
+        weightedScore: rawScore * this.config.weights.distance,
+        metadata: { distanceMeters: distance },
+      };
+    } catch (error) {
+      throw new DistanceCalculationError(queryCoords, candidateCoords, error instanceof Error ? error : new Error(String(error)));
+    }
   }
 
   private calculateTitleSignal(queryTitle: string, candidateTitle: string): SimilaritySignal {
-    const normalizedQuery = this.normalizeTitle(queryTitle);
-    const normalizedCandidate = this.normalizeTitle(candidateTitle);
+    try {
+      const normalizedQuery = this.normalizeTitle(queryTitle);
+      const normalizedCandidate = this.normalizeTitle(candidateTitle);
 
-    // Skip if either title is too short after normalization
-    if (normalizedQuery.length < TITLE_MATCHING.minTitleLength || 
-        normalizedCandidate.length < TITLE_MATCHING.minTitleLength) {
+      // Skip if either title is too short after normalization
+      if (normalizedQuery.length < this.config.title.minTitleLength || 
+          normalizedCandidate.length < this.config.title.minTitleLength) {
+        return {
+          type: 'title',
+          rawScore: 0,
+          weightedScore: 0,
+          metadata: { reason: 'title_too_short' },
+        };
+      }
+
+      // Use Jaro-Winkler similarity (simplified implementation)
+      const rawScore = this.calculateJaroWinklerSimilarity(normalizedQuery, normalizedCandidate);
+
       return {
         type: 'title',
-        rawScore: 0,
-        weightedScore: 0,
-        metadata: { reason: 'title_too_short' },
+        rawScore,
+        weightedScore: rawScore * this.config.weights.title,
+        metadata: {
+          queryNormalized: normalizedQuery,
+          candidateNormalized: normalizedCandidate,
+        },
       };
+    } catch (error) {
+      throw new TitleSimilarityError(queryTitle, candidateTitle, error instanceof Error ? error : new Error(String(error)));
     }
-
-    // Use Jaro-Winkler similarity (simplified implementation)
-    const rawScore = this.calculateJaroWinklerSimilarity(normalizedQuery, normalizedCandidate);
-
-    return {
-      type: 'title',
-      rawScore,
-      weightedScore: rawScore * SIMILARITY_WEIGHTS.title,
-      metadata: {
-        queryNormalized: normalizedQuery,
-        candidateNormalized: normalizedCandidate,
-      },
-    };
   }
 
   private calculateTagSignal(queryTags: string[], candidateTags: string[]): SimilaritySignal {
@@ -190,27 +205,31 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
       };
     }
 
-    // Calculate Jaccard similarity (intersection / union)
-    const querySet = new Set(queryTags.map(tag => tag.toLowerCase()));
-    const candidateSet = new Set(candidateTags.map(tag => tag.toLowerCase()));
-    
-    const intersection = new Set([...querySet].filter(tag => candidateSet.has(tag)));
-    const union = new Set([...querySet, ...candidateSet]);
-    
-    const rawScore = intersection.size / union.size;
+    try {
+      // Calculate Jaccard similarity (intersection / union)
+      const querySet = new Set(queryTags.map(tag => tag.toLowerCase()));
+      const candidateSet = new Set(candidateTags.map(tag => tag.toLowerCase()));
+      
+      const intersection = new Set([...querySet].filter(tag => candidateSet.has(tag)));
+      const union = new Set([...querySet, ...candidateSet]);
+      
+      const rawScore = intersection.size / union.size;
 
-    return {
-      type: 'tags',
-      rawScore,
-      weightedScore: rawScore * SIMILARITY_WEIGHTS.tags,
-      metadata: {
-        queryTags,
-        candidateTags,
-        commonTags: Array.from(intersection),
-        intersectionSize: intersection.size,
-        unionSize: union.size,
-      },
-    };
+      return {
+        type: 'tags',
+        rawScore,
+        weightedScore: rawScore * this.config.weights.tags,
+        metadata: {
+          queryTags,
+          candidateTags,
+          commonTags: Array.from(intersection),
+          intersectionSize: intersection.size,
+          unionSize: union.size,
+        },
+      };
+    } catch (error) {
+      throw new TagSimilarityError(queryTags, candidateTags, error instanceof Error ? error : new Error(String(error)));
+    }
   }
 
   private calculateOverallScore(signals: SimilaritySignal[]): number {
@@ -222,9 +241,9 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
       totalScore += signal.weightedScore;
       
       // Add the weight that was actually applied
-      if (signal.type === 'distance') totalWeight += SIMILARITY_WEIGHTS.distance;
-      else if (signal.type === 'title') totalWeight += SIMILARITY_WEIGHTS.title;
-      else if (signal.type === 'tags') totalWeight += SIMILARITY_WEIGHTS.tags;
+      if (signal.type === 'distance') totalWeight += this.config.weights.distance;
+      else if (signal.type === 'title') totalWeight += this.config.weights.title;
+      else if (signal.type === 'tags') totalWeight += this.config.weights.tags;
     }
 
     // If not all signals were available, normalize by the weights we actually used
@@ -232,8 +251,8 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
   }
 
   private getThreshold(score: number): 'none' | 'warn' | 'high' {
-    if (score >= SIMILARITY_THRESHOLD_HIGH) return 'high';
-    if (score >= SIMILARITY_THRESHOLD_WARN) return 'warn';
+    if (score >= this.config.thresholds.high) return 'high';
+    if (score >= this.config.thresholds.warn) return 'warn';
     return 'none';
   }
 
@@ -242,7 +261,7 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
       .toLowerCase()
       .replace(/[^\w\s]/g, '') // Remove punctuation
       .split(/\s+/)
-      .filter(word => !TITLE_MATCHING.stopWords.includes(word as any))
+      .filter(word => !this.config.title.stopWords.includes(word as any))
       .join(' ')
       .trim();
   }
@@ -337,8 +356,8 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
 /**
  * Create a default similarity strategy instance
  */
-export function createDefaultSimilarityStrategy(): SimilarityStrategy {
-  return new DefaultSimilarityStrategy();
+export function createDefaultSimilarityStrategy(config?: SimilarityConfig): SimilarityStrategy {
+  return new DefaultSimilarityStrategy(config);
 }
 
 /**
