@@ -271,6 +271,19 @@ export async function createFastArtworkSubmission(
   const validatedFiles = getValidatedFiles(c);
 
   const db = createDatabaseService(c.env.DB);
+  const photoDebug = c.env.PHOTO_DEBUG === '1' || c.env.PHOTO_DEBUG === 'true';
+  const dbg = (...args: unknown[]): void => { if (photoDebug) console.info('[PHOTO][FAST]', ...args); };
+
+  dbg('Incoming fast submission', {
+    userToken: userToken.slice(0, 8) + '…',
+    hasExistingArtwork: !!validatedData.existing_artwork_id,
+    lat: validatedData.lat,
+    lon: validatedData.lon,
+    title: validatedData.title,
+    tagKeys: validatedData.tags ? Object.keys(validatedData.tags) : [],
+  fileCount: validatedFiles.length,
+  fileMeta: validatedFiles.map((f, i) => ({ i, name: f.name, type: f.type, size: f.size })),
+  });
 
   try {
     // Validate consent version is provided and current
@@ -301,15 +314,17 @@ export async function createFastArtworkSubmission(
       similarity_explanation: string;
     }> = [];
 
-    if (validatedData.title) {
+  if (validatedData.title) {
       try {
         const similarityService = createSimilarityService({ includeMetadata: false });
+    dbg('Running similarity pre-check');
         const nearbyArtworks = await db.findNearbyArtworks(
           validatedData.lat,
           validatedData.lon,
           DEFAULT_ARTWORK_SEARCH_RADIUS,
           10 // Check up to 10 candidates
         );
+    dbg('Similarity candidates fetched', { count: nearbyArtworks.length });
 
         if (nearbyArtworks.length > 0) {
           const query: SimilarityQuery = {
@@ -321,13 +336,18 @@ export async function createFastArtworkSubmission(
           const similarityCandidates = nearbyArtworks.map(artwork => ({
             id: artwork.id,
             coordinates: { lat: artwork.lat, lon: artwork.lon },
-            title: (artwork as any).title ?? null,
-            tags: (artwork as any).tags ?? null,
+            // artwork comes from findNearbyArtworks which returns ArtworkRecord with title + tags possibly
+            title: (artwork as unknown as { title?: string | null }).title ?? null,
+            tags: (artwork as unknown as { tags?: string | null }).tags ?? null,
             type_name: artwork.type_name,
             distance_meters: Math.round(artwork.distance_km * 1000),
           }));
 
           const duplicateCheck = similarityService.checkForDuplicates(query, similarityCandidates);
+          dbg('Similarity duplicate check', {
+            highSimilarity: duplicateCheck.highSimilarityMatches.length,
+            warningSimilarity: duplicateCheck.warningSimilarityMatches.length,
+          });
           
           // Extract high similarity warnings
           if (duplicateCheck.highSimilarityMatches.length > 0) {
@@ -355,17 +375,24 @@ export async function createFastArtworkSubmission(
     let submissionType: 'new_artwork' | 'logbook_entry';
 
     if (isNewArtwork) {
+      // Build a default note if neither explicit note nor title supplied
+      const autoNoteParts: string[] = [];
+      if (validatedData.title) autoNoteParts.push(`Title: ${validatedData.title}`);
+      if (validatedData.tags) autoNoteParts.push(`Tags: ${JSON.stringify(validatedData.tags)}`);
+      const generatedNote = autoNoteParts.join('\n') || 'New photo submission';
+      const finalNote = validatedData.note || generatedNote;
       // Create new artwork submission (logbook entry without artwork_id)
       const logbookEntry: CreateLogbookEntryRequest = {
         user_token: userToken,
         lat: validatedData.lat,
         lon: validatedData.lon,
-        note: validatedData.note || `Title: ${validatedData.title}${validatedData.tags ? `\nTags: ${JSON.stringify(validatedData.tags)}` : ''}`,
+        note: finalNote,
         photos: [], // Will be updated after processing
         consent_version: validatedData.consent_version,
       };
 
-      const newEntry = await db.createLogbookEntry(logbookEntry);
+  const newEntry = await db.createLogbookEntry(logbookEntry);
+  dbg('Created new artwork logbook entry (pending)', { submissionId: newEntry.id });
       submissionId = newEntry.id;
       submissionType = 'new_artwork';
     } else {
@@ -388,7 +415,8 @@ export async function createFastArtworkSubmission(
         consent_version: validatedData.consent_version,
       };
 
-      const newEntry = await db.createLogbookEntry(logbookEntry);
+  const newEntry = await db.createLogbookEntry(logbookEntry);
+  dbg('Created logbook entry for existing artwork', { submissionId: newEntry.id, artworkId: validatedData.existing_artwork_id });
       submissionId = newEntry.id;
       artworkId = validatedData.existing_artwork_id;
       submissionType = 'logbook_entry';
@@ -397,10 +425,15 @@ export async function createFastArtworkSubmission(
     // Process photos if any were uploaded
     let photoUrls: string[] = [];
     if (validatedFiles.length > 0) {
+      const start = Date.now();
+      dbg('Beginning photo processing', { submissionId, fileCount: validatedFiles.length });
       photoUrls = await processPhotos(c.env, validatedFiles, submissionId);
-      
+      dbg('Photo processing complete', { submissionId, processed: photoUrls.length, ms: Date.now() - start, urls: photoUrls });
       // Update logbook entry with photo URLs
       await db.updateLogbookPhotos(submissionId, photoUrls);
+      dbg('Updated logbook entry with photos', { submissionId, photoCount: photoUrls.length });
+    } else {
+      dbg('No photos uploaded with submission');
     }
 
     // Create response
@@ -415,9 +448,11 @@ export async function createFastArtworkSubmission(
       ...(similarityWarnings.length > 0 && { similarity_warnings: similarityWarnings }),
     };
 
-    return c.json(createSuccessResponse(response), 201);
+  dbg('Submission response ready', { submissionId, submissionType, photos: photoUrls.length });
+  return c.json(createSuccessResponse(response), 201);
   } catch (error) {
     console.error('Failed to create fast artwork submission:', error);
+  dbg('Submission failed', { error: error instanceof Error ? error.message : String(error) });
     throw error;
   }
 }
@@ -425,9 +460,11 @@ export async function createFastArtworkSubmission(
 /**
  * Helper function to generate similarity explanations for submissions
  */
+interface SimilaritySignalMeta { distanceMeters?: number }
+interface SimilaritySignal { type: string; rawScore: number; metadata?: SimilaritySignalMeta }
 function getSimilarityExplanation(result: { 
   overallScore: number; 
-  signals: Array<{ type: string; rawScore: number; metadata?: any }> 
+  signals: Array<SimilaritySignal> 
 }): string {
   const { overallScore, signals } = result;
   const explanations: string[] = [];

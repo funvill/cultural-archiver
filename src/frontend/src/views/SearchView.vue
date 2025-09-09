@@ -7,8 +7,9 @@ import PhotoSearch from '../components/PhotoSearch.vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
 import SkeletonCard from '../components/SkeletonCard.vue';
 import { useSearchStore } from '../stores/search';
+import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 import { useInfiniteScroll } from '../composables/useInfiniteScroll';
-import type { SearchResult, Coordinates } from '../types';
+import type { SearchResult, Coordinates } from '../types/index';
 
 const route = useRoute();
 const router = useRouter();
@@ -22,11 +23,13 @@ const showSearchTips = ref(true);
 const searchMode = ref<'text' | 'photo'>('text'); // New search mode state
 
 // Fast upload session data
+// Fast upload session (prefer in-memory Pinia store which contains previews)
 const fastUploadSession = ref<{
-  photos: Array<{id: string; name: string; preview: string}>;
+  photos: Array<{id: string; name: string; preview?: string}>;
   location: Coordinates | null;
-  detectedSources: any;
+  detectedSources: unknown;
 } | null>(null);
+const fastUploadStore = useFastUploadSessionStore();
 const isFromFastUpload = computed(() => !!fastUploadSession.value && route.query.source === 'fast-upload');
 
 // Computed
@@ -134,7 +137,7 @@ function performSearch(query: string): void {
 // Watch for route changes and mode parameter
 watch(
   () => route.params.query,
-  newQuery => {
+  (newQuery: unknown) => {
     const query = (newQuery as string) || '';
 
     if (query !== searchStore.query) {
@@ -148,7 +151,7 @@ watch(
 // Watch for mode query parameter
 watch(
   () => route.query.mode,
-  (newMode) => {
+  (newMode: unknown) => {
     if (newMode === 'photo') {
       searchMode.value = 'photo';
     } else {
@@ -159,7 +162,7 @@ watch(
 );
 
 // Watch for empty state after search completes
-watch([isLoading, hasResults, isSearchActive], ([loading, results, active]) => {
+watch([isLoading, hasResults, isSearchActive], ([loading, results, active]: [boolean, boolean, boolean]) => {
   if (!loading && active && !results) {
     showEmptyState.value = true;
   } else {
@@ -175,7 +178,19 @@ onMounted(() => {
   const sessionData = sessionStorage.getItem('fast-upload-session');
   if (sessionData && route.query.source === 'fast-upload') {
     try {
-      fastUploadSession.value = JSON.parse(sessionData);
+      const parsed = JSON.parse(sessionData);
+      // Merge with Pinia store to add previews (sessionStorage intentionally omits them for size)
+      const previewLookup: Record<string, string | undefined> = {};
+      fastUploadStore.photos.forEach(p => { if (p.id) previewLookup[p.id] = p.preview; });
+      fastUploadSession.value = {
+        photos: (parsed.photos || []).map((p: any) => ({
+          id: p.id,
+            name: p.name,
+            preview: previewLookup[p.id],
+        })),
+        location: parsed.location || fastUploadStore.location || null,
+        detectedSources: parsed.detectedSources || fastUploadStore.detectedSources || null,
+      };
       
       // If we have location data, perform automatic search
       if (fastUploadSession.value?.location) {
@@ -187,6 +202,17 @@ onMounted(() => {
       console.error('Failed to parse fast upload session data:', error);
       sessionStorage.removeItem('fast-upload-session');
     }
+  } else if (route.query.source === 'fast-upload' && fastUploadStore.hasPhotos) {
+    // Fallback if sessionStorage missing but store still populated
+    fastUploadSession.value = {
+      photos: fastUploadStore.photos.map(p => {
+        const base = { id: p.id, name: p.name } as { id: string; name: string; preview?: string };
+        if (p.preview) base.preview = p.preview;
+        return base;
+      }),
+      location: fastUploadStore.location,
+      detectedSources: fastUploadStore.detectedSources,
+    };
   }
 
   // Focus search input on mount for normal search
@@ -201,6 +227,21 @@ function performLocationSearch(latitude: number, longitude: number): void {
   // Use the search store to perform a location-based search
   // This would need to be implemented in the search store
   searchStore.performLocationSearch({ latitude, longitude });
+}
+
+// Helpers
+function getArtworkTitle(artwork: SearchResult): string {
+  const tags = artwork.tags as Record<string, unknown> | null;
+  const title = tags && typeof (tags as any).title === 'string' ? (tags as any).title : null;
+  return title || 'Untitled';
+}
+
+const firstUploadedPreview = computed(() => fastUploadSession.value?.photos?.[0]?.preview || null);
+
+function getArtworkImage(artwork: SearchResult): string | null {
+  if (artwork.recent_photo) return artwork.recent_photo;
+  if (isFromFastUpload.value && firstUploadedPreview.value) return firstUploadedPreview.value;
+  return null;
 }
 
 onUnmounted(() => {
@@ -309,13 +350,15 @@ onUnmounted(() => {
               <div
                 v-for="photo in fastUploadSession.photos"
                 :key="photo.id"
-                class="flex-shrink-0"
+                class="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center text-[10px] text-gray-500"
               >
                 <img
+                  v-if="photo.preview"
                   :src="photo.preview"
                   :alt="photo.name"
                   class="w-20 h-20 object-cover rounded-lg"
                 />
+                <span v-else>No preview</span>
               </div>
             </div>
             <div v-if="fastUploadSession.location" class="mt-4 text-sm text-gray-600">
@@ -373,12 +416,46 @@ onUnmounted(() => {
               Nearby Artworks ({{ searchStore.totalResults }} found)
             </h3>
             <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <ArtworkCard
+              <div
                 v-for="artwork in searchStore.results"
                 :key="artwork.id"
-                :artwork="artwork"
+                class="bg-white rounded-lg shadow hover:shadow-md transition cursor-pointer border border-gray-200 p-4 flex flex-col"
                 @click="handleArtworkClick(artwork)"
-              />
+              >
+                <div class="aspect-video w-full mb-3 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+                  <img
+                    v-if="getArtworkImage(artwork)"
+                    :src="getArtworkImage(artwork) || ''"
+                    :alt="getArtworkTitle(artwork)"
+                    class="object-cover w-full h-full"
+                  />
+                  <div v-else class="text-gray-400 text-sm">No photo</div>
+                </div>
+                <h4 class="font-semibold text-gray-900 text-sm line-clamp-1 mb-2">
+                  {{ getArtworkTitle(artwork) }}
+                </h4>
+                <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-2">
+                  <div v-if="artwork.distance_km != null">
+                    <span class="font-medium text-gray-700">Distance:</span>
+                    {{ artwork.distance_km.toFixed(2) }} km
+                  </div>
+                  <div v-if="artwork.similarity_score != null">
+                    <span class="font-medium text-gray-700">Similarity:</span>
+                    {{ (artwork.similarity_score * 100).toFixed(0) }}%
+                  </div>
+                  <div>
+                    <span class="font-medium text-gray-700">Photos:</span>
+                    {{ artwork.photo_count }}
+                  </div>
+                  <div>
+                    <span class="font-medium text-gray-700">Type:</span>
+                    {{ artwork.type_name }}
+                  </div>
+                </div>
+                <div class="mt-auto flex justify-end">
+                  <span class="inline-flex items-center text-blue-600 text-xs font-medium">Select ➜</span>
+                </div>
+              </div>
             </div>
           </div>
           

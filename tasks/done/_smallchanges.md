@@ -46,6 +46,19 @@ Update the add artwork workflow
     3B) The user clicks one of the existing artworks to add the logbook entry to the existing artwork.
   4) After they fill in the addtional information. They are asked for consent to use this inforamtion then its submitted to the website.
 
+---- 
+
+- [x] The "Change location". Should pop up a model dialog with a map, and a pin in the center. The user drags around the map until the pin in the center is in the right location. Then the customer clicks "update location" to save the location.
+- On the "Add new artwork page"
+  - [x] Type dropdown, does not have "tiny_libary", it should be in the list of "Type"
+- [x] In the "Nearby Artworks" section. Show Similarity, and distance from the location, etc... This is simlare to the Artwork search by photo results page...
+- [x] On the "Add new artwork page"
+  - [x] The title is not required for a new artwork only the location and a photo
+  - [x] Remove "Year", from the form
+  - [x] Remove "Additional Notes", from the form
+  - [x] The uploaded image is showing a broken image.
+  - [x] The "Change location" link does not do anything
+
 
 ## Map
 
@@ -120,3 +133,100 @@ Notes:
 - Ths migration system should use CloudFlare D1 build in migration system. https://developers.cloudflare.com/d1/reference/migrations/
 - See the list of D1 commands https://developers.cloudflare.com/workers/wrangler/commands/#d1 Such as "wrangler migrations create", "migrations list", "migrations apply", and "export"
 - It should use wrangler, it should not using any nodejs scripts, or powershell scripts, or bash scripts.
+
+
+## Mass import
+
+Add a flag to the mass import that allows for auto accepting the new artworks and logbook entries.
+
+Mass-import script
+
+The goal is to use the same system but different scripts for each public data source. Make the import system generic, but script specific to the public data source.
+
+Review one option below, but suggest a few different options. Plan this feature out before.
+
+The mass import script should alow for linking specific fields in the import data recored, with the corasponding filed in the artwork and tags fileds.
+
+Linking the fields should use JSON path.
+
+There should be a script file that you can load that allows for linking the JSON paths from the input record to the artwork recored.
+
+I am open to suggestions on how to do this properly.
+
+For example:
+
+This is a recored in the Open Data Vancouver data set.
+
+```json
+[
+  {
+    "registryid": 27,
+    "title_of_work": "Solo",
+    "artistprojectstatement": "\"McHaffie says she means to show movement, but not flight. 'My perception of the world is that very little of it is stable,' she says.\" -Vancouver Sun, July 19,1986                                             The sculpture was installed as one of ten pieces in the City Shapes sculpture symposium in the City's centennial year.",
+    "type": "Sculpture",
+    "status": "In place",
+    "sitename": "Devonian Harbour Park",
+    "siteaddress": "Denman & Georgia Street",
+    "primarymaterial": "Stainless steel, cedar",
+    "url": "https://covapp.vancouver.ca/PublicArtRegistry/ArtworkDetail.aspx?ArtworkId=27",
+    "photourl": {
+      "exif_orientation": 1,
+      "thumbnail": true,
+      "filename": "LAW27-1.jpg",
+      "width": 350,
+      "format": "JPEG",
+      "etag": "\"apIttAiZOiONsoTSEogiJg==\"",
+      "mimetype": "image/jpeg",
+      "id": "25a422b0cc36381e0c0ab681d38f602d",
+      "last_synchronized": "2025-06-09T13:32:37.304150",
+      "color_summary": [
+        "rgba(77, 96, 90, 1.00)",
+        "rgba(118, 120, 100, 1.00)",
+        "rgba(172, 148, 118, 1.00)"
+      ],
+      "height": 256,
+      "url": "https://opendata.vancouver.ca/api/explore/v2.1/catalog/datasets/public-art/files/25a422b0cc36381e0c0ab681d38f602d"
+    },
+    "ownership": "City of Vancouver",
+    "neighbourhood": "Downtown",
+    "locationonsite": "Lawn along Georgia Street",
+    "geom": {
+      "type": "Feature",
+      "geometry": {
+        "coordinates": [-123.133965, 49.293313],
+        "type": "Point"
+      },
+      "properties": {}
+    },
+    "geo_local_area": "Downtown",
+    "descriptionofwork": "An abstract sculpture of stainless steel with carved cedar planks that fan out in a spiral.",
+    "artists": ["103"],
+    "photocredits": "SITE Photography, 2016",
+    "yearofinstallation": "1986",
+    "geo_point_2d": {
+      "lon": -123.133965,
+      "lat": 49.293313
+    }
+  }
+]  
+```
+
+The title in the open data recored is "title_of_work" and we want to link it to the artwork's title field.
+
+`$.title_of_work = artwork.title`
+
+Some fields we want to append strings and multiple fields from the open data to the artwork fileds.
+
+```txt
+"## Description of work\n": + $.descriptionofwork += artwork.description ; 
+"## Artist Project Statement\n": + $.artistprojectstatement += artwork.description ; 
+"Site Address: " + $.artistprojectstatement += artwork.description ;
+```
+
+Some fields should be linked to tags that are attached to the artwork.
+
+```txt
+$.type = artwork.tags("tag:artwork_type");
+$.url = artwork.tags("tag:website");
+$.yearofinstallation = artwork.tags("tag:start_date");
+```

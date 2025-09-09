@@ -196,7 +196,8 @@ export const structuredTagsSchema = z.record(z.union([z.string(), z.number(), z.
 export const fastArtworkSubmissionSchema = z.object({
   lat: z.number().min(-90).max(90),
   lon: z.number().min(-180).max(180),
-  title: z.string().min(1).max(500),
+  // Title is now optional for true photo-first workflow
+  title: z.string().min(1).max(500).optional(),
   type_id: z.string().optional(),
   tags: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
   note: z.string().max(500).optional(),
@@ -482,7 +483,130 @@ export async function validateUserSubmissionsQuery(
 export const validateMagicLinkRequest = validateSchema(magicLinkRequestSchema, 'body');
 export const validateConsumeMagicLink = validateSchema(consumeMagicLinkSchema, 'body');
 export const validateReviewSubmission = validateSchema(reviewSubmissionSchema, 'body');
-export const validateFastArtworkSubmission = validateSchema(fastArtworkSubmissionSchema, 'body');
+// Custom validator to allow both JSON and multipart form submissions for fast workflow
+export async function validateFastArtworkSubmission(
+  c: Context<{ Bindings: WorkerEnv }>,
+  next: Next
+): Promise<void | Response> {
+  const contentType = c.req.header('Content-Type') || '';
+  try {
+    if (contentType.includes('multipart/form-data')) {
+  console.log('[FAST SUBMIT VALIDATOR] Detected multipart/form-data content-type:', contentType);
+      const formData = await c.req.formData();
+      const build: Record<string, unknown> = {};
+      // Accept both lat/lon and latitude/longitude field names
+      const latRaw = formData.get('lat') ?? formData.get('latitude');
+      const lonRaw = formData.get('lon') ?? formData.get('longitude');
+      if (latRaw == null || lonRaw == null) {
+        throw new ValidationApiError([
+          { field: 'lat', message: 'lat (or latitude) is required', code: 'REQUIRED' },
+          { field: 'lon', message: 'lon (or longitude) is required', code: 'REQUIRED' },
+        ]);
+      }
+      build.lat = parseFloat(latRaw.toString());
+      build.lon = parseFloat(lonRaw.toString());
+      if (isNaN(build.lat as number) || isNaN(build.lon as number)) {
+        throw new ValidationApiError([
+          { field: 'lat', message: 'Invalid latitude', code: 'INVALID' },
+          { field: 'lon', message: 'Invalid longitude', code: 'INVALID' },
+        ]);
+      }
+      const title = formData.get('title');
+      if (title && title.toString().trim().length > 0) build.title = title.toString().trim();
+      const typeId = formData.get('type_id');
+      if (typeId) build.type_id = typeId.toString();
+      const note = formData.get('note');
+      if (note) build.note = note.toString();
+      const consentVersion = formData.get('consent_version');
+      if (!consentVersion) {
+        throw new ValidationApiError([
+          { field: 'consent_version', message: 'consent_version is required', code: 'REQUIRED' },
+        ]);
+      }
+      build.consent_version = consentVersion.toString();
+      const existingId = formData.get('existing_artwork_id');
+      if (existingId) build.existing_artwork_id = existingId.toString();
+      const tagsField = formData.get('tags');
+      if (tagsField) {
+        try {
+          const parsed = JSON.parse(tagsField.toString());
+          if (parsed && typeof parsed === 'object') build.tags = parsed;
+        } catch {
+          // Ignore bad tags JSON – validation below will surface if invalid
+        }
+      }
+      const result = fastArtworkSubmissionSchema.safeParse(build);
+      if (!result.success) {
+        const errors = result.error.issues.map(issue => ({
+          field: issue.path.join('.') || 'body',
+          message: issue.message,
+          code: 'INVALID',
+        }));
+        throw new ValidationApiError(errors);
+      }
+      c.set('validated_body', result.data);
+    } else if (contentType.includes('application/json')) {
+  console.log('[FAST SUBMIT VALIDATOR] Detected application/json content-type');
+      // Fall back to original JSON parsing behaviour
+      try {
+        const json = await c.req.json();
+        const result = fastArtworkSubmissionSchema.safeParse(json);
+        if (!result.success) {
+          const errors = result.error.issues.map(issue => ({
+            field: issue.path.join('.') || 'body',
+            message: issue.message,
+            code: 'INVALID',
+          }));
+          throw new ValidationApiError(errors);
+        }
+        c.set('validated_body', result.data);
+      } catch (err) {
+        throw new ValidationApiError([
+          { field: 'body', message: 'Invalid JSON in request body', code: 'INVALID_JSON' },
+        ]);
+      }
+    } else if (contentType.includes('application/x-www-form-urlencoded')) {
+  console.log('[FAST SUBMIT VALIDATOR] Detected application/x-www-form-urlencoded content-type');
+      const body = await c.req.parseBody();
+      const build: Record<string, unknown> = {
+        lat: parseFloat((body.lat ?? body.latitude ?? '').toString()),
+        lon: parseFloat((body.lon ?? body.longitude ?? '').toString()),
+        consent_version: (body.consent_version ?? '').toString(),
+      };
+      if (body.title) build.title = body.title.toString();
+      if (body.type_id) build.type_id = body.type_id.toString();
+      if (body.note) build.note = body.note.toString();
+      if (body.existing_artwork_id) build.existing_artwork_id = body.existing_artwork_id.toString();
+      if (body.tags) {
+        try { build.tags = JSON.parse(body.tags.toString()); } catch { /* ignore */ }
+      }
+      const result = fastArtworkSubmissionSchema.safeParse(build);
+      if (!result.success) {
+        const errors = result.error.issues.map(issue => ({
+          field: issue.path.join('.') || 'body',
+          message: issue.message,
+          code: 'INVALID',
+        }));
+        throw new ValidationApiError(errors);
+      }
+      c.set('validated_body', result.data);
+    } else {
+      console.warn('[FAST SUBMIT VALIDATOR] Unsupported Content-Type for fast submission:', contentType);
+      throw new ValidationApiError([
+        { field: 'content_type', message: 'Unsupported Content-Type', code: 'UNSUPPORTED' },
+      ]);
+    }
+  } catch (error) {
+    console.error('[FAST SUBMIT VALIDATOR] Validation error:', error);
+    if (error instanceof ValidationApiError) {
+      throw error;
+    }
+    throw new ValidationApiError([
+      { field: 'body', message: 'Fast submission validation failed', code: 'VALIDATION_ERROR' },
+    ]);
+  }
+  await next();
+}
 export const validateCheckSimilarity = validateSchema(checkSimilaritySchema, 'body');
 
 /**
@@ -607,7 +731,8 @@ export async function validateLogbookFormData(
       const validationErrors = [];
 
       // Extract and validate latitude
-      const latValue = formData.get('latitude')?.toString();
+  // Accept both 'latitude' (preferred) and legacy 'lat'
+  const latValue = (formData.get('latitude') ?? formData.get('lat'))?.toString();
       if (!latValue) {
         validationErrors.push({
           field: 'latitude',
@@ -626,7 +751,8 @@ export async function validateLogbookFormData(
       }
 
       // Extract and validate longitude
-      const lonValue = formData.get('longitude')?.toString();
+  // Accept both 'longitude' (preferred) and legacy 'lon'
+  const lonValue = (formData.get('longitude') ?? formData.get('lon'))?.toString();
       if (!lonValue) {
         validationErrors.push({
           field: 'longitude',
@@ -683,7 +809,7 @@ export async function validateLogbookFormData(
       const validationErrors = [];
 
       // Extract and validate latitude
-      const latValue = formData.latitude?.toString();
+  const latValue = (formData.latitude ?? (formData as Record<string, unknown>)['lat'])?.toString();
       if (!latValue) {
         validationErrors.push({
           field: 'latitude',
@@ -702,7 +828,7 @@ export async function validateLogbookFormData(
       }
 
       // Extract and validate longitude
-      const lonValue = formData.longitude?.toString();
+  const lonValue = (formData.longitude ?? (formData as Record<string, unknown>)['lon'])?.toString();
       if (!lonValue) {
         validationErrors.push({
           field: 'longitude',

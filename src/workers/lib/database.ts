@@ -630,17 +630,28 @@ export async function updateArtworkPhotos(
   id: string,
   photoUrls: string[]
 ): Promise<void> {
-  // For MVP, since photos field doesn't exist in artwork table,
-  // we'll store photos in the tags field as a special key
+  // Store photos in the root tags JSON under _photos key.
+  // BUGFIX: Previous implementation discarded photoUrls when tags was NULL, always writing an empty array.
+  // We now always persist the provided photoUrls.
+  const photosJson = JSON.stringify(photoUrls);
+  // Lightweight debug toggle – relies on PHOTO_DEBUG env read elsewhere; here we just emit.
+  try {
+    // eslint-disable-next-line no-console
+    console.info('[PHOTO][DB] updateArtworkPhotos begin', { artworkId: id, count: photoUrls.length });
+  } catch {}
   const stmt = db.prepare(`
-    UPDATE artwork 
-    SET tags = CASE 
-      WHEN tags IS NULL THEN json('{"_photos": []}')
+    UPDATE artwork
+    SET tags = CASE
+      WHEN tags IS NULL THEN json_set(json('{}'), '$._photos', json(?))
       ELSE json_set(tags, '$._photos', json(?))
-    END 
+    END
     WHERE id = ?
   `);
-  await stmt.bind(JSON.stringify(photoUrls), id).run();
+  await stmt.bind(photosJson, photosJson, id).run();
+  try {
+    // eslint-disable-next-line no-console
+    console.info('[PHOTO][DB] updateArtworkPhotos success', { artworkId: id });
+  } catch {}
 }
 
 export function getPhotosFromArtwork(artwork: ArtworkRecord): string[] {

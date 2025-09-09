@@ -213,6 +213,11 @@ export async function uploadToR2(
       throw new ApiError('Photo storage not configured', 'STORAGE_NOT_CONFIGURED', 503);
     }
 
+  const debugEnabled = env.PHOTO_DEBUG === '1' || env.PHOTO_DEBUG === 'true';
+  const debug = (...args: unknown[]): void => { if (debugEnabled) console.info('[PHOTO][R2]', ...args); };
+  const start = Date.now();
+  debug('R2 put begin', { key, sizeBytes: file.size, mime: file.type });
+
     // Convert File to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
 
@@ -231,8 +236,12 @@ export async function uploadToR2(
       },
       customMetadata: objectMetadata,
     });
+  debug('R2 put complete', { key, ms: Date.now() - start });
   } catch (error) {
     console.error('R2 upload error:', error);
+  // Best-effort debug log (env already not accessible here if put failed early)
+  // Safe because we already gated earlier logs; here we just output once.
+  console.info('[PHOTO][R2]', 'R2 put error detail', { key, message: error instanceof Error ? error.message : String(error) });
 
     if (error instanceof ApiError) {
       throw error;
@@ -288,12 +297,32 @@ export async function processAndUploadPhotos(
   submissionId: string,
   options: PhotoProcessingOptions = {}
 ): Promise<PhotoUploadResult[]> {
+  const debugEnabled = env.PHOTO_DEBUG === '1' || env.PHOTO_DEBUG === 'true';
+  const debug = (...args: unknown[]): void => {
+    if (debugEnabled) console.info('[PHOTO][UPLOAD]', ...args);
+  };
+
+  debug('Starting processAndUploadPhotos', {
+    submissionId,
+    fileCount: files.length,
+    options: {
+      generateThumbnail: options.generateThumbnail,
+      thumbnailSize: options.thumbnailSize,
+      preserveExif: options.preserveExif,
+      addWatermark: options.addWatermark,
+      quality: options.quality,
+      artworkId: options.artworkId,
+      useCloudflareImages: options.useCloudflareImages,
+    },
+  });
+
   const results: PhotoUploadResult[] = [];
 
   try {
     // Validate all files first
     const validation = validatePhotoFiles(files);
     if (!validation.isValid) {
+      debug('Validation failed', { errors: validation.errors });
       throw new ApiError('Photo validation failed', 'INVALID_PHOTOS', 400, {
         details: { errors: validation.errors },
       });
@@ -303,6 +332,12 @@ export async function processAndUploadPhotos(
     for (let i = 0; i < validation.validFiles.length; i++) {
       const file = validation.validFiles[i];
       if (!file) continue; // Skip undefined files
+      debug('File begin', {
+        index: i,
+        originalName: file.name,
+        mime: file.type,
+        sizeBytes: file.size,
+      });
 
       const filename = generateSecureFilename(file.name, file.type);
       const originalKey = generateR2Key(filename, 'originals');
@@ -312,7 +347,7 @@ export async function processAndUploadPhotos(
       let exifProcessed = false;
       let permalinkInjected = false;
 
-      if (options.preserveExif !== false && file.type.includes('jpeg') && options.artworkId) {
+  if (options.preserveExif !== false && file.type.includes('jpeg') && options.artworkId) {
         try {
           const exifOptions = {
             ...getDefaultExifOptions(),
@@ -332,13 +367,23 @@ export async function processAndUploadPhotos(
             permalinkInjected,
           });
         } catch (error) {
-          console.warn('EXIF processing failed, continuing with original:', error);
+          console.warn('EXIF processing failed, continuing with original:', {
+            error,
+            filename,
+            submissionId,
+          });
           // Continue with original buffer - don't fail the upload
         }
       }
 
       // Create processed file for upload
       const processedFile = new File([processedBuffer], file.name, { type: file.type });
+      debug('File processed buffer ready', {
+        index: i,
+        processedSizeBytes: processedBuffer.byteLength,
+        exifProcessed,
+        permalinkInjected,
+      });
 
       // Prepare metadata
       const metadata: Record<string, string> = {
@@ -361,13 +406,22 @@ export async function processAndUploadPhotos(
       }
 
       // Upload processed file with thumbnail support
-      const uploadResult = await uploadWithThumbnail(
-        env,
-        processedFile,
-        originalKey,
-        metadata,
-        options
-      );
+      debug('Uploading to storage', { index: i, key: originalKey });
+      const uploadResult = await uploadWithThumbnail(env, processedFile, originalKey, metadata, options);
+      debug('Upload result', {
+        index: i,
+        originalKey: uploadResult.originalKey,
+        thumbnailKey: uploadResult.thumbnailKey,
+        cloudflareImageId: uploadResult.cloudflareImageId || null,
+      });
+      debug('Uploaded file', {
+        submissionId,
+        index: i,
+        originalKey: uploadResult.originalKey,
+        thumbnailKey: uploadResult.thumbnailKey,
+        mimeType: file.type,
+        size: file.size,
+      });
 
       // Prepare result
       const result: PhotoUploadResult = {
@@ -396,11 +450,14 @@ export async function processAndUploadPhotos(
       }
 
       results.push(result);
+      debug('Processed result appended', { count: results.length });
     }
 
+    debug('All files processed successfully', { total: results.length });
     return results;
   } catch (error) {
     console.error('Photo processing error:', error);
+    debug('Processing error encountered', { error });
 
     // Clean up any successfully uploaded files
     for (const result of results) {
@@ -429,12 +486,19 @@ export async function movePhotosToArtwork(
   artworkId: string
 ): Promise<string[]> {
   const newPhotoUrls: string[] = [];
+  const debugEnabled = env.PHOTO_DEBUG === '1' || env.PHOTO_DEBUG === 'true';
+  const debug = (...args: unknown[]): void => {
+    if (debugEnabled) console.info('[PHOTO][MOVE]', ...args);
+  };
+
+  debug('Starting movePhotosToArtwork', { artworkId, photoCount: logbookPhotos.length });
 
   try {
     for (const photoUrl of logbookPhotos) {
       // Extract key from URL
       const urlObj = new URL(photoUrl);
       const originalKey = urlObj.pathname.substring(1); // Remove leading slash
+      debug('Processing photo', { photoUrl, originalKey });
 
       // Generate new key for artwork
       const filename = originalKey.split('/').pop() || 'unknown.jpg';
@@ -446,6 +510,11 @@ export async function movePhotosToArtwork(
         // Get original object
         const originalObject = await bucket.get(originalKey);
         if (originalObject) {
+          debug('Fetched original from R2', {
+            originalKey,
+            size: originalObject.size,
+            httpMetadata: originalObject.httpMetadata || null,
+          });
           // Copy to new location with updated metadata
           await bucket.put(newKey, originalObject.body, {
             ...(originalObject.httpMetadata && { httpMetadata: originalObject.httpMetadata }),
@@ -456,18 +525,24 @@ export async function movePhotosToArtwork(
               'Moved-At': new Date().toISOString(),
             },
           });
+          debug('Copied object to new key', { newKey });
 
           // Delete original (optional, for cleanup)
           // await deleteFromR2(env, originalKey);
 
           newPhotoUrls.push(generatePhotoUrl(env, newKey));
+          debug('Photo moved', { originalKey, newKey, totalMoved: newPhotoUrls.length });
+        } else {
+          console.warn('[PHOTO][MOVE] Original object missing in bucket', { originalKey });
         }
       }
     }
 
+    debug('Completed movePhotosToArtwork', { moved: newPhotoUrls.length });
     return newPhotoUrls;
   } catch (error) {
     console.error('Error moving photos to artwork:', error);
+    debug('Move error encountered', { error });
 
     // Clean up any new files that were created
     for (const photoUrl of newPhotoUrls) {
@@ -480,7 +555,7 @@ export async function movePhotosToArtwork(
       }
     }
 
-    throw new ApiError('Failed to move photos to artwork', 'PHOTO_MOVE_ERROR', 500);
+  throw new ApiError('Failed to move photos to artwork', 'PHOTO_MOVE_ERROR', 500);
   }
 }
 
@@ -599,33 +674,42 @@ export async function uploadWithThumbnail(
   _options: PhotoProcessingOptions = {}
 ): Promise<{ originalKey: string; thumbnailKey?: string; cloudflareImageId?: string }> {
   const cloudflareImagesEnabled = env.CLOUDFLARE_IMAGES_ENABLED === 'true';
+  const debugEnabled = env.PHOTO_DEBUG === '1' || env.PHOTO_DEBUG === 'true';
+  const debug = (...args: unknown[]): void => {
+    if (debugEnabled) console.info('[PHOTO][STORE]', ...args);
+  };
+  debug('uploadWithThumbnail start', { originalKey, sizeBytes: file.size, mime: file.type });
 
   if (cloudflareImagesEnabled && env.CLOUDFLARE_ACCOUNT_ID) {
     try {
       // Upload to Cloudflare Images
       const imageId = await uploadToCloudflareImages(env, file);
-      console.info('Photo uploaded to Cloudflare Images:', { imageId, originalKey });
+  debug('Cloudflare Images upload success', { imageId, originalKey });
 
       return {
         originalKey,
         cloudflareImageId: imageId,
       };
     } catch (error) {
-      console.warn('Cloudflare Images upload failed, falling back to R2:', error);
+  console.warn('[PHOTO][STORE] Cloudflare Images upload failed, falling back to R2', error);
       // Fall through to R2 upload
     }
   }
 
   // Upload to R2 (existing behavior)
+  debug('Uploading to R2 bucket', { originalKey });
   await uploadToR2(env, file, originalKey, metadata);
+  debug('R2 upload complete', { originalKey });
 
   // Generate thumbnail key for potential future thumbnail generation
   const thumbnailKey = generateThumbnailKey(originalKey);
 
-  return {
+  const result = {
     originalKey,
     thumbnailKey,
   };
+  debug('uploadWithThumbnail done', result);
+  return result;
 }
 
 /**

@@ -204,6 +204,7 @@ defineExpose({
   blur: () => inputRef.value?.blur(),
   clear: clearInput,
 });
+
 </script>
 
 <template>

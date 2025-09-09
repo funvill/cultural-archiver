@@ -68,6 +68,17 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
       limit
     );
 
+    const photoDebugEnabled = c.env.PHOTO_DEBUG === '1' || c.env.PHOTO_DEBUG === 'true';
+    if (photoDebugEnabled) {
+      console.info('[PHOTO][NEARBY] Query start', {
+        lat: validatedQuery.lat,
+        lon: validatedQuery.lon,
+        radius,
+        limit,
+        returned: artworks.length,
+      });
+    }
+
     // Format response with photos and additional info
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       artworks.map(async artwork => {
@@ -75,23 +86,58 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
         const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
 
         // Extract photos from logbook entries
-        const allPhotos: string[] = [];
+        const combinedPhotos: string[] = [];
         logbookEntries.forEach(entry => {
           if (entry.photos) {
             const photos = safeJsonParse<string[]>(entry.photos, []);
-            allPhotos.push(...photos);
+            for (const p of photos) {
+              if (typeof p === 'string' && !combinedPhotos.includes(p)) combinedPhotos.push(p);
+            }
           }
         });
 
+        // Also include artwork-level photos stored under _photos in tags (set during approval)
+        try {
+          if (artwork.tags) {
+            // Parse artwork tags (unknown -> record)
+            const raw = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
+            if (raw && Array.isArray(raw._photos)) {
+              for (const p of raw._photos) {
+                if (typeof p === 'string' && !combinedPhotos.includes(p)) combinedPhotos.push(p);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to parse artwork-level photos for nearby listing', e);
+        }
+
+        if (photoDebugEnabled) {
+          console.info('[PHOTO][NEARBY] Artwork aggregation', {
+            artwork_id: artwork.id,
+            logbook_entries: logbookEntries.length,
+            aggregated_photos: combinedPhotos.length,
+            has_artwork_tags: !!artwork.tags,
+          });
+        }
+
         return {
           ...artwork,
-          type_name: artwork.type_name,
-          recent_photo: allPhotos.length > 0 ? allPhotos[0] : undefined,
-          photo_count: allPhotos.length,
-          distance_km: artwork.distance_km, // Keep the distance for sorting/filtering
+            type_name: artwork.type_name,
+            recent_photo: combinedPhotos.length > 0 ? combinedPhotos[0] : undefined,
+            photo_count: combinedPhotos.length,
+            distance_km: artwork.distance_km, // Keep the distance for sorting/filtering
         } as ArtworkWithPhotos;
       })
     );
+
+    if (photoDebugEnabled) {
+      const withPhotos = artworksWithPhotos.filter(a => a.photo_count > 0).length;
+      console.info('[PHOTO][NEARBY] Aggregation summary', {
+        total: artworksWithPhotos.length,
+        with_photos: withPhotos,
+        without_photos: artworksWithPhotos.length - withPhotos,
+      });
+    }
 
     // Enhance with similarity scoring if requested (for fast photo-first workflow)
     let enhancedArtworks = artworksWithPhotos;
@@ -117,8 +163,8 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
             lon: artwork.lon,
             type_name: artwork.type_name,
             distance_km: originalArtwork?.distance_km ?? 0,
-            title: (originalArtwork as any)?.title ?? null,
-            tags: (originalArtwork as any)?.tags ?? null,
+            title: (originalArtwork as ArtworkRecord & { title?: string })?.title ?? null,
+            tags: (originalArtwork as ArtworkRecord & { tags?: string | null })?.tags ?? null,
             photos: artwork.recent_photo ? [artwork.recent_photo] : [],
           };
         });
@@ -199,11 +245,28 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       photos_parsed: safeJsonParse<string[]>(entry.photos, []),
     }));
 
-    // Get all photos from logbook entries
+    // Get all photos from logbook entries (paginated subset for timeline)
     const allPhotos: string[] = [];
     logbookEntriesWithPhotos.forEach(entry => {
       allPhotos.push(...entry.photos_parsed);
     });
+
+    // Also include any artwork-level photos stored in tags._photos (set during approval)
+    // updateArtworkPhotos stores photos inside root JSON object under _photos key.
+    try {
+      if (artwork.tags) {
+  const raw = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
+        if (raw && Array.isArray(raw._photos)) {
+          for (const p of raw._photos) {
+            if (typeof p === 'string' && !allPhotos.includes(p)) {
+              allPhotos.push(p);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse artwork-level photos from tags', e);
+    }
 
     // Parse artwork tags from structured format
     const rawTagsFallback: StructuredTagsData = { tags: {}, version: '1.0.0', lastModified: new Date().toISOString() };
@@ -237,7 +300,7 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       console.warn('Failed to iterate tags object; returning empty tags_parsed', e);
     }
 
-    const response: ArtworkDetailResponse = {
+  const response: ArtworkDetailResponse = {
       ...artwork,
       type_name: artwork.type_name,
       photos: allPhotos,
@@ -592,8 +655,8 @@ export async function checkArtworkSimilarity(c: Context<{ Bindings: WorkerEnv }>
     const similarityCandidates = candidates.map(artwork => ({
       id: artwork.id,
       coordinates: { lat: artwork.lat, lon: artwork.lon },
-      title: (artwork as any).title ?? null,
-      tags: (artwork as any).tags ?? null, // JSON string format
+  title: (artwork as ArtworkRecord & { title?: string }).title ?? null,
+  tags: (artwork as ArtworkRecord & { tags?: string | null }).tags ?? null, // JSON string format
       type_name: artwork.type_name,
       distance_meters: Math.round(artwork.distance_km * 1000),
     }));
@@ -623,8 +686,8 @@ export async function checkArtworkSimilarity(c: Context<{ Bindings: WorkerEnv }>
           lon: artwork.lon,
           type_name: artwork.type_name,
           distance_meters: Math.round(artwork.distance_km * 1000),
-          title: (artwork as any).title ?? null,
-          tags: (artwork as any).tags ?? null,
+          title: (artwork as ArtworkRecord & { title?: string }).title ?? null,
+          tags: (artwork as ArtworkRecord & { tags?: string | null }).tags ?? null,
           photos: allPhotos.slice(0, 1), // Just first photo for preview
           // Similarity enhancements
           similarity_score: similarityResult?.overallScore,
@@ -682,8 +745,8 @@ export async function checkArtworkSimilarity(c: Context<{ Bindings: WorkerEnv }>
           lon: artwork.lon,
           type_name: artwork.type_name,
           distance_meters: Math.round(artwork.distance_km * 1000),
-          title: (artwork as any).title ?? null,
-          tags: (artwork as any).tags ?? null,
+          title: (artwork as ArtworkRecord & { title?: string }).title ?? null,
+          tags: (artwork as ArtworkRecord & { tags?: string | null }).tags ?? null,
           photos: [],
         })),
         search_params: {
@@ -708,7 +771,9 @@ export async function checkArtworkSimilarity(c: Context<{ Bindings: WorkerEnv }>
  * Helper function to generate similarity explanations
  * Extracted here to avoid circular dependencies
  */
-function getSimilarityExplanation(result: { overallScore: number; signals: Array<{ type: string; rawScore: number; metadata?: any }> }): string {
+interface SimilaritySignalMeta { distanceMeters?: number; [key: string]: unknown }
+interface SimilaritySignal { type: string; rawScore: number; metadata?: SimilaritySignalMeta }
+function getSimilarityExplanation(result: { overallScore: number; signals: SimilaritySignal[] }): string {
   const { overallScore, signals } = result;
   const explanations: string[] = [];
 

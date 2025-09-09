@@ -424,6 +424,8 @@ export interface WorkerEnv
   MAGIC_LINKS: KVNamespace;
   PHOTOS_BUCKET: R2Bucket;
   CORS_ORIGINS?: string; // comma-separated origins from env
+  // Enable extra verbose photo pipeline debug logging when set to '1' or 'true'
+  PHOTO_DEBUG?: string;
 }
 
 // ================================

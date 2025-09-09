@@ -3,9 +3,11 @@
  * NewArtworkView - Third screen of the 3-screen fast workflow
  * Simplified form for adding artwork details after photo upload and location detection
  */
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { MapPinIcon, CheckCircleIcon, ArrowLeftIcon } from '@heroicons/vue/24/outline';
+import { MapPinIcon, CheckCircleIcon, ArrowLeftIcon, XMarkIcon } from '@heroicons/vue/24/outline';
+// Reference icons to satisfy lint (template uses them)
+void [MapPinIcon, CheckCircleIcon, ArrowLeftIcon, XMarkIcon];
 import { useAuthStore } from '../stores/auth';
 import { artworkSubmissionService } from '../services/artworkSubmission';
 import type { Coordinates } from '../types';
@@ -15,44 +17,48 @@ const router = useRouter();
 const authStore = useAuthStore();
 
 // Session data from fast upload
+// Prefer in-memory Pinia store (contains previews) but fallback to sessionStorage
+import { useFastUploadSessionStore } from '../stores/fastUploadSession';
+// Lazy-load Leaflet when opening modal (dynamic import); CSS here so Vite bundles it once
+// eslint-disable-next-line import/no-unresolved
+import 'leaflet/dist/leaflet.css';
+const fastStore = useFastUploadSessionStore();
 const fastUploadSession = ref<{
-  photos: Array<{id: string; name: string; preview: string}>;
+  photos: Array<{id: string; name: string; preview?: string}>;
   location: Coordinates | null;
-  detectedSources: any;
+  detectedSources?: any;
 } | null>(null);
 
 // Form data
 const formData = ref({
-  title: '',
+  title: '', // Optional per new requirement
   description: '',
   artist: '',
-  year: '',
   materials: '',
   artworkType: '',
   access: '',
   condition: 'good',
   location: null as Coordinates | null,
-  notes: ''
+  notes: '' // Removed from UI but keep for potential future use
 });
 
 // UI state
 const isSubmitting = ref(false);
-const showLocationPicker = ref(false);
+// Removed unused showLocationPicker flag from earlier design
 const submitError = ref<string | null>(null);
 const submitSuccess = ref(false);
 
 // Computed
 const isFromFastUpload = computed(() => route.query.from === 'fast-upload');
 const canSubmit = computed(() => {
-  return formData.value.title.trim().length > 0 && 
-         formData.value.location !== null &&
-         fastUploadSession.value?.photos.length > 0;
+  const photosLen = fastUploadSession.value?.photos ? fastUploadSession.value.photos.length : 0;
+  return formData.value.location !== null && photosLen > 0; // title no longer required
 });
 
 // Predefined options
 const artworkTypes = [
-  'Sculpture', 'Mural', 'Street Art', 'Monument', 'Installation', 
-  'Mosaic', 'Statue', 'Relief', 'Fountain', 'Architecture', 'Other'
+  'Sculpture', 'Mural', 'Street Art', 'Monument', 'Installation',
+  'Mosaic', 'Statue', 'Relief', 'Fountain', 'Architecture', 'tiny_library', 'Other'
 ];
 
 const accessOptions = [
@@ -69,6 +75,10 @@ const conditionOptions = [
   { value: 'damaged', label: 'Damaged' }
 ];
 
+// Map modal state
+const showLocationModal = ref(false);
+const tempLocation = ref<Coordinates | null>(null);
+
 // Methods
 async function handleSubmit() {
   if (!canSubmit.value) return;
@@ -81,27 +91,36 @@ async function handleSubmit() {
     await authStore.ensureUserToken();
     
     // Prepare submission data
-    const submission = {
-      title: formData.value.title,
+    const submission: any = {
+      // Title optional now
+      title: formData.value.title || undefined,
       description: formData.value.description || undefined,
       artist: formData.value.artist || undefined,
-      year: formData.value.year ? parseInt(formData.value.year) : undefined,
       materials: formData.value.materials || undefined,
       artworkType: formData.value.artworkType || undefined,
       access: formData.value.access || undefined,
       condition: formData.value.condition,
       latitude: formData.value.location!.latitude,
       longitude: formData.value.location!.longitude,
-      notes: formData.value.notes || undefined,
-      // For now, we'll need to handle photo upload separately
-      // In a real implementation, we'd need to convert the session photos back to File objects
-      photos: [] // TODO: Handle photo files from session
+      // Notes removed from UI; send only if present (future)
+      notes: undefined,
+  photos: fastStore.photos.map((p: { file?: File }) => p.file).filter((f: File | undefined): f is File => !!f)
     };
+
+    // Guard: if photos missing (e.g. page reload wiped File objects), abort with message
+    if (submission.photos.length === 0) {
+      console.warn('[FAST SUBMIT] No in-memory file objects available. Fast store photo entries:', fastStore.photos.length);
+      submitError.value = 'Photo data not available (likely page reload). Please go back and re-upload your photos.';
+      isSubmitting.value = false;
+      return;
+    }
+  console.info('[FAST SUBMIT] Submitting fast artwork with files:', submission.photos.map((f: File) => ({ name: f.name, size: f.size, type: f.type })));
     
     // Submit artwork
     const result = await artworkSubmissionService.submitArtwork({
-      userToken: authStore.userToken!,
-      ...submission
+      userToken: authStore.token || authStore.getUserToken(),
+      ...submission,
+      photos: submission.photos,
     });
     
     submitSuccess.value = true;
@@ -127,29 +146,131 @@ function goBack() {
 }
 
 function openLocationPicker() {
-  showLocationPicker.value = true;
-  // TODO: Implement map picker component
+  tempLocation.value = formData.value.location ? { ...formData.value.location } : (fastUploadSession.value?.location || null);
+  showLocationModal.value = true;
+  // Initialize map after next tick
+  // Use a short staged sequence so the modal has laid out before Leaflet measures the container.
+  setTimeout(() => {
+    initPickerMapWithVisibilityRetry();
+  }, 50);
+}
+
+let pickerMap: any = null;
+let leafletMod: any = null;
+async function loadLeaflet() {
+  if (leafletMod) return leafletMod;
+  try {
+    leafletMod = await import('leaflet');
+    // Fix default icon paths (optional – avoids 404s if markers added later)
+    if (leafletMod.Icon && (leafletMod.Icon.Default as any)) {
+      const Default = leafletMod.Icon.Default as any;
+      if (Default && Default.imagePath === undefined) {
+        // Vite inlines images; this prevents broken marker icons if we later use them
+        Default.mergeOptions({ imagePath: '' });
+      }
+    }
+  } catch (e) {
+    console.warn('Leaflet failed to load:', e);
+  }
+  return leafletMod;
+}
+
+async function initPickerMap(force = false) {
+  if (typeof window === 'undefined' || !showLocationModal.value) return;
+  const L = await loadLeaflet();
+  if (!L) return;
+  const container = document.getElementById('picker-map');
+  if (!container) return;
+  const rect = container.getBoundingClientRect();
+  if (!force && (rect.width === 0 || rect.height === 0)) {
+    // Container not yet visible/sized – defer
+    setTimeout(initPickerMap, 60);
+    return;
+  }
+  if (pickerMap) {
+    pickerMap.invalidateSize();
+    return;
+  }
+  const center = tempLocation.value || { latitude: 49.2827, longitude: -123.1207 };
+  pickerMap = L.map(container, { attributionControl: false }).setView([
+    center.latitude,
+    center.longitude,
+  ], 18);
+  const tileUrls = [
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    // Fallback (will only be used manually via console if needed)
+    'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
+  ];
+  const primaryLayer = L.tileLayer(tileUrls[0], { maxZoom: 19 });
+  primaryLayer.addTo(pickerMap);
+  primaryLayer.on('tileerror', (e: any) => {
+    console.warn('Primary tile layer error', e?.error || e);
+  });
+  pickerMap.on('move', () => {
+    const c = pickerMap.getCenter();
+    tempLocation.value = { latitude: c.lat, longitude: c.lng };
+  });
+  // Extra invalidate steps to combat hidden-render sizing issues
+  nextTick(() => {
+    requestAnimationFrame(() => pickerMap?.invalidateSize());
+    setTimeout(() => pickerMap?.invalidateSize(), 250);
+    setTimeout(() => pickerMap?.invalidateSize(), 1000);
+  });
+}
+
+function initPickerMapWithVisibilityRetry(attempt = 0) {
+  // Limit attempts to avoid runaway timers
+  if (!showLocationModal.value) return;
+  if (attempt > 10) {
+    console.warn('[MAP PICKER] Forcing map init after repeated size retries');
+    initPickerMap(true);
+    return;
+  }
+  const container = document.getElementById('picker-map');
+  if (!container) return;
+  const rect = container.getBoundingClientRect();
+  if (rect.width < 50 || rect.height < 50) {
+    setTimeout(() => initPickerMapWithVisibilityRetry(attempt + 1), 80);
+  } else {
+    initPickerMap();
+  }
+}
+
+function cancelLocationModal() {
+  showLocationModal.value = false;
+  pickerMap?.remove?.();
+  pickerMap = null;
+}
+
+function confirmLocationModal() {
+  if (tempLocation.value) {
+    formData.value.location = { ...tempLocation.value };
+  }
+  cancelLocationModal();
 }
 
 onMounted(async () => {
   // Load fast upload session data
-  const sessionData = sessionStorage.getItem('fast-upload-session');
-  if (sessionData && isFromFastUpload.value) {
-    try {
-      fastUploadSession.value = JSON.parse(sessionData);
-      
-      // Pre-fill location from session
-      if (fastUploadSession.value?.location) {
-        formData.value.location = fastUploadSession.value.location;
+  // Prefer in-memory store (has previews). Fallback to sessionStorage JSON.
+  if (fastStore.photos.length > 0) {
+    fastUploadSession.value = { photos: fastStore.photos as any, location: fastStore.location };
+    if (fastStore.location) {
+      formData.value.location = fastStore.location;
+    }
+  } else {
+    const sessionData = sessionStorage.getItem('fast-upload-session');
+    if (sessionData && isFromFastUpload.value) {
+      try {
+        const parsed = JSON.parse(sessionData);
+        fastUploadSession.value = parsed;
+        if (parsed?.location) formData.value.location = parsed.location;
+      } catch (error) {
+        console.error('Failed to load session data:', error);
+        router.push('/add');
       }
-    } catch (error) {
-      console.error('Failed to load session data:', error);
-      // Redirect back if no session data
+    } else if (isFromFastUpload.value) {
       router.push('/add');
     }
-  } else if (isFromFastUpload.value) {
-    // No session data but came from fast upload - redirect back
-    router.push('/add');
   }
   
   // Ensure user token is available
@@ -200,16 +321,15 @@ onMounted(async () => {
               <div>
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
                 
-                <!-- Title (Required) -->
+                <!-- Title (Optional) -->
                 <div class="mb-4">
                   <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
-                    Artwork Title <span class="text-red-500">*</span>
+                    Artwork Title <span class="text-xs text-gray-400">(optional)</span>
                   </label>
                   <input
                     id="title"
                     v-model="formData.title"
                     type="text"
-                    required
                     placeholder="Enter artwork title"
                     class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -249,21 +369,6 @@ onMounted(async () => {
                     />
                   </div>
 
-                  <!-- Year -->
-                  <div>
-                    <label for="year" class="block text-sm font-medium text-gray-700 mb-2">
-                      Year
-                    </label>
-                    <input
-                      id="year"
-                      v-model="formData.year"
-                      type="number"
-                      min="1800"
-                      max="2030"
-                      placeholder="Creation year"
-                      class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
 
                   <!-- Artwork Type -->
                   <div>
@@ -331,19 +436,7 @@ onMounted(async () => {
                 </div>
               </div>
 
-              <!-- Notes -->
-              <div>
-                <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">
-                  Additional Notes
-                </label>
-                <textarea
-                  id="notes"
-                  v-model="formData.notes"
-                  rows="3"
-                  placeholder="Any additional information about this artwork"
-                  class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
+              <!-- Notes removed per new simplified workflow -->
 
               <!-- Submit Button -->
               <div class="flex justify-end">
@@ -368,7 +461,7 @@ onMounted(async () => {
             <div class="grid grid-cols-2 gap-3">
               <div v-for="photo in fastUploadSession.photos" :key="photo.id">
                 <img
-                  :src="photo.preview"
+                  :src="photo.preview || ''"
                   :alt="photo.name"
                   class="w-full h-20 object-cover rounded-lg"
                 />
@@ -417,7 +510,7 @@ onMounted(async () => {
           <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h3 class="text-sm font-medium text-blue-900 mb-2">Tips for Better Submissions</h3>
             <ul class="text-xs text-blue-700 space-y-1">
-              <li>• Use a descriptive title</li>
+              <li>• A title helps but is optional</li>
               <li>• Include artist information if known</li>
               <li>• Describe unique features or context</li>
               <li>• Note the condition accurately</li>
@@ -426,11 +519,63 @@ onMounted(async () => {
         </div>
       </div>
     </div>
+
+    <!-- Location Picker Modal -->
+    <div v-if="showLocationModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div class="absolute inset-0 bg-black/50" @click="cancelLocationModal" />
+      <div class="relative bg-white w-full max-w-xl rounded-lg shadow-xl overflow-hidden">
+        <div class="flex items-center justify-between px-4 py-3 border-b">
+          <h3 class="text-lg font-semibold text-gray-900">Select Location</h3>
+          <button @click="cancelLocationModal" class="p-2 rounded hover:bg-gray-100"><XMarkIcon class="w-5 h-5" /></button>
+        </div>
+        <div class="relative">
+          <div id="picker-map" class="h-80 w-full"></div>
+          <!-- Center Pin (fixed overlay while map pans) -->
+          <div class="pointer-events-none absolute inset-0 flex items-center justify-center z-10" aria-hidden="true">
+            <div class="relative -mt-5 flex flex-col items-center">
+              <!-- Pin icon -->
+              <svg class="w-9 h-9 text-red-600 drop-shadow animate-pin-bounce" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path fill-rule="evenodd" d="M12 2.25c-3.728 0-6.75 2.97-6.75 6.64 0 1.586.68 3.225 1.57 4.751.884 1.515 2.012 2.945 2.992 4.094a32.724 32.724 0 002.01 2.194l.012.012.002.002a.75.75 0 001.07 0s.005-.005.012-.012a32.685 32.685 0 002.01-2.194c.98-1.149 2.108-2.579 2.992-4.094.89-1.526 1.57-3.165 1.57-4.751 0-3.67-3.022-6.64-6.75-6.64zm0 9.19a2.55 2.55 0 100-5.1 2.55 2.55 0 000 5.1z" clip-rule="evenodd" />
+              </svg>
+              <!-- Crosshair ring -->
+              <div class="absolute top-full mt-1 w-6 h-6 border-2 border-red-400/60 rounded-full"></div>
+            </div>
+          </div>
+        </div>
+        <div class="px-4 py-3 border-t flex items-center justify-between text-sm text-gray-600">
+          <div>
+            <div>Lat: {{ tempLocation?.latitude?.toFixed(6) || '...' }}</div>
+            <div>Lng: {{ tempLocation?.longitude?.toFixed(6) || '...' }}</div>
+          </div>
+          <div class="space-x-2">
+            <button @click="cancelLocationModal" class="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50">Cancel</button>
+            <button @click="confirmLocationModal" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Update Location</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.new-artwork-view {
-  /* Custom styles if needed */
+/* Additional scoped styles can be added here when needed */
+</style>
+<style>
+/* Ensure Leaflet internal panes render above white background in modal */
+#picker-map.leaflet-container {
+  background: #f1f5f9; /* light slate */
+  outline: none;
+  min-height: 20rem;
+}
+#picker-map .leaflet-tile-pane img {
+  image-rendering: auto;
+}
+.animate-pin-bounce {
+  animation: pin-bounce 1.2s ease-in-out infinite;
+  transform-origin: 50% 90%;
+}
+@keyframes pin-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
 }
 </style>

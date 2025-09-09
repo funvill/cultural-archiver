@@ -365,7 +365,24 @@ export async function approveSubmission(
     if (submission.photos) {
       const submissionPhotos = JSON.parse(submission.photos);
       if (submissionPhotos.length > 0) {
+        const moveStart = Date.now();
+        const debugEnabled = c.env.PHOTO_DEBUG === '1' || c.env.PHOTO_DEBUG === 'true';
+        if (debugEnabled) {
+          console.info('[PHOTO][REVIEW] Moving submission photos', {
+            submission_id: submission.id,
+            artwork_candidate_id: finalArtworkId,
+            count: submissionPhotos.length,
+          });
+        }
         newPhotoUrls = await movePhotosToArtwork(c.env, submissionPhotos, finalArtworkId);
+        if (debugEnabled) {
+          console.info('[PHOTO][REVIEW] Move complete', {
+            submission_id: submission.id,
+            artwork_id: finalArtworkId,
+            moved: newPhotoUrls.length,
+            ms: Date.now() - moveStart,
+          });
+        }
 
         // Update artwork with new photos
         if (newArtworkCreated) {

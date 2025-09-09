@@ -5,7 +5,7 @@
  * 2. System detects location from EXIF/browser/IP
  * 3. Automatically redirects to search results with nearby artworks
  */
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { 
   PhotoIcon, 
@@ -18,9 +18,10 @@ import { useGeolocation } from '../composables/useGeolocation';
 import { extractExifData, createImagePreview } from '../utils/image';
 import type { ExifData } from '../utils/image';
 import type { Coordinates } from '../types';
+import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 
 const router = useRouter();
-const { getCurrentPosition, getLocationWithFallback } = useGeolocation();
+const { getCurrentPosition } = useGeolocation();
 
 // State for photo uploads
 interface PhotoFile {
@@ -43,6 +44,7 @@ const locationSources = ref({
 });
 
 const finalLocation = ref<Coordinates | null>(null);
+const hasNavigated = ref(false);
 const showManualLocation = ref(false);
 
 // File input ref
@@ -152,10 +154,10 @@ async function detectLocation() {
 
 // Remove a photo
 function removePhoto(photoId: string) {
-  selectedFiles.value = selectedFiles.value.filter(photo => photo.id !== photoId);
+  selectedFiles.value = selectedFiles.value.filter((photo: PhotoFile) => photo.id !== photoId);
   
   // If we removed the photo that had EXIF location, try to detect again
-  const hasExifLocation = selectedFiles.value.some(photo => 
+  const hasExifLocation = selectedFiles.value.some((photo: PhotoFile) => 
     photo.exifData?.latitude && photo.exifData?.longitude
   );
   
@@ -165,36 +167,65 @@ function removePhoto(photoId: string) {
   }
 }
 
-// Proceed to search results
+// Proceed to search results (auto-triggered)
 function proceedToSearch() {
   if (selectedFiles.value.length === 0) return;
-  
-  // Store photos and location in session storage for the next screen
-  const sessionData = {
-    photos: selectedFiles.value.map(photo => ({
-      id: photo.id,
-      name: photo.name,
-      preview: photo.preview,
-      // We'll need to handle the actual File objects differently
-      // For now, just store metadata
-    })),
+  if (!finalLocation.value) return;
+  if (hasNavigated.value) return;
+  hasNavigated.value = true;
+
+  const store = useFastUploadSessionStore();
+  // Build metadata including preview for in-memory store (better UX on next screen)
+  // We'll strip previews before persisting to sessionStorage to avoid quota issues
+  const metaWithPreview = selectedFiles.value.map((photo: PhotoFile) => ({
+    id: photo.id,
+    name: photo.name,
+    preview: photo.preview,
+    exifLat: photo.exifData?.latitude ?? undefined,
+    exifLon: photo.exifData?.longitude ?? undefined,
+  file: photo.file,
+  }));
+  // Lightweight version (no previews) for sessionStorage only
+  const meta = metaWithPreview.map((p: typeof metaWithPreview[number]) => ({ id: p.id, name: p.name, exifLat: p.exifLat, exifLon: p.exifLon }));
+
+  const payload = {
+    photos: metaWithPreview,
     location: finalLocation.value,
-    detectedSources: locationSources.value
+    detectedSources: locationSources.value,
   };
-  
-  sessionStorage.setItem('fast-upload-session', JSON.stringify(sessionData));
-  
-  // Redirect to search results with photo mode and location
-  const query = new URLSearchParams({
-    mode: 'photo',
-    source: 'fast-upload'
-  });
-  
+
+  // Cast to align with store expected type (undefined allowed due to optional chain handling)
+  store.setSession(payload as any);
+
+  // Attempt to persist minimal payload to sessionStorage with safety checks
+  try {
+  const json = JSON.stringify({ ...payload, photos: meta });
+    // Guard against very large payloads (arbitrary 200kB limit)
+    if (json.length < 200_000) {
+      sessionStorage.setItem('fast-upload-session', json);
+    } else {
+      // Fallback: store only location
+      sessionStorage.setItem(
+        'fast-upload-session',
+    JSON.stringify({ photos: meta.slice(0, 5), location: payload.location })
+      );
+    }
+  } catch (e) {
+    console.warn('Failed to persist fast upload session (quota or serialization issue):', e);
+    // Best-effort: store just location if possible
+    try {
+      sessionStorage.setItem(
+        'fast-upload-session',
+    JSON.stringify({ photos: meta.slice(0, 3), location: payload.location })
+      );
+    } catch {}
+  }
+
+  const query = new URLSearchParams({ mode: 'photo', source: 'fast-upload' });
   if (finalLocation.value) {
     query.set('lat', finalLocation.value.latitude.toString());
     query.set('lng', finalLocation.value.longitude.toString());
   }
-  
   router.push(`/search?${query.toString()}`);
 }
 
@@ -208,6 +239,18 @@ function showManualLocationPicker() {
   showManualLocation.value = true;
   // TODO: Implement map picker component
 }
+
+// Attempt automatic navigation when conditions satisfied
+function maybeAutoNavigate() {
+  if (!isProcessing.value && selectedFiles.value.length > 0 && finalLocation.value && !hasNavigated.value) {
+    proceedToSearch();
+  }
+}
+
+// Watch relevant sources
+watch([finalLocation, () => selectedFiles.value.length, isProcessing], () => {
+  maybeAutoNavigate();
+});
 </script>
 
 <template>
@@ -378,27 +421,15 @@ function showManualLocationPicker() {
         </div>
       </div>
 
-      <!-- Step 3: Proceed Button -->
-      <div class="text-center" v-if="selectedFiles.length > 0">
-        <button
-          @click="proceedToSearch"
-          :disabled="isProcessing || selectedFiles.length === 0"
-          class="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <span v-if="isProcessing">Processing...</span>
-          <span v-else>Find Nearby Artworks</span>
-        </button>
-        
-        <p class="mt-2 text-sm text-gray-500">
-          We'll search for artworks near {{ finalLocation ? 'the detected location' : 'your location' }}
-        </p>
+      <!-- Auto navigation status -->
+      <div class="text-center" v-if="selectedFiles.length > 0 && !hasNavigated">
+        <p class="text-sm text-gray-500" v-if="!finalLocation">Detecting location...</p>
+        <p class="text-sm text-gray-500" v-else>Loading nearby artworks...</p>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.fast-photo-upload {
-  /* Custom styles if needed */
-}
+/* Additional styles can be added here if needed */
 </style>
