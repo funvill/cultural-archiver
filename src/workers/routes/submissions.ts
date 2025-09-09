@@ -370,12 +370,20 @@ export async function createFastArtworkSubmission(
       submissionType = 'new_artwork';
     } else {
       // Create logbook entry for existing artwork
+      if (!validatedData.existing_artwork_id) {
+        throw new ValidationApiError([{
+          field: 'existing_artwork_id',
+          message: 'existing_artwork_id is required for logbook entries',
+          code: 'REQUIRED'
+        }]);
+      }
+      
       const logbookEntry: CreateLogbookEntryRequest = {
         artwork_id: validatedData.existing_artwork_id,
         user_token: userToken,
         lat: validatedData.lat,
         lon: validatedData.lon,
-        note: validatedData.note,
+        ...(validatedData.note && { note: validatedData.note }),
         photos: [], // Will be updated after processing
         consent_version: validatedData.consent_version,
       };

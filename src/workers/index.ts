@@ -26,6 +26,8 @@ import {
   validateMagicLinkRequest,
   validateSchema,
   consumeMagicLinkSchema,
+  validateFastArtworkSubmission,
+  validateCheckSimilarity,
 } from './middleware/validation';
 import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
@@ -676,7 +678,7 @@ app.post(
   '/api/artworks/fast',
   rateLimitSubmissions,
   validateFileUploads,
-  validateSchema('body'),
+  validateFastArtworkSubmission,
   addUserTokenToResponse,
   withErrorHandling(createFastArtworkSubmission)
 );
@@ -710,7 +712,7 @@ app.get(
 app.post(
   '/api/artworks/check-similarity',
   rateLimitQueries,
-  validateSchema('body'),
+  validateCheckSimilarity,
   withErrorHandling(checkArtworkSimilarity)
 );
 

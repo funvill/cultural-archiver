@@ -190,6 +190,31 @@ export const reviewSubmissionSchema = z.object({
 export const structuredTagsSchema = z.record(z.union([z.string(), z.number(), z.boolean()]));
 
 // ================================
+// Fast Workflow Schemas
+// ================================
+
+export const fastArtworkSubmissionSchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lon: z.number().min(-180).max(180),
+  title: z.string().min(1).max(500),
+  type_id: z.string().optional(),
+  tags: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
+  note: z.string().max(500).optional(),
+  consent_version: z.string().min(1),
+  existing_artwork_id: z.string().uuid().optional(),
+});
+
+export const checkSimilaritySchema = z.object({
+  lat: z.number().min(-90).max(90),
+  lon: z.number().min(-180).max(180),
+  title: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+  radius: z.number().positive().optional(),
+  limit: z.number().int().min(1).max(50).optional(),
+  dev_mode: z.boolean().optional(),
+});
+
+// ================================
 // Validation Middleware Functions
 // ================================
 
@@ -457,6 +482,8 @@ export async function validateUserSubmissionsQuery(
 export const validateMagicLinkRequest = validateSchema(magicLinkRequestSchema, 'body');
 export const validateConsumeMagicLink = validateSchema(consumeMagicLinkSchema, 'body');
 export const validateReviewSubmission = validateSchema(reviewSubmissionSchema, 'body');
+export const validateFastArtworkSubmission = validateSchema(fastArtworkSubmissionSchema, 'body');
+export const validateCheckSimilarity = validateSchema(checkSimilaritySchema, 'body');
 
 /**
  * Validate file uploads (for photo submissions)
