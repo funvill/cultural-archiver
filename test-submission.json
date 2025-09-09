@@ -1,10 +1,17 @@
 {
-  "latitude": 49.2577,
-  "longitude": -123.0811,
-  "photos": ["https://art-photos.abluestar.com/test-artwork.jpg"],
-  "tags": {
-    "title": "Test Direct API After Deploy",
-    "description": "This is a test via direct API call after deploy",
-    "artwork_type": "sculpture"
+  "note": "Beautiful statue in downtown park",
+  "_submission": {
+    "lat": 49.258,
+    "lon": -123.074,
+    "type_id": "public_art",
+    "type_name": "Public Art",
+    "tags": {
+      "title": "Digital Orca Sculpture",
+      "description": "A striking blue whale sculpture created by artist Douglas Coupland, resembling a digital pixelated orca whale.",
+      "artist": "Douglas Coupland",
+      "material": "fiberglass",
+      "year": "2009",
+      "condition": "excellent"
+    }
   }
 }

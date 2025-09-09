@@ -573,13 +573,17 @@ export async function insertArtwork(
 ): Promise<string> {
   const service = createDatabaseService(db);
 
-  // Convert artwork to CreateArtworkRequest format
+  // Convert artwork to CreateArtworkRequest format - include title, description, and created_by
+  // Only include these fields if they have non-null values
   const createRequest: CreateArtworkRequest = {
     lat: artwork.lat,
     lon: artwork.lon,
     type_id: artwork.type_id,
     tags: artwork.tags ? JSON.parse(artwork.tags) : {},
     status: artwork.status, // Pass through the status
+    ...(artwork.title && { title: artwork.title }), // Only include if not null/empty
+    ...(artwork.description && { description: artwork.description }), // Only include if not null/empty
+    ...(artwork.created_by && { created_by: artwork.created_by }), // Only include if not null/empty
   };
 
   return service.createArtwork(createRequest);
