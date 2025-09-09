@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import type { WorkerEnv } from '../../types';
-import type { MagicLinkRecord, RateLimitRecord, UserRecord } from '../../shared/types';
+import type { MagicLinkRecord, RateLimitRecord, UserRecord } from '../../../shared/types';
 import {
   generateMagicLinkToken,
   validateMagicLinkToken,
@@ -67,7 +67,7 @@ const createMockStatement = (
 });
 
 // Mock auth module functions
-vi.mock('./auth', () => ({
+vi.mock('../auth', () => ({
   getUserByEmail: vi.fn(),
   createUserWithUUIDClaim: vi.fn(),
   updateUserEmailVerified: vi.fn(),

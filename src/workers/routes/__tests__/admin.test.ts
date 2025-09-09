@@ -14,18 +14,18 @@ vi.mock('../../lib/data-dump', () => ({
   generatePublicDataDump: vi.fn(),
 }));
 
-vi.mock('../lib/permissions', () => ({
+vi.mock('../../lib/permissions', () => ({
   hasPermission: vi.fn(),
 }));
 
-vi.mock('../lib/audit', () => ({
+vi.mock('../../lib/audit', () => ({
   logAdminAction: vi.fn(),
   createAdminAuditContext: vi.fn(),
 }));
 
 import { generatePublicDataDump } from '../lib/data-dump';
-import { hasPermission } from '../lib/permissions';
-import { logAdminAction, createAdminAuditContext } from '../lib/audit';
+import { hasPermission } from '../../lib/permissions';
+import { logAdminAction, createAdminAuditContext } from '../../lib/audit';
 
 // Mock context setup
 const createMockContext = (

@@ -353,6 +353,11 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
 // Utility Functions
 // ================================
 
+// Export constant views of default configuration for test assertions
+export const SIMILARITY_THRESHOLD_WARN = DEFAULT_SIMILARITY_CONFIG.thresholds.warn;
+export const SIMILARITY_THRESHOLD_HIGH = DEFAULT_SIMILARITY_CONFIG.thresholds.high;
+export const SIMILARITY_WEIGHTS = DEFAULT_SIMILARITY_CONFIG.weights;
+
 /**
  * Create a default similarity strategy instance
  */

@@ -7,10 +7,10 @@
  * Integrates with existing similarity service for duplicate detection.
  */
 
-import { 
-  MassImportConfig, 
-  MassImportResults, 
-  ImportContext, 
+import type {
+  MassImportConfig,
+  MassImportResults,
+  ImportContext,
   ImportStatistics,
   ProcessedRecord,
   FailedRecord,
@@ -20,40 +20,12 @@ import {
   BulkApprovalResults,
   ConfigValidationResult,
   MassImportLibraryInterface,
-  MASS_IMPORT_CONSTANTS,
   ImportProgress,
   ImportError
-// NOTE: Commenting out missing shared module imports until they are created
-// import {
-//   MassImportResults,
-//   ImportContext,
-//   MassImportConfig,
-//   ImportRecord,
-//   ValidationResults,
-//   BatchProcessingContext,
-//   BulkApprovalResults,
-//   ConfigValidationResult,
-//   MassImportLibraryInterface,
-//   MASS_IMPORT_CONSTANTS,
-//   ImportProgress,
-//   ImportError
-// } from '../shared/mass-import';
+} from '../../shared/mass-import.js';
+import { MASS_IMPORT_CONSTANTS } from '../../shared/mass-import.js';
 
-// import { validateTags } from '../shared/tag-validation';
-// import { CONSENT_VERSION } from '../shared/consent';
-// import { calculateDistance } from '../shared/geo';
-
-// Temporarily inline minimal types to fix build
-interface MassImportResults {
-  imported: number;
-  duplicates: number;
-  errors: number;
-}
-
-interface ImportContext {
-  source: string;
-  user: string;
-}
+import { ServerTagValidationService } from './tag-validation';
 
 /**
  * Mass Import Library - Core Implementation
@@ -62,22 +34,19 @@ interface ImportContext {
  * with validation, duplicate detection, and structured tag processing.
  */
 export class MassImportLibrary implements MassImportLibraryInterface {
-  private apiBaseUrl: string;
-  private defaultTimeout: number;
-
-  constructor(options: {
+  constructor(_options: {
     apiBaseUrl?: string;
     timeout?: number;
   } = {}) {
-    this.apiBaseUrl = options.apiBaseUrl || 'https://art-api.abluestar.com';
-    this.defaultTimeout = options.timeout || 30000;
+    // Network options reserved for future extension; intentionally unused currently
   }
 
   /**
    * Execute dry run validation without making API calls
    * Validates data structure, field mappings, and tag configuration
    */
-  async dryRun(data: any[], context: ImportContext): Promise<MassImportResults> {
+  // Using generic unknown[] for external datasets; validated during processing
+  async dryRun(data: unknown[], context: ImportContext): Promise<MassImportResults> {
     const startTime = Date.now();
     const importId = context.import_id || this.generateImportId(context.config.source);
 
@@ -135,7 +104,8 @@ export class MassImportLibrary implements MassImportLibraryInterface {
             title: this.extractTitle(record, context.config),
             applied_tags: mappedTags,
             photo_status: this.hasPhotoConfig(record, context.config) ? 'success' : 'none',
-            notes: tagValidation.warnings.length > 0 ? tagValidation.warnings : undefined
+            // notes is optional in shared type; only include if warnings
+            ...(tagValidation.warnings.length > 0 ? { notes: tagValidation.warnings } : {})
           };
 
           results.successful_records.push(processedRecord);
@@ -205,7 +175,7 @@ export class MassImportLibrary implements MassImportLibraryInterface {
   /**
    * Execute actual import with API calls
    */
-  async processImport(data: any[], context: ImportContext): Promise<MassImportResults> {
+  async processImport(data: unknown[], context: ImportContext): Promise<MassImportResults> {
     const startTime = Date.now();
     const importId = context.import_id || this.generateImportId(context.config.source);
 
@@ -235,7 +205,7 @@ export class MassImportLibrary implements MassImportLibraryInterface {
       const batches = this.createBatches(data, batchSize);
 
       for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
-        const batch = batches[batchIndex];
+  const batch = (batches[batchIndex] || []) as unknown[];
         
         this.reportProgress(context, {
           stage: 'processing',
@@ -290,7 +260,7 @@ export class MassImportLibrary implements MassImportLibraryInterface {
   /**
    * Retry failed photo downloads from previous import
    */
-  async retryPhotos(importResults: MassImportResults, context: ImportContext): Promise<MassImportResults> {
+  async retryPhotos(_importResults: MassImportResults, _context: ImportContext): Promise<MassImportResults> {
     // Implementation for retrying failed photo downloads
     // This would identify records with photo_status: 'failed' and retry them
     
@@ -300,7 +270,7 @@ export class MassImportLibrary implements MassImportLibraryInterface {
   /**
    * Execute bulk approval of imported records
    */
-  async bulkApprove(config: BulkApprovalConfig, context: ImportContext): Promise<BulkApprovalResults> {
+  async bulkApprove(config: BulkApprovalConfig, _context: ImportContext): Promise<BulkApprovalResults> {
     if (!config.confirm) {
       throw new Error('Bulk approval requires explicit confirmation');
     }
@@ -379,7 +349,8 @@ export class MassImportLibrary implements MassImportLibraryInterface {
     return Math.random().toString(36).substr(2, 9);
   }
 
-  private extractExternalId(record: any, config: MassImportConfig): string {
+  private extractExternalId(record: unknown, config: MassImportConfig): string {
+    const r = record as Record<string, unknown>;
     // Try to find external ID from tag mappings
     for (const [key, mapping] of Object.entries(config.tag_mappings)) {
       if (key === 'external_id' && typeof mapping === 'object' && mapping.source_field) {
@@ -391,18 +362,22 @@ export class MassImportLibrary implements MassImportLibraryInterface {
     }
     
     // Fallback to common ID fields
-    return record.id || record.registryid || record.external_id || `generated-${this.generateId()}`;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (r as any).id || (r as any).registryid || (r as any).external_id || `generated-${this.generateId()}`;
   }
 
-  private extractTitle(record: any, config: MassImportConfig): string {
+  private extractTitle(record: unknown, config: MassImportConfig): string {
     return this.getNestedValue(record, config.field_mappings.title) || 'Untitled';
   }
 
-  private getNestedValue(obj: any, path: string): any {
-    return path.split('.').reduce((current, key) => current?.[key], obj);
+  // Generic nested accessor for unknown JSON structures
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private getNestedValue(obj: unknown, path: string): any {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return path.split('.').reduce<any>((current, key) => (current as any)?.[key], obj as any);
   }
 
-  private async validateRecord(record: any, config: MassImportConfig): Promise<void> {
+  private async validateRecord(record: unknown, config: MassImportConfig): Promise<void> {
     // Validate required fields exist
     const title = this.getNestedValue(record, config.field_mappings.title);
     if (!title) {
@@ -433,7 +408,8 @@ export class MassImportLibrary implements MassImportLibraryInterface {
     }
   }
 
-  private async mapTags(record: any, config: MassImportConfig): Promise<Record<string, string>> {
+  private async mapTags(record: unknown, config: MassImportConfig): Promise<Record<string, string>> {
+    const rec = record as Record<string, unknown>;
     const mappedTags: Record<string, string> = {};
 
     for (const [tagKey, mapping] of Object.entries(config.tag_mappings)) {
@@ -442,16 +418,16 @@ export class MassImportLibrary implements MassImportLibraryInterface {
 
         if (typeof mapping === 'string') {
           // Check if this looks like a field path (contains dots or is present in record)
-          if (mapping.includes('.') || (record && record.hasOwnProperty(mapping))) {
+          if (mapping.includes('.') || (rec && Object.prototype.hasOwnProperty.call(rec, mapping))) {
             // Field mapping - extract from record
-            value = this.getNestedValue(record, mapping);
+            value = this.getNestedValue(rec, mapping);
           } else {
             // Literal value - use the string directly
             value = mapping;
           }
         } else {
           // Complex mapping with transformations
-          let rawValue = this.getNestedValue(record, mapping.source_field);
+          let rawValue = this.getNestedValue(rec, mapping.source_field);
 
           // Apply transformations
           if (mapping.transform) {
@@ -465,7 +441,7 @@ export class MassImportLibrary implements MassImportLibraryInterface {
 
           // Apply template
           if (mapping.template) {
-            value = this.applyTemplate(mapping.template, record, { external_id: this.extractExternalId(record, config) });
+            value = this.applyTemplate(mapping.template, rec, { external_id: this.extractExternalId(rec, config) });
           } else {
             value = rawValue;
           }
@@ -481,12 +457,12 @@ export class MassImportLibrary implements MassImportLibraryInterface {
     }
 
     // Add required import tags
-    mappedTags.import_date = new Date().toISOString().split('T')[0];
+  (mappedTags as Record<string, string>)['import_date'] = new Date().toISOString().split('T')[0] || '';
     
     return mappedTags;
   }
 
-  private applyTransformation(value: any, transform: string): string {
+  private applyTransformation(value: unknown, transform: string): string {
     switch (transform) {
       case 'lowercase_with_underscores':
         return String(value).toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/_+/g, '_');
@@ -509,20 +485,22 @@ export class MassImportLibrary implements MassImportLibraryInterface {
     }
   }
 
-  private applyTemplate(template: string, record: any, context: Record<string, any>): string {
+  private applyTemplate(template: string, record: Record<string, unknown>, context: Record<string, unknown>): string {
     return template.replace(/\{([^}]+)\}/g, (match, key) => {
       return context[key] || this.getNestedValue(record, key) || match;
     });
   }
 
+  private tagValidationService = new ServerTagValidationService();
+
   private async validateRecordTags(tags: Record<string, string>): Promise<{ valid: boolean; warnings: string[]; errors: string[] }> {
-    // Use existing tag validation system
     try {
-      const validationResult = await validateTags(tags);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const validationResult = this.tagValidationService.validateTags(tags as any);
       return {
         valid: validationResult.valid,
-        warnings: validationResult.warningMessages || [],
-        errors: validationResult.errorMessages || []
+        warnings: validationResult.warnings.map(w => w.message),
+        errors: validationResult.errors.map(e => e.message)
       };
     } catch (error) {
       return {
@@ -555,7 +533,7 @@ export class MassImportLibrary implements MassImportLibraryInterface {
     };
   }
 
-  private updateTagValidationSummary(summary: TagValidationSummary, tags: Record<string, string>, validation: any): void {
+  private updateTagValidationSummary(summary: TagValidationSummary, tags: Record<string, string>, validation: { valid: boolean; warnings: string[]; errors: string[] }): void {
     summary.total_tags += Object.keys(tags).length;
     
     if (validation.valid) {
@@ -584,21 +562,21 @@ export class MassImportLibrary implements MassImportLibraryInterface {
     }
   }
 
-  private hasPhotoConfig(record: any, config: MassImportConfig): boolean {
+  private hasPhotoConfig(record: unknown, config: MassImportConfig): boolean {
     if (!config.photo_config) return false;
     
     const photoUrl = this.getNestedValue(record, config.photo_config.source_field);
     return !!photoUrl;
   }
 
-  private async simulateDuplicateCheck(results: MassImportResults, context: ImportContext): Promise<void> {
+  private async simulateDuplicateCheck(results: MassImportResults, _context: ImportContext): Promise<void> {
     // Simulate duplicate checking for dry run
     // In actual implementation, this would call the similarity service
     
     const duplicateCount = Math.floor(results.successful_records.length * 0.05); // Simulate 5% duplicates
     
     for (let i = 0; i < duplicateCount && i < results.successful_records.length; i++) {
-      const record = results.successful_records[i];
+  const record = results.successful_records[i]!;
       
       const duplicateMatch: DuplicateMatch = {
         external_id: record.external_id,
@@ -625,7 +603,7 @@ export class MassImportLibrary implements MassImportLibraryInterface {
     return batches;
   }
 
-  private async processBatch(batch: any[], results: MassImportResults, context: ImportContext): Promise<void> {
+  private async processBatch(batch: unknown[], results: MassImportResults, context: ImportContext): Promise<void> {
     // Process each record in the batch
     // In actual implementation, this would make API calls to submit records
     
@@ -653,8 +631,7 @@ export class MassImportLibrary implements MassImportLibraryInterface {
           created_id: submissionResult.id,
           title: this.extractTitle(record, context.config),
           applied_tags: mappedTags,
-          photo_status: 'none', // Will be updated during photo processing
-          notes: undefined
+          photo_status: 'none' // Will be updated during photo processing
         };
 
         results.successful_records.push(processedRecord);
@@ -683,20 +660,20 @@ export class MassImportLibrary implements MassImportLibraryInterface {
     }
   }
 
-  private async checkForDuplicate(record: any, context: ImportContext): Promise<boolean> {
+  private async checkForDuplicate(_record: unknown, _context: ImportContext): Promise<boolean> {
     // Placeholder - would integrate with similarity service
     // This would call /api/artworks/check-similarity endpoint
     return false;
   }
 
-  private async submitRecord(record: any, tags: Record<string, string>, context: ImportContext): Promise<{ id: string }> {
+  private async submitRecord(_record: unknown, _tags: Record<string, string>, _context: ImportContext): Promise<{ id: string }> {
     // Placeholder for API submission
     // This would call /api/artworks/fast endpoint with proper authentication
     
     return { id: 'submitted-' + this.generateId() };
   }
 
-  private async processPhotos(results: MassImportResults, context: ImportContext): Promise<void> {
+  private async processPhotos(results: MassImportResults, _context: ImportContext): Promise<void> {
     // Placeholder for photo processing
     // Would download and upload photos for successful records
     

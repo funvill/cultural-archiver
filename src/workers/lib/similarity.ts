@@ -20,7 +20,6 @@ import {
   SimilarityCalculationError,
   SimilarityServiceError,
   DuplicateDetectionError,
-  wrapAsyncSimilarityOperation,
 } from '../../shared/errors/similarity.errors';
 
 // ================================
