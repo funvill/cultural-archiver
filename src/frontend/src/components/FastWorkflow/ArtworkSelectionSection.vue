@@ -245,7 +245,7 @@
       <ArtworkSelectorModal
         :nearby-artworks="nearbyArtworks"
         :selected-artwork="selectedArtwork"
-        @artwork-selected="handleArtworkSelected"
+        @artworkSelected="handleArtworkSelected"
         @close="showArtworkSelector = false"
       />
     </Modal>
@@ -275,8 +275,8 @@ interface Props {
 
 const props = defineProps<Props>();
 const emit = defineEmits<{
-  'select-artwork': [artworkId: string];
-  'select-new': [];
+  selectArtwork: [artworkId: string];
+  selectNew: [];
 }>();
 
 // Local state
@@ -291,11 +291,11 @@ const selectedArtworkData = computed(() => {
 
 // Methods
 function selectNewArtwork() {
-  emit('select-new');
+  emit('selectNew');
 }
 
 function selectExistingArtwork(artworkId: string) {
-  emit('select-artwork', artworkId);
+  emit('selectArtwork', artworkId);
   showArtworkSelector.value = false;
 }
 

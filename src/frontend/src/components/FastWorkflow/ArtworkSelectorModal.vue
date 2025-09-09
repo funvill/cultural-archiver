@@ -92,8 +92,8 @@ interface Props {
 
 const props = defineProps<Props>();
 const emit = defineEmits<{
-  'artwork-selected': [artworkId: string];
-  'close': [];
+  artworkSelected: [artworkId: string];
+  close: [];
 }>();
 
 const localSelected = ref(props.selectedArtwork);
@@ -104,7 +104,7 @@ function selectArtwork(artworkId: string) {
 
 function confirmSelection() {
   if (localSelected.value) {
-    emit('artwork-selected', localSelected.value);
+    emit('artworkSelected', localSelected.value);
   }
 }
 </script>

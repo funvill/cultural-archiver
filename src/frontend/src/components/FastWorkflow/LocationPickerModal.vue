@@ -124,8 +124,8 @@ interface Props {
 
 const props = defineProps<Props>();
 const emit = defineEmits<{
-  'location-selected': [lat: number, lon: number, address?: string];
-  'close': [];
+  locationSelected: [lat: number, lon: number, address?: string];
+  close: [];
 }>();
 
 // Local state
@@ -172,7 +172,7 @@ function setPresetLocation(preset: { name: string; lat: number; lon: number }) {
 
 function handleLocationSelect() {
   if (isValidLocation.value) {
-    emit('location-selected', coordinates.value.lat, coordinates.value.lon, searchQuery.value || undefined);
+    emit('locationSelected', coordinates.value.lat, coordinates.value.lon, searchQuery.value || undefined);
   }
 }
 </script>

@@ -144,7 +144,7 @@
           </p>
         </div>
         <button
-          @click="$emit('check-similarity')"
+          @click="$emit('checkSimilarity')"
           :disabled="similarityLoading"
           class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
@@ -239,7 +239,7 @@
     >
       <LocationPickerModal
         :initial-location="location"
-        @location-selected="handleLocationSelected"
+        @locationSelected="handleLocationSelected"
         @close="showLocationPicker = false"
       />
     </Modal>
@@ -273,9 +273,9 @@ interface Props {
 
 defineProps<Props>();
 const emit = defineEmits<{
-  'location-detected': [];
-  'location-manual': [lat: number, lon: number, address?: string];
-  'check-similarity': [];
+  locationDetected: [];
+  locationManual: [lat: number, lon: number, address?: string];
+  checkSimilarity: [];
 }>();
 
 // Local state

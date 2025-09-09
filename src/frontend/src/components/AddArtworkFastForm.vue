@@ -122,9 +122,9 @@
               :error="submission.state.locationError"
               :nearby-artworks="submission.state.nearbyArtworks"
               :similarity-loading="submission.state.similarityLoading"
-              @location-detected="handleLocationDetected"
-              @location-manual="handleLocationManual"
-              @check-similarity="handleCheckSimilarity"
+              @locationDetected="handleLocationDetected"
+              @locationManual="handleLocationManual"
+              @checkSimilarity="handleCheckSimilarity"
             />
           </div>
         </Transition>
@@ -145,8 +145,8 @@
               :nearby-artworks="submission.state.nearbyArtworks"
               :selected-artwork="submission.state.selectedArtwork"
               :similarity-warnings="submission.state.similarityWarnings"
-              @select-artwork="submission.selectArtwork"
-              @select-new="submission.selectNewArtwork"
+              @selectArtwork="submission.selectArtwork"
+              @selectNew="submission.selectNewArtwork"
             />
           </div>
         </Transition>
