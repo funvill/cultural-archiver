@@ -1,6 +1,7 @@
 /**
  * Discovery route handlers for artwork search and details
  * Handles GET /api/artworks/nearby and GET /api/artworks/:id
+ * Enhanced with similarity scoring for fast photo-first workflow
  */
 
 import type { Context } from 'hono';
@@ -14,11 +15,13 @@ import type {
   ArtworkCreatorInfo,
 } from '../types';
 import type { StructuredTagsData } from '../../shared/types';
-import { DEFAULT_SEARCH_RADIUS } from '../types';
+import { DEFAULT_ARTWORK_SEARCH_RADIUS } from '../../shared/geo';
 import { createDatabaseService } from '../lib/database';
 import { createSuccessResponse, NotFoundError } from '../lib/errors';
 import { getValidatedData } from '../middleware/validation';
 import { safeJsonParse } from '../lib/errors';
+import { createSimilarityService } from '../lib/similarity';
+import type { SimilarityQuery } from '../../shared/similarity';
 
 // Database result interfaces
 interface ArtworkStatsResult {
@@ -35,6 +38,7 @@ interface SubmissionStatsResult {
 /**
  * GET /api/artworks/nearby - Find Nearby Artworks
  * Returns approved artworks within a specified radius
+ * Enhanced with optional similarity scoring for duplicate detection
  */
 export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const validatedQuery = getValidatedData<{
@@ -42,12 +46,17 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
     lon: number;
     radius?: number;
     limit?: number;
+    // Fast photo-first workflow parameters
+    title?: string;
+    tags?: string[]; // Array of tag values
+    include_similarity?: boolean;
+    similarity_dev_mode?: boolean;
   }>(c, 'query');
 
   const db = createDatabaseService(c.env.DB);
 
-  // Set defaults
-  const radius = validatedQuery.radius || DEFAULT_SEARCH_RADIUS;
+  // Set defaults - use fast workflow radius if not specified
+  const radius = validatedQuery.radius || DEFAULT_ARTWORK_SEARCH_RADIUS;
   const limit = validatedQuery.limit || 20;
 
   try {
@@ -59,6 +68,17 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
       limit
     );
 
+    const photoDebugEnabled = c.env.PHOTO_DEBUG === '1' || c.env.PHOTO_DEBUG === 'true';
+    if (photoDebugEnabled) {
+      console.info('[PHOTO][NEARBY] Query start', {
+        lat: validatedQuery.lat,
+        lon: validatedQuery.lon,
+        radius,
+        limit,
+        returned: artworks.length,
+      });
+    }
+
     // Format response with photos and additional info
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       artworks.map(async artwork => {
@@ -66,27 +86,113 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
         const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
 
         // Extract photos from logbook entries
-        const allPhotos: string[] = [];
+        const combinedPhotos: string[] = [];
         logbookEntries.forEach(entry => {
           if (entry.photos) {
             const photos = safeJsonParse<string[]>(entry.photos, []);
-            allPhotos.push(...photos);
+            for (const p of photos) {
+              if (typeof p === 'string' && !combinedPhotos.includes(p)) combinedPhotos.push(p);
+            }
           }
         });
 
+        // Also include artwork-level photos stored under _photos in tags (set during approval)
+        try {
+          if (artwork.tags) {
+            // Parse artwork tags (unknown -> record)
+            const raw = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
+            if (raw && Array.isArray(raw._photos)) {
+              for (const p of raw._photos) {
+                if (typeof p === 'string' && !combinedPhotos.includes(p)) combinedPhotos.push(p);
+              }
+            }
+          }
+        } catch (e) {
+          console.warn('Failed to parse artwork-level photos for nearby listing', e);
+        }
+
+        if (photoDebugEnabled) {
+          console.info('[PHOTO][NEARBY] Artwork aggregation', {
+            artwork_id: artwork.id,
+            logbook_entries: logbookEntries.length,
+            aggregated_photos: combinedPhotos.length,
+            has_artwork_tags: !!artwork.tags,
+          });
+        }
+
         return {
           ...artwork,
-          type_name: artwork.type_name,
-          recent_photo: allPhotos.length > 0 ? allPhotos[0] : undefined,
-          photo_count: allPhotos.length,
-          distance_km: artwork.distance_km, // Keep the distance for sorting/filtering
+            type_name: artwork.type_name,
+            recent_photo: combinedPhotos.length > 0 ? combinedPhotos[0] : undefined,
+            photo_count: combinedPhotos.length,
+            distance_km: artwork.distance_km, // Keep the distance for sorting/filtering
         } as ArtworkWithPhotos;
       })
     );
 
+    if (photoDebugEnabled) {
+      const withPhotos = artworksWithPhotos.filter(a => a.photo_count > 0).length;
+      console.info('[PHOTO][NEARBY] Aggregation summary', {
+        total: artworksWithPhotos.length,
+        with_photos: withPhotos,
+        without_photos: artworksWithPhotos.length - withPhotos,
+      });
+    }
+
+    // Enhance with similarity scoring if requested (for fast photo-first workflow)
+    let enhancedArtworks = artworksWithPhotos;
+    if (validatedQuery.include_similarity && (validatedQuery.title || validatedQuery.tags)) {
+      try {
+        const similarityService = createSimilarityService({
+          includeMetadata: validatedQuery.similarity_dev_mode === true,
+        });
+
+        const query: SimilarityQuery = {
+          coordinates: { lat: validatedQuery.lat, lon: validatedQuery.lon },
+          ...(validatedQuery.title && { title: validatedQuery.title }),
+          ...(validatedQuery.tags && { tags: validatedQuery.tags }),
+        };
+
+        // Need to ensure artworksWithPhotos have distance_km for similarity service
+        const artworksForSimilarity = artworksWithPhotos.map(artwork => {
+          // Find the original artwork with distance_km from the database query
+          const originalArtwork = artworks.find(a => a.id === artwork.id);
+          return {
+            id: artwork.id,
+            lat: artwork.lat,
+            lon: artwork.lon,
+            type_name: artwork.type_name,
+            distance_km: originalArtwork?.distance_km ?? 0,
+            title: (originalArtwork as ArtworkRecord & { title?: string })?.title ?? null,
+            tags: (originalArtwork as ArtworkRecord & { tags?: string | null })?.tags ?? null,
+            photos: artwork.recent_photo ? [artwork.recent_photo] : [],
+          };
+        });
+
+        const enhancedResults = similarityService.enhanceNearbyResults(query, artworksForSimilarity);
+        
+        // Convert back to ArtworkWithPhotos format for response - merge properties
+        enhancedArtworks = enhancedResults.map(enhanced => {
+          const original = artworksWithPhotos.find(a => a.id === enhanced.id);
+          return {
+            ...original!,
+            ...enhanced,
+            // Keep original artwork properties that might not be in enhanced result
+            photo_count: original?.photo_count ?? 0,
+            type_id: original?.type_id ?? '',
+            created_at: original?.created_at ?? '',
+            status: original?.status ?? 'approved',
+          };
+        }) as ArtworkWithPhotos[];
+      } catch (error) {
+        console.warn('Similarity enhancement failed, using distance-only results:', error);
+        // Graceful degradation - continue with original results
+      }
+    }
+
     const response: NearbyArtworksResponse = {
-      artworks: artworksWithPhotos,
-      total: artworksWithPhotos.length,
+      artworks: enhancedArtworks,
+      total: enhancedArtworks.length,
       search_center: {
         lat: validatedQuery.lat,
         lon: validatedQuery.lon,
@@ -139,11 +245,28 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       photos_parsed: safeJsonParse<string[]>(entry.photos, []),
     }));
 
-    // Get all photos from logbook entries
+    // Get all photos from logbook entries (paginated subset for timeline)
     const allPhotos: string[] = [];
     logbookEntriesWithPhotos.forEach(entry => {
       allPhotos.push(...entry.photos_parsed);
     });
+
+    // Also include any artwork-level photos stored in tags._photos (set during approval)
+    // updateArtworkPhotos stores photos inside root JSON object under _photos key.
+    try {
+      if (artwork.tags) {
+  const raw = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
+        if (raw && Array.isArray(raw._photos)) {
+          for (const p of raw._photos) {
+            if (typeof p === 'string' && !allPhotos.includes(p)) {
+              allPhotos.push(p);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to parse artwork-level photos from tags', e);
+    }
 
     // Parse artwork tags from structured format
     const rawTagsFallback: StructuredTagsData = { tags: {}, version: '1.0.0', lastModified: new Date().toISOString() };
@@ -177,7 +300,7 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       console.warn('Failed to iterate tags object; returning empty tags_parsed', e);
     }
 
-    const response: ArtworkDetailResponse = {
+  const response: ArtworkDetailResponse = {
       ...artwork,
       type_name: artwork.type_name,
       photos: allPhotos,
@@ -474,4 +597,199 @@ export async function getArtworksInBounds(c: Context<{ Bindings: WorkerEnv }>): 
     console.error('Error getting artworks in bounds:', error);
     throw error;
   }
+}
+
+/**
+ * POST /api/artworks/check-similarity - Check for Similar Artworks
+ * Dedicated endpoint for the fast photo-first workflow to check for duplicates
+ */
+export async function checkArtworkSimilarity(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  const validatedData = getValidatedData<{
+    lat: number;
+    lon: number;
+    title?: string;
+    tags?: string[]; // Array of tag values for similarity comparison
+    radius?: number;
+    limit?: number;
+    dev_mode?: boolean; // Include detailed similarity breakdown
+  }>(c, 'body');
+
+  const db = createDatabaseService(c.env.DB);
+
+  // Use fast workflow defaults
+  const radius = validatedData.radius || DEFAULT_ARTWORK_SEARCH_RADIUS;
+  const limit = validatedData.limit || 10; // Fewer results for similarity check
+
+  try {
+    // Find nearby artworks as candidates
+    const candidates = await db.findNearbyArtworks(
+      validatedData.lat,
+      validatedData.lon,
+      radius,
+      limit
+    );
+
+    // If no candidates, no duplicates possible
+    if (candidates.length === 0) {
+      return c.json(createSuccessResponse({
+        has_similar_artworks: false,
+        high_similarity_count: 0,
+        warning_similarity_count: 0,
+        candidates: [],
+        similarity_service: null,
+      }));
+    }
+
+    // Check for similarity using the similarity service
+    const similarityService = createSimilarityService({
+      includeMetadata: validatedData.dev_mode === true,
+    });
+
+    const query: SimilarityQuery = {
+      coordinates: { lat: validatedData.lat, lon: validatedData.lon },
+      ...(validatedData.title && { title: validatedData.title }),
+      ...(validatedData.tags && { tags: validatedData.tags }),
+    };
+
+    // Convert candidates to similarity format
+    const similarityCandidates = candidates.map(artwork => ({
+      id: artwork.id,
+      coordinates: { lat: artwork.lat, lon: artwork.lon },
+  title: (artwork as ArtworkRecord & { title?: string }).title ?? null,
+  tags: (artwork as ArtworkRecord & { tags?: string | null }).tags ?? null, // JSON string format
+      type_name: artwork.type_name,
+      distance_meters: Math.round(artwork.distance_km * 1000),
+    }));
+
+    const duplicateCheck = similarityService.checkForDuplicates(query, similarityCandidates);
+
+    // Format candidates with photos for display
+    const candidatesWithPhotos = await Promise.all(
+      candidates.slice(0, 5).map(async artwork => { // Limit to top 5 for performance
+        const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
+        const allPhotos: string[] = [];
+        
+        logbookEntries.forEach(entry => {
+          if (entry.photos) {
+            const photos = safeJsonParse<string[]>(entry.photos, []);
+            allPhotos.push(...photos);
+          }
+        });
+
+        // Find similarity result for this artwork
+        const allSimilarityResults = similarityService.calculateSimilarityScores(query, similarityCandidates);
+        const similarityResult = allSimilarityResults.find(result => result.artworkId === artwork.id);
+
+        return {
+          id: artwork.id,
+          lat: artwork.lat,
+          lon: artwork.lon,
+          type_name: artwork.type_name,
+          distance_meters: Math.round(artwork.distance_km * 1000),
+          title: (artwork as ArtworkRecord & { title?: string }).title ?? null,
+          tags: (artwork as ArtworkRecord & { tags?: string | null }).tags ?? null,
+          photos: allPhotos.slice(0, 1), // Just first photo for preview
+          // Similarity enhancements
+          similarity_score: similarityResult?.overallScore,
+          similarity_threshold: similarityResult?.threshold,
+          similarity_explanation: similarityResult ? getSimilarityExplanation(similarityResult) : undefined,
+          ...(validatedData.dev_mode && similarityResult && {
+            similarity_signals: similarityResult.signals.map(signal => ({
+              type: signal.type,
+              raw_score: signal.rawScore,
+              weighted_score: signal.weightedScore,
+              metadata: signal.metadata,
+            }))
+          })
+        };
+      })
+    );
+
+    const response = {
+      has_similar_artworks: duplicateCheck.hasHighSimilarity || duplicateCheck.hasWarningSimilarity,
+      high_similarity_count: duplicateCheck.highSimilarityMatches.length,
+      warning_similarity_count: duplicateCheck.warningSimilarityMatches.length,
+      candidates: candidatesWithPhotos,
+      search_params: {
+        center: { lat: validatedData.lat, lon: validatedData.lon },
+        radius_meters: radius,
+        title: validatedData.title,
+        tags: validatedData.tags,
+      },
+      similarity_service: {
+        strategy: similarityService.getStrategyInfo(),
+        dev_mode: validatedData.dev_mode === true,
+      },
+    };
+
+    return c.json(createSuccessResponse(response));
+  } catch (error) {
+    console.error('Failed to check artwork similarity:', error);
+    
+    // Graceful degradation - return basic nearby results without similarity
+    try {
+      const basicCandidates = await db.findNearbyArtworks(
+        validatedData.lat,
+        validatedData.lon,
+        radius,
+        Math.min(limit, 5)
+      );
+
+      const basicResponse = {
+        has_similar_artworks: false,
+        high_similarity_count: 0,
+        warning_similarity_count: 0,
+        candidates: basicCandidates.map(artwork => ({
+          id: artwork.id,
+          lat: artwork.lat,
+          lon: artwork.lon,
+          type_name: artwork.type_name,
+          distance_meters: Math.round(artwork.distance_km * 1000),
+          title: (artwork as ArtworkRecord & { title?: string }).title ?? null,
+          tags: (artwork as ArtworkRecord & { tags?: string | null }).tags ?? null,
+          photos: [],
+        })),
+        search_params: {
+          center: { lat: validatedData.lat, lon: validatedData.lon },
+          radius_meters: radius,
+        },
+        similarity_service: {
+          error: 'Similarity service unavailable, showing distance-only results',
+          dev_mode: validatedData.dev_mode === true,
+        },
+      };
+
+      return c.json(createSuccessResponse(basicResponse));
+    } catch (fallbackError) {
+      console.error('Fallback nearby search also failed:', fallbackError);
+      throw error; // Throw original error
+    }
+  }
+}
+
+/**
+ * Helper function to generate similarity explanations
+ * Extracted here to avoid circular dependencies
+ */
+interface SimilaritySignalMeta { distanceMeters?: number; [key: string]: unknown }
+interface SimilaritySignal { type: string; rawScore: number; metadata?: SimilaritySignalMeta }
+function getSimilarityExplanation(result: { overallScore: number; signals: SimilaritySignal[] }): string {
+  const { overallScore, signals } = result;
+  const explanations: string[] = [];
+
+  for (const signal of signals) {
+    if (signal.type === 'distance' && signal.metadata?.distanceMeters) {
+      const distance = Math.round(signal.metadata.distanceMeters);
+      explanations.push(`${distance}m away`);
+    } else if (signal.type === 'title' && signal.rawScore > 0.5) {
+      explanations.push('similar title');
+    } else if (signal.type === 'tags' && signal.rawScore > 0.3) {
+      explanations.push('matching tags');
+    }
+  }
+
+  const scorePercent = Math.round(overallScore * 100);
+  return explanations.length > 0 
+    ? `${scorePercent}% similar (${explanations.join(', ')})`
+    : `${scorePercent}% similar`;
 }

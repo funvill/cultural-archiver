@@ -4,7 +4,7 @@
  */
 
 import type { Context } from 'hono';
-import type { WorkerEnv } from '../types';
+import type { WorkerEnv, ArtworkRecord } from '../types'; // Use local workers type
 import { createSuccessResponse, ValidationApiError } from '../lib/errors';
 import { createDatabaseService } from '../lib/database';
 import { createExportResponse, generateOSMXMLFile, validateOSMExportData } from '../lib/osm-export';
@@ -44,7 +44,7 @@ export async function bulkExportToOSM(c: Context<{ Bindings: WorkerEnv }>): Prom
   }
 
   const db = createDatabaseService(c.env.DB);
-  let artworks: any[] = [];
+  let artworks: ArtworkRecord[] = [];
 
   try {
     if (artworkIds && artworkIds.length > 0) {
@@ -67,7 +67,7 @@ export async function bulkExportToOSM(c: Context<{ Bindings: WorkerEnv }>): Prom
       `);
 
       const result = await stmt.bind(...artworkIds).all();
-      artworks = result.results as any[];
+      artworks = result.results as ArtworkRecord[];
 
     } else if (bounds) {
       // Export artworks within geographic bounds
@@ -105,7 +105,7 @@ export async function bulkExportToOSM(c: Context<{ Bindings: WorkerEnv }>): Prom
       `);
 
       const result = await stmt.bind(south, north, west, east, limit).all();
-      artworks = result.results as any[];
+      artworks = result.results as ArtworkRecord[];
 
     } else {
       // Export all approved artworks (with limit)
@@ -117,7 +117,7 @@ export async function bulkExportToOSM(c: Context<{ Bindings: WorkerEnv }>): Prom
       `);
 
       const result = await stmt.bind(limit).all();
-      artworks = result.results as any[];
+      artworks = result.results as ArtworkRecord[];
     }
 
     // Handle XML export
@@ -173,7 +173,7 @@ export async function getExportStats(c: Context<{ Bindings: WorkerEnv }>): Promi
 
   try {
     let whereClause = "WHERE status = 'approved'";
-    let bindings: any[] = [];
+    let bindings: (string | number)[] = [];
 
     // Add bounds filtering if provided
     if (bounds) {
@@ -190,7 +190,7 @@ export async function getExportStats(c: Context<{ Bindings: WorkerEnv }>): Promi
 
       const [north, south, east, west] = boundsArray;
       whereClause += ` AND lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?`;
-      bindings = [south, north, west, east];
+      bindings = [south as number, north as number, west as number, east as number];
     }
 
     // Get total count
@@ -204,7 +204,7 @@ export async function getExportStats(c: Context<{ Bindings: WorkerEnv }>): Promi
       LIMIT 1000
     `);
     const sampleResult = await sampleStmt.bind(...bindings).all();
-    const sampleArtworks = sampleResult.results as any[];
+    const sampleArtworks = sampleResult.results as ArtworkRecord[];
 
     // Analyze validation results
     const validationResults = sampleArtworks.map(validateOSMExportData);

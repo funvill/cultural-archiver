@@ -171,7 +171,9 @@ const keywordsField = computed<string>({
 const tagEditorRef = ref<any | null>(null);
 
 const artworkPhotos = computed(() => {
-  return artwork.value?.photos || [];
+  if (!artwork.value?.photos) return [] as string[];
+  // Deduplicate photos (same URL may appear from logbook + artwork-level merge)
+  return Array.from(new Set(artwork.value.photos));
 });
 
 const logbookEntries = computed(() => {

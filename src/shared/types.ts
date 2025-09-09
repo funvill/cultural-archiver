@@ -84,6 +84,9 @@ export interface CreateArtworkRequest {
   type_id: string;
   tags?: Record<string, unknown>;
   status?: ArtworkRecord['status'];
+  title?: string;
+  description?: string;
+  created_by?: string;
 }
 
 export interface UpdateArtworkRequest extends Partial<CreateArtworkRequest> {

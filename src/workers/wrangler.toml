@@ -80,6 +80,7 @@ CLOUDFLARE_ACCOUNT_ID = "development"
 # Cloudflare Images configuration (set via secrets for production)
 CLOUDFLARE_IMAGES_ENABLED = "false"
 CLOUDFLARE_IMAGES_HASH = ""
+PHOTO_DEBUG = "true"
 
 [env.production.vars]
 ENVIRONMENT = "production"
@@ -96,3 +97,4 @@ PHOTOS_BASE_URL = "https://art-photos.abluestar.com"
 # Cloudflare Images configuration  
 CLOUDFLARE_IMAGES_ENABLED = "false"
 # CLOUDFLARE_IMAGES_HASH set via `wrangler secret put CLOUDFLARE_IMAGES_HASH`
+PHOTO_DEBUG = "true"

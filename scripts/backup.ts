@@ -379,7 +379,7 @@ async function exportD1DatabaseWithWrangler(
  */
 async function getMigrationStatus(
   env: string = 'development'
-): Promise<{ success: boolean; status?: any; error?: string }> {
+): Promise<{ success: boolean; status?: unknown; error?: string }> {
   try {
     console.log(`📋 Getting migration status using Wrangler CLI (${env})...`);
 
@@ -397,7 +397,7 @@ async function getMigrationStatus(
 
     console.log(`   Running: wrangler ${wranglerArgs.join(' ')} (from ${workersDir})`);
 
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve, _reject) => {
       let jsonOutput = '';
       let errorOutput = '';
 
@@ -501,7 +501,7 @@ async function exportD1Database(config: CloudflareConfig): Promise<DatabaseExpor
       throw new Error('Failed to retrieve database tables');
     }
 
-    const tables = tablesResult.result[0].results.map((row: any) => row.name);
+    const tables = tablesResult.result[0].results.map((row: { name: string }) => row.name);
     console.log(`   Found ${tables.length} tables: ${tables.join(', ')}`);
 
     let sqlDump = '';
@@ -1072,7 +1072,7 @@ async function validateBackupRestore(
     // 5. Clean up temporary files
 
     const { createReadStream } = await import('fs');
-    const { createGunzip } = await import('zlib');
+    // const { createGunzip } = await import('zlib'); // Commented out as unused
 
     // Basic integrity check - ensure file is readable and not corrupted
     const stream = createReadStream(filepath);
@@ -1120,7 +1120,7 @@ async function validateBackupRestore(
  */
 async function validateBackupArchive(
   filepath: string,
-  expectedMetadata: any
+  _expectedMetadata: unknown
 ): Promise<{ valid: boolean; errors: string[] }> {
   const errors: string[] = [];
 
@@ -1167,7 +1167,7 @@ async function createBackupArchive(
   outputDir: string,
   databaseResult: DatabaseExportResult,
   r2Result: R2ListResult,
-  migrationStatus?: any
+  migrationStatus?: unknown
 ): Promise<BackupResult> {
   return new Promise(async resolve => {
     const timestamp = generateTimestamp();
@@ -1385,7 +1385,7 @@ async function downloadWithRetry(
 /**
  * Generate README content for backup restoration
  */
-function generateBackupReadme(metadata: any): string {
+function generateBackupReadme(metadata: BackupMetadata): string {
   return `# Cultural Archiver Backup
 
 ## Backup Information

@@ -126,7 +126,7 @@ export function useApi() {
       pageSize?: number;
       maxPages?: number;
     } = {}
-  ): Promise<any> => {
+  ): Promise<unknown> => {
     // eslint-disable-line @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-explicit-any
     const { initialPage = 1, pageSize = 20, maxPages = 10 } = options;
 
@@ -161,8 +161,8 @@ export function useApi() {
     };
 
     return {
-      items: allItems,
-      total,
+      allItems,
+      totalCount: total,
       hasMore,
       currentPage,
       isLoading,

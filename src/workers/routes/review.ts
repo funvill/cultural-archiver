@@ -10,6 +10,7 @@ import type { WorkerEnv, AuthContext, ArtworkRecord, LogbookRecord } from '../ty
 import {
   insertArtwork,
   updateLogbookStatus,
+  updateLogbookPhotos,
   findNearbyArtworks,
   findLogbookById,
   insertTags,
@@ -330,16 +331,29 @@ export async function approveSubmission(
     }
 
     if (action === 'create_new') {
-      // Create new artwork from submission
-      const artworkData: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'> = {
-        type_id: submission.type_id,
-        lat: overrides?.lat || submission.lat,
-        lon: overrides?.lon || submission.lon,
-        tags: submission.tags || '{}',
-        status: 'approved',
-      };
-
-      finalArtworkId = await insertArtwork(c.env.DB, artworkData);
+    // Create new artwork from submission - include title and description from tags if available
+    const submissionTags = submission.tags ? JSON.parse(submission.tags) : {};
+    console.log('[APPROVAL DEBUG] Title/Description extraction:', {
+      submissionId: submission.id,
+      originalTags: submission.tags,
+      parsedTags: submissionTags,
+      extractedTitle: typeof submissionTags.title === 'string' ? submissionTags.title : null,
+      extractedDescription: typeof submissionTags.description === 'string' ? submissionTags.description : null,
+      titleType: typeof submissionTags.title,
+      descriptionType: typeof submissionTags.description
+    });
+    const artworkData: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'> = {
+      type_id: submission.type_id,
+      lat: overrides?.lat || submission.lat,
+      lon: overrides?.lon || submission.lon,
+      tags: submission.tags || '{}',
+      status: 'approved',
+      title: typeof submissionTags.title === 'string' ? submissionTags.title : null,
+      description: typeof submissionTags.description === 'string' ? submissionTags.description : null,
+      created_by: (typeof submissionTags.artist === 'string' ? submissionTags.artist : 
+                  typeof submissionTags.artist_name === 'string' ? submissionTags.artist_name : 
+                  typeof submissionTags.created_by === 'string' ? submissionTags.created_by : null),
+    };      finalArtworkId = await insertArtwork(c.env.DB, artworkData);
       newArtworkCreated = true;
     } else if (action === 'link_existing') {
       // Link to existing artwork
@@ -365,18 +379,39 @@ export async function approveSubmission(
     if (submission.photos) {
       const submissionPhotos = JSON.parse(submission.photos);
       if (submissionPhotos.length > 0) {
+        const moveStart = Date.now();
+        const debugEnabled = c.env.PHOTO_DEBUG === '1' || c.env.PHOTO_DEBUG === 'true';
+        if (debugEnabled) {
+          console.info('[PHOTO][REVIEW] Moving submission photos', {
+            submission_id: submission.id,
+            artwork_candidate_id: finalArtworkId,
+            count: submissionPhotos.length,
+          });
+        }
         newPhotoUrls = await movePhotosToArtwork(c.env, submissionPhotos, finalArtworkId);
+        if (debugEnabled) {
+          console.info('[PHOTO][REVIEW] Move complete', {
+            submission_id: submission.id,
+            artwork_id: finalArtworkId,
+            moved: newPhotoUrls.length,
+            ms: Date.now() - moveStart,
+          });
+        }
 
-        // Update artwork with new photos
+        // Update artwork with new photos (deduplicate to prevent duplicates from merging same photo)
         if (newArtworkCreated) {
           await updateArtworkPhotos(c.env.DB, finalArtworkId, newPhotoUrls);
         } else {
-          // Merge with existing photos
+          // Merge with existing photos and deduplicate
           const existingArtwork = await findArtworkById(c.env.DB, finalArtworkId);
           const existingPhotos = existingArtwork ? getPhotosFromArtwork(existingArtwork) : [];
-          const allPhotos = [...existingPhotos, ...newPhotoUrls];
+          const allPhotos = Array.from(new Set([...existingPhotos, ...newPhotoUrls]));
           await updateArtworkPhotos(c.env.DB, finalArtworkId, allPhotos);
         }
+        
+        // Update the logbook entry to point to the moved photos to prevent duplication
+        // in photo aggregation (logbook + artwork photos would show duplicates otherwise)
+        await updateLogbookPhotos(c.env.DB, submissionId, newPhotoUrls);
       }
     }
 
@@ -638,12 +673,37 @@ export async function processBatchReview(
           const rawSubmission = await findLogbookById(c.env.DB, id);
           if (rawSubmission && rawSubmission.status === 'pending') {
             const submission = parseSubmissionData(rawSubmission);
+            
+            // Parse submission tags to extract title, description, and artist
+            let submissionTags: Record<string, unknown> = {};
+            try {
+              submissionTags = typeof submission.tags === 'string' 
+                ? JSON.parse(submission.tags) 
+                : (submission.tags || {});
+            } catch (e) {
+              console.error('Failed to parse submission tags:', e);
+            }
+            
+            console.log('[BULK APPROVAL DEBUG] Title/Description extraction:', {
+              submissionId: submission.id,
+              originalTags: submission.tags,
+              parsedTags: submissionTags,
+              extractedTitle: typeof submissionTags.title === 'string' ? submissionTags.title : null,
+              extractedDescription: typeof submissionTags.description === 'string' ? submissionTags.description : null,
+              titleType: typeof submissionTags.title,
+              descriptionType: typeof submissionTags.description
+            });
+            
             const artworkData: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'> = {
               type_id: submission.type_id,
               lat: submission.lat,
               lon: submission.lon,
               tags: submission.tags || '{}',
               status: 'approved',
+              title: typeof submissionTags.title === 'string' ? submissionTags.title : null,
+              description: typeof submissionTags.description === 'string' ? submissionTags.description : null,
+              created_by: (typeof submissionTags.artist === 'string' ? submissionTags.artist : 
+                          typeof submissionTags.created_by === 'string' ? submissionTags.created_by : null),
             };
 
             const artworkId = await insertArtwork(c.env.DB, artworkData);

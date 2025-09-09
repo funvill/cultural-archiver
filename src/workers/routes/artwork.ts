@@ -13,7 +13,7 @@ import type {
   ArtworkEditSubmissionResponse,
   PendingEditsResponse,
 } from '../../shared/types';
-import type { WorkerEnv } from '../types';
+import type { ArtworkRecord, WorkerEnv } from '../types'; // Use local workers type
 import { ArtworkEditsService } from '../lib/artwork-edits';
 import { createSuccessResponse, ValidationApiError, NotFoundError } from '../lib/errors';
 import { getUserToken } from '../middleware/auth';
@@ -364,7 +364,7 @@ export async function exportArtworkToOSM(c: Context<{ Bindings: WorkerEnv }>): P
     throw new NotFoundError(`Approved artwork not found: ${artworkId}`);
   }
 
-  const artwork = artworkResult as any;
+  const artwork = artworkResult as unknown as ArtworkRecord;
 
   // Handle different export formats
   if (format === 'validation') {

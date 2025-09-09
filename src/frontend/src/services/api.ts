@@ -103,10 +103,13 @@ class ApiClient {
    * Create request headers with authentication
    */
   private createHeaders(customHeaders: Record<string, string> = {}): Headers {
+    // Do not set a default Content-Type here; let request() decide so FormData can set its own.
     const headers = new Headers({
-      'Content-Type': 'application/json',
       ...customHeaders,
     });
+    if (!headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
 
     const token = this.getUserToken();
     console.log('[API DEBUG] Creating request headers:', {
@@ -189,9 +192,14 @@ class ApiClient {
 
     try {
       console.log('[ApiClient.request] Making fetch request to:', url);
+      const headers = this.createHeaders(options.headers as Record<string, string>);
+      // If body is FormData remove any JSON content type so browser sets proper multipart boundary
+      if (options.body instanceof FormData) {
+        headers.delete('Content-Type');
+      }
       const response = await fetch(url, {
         ...options,
-        headers: this.createHeaders(options.headers as Record<string, string>),
+        headers,
         signal: controller.signal,
       });
 
@@ -305,6 +313,11 @@ export const apiService = {
    */
   async getStatus(): Promise<ApiResponse<StatusResponse>> {
     return client.get('/status');
+  },
+  // Low-level passthrough for raw FormData posts to uncovered endpoints
+  async postRaw<T>(endpoint: string, formData: FormData): Promise<T> {
+    // @ts-ignore access underlying client
+    return client.post<T>(endpoint, formData, {});
   },
 
   /**

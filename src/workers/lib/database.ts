@@ -37,13 +37,24 @@ export class DatabaseService {
 
     // For MVP, we'll add photos as NULL since the current schema doesn't have it
     const stmt = this.db.prepare(`
-      INSERT INTO artwork (id, lat, lon, type_id, created_at, status, tags)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO artwork (id, lat, lon, type_id, created_at, status, tags, title, description, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const tagsJson = data.tags ? JSON.stringify(data.tags) : null;
     const status = data.status || 'pending'; // Default to 'pending' if not specified
-    await stmt.bind(id, data.lat, data.lon, data.type_id, now, status, tagsJson).run();
+    await stmt.bind(
+      id, 
+      data.lat, 
+      data.lon, 
+      data.type_id, 
+      now, 
+      status, 
+      tagsJson,
+      data.title || null,
+      data.description || null, 
+      data.created_by || null
+    ).run();
 
     return id;
   }
@@ -562,13 +573,17 @@ export async function insertArtwork(
 ): Promise<string> {
   const service = createDatabaseService(db);
 
-  // Convert artwork to CreateArtworkRequest format
+  // Convert artwork to CreateArtworkRequest format - include title, description, and created_by
+  // Only include these fields if they have non-null values
   const createRequest: CreateArtworkRequest = {
     lat: artwork.lat,
     lon: artwork.lon,
     type_id: artwork.type_id,
     tags: artwork.tags ? JSON.parse(artwork.tags) : {},
     status: artwork.status, // Pass through the status
+    ...(artwork.title && { title: artwork.title }), // Only include if not null/empty
+    ...(artwork.description && { description: artwork.description }), // Only include if not null/empty
+    ...(artwork.created_by && { created_by: artwork.created_by }), // Only include if not null/empty
   };
 
   return service.createArtwork(createRequest);
@@ -585,6 +600,15 @@ export async function updateLogbookStatus(
   if (artworkId) {
     await service.linkLogbookToArtwork(id, artworkId);
   }
+}
+
+export async function updateLogbookPhotos(
+  db: D1Database,
+  id: string,
+  photoUrls: string[]
+): Promise<void> {
+  const service = createDatabaseService(db);
+  await service.updateLogbookPhotos(id, photoUrls);
 }
 
 export async function findNearbyArtworks(
@@ -630,17 +654,28 @@ export async function updateArtworkPhotos(
   id: string,
   photoUrls: string[]
 ): Promise<void> {
-  // For MVP, since photos field doesn't exist in artwork table,
-  // we'll store photos in the tags field as a special key
+  // Store photos in the root tags JSON under _photos key.
+  // BUGFIX: Previous implementation discarded photoUrls when tags was NULL, always writing an empty array.
+  // We now always persist the provided photoUrls.
+  const photosJson = JSON.stringify(photoUrls);
+  // Lightweight debug toggle – relies on PHOTO_DEBUG env read elsewhere; here we just emit.
+  try {
+    // eslint-disable-next-line no-console
+    console.info('[PHOTO][DB] updateArtworkPhotos begin', { artworkId: id, count: photoUrls.length });
+  } catch {}
   const stmt = db.prepare(`
-    UPDATE artwork 
-    SET tags = CASE 
-      WHEN tags IS NULL THEN json('{"_photos": []}')
+    UPDATE artwork
+    SET tags = CASE
+      WHEN tags IS NULL THEN json_set(json('{}'), '$._photos', json(?))
       ELSE json_set(tags, '$._photos', json(?))
-    END 
+    END
     WHERE id = ?
   `);
-  await stmt.bind(JSON.stringify(photoUrls), id).run();
+  await stmt.bind(photosJson, photosJson, id).run();
+  try {
+    // eslint-disable-next-line no-console
+    console.info('[PHOTO][DB] updateArtworkPhotos success', { artworkId: id });
+  } catch {}
 }
 
 export function getPhotosFromArtwork(artwork: ArtworkRecord): string[] {
