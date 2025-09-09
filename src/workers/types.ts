@@ -24,6 +24,9 @@ export interface ArtworkRecord {
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null; // JSON object for key-value metadata like {"material": "bronze", "style": "modern"}
+  title: string | null; // Editable artwork title field
+  description: string | null; // Editable artwork description field
+  created_by: string | null; // Editable creator/artist field
 }
 
 export interface LogbookRecord {
@@ -73,6 +76,9 @@ export interface CreateArtworkRequest {
   type_id: string;
   tags?: Record<string, unknown>;
   status?: ArtworkRecord['status'];
+  title?: string;
+  description?: string;
+  created_by?: string;
 }
 
 export interface UpdateArtworkRequest extends Partial<CreateArtworkRequest> {

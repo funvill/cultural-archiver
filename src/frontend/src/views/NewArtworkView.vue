@@ -117,7 +117,7 @@ async function handleSubmit() {
   console.info('[FAST SUBMIT] Submitting fast artwork with files:', submission.photos.map((f: File) => ({ name: f.name, size: f.size, type: f.type })));
     
     // Submit artwork
-    const result = await artworkSubmissionService.submitArtwork({
+  await artworkSubmissionService.submitArtwork({
       userToken: authStore.token || authStore.getUserToken(),
       ...submission,
       photos: submission.photos,
@@ -128,10 +128,8 @@ async function handleSubmit() {
     // Clear session data
     sessionStorage.removeItem('fast-upload-session');
     
-    // Redirect to artwork detail or success page
-    setTimeout(() => {
-      router.push(`/artwork/${result.id}`);
-    }, 2000);
+  // Removed automatic redirect – allow user to stay on page
+  // Optionally we could provide a manual navigation button once artwork ID is available after moderation.
     
   } catch (error) {
     console.error('Submission failed:', error);
@@ -306,7 +304,7 @@ onMounted(async () => {
                 <CheckCircleIcon class="w-5 h-5 text-green-500 mr-2" />
                 <span class="text-green-800 font-medium">Artwork submitted successfully!</span>
               </div>
-              <p class="text-green-600 text-sm mt-1">Redirecting to artwork page...</p>
+              <p class="text-green-600 text-sm mt-1">Submission received and pending review. You can continue browsing or add another artwork.</p>
             </div>
 
             <!-- Error Message -->

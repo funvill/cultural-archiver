@@ -1,0 +1,10 @@
+{
+  "latitude": 49.2577,
+  "longitude": -123.0811,
+  "photos": ["https://art-photos.abluestar.com/test-artwork.jpg"],
+  "tags": {
+    "title": "Test Direct API After Deploy",
+    "description": "This is a test via direct API call after deploy",
+    "artwork_type": "sculpture"
+  }
+}

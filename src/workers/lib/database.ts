@@ -37,13 +37,24 @@ export class DatabaseService {
 
     // For MVP, we'll add photos as NULL since the current schema doesn't have it
     const stmt = this.db.prepare(`
-      INSERT INTO artwork (id, lat, lon, type_id, created_at, status, tags)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO artwork (id, lat, lon, type_id, created_at, status, tags, title, description, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const tagsJson = data.tags ? JSON.stringify(data.tags) : null;
     const status = data.status || 'pending'; // Default to 'pending' if not specified
-    await stmt.bind(id, data.lat, data.lon, data.type_id, now, status, tagsJson).run();
+    await stmt.bind(
+      id, 
+      data.lat, 
+      data.lon, 
+      data.type_id, 
+      now, 
+      status, 
+      tagsJson,
+      data.title || null,
+      data.description || null, 
+      data.created_by || null
+    ).run();
 
     return id;
   }
@@ -585,6 +596,15 @@ export async function updateLogbookStatus(
   if (artworkId) {
     await service.linkLogbookToArtwork(id, artworkId);
   }
+}
+
+export async function updateLogbookPhotos(
+  db: D1Database,
+  id: string,
+  photoUrls: string[]
+): Promise<void> {
+  const service = createDatabaseService(db);
+  await service.updateLogbookPhotos(id, photoUrls);
 }
 
 export async function findNearbyArtworks(

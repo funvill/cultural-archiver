@@ -375,18 +375,28 @@ export async function createFastArtworkSubmission(
     let submissionType: 'new_artwork' | 'logbook_entry';
 
     if (isNewArtwork) {
-      // Build a default note if neither explicit note nor title supplied
-      const autoNoteParts: string[] = [];
-      if (validatedData.title) autoNoteParts.push(`Title: ${validatedData.title}`);
-      if (validatedData.tags) autoNoteParts.push(`Tags: ${JSON.stringify(validatedData.tags)}`);
-      const generatedNote = autoNoteParts.join('\n') || 'New photo submission';
-      const finalNote = validatedData.note || generatedNote;
+      // Build structured submission data for approval process
+      const submissionData = {
+        _submission: {
+          lat: validatedData.lat,
+          lon: validatedData.lon,
+          type_id: 'other', // Default type for fast submissions
+          type_name: 'Other',
+          tags: {
+            ...(validatedData.tags || {}),
+            // Include title in tags for approval extraction
+            ...(validatedData.title && { title: validatedData.title }),
+          },
+        },
+        note: validatedData.note || 'Fast photo-first submission',
+      };
+
       // Create new artwork submission (logbook entry without artwork_id)
       const logbookEntry: CreateLogbookEntryRequest = {
         user_token: userToken,
         lat: validatedData.lat,
         lon: validatedData.lon,
-        note: finalNote,
+        note: JSON.stringify(submissionData),
         photos: [], // Will be updated after processing
         consent_version: validatedData.consent_version,
       };

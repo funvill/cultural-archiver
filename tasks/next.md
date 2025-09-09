@@ -8,12 +8,18 @@
 ## General
 
 - Move all the test files out of the base source folders into test folders
+- The github copilot issue started PR. There is an error that `vitest` is not installed. `I see there's an issue with vitest not being found. Let me check if dependencies are installed and try to fix this:`
+
+## Sign in
+
+- The system is not sending out magic links any more. I checked Resend and its not reciving any requests to send out emails.
 
 ## Artwork Details page
 
 ## Map page
 
 - [ ] The map page should remember where what your last location was and the zoom level. So if you refresh the page again, it will return to the old location. Use local storage for this.
+- [ ] Allow for an option to cluster or not to cluster pins on the map.
 
 ## Admin page
 
@@ -44,19 +50,14 @@ Find people that would be willing to partner with me on this project. Be specifi
 - Burrard Arts Foundation, Centre for Digital Media students. They spondered a simlare project in the past. https://intergalactic.com/content/muse-public-art-app?utm_source=chatgpt.com
 - Canada Council - They prefer events over resources. The event could be a mass hunt for new art.
 
-## Github copilot
-
-Optimize the adgent session. See if there is a way to have `vitest` pre installed.
-
-`I see there's an issue with vitest not being found. Let me check if dependencies are installed and try to fix this:`
-
-### Add artwork
-
-
-----
+## Add artwork
 
 Consent checkboxes are missing from the artwork submission page
 
 ----
 
-- When user clicks one of the cards for a nearby artwork, they should be brought to a logbook submission form.
+- After a user uploads a photo, they are shown the search results page of artwork nearby. If the user clicks one of the artwork cards from the search results, they should be brought to a logbook submission form. On this page they can submit a new photo and any other information that they want to. This page is identical to the new artwork submission details page but instead of submitting new artwork it submits a logbook entry, and a artwork details update. 
+
+---
+
+After submitting new artwork, Disable the submit button. Then redirect to the map page.
