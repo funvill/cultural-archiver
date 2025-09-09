@@ -35,6 +35,18 @@ Artwork Not Found
 Artwork with ID "2d74d47e-af12-45bb-b1a2-295a17839c4d" was not found. It may have been removed or is pending approval.
 ```
 
+----
+
+Update the add artwork workflow
+
+  1) Customer uploads a photo first
+  2) The system uses the photo's GPS, and the browsers GPS, and if all else fails, the IP address IP Address to find a list of artworks that are near by. This is shown as a search results page.
+  3) The user can either
+    3A) "Add new artwork" - The user reviews the close by artworks and determins that this is a new artwork.
+    3B) The user clicks one of the existing artworks to add the logbook entry to the existing artwork.
+  4) After they fill in the addtional information. They are asked for consent to use this inforamtion then its submitted to the website.
+
+
 ## Map
 
 - [x] The artwork search radius should be the visable screen based on the zoom level and the screen size.

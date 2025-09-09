@@ -4,21 +4,9 @@
 3. Mass import
 
 
-## General 
+## General
 
 - Move all the test files out of the base source folders into test folders
-
-## Add artwork
-
----
-
-- Update this workflow
-  1) Customer uploads a photo first
-  2) The system uses the photo's GPS, and the browsers GPS, and if all else fails, the IP address IP Address to find a list of artworks that are near by.
-  3) The user can either
-    3A) "Add new artwork" - The user reviews the close by artworks and determins that this is a new artwork.
-    3B) The user clicks one of the existing artworks to add the logbook entry to the existing artwork.
-  4) After they fill in the addtional information. They are asked for consent to use this inforamtion then its submitted to the website.
 
 ## Artwork Details page
 
