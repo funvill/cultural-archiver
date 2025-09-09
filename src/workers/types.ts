@@ -99,6 +99,7 @@ export interface CreateLogbookEntryRequest {
   lon?: number;
   note?: string;
   photos?: string[];
+  consent_version?: string; // Track consent version for compliance
 }
 
 export interface CreateCreatorRequest {
@@ -123,6 +124,40 @@ export interface LogbookSubmissionRequest {
   note?: string;
   type?: string;
   photos?: File[];
+  consent_version?: string; // Track consent version for compliance
+}
+
+// Fast photo-first workflow submission types
+export interface FastArtworkSubmissionRequest {
+  // Location data
+  lat: number;
+  lon: number;
+  
+  // Artwork data
+  title: string; // Required for new artworks
+  type_id?: string; // Optional, defaults to 'public_art'
+  tags?: Record<string, string | number>; // Structured tags
+  
+  // Submission metadata
+  note?: string;
+  photos?: File[];
+  consent_version: string; // Required for fast workflow
+  
+  // For existing artwork submissions (logbook entries)
+  existing_artwork_id?: string;
+}
+
+export interface FastArtworkSubmissionResponse {
+  id: string; // Artwork ID or logbook entry ID
+  submission_type: 'new_artwork' | 'logbook_entry';
+  status: 'pending';
+  message: string;
+  artwork_id?: string; // Present when creating logbook entry
+  similarity_warnings?: Array<{
+    artwork_id: string;
+    similarity_score: number;
+    similarity_explanation: string;
+  }>;
 }
 
 export interface LogbookSubmissionResponse {

@@ -30,11 +30,12 @@ import {
 import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
 // Import route handlers
-import { createLogbookSubmission } from './routes/submissions';
+import { createLogbookSubmission, createFastArtworkSubmission } from './routes/submissions';
 import {
   getNearbyArtworks,
   getArtworkDetails,
   getArtworksInBounds,
+  checkArtworkSimilarity,
   getArtworkStats,
 } from './routes/discovery';
 import { submitArtworkEdit, getUserPendingEdits, validateArtworkEdit, exportArtworkToOSM } from './routes/artwork';
@@ -670,6 +671,16 @@ app.post(
   withErrorHandling(createLogbookSubmission)
 );
 
+// Fast photo-first workflow - new artwork submission endpoint
+app.post(
+  '/api/artworks/fast',
+  rateLimitSubmissions,
+  validateFileUploads,
+  validateSchema('body'),
+  addUserTokenToResponse,
+  withErrorHandling(createFastArtworkSubmission)
+);
+
 // ================================
 // Discovery Endpoints
 // ================================
@@ -693,6 +704,14 @@ app.get(
   rateLimitQueries,
   validateUUID('id'),
   withErrorHandling(getArtworkDetails)
+);
+
+// Fast photo-first workflow - similarity checking endpoint
+app.post(
+  '/api/artworks/check-similarity',
+  rateLimitQueries,
+  validateSchema('body'),
+  withErrorHandling(checkArtworkSimilarity)
 );
 
 // ================================
