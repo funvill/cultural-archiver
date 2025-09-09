@@ -184,7 +184,7 @@ onMounted(() => {
               How do you ensure data quality?
             </h3>
             <p class="text-gray-700">
-              All submissions go through a moderation process where trained reviewers verify the
+              All submissions go through a moderation process where trained moderators verify the
               information and photos. We also use community reporting to maintain data accuracy and
               remove inappropriate content.
             </p>

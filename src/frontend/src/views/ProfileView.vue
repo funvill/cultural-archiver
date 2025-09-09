@@ -648,15 +648,15 @@ function formatDate(dateString: string): string {
                       >
                     </div>
                     <div>
-                      <strong>Is Reviewer:</strong>
+                      <strong>Is Moderator:</strong>
                       <span
                         class="px-2 py-1 rounded text-xs"
                         :class="
-                          userProfile.debug.auth_context.is_reviewer
+                          (userProfile.debug.auth_context.is_moderator || userProfile.debug.auth_context.is_reviewer)
                             ? 'bg-green-100 text-green-800'
                             : 'bg-gray-100 text-gray-800'
                         "
-                        >{{ userProfile.debug.auth_context.is_reviewer ? 'Yes' : 'No' }}</span
+                        >{{ (userProfile.debug.auth_context.is_moderator || userProfile.debug.auth_context.is_reviewer) ? 'Yes' : 'No' }}</span
                       >
                     </div>
                     <div>

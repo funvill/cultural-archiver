@@ -399,8 +399,12 @@ export async function enhanceAuthContext(
   return {
     ...authContext,
     permissions,
-    isReviewer: permissions.includes('moderator') || permissions.includes('admin'),
-    isAdmin: permissions.includes('admin'),
+  // Deprecated flag maintained
+  // Deprecated alias: keep true when moderator/admin present
+  isReviewer: permissions.includes('moderator') || permissions.includes('admin'),
+  isModerator: permissions.includes('moderator') || permissions.includes('admin'),
+  canReview: permissions.includes('moderator') || permissions.includes('admin'),
+  isAdmin: permissions.includes('admin'),
   };
 }
 

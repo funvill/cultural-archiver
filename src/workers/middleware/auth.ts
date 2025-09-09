@@ -7,9 +7,27 @@ import type { Context, Next } from 'hono';
 import type { WorkerEnv } from '../types';
 import { UnauthorizedError, ForbiddenError } from '../lib/errors';
 
+// One-time deprecation warning emitter for legacy reviewer flag usage
+let hasWarnedReviewerDeprecation = false;
+function warnReviewerDeprecation(source: string): void {
+  if (!hasWarnedReviewerDeprecation) {
+    hasWarnedReviewerDeprecation = true;
+    // Cloudflare Workers: console.warn is acceptable for operational notices
+    console.warn(
+      `[DEPRECATION] 'isReviewer' flag accessed (${source}). This alias will be removed in a future release. ` +
+        `Use 'isModerator' (role) and/or 'canReview' (capability). See migration note in CHANGELOG and permissions audit.`
+    );
+  }
+}
+
 export interface AuthContext {
   userToken: string;
+  /** Deprecated: will be removed after migration; use isModerator or canReview */
   isReviewer: boolean;
+  /** True if user has moderator permission (or higher). */
+  isModerator: boolean;
+  /** User can perform review actions (alias of isModerator or admin). */
+  canReview: boolean;
   isVerifiedEmail: boolean;
   isAdmin?: boolean;
 }
@@ -76,6 +94,8 @@ export async function ensureUserToken(
   c.set('authContext', {
     userToken,
     isReviewer: false,
+    isModerator: false,
+    canReview: false,
     isVerifiedEmail: false,
   });
 
@@ -99,15 +119,17 @@ export async function requireReviewer(
   try {
     // Check database-backed permissions only - no legacy fallbacks
     const { isModerator } = await import('../lib/permissions');
-    const isReviewer = await isModerator(c.env.DB, userToken);
+    const hasModerator = await isModerator(c.env.DB, userToken);
 
-    if (!isReviewer) {
-      throw new ForbiddenError('Reviewer permissions required');
+    if (!hasModerator) {
+      throw new ForbiddenError('Moderator permissions required');
     }
 
-    // Update auth context
+    // Update auth context (set all related flags)
     const authContext = c.get('authContext');
-    authContext.isReviewer = true;
+    authContext.isReviewer = true; // deprecated
+    authContext.isModerator = true;
+    authContext.canReview = true;
     c.set('authContext', authContext);
 
     await next();
@@ -144,7 +166,9 @@ export async function requireAdmin(
 
     // Update auth context
     const authContext = c.get('authContext');
-    authContext.isReviewer = true; // Admins are also reviewers
+  authContext.isReviewer = true; // deprecated
+  authContext.isModerator = true;
+  authContext.canReview = true;
     authContext.isAdmin = true;
     c.set('authContext', authContext);
 
@@ -235,7 +259,9 @@ export function getAuthContext(c: Context): AuthContext {
   return (
     c.get('authContext') || {
       userToken: '',
-      isReviewer: false,
+  isReviewer: false,
+  isModerator: false,
+  canReview: false,
       isVerifiedEmail: false,
     }
   );
@@ -251,9 +277,24 @@ export function getUserToken(c: Context): string {
 /**
  * Check if current user is a reviewer
  */
+/**
+ * @deprecated Use isModeratorUser(c) or canReview(c) instead.
+ * Will be removed after deprecation period.
+ */
 export function isReviewer(c: Context): boolean {
+  warnReviewerDeprecation('middleware.auth.isReviewer()');
   const authContext = getAuthContext(c);
-  return authContext.isReviewer;
+  return authContext.isReviewer || authContext.isModerator || authContext.canReview || false;
+}
+
+export function isModeratorUser(c: Context): boolean {
+  const authContext = getAuthContext(c);
+  return authContext.isModerator || authContext.isAdmin || false;
+}
+
+export function canReview(c: Context): boolean {
+  const authContext = getAuthContext(c);
+  return authContext.canReview || authContext.isModerator || authContext.isAdmin || authContext.isReviewer || false;
 }
 
 /**

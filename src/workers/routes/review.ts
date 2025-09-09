@@ -66,8 +66,8 @@ export async function getReviewQueue(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-    if (!authContext.isReviewer) {
-      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+  if (!authContext.canReview) {
+  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     // Get query parameters
@@ -190,8 +190,8 @@ export async function getSubmissionForReview(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-    if (!authContext.isReviewer) {
-      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+  if (!authContext.canReview) {
+  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     const submissionId = c.req.param('id');
@@ -268,8 +268,8 @@ export async function approveSubmission(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-    if (!authContext.isReviewer) {
-      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+  if (!authContext.canReview) {
+  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     const submissionId = c.req.param('id');
@@ -449,8 +449,8 @@ export async function rejectSubmission(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-    if (!authContext.isReviewer) {
-      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+  if (!authContext.canReview) {
+  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     const submissionId = c.req.param('id');
@@ -527,8 +527,8 @@ export async function getReviewStats(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-    if (!authContext.isReviewer) {
-      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+  if (!authContext.canReview) {
+  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     // Get submission counts by status
@@ -604,8 +604,8 @@ export async function processBatchReview(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-    if (!authContext.isReviewer) {
-      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+  if (!authContext.canReview) {
+  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     const { submissions } = await c.req.json();
@@ -692,8 +692,8 @@ export async function getArtworkEditsForReview(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-    if (!authContext.isReviewer) {
-      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+  if (!authContext.canReview) {
+  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     // Handle both frontend parameter styles (page/per_page and limit/offset)
@@ -770,8 +770,8 @@ export async function getArtworkEditForReview(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-    if (!authContext.isReviewer) {
-      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+  if (!authContext.canReview) {
+  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     const editId = c.req.param('editId');
@@ -827,8 +827,8 @@ export async function approveArtworkEdit(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-    if (!authContext.isReviewer) {
-      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+  if (!authContext.canReview) {
+  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     const editId = c.req.param('editId');
@@ -899,8 +899,8 @@ export async function rejectArtworkEdit(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-    if (!authContext.isReviewer) {
-      throw new ApiError('Reviewer permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+  if (!authContext.canReview) {
+  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     const editId = c.req.param('editId');

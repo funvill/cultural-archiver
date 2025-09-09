@@ -226,7 +226,7 @@ function startNewSubmission() {
                 {{ submissionData.longitude?.toFixed(6) }}
               </p>
               <p class="text-xs text-gray-500 mt-1">
-                This location will be verified by our reviewers
+                This location will be verified by our moderators
               </p>
             </div>
           </div>

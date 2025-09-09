@@ -49,6 +49,9 @@ class MockModerationService {
     this.reviewerPermissions.add(token);
   }
 
+  /**
+   * @deprecated Test helper; migrate to isModerator/canReview in future refactor.
+   */
   isReviewer(token: string): boolean {
     return this.reviewerPermissions.has(token);
   }

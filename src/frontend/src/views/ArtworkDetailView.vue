@@ -30,6 +30,8 @@ const { announceError, announceSuccess } = useAnnouncer();
 // State
 const loading = ref(true);
 const error = ref<string | null>(null);
+// When artwork is pending/unavailable, attempt to discover originating submission ID
+const originatingSubmissionId = ref<string | null>(null);
 const currentPhotoIndex = ref(0);
 const showFullscreenPhoto = ref(false);
 const fullscreenPhotoUrl = ref<string>('');
@@ -259,6 +261,25 @@ onMounted(async () => {
     if (!artworkData) {
       error.value = `Artwork with ID "${props.id}" was not found. It may have been removed or is pending approval.`;
       announceError('Artwork not found');
+    // Try to locate a submission whose artwork_id matches this ID (best-effort, moderator only)
+  if (authStore?.canReview) {
+        try {
+          // Heuristic: call review queue (small limit) and scan for matching artwork_id
+          // Use apiService.getReviewQueue if available in this scope; lazy import fallback
+          // We keep it lightweight to avoid large queries.
+          // @ts-ignore - dynamic access
+          const reviewModule = await import('../services/api');
+          const queueResp: any = await reviewModule.apiService.getReviewQueue('pending', undefined, 1, 25);
+          const submissionsList = (queueResp as any).submissions || (queueResp?.data?.submissions) || [];
+          const match = submissionsList.find((s: any) => (s.artwork_id && s.artwork_id === props.id));
+          if (match) {
+            originatingSubmissionId.value = match.id;
+          }
+        } catch (e) {
+          // Silent – non-critical
+          console.warn('[ArtworkDetailView] Failed to resolve originating submission ID:', e);
+        }
+      }
       return;
     }
 
@@ -272,6 +293,19 @@ onMounted(async () => {
     const message = err instanceof Error ? err.message : 'Failed to load artwork';
     if (message.includes('404') || message.includes('not found')) {
       error.value = `Artwork with ID "${props.id}" was not found. It may have been removed or is pending approval.`;
+  if (authStore?.canReview) {
+        try {
+          const reviewModule = await import('../services/api');
+          const queueResp: any = await reviewModule.apiService.getReviewQueue('pending', undefined, 1, 25);
+          const submissionsList = (queueResp as any).submissions || (queueResp?.data?.submissions) || [];
+          const match = submissionsList.find((s: any) => (s.artwork_id && s.artwork_id === props.id));
+          if (match) {
+            originatingSubmissionId.value = match.id;
+          }
+        } catch (e) {
+          console.warn('[ArtworkDetailView] Fallback submission lookup failed:', e);
+        }
+      }
     } else if (message.includes('network') || message.includes('fetch')) {
       error.value =
         'Unable to load artwork details. Please check your internet connection and try again.';
@@ -504,8 +538,30 @@ async function checkPendingEdits(): Promise<void> {
             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
           />
         </svg>
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">Artwork Not Found</h1>
+        <h1 class="text-2xl font-bold text-gray-900 mb-2">
+          <template v-if="(authStore?.canReview) && error?.includes('pending approval')">
+            Artwork Pending Approval
+          </template>
+          <template v-else>
+            Artwork Not Found
+          </template>
+        </h1>
         <p class="text-gray-600 mb-6">{{ error }}</p>
+  <div v-if="authStore?.canReview && originatingSubmissionId" class="mb-4 text-sm text-gray-700">
+          <p class="mb-1">Originating submission ID:</p>
+          <code class="px-2 py-1 bg-gray-100 rounded text-gray-800 text-xs">{{ originatingSubmissionId }}</code>
+        </div>
+        <!-- Moderator deep link: only show if user has reviewer permissions -->
+  <div v-if="authStore?.canReview && props.id && error?.includes('pending approval')" class="mb-6">
+          <p class="text-sm text-gray-700 mb-2">If this artwork was just submitted it may still be pending. You can review it now:</p>
+          <router-link
+            :to="{ path: '/review', query: { searchId: originatingSubmissionId || props.id } }"
+            class="inline-block px-3 py-2 text-sm bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-500"
+          >
+            <template v-if="originatingSubmissionId">Open Review Queue (submission {{ originatingSubmissionId.substring(0,8) }}…)</template>
+            <template v-else>Open Review Queue for {{ props.id.substring(0, 8) }}…</template>
+          </router-link>
+        </div>
         <button
           @click="goToMap"
           class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
