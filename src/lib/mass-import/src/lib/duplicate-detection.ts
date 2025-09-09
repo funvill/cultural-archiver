@@ -5,7 +5,7 @@
  * and fuzzy string matching on titles.
  */
 
-import * as fuzzy from 'fuzzy';
+import fuzzy from 'fuzzy';
 import type {
   DuplicateDetectionResult,
   DuplicateCandidate,
