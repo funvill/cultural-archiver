@@ -46,6 +46,8 @@ export const useSearchStore = defineStore('search', () => {
   );
   const canLoadMore = computed(() => hasMore.value && !isLoading.value);
   const currentQuery = computed(() => query.value.trim());
+  const totalResults = computed(() => total.value);
+  const hasSearched = computed(() => query.value.trim().length > 0 || results.value.length > 0);
 
   // Actions
   function setQuery(searchQuery: string): void {
@@ -362,6 +364,61 @@ export const useSearchStore = defineStore('search', () => {
     loadRecentQueries();
   }
 
+  // Location-based search functionality
+  async function performLocationSearch(
+    coordinates: { latitude: number; longitude: number },
+    radiusMeters: number = 500,
+    pageNum: number = 1
+  ): Promise<void> {
+    setLoading(true);
+    clearError();
+
+    try {
+      // Use discovery API endpoint for location-based search
+      const response = await apiService.getNearbyArtworks(
+        coordinates.latitude,
+        coordinates.longitude,
+        radiusMeters,
+        perPage.value
+      );
+
+      if (response.data) {
+        const searchResults: SearchResult[] = response.data.artworks.map((artwork: any) => ({
+          id: artwork.id,
+          lat: artwork.lat,
+          lon: artwork.lon,
+          type_name: artwork.type_name || 'unknown',
+          title: artwork.title || 'Untitled',
+          description: artwork.description || null,
+          artist_name: artwork.artist_name || null,
+          year: artwork.year || null,
+          thumbnail_url: artwork.thumbnail_url || null,
+          photos: artwork.photos || [],
+          distance_meters: artwork.distance_meters || null,
+          created_at: artwork.created_at,
+        }));
+
+        setResults(searchResults);
+        setPagination({
+          total: response.data.total,
+          page: pageNum,
+          per_page: perPage.value,
+          total_pages: Math.ceil(response.data.total / perPage.value),
+          has_more: pageNum * perPage.value < response.data.total,
+        });
+
+        // Set a descriptive query for display
+        setQuery(`Near (${coordinates.latitude.toFixed(4)}, ${coordinates.longitude.toFixed(4)})`);
+      }
+    } catch (err) {
+      const errorMessage = getErrorMessage(err);
+      setError(errorMessage);
+      console.error('Location search failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return {
     // State
     query: computed(() => query.value),
@@ -381,6 +438,8 @@ export const useSearchStore = defineStore('search', () => {
     isEmpty,
     canLoadMore,
     currentQuery,
+    totalResults,
+    hasSearched,
 
     // Actions
     setQuery,
@@ -400,5 +459,6 @@ export const useSearchStore = defineStore('search', () => {
     fetchSuggestions,
     clearSearch,
     initialize,
+    performLocationSearch,
   };
 });

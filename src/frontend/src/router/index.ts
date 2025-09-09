@@ -13,6 +13,7 @@ const ReviewView = (): Promise<Component> => import('../views/ReviewView.vue');
 const AdminView = (): Promise<Component> => import('../views/AdminView.vue');
 const VerifyView = (): Promise<Component> => import('../views/VerifyView.vue');
 const SearchView = (): Promise<Component> => import('../views/SearchView.vue');
+const FastPhotoUploadView = (): Promise<Component> => import('../views/FastPhotoUploadView.vue');
 
 const router = createRouter({
   history: createWebHistory(),
@@ -34,6 +35,14 @@ const router = createRouter({
       },
     },
     {
+      path: '/add',
+      name: 'FastPhotoUpload',
+      component: FastPhotoUploadView,
+      meta: {
+        title: 'Add Artwork - Cultural Archiver',
+      },
+    },
+    {
       path: '/submit',
       name: 'Submit',
       component: SubmitView,
@@ -48,6 +57,14 @@ const router = createRouter({
       props: true,
       meta: {
         title: 'Search Artworks - Cultural Archiver',
+      },
+    },
+    {
+      path: '/artwork/new',
+      name: 'NewArtwork',
+      component: (): Promise<Component> => import('../views/NewArtworkView.vue'),
+      meta: {
+        title: 'New Artwork - Cultural Archiver',
       },
     },
     {

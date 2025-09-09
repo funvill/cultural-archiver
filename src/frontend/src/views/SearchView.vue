@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { MagnifyingGlassIcon, CameraIcon } from '@heroicons/vue/24/outline';
+import { MagnifyingGlassIcon, CameraIcon, PlusIcon } from '@heroicons/vue/24/outline';
 import SearchInput from '../components/SearchInput.vue';
 import PhotoSearch from '../components/PhotoSearch.vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
 import SkeletonCard from '../components/SkeletonCard.vue';
 import { useSearchStore } from '../stores/search';
 import { useInfiniteScroll } from '../composables/useInfiniteScroll';
-import type { SearchResult } from '../types';
+import type { SearchResult, Coordinates } from '../types';
 
 const route = useRoute();
 const router = useRouter();
@@ -20,6 +20,14 @@ const searchResultsRef = ref<HTMLElement>();
 const showEmptyState = ref(false);
 const showSearchTips = ref(true);
 const searchMode = ref<'text' | 'photo'>('text'); // New search mode state
+
+// Fast upload session data
+const fastUploadSession = ref<{
+  photos: Array<{id: string; name: string; preview: string}>;
+  location: Coordinates | null;
+  detectedSources: any;
+} | null>(null);
+const isFromFastUpload = computed(() => !!fastUploadSession.value && route.query.source === 'fast-upload');
 
 // Computed
 const currentQuery = computed(() => (route.params.query as string) || '');
@@ -79,7 +87,18 @@ function handleSuggestionSelect(suggestion: string): void {
 }
 
 function handleArtworkClick(artwork: SearchResult): void {
-  router.push(`/artwork/${artwork.id}`);
+  if (isFromFastUpload.value) {
+    // If from fast upload, this means adding a logbook entry to existing artwork
+    router.push(`/artwork/${artwork.id}?action=add-logbook&from=fast-upload`);
+  } else {
+    // Normal artwork detail view
+    router.push(`/artwork/${artwork.id}`);
+  }
+}
+
+function handleAddNewArtwork(): void {
+  // Navigate to simplified artwork details form
+  router.push('/artwork/new?from=fast-upload');
 }
 
 function handleRecentQueryClick(query: string): void {
@@ -152,11 +171,37 @@ watch([isLoading, hasResults, isSearchActive], ([loading, results, active]) => {
 onMounted(() => {
   searchStore.initialize();
 
-  // Focus search input on mount
-  nextTick(() => {
-    searchInputRef.value?.focus();
-  });
+  // Check for fast upload session data
+  const sessionData = sessionStorage.getItem('fast-upload-session');
+  if (sessionData && route.query.source === 'fast-upload') {
+    try {
+      fastUploadSession.value = JSON.parse(sessionData);
+      
+      // If we have location data, perform automatic search
+      if (fastUploadSession.value?.location) {
+        const { latitude, longitude } = fastUploadSession.value.location;
+        // Perform location-based search for nearby artworks
+        performLocationSearch(latitude, longitude);
+      }
+    } catch (error) {
+      console.error('Failed to parse fast upload session data:', error);
+      sessionStorage.removeItem('fast-upload-session');
+    }
+  }
+
+  // Focus search input on mount for normal search
+  if (!isFromFastUpload.value) {
+    nextTick(() => {
+      searchInputRef.value?.focus();
+    });
+  }
 });
+
+function performLocationSearch(latitude: number, longitude: number): void {
+  // Use the search store to perform a location-based search
+  // This would need to be implemented in the search store
+  searchStore.performLocationSearch({ latitude, longitude });
+}
 
 onUnmounted(() => {
   // Clear any pending debounced searches
@@ -248,8 +293,111 @@ onUnmounted(() => {
     <!-- Main Content -->
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <!-- Photo Search Component -->
-      <div v-if="searchMode === 'photo'">
+      <div v-if="searchMode === 'photo' && !isFromFastUpload">
         <PhotoSearch />
+      </div>
+
+      <!-- Fast Upload Results (from photo upload workflow) -->
+      <div v-else-if="isFromFastUpload && fastUploadSession">
+        <div class="mb-6">
+          <!-- Uploaded Photos Summary -->
+          <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">
+              Your Photos ({{ fastUploadSession.photos.length }})
+            </h2>
+            <div class="flex space-x-4 overflow-x-auto">
+              <div
+                v-for="photo in fastUploadSession.photos"
+                :key="photo.id"
+                class="flex-shrink-0"
+              >
+                <img
+                  :src="photo.preview"
+                  :alt="photo.name"
+                  class="w-20 h-20 object-cover rounded-lg"
+                />
+              </div>
+            </div>
+            <div v-if="fastUploadSession.location" class="mt-4 text-sm text-gray-600">
+              <strong>Location detected:</strong> 
+              {{ fastUploadSession.location.latitude.toFixed(6) }}, 
+              {{ fastUploadSession.location.longitude.toFixed(6) }}
+            </div>
+          </div>
+          
+          <!-- Instructions -->
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            <div class="flex items-start">
+              <div class="flex-shrink-0">
+                <svg class="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-blue-900">What would you like to do?</h3>
+                <div class="mt-2 text-sm text-blue-700">
+                  <p><strong>Add to existing artwork:</strong> Click on any artwork card below to add your photos as a new logbook entry</p>
+                  <p><strong>Create new artwork:</strong> Click "Add New Artwork" if you don't see a match</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Search Results with Add New Artwork Card -->
+        <div class="space-y-6">
+          <!-- Add New Artwork Card (always first) -->
+          <div class="bg-gradient-to-r from-green-50 to-blue-50 border-2 border-dashed border-green-300 rounded-lg p-6 hover:border-green-400 hover:bg-gradient-to-r hover:from-green-100 hover:to-blue-100 transition-all cursor-pointer"
+               @click="handleAddNewArtwork">
+            <div class="flex items-center justify-center space-x-4">
+              <div class="flex-shrink-0">
+                <div class="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center">
+                  <PlusIcon class="w-6 h-6 text-white" />
+                </div>
+              </div>
+              <div class="flex-1">
+                <h3 class="text-lg font-semibold text-gray-900">Add New Artwork</h3>
+                <p class="text-gray-600">Don't see a match? Create a new artwork entry with your photos</p>
+              </div>
+              <div class="flex-shrink-0">
+                <svg class="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Nearby Artworks Results -->
+          <div v-if="hasResults">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Nearby Artworks ({{ searchStore.totalResults }} found)
+            </h3>
+            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              <ArtworkCard
+                v-for="artwork in searchStore.results"
+                :key="artwork.id"
+                :artwork="artwork"
+                @click="handleArtworkClick(artwork)"
+              />
+            </div>
+          </div>
+          
+          <!-- Loading State -->
+          <div v-else-if="isLoading" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <SkeletonCard v-for="n in 6" :key="n" />
+          </div>
+          
+          <!-- No Results -->
+          <div v-else-if="searchStore.hasSearched" class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            <h3 class="mt-4 text-lg font-medium text-gray-900">No artworks found nearby</h3>
+            <p class="mt-2 text-gray-600">
+              No artworks were found near the detected location. You can create a new artwork entry above.
+            </p>
+          </div>
+        </div>
       </div>
 
       <!-- Text Search Results -->

@@ -51,7 +51,7 @@ const navigationItems: NavigationItem[] = [
   },
   {
     name: 'Add',
-    path: '/submit',
+    path: '/add',
     icon: PlusIcon,
   },
   {
