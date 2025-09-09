@@ -51,7 +51,7 @@ export class ServerTagValidationService {
       const externalTags: StructuredTags = {};
       Object.entries(tags || {}).forEach(([k, v]) => {
         if (!k.startsWith(INTERNAL_TAG_PREFIX)) {
-          externalTags[k] = v as any;
+          externalTags[k] = v as string | number | boolean;
         } else {
           console.log('[TAG VALIDATION DEBUG] Ignoring internal tag key:', k);
         }

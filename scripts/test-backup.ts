@@ -8,7 +8,7 @@
  */
 
 import { resolve } from 'path';
-import { existsSync } from 'fs';
+// import { existsSync } from 'fs'; // Commented out as unused
 import { config } from 'dotenv';
 
 // Load environment variables

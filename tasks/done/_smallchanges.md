@@ -46,6 +46,65 @@ Update the add artwork workflow
     3B) The user clicks one of the existing artworks to add the logbook entry to the existing artwork.
   4) After they fill in the addtional information. They are asked for consent to use this inforamtion then its submitted to the website.
 
+---- 
+
+- [x] The "Change location". Should pop up a model dialog with a map, and a pin in the center. The user drags around the map until the pin in the center is in the right location. Then the customer clicks "update location" to save the location.
+- On the "Add new artwork page"
+  - [x] Type dropdown, does not have "tiny_libary", it should be in the list of "Type"
+- [x] In the "Nearby Artworks" section. Show Similarity, and distance from the location, etc... This is simlare to the Artwork search by photo results page...
+- [x] On the "Add new artwork page"
+  - [x] The title is not required for a new artwork only the location and a photo
+  - [x] Remove "Year", from the form
+  - [x] Remove "Additional Notes", from the form
+  - [x] The uploaded image is showing a broken image.
+  - [x] The "Change location" link does not do anything
+- [x] After submitting new artwork, Disable the submit button. Then redirect to the map page.
+
+----
+
+Consent checkboxes
+There are several things we need to check before the user can submit a new artwork for us to use. License, are they above 18, do they have the right to give us the photo, etc...
+
+Add the consent checkboxes above the submit button.
+The customer must agree to all the consent terms of service before they can submit the new artwork. Each one should have its own checkbox.
+Add a button to "Check and agree to all" that automaticly checks all the consent checkboxes. Part of the submission should include the versions of the different consents that they agreed to for our recoreds.
+
+
+
+Update the consent checklist. 
+First one should be "CC0 Public Domain Dedication". Update the note about this license to include mention of 
+
+- Text, images, and metadata they submit.
+- Confirmation they own the copyright or have the right to release it under CC0.
+- They agree their submissions may be shared with and redistributed through third parties (OSM, Wikimedia Commons, public APIs, etc.).
+- No expectation of compensation or control over future use of the content.
+
+Next should be a general terms of service. This one bundles a bunch of things together. A lot of this can be linked out to a terms of service or privicy policy page. This checkbox can include things like
+
+- Age Verification (18+) - I confirm that I am 18 years of age or older and legally able to provide consent for photo submissions.
+- Public Commons Contribution - I understand that my submissions will become part of a public cultural archive and may be used for educational, research, and cultural preservation purposes. Shared far and wide. 
+- Freedom of Panorama Acknowledgment - I understand Canada's Freedom of Panorama laws and confirm that my photos are taken from publicly accessible locations (with link)
+- confirm submissions are accurate to the best of their knowledge (location, attribution, description, etc.).
+- Confirmation they won’t submit personal data (faces, license plates, addresses in text fields, etc.) unless it’s incidental and compliant with your privacy policy.
+- Agreement to abide by moderation decisions without dispute.
+- User agrees to indemnify the project from claims if they submit content they didn’t have rights to.
+- You (the project) don’t guarantee permanence of submissions (they could be removed, modified, or archived).
+
+3rd checkbox is specifically about the photos 
+
+Photo Rights Checklist
+- I took these photos myself or have explicit permission from the photographer to submit them.
+- Photos were taken in public spaces where photography is permitted.
+- The artwork is in a publicly accessible location and I have the right to photograph and share it under Canada's Freedom of Panorama provisions.
+
+The "Submit Artwork" button should not be enabled until the user clicks all of the consent checkboxes. 
+
+Remove the note about the "Consent Status". The user needs to agree to all the checkboxes for all submissions. 
+
+All of the consent boxes should be small and link out to more information when possiable or required. 
+
+ASk me questions about this feature before implmenting it. 
+
 
 ## Map
 
@@ -120,3 +179,100 @@ Notes:
 - Ths migration system should use CloudFlare D1 build in migration system. https://developers.cloudflare.com/d1/reference/migrations/
 - See the list of D1 commands https://developers.cloudflare.com/workers/wrangler/commands/#d1 Such as "wrangler migrations create", "migrations list", "migrations apply", and "export"
 - It should use wrangler, it should not using any nodejs scripts, or powershell scripts, or bash scripts.
+
+
+## Mass import
+
+Add a flag to the mass import that allows for auto accepting the new artworks and logbook entries.
+
+Mass-import script
+
+The goal is to use the same system but different scripts for each public data source. Make the import system generic, but script specific to the public data source.
+
+Review one option below, but suggest a few different options. Plan this feature out before.
+
+The mass import script should alow for linking specific fields in the import data recored, with the corasponding filed in the artwork and tags fileds.
+
+Linking the fields should use JSON path.
+
+There should be a script file that you can load that allows for linking the JSON paths from the input record to the artwork recored.
+
+I am open to suggestions on how to do this properly.
+
+For example:
+
+This is a recored in the Open Data Vancouver data set.
+
+```json
+[
+  {
+    "registryid": 27,
+    "title_of_work": "Solo",
+    "artistprojectstatement": "\"McHaffie says she means to show movement, but not flight. 'My perception of the world is that very little of it is stable,' she says.\" -Vancouver Sun, July 19,1986                                             The sculpture was installed as one of ten pieces in the City Shapes sculpture symposium in the City's centennial year.",
+    "type": "Sculpture",
+    "status": "In place",
+    "sitename": "Devonian Harbour Park",
+    "siteaddress": "Denman & Georgia Street",
+    "primarymaterial": "Stainless steel, cedar",
+    "url": "https://covapp.vancouver.ca/PublicArtRegistry/ArtworkDetail.aspx?ArtworkId=27",
+    "photourl": {
+      "exif_orientation": 1,
+      "thumbnail": true,
+      "filename": "LAW27-1.jpg",
+      "width": 350,
+      "format": "JPEG",
+      "etag": "\"apIttAiZOiONsoTSEogiJg==\"",
+      "mimetype": "image/jpeg",
+      "id": "25a422b0cc36381e0c0ab681d38f602d",
+      "last_synchronized": "2025-06-09T13:32:37.304150",
+      "color_summary": [
+        "rgba(77, 96, 90, 1.00)",
+        "rgba(118, 120, 100, 1.00)",
+        "rgba(172, 148, 118, 1.00)"
+      ],
+      "height": 256,
+      "url": "https://opendata.vancouver.ca/api/explore/v2.1/catalog/datasets/public-art/files/25a422b0cc36381e0c0ab681d38f602d"
+    },
+    "ownership": "City of Vancouver",
+    "neighbourhood": "Downtown",
+    "locationonsite": "Lawn along Georgia Street",
+    "geom": {
+      "type": "Feature",
+      "geometry": {
+        "coordinates": [-123.133965, 49.293313],
+        "type": "Point"
+      },
+      "properties": {}
+    },
+    "geo_local_area": "Downtown",
+    "descriptionofwork": "An abstract sculpture of stainless steel with carved cedar planks that fan out in a spiral.",
+    "artists": ["103"],
+    "photocredits": "SITE Photography, 2016",
+    "yearofinstallation": "1986",
+    "geo_point_2d": {
+      "lon": -123.133965,
+      "lat": 49.293313
+    }
+  }
+]  
+```
+
+The title in the open data recored is "title_of_work" and we want to link it to the artwork's title field.
+
+`$.title_of_work = artwork.title`
+
+Some fields we want to append strings and multiple fields from the open data to the artwork fileds.
+
+```txt
+"## Description of work\n": + $.descriptionofwork += artwork.description ; 
+"## Artist Project Statement\n": + $.artistprojectstatement += artwork.description ; 
+"Site Address: " + $.artistprojectstatement += artwork.description ;
+```
+
+Some fields should be linked to tags that are attached to the artwork.
+
+```txt
+$.type = artwork.tags("tag:artwork_type");
+$.url = artwork.tags("tag:website");
+$.yearofinstallation = artwork.tags("tag:start_date");
+```

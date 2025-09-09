@@ -3,18 +3,18 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Hono } from 'hono';
+// import { Hono } from 'hono'; // Commented out as unused
 import type { WorkerEnv } from '../../types';
 import { exportArtworkToOSM } from '../artwork';
 import { bulkExportToOSM, getExportStats } from '../export';
 
 describe('Export Integration Tests', () => {
-  let app: Hono<{ Bindings: WorkerEnv }>;
+  // let _app: Hono<{ Bindings: WorkerEnv }>; // Commented out as unused
   let mockEnv: WorkerEnv;
-  let mockDB: any;
+  let mockDB: unknown;
 
   beforeEach(() => {
-    app = new Hono();
+    // _app = new Hono(); // Commented out as unused
     
     // Create persistent mock methods to avoid recreation issues
     const mockFirst = vi.fn();

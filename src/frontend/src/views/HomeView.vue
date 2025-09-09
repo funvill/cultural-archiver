@@ -43,13 +43,19 @@ onMounted(() => {
               @click="$router.push('/submit')"
               class="px-6 sm:px-8 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 focus:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
             >
-              Submit Artwork
+              📸 Submit Artwork
+            </button>
+            <button
+              @click="$router.push('/search?mode=photo')"
+              class="px-6 sm:px-8 py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 focus:bg-green-600 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-green-500 transition-colors"
+            >
+              🔍 Search by Photo
             </button>
             <button
               @click="$router.push('/')"
               class="px-6 sm:px-8 py-3 bg-transparent border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-blue-600 focus:bg-white focus:text-blue-600 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
             >
-              Explore Map
+              🗺️ Explore Map
             </button>
           </div>
         </div>

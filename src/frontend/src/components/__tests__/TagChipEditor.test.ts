@@ -45,7 +45,7 @@ describe('TagChipEditor', () => {
       expect(wrapper.emitted('update:modelValue')).toBeTruthy();
       const emittedEvents = wrapper.emitted('update:modelValue') as any[][];
       expect(emittedEvents?.[0]?.[0]).toEqual(['test-tag']);
-      expect(wrapper.emitted('tag-added')).toBeTruthy();
+      expect(wrapper.emitted('tagAdded')).toBeTruthy();
     });
 
     it('adds tag on Add button click', async () => {
@@ -96,8 +96,8 @@ describe('TagChipEditor', () => {
       await removeButtons[0]?.trigger('click');
 
       expect(wrapper.emitted('update:modelValue')).toBeTruthy();
-      expect(wrapper.emitted('tag-removed')).toBeTruthy();
-      const removedEvents = wrapper.emitted('tag-removed') as any[][];
+      expect(wrapper.emitted('tagRemoved')).toBeTruthy();
+      const removedEvents = wrapper.emitted('tagRemoved') as any[][];
       expect(removedEvents?.[0]?.[0]).toBe('tag1');
     });
 
@@ -106,8 +106,8 @@ describe('TagChipEditor', () => {
       await input.setValue('');
       await input.trigger('keydown', { key: 'Backspace' });
 
-      expect(wrapper.emitted('tag-removed')).toBeTruthy();
-      const removedEvents = wrapper.emitted('tag-removed') as any[][];
+      expect(wrapper.emitted('tagRemoved')).toBeTruthy();
+      const removedEvents = wrapper.emitted('tagRemoved') as any[][];
       expect(removedEvents?.[0]?.[0]).toBe('tag3'); // Last tag
     });
 
@@ -116,7 +116,7 @@ describe('TagChipEditor', () => {
       await input.setValue('some text');
       await input.trigger('keydown', { key: 'Backspace' });
 
-      expect(wrapper.emitted('tag-removed')).toBeFalsy();
+      expect(wrapper.emitted('tagRemoved')).toBeFalsy();
     });
   });
 

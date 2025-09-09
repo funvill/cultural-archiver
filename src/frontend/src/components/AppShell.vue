@@ -4,7 +4,6 @@ import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import {
   Bars3Icon,
   XMarkIcon,
-  PlusIcon,
   UserIcon,
   QuestionMarkCircleIcon,
   ClipboardDocumentListIcon,
@@ -12,6 +11,7 @@ import {
   ArrowLeftOnRectangleIcon,
   ShieldCheckIcon,
   MagnifyingGlassIcon,
+  PhotoIcon,
 } from '@heroicons/vue/24/outline';
 import { useAuthStore } from '../stores/auth';
 import AuthModal from './AuthModal.vue';
@@ -51,8 +51,9 @@ const navigationItems: NavigationItem[] = [
   },
   {
     name: 'Add',
-    path: '/submit',
-    icon: PlusIcon,
+    path: '/add',
+    icon: PhotoIcon,
+    primaryAction: true,
   },
   {
     name: 'Moderate',
@@ -316,17 +317,23 @@ watch(() => route.path, handleRouteChange);
               v-for="item in visibleNavItems"
               :key="item.path"
               :to="item.path"
-              class="nav-link px-3 py-2 rounded-md text-sm font-medium hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
-              :class="{ 'bg-blue-800': $route.path === item.path }"
+              class="nav-link rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
+              :class="[
+                $route.path === item.path ? 'bg-blue-800' : 'hover:bg-blue-700',
+                item.primaryAction
+                  ? 'px-4 py-2 text-sm relative'
+                  : 'px-3 py-2 text-sm'
+              ]"
               :aria-current="$route.path === item.path ? 'page' : undefined"
             >
+              <span v-if="item.primaryAction" class="absolute -inset-1 rounded-lg bg-white/10 pointer-events-none" />
               <component
                 v-if="item.icon"
                 :is="item.icon"
-                class="w-5 h-5 inline-block mr-1"
+                :class="item.primaryAction ? 'w-6 h-6 inline-block mr-1' : 'w-5 h-5 inline-block mr-1'"
                 aria-hidden="true"
               />
-              {{ item.name }}
+              <span :class="item.primaryAction ? 'text-base font-semibold' : ''">{{ item.name }}</span>
             </RouterLink>
           </nav>
 
@@ -433,14 +440,16 @@ watch(() => route.path, handleRouteChange);
           v-bind="index === 0 ? { ref: 'firstNavLink' } : {}"
           :to="item.path"
           class="drawer-link flex items-center px-4 py-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 focus:bg-blue-50 focus:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
-          :class="{
-            'bg-blue-100 text-blue-600 border-r-4 border-blue-600': $route.path === item.path,
-          }"
+          :class="[
+            $route.path === item.path ? 'bg-blue-100 text-blue-600 border-r-4 border-blue-600' : '',
+            item.primaryAction ? 'relative' : ''
+          ]"
           :aria-current="$route.path === item.path ? 'page' : undefined"
           @click="closeDrawer"
         >
-          <component v-if="item.icon" :is="item.icon" class="w-5 h-5 mr-3" aria-hidden="true" />
-          <span class="font-medium">{{ item.name }}</span>
+          <span v-if="item.primaryAction" class="absolute -inset-1 rounded bg-blue-50 border border-blue-200" />
+          <component v-if="item.icon" :is="item.icon" :class="item.primaryAction ? 'w-6 h-6 mr-3' : 'w-5 h-5 mr-3'" aria-hidden="true" />
+          <span :class="item.primaryAction ? 'font-semibold text-base' : 'font-medium'">{{ item.name }}</span>
         </RouterLink>
 
         <!-- Authentication Section in Mobile Drawer -->

@@ -24,6 +24,9 @@ export interface ArtworkRecord {
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null; // JSON object for key-value metadata like {"material": "bronze", "style": "modern"}
+  title: string | null; // Editable artwork title field
+  description: string | null; // Editable artwork description field
+  created_by: string | null; // Editable creator/artist field
 }
 
 export interface LogbookRecord {
@@ -73,6 +76,9 @@ export interface CreateArtworkRequest {
   type_id: string;
   tags?: Record<string, unknown>;
   status?: ArtworkRecord['status'];
+  title?: string;
+  description?: string;
+  created_by?: string;
 }
 
 export interface UpdateArtworkRequest extends Partial<CreateArtworkRequest> {
@@ -99,6 +105,7 @@ export interface CreateLogbookEntryRequest {
   lon?: number;
   note?: string;
   photos?: string[];
+  consent_version?: string; // Track consent version for compliance
 }
 
 export interface CreateCreatorRequest {
@@ -123,6 +130,40 @@ export interface LogbookSubmissionRequest {
   note?: string;
   type?: string;
   photos?: File[];
+  consent_version?: string; // Track consent version for compliance
+}
+
+// Fast photo-first workflow submission types
+export interface FastArtworkSubmissionRequest {
+  // Location data
+  lat: number;
+  lon: number;
+  
+  // Artwork data
+  title: string; // Required for new artworks
+  type_id?: string; // Optional, defaults to 'public_art'
+  tags?: Record<string, string | number>; // Structured tags
+  
+  // Submission metadata
+  note?: string;
+  photos?: File[];
+  consent_version: string; // Required for fast workflow
+  
+  // For existing artwork submissions (logbook entries)
+  existing_artwork_id?: string;
+}
+
+export interface FastArtworkSubmissionResponse {
+  id: string; // Artwork ID or logbook entry ID
+  submission_type: 'new_artwork' | 'logbook_entry';
+  status: 'pending';
+  message: string;
+  artwork_id?: string; // Present when creating logbook entry
+  similarity_warnings?: Array<{
+    artwork_id: string;
+    similarity_score: number;
+    similarity_explanation: string;
+  }>;
 }
 
 export interface LogbookSubmissionResponse {
@@ -389,6 +430,8 @@ export interface WorkerEnv
   MAGIC_LINKS: KVNamespace;
   PHOTOS_BUCKET: R2Bucket;
   CORS_ORIGINS?: string; // comma-separated origins from env
+  // Enable extra verbose photo pipeline debug logging when set to '1' or 'true'
+  PHOTO_DEBUG?: string;
 }
 
 // ================================

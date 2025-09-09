@@ -123,6 +123,8 @@ export interface NavigationItem {
   /** True if route requires moderator/canReview permission */
   requiresModerator?: boolean;
   requiresAdmin?: boolean;
+  /** Marks the primary call-to-action item (styled larger) */
+  primaryAction?: boolean;
 }
 
 export interface Toast {
@@ -533,10 +535,11 @@ export interface SearchResult {
   lon: number;
   type_name: string;
   tags: Record<string, unknown> | null;
-  recent_photo?: string;
+  recent_photo?: string | null;
   photo_count: number;
-  distance_km?: number;
+  distance_km?: number | null;
   relevance_score?: number;
+  similarity_score?: number | null;
 }
 
 export interface SearchResponse {

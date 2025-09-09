@@ -46,6 +46,8 @@ export const useSearchStore = defineStore('search', () => {
   );
   const canLoadMore = computed(() => hasMore.value && !isLoading.value);
   const currentQuery = computed(() => query.value.trim());
+  const totalResults = computed(() => total.value);
+  const hasSearched = computed(() => query.value.trim().length > 0 || results.value.length > 0);
 
   // Actions
   function setQuery(searchQuery: string): void {
@@ -243,20 +245,31 @@ export const useSearchStore = defineStore('search', () => {
       const response = await apiService.searchArtworks(trimmedQuery, pageNum, perPage.value);
 
       if (response.data) {
-        const searchResults: SearchResult[] = response.data.artworks.map((artwork: any) => ({
-          id: artwork.id,
-          lat: artwork.lat,
-          lon: artwork.lon,
-          type_name: artwork.type_name || 'unknown',
-          tags: artwork.tags
-            ? typeof artwork.tags === 'string'
-              ? JSON.parse(artwork.tags)
-              : artwork.tags
-            : null,
-          recent_photo: artwork.recent_photo,
-          photo_count: artwork.photo_count || 0,
-          distance_km: artwork.distance_km,
-        }));
+        type ArtworkLike = {
+          id: string; lat: number; lon: number; type_name?: string; tags?: unknown; recent_photo?: string; photo_count?: number; photos?: unknown; distance_km?: number; similarity_score?: number | null;
+        };
+        const artworksArray = response.data.artworks as ArtworkLike[];
+        const searchResults: SearchResult[] = artworksArray.map(artwork => {
+          let parsedTags: Record<string, unknown> | null = null;
+          if (artwork.tags) {
+            if (typeof artwork.tags === 'string') {
+              try { parsedTags = JSON.parse(artwork.tags); } catch { parsedTags = null; }
+            } else if (typeof artwork.tags === 'object') {
+              parsedTags = artwork.tags as Record<string, unknown>;
+            }
+          }
+          return {
+            id: artwork.id,
+            lat: artwork.lat,
+            lon: artwork.lon,
+            type_name: artwork.type_name || 'unknown',
+            tags: parsedTags,
+            recent_photo: artwork.recent_photo ?? null,
+            photo_count: artwork.photo_count ?? (Array.isArray(artwork.photos) ? (artwork.photos as unknown[]).length : 0),
+            distance_km: artwork.distance_km ?? null,
+            similarity_score: artwork.similarity_score ?? null,
+          };
+        });
 
         // Cache the results
         cacheResults(trimmedQuery, pageNum, {
@@ -362,6 +375,73 @@ export const useSearchStore = defineStore('search', () => {
     loadRecentQueries();
   }
 
+  // Location-based search functionality
+  async function performLocationSearch(
+    coordinates: { latitude: number; longitude: number },
+    radiusMeters: number = 500,
+    pageNum: number = 1
+  ): Promise<void> {
+    setLoading(true);
+    clearError();
+
+    try {
+      // Use discovery API endpoint for location-based search
+      const response = await apiService.getNearbyArtworks(
+        coordinates.latitude,
+        coordinates.longitude,
+        radiusMeters,
+        perPage.value
+      );
+
+      if (response.data) {
+        // Map nearby artwork response into generic SearchResult shape
+        type NearbyArtworkLike = {
+          id: string; lat: number; lon: number; type_name?: string; tags?: unknown; recent_photo?: string; photo_count?: number; photos?: unknown; distance_km?: number; similarity_score?: number | null;
+        };
+        const nearbyArray = response.data.artworks as NearbyArtworkLike[];
+        const searchResults: SearchResult[] = nearbyArray.map(artwork => {
+          let parsedTags: Record<string, unknown> | null = null;
+          if (artwork.tags) {
+            if (typeof artwork.tags === 'string') {
+              try { parsedTags = JSON.parse(artwork.tags); } catch { parsedTags = null; }
+            } else if (typeof artwork.tags === 'object') {
+              parsedTags = artwork.tags as Record<string, unknown>;
+            }
+          }
+          return {
+            id: artwork.id,
+            lat: artwork.lat,
+            lon: artwork.lon,
+            type_name: artwork.type_name || 'unknown',
+            tags: parsedTags,
+            recent_photo: artwork.recent_photo ?? null,
+            photo_count: artwork.photo_count ?? (Array.isArray(artwork.photos) ? (artwork.photos as unknown[]).length : 0),
+            distance_km: artwork.distance_km ?? null,
+            similarity_score: artwork.similarity_score ?? null,
+          };
+        });
+
+        setResults(searchResults);
+        setPagination({
+          total: response.data.total,
+          page: pageNum,
+          per_page: perPage.value,
+          total_pages: Math.ceil(response.data.total / perPage.value),
+          has_more: pageNum * perPage.value < response.data.total,
+        });
+
+        // Set a descriptive query for display
+        setQuery(`Near (${coordinates.latitude.toFixed(4)}, ${coordinates.longitude.toFixed(4)})`);
+      }
+    } catch (err) {
+      const errorMessage = getErrorMessage(err);
+      setError(errorMessage);
+      console.error('Location search failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return {
     // State
     query: computed(() => query.value),
@@ -381,6 +461,8 @@ export const useSearchStore = defineStore('search', () => {
     isEmpty,
     canLoadMore,
     currentQuery,
+    totalResults,
+    hasSearched,
 
     // Actions
     setQuery,
@@ -400,5 +482,6 @@ export const useSearchStore = defineStore('search', () => {
     fetchSuggestions,
     clearSearch,
     initialize,
+    performLocationSearch,
   };
 });
