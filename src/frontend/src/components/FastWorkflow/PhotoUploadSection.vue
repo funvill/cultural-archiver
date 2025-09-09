@@ -3,6 +3,162 @@
   Handles photo uploads with preview and EXIF extraction
 -->
 
+<script setup lang="ts">
+import { ref } from 'vue';
+import {
+  PhotoIcon,
+  XMarkIcon,
+  MapPinIcon,
+  ClockIcon,
+  InformationCircleIcon,
+  ExclamationTriangleIcon,
+} from '@heroicons/vue/24/outline';
+import type { SubmissionPhoto } from '../../stores/artworkSubmission';
+
+interface Props {
+  photos: SubmissionPhoto[];
+}
+
+interface UploadProgress {
+  name: string;
+  percent: number;
+  status: 'processing' | 'extracting' | 'complete' | 'error';
+}
+
+const props = defineProps<Props>();
+const emit = defineEmits<{
+  photosAdded: [files: File[]];
+  photoRemoved: [index: number];
+}>();
+
+// Local state
+const isDragging = ref(false);
+const uploadProgress = ref<UploadProgress[]>([]);
+const uploadErrors = ref<string[]>([]);
+
+// File validation
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+
+// Methods
+function handleFileSelect(event: Event) {
+  const input = event.target as HTMLInputElement;
+  if (input.files) {
+    processFiles(Array.from(input.files));
+  }
+}
+
+function handleDrop(event: DragEvent) {
+  event.preventDefault();
+  isDragging.value = false;
+  
+  if (event.dataTransfer?.files) {
+    processFiles(Array.from(event.dataTransfer.files));
+  }
+}
+
+function handleDragOver(event: DragEvent) {
+  event.preventDefault();
+}
+
+function handleDragEnter(event: DragEvent) {
+  event.preventDefault();
+  isDragging.value = true;
+}
+
+function handleDragLeave(event: DragEvent) {
+  event.preventDefault();
+  // Only set to false if leaving the entire drop area
+  const currentTarget = event.currentTarget as Element;
+  const relatedTarget = event.relatedTarget as Node | null;
+  if (!currentTarget?.contains(relatedTarget)) {
+    isDragging.value = false;
+  }
+}
+
+async function processFiles(files: File[]) {
+  uploadErrors.value = [];
+  const validFiles: File[] = [];
+  
+  // Validate files
+  for (const file of files) {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      uploadErrors.value.push(`${file.name}: Unsupported file type. Use JPG, PNG, or WebP.`);
+      continue;
+    }
+    
+    if (file.size > MAX_FILE_SIZE) {
+      uploadErrors.value.push(`${file.name}: File too large. Maximum size is 10MB.`);
+      continue;
+    }
+    
+    validFiles.push(file);
+  }
+  
+  if (validFiles.length === 0) return;
+  
+  // Initialize progress tracking
+  uploadProgress.value = validFiles.map(file => ({
+    name: file.name,
+    percent: 0,
+    status: 'processing' as const,
+  }));
+  
+  try {
+    // Process files with simulated progress
+    for (let i = 0; i < validFiles.length; i++) {
+      const progress = uploadProgress.value[i];
+      if (!progress) continue;
+      
+      // Simulate processing progress
+      progress.status = 'processing';
+      progress.percent = 20;
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      progress.status = 'extracting';
+      progress.percent = 60;
+      
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      progress.percent = 100;
+      progress.status = 'complete';
+    }
+    
+    // Emit the files to parent
+    emit('photosAdded', validFiles);
+    
+    // Clear progress after a delay
+    setTimeout(() => {
+      uploadProgress.value = [];
+    }, 1000);
+    
+  } catch (error) {
+    console.error('Error processing files:', error);
+    uploadErrors.value.push('Failed to process some files. Please try again.');
+    uploadProgress.value = [];
+  }
+}
+
+function removePhoto(index: number) {
+  emit('photoRemoved', index);
+}
+
+function clearAll() {
+  for (let i = props.photos.length - 1; i >= 0; i--) {
+    emit('photoRemoved', i);
+  }
+}
+
+function formatDate(timestamp: string): string {
+  try {
+    return new Date(timestamp).toLocaleDateString();
+  } catch {
+    return 'Unknown date';
+  }
+}
+</script>
+
 <template>
   <div class="photo-upload-section">
     <div class="mb-6">
@@ -160,162 +316,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref } from 'vue';
-import {
-  PhotoIcon,
-  XMarkIcon,
-  MapPinIcon,
-  ClockIcon,
-  InformationCircleIcon,
-  ExclamationTriangleIcon,
-} from '@heroicons/vue/24/outline';
-import type { SubmissionPhoto } from '../../stores/artworkSubmission';
-
-interface Props {
-  photos: SubmissionPhoto[];
-}
-
-interface UploadProgress {
-  name: string;
-  percent: number;
-  status: 'processing' | 'extracting' | 'complete' | 'error';
-}
-
-const props = defineProps<Props>();
-const emit = defineEmits<{
-  'photos-added': [files: File[]];
-  'photo-removed': [index: number];
-}>();
-
-// Local state
-const isDragging = ref(false);
-const uploadProgress = ref<UploadProgress[]>([]);
-const uploadErrors = ref<string[]>([]);
-
-// File validation
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-
-// Methods
-function handleFileSelect(event: Event) {
-  const input = event.target as HTMLInputElement;
-  if (input.files) {
-    processFiles(Array.from(input.files));
-  }
-}
-
-function handleDrop(event: DragEvent) {
-  event.preventDefault();
-  isDragging.value = false;
-  
-  if (event.dataTransfer?.files) {
-    processFiles(Array.from(event.dataTransfer.files));
-  }
-}
-
-function handleDragOver(event: DragEvent) {
-  event.preventDefault();
-}
-
-function handleDragEnter(event: DragEvent) {
-  event.preventDefault();
-  isDragging.value = true;
-}
-
-function handleDragLeave(event: DragEvent) {
-  event.preventDefault();
-  // Only set to false if leaving the entire drop area
-  const currentTarget = event.currentTarget as Element;
-  const relatedTarget = event.relatedTarget as Node | null;
-  if (!currentTarget?.contains(relatedTarget)) {
-    isDragging.value = false;
-  }
-}
-
-async function processFiles(files: File[]) {
-  uploadErrors.value = [];
-  const validFiles: File[] = [];
-  
-  // Validate files
-  for (const file of files) {
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      uploadErrors.value.push(`${file.name}: Unsupported file type. Use JPG, PNG, or WebP.`);
-      continue;
-    }
-    
-    if (file.size > MAX_FILE_SIZE) {
-      uploadErrors.value.push(`${file.name}: File too large. Maximum size is 10MB.`);
-      continue;
-    }
-    
-    validFiles.push(file);
-  }
-  
-  if (validFiles.length === 0) return;
-  
-  // Initialize progress tracking
-  uploadProgress.value = validFiles.map(file => ({
-    name: file.name,
-    percent: 0,
-    status: 'processing' as const,
-  }));
-  
-  try {
-    // Process files with simulated progress
-    for (let i = 0; i < validFiles.length; i++) {
-      const progress = uploadProgress.value[i];
-      if (!progress) continue;
-      
-      // Simulate processing progress
-      progress.status = 'processing';
-      progress.percent = 20;
-      
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      progress.status = 'extracting';
-      progress.percent = 60;
-      
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      progress.percent = 100;
-      progress.status = 'complete';
-    }
-    
-    // Emit the files to parent
-    emit('photos-added', validFiles);
-    
-    // Clear progress after a delay
-    setTimeout(() => {
-      uploadProgress.value = [];
-    }, 1000);
-    
-  } catch (error) {
-    console.error('Error processing files:', error);
-    uploadErrors.value.push('Failed to process some files. Please try again.');
-    uploadProgress.value = [];
-  }
-}
-
-function removePhoto(index: number) {
-  emit('photo-removed', index);
-}
-
-function clearAll() {
-  for (let i = props.photos.length - 1; i >= 0; i--) {
-    emit('photo-removed', i);
-  }
-}
-
-function formatDate(timestamp: string): string {
-  try {
-    return new Date(timestamp).toLocaleDateString();
-  } catch {
-    return 'Unknown date';
-  }
-}
-</script>
 
 <style scoped>
 .upload-area {

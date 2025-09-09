@@ -3,16 +3,6 @@
   Shows similarity threshold with appropriate colors
 -->
 
-<template>
-  <span
-    class="similarity-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
-    :class="badgeClasses"
-  >
-    <component :is="iconComponent" class="w-3 h-3 mr-1" />
-    {{ badgeText }}
-  </span>
-</template>
-
 <script setup lang="ts">
 import { computed } from 'vue';
 import { ExclamationTriangleIcon, ShieldExclamationIcon } from '@heroicons/vue/24/outline';
@@ -56,3 +46,13 @@ const iconComponent = computed(() => {
   }
 });
 </script>
+
+<template>
+  <span
+    class="similarity-badge inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
+    :class="badgeClasses"
+  >
+    <component :is="iconComponent" class="w-3 h-3 mr-1" />
+    {{ badgeText }}
+  </span>
+</template>

@@ -24,8 +24,8 @@ interface Props {
 
 interface Emits {
   (e: 'update:modelValue', value: string[]): void;
-  (e: 'tag-added', tag: string): void;
-  (e: 'tag-removed', tag: string): void;
+  (e: 'tagAdded', tag: string): void;
+  (e: 'tagRemoved', tag: string): void;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -83,7 +83,7 @@ function addTag(tagText: string) {
   // Add tag
   const newTags = [...tags.value, trimmedTag];
   tags.value = newTags;
-  emit('tag-added', trimmedTag);
+  emit('tagAdded', trimmedTag);
 
   // Clear input and error
   inputValue.value = '';
@@ -95,7 +95,7 @@ function removeTag(tagToRemove: string) {
 
   const newTags = tags.value.filter(tag => tag !== tagToRemove);
   tags.value = newTags;
-  emit('tag-removed', tagToRemove);
+  emit('tagRemoved', tagToRemove);
   error.value = null;
 }
 

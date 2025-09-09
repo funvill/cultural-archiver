@@ -3,6 +3,134 @@
   Form for entering new artwork information
 -->
 
+<script setup lang="ts">
+import { ref } from 'vue';
+import { XMarkIcon, InformationCircleIcon } from '@heroicons/vue/24/outline';
+
+interface Props {
+  title: string;
+  typeId: string;
+  tags: Record<string, string | number>;
+  note: string;
+}
+
+interface CustomTag {
+  key: string;
+  value: string;
+}
+
+const props = defineProps<Props>();
+const emit = defineEmits<{
+  'update': [details: {
+    title?: string;
+    type_id?: string;
+    tags?: Record<string, string | number>;
+    note?: string;
+  }];
+}>();
+
+// Local state for custom tags
+const customTags = ref<CustomTag[]>([]);
+
+// Initialize custom tags from existing tags
+const commonTagKeys = ['material', 'artist', 'year_created', 'style'];
+Object.entries(props.tags).forEach(([key, value]) => {
+  if (!commonTagKeys.includes(key)) {
+    customTags.value.push({ key, value: String(value) });
+  }
+});
+
+// Methods
+function updateTitle(event: Event) {
+  const target = event.target as HTMLInputElement;
+  emit('update', { title: target.value });
+}
+
+function updateTypeId(event: Event) {
+  const target = event.target as HTMLSelectElement;
+  emit('update', { type_id: target.value });
+}
+
+function updateNote(event: Event) {
+  const target = event.target as HTMLTextAreaElement;
+  if (target.value.length <= 500) {
+    emit('update', { note: target.value });
+  }
+}
+
+function updateTag(key: string, event: Event) {
+  const target = event.target as HTMLInputElement;
+  const value = key === 'year_created' ? (target.value ? parseInt(target.value, 10) : '') : target.value;
+  
+  const newTags = { ...props.tags };
+  if (target.value.trim() === '') {
+    delete newTags[key];
+  } else {
+    newTags[key] = value;
+  }
+  
+  emit('update', { tags: newTags });
+}
+
+function addCustomTag() {
+  customTags.value.push({ key: '', value: '' });
+}
+
+function removeCustomTag(index: number) {
+  const tag = customTags.value[index];
+  if (tag) {
+    customTags.value.splice(index, 1);
+    
+    // Remove from tags if it exists
+    if (tag.key) {
+      const newTags = { ...props.tags };
+      delete newTags[tag.key];
+      emit('update', { tags: newTags });
+    }
+  }
+}
+
+function updateCustomTagKey(index: number, event: Event) {
+  const target = event.target as HTMLInputElement;
+  const tag = customTags.value[index];
+  if (!tag) return;
+  
+  const oldKey = tag.key;
+  tag.key = target.value;
+  
+  // Update tags object
+  const newTags = { ...props.tags };
+  if (oldKey && oldKey !== target.value) {
+    delete newTags[oldKey];
+  }
+  if (target.value && tag.value) {
+    newTags[target.value] = tag.value;
+  }
+  
+  emit('update', { tags: newTags });
+}
+
+function updateCustomTagValue(index: number, event: Event) {
+  const target = event.target as HTMLInputElement;
+  const tag = customTags.value[index];
+  if (!tag) return;
+  
+  tag.value = target.value;
+  
+  // Update tags object
+  const key = tag.key;
+  if (key) {
+    const newTags = { ...props.tags };
+    if (target.value.trim() === '') {
+      delete newTags[key];
+    } else {
+      newTags[key] = target.value;
+    }
+    emit('update', { tags: newTags });
+  }
+}
+</script>
+
 <template>
   <div class="artwork-details-section">
     <div class="mb-6">
@@ -211,131 +339,3 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref } from 'vue';
-import { XMarkIcon, InformationCircleIcon } from '@heroicons/vue/24/outline';
-
-interface Props {
-  title: string;
-  typeId: string;
-  tags: Record<string, string | number>;
-  note: string;
-}
-
-interface CustomTag {
-  key: string;
-  value: string;
-}
-
-const props = defineProps<Props>();
-const emit = defineEmits<{
-  'update': [details: {
-    title?: string;
-    type_id?: string;
-    tags?: Record<string, string | number>;
-    note?: string;
-  }];
-}>();
-
-// Local state for custom tags
-const customTags = ref<CustomTag[]>([]);
-
-// Initialize custom tags from existing tags
-const commonTagKeys = ['material', 'artist', 'year_created', 'style'];
-Object.entries(props.tags).forEach(([key, value]) => {
-  if (!commonTagKeys.includes(key)) {
-    customTags.value.push({ key, value: String(value) });
-  }
-});
-
-// Methods
-function updateTitle(event: Event) {
-  const target = event.target as HTMLInputElement;
-  emit('update', { title: target.value });
-}
-
-function updateTypeId(event: Event) {
-  const target = event.target as HTMLSelectElement;
-  emit('update', { type_id: target.value });
-}
-
-function updateNote(event: Event) {
-  const target = event.target as HTMLTextAreaElement;
-  if (target.value.length <= 500) {
-    emit('update', { note: target.value });
-  }
-}
-
-function updateTag(key: string, event: Event) {
-  const target = event.target as HTMLInputElement;
-  const value = key === 'year_created' ? (target.value ? parseInt(target.value, 10) : '') : target.value;
-  
-  const newTags = { ...props.tags };
-  if (target.value.trim() === '') {
-    delete newTags[key];
-  } else {
-    newTags[key] = value;
-  }
-  
-  emit('update', { tags: newTags });
-}
-
-function addCustomTag() {
-  customTags.value.push({ key: '', value: '' });
-}
-
-function removeCustomTag(index: number) {
-  const tag = customTags.value[index];
-  if (tag) {
-    customTags.value.splice(index, 1);
-    
-    // Remove from tags if it exists
-    if (tag.key) {
-      const newTags = { ...props.tags };
-      delete newTags[tag.key];
-      emit('update', { tags: newTags });
-    }
-  }
-}
-
-function updateCustomTagKey(index: number, event: Event) {
-  const target = event.target as HTMLInputElement;
-  const tag = customTags.value[index];
-  if (!tag) return;
-  
-  const oldKey = tag.key;
-  tag.key = target.value;
-  
-  // Update tags object
-  const newTags = { ...props.tags };
-  if (oldKey && oldKey !== target.value) {
-    delete newTags[oldKey];
-  }
-  if (target.value && tag.value) {
-    newTags[target.value] = tag.value;
-  }
-  
-  emit('update', { tags: newTags });
-}
-
-function updateCustomTagValue(index: number, event: Event) {
-  const target = event.target as HTMLInputElement;
-  const tag = customTags.value[index];
-  if (!tag) return;
-  
-  tag.value = target.value;
-  
-  // Update tags object
-  const key = tag.key;
-  if (key) {
-    const newTags = { ...props.tags };
-    if (target.value.trim() === '') {
-      delete newTags[key];
-    } else {
-      newTags[key] = target.value;
-    }
-    emit('update', { tags: newTags });
-  }
-}
-</script>

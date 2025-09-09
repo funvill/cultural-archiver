@@ -3,6 +3,21 @@
   Collapsible section header with completion status
 -->
 
+<script setup lang="ts">
+import { CheckIcon, ChevronDownIcon } from '@heroicons/vue/24/outline';
+
+interface Props {
+  title: string;
+  completed: boolean;
+  active: boolean;
+}
+
+defineProps<Props>();
+defineEmits<{
+  toggle: [];
+}>();
+</script>
+
 <template>
   <div 
     class="step-header flex items-center justify-between p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
@@ -38,18 +53,3 @@
     />
   </div>
 </template>
-
-<script setup lang="ts">
-import { CheckIcon, ChevronDownIcon } from '@heroicons/vue/24/outline';
-
-interface Props {
-  title: string;
-  completed: boolean;
-  active: boolean;
-}
-
-defineProps<Props>();
-defineEmits<{
-  toggle: [];
-}>();
-</script>

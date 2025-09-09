@@ -3,6 +3,70 @@
   Simple map-based location selection (placeholder implementation)
 -->
 
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import { XMarkIcon, MapIcon } from '@heroicons/vue/24/outline';
+import type { LocationData } from '../../stores/artworkSubmission';
+
+interface Props {
+  initialLocation?: LocationData | null;
+}
+
+const props = defineProps<Props>();
+const emit = defineEmits<{
+  locationSelected: [lat: number, lon: number, address?: string];
+  close: [];
+}>();
+
+// Local state
+const searchQuery = ref('');
+const coordinates = ref({
+  lat: props.initialLocation?.lat || 49.2827,
+  lon: props.initialLocation?.lon || -123.1207,
+});
+
+// Preset locations for quick selection
+const presetLocations = [
+  { name: 'Vancouver Downtown', lat: 49.2827, lon: -123.1207 },
+  { name: 'English Bay', lat: 49.2855, lon: -123.1420 },
+  { name: 'Stanley Park', lat: 49.2916, lon: -123.1419 },
+  { name: 'Gastown', lat: 49.2845, lon: -123.1065 },
+];
+
+// Computed
+const isValidLocation = computed(() => {
+  return !isNaN(coordinates.value.lat) && 
+         !isNaN(coordinates.value.lon) &&
+         Math.abs(coordinates.value.lat) <= 90 &&
+         Math.abs(coordinates.value.lon) <= 180;
+});
+
+// Methods
+function handleSearch() {
+  // Parse coordinate input like "49.2827, -123.1207"
+  const coordMatch = searchQuery.value.match(/([-+]?\d*\.?\d+)\s*,\s*([-+]?\d*\.?\d+)/);
+  if (coordMatch && coordMatch[1] && coordMatch[2]) {
+    const lat = parseFloat(coordMatch[1]);
+    const lon = parseFloat(coordMatch[2]);
+    if (!isNaN(lat) && !isNaN(lon)) {
+      coordinates.value = { lat, lon };
+    }
+  }
+  // In a real implementation, you would also do geocoding here
+}
+
+function setPresetLocation(preset: { name: string; lat: number; lon: number }) {
+  coordinates.value = { lat: preset.lat, lon: preset.lon };
+  searchQuery.value = preset.name;
+}
+
+function handleLocationSelect() {
+  if (isValidLocation.value) {
+    emit('locationSelected', coordinates.value.lat, coordinates.value.lon, searchQuery.value || undefined);
+  }
+}
+</script>
+
 <template>
   <div class="location-picker-modal w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg p-6">
     <div class="flex items-center justify-between mb-6">
@@ -112,67 +176,3 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed } from 'vue';
-import { XMarkIcon, MapIcon } from '@heroicons/vue/24/outline';
-import type { LocationData } from '../../stores/artworkSubmission';
-
-interface Props {
-  initialLocation?: LocationData | null;
-}
-
-const props = defineProps<Props>();
-const emit = defineEmits<{
-  locationSelected: [lat: number, lon: number, address?: string];
-  close: [];
-}>();
-
-// Local state
-const searchQuery = ref('');
-const coordinates = ref({
-  lat: props.initialLocation?.lat || 49.2827,
-  lon: props.initialLocation?.lon || -123.1207,
-});
-
-// Preset locations for quick selection
-const presetLocations = [
-  { name: 'Vancouver Downtown', lat: 49.2827, lon: -123.1207 },
-  { name: 'English Bay', lat: 49.2855, lon: -123.1420 },
-  { name: 'Stanley Park', lat: 49.2916, lon: -123.1419 },
-  { name: 'Gastown', lat: 49.2845, lon: -123.1065 },
-];
-
-// Computed
-const isValidLocation = computed(() => {
-  return !isNaN(coordinates.value.lat) && 
-         !isNaN(coordinates.value.lon) &&
-         Math.abs(coordinates.value.lat) <= 90 &&
-         Math.abs(coordinates.value.lon) <= 180;
-});
-
-// Methods
-function handleSearch() {
-  // Parse coordinate input like "49.2827, -123.1207"
-  const coordMatch = searchQuery.value.match(/([-+]?\d*\.?\d+)\s*,\s*([-+]?\d*\.?\d+)/);
-  if (coordMatch && coordMatch[1] && coordMatch[2]) {
-    const lat = parseFloat(coordMatch[1]);
-    const lon = parseFloat(coordMatch[2]);
-    if (!isNaN(lat) && !isNaN(lon)) {
-      coordinates.value = { lat, lon };
-    }
-  }
-  // In a real implementation, you would also do geocoding here
-}
-
-function setPresetLocation(preset: { name: string; lat: number; lon: number }) {
-  coordinates.value = { lat: preset.lat, lon: preset.lon };
-  searchQuery.value = preset.name;
-}
-
-function handleLocationSelect() {
-  if (isValidLocation.value) {
-    emit('locationSelected', coordinates.value.lat, coordinates.value.lon, searchQuery.value || undefined);
-  }
-}
-</script>

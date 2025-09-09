@@ -2,6 +2,35 @@
   Artwork Selector Modal (Simplified)
 -->
 
+<script setup lang="ts">
+import { ref } from 'vue';
+import { XMarkIcon, PhotoIcon } from '@heroicons/vue/24/outline';
+import type { SimilarityCandidate } from '../../stores/artworkSubmission';
+
+interface Props {
+  nearbyArtworks: SimilarityCandidate[];
+  selectedArtwork: string | null;
+}
+
+const props = defineProps<Props>();
+const emit = defineEmits<{
+  artworkSelected: [artworkId: string];
+  close: [];
+}>();
+
+const localSelected = ref(props.selectedArtwork);
+
+function selectArtwork(artworkId: string) {
+  localSelected.value = artworkId;
+}
+
+function confirmSelection() {
+  if (localSelected.value) {
+    emit('artworkSelected', localSelected.value);
+  }
+}
+</script>
+
 <template>
   <div class="artwork-selector-modal w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg p-6">
     <div class="flex items-center justify-between mb-6">
@@ -79,32 +108,3 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref } from 'vue';
-import { XMarkIcon, PhotoIcon } from '@heroicons/vue/24/outline';
-import type { SimilarityCandidate } from '../../stores/artworkSubmission';
-
-interface Props {
-  nearbyArtworks: SimilarityCandidate[];
-  selectedArtwork: string | null;
-}
-
-const props = defineProps<Props>();
-const emit = defineEmits<{
-  artworkSelected: [artworkId: string];
-  close: [];
-}>();
-
-const localSelected = ref(props.selectedArtwork);
-
-function selectArtwork(artworkId: string) {
-  localSelected.value = artworkId;
-}
-
-function confirmSelection() {
-  if (localSelected.value) {
-    emit('artworkSelected', localSelected.value);
-  }
-}
-</script>

@@ -4,6 +4,186 @@
   Priority 1 UX improvement: Separate photo search from submission workflow
 -->
 
+<script setup lang="ts">
+import { ref } from 'vue';
+import { useRouter } from 'vue-router';
+import {
+  CameraIcon,
+  MagnifyingGlassIcon,
+  XMarkIcon,
+  ArrowRightIcon,
+  MapPinIcon,
+  ExclamationCircleIcon,
+} from '@heroicons/vue/24/outline';
+import LoadingSpinner from './LoadingSpinner.vue';
+import type { ArtworkWithPhotos } from '../types';
+
+// Define local interface for similarity results since it's not exported from types
+interface SimilarityResult {
+  similarity_score: number;
+}
+
+// State
+const fileInput = ref<HTMLInputElement>();
+const searchPhoto = ref<string>();
+const isDragging = ref(false);
+const isSearching = ref(false);
+const hasSearched = ref(false);
+const searchResults = ref<(ArtworkWithPhotos & SimilarityResult)[]>([]);
+
+const router = useRouter();
+
+// Methods
+function triggerFileSelect() {
+  fileInput.value?.click();
+}
+
+function handleFileSelect(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (file) {
+    processPhoto(file);
+  }
+}
+
+function handleDrop(event: DragEvent) {
+  event.preventDefault();
+  isDragging.value = false;
+  
+  const files = event.dataTransfer?.files;
+  if (files?.length && files[0]) {
+    processPhoto(files[0]);
+  }
+}
+
+function handleDragOver(event: DragEvent) {
+  event.preventDefault();
+}
+
+function handleDragEnter() {
+  isDragging.value = true;
+}
+
+function handleDragLeave() {
+  isDragging.value = false;
+}
+
+function processPhoto(file: File) {
+  // Validate file type and size
+  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+    alert('Please select a valid image file (JPG, PNG, or WebP)');
+    return;
+  }
+  
+  if (file.size > 10 * 1024 * 1024) {
+    alert('File size must be less than 10MB');
+    return;
+  }
+
+  // Create preview URL
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    searchPhoto.value = e.target?.result as string;
+  };
+  reader.readAsDataURL(file);
+}
+
+function clearPhoto() {
+  searchPhoto.value = undefined;
+  searchResults.value = [];
+  hasSearched.value = false;
+  if (fileInput.value) {
+    fileInput.value.value = '';
+  }
+}
+
+async function performSearch() {
+  if (!searchPhoto.value) return;
+  
+  isSearching.value = true;
+  hasSearched.value = true;
+  
+  try {
+    // Note: In real implementation, this would convert photo to file for API
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
+    
+    // Mock results for demonstration
+    searchResults.value = [
+      {
+        id: 'mock-1',
+        type_name: 'Street Mural',
+        distance_km: 0.3,
+        photo_count: 5,
+        recent_photo: 'https://picsum.photos/300/200?random=1',
+        similarity_score: 0.87,
+        lat: 49.2827,
+        lon: -123.1207,
+      },
+      {
+        id: 'mock-2', 
+        type_name: 'Abstract Sculpture',
+        distance_km: 1.2,
+        photo_count: 3,
+        recent_photo: 'https://picsum.photos/300/200?random=2',
+        similarity_score: 0.72,
+        lat: 49.2820,
+        lon: -123.1200,
+      },
+    ] as (ArtworkWithPhotos & SimilarityResult)[];
+    
+  } catch (error) {
+    console.error('Search failed:', error);
+    searchResults.value = [];
+  } finally {
+    isSearching.value = false;
+  }
+}
+
+function getSimilarityColor(score: number): string {
+  if (score >= 0.8) return 'text-red-600';
+  if (score >= 0.6) return 'text-orange-600';
+  return 'text-green-600';
+}
+
+function getSimilarityBarColor(score: number): string {
+  if (score >= 0.8) return 'bg-red-500';
+  if (score >= 0.6) return 'bg-orange-500';
+  return 'bg-green-500';
+}
+
+function handleResultClick(result: ArtworkWithPhotos & SimilarityResult) {
+  // Could expand the card or show more details
+  console.log('Clicked result:', result);
+}
+
+function viewArtwork(result: ArtworkWithPhotos & SimilarityResult) {
+  router.push(`/artwork/${result.id}`);
+}
+
+function addToArtwork(result: ArtworkWithPhotos & SimilarityResult) {
+  // Navigate to submission with pre-selected artwork
+  router.push({
+    path: '/submit',
+    query: { 
+      artwork_id: result.id,
+      photo: searchPhoto.value 
+    }
+  });
+}
+
+function submitNewArtwork() {
+  // Navigate to submission with the search photo
+  router.push({
+    path: '/submit',
+    query: { 
+      photo: searchPhoto.value,
+      new_artwork: 'true'
+    }
+  });
+}
+</script>
+
+
 <template>
   <div class="photo-search max-w-4xl mx-auto p-6 space-y-6">
     <!-- Search Header -->
@@ -240,186 +420,6 @@
     />
   </div>
 </template>
-
-
-<script setup lang="ts">
-import { ref } from 'vue';
-import { useRouter } from 'vue-router';
-import {
-  CameraIcon,
-  MagnifyingGlassIcon,
-  XMarkIcon,
-  ArrowRightIcon,
-  MapPinIcon,
-  ExclamationCircleIcon,
-} from '@heroicons/vue/24/outline';
-import LoadingSpinner from './LoadingSpinner.vue';
-import type { ArtworkWithPhotos } from '../types';
-
-// Define local interface for similarity results since it's not exported from types
-interface SimilarityResult {
-  similarity_score: number;
-}
-
-// State
-const fileInput = ref<HTMLInputElement>();
-const searchPhoto = ref<string>();
-const isDragging = ref(false);
-const isSearching = ref(false);
-const hasSearched = ref(false);
-const searchResults = ref<(ArtworkWithPhotos & SimilarityResult)[]>([]);
-
-const router = useRouter();
-
-// Methods
-function triggerFileSelect() {
-  fileInput.value?.click();
-}
-
-function handleFileSelect(event: Event) {
-  const target = event.target as HTMLInputElement;
-  const file = target.files?.[0];
-  if (file) {
-    processPhoto(file);
-  }
-}
-
-function handleDrop(event: DragEvent) {
-  event.preventDefault();
-  isDragging.value = false;
-  
-  const files = event.dataTransfer?.files;
-  if (files?.length && files[0]) {
-    processPhoto(files[0]);
-  }
-}
-
-function handleDragOver(event: DragEvent) {
-  event.preventDefault();
-}
-
-function handleDragEnter() {
-  isDragging.value = true;
-}
-
-function handleDragLeave() {
-  isDragging.value = false;
-}
-
-function processPhoto(file: File) {
-  // Validate file type and size
-  if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-    alert('Please select a valid image file (JPG, PNG, or WebP)');
-    return;
-  }
-  
-  if (file.size > 10 * 1024 * 1024) {
-    alert('File size must be less than 10MB');
-    return;
-  }
-
-  // Create preview URL
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    searchPhoto.value = e.target?.result as string;
-  };
-  reader.readAsDataURL(file);
-}
-
-function clearPhoto() {
-  searchPhoto.value = undefined;
-  searchResults.value = [];
-  hasSearched.value = false;
-  if (fileInput.value) {
-    fileInput.value.value = '';
-  }
-}
-
-async function performSearch() {
-  if (!searchPhoto.value) return;
-  
-  isSearching.value = true;
-  hasSearched.value = true;
-  
-  try {
-    // Note: In real implementation, this would convert photo to file for API
-    await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
-    
-    // Mock results for demonstration
-    searchResults.value = [
-      {
-        id: 'mock-1',
-        type_name: 'Street Mural',
-        distance_km: 0.3,
-        photo_count: 5,
-        recent_photo: 'https://picsum.photos/300/200?random=1',
-        similarity_score: 0.87,
-        lat: 49.2827,
-        lon: -123.1207,
-      },
-      {
-        id: 'mock-2', 
-        type_name: 'Abstract Sculpture',
-        distance_km: 1.2,
-        photo_count: 3,
-        recent_photo: 'https://picsum.photos/300/200?random=2',
-        similarity_score: 0.72,
-        lat: 49.2820,
-        lon: -123.1200,
-      },
-    ] as (ArtworkWithPhotos & SimilarityResult)[];
-    
-  } catch (error) {
-    console.error('Search failed:', error);
-    searchResults.value = [];
-  } finally {
-    isSearching.value = false;
-  }
-}
-
-function getSimilarityColor(score: number): string {
-  if (score >= 0.8) return 'text-red-600';
-  if (score >= 0.6) return 'text-orange-600';
-  return 'text-green-600';
-}
-
-function getSimilarityBarColor(score: number): string {
-  if (score >= 0.8) return 'bg-red-500';
-  if (score >= 0.6) return 'bg-orange-500';
-  return 'bg-green-500';
-}
-
-function handleResultClick(result: ArtworkWithPhotos & SimilarityResult) {
-  // Could expand the card or show more details
-  console.log('Clicked result:', result);
-}
-
-function viewArtwork(result: ArtworkWithPhotos & SimilarityResult) {
-  router.push(`/artwork/${result.id}`);
-}
-
-function addToArtwork(result: ArtworkWithPhotos & SimilarityResult) {
-  // Navigate to submission with pre-selected artwork
-  router.push({
-    path: '/submit',
-    query: { 
-      artwork_id: result.id,
-      photo: searchPhoto.value 
-    }
-  });
-}
-
-function submitNewArtwork() {
-  // Navigate to submission with the search photo
-  router.push({
-    path: '/submit',
-    query: { 
-      photo: searchPhoto.value,
-      new_artwork: 'true'
-    }
-  });
-}
-</script>
 
 <style scoped>
 .photo-upload-card {

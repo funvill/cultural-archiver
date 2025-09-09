@@ -8,6 +8,157 @@
   5. Consent & Submit
 -->
 
+<script setup lang="ts">
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { useArtworkSubmissionStore } from '../stores/artworkSubmission';
+import {
+  CheckIcon,
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+} from '@heroicons/vue/24/outline';
+
+// Components (these would be imported from separate files)
+import StepHeader from './FastWorkflow/StepHeader.vue';
+import PhotoUploadSection from './FastWorkflow/PhotoUploadSection.vue';
+import LocationSection from './FastWorkflow/LocationSection.vue';
+import ArtworkSelectionSection from './FastWorkflow/ArtworkSelectionSection.vue';
+import ArtworkDetailsSection from './FastWorkflow/ArtworkDetailsSection.vue';
+import ConsentSection from './FastWorkflow/ConsentSection.vue';
+import Modal from './Modal.vue';
+import LoadingSpinner from './LoadingSpinner.vue';
+
+// Store
+const submission = useArtworkSubmissionStore();
+
+// Local State
+const currentStep = ref<string>('photos');
+const submissionComplete = ref(false);
+const showWorkflow = ref(false); // New state for workflow visibility
+
+// Steps Configuration
+const steps = computed(() => [
+  { 
+    id: 'photos', 
+    title: 'Photos',
+    completed: submission.hasPhotos,
+  },
+  { 
+    id: 'location', 
+    title: 'Location',
+    completed: submission.hasLocation,
+  },
+  { 
+    id: 'selection', 
+    title: 'Select/Create',
+    completed: submission.state.selectedArtwork !== null || submission.state.title.length > 0,
+  },
+  { 
+    id: 'details', 
+    title: 'Details',
+    completed: !submission.isNewArtwork || submission.state.title.length > 0,
+    hidden: !submission.isNewArtwork,
+  },
+  { 
+    id: 'consent', 
+    title: 'Submit',
+    completed: false,
+  },
+]);
+
+// Methods
+function getStepClass(stepId: string) {
+  const step = steps.value.find(s => s.id === stepId);
+  if (!step) return '';
+  
+  if (step.completed) {
+    return 'bg-green-500 text-white';
+  } else if (currentStep.value === stepId) {
+    return 'bg-blue-500 text-white';
+  } else {
+    return 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
+  }
+}
+
+function toggleStep(stepId: string) {
+  currentStep.value = currentStep.value === stepId ? '' : stepId;
+}
+
+function handlePhotosAdded(files: File[]) {
+  submission.addPhotos(files);
+  // Auto-advance to location step
+  if (currentStep.value === 'photos' && submission.hasPhotos) {
+    currentStep.value = 'location';
+  }
+}
+
+function handlePhotoRemoved(index: number) {
+  submission.removePhoto(index);
+}
+
+async function handleLocationDetected() {
+  try {
+    await submission.getCurrentLocation();
+    // Auto-advance to selection step
+    if (currentStep.value === 'location' && submission.hasLocation) {
+      currentStep.value = 'selection';
+    }
+  } catch (error) {
+    console.error('Failed to get location:', error);
+  }
+}
+
+function handleLocationManual(lat: number, lon: number, address?: string) {
+  submission.setManualLocation(lat, lon, address);
+  // Auto-advance to selection step
+  if (currentStep.value === 'location') {
+    currentStep.value = 'selection';
+  }
+}
+
+async function handleCheckSimilarity() {
+  try {
+    await submission.checkSimilarity();
+  } catch (error) {
+    console.error('Similarity check failed:', error);
+  }
+}
+
+function handleConsentUpdated(version: string) {
+  // Consent version is already handled in the store
+  console.log('Consent updated to version:', version);
+}
+
+async function handleSubmit() {
+  try {
+    await submission.submitArtwork();
+    submissionComplete.value = true;
+  } catch (error) {
+    console.error('Submission failed:', error);
+  }
+}
+
+function handleCloseModal() {
+  submissionComplete.value = false;
+}
+
+function handleSubmitAnother() {
+  submission.reset();
+  submissionComplete.value = false;
+  currentStep.value = 'photos';
+}
+
+// Lifecycle
+onMounted(() => {
+  // Start with photos step
+  currentStep.value = 'photos';
+});
+
+onBeforeUnmount(() => {
+  // Cleanup if needed
+  submission.reset();
+});
+</script>
+
 <template>
   <div class="fast-artwork-form max-w-4xl mx-auto p-6 space-y-8">
     <!-- Enhanced Header with Workflow Options -->
@@ -98,8 +249,8 @@
           <div v-if="currentStep === 'photos' || submission.hasPhotos" class="step-content">
             <PhotoUploadSection
               :photos="submission.state.photos"
-              @photos-added="handlePhotosAdded"
-              @photo-removed="handlePhotoRemoved"
+              @photosAdded="handlePhotosAdded"
+              @photoRemoved="handlePhotoRemoved"
             />
           </div>
         </Transition>
@@ -273,157 +424,6 @@
     </Modal>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { useArtworkSubmissionStore } from '../stores/artworkSubmission';
-import {
-  CheckIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-} from '@heroicons/vue/24/outline';
-
-// Components (these would be imported from separate files)
-import StepHeader from './FastWorkflow/StepHeader.vue';
-import PhotoUploadSection from './FastWorkflow/PhotoUploadSection.vue';
-import LocationSection from './FastWorkflow/LocationSection.vue';
-import ArtworkSelectionSection from './FastWorkflow/ArtworkSelectionSection.vue';
-import ArtworkDetailsSection from './FastWorkflow/ArtworkDetailsSection.vue';
-import ConsentSection from './FastWorkflow/ConsentSection.vue';
-import Modal from './Modal.vue';
-import LoadingSpinner from './LoadingSpinner.vue';
-
-// Store
-const submission = useArtworkSubmissionStore();
-
-// Local State
-const currentStep = ref<string>('photos');
-const submissionComplete = ref(false);
-const showWorkflow = ref(false); // New state for workflow visibility
-
-// Steps Configuration
-const steps = computed(() => [
-  { 
-    id: 'photos', 
-    title: 'Photos',
-    completed: submission.hasPhotos,
-  },
-  { 
-    id: 'location', 
-    title: 'Location',
-    completed: submission.hasLocation,
-  },
-  { 
-    id: 'selection', 
-    title: 'Select/Create',
-    completed: submission.state.selectedArtwork !== null || submission.state.title.length > 0,
-  },
-  { 
-    id: 'details', 
-    title: 'Details',
-    completed: !submission.isNewArtwork || submission.state.title.length > 0,
-    hidden: !submission.isNewArtwork,
-  },
-  { 
-    id: 'consent', 
-    title: 'Submit',
-    completed: false,
-  },
-]);
-
-// Methods
-function getStepClass(stepId: string) {
-  const step = steps.value.find(s => s.id === stepId);
-  if (!step) return '';
-  
-  if (step.completed) {
-    return 'bg-green-500 text-white';
-  } else if (currentStep.value === stepId) {
-    return 'bg-blue-500 text-white';
-  } else {
-    return 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300';
-  }
-}
-
-function toggleStep(stepId: string) {
-  currentStep.value = currentStep.value === stepId ? '' : stepId;
-}
-
-function handlePhotosAdded(files: File[]) {
-  submission.addPhotos(files);
-  // Auto-advance to location step
-  if (currentStep.value === 'photos' && submission.hasPhotos) {
-    currentStep.value = 'location';
-  }
-}
-
-function handlePhotoRemoved(index: number) {
-  submission.removePhoto(index);
-}
-
-async function handleLocationDetected() {
-  try {
-    await submission.getCurrentLocation();
-    // Auto-advance to selection step
-    if (currentStep.value === 'location' && submission.hasLocation) {
-      currentStep.value = 'selection';
-    }
-  } catch (error) {
-    console.error('Failed to get location:', error);
-  }
-}
-
-function handleLocationManual(lat: number, lon: number, address?: string) {
-  submission.setManualLocation(lat, lon, address);
-  // Auto-advance to selection step
-  if (currentStep.value === 'location') {
-    currentStep.value = 'selection';
-  }
-}
-
-async function handleCheckSimilarity() {
-  try {
-    await submission.checkSimilarity();
-  } catch (error) {
-    console.error('Similarity check failed:', error);
-  }
-}
-
-function handleConsentUpdated(version: string) {
-  // Consent version is already handled in the store
-  console.log('Consent updated to version:', version);
-}
-
-async function handleSubmit() {
-  try {
-    await submission.submitArtwork();
-    submissionComplete.value = true;
-  } catch (error) {
-    console.error('Submission failed:', error);
-  }
-}
-
-function handleCloseModal() {
-  submissionComplete.value = false;
-}
-
-function handleSubmitAnother() {
-  submission.reset();
-  submissionComplete.value = false;
-  currentStep.value = 'photos';
-}
-
-// Lifecycle
-onMounted(() => {
-  // Start with photos step
-  currentStep.value = 'photos';
-});
-
-onBeforeUnmount(() => {
-  // Cleanup if needed
-  submission.reset();
-});
-</script>
 
 <style scoped>
 .step-content {

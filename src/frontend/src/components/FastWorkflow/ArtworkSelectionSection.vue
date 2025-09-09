@@ -3,6 +3,58 @@
   Choose between creating new artwork or adding to existing artwork
 -->
 
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import {
+  PlusIcon,
+  PhotoIcon,
+  ExclamationTriangleIcon,
+  MapPinIcon,
+  ScaleIcon,
+  ChevronRightIcon,
+} from '@heroicons/vue/24/outline';
+import type { SimilarityCandidate } from '../../stores/artworkSubmission';
+import Modal from '../Modal.vue';
+import SimilarityBadge from './SimilarityBadge.vue';
+import ArtworkSelectorModal from './ArtworkSelectorModal.vue';
+
+interface Props {
+  nearbyArtworks: SimilarityCandidate[];
+  selectedArtwork: string | null;
+  similarityWarnings: SimilarityCandidate[];
+}
+
+const props = defineProps<Props>();
+const emit = defineEmits<{
+  selectArtwork: [artworkId: string];
+  selectNew: [];
+}>();
+
+// Local state
+const showArtworkSelector = ref(false);
+
+// Computed
+const isNewArtwork = computed(() => props.selectedArtwork === null);
+const selectedArtworkData = computed(() => {
+  if (!props.selectedArtwork) return null;
+  return props.nearbyArtworks.find(a => a.id === props.selectedArtwork) || null;
+});
+
+// Methods
+function selectNewArtwork() {
+  emit('selectNew');
+}
+
+function selectExistingArtwork(artworkId: string) {
+  emit('selectArtwork', artworkId);
+  showArtworkSelector.value = false;
+}
+
+function handleArtworkSelected(artworkId: string) {
+  selectExistingArtwork(artworkId);
+}
+</script>
+
 <template>
   <div class="artwork-selection-section">
     <div class="mb-6">
@@ -251,58 +303,6 @@
     </Modal>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed } from 'vue';
-import {
-  PlusIcon,
-  PhotoIcon,
-  ExclamationTriangleIcon,
-  MapPinIcon,
-  ScaleIcon,
-  ChevronRightIcon,
-} from '@heroicons/vue/24/outline';
-import type { SimilarityCandidate } from '../../stores/artworkSubmission';
-import Modal from '../Modal.vue';
-import SimilarityBadge from './SimilarityBadge.vue';
-import ArtworkSelectorModal from './ArtworkSelectorModal.vue';
-
-interface Props {
-  nearbyArtworks: SimilarityCandidate[];
-  selectedArtwork: string | null;
-  similarityWarnings: SimilarityCandidate[];
-}
-
-const props = defineProps<Props>();
-const emit = defineEmits<{
-  selectArtwork: [artworkId: string];
-  selectNew: [];
-}>();
-
-// Local state
-const showArtworkSelector = ref(false);
-
-// Computed
-const isNewArtwork = computed(() => props.selectedArtwork === null);
-const selectedArtworkData = computed(() => {
-  if (!props.selectedArtwork) return null;
-  return props.nearbyArtworks.find(a => a.id === props.selectedArtwork) || null;
-});
-
-// Methods
-function selectNewArtwork() {
-  emit('selectNew');
-}
-
-function selectExistingArtwork(artworkId: string) {
-  emit('selectArtwork', artworkId);
-  showArtworkSelector.value = false;
-}
-
-function handleArtworkSelected(artworkId: string) {
-  selectExistingArtwork(artworkId);
-}
-</script>
 
 <style scoped>
 .selection-option {

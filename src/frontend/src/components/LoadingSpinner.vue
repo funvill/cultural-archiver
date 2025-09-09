@@ -2,6 +2,29 @@
   Simple Loading Spinner Component
 -->
 
+<script setup lang="ts">
+import { computed } from 'vue';
+
+interface Props {
+  size?: 'sm' | 'md' | 'lg';
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  size: 'md',
+});
+
+const sizeClasses = computed(() => {
+  switch (props.size) {
+    case 'sm':
+      return 'w-4 h-4';
+    case 'lg':
+      return 'w-8 h-8';
+    default:
+      return 'w-6 h-6';
+  }
+});
+</script>
+
 <template>
   <div class="loading-spinner">
     <svg
@@ -27,26 +50,3 @@
     </svg>
   </div>
 </template>
-
-<script setup lang="ts">
-import { computed } from 'vue';
-
-interface Props {
-  size?: 'sm' | 'md' | 'lg';
-}
-
-const props = withDefaults(defineProps<Props>(), {
-  size: 'md',
-});
-
-const sizeClasses = computed(() => {
-  switch (props.size) {
-    case 'sm':
-      return 'w-4 h-4';
-    case 'lg':
-      return 'w-8 h-8';
-    default:
-      return 'w-6 h-6';
-  }
-});
-</script>

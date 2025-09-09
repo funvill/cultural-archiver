@@ -3,6 +3,41 @@
   Handles consent version validation and display
 -->
 
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import {
+  CheckCircleIcon,
+  CheckIcon,
+  InformationCircleIcon,
+  ExclamationTriangleIcon,
+} from '@heroicons/vue/24/outline';
+
+interface Props {
+  consentVersion: string;
+}
+
+defineProps<Props>();
+const emit = defineEmits<{
+  'consent-updated': [version: string];
+}>();
+
+// Suppress unused variable warning - emit may be used later for consent updates
+void emit;
+
+// Local state
+const showConsentDetails = ref(false);
+const photoRightsChecks = ref({
+  ownPhotos: false,
+  publicSpace: false,
+  artworkRights: false,
+});
+
+// Computed
+const allChecksComplete = computed(() => {
+  return Object.values(photoRightsChecks.value).every(Boolean);
+});
+</script>
+
 <template>
   <div class="consent-section">
     <div class="mb-6">
@@ -170,41 +205,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed } from 'vue';
-import {
-  CheckCircleIcon,
-  CheckIcon,
-  InformationCircleIcon,
-  ExclamationTriangleIcon,
-} from '@heroicons/vue/24/outline';
-
-interface Props {
-  consentVersion: string;
-}
-
-defineProps<Props>();
-const emit = defineEmits<{
-  'consent-updated': [version: string];
-}>();
-
-// Suppress unused variable warning - emit may be used later for consent updates
-void emit;
-
-// Local state
-const showConsentDetails = ref(false);
-const photoRightsChecks = ref({
-  ownPhotos: false,
-  publicSpace: false,
-  artworkRights: false,
-});
-
-// Computed
-const allChecksComplete = computed(() => {
-  return Object.values(photoRightsChecks.value).every(Boolean);
-});
-</script>
 
 <style scoped>
 .consent-details-enter-active,

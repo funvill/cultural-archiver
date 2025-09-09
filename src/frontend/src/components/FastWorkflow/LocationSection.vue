@@ -3,6 +3,71 @@
   Handles location detection and displays nearby artworks
 -->
 
+<script setup lang="ts">
+import { ref } from 'vue';
+import {
+  CheckCircleIcon,
+  ExclamationTriangleIcon,
+  MapPinIcon,
+  MapIcon,
+  PhotoIcon,
+  ScaleIcon,
+  CursorArrowRippleIcon,
+} from '@heroicons/vue/24/outline';
+import type { LocationData, SimilarityCandidate } from '../../stores/artworkSubmission';
+import Modal from '../Modal.vue';
+import LoadingSpinner from '../LoadingSpinner.vue';
+import SimilarityBadge from './SimilarityBadge.vue';
+import LocationPickerModal from './LocationPickerModal.vue';
+
+interface Props {
+  location: LocationData | null;
+  loading: boolean;
+  error: string | null;
+  nearbyArtworks: SimilarityCandidate[];
+  similarityLoading: boolean;
+}
+
+defineProps<Props>();
+const emit = defineEmits<{
+  locationDetected: [];
+  locationManual: [lat: number, lon: number, address?: string];
+  checkSimilarity: [];
+}>();
+
+// Local state
+const showLocationPicker = ref(false);
+
+// Methods
+function formatLocationSource(source: string): string {
+  switch (source) {
+    case 'exif': return 'Photo metadata';
+    case 'geolocation': return 'Device GPS';
+    case 'ip': return 'IP location';
+    case 'manual': return 'Manual selection';
+    default: return source;
+  }
+}
+
+function tryGeolocation() {
+  emit('locationDetected');
+}
+
+function handleLocationSelected(lat: number, lon: number, address?: string) {
+  emit('locationManual', lat, lon, address);
+  showLocationPicker.value = false;
+}
+
+function getSimilarityBorderClass(artwork: SimilarityCandidate): string {
+  if (artwork.similarity_threshold === 'high') {
+    return 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/10';
+  } else if (artwork.similarity_threshold === 'warning') {
+    return 'border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900/10';
+  }
+  return '';
+}
+</script>
+
 <template>
   <div class="location-section">
     <div class="mb-6">
@@ -245,68 +310,3 @@
     </Modal>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref } from 'vue';
-import {
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-  MapPinIcon,
-  MapIcon,
-  PhotoIcon,
-  ScaleIcon,
-  CursorArrowRippleIcon,
-} from '@heroicons/vue/24/outline';
-import type { LocationData, SimilarityCandidate } from '../../stores/artworkSubmission';
-import Modal from '../Modal.vue';
-import LoadingSpinner from '../LoadingSpinner.vue';
-import SimilarityBadge from './SimilarityBadge.vue';
-import LocationPickerModal from './LocationPickerModal.vue';
-
-interface Props {
-  location: LocationData | null;
-  loading: boolean;
-  error: string | null;
-  nearbyArtworks: SimilarityCandidate[];
-  similarityLoading: boolean;
-}
-
-defineProps<Props>();
-const emit = defineEmits<{
-  locationDetected: [];
-  locationManual: [lat: number, lon: number, address?: string];
-  checkSimilarity: [];
-}>();
-
-// Local state
-const showLocationPicker = ref(false);
-
-// Methods
-function formatLocationSource(source: string): string {
-  switch (source) {
-    case 'exif': return 'Photo metadata';
-    case 'geolocation': return 'Device GPS';
-    case 'ip': return 'IP location';
-    case 'manual': return 'Manual selection';
-    default: return source;
-  }
-}
-
-function tryGeolocation() {
-  emit('location-detected');
-}
-
-function handleLocationSelected(lat: number, lon: number, address?: string) {
-  emit('location-manual', lat, lon, address);
-  showLocationPicker.value = false;
-}
-
-function getSimilarityBorderClass(artwork: SimilarityCandidate): string {
-  if (artwork.similarity_threshold === 'high') {
-    return 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/10';
-  } else if (artwork.similarity_threshold === 'warning') {
-    return 'border-yellow-300 bg-yellow-50 dark:border-yellow-700 dark:bg-yellow-900/10';
-  }
-  return '';
-}
-</script>
