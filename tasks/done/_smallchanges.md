@@ -58,6 +58,52 @@ Update the add artwork workflow
   - [x] Remove "Additional Notes", from the form
   - [x] The uploaded image is showing a broken image.
   - [x] The "Change location" link does not do anything
+- [x] After submitting new artwork, Disable the submit button. Then redirect to the map page.
+
+----
+
+Consent checkboxes
+There are several things we need to check before the user can submit a new artwork for us to use. License, are they above 18, do they have the right to give us the photo, etc...
+
+Add the consent checkboxes above the submit button.
+The customer must agree to all the consent terms of service before they can submit the new artwork. Each one should have its own checkbox.
+Add a button to "Check and agree to all" that automaticly checks all the consent checkboxes. Part of the submission should include the versions of the different consents that they agreed to for our recoreds.
+
+
+
+Update the consent checklist. 
+First one should be "CC0 Public Domain Dedication". Update the note about this license to include mention of 
+
+- Text, images, and metadata they submit.
+- Confirmation they own the copyright or have the right to release it under CC0.
+- They agree their submissions may be shared with and redistributed through third parties (OSM, Wikimedia Commons, public APIs, etc.).
+- No expectation of compensation or control over future use of the content.
+
+Next should be a general terms of service. This one bundles a bunch of things together. A lot of this can be linked out to a terms of service or privicy policy page. This checkbox can include things like
+
+- Age Verification (18+) - I confirm that I am 18 years of age or older and legally able to provide consent for photo submissions.
+- Public Commons Contribution - I understand that my submissions will become part of a public cultural archive and may be used for educational, research, and cultural preservation purposes. Shared far and wide. 
+- Freedom of Panorama Acknowledgment - I understand Canada's Freedom of Panorama laws and confirm that my photos are taken from publicly accessible locations (with link)
+- confirm submissions are accurate to the best of their knowledge (location, attribution, description, etc.).
+- Confirmation they won’t submit personal data (faces, license plates, addresses in text fields, etc.) unless it’s incidental and compliant with your privacy policy.
+- Agreement to abide by moderation decisions without dispute.
+- User agrees to indemnify the project from claims if they submit content they didn’t have rights to.
+- You (the project) don’t guarantee permanence of submissions (they could be removed, modified, or archived).
+
+3rd checkbox is specifically about the photos 
+
+Photo Rights Checklist
+- I took these photos myself or have explicit permission from the photographer to submit them.
+- Photos were taken in public spaces where photography is permitted.
+- The artwork is in a publicly accessible location and I have the right to photograph and share it under Canada's Freedom of Panorama provisions.
+
+The "Submit Artwork" button should not be enabled until the user clicks all of the consent checkboxes. 
+
+Remove the note about the "Consent Status". The user needs to agree to all the checkboxes for all submissions. 
+
+All of the consent boxes should be small and link out to more information when possiable or required. 
+
+ASk me questions about this feature before implmenting it. 
 
 
 ## Map

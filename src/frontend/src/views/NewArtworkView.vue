@@ -11,6 +11,7 @@ void [MapPinIcon, CheckCircleIcon, ArrowLeftIcon, XMarkIcon];
 import { useAuthStore } from '../stores/auth';
 import { artworkSubmissionService } from '../services/artworkSubmission';
 import type { Coordinates } from '../types';
+import ConsentSection from '../components/FastWorkflow/ConsentSection.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -47,12 +48,24 @@ const isSubmitting = ref(false);
 // Removed unused showLocationPicker flag from earlier design
 const submitError = ref<string | null>(null);
 const submitSuccess = ref(false);
+const redirectCountdown = ref(5);
+
+// Consent state
+const consentCheckboxes = ref({
+  ageVerification: false,
+  cc0Licensing: false,
+  publicCommons: false,
+  freedomOfPanorama: false,
+});
 
 // Computed
 const isFromFastUpload = computed(() => route.query.from === 'fast-upload');
+const allConsentsAccepted = computed(() => {
+  return Object.values(consentCheckboxes.value).every(Boolean);
+});
 const canSubmit = computed(() => {
   const photosLen = fastUploadSession.value?.photos ? fastUploadSession.value.photos.length : 0;
-  return formData.value.location !== null && photosLen > 0; // title no longer required
+  return formData.value.location !== null && photosLen > 0 && allConsentsAccepted.value; // title no longer required, consent required
 });
 
 // Predefined options
@@ -79,6 +92,9 @@ const conditionOptions = [
 const showLocationModal = ref(false);
 const tempLocation = ref<Coordinates | null>(null);
 
+// Consent section ref
+const consentSection = ref<InstanceType<typeof ConsentSection> | null>(null);
+
 // Methods
 async function handleSubmit() {
   if (!canSubmit.value) return;
@@ -91,6 +107,15 @@ async function handleSubmit() {
     await authStore.ensureUserToken();
     
     // Prepare submission data
+    const consentData = {
+      ...consentCheckboxes.value,
+      consentVersion: '2025-01-01', // Use current consent version
+      consentedAt: new Date().toISOString(),
+    };
+    
+    // Log consent data for audit trail
+    console.log('Submitting with consent data:', consentData);
+    
     const submission: any = {
       // Title optional now
       title: formData.value.title || undefined,
@@ -104,6 +129,8 @@ async function handleSubmit() {
       longitude: formData.value.location!.longitude,
       // Notes removed from UI; send only if present (future)
       notes: undefined,
+      // Include consent data
+      consent: consentData,
   photos: fastStore.photos.map((p: { file?: File }) => p.file).filter((f: File | undefined): f is File => !!f)
     };
 
@@ -125,11 +152,24 @@ async function handleSubmit() {
     
     submitSuccess.value = true;
     
+    // Clear consent checkboxes and disable submit button
+    consentSection.value?.resetConsents();
+    
+    // Scroll to top to show success notification
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
     // Clear session data
     sessionStorage.removeItem('fast-upload-session');
     
-  // Removed automatic redirect – allow user to stay on page
-  // Optionally we could provide a manual navigation button once artwork ID is available after moderation.
+    // Start countdown and redirect to map page after 5 seconds
+    redirectCountdown.value = 5;
+    const countdownInterval = setInterval(() => {
+      redirectCountdown.value--;
+      if (redirectCountdown.value <= 0) {
+        clearInterval(countdownInterval);
+        router.push('/');
+      }
+    }, 1000);
     
   } catch (error) {
     console.error('Submission failed:', error);
@@ -141,6 +181,10 @@ async function handleSubmit() {
 
 function goBack() {
   router.back();
+}
+
+function handleConsentChanged(consents: any) {
+  consentCheckboxes.value = consents;
 }
 
 function openLocationPicker() {
@@ -304,7 +348,10 @@ onMounted(async () => {
                 <CheckCircleIcon class="w-5 h-5 text-green-500 mr-2" />
                 <span class="text-green-800 font-medium">Artwork submitted successfully!</span>
               </div>
-              <p class="text-green-600 text-sm mt-1">Submission received and pending review. You can continue browsing or add another artwork.</p>
+              <p class="text-green-600 text-sm mt-1">
+                Submission received and pending review. 
+                <span class="font-medium">Redirecting to map in {{ redirectCountdown }} seconds...</span>
+              </p>
             </div>
 
             <!-- Error Message -->
@@ -435,6 +482,15 @@ onMounted(async () => {
               </div>
 
               <!-- Notes removed per new simplified workflow -->
+
+              <!-- Consent Section -->
+              <div class="mt-8">
+                <ConsentSection
+                  ref="consentSection"
+                  consent-version="2025-01-01"
+                  @consentChanged="handleConsentChanged"
+                />
+              </div>
 
               <!-- Submit Button -->
               <div class="flex justify-end">

@@ -93,6 +93,22 @@ const router = createRouter({
       },
     },
     {
+      path: '/terms',
+      name: 'Terms',
+      component: (): Promise<Component> => import('../views/TermsView.vue'),
+      meta: {
+        title: 'Terms of Service - Cultural Archiver',
+      },
+    },
+    {
+      path: '/privacy',
+      name: 'Privacy',
+      component: (): Promise<Component> => import('../views/PrivacyView.vue'),
+      meta: {
+        title: 'Privacy Policy - Cultural Archiver',
+      },
+    },
+    {
       path: '/review',
       name: 'Review',
       component: ReviewView,

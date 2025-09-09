@@ -9,15 +9,15 @@
 
 /**
  * Current consent version - increment when consent text or terms change
- * Format: YYYY-MM-DD.vN (e.g., "2025-09-08.v1")
+ * Format: YYYY-MM-DD.vN (e.g., "2025-09-09.v2")
  */
-export const CONSENT_VERSION = '2025-09-08.v1';
+export const CONSENT_VERSION = '2025-09-09.v2';
 
 /**
  * Minimum consent version required for submissions
  * Used to validate that users have accepted current or compatible terms
  */
-export const MINIMUM_CONSENT_VERSION = '2025-09-08.v1';
+export const MINIMUM_CONSENT_VERSION = '2025-09-09.v2';
 
 // ================================
 // Consent Types
@@ -208,12 +208,14 @@ export const CONSENT_FIELD_LABELS = {
 
 export const CONSENT_FIELD_DESCRIPTIONS = {
   ageVerification: 'I confirm that I am 18 years of age or older and legally able to provide consent for photo submissions.',
-  cc0Licensing: 'I dedicate my photo submissions to the public domain under CC0 1.0 Universal. This means anyone can use these photos for any purpose without attribution requirements.',
-  publicCommons: 'I understand that my submissions will become part of a public cultural archive and may be used for educational, research, and cultural preservation purposes.',
-  freedomOfPanorama: "I understand Canada's Freedom of Panorama laws and confirm that my photos are taken from publicly accessible locations.",
+  cc0Licensing: 'I dedicate my photo submissions to the public domain under CC0 1.0 Universal. This means anyone can use these photos for any purpose without attribution requirements. I understand my content may be shared with third-party platforms like OpenStreetMap and Wikimedia Commons.',
+  publicCommons: 'I understand that my submissions will become part of a public cultural archive and may be used for educational, research, and cultural preservation purposes. I agree that submitted content may be redistributed through third parties and public APIs.',
+  freedomOfPanorama: "I understand Canada's Freedom of Panorama laws and confirm that my photos are taken from publicly accessible locations where photography is permitted. I have the right to photograph and share these artworks.",
 } as const;
 
 export const CONSENT_LINKS = {
   cc0License: 'https://creativecommons.org/publicdomain/zero/1.0/',
   freedomOfPanoramaCanada: 'https://en.wikipedia.org/wiki/Freedom_of_panorama#Canada',
+  termsOfService: '/terms',
+  privacyPolicy: '/privacy',
 } as const;

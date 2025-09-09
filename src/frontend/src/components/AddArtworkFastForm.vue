@@ -10,6 +10,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { useRouter } from 'vue-router';
 import { useArtworkSubmissionStore } from '../stores/artworkSubmission';
 import {
   CheckIcon,
@@ -29,11 +30,25 @@ import LoadingSpinner from './LoadingSpinner.vue';
 
 // Store
 const submission = useArtworkSubmissionStore();
+const router = useRouter();
 
 // Local State
 const currentStep = ref<string>('photos');
 const submissionComplete = ref(false);
 const showWorkflow = ref(false); // New state for workflow visibility
+
+// Consent state
+const consentCheckboxes = ref({
+  ageVerification: false,
+  cc0Licensing: false,
+  publicCommons: false,
+  freedomOfPanorama: false,
+});
+
+// Computed properties
+const allConsentsAccepted = computed(() => {
+  return Object.values(consentCheckboxes.value).every(Boolean);
+});
 
 // Steps Configuration
 const steps = computed(() => [
@@ -128,10 +143,29 @@ function handleConsentUpdated(version: string) {
   console.log('Consent updated to version:', version);
 }
 
+function handleConsentChanged(consents: any) {
+  consentCheckboxes.value = consents;
+}
+
 async function handleSubmit() {
   try {
+    // Include consent information in the submission
+    const consentData = {
+      ...consentCheckboxes.value,
+      consentVersion: submission.state.consentVersion,
+      consentedAt: new Date().toISOString(),
+    };
+    
+    // Log consent data for audit trail (would be included in actual submission)
+    console.log('Submitting with consent data:', consentData);
+    
     await submission.submitArtwork();
     submissionComplete.value = true;
+    // Redirect to map page immediately after successful submission
+    // Don't show the modal for long to prevent double submission
+    setTimeout(() => {
+      router.push('/');
+    }, 1500); // Give user 1.5 seconds to see the success message
   } catch (error) {
     console.error('Submission failed:', error);
   }
@@ -339,6 +373,7 @@ onBeforeUnmount(() => {
             <ConsentSection
               :consent-version="submission.state.consentVersion"
               @consent-updated="handleConsentUpdated"
+              @consentChanged="handleConsentChanged"
             />
             
             <!-- Submission Summary -->
@@ -367,12 +402,16 @@ onBeforeUnmount(() => {
             <div class="mt-8 flex justify-center">
               <button
                 type="submit"
-                :disabled="!submission.canSubmit || submission.state.isSubmitting"
+                :disabled="!submission.canSubmit || !allConsentsAccepted || submission.state.isSubmitting || submissionComplete"
                 class="px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <span v-if="submission.state.isSubmitting" class="flex items-center">
                   <LoadingSpinner class="w-5 h-5 mr-2" />
                   Submitting...
+                </span>
+                <span v-else-if="submissionComplete" class="flex items-center">
+                  <CheckIcon class="w-5 h-5 mr-2" />
+                  Submitted Successfully
                 </span>
                 <span v-else>
                   {{ submission.isNewArtwork ? 'Submit New Artwork' : 'Add Logbook Entry' }}
@@ -403,22 +442,25 @@ onBeforeUnmount(() => {
       <div class="text-center py-8">
         <CheckCircleIcon class="w-16 h-16 text-green-500 mx-auto mb-4" />
         <h2 class="text-2xl font-bold text-gray-900 mb-4">Submission Complete!</h2>
-        <p class="text-gray-600 mb-6">
+        <p class="text-gray-600 mb-4">
           {{ submission.state.submissionResult?.message || 'Your submission has been received and is pending review.' }}
+        </p>
+        <p class="text-sm text-gray-500 mb-6">
+          Redirecting you to the map page...
         </p>
         <div class="flex justify-center space-x-4">
           <button
-            @click="handleSubmitAnother"
+            @click="router.push('/')"
             class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Go to Map Now
+          </button>
+          <button
+            @click="handleSubmitAnother"
+            class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
           >
             Submit Another
           </button>
-          <router-link
-            to="/"
-            class="px-6 py-2 bg-gray-300 text-gray-700 rounded-lg hover:bg-gray-400 transition-colors"
-          >
-            Back to Map
-          </router-link>
         </div>
       </div>
     </Modal>

@@ -10,6 +10,9 @@
 - Move all the test files out of the base source folders into test folders
 - The github copilot issue started PR. There is an error that `vitest` is not installed. `I see there's an issue with vitest not being found. Let me check if dependencies are installed and try to fix this:`
 
+- `support@art.abluestar.com` currently errors out when sending an email to this address. This address should forward to my personal address.
+- Check to make sure that the only email address that is public is `support@art.abluestar.com`.
+
 ## Sign in
 
 - The system is not sending out magic links any more. I checked Resend and its not reciving any requests to send out emails.
@@ -52,12 +55,6 @@ Find people that would be willing to partner with me on this project. Be specifi
 
 ## Add artwork
 
-Consent checkboxes are missing from the artwork submission page
+- After a user uploads a photo, they are shown the search results page of artwork nearby. If the user clicks one of the artwork cards from the search results, they should be brought to a logbook submission form. On this page they can submit a new photo and any other information that they want to. This page is identical to the new artwork submission details page but instead of submitting new artwork it submits a logbook entry, and a artwork details update.
 
 ----
-
-- After a user uploads a photo, they are shown the search results page of artwork nearby. If the user clicks one of the artwork cards from the search results, they should be brought to a logbook submission form. On this page they can submit a new photo and any other information that they want to. This page is identical to the new artwork submission details page but instead of submitting new artwork it submits a logbook entry, and a artwork details update. 
-
----
-
-After submitting new artwork, Disable the submit button. Then redirect to the map page.
