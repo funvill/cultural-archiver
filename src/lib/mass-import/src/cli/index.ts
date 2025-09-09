@@ -331,8 +331,253 @@ program
   });
 
 // ================================
+// Bulk Approve Command
+// ================================
+
+program
+  .command('bulk-approve')
+  .description('Bulk approve pending submissions from import sources (admin only)')
+  .option('--source <name>', 'Filter by data source name')
+  .option('--batch-size <number>', 'Batch size for approval processing', '25')
+  .option('--dry-run', 'Show what would be approved without making changes', false)
+  .option('--auto-confirm', 'Skip confirmation prompts (use with caution)', false)
+  .option('--user-token <token>', 'Filter by user token (e.g., mass-import token)')
+  .option('--max-submissions <number>', 'Maximum number of submissions to process')
+  .action(async (options) => {
+    try {
+      const globalOptions = program.opts();
+      const mergedOptions = { ...globalOptions, ...options };
+      const config = await loadConfig(mergedOptions);
+
+      console.log(chalk.blue('🔍 Bulk Approval Process...'));
+      console.log(chalk.gray(`API Endpoint: ${config.apiEndpoint}`));
+      console.log(chalk.gray(`Mode: ${options.dryRun ? 'DRY RUN' : 'APPROVE'}`));
+      
+      if (options.source) {
+        console.log(chalk.gray(`Source Filter: ${options.source}`));
+      }
+      if (options.userToken) {
+        console.log(chalk.gray(`User Token Filter: ${options.userToken}`));
+      }
+
+      // Get pending submissions
+      const spinner = ora('Fetching pending submissions...').start();
+      const fetchOptions: {
+        source?: string;
+        userToken?: string;
+        maxSubmissions?: number;
+      } = {
+        source: options.source,
+        userToken: options.userToken,
+      };
+      if (options.maxSubmissions) {
+        fetchOptions.maxSubmissions = parseInt(options.maxSubmissions, 10);
+      }
+      const pendingSubmissions = await fetchPendingSubmissions(config, fetchOptions);
+      spinner.succeed(`Found ${pendingSubmissions.length} pending submissions`);
+
+      if (pendingSubmissions.length === 0) {
+        console.log(chalk.yellow('⚠️ No pending submissions found matching criteria'));
+        return;
+      }
+
+      // Display summary
+      console.log(chalk.blue('\n📊 Approval Summary:'));
+      console.log(chalk.gray('─'.repeat(50)));
+      console.log(chalk.green(`✅ Submissions to approve: ${pendingSubmissions.length}`));
+      
+      // Group by source for reporting
+      const submissionsBySource = pendingSubmissions.reduce((acc, sub) => {
+        const source = extractSourceFromTags(sub.tags) || 'unknown';
+        acc[source] = (acc[source] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      console.log(chalk.blue('\n📋 By Source:'));
+      for (const [source, count] of Object.entries(submissionsBySource)) {
+        console.log(chalk.gray(`  ${source}: ${count} submissions`));
+      }
+
+      if (options.dryRun) {
+        console.log(chalk.yellow('\n🧪 DRY RUN - No changes will be made'));
+        return;
+      }
+
+      // Confirmation prompt
+      if (!options.autoConfirm) {
+        console.log(chalk.red('\n⚠️ WARNING: This will approve all matching submissions!'));
+        console.log(chalk.yellow('Type "YES" to continue with bulk approval:'));
+        
+        const readline = await import('readline');
+        const rl = readline.createInterface({
+          input: process.stdin,
+          output: process.stdout,
+        });
+        
+        const answer = await new Promise<string>((resolve) => {
+          rl.question('', resolve);
+        });
+        rl.close();
+
+        if (answer !== 'YES') {
+          console.log(chalk.yellow('❌ Bulk approval cancelled'));
+          return;
+        }
+      }
+
+      // Process approvals in batches
+      const batchSize = parseInt(options.batchSize, 10) || 25;
+      const batches = chunkArray(pendingSubmissions, batchSize);
+      
+      console.log(chalk.blue(`\n🔄 Processing ${batches.length} batches...`));
+      
+      let totalApproved = 0;
+      let totalErrors = 0;
+
+      for (let i = 0; i < batches.length; i++) {
+        const batch = batches[i];
+        if (!batch) continue;
+        
+        const batchSpinner = ora(`Processing batch ${i + 1}/${batches.length} (${batch.length} items)`).start();
+        
+        try {
+          const batchResult = await processBulkApproval(config, batch);
+          batchSpinner.succeed(`Batch ${i + 1}: ${batchResult.approved} approved, ${batchResult.errors.length} errors`);
+          
+          totalApproved += batchResult.approved;
+          totalErrors += batchResult.errors.length;
+          
+          if (batchResult.errors.length > 0) {
+            console.log(chalk.red(`❌ Batch ${i + 1} errors:`));
+            batchResult.errors.forEach(error => {
+              console.log(chalk.red(`  - Submission ${error.submission_id}: ${error.error}`));
+            });
+          }
+        } catch (error) {
+          batchSpinner.fail(`Batch ${i + 1} failed: ${error instanceof Error ? error.message : error}`);
+          totalErrors += batch.length;
+        }
+      }
+
+      // Final summary
+      console.log(chalk.blue('\n🎯 Bulk Approval Complete:'));
+      console.log(chalk.gray('─'.repeat(50)));
+      console.log(chalk.green(`✅ Successfully approved: ${totalApproved}`));
+      console.log(chalk.red(`❌ Errors: ${totalErrors}`));
+      console.log(chalk.blue(`📈 Success rate: ${((totalApproved / (totalApproved + totalErrors)) * 100).toFixed(1)}%`));
+
+    } catch (error) {
+      console.error(chalk.red('❌ Bulk approval failed:'), error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+// ================================
 // Helper Functions
 // ================================
+
+/**
+ * Chunk array into smaller arrays of specified size
+ */
+function chunkArray<T>(array: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+}
+
+/**
+ * Extract source from tags JSON string
+ */
+function extractSourceFromTags(tagsJson: string | null): string | null {
+  if (!tagsJson) return null;
+  try {
+    const tags = JSON.parse(tagsJson);
+    return tags.source || tags['data-source'] || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch pending submissions with filtering
+ */
+async function fetchPendingSubmissions(
+  config: MassImportConfig,
+  filters: {
+    source?: string;
+    userToken?: string;
+    maxSubmissions?: number;
+  }
+): Promise<any[]> {
+  const url = new URL('/api/review/queue', config.apiEndpoint);
+  url.searchParams.set('status', 'pending');
+  url.searchParams.set('limit', String(filters.maxSubmissions || 1000));
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      'Authorization': `Bearer ${config.massImportUserToken}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch pending submissions: ${response.statusText}`);
+  }
+
+  const data = await response.json();
+  let submissions = data.submissions || [];
+
+  // Apply filters
+  if (filters.source) {
+    submissions = submissions.filter((sub: any) => {
+      const source = extractSourceFromTags(sub.tags);
+      return source === filters.source;
+    });
+  }
+
+  if (filters.userToken) {
+    submissions = submissions.filter((sub: any) => sub.user_token === filters.userToken);
+  }
+
+  return submissions;
+}
+
+/**
+ * Process bulk approval via API
+ */
+async function processBulkApproval(
+  config: MassImportConfig,
+  submissions: any[]
+): Promise<{
+  approved: number;
+  rejected: number;
+  errors: Array<{ submission_id: string; error: string }>;
+}> {
+  const approvalData = {
+    submissions: submissions.map(sub => ({
+      id: sub.id,
+      action: 'approve',
+    })),
+  };
+
+  const response = await fetch(`${config.apiEndpoint}/api/review/batch`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${config.massImportUserToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(approvalData),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Bulk approval request failed: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return result;
+}
 
 /**
  * Load configuration from options and config file
