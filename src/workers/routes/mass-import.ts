@@ -13,6 +13,7 @@ import type { WorkerEnv } from '../types';
 import { createSuccessResponse, ValidationApiError, ApiError, UnauthorizedError } from '../lib/errors';
 import { processAndUploadPhotos } from '../lib/photos';
 import { createDatabaseService } from '../lib/database';
+import { createMassImportDuplicateDetectionService } from '../lib/mass-import-duplicate-detection';
 import { CONSENT_VERSION } from '../../shared/consent';
 
 /**
@@ -20,18 +21,51 @@ import { CONSENT_VERSION } from '../../shared/consent';
  */
 interface MassImportPayload {
   user_uuid: string;
+  duplicateThreshold?: number; // Optional duplicate detection threshold (default: 0.7)
   artwork: {
     title: string;
     description?: string;
     lat: number;
     lon: number;
     photos?: Array<{ url: string }>;
+    created_by?: string; // Artist name for duplicate detection
   };
   logbook?: Array<{
     note?: string;
     timestamp?: string;
     tags?: Array<{ label: string; value: string }>;
   }>;
+}
+
+/**
+ * Enhanced mass import response with duplicate detection
+ */
+interface MassImportResponse {
+  artwork_id?: string;
+  logbook_ids?: string[];
+  status: 'approved' | 'duplicate_detected';
+  message: string;
+  photos_processed?: number;
+  photos_failed?: number;
+  coordinates: {
+    lat: number;
+    lon: number;
+  };
+  // Duplicate detection results
+  duplicate?: {
+    artworkId: string;
+    title: string;
+    confidenceScore: number;
+    scoreBreakdown: {
+      title: number;
+      artist: number;
+      location: number;
+      tags: number;
+    };
+    existingArtworkId: string;
+    existingArtworkUrl: string;
+  };
+  debug?: any[];
 }
 
 /**
@@ -98,6 +132,57 @@ export async function processMassImport(
 
     // Create database service
     const db = createDatabaseService(c.env.DB);
+
+    // ========================================
+    // DUPLICATE DETECTION
+    // ========================================
+    
+    console.log(`[MASS_IMPORT] Starting duplicate detection for artwork: ${payload.artwork.title}`);
+    
+    // Create duplicate detection service
+    const duplicateDetectionService = createMassImportDuplicateDetectionService(c.env.DB);
+    
+    // Build tags from logbook entries for duplicate detection
+    const allTags: Record<string, string> = {};
+    if (payload.logbook) {
+      for (const logbookEntry of payload.logbook) {
+        if (logbookEntry?.tags) {
+          for (const tag of logbookEntry.tags) {
+            allTags[tag.label] = tag.value;
+          }
+        }
+      }
+    }
+
+    // Check for duplicates
+    const duplicateResult = await duplicateDetectionService.checkForDuplicates({
+      title: payload.artwork.title,
+      ...(payload.artwork.description && { description: payload.artwork.description }),
+      lat: payload.artwork.lat,
+      lon: payload.artwork.lon,
+      ...(payload.artwork.created_by && { artist: payload.artwork.created_by }),
+      ...(Object.keys(allTags).length > 0 && { tags: allTags }),
+      ...(payload.duplicateThreshold && { duplicateThreshold: payload.duplicateThreshold })
+    });
+
+    console.log(`[MASS_IMPORT] Duplicate detection complete. Checked ${duplicateResult.candidatesChecked} candidates. Duplicate: ${duplicateResult.isDuplicate}`);
+
+    // If duplicate detected, return early with duplicate information
+    if (duplicateResult.isDuplicate && duplicateResult.duplicateInfo) {
+      console.log(`[MASS_IMPORT] Duplicate detected with confidence score: ${duplicateResult.duplicateInfo.confidenceScore}`);
+      
+      const response: MassImportResponse = {
+        status: 'duplicate_detected',
+        message: `Duplicate artwork detected with ${Math.round(duplicateResult.duplicateInfo.confidenceScore * 100)}% confidence`,
+        coordinates: {
+          lat: payload.artwork.lat,
+          lon: payload.artwork.lon,
+        },
+        duplicate: duplicateResult.duplicateInfo
+      };
+
+      return c.json(createSuccessResponse(response), 200);
+    }
 
     // Debug info for response
     let debugInfo: Array<any> = [];
@@ -294,10 +379,10 @@ export async function processMassImport(
     }
 
     // Return successful response
-    const response = {
+    const response: MassImportResponse = {
       artwork_id: artworkId,
       logbook_ids: logbookIds,
-      status: 'approved', // All mass imports are auto-approved
+      status: 'approved', // All mass imports are auto-approved (no duplicates detected)
       message: 'Mass import submission processed successfully',
       photos_processed: processedPhotoUrls.length,
       photos_failed: (payload.artwork.photos?.length || 0) - processedPhotoUrls.length,
