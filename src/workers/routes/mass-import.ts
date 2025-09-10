@@ -99,6 +99,9 @@ export async function processMassImport(
     // Create database service
     const db = createDatabaseService(c.env.DB);
 
+    // Debug info for response
+    let debugInfo: Array<any> = [];
+
     let processedPhotoUrls: string[] = [];
 
     // Process photos if provided
@@ -227,22 +230,44 @@ export async function processMassImport(
         logbookIds.push(logbookId);
 
         // Create tags for this logbook entry if provided
+        console.log(`[MASS_IMPORT] Checking for tags in logbook entry...`);
+        console.log(`[MASS_IMPORT] logbookEntry.tags exists: ${!!logbookEntry.tags}`);
+        console.log(`[MASS_IMPORT] logbookEntry.tags type: ${typeof logbookEntry.tags}`);
+        console.log(`[MASS_IMPORT] logbookEntry.tags length: ${logbookEntry.tags?.length || 'undefined'}`);
+        console.log(`[MASS_IMPORT] logbookEntry.tags content: ${JSON.stringify(logbookEntry.tags)}`);
+        
+        // Store debug info in response for immediate feedback
+        if (!debugInfo) debugInfo = [];
+        debugInfo.push({
+          logbookId,
+          tagsExists: !!logbookEntry.tags,
+          tagsType: typeof logbookEntry.tags,
+          tagsLength: logbookEntry.tags?.length || 0,
+          tagsContent: logbookEntry.tags
+        });
+        
         if (logbookEntry.tags && logbookEntry.tags.length > 0) {
+          console.log(`[MASS_IMPORT] Starting to process ${logbookEntry.tags.length} tags for artwork...`);
+          
+          // Convert tags array to object format for JSON storage
+          const tagsObject: Record<string, string> = {};
           for (const tag of logbookEntry.tags) {
-            const tagId = generateId();
-            await db.db.prepare(`
-              INSERT INTO tags (id, logbook_id, label, value, created_at)
-              VALUES (?, ?, ?, ?, ?)
-            `).bind(
-              tagId,
-              logbookId,
-              tag.label,
-              tag.value,
-              timestamp
-            ).run();
-
-            console.log(`[MASS_IMPORT] Created tag ${tagId}: ${tag.label}=${tag.value}`);
+            tagsObject[tag.label] = tag.value;
+            console.log(`[MASS_IMPORT] Processing tag: ${tag.label}=${tag.value}`);
           }
+          
+          // Update artwork tags field with the processed tags
+          await db.db.prepare(`
+            UPDATE artwork SET tags = ? WHERE id = ?
+          `).bind(
+            JSON.stringify(tagsObject),
+            artworkId
+          ).run();
+
+          console.log(`[MASS_IMPORT] ✅ Successfully updated artwork ${artworkId} with ${logbookEntry.tags.length} tags`);
+          console.log(`[MASS_IMPORT] ✅ Tags JSON: ${JSON.stringify(tagsObject)}`);
+        } else {
+          console.log(`[MASS_IMPORT] ❌ No tags to process - condition failed`);
         }
       }
     } else if (processedPhotoUrls.length > 0) {
@@ -280,6 +305,7 @@ export async function processMassImport(
         lat: payload.artwork.lat,
         lon: payload.artwork.lon,
       },
+      debug: debugInfo,
     };
 
     console.log(`[MASS_IMPORT] Successfully completed mass import for artwork ${artworkId} with ${logbookIds.length} logbook entries`);

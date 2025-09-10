@@ -2,8 +2,8 @@
 
 ## MVP
 
-- Mass import
 - Optimized submit new artwork
+- Mass import
 
 ## General
 
@@ -61,16 +61,6 @@ Find people that would be willing to partner with me on this project. Be specifi
 
 ----
 
-### Mass import vancouver artists
-
-The mass import is setting the creator of the artwork as a UUID of the user that is submitting the artwork. `00000000-0000-0000-0000-000000000002`... When it should be using the data sets artist ID. 
-
-But better then using the Artist ID would be to use the Artist's name. 
-
-The artist ID can be looked up in this file `tasks\public-art-artists.json` or on this page https://opendata.vancouver.ca/explore/dataset/public-art-artists/information/
-
-Update the mass import script for vancouver to look up the artist name from the artist ID and use the name instead of the ID for the artwork artist field.
-
 ----
 
 ## Vancouver mass import tags
@@ -79,20 +69,34 @@ In the Vancouver mass import, the fields in the dataset should become tags of th
 
 ## Artist page
 
-Create a artist page.
-The goal of this page is to tell people about the artist and list their artworks. 
+  Executive Summary
 
-A artist can have many artworks, A artwork can have many artists
+  Create dedicated artist profile pages that showcase artist information and their
+  artworks, enhancing discoverability and providing comprehensive artist
+  documentation within the Cultural Archiver platform.
+
+Create a artist page type
+The goal of this page is to tell people about the artist and list their artworks. A prime goal is to show other works by this artist.
+
+An artist can have many artworks, An artwork can have many artists, An artist can have many tags.
 
 Compoents on the artist page
 
-- Artist name - Text field.
-- Artist tags - Same as the artwork tags
-- Biogrpahy - A block of text formated as Markdown
-- List of artworks - A search results cards of all the artworks that have been contrubuted to this artist.
+- Artist name - Text field
+- Description - A block of text formated as Markdown (biography, Artist statment, CV)
+- Artist tags - Artist website, Birth year, etc... Same as the artwork tags
+- List of artworks - A search results cards of all the artworks that this author is in the artwork's artist field.
+
+Notes:
+
+- The artist page should be editable by logged in users.
+- Any changes to the artist page need a moderator approval.
+- Don't use the existing creators tables or systems.
+- The URL for the artist page is /artist/{UUID}
+
 
 ----
 
-`npx tsx src/cli/index.ts vancouver --limit 1`
+npx tsx src/cli/index.ts vancouver --limit 1
 
 ----

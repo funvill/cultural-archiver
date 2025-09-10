@@ -534,3 +534,15 @@ Review the `database:reset:prod` script with the migration steps in mind. specif
 Mass import UUID error
 
 The mass import seems to be generating its own IDs for the artwork, and logbook tables (maybe other tables) instead of using a UUID. This means that the artwork pages urls are `https://art.abluestar.com/artwork/artwork-1757533783575-sz2ucn1` instead of the expected `https://art.abluestar.com/artwork/79e3ab63-2d75-401e-98f8-9c3aa6d001f7`. Because the frontend is expecting UUIDs instead of keywords for the id, the front end is showing the following error "Artwork Not Found - Invalid artwork ID format. Please check the URL and try again."
+
+
+
+### Mass import vancouver artists
+
+The mass import is setting the creator of the artwork as a UUID of the user that is submitting the artwork. `00000000-0000-0000-0000-000000000002`... When it should be using the data sets artist ID.
+
+But better then using the Artist ID would be to use the Artist's name. 
+
+The artist ID can be looked up in this file `tasks\public-art-artists.json` or on this page https://opendata.vancouver.ca/explore/dataset/public-art-artists/information/
+
+Update the mass import script for vancouver to look up the artist name from the artist ID and use the name instead of the ID for the artwork artist field.

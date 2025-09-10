@@ -395,7 +395,7 @@ function transformToProcessedData(
   const noteParts: string[] = [];
   
   if (rawData.description) {
-    noteParts.push(`Description: ${rawData.description}`);
+    noteParts.push(`${rawData.description}`);
   }
   
   if (rawData.address) {

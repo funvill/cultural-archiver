@@ -190,10 +190,10 @@ export class MassImportAPIClient {
       logbook: [{
         note: data.note || `Imported from ${data.source}`,
         timestamp: new Date().toISOString(),
-        tags: Object.entries(data.tags).map(([label, value]) => ({
+        tags: data.tags ? Object.entries(data.tags).map(([label, value]) => ({
           label,
           value: String(value),
-        })),
+        })) : [],
       }],
     };
 

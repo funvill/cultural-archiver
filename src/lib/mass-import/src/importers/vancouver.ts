@@ -384,48 +384,114 @@ function extractPhotoInfo(data: VancouverArtworkData): PhotoInfo[] {
 
 /**
  * Build structured tags from Vancouver data
+ * All dataset fields become tags in the logbook entry for comprehensive metadata tracking
  */
 function buildStructuredTags(data: VancouverArtworkData): Record<string, string | number | boolean> {
   const tags: Record<string, string | number | boolean> = {};
 
-  // Physical properties
-  if (data.primarymaterial) {
-    tags.material = normalizeMaterial(data.primarymaterial);
-  }
-
-  // Artwork classification
-  if (data.type) {
-    tags.artwork_type = normalizeArtworkType(data.type);
-  }
-
-  // Historical information
-  if (data.yearofinstallation) {
-    tags.start_date = data.yearofinstallation;
-  }
-
-  // Location details
-  if (data.ownership) {
-    tags.operator = data.ownership;
-  }
-
-  if (data.locationonsite) {
-    tags.location = data.locationonsite;
-  }
-
-  // Vancouver-specific tags
-  const neighbourhood = data.neighbourhood || data.geo_local_area;
-  if (neighbourhood) {
-    tags.neighbourhood = neighbourhood;
-  }
+  // Core identification
   tags.registry_id = data.registryid.toString();
   
   // Add source tag for bulk approval filtering
   tags.source = 'vancouver-opendata';
 
-  // Status mapping
+  // Physical properties
+  if (data.primarymaterial) {
+    tags.material = normalizeMaterial(data.primarymaterial);
+    tags.primary_material = data.primarymaterial; // Keep original for reference
+  }
+
+  // Artwork classification
+  if (data.type) {
+    tags.artwork_type = normalizeArtworkType(data.type);
+    tags.type = data.type; // Keep original for reference
+  }
+
+  // Historical information
+  if (data.yearofinstallation) {
+    tags.start_date = data.yearofinstallation;
+    tags.year_of_installation = data.yearofinstallation; // Keep original for reference
+  }
+
+  // Location details - all dataset fields become tags
+  if (data.ownership) {
+    tags.operator = data.ownership;
+    tags.ownership = data.ownership; // Keep original for reference
+  }
+
+  if (data.locationonsite) {
+    tags.location = data.locationonsite;
+    tags.location_on_site = data.locationonsite; // Keep original for reference
+  }
+
+  if (data.sitename) {
+    tags.site_name = data.sitename;
+  }
+
+  if (data.siteaddress) {
+    tags['addr:full'] = data.siteaddress;
+    tags.site_address = data.siteaddress; // Also keep as site_address for consistency
+  }
+
+  // Neighbourhood information
+  const neighbourhood = data.neighbourhood || data.geo_local_area;
+  if (neighbourhood) {
+    tags.neighbourhood = neighbourhood;
+  }
+  
+  if (data.geo_local_area && data.geo_local_area !== data.neighbourhood) {
+    tags.geo_local_area = data.geo_local_area;
+  }
+
+  // Status information
   if (data.status) {
     tags.condition = normalizeCondition(data.status);
+    tags.status = data.status; // Keep original for reference
   }
+
+  // Artist information (if available as array)
+  if (data.artists && data.artists.length > 0) {
+    tags.artist_ids = data.artists.join(', ');
+    // The artist names are handled separately in the extractArtistName function
+  }
+
+  // Web resources
+  if (data.url) {
+    tags.website = data.url;
+    tags.source_url = data.url;
+  }
+
+  // Photo information
+  if (data.photourl?.url) {
+    tags.photo_url = data.photourl.url;
+    if (data.photourl.filename) {
+      tags.photo_filename = data.photourl.filename;
+    }
+  }
+
+  if (data.photocredits) {
+    tags.photo_credits = data.photocredits;
+  }
+
+  // Description fields (if available) - store as tags for searchability
+  if (data.descriptionofwork) {
+    tags.has_description = true;
+    // Don't store full description as tag due to length, but mark its presence
+  }
+
+  if (data.artistprojectstatement) {
+    tags.has_artist_statement = true;
+    // Don't store full statement as tag due to length, but mark its presence
+  }
+
+  // Additional Vancouver-specific metadata
+  tags.data_source = 'vancouver_open_data';
+  tags.license = 'Open Government Licence – Vancouver';
+  
+  // Add a Vancouver-specific identifier for filtering
+  tags.city = 'vancouver';
+  tags.province = 'british_columbia';
+  tags.country = 'canada';
 
   return tags;
 }
