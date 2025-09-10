@@ -326,11 +326,19 @@ export function validateStructuredTags(
   Object.entries(tags).forEach(([key, value]) => {
     const definition = tagDefinitions[key];
     if (!definition) {
-      results[key] = {
-        isValid: false,
-        errors: [`Unknown tag: ${key}`],
-        warnings: [],
+      // For unknown tags, validate them as text/string type
+      const defaultDefinition: TagDefinition = {
+        key,
+        label: key,
+        dataType: 'text',
+        required: false,
+        category: 'reference_data', // Default category for user-defined tags
+        description: `User-defined tag: ${key}`,
+        validation: {
+          maxLength: 500 // Reasonable default limit
+        }
       };
+      results[key] = validateTagValue(value, defaultDefinition);
       return;
     }
 

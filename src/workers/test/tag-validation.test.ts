@@ -31,22 +31,40 @@ describe('ServerTagValidationService', () => {
       expect(result.sanitized_tags).toBeDefined();
     });
 
-    it('should reject invalid tags', () => {
+    it('should reject invalid tags but accept unknown tags', () => {
       const invalidTags: StructuredTags = {
         artwork_type: 'not_an_enum_value',
         height: 'not_a_number',
         website: 'not-a-url',
-        unknown_tag: 'some_value',
+        unknown_tag: 'some_value', // This should be accepted as valid text
       };
 
       const result = service.validateTags(invalidTags);
 
       expect(result.valid).toBe(false);
-      expect(result.errors.length).toBeGreaterThan(0);
+      expect(result.errors.length).toBe(3); // Only 3 errors now (artwork_type, height, website)
       expect(result.errors.some(e => e.key === 'artwork_type')).toBe(true);
       expect(result.errors.some(e => e.key === 'height')).toBe(true);
       expect(result.errors.some(e => e.key === 'website')).toBe(true);
-      expect(result.errors.some(e => e.key === 'unknown_tag')).toBe(true);
+      expect(result.errors.some(e => e.key === 'unknown_tag')).toBe(false); // Should NOT have error
+    });
+
+    it('should accept unknown tags as valid text', () => {
+      const tagsWithUnknown: StructuredTags = {
+        artwork_type: 'statue', // Valid known tag
+        material: 'bronze', // Valid known tag
+        operator: 'City of Vancouver', // Unknown tag - should be accepted
+        source: 'vancouver-opendata', // Unknown tag - should be accepted
+        license: 'Open Government Licence', // Unknown tag - should be accepted
+      };
+
+      const result = service.validateTags(tagsWithUnknown);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors.length).toBe(0);
+      expect(result.sanitized_tags?.operator).toBe('City of Vancouver');
+      expect(result.sanitized_tags?.source).toBe('vancouver-opendata');
+      expect(result.sanitized_tags?.license).toBe('Open Government Licence');
     });
 
     it('should provide helpful suggestions for errors', () => {
@@ -259,7 +277,7 @@ describe('ServerTagValidationService', () => {
         height: 'not_a_number',
         start_date: 'invalid_date_format',
         website: 'not-a-url',
-        unknown_tag: 'value',
+        unknown_tag: 'value', // This should be accepted as valid text
       };
 
       const result = service.validateTags(invalidTags);
@@ -279,8 +297,9 @@ describe('ServerTagValidationService', () => {
       const urlError = result.errors.find(e => e.key === 'website');
       expect(urlError?.code).toBe('invalid_format');
 
+      // Unknown tag should NOT have an error anymore
       const unknownError = result.errors.find(e => e.key === 'unknown_tag');
-      expect(unknownError?.code).toBe('unknown_key');
+      expect(unknownError).toBeUndefined();
     });
   });
 

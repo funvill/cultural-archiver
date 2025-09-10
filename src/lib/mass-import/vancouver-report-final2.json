@@ -1,10 +1,10 @@
 {
   "metadata": {
-    "timestamp": "2025-09-10T06:42:30.671Z",
+    "timestamp": "2025-09-10T07:11:42.249Z",
     "mode": "vancouver-import",
-    "sessionId": "session_1757486550064_cd5ncljf4fb",
-    "startTime": "2025-09-10T06:42:30.064Z",
-    "endTime": "2025-09-10T06:42:30.669Z"
+    "sessionId": "session_1757488301593_jcf2u0ti898",
+    "startTime": "2025-09-10T07:11:41.593Z",
+    "endTime": "2025-09-10T07:11:42.246Z"
   },
   "summary": {
     "totalRecords": 1,
@@ -20,7 +20,7 @@
   "created_artworks": [
     {
       "id": "27",
-      "submissionId": "bc3c62f1-14f1-438f-a56f-99342bbc93cf",
+      "submissionId": "1b0b8e7e-e54c-4235-9636-0e78f80906a2",
       "title": "Solo"
     }
   ],
@@ -28,7 +28,7 @@
   "duplicate_records": [],
   "raw_batches": [
     {
-      "batchId": "batch_1_1757486550066",
+      "batchId": "batch_1_1757488301595",
       "results": [
         {
           "id": "27",
@@ -41,7 +41,7 @@
           },
           "photosProcessed": 1,
           "photosFailed": 0,
-          "submissionId": "bc3c62f1-14f1-438f-a56f-99342bbc93cf"
+          "submissionId": "1b0b8e7e-e54c-4235-9636-0e78f80906a2"
         }
       ],
       "summary": {

@@ -2,6 +2,10 @@
 
 These are small changes that I did inline.
 
+## General
+
+- [x] database reset should also reset the `moderation_decisions`, and `admin_actions` table
+
 ## Artwork Details page
 
 - [x] Move the tags section from below the description into the "informaiton" side bar
@@ -276,3 +280,88 @@ $.type = artwork.tags("tag:artwork_type");
 $.url = artwork.tags("tag:website");
 $.yearofinstallation = artwork.tags("tag:start_date");
 ```
+
+
+
+## Vancouver import
+
+We are working on the mass import for the Vancouver Open data set. We are working with the production database. The production database can lose data as we are still in testing
+
+The Vancouver import does import some of the fields but is not compleate.
+
+This is the command that I am running `mass-import vancouver --input ./tasks/public-art.json --output vancouver-report.json --offset 3 --limit 1`
+
+For example the title of the imported artwork is set to "Unknown Artwork Title" instead of the expected name "Solo".
+
+For example: artwork.value.title = $.title_of_work
+
+The description should summerize all of the other fields in the import file recored.
+
+For example:
+artwork.description = "## Description Of Work\n" + $.descriptionofwork + "\n\n";
+artwork.description += "## Artist statment\n" + $.artistprojectstatement + "\n\n";
+artwork.description += "registryid:\n" + $.registryid + "\n";
+artwork.description += "status:\n" + $.status + "\n";
+artwork.description += "sitename:\n" + $.sitename + "\n";
+artwork.description += "siteaddress:\n" + $.siteaddress + "\n";
+artwork.description += "primarymaterial:\n" + $.primarymaterial + "\n";
+artwork.description += "locationonsite:\n" + $.locationonsite + "\n";
+artwork.description += "artists:\n" + $.artists + "\n";
+artwork.description += "yearofinstallation:\n" + $.yearofinstallation + "\n";
+
+
+
+
+```json
+{
+    "registryid": 27,
+    "title_of_work": "Solo",
+    "artistprojectstatement": "\"McHaffie says she means to show movement, but not flight. 'My perception of the world is that very little of it is stable,' she says.\" -Vancouver Sun, July 19,1986                                             The sculpture was installed as one of ten pieces in the City Shapes sculpture symposium in the City's centennial year.",
+    "type": "Sculpture",
+    "status": "In place",
+    "sitename": "Devonian Harbour Park",
+    "siteaddress": "Denman & Georgia Street",
+    "primarymaterial": "Stainless steel, cedar",
+    "url": "https://covapp.vancouver.ca/PublicArtRegistry/ArtworkDetail.aspx?ArtworkId=27",
+    "photourl": {
+      "exif_orientation": 1,
+      "thumbnail": true,
+      "filename": "LAW27-1.jpg",
+      "width": 350,
+      "format": "JPEG",
+      "etag": "\"apIttAiZOiONsoTSEogiJg==\"",
+      "mimetype": "image/jpeg",
+      "id": "25a422b0cc36381e0c0ab681d38f602d",
+      "last_synchronized": "2025-06-09T13:32:37.304150",
+      "color_summary": [
+        "rgba(77, 96, 90, 1.00)",
+        "rgba(118, 120, 100, 1.00)",
+        "rgba(172, 148, 118, 1.00)"
+      ],
+      "height": 256,
+      "url": "https://opendata.vancouver.ca/api/explore/v2.1/catalog/datasets/public-art/files/25a422b0cc36381e0c0ab681d38f602d"
+    },
+    "ownership": "City of Vancouver",
+    "neighbourhood": "Downtown",
+    "locationonsite": "Lawn along Georgia Street",
+    "geom": {
+      "type": "Feature",
+      "geometry": {
+        "coordinates": [-123.133965, 49.293313],
+        "type": "Point"
+      },
+      "properties": {}
+    },
+    "geo_local_area": "Downtown",
+    "descriptionofwork": "An abstract sculpture of stainless steel with carved cedar planks that fan out in a spiral.",
+    "artists": ["103"],
+    "photocredits": "SITE Photography, 2016",
+    "yearofinstallation": "1986",
+    "geo_point_2d": {
+      "lon": -123.133965,
+      "lat": 49.293313
+    }
+  }
+```
+
+
