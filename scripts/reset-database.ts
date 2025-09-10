@@ -308,8 +308,8 @@ async function clearUserData(config: DatabaseConfig, dryRun: boolean = false): P
     'DELETE FROM moderation_decisions',
     'DELETE FROM admin_actions',
     
-    // Clear any migration tracking for clean state (optional)
-    // 'DELETE FROM d1_migrations', // Uncomment if you want to clear migration history
+    // Clear migration tracking so migrations can be re-applied cleanly after reset
+    'DELETE FROM d1_migrations',
   ];
 
   for (const query of clearQueries) {

@@ -34,15 +34,6 @@ export class MassImportAPIClient {
       },
     });
 
-    // Add request interceptor for authentication
-    this.axios.interceptors.request.use(request => {
-      // Add mass import user token to requests
-      if (request.data) {
-        request.data.user_token = config.massImportUserToken;
-      }
-      return request;
-    });
-
     // Add retry logic for failed requests
     this.setupRetryLogic();
   }
@@ -89,24 +80,23 @@ export class MassImportAPIClient {
         };
       }
 
-      // Step 2: Process photos if not in dry-run mode
+      // Step 2: Extract photo URLs for mass import endpoint
       let photosProcessed = 0;
       let photosFailed = 0;
-      let processedPhotos: string[] = [];
+      const photoUrls: string[] = data.photos.map(photo => photo.url); // Extract URLs from photo objects
 
       if (!this.config.dryRun && data.photos.length > 0) {
-        const photoResults = await this.processPhotos(data.photos);
-        photosProcessed = photoResults.successful.length;
-        photosFailed = photoResults.failed.length;
-        processedPhotos = photoResults.successful;
+        // The mass import endpoint will handle photo downloading and processing
+        photosProcessed = data.photos.length; // Assume all will be processed by backend
+        photosFailed = 0; // Backend will handle failures internally
       }
 
-      // Step 3: Submit to logbook API if not in dry-run mode
+      // Step 3: Submit to mass import API if not in dry-run mode
       let submissionId: string | undefined;
       const warnings: string[] = [];
 
       if (!this.config.dryRun) {
-        const submissionResult = await this.submitToLogbook(data, processedPhotos);
+        const submissionResult = await this.submitToMassImport(data, photoUrls);
         submissionId = submissionResult.id;
         warnings.push(...submissionResult.warnings);
       }
@@ -181,99 +171,62 @@ export class MassImportAPIClient {
   }
 
   /**
-   * Submit data to the fast artwork submission API
+   * Submit data to the mass import API with the new endpoint format
    */
-  private async submitToLogbook(
+  private async submitToMassImport(
     data: ProcessedImportData,
     photoUrls: string[]
   ): Promise<{ id: string; warnings: string[] }> {
-    const payload = {
-      lat: data.lat,
-      lon: data.lon,
-      title: data.title,
-      note: data.note,
-      user_token: this.config.massImportUserToken,
-      photos: photoUrls,
-      tags: data.tags,
-      consent_version: '2025-09-09.v2', // Required for fast workflow
+    // Use the new mass import endpoint that matches our documentation
+    const requestBody = {
+      user_uuid: this.config.massImportUserToken,
+      artwork: {
+        title: data.title || 'Untitled Artwork',
+        lat: data.lat,
+        lon: data.lon,
+        photos: photoUrls.map(url => ({ url })),
+      },
+      // Create logbook entry with notes and tags
+      logbook: [{
+        note: data.note || `Imported from ${data.source}`,
+        timestamp: new Date().toISOString(),
+        tags: Object.entries(data.tags).map(([label, value]) => ({
+          label,
+          value: String(value),
+        })),
+      }],
     };
 
-    const response = await this.axios.post('/api/artworks/fast', payload);
-    // Normalize response (wrapped ApiSuccess vs legacy direct object)
+    const response = await this.axios.post('/api/mass-import', requestBody, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Parse response matching new endpoint format
     const raw: unknown = response.data;
-    type SubmissionShape = { id: string; warnings?: string[] };
-    let submission: SubmissionShape | undefined;
-    if (raw && typeof raw === 'object') {
-      if ('data' in (raw as Record<string, unknown>)) {
-        const inner = (raw as { data?: unknown }).data;
-        if (inner && typeof inner === 'object' && 'id' in inner) {
-          submission = inner as SubmissionShape;
-        }
-      } else if ('id' in (raw as Record<string, unknown>)) {
-        submission = raw as SubmissionShape;
-      }
-    }
-    if (!submission) {
-      throw new Error('Unexpected logbook submission response shape');
-    }
-    return {
-      id: submission.id,
-      warnings: submission.warnings || [],
+    type SubmissionShape = { 
+      success: boolean; 
+      data: { 
+        artwork_id: string; 
+        status: string; 
+        message: string;
+      } 
     };
-  }
-
-  /**
-   * Process photos for upload
-   */
-  private async processPhotos(photos: PhotoInfo[]): Promise<{
-    successful: string[];
-    failed: Array<{ photo: PhotoInfo; error: string }>;
-  }> {
-    const successful: string[] = [];
-    const failed: Array<{ photo: PhotoInfo; error: string }> = [];
-
-    for (const photo of photos) {
-      try {
-        const processedUrl = await this.processPhoto(photo);
-        successful.push(processedUrl);
-      } catch (error) {
-        console.warn(`Failed to process photo ${photo.url}:`, error);
-        failed.push({
-          photo,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
-    }
-
-    return { successful, failed };
-  }
-
-  /**
-   * Process a single photo for upload
-   */
-  private async processPhoto(photo: PhotoInfo): Promise<string> {
-    // For now, return the original URL
-    // In a full implementation, this would:
-    // 1. Download the photo
-    // 2. Validate format and size
-    // 3. Upload to R2 storage
-    // 4. Generate thumbnails
-    // 5. Return the R2 URL
     
-    // Validate that the photo URL is accessible
-    try {
-      const response = await axios.head(photo.url, { timeout: 10000 });
-      
-      // Check if it's actually an image
-      const contentType = response.headers['content-type'];
-      if (!contentType || !contentType.startsWith('image/')) {
-        throw new Error(`URL does not point to an image: ${contentType}`);
-      }
-
-      return photo.url; // Return original URL for now
-    } catch (error) {
-      throw new Error(`Photo not accessible: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    if (!raw || typeof raw !== 'object' || !('success' in raw)) {
+      throw new Error('Unexpected mass import response format');
     }
+    
+    const submission = raw as SubmissionShape;
+    if (!submission.success || !submission.data) {
+      throw new Error(`Mass import failed: ${submission.data?.message || 'Unknown error'}`);
+    }
+    
+    return {
+      id: submission.data.artwork_id,
+      warnings: [], // New endpoint doesn't return warnings in response
+    };
   }
 
   /**

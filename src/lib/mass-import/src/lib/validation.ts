@@ -420,7 +420,7 @@ function transformToProcessedData(
     lat: rawData.lat,
     lon: rawData.lon,
     title: rawData.title || 'Untitled Artwork',
-    note: note.length > 500 ? note.substring(0, 497) + '...' : note,
+    note: note,
     tags: enhancedTags,
     photos: rawData.photos || [],
     source: rawData.source,

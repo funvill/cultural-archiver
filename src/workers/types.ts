@@ -551,7 +551,6 @@ export const MIN_SEARCH_RADIUS = 50; // 50m
 // Rate limiting constants
 export const RATE_LIMIT_SUBMISSIONS_PER_HOUR = 60;
 export const RATE_LIMIT_QUERIES_PER_HOUR = 60;
-export const MAX_NOTE_LENGTH = 500;
 export const MAX_PHOTOS_PER_SUBMISSION = 3;
 export const MAX_PHOTO_SIZE = 15 * 1024 * 1024; // 15MB
 
