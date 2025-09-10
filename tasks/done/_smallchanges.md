@@ -546,3 +546,30 @@ But better then using the Artist ID would be to use the Artist's name.
 The artist ID can be looked up in this file `tasks\public-art-artists.json` or on this page https://opendata.vancouver.ca/explore/dataset/public-art-artists/information/
 
 Update the mass import script for vancouver to look up the artist name from the artist ID and use the name instead of the ID for the artwork artist field.
+
+
+
+## Vancouver mass import tags
+
+In the Vancouver mass import, the fields in the dataset should become tags of the artwork's logbook entry. For example: Fields in the data like "Site Address", etc... should be tags in the logbook entry for the artwork.
+
+
+
+## Mass import duplications
+
+When mass importing new artworks, the artwork might already exist in the database. We don't want to add two of the same artwork. We need a way of determin if this artwork already exists. If it does already exist. We want to make a note of it and add it to a report, then skip importing it.
+
+The check should happen in the mass-import endpoint. Where it rejects (with a good error message), artworks that are too simlare.
+
+Use a scoring system to determin if two artworks are the same, then have a threashold that if an artwork is above that threashold it marks it as duplicate.
+
+For example:
+If the title is the same +0.2,
+If the artist is the same +0.2,
+If the location is the same +0.3
+For each tag that is the same +0.05
+etc...
+
+Then set the threashold to 0.7
+
+The report should list the existing artwork url, a confadence score that its the same and the artwork that was attempted to be imported.

@@ -15,6 +15,8 @@
 - `support@art.abluestar.com` currently errors out when sending an email to this address. This address should forward to my personal address.
 - Check to make sure that the only email address that is public is `support@art.abluestar.com`.
 
+- Use small fixed size icons for the markers for the map. But have some ability to click though overlapping markers.
+
 ## Sign in
 
 - The system is not sending out magic links any more. I checked Resend and its not reciving any requests to send out emails.
@@ -61,12 +63,6 @@ Find people that would be willing to partner with me on this project. Be specifi
 
 ----
 
-----
-
-## Vancouver mass import tags
-
-In the Vancouver mass import, the fields in the dataset should become tags of the artwork's logbook entry. For example: Fields in the data like "Site Address", etc... should be tags in the logbook entry for the artwork.
-
 ## Artist page
 
   Executive Summary
@@ -98,5 +94,43 @@ Notes:
 ----
 
 npx tsx src/cli/index.ts vancouver --limit 1
+
+----
+
+Analysis: Tags Field vs Tags Table
+Current Usage
+Artwork.tags field: Contains rich JSON data with structured metadata from the mass import system and user submissions. In production, all 154 artwork records have structured tag data stored in this field.
+
+Tags table: Currently empty in production (0 records). The functions to query this table exist but are never called in the actual application code.
+
+The Purpose of Each
+Artwork.tags field (JSON):
+
+Primary storage for artwork metadata using the structured tag schema
+Contains rich data from mass imports (Vancouver Open Data) with extensive metadata like registry IDs, materials, descriptions, etc.
+Used for JSON queries with indexes like json_extract(tags, '$.tags.tourism')
+Supports the structured tag schema with versioning and timestamps
+This is the active, production system
+Tags table (relational):
+
+Legacy/unused key-value pair storage system
+Was designed for storing individual tag entries as separate database rows
+Has functions like getTagsForArtwork() and insertTags() but they're never called
+This is dead code that can be safely removed
+Recommendation: Remove the Tags Table
+Yes, we can and should remove the tags table for these reasons:
+
+Not used in production - 0 records, no active code paths
+Redundant - The artwork.tags JSON field serves all current needs
+Better performance - JSON queries with indexes are more efficient than joins
+Simpler architecture - One source of truth for tag data
+Test coverage confirms - All 556 tests pass without using the tags table
+Migration Plan
+I'll create a migration to:
+
+Remove the tags table
+Remove unused functions from database service
+Remove unused TypeScript types
+Clean up any references in documentation
 
 ----
