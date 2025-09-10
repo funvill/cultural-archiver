@@ -63,19 +63,36 @@ Find people that would be willing to partner with me on this project. Be specifi
 
 ### Mass import vancouver artists
 
-The current mass import for vancouver public artworks includes a artist ID as one of the fields. We are currently using this artist ID number for the artwork's artist field.
+The mass import is setting the creator of the artwork as a UUID of the user that is submitting the artwork. `00000000-0000-0000-0000-000000000002`... When it should be using the data sets artist ID. 
 
-It would be better if we used the artist actual name instead of the artist ID.
+But better then using the Artist ID would be to use the Artist's name. 
 
 The artist ID can be looked up in this file `tasks\public-art-artists.json` or on this page https://opendata.vancouver.ca/explore/dataset/public-art-artists/information/
 
 Update the mass import script for vancouver to look up the artist name from the artist ID and use the name instead of the ID for the artwork artist field.
 
+----
+
+## Vancouver mass import tags
+
+In the Vancouver mass import, the fields in the dataset should become tags of the artwork's logbook entry. For example: Fields in the data like "Site Address", etc... should be tags in the logbook entry for the artwork.
+
+## Artist page
+
+Create a artist page.
+The goal of this page is to tell people about the artist and list their artworks. 
+
+A artist can have many artworks, A artwork can have many artists
+
+Compoents on the artist page
+
+- Artist name - Text field.
+- Artist tags - Same as the artwork tags
+- Biogrpahy - A block of text formated as Markdown
+- List of artworks - A search results cards of all the artworks that have been contrubuted to this artist.
+
+----
+
 `npx tsx src/cli/index.ts vancouver --limit 1`
 
-
-Title Display Issue
-Problem: Artworks show "Unknown Artwork Title" instead of the actual title ("Solo")
-Root Cause: Title formatting mismatch between mass import endpoint and frontend parsing
-Current State: Title is being stored in Import Tags but not displayed as main artwork title
-
+----

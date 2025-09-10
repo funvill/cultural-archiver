@@ -94,7 +94,12 @@ const artworkDescription = computed(() => {
 const artworkCreators = computed(() => {
   if (!artwork.value) return 'Unknown';
 
-  // First try the new editable created_by field from the database
+  // First try the new artist_name field extracted from tags
+  if (artwork.value.artist_name && artwork.value.artist_name.trim()) {
+    return artwork.value.artist_name.trim();
+  }
+
+  // Second try the editable created_by field from the database
   if (artwork.value.created_by && artwork.value.created_by.trim()) {
     return artwork.value.created_by.trim();
   }

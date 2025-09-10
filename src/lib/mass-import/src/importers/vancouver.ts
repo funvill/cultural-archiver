@@ -13,6 +13,141 @@ import type {
   PhotoInfo,
 } from '../types';
 import { validateImportData, VANCOUVER_BOUNDS } from '../lib/validation.js';
+import * as fs from 'fs';
+import * as path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// ================================
+// Artist Data Types
+// ================================
+
+interface VancouverArtist {
+  artistid: number;
+  firstname: string | null;
+  lastname: string;
+  artisturl?: string;
+  biography?: string;
+  country?: string | null;
+  photo?: string | null;
+  photocredit?: string | null;
+  website?: string | null;
+}
+
+// Cached artist lookup map
+let artistLookupCache: Map<number, string> | null = null;
+
+// ================================
+// Artist Data Loading
+// ================================
+
+/**
+ * Convert a Vancouver artist ID to an artist name
+ * @param artistId - The artist ID to look up
+ * @returns Artist name or fallback format "Vancouver Open data Artist ID=###"
+ */
+function getArtistNameById(artistId: number | string): string {
+  const artistLookup = loadArtistLookup();
+  
+  try {
+    // Convert to number if it's a string
+    const id = typeof artistId === 'string' ? parseInt(artistId, 10) : artistId;
+    
+    if (isNaN(id)) {
+      return `Vancouver Open data Artist ID=${artistId}`;
+    }
+    
+    // Look up the artist name in our cached data
+    const artistName = artistLookup.get(id);
+    
+    if (artistName && artistName.trim()) {
+      return artistName.trim();
+    }
+    
+    // Fallback format if artist not found
+    return `Vancouver Open data Artist ID=${id}`;
+    
+  } catch (error) {
+    console.warn(`Error processing artist ID: ${artistId}`, error);
+    return `Vancouver Open data Artist ID=${artistId}`;
+  }
+}
+
+/**
+ * Load artist data from the JSON file and create a lookup map
+ */
+function loadArtistLookup(): Map<number, string> {
+  if (artistLookupCache) {
+    return artistLookupCache;
+  }
+
+  try {
+    // Try to find the artist data file - look in the tasks directory
+    const possiblePaths = [
+      path.resolve(process.cwd(), 'tasks/public-art-artists.json'),
+      path.resolve(process.cwd(), '../../../tasks/public-art-artists.json'),
+      path.resolve(__dirname, '../../../../../tasks/public-art-artists.json'),
+    ];
+
+    let artistData: VancouverArtist[] | null = null;
+    let usedPath = '';
+
+    for (const artistPath of possiblePaths) {
+      try {
+        if (fs.existsSync(artistPath)) {
+          const rawData = fs.readFileSync(artistPath, 'utf-8');
+          artistData = JSON.parse(rawData) as VancouverArtist[];
+          usedPath = artistPath;
+          break;
+        }
+      } catch (error) {
+        // Continue to next path
+        continue;
+      }
+    }
+
+    if (!artistData) {
+      console.warn('Could not load Vancouver artist data file. Artist names will not be resolved.');
+      artistLookupCache = new Map();
+      return artistLookupCache;
+    }
+
+    console.log(`Loaded ${artistData.length} artists from ${usedPath}`);
+    
+    // Create the lookup map
+    artistLookupCache = new Map();
+    
+    for (const artist of artistData) {
+      // Build artist name from firstname and lastname
+      const nameParts: string[] = [];
+      
+      if (artist.firstname && artist.firstname.trim()) {
+        nameParts.push(artist.firstname.trim());
+      }
+      
+      if (artist.lastname && artist.lastname.trim()) {
+        nameParts.push(artist.lastname.trim());
+      }
+      
+      const fullName = nameParts.join(' ').trim();
+      
+      if (fullName) {
+        artistLookupCache.set(artist.artistid, fullName);
+      }
+    }
+
+    console.log(`Created artist lookup map with ${artistLookupCache.size} entries`);
+    return artistLookupCache;
+    
+  } catch (error) {
+    console.error('Error loading Vancouver artist data:', error);
+    artistLookupCache = new Map();
+    return artistLookupCache;
+  }
+}
 
 // ================================
 // Vancouver Data Mapper
@@ -183,24 +318,27 @@ function mapVancouverToRawData(data: VancouverArtworkData): RawImportData {
 }
 
 /**
- * Extract artist name from Vancouver data
+ * Extract artist name from Vancouver data using artist ID lookup
+ */
+/**
+ * Extract artist name from Vancouver artwork data
+ * Returns comma-separated list of artist names if multiple artists
  */
 function extractArtistName(data: VancouverArtworkData): string | undefined {
-  // Vancouver has artist IDs in an array, but we don't have the mapping
-  // For now, we'll need to extract from other fields or use placeholder
-  
-  // Check if artist info is embedded in statement or description
-  if (data.artistprojectstatement) {
-    const artistMatch = data.artistprojectstatement.match(/Artist:?\s*([^,\n]+)/i);
-    if (artistMatch && artistMatch[1]) {
-      return artistMatch[1].trim();
-    }
+  if (!data.artists || data.artists.length === 0) {
+    return undefined;
   }
 
-  // For now, return undefined - this would need artist mapping table
-  return data.artists && data.artists.length > 0 
-    ? `Artist ID: ${data.artists.join(', ')}` 
-    : undefined;
+  const artistNames: string[] = [];
+
+  // Convert each artist ID to name using our dedicated function
+  for (const artistIdStr of data.artists) {
+    const artistName = getArtistNameById(artistIdStr);
+    artistNames.push(artistName);
+  }
+
+  // Return comma-separated list of artist names
+  return artistNames.length > 0 ? artistNames.join(', ') : undefined;
 }
 
 /**
@@ -465,3 +603,6 @@ export function validateVancouverData(data: VancouverArtworkData): {
     warnings,
   };
 }
+
+// Export the standalone artist lookup function for external use
+export { getArtistNameById };

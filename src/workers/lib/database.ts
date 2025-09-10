@@ -22,6 +22,7 @@ interface ArtworkWithDistance extends ArtworkRecord {
   type_name: string;
   distance_sq: number;
   distance_km: number;
+  artist_name?: string;
 }
 
 export class DatabaseService {
@@ -65,21 +66,27 @@ export class DatabaseService {
     return result ? (result as unknown as ArtworkRecord) : null;
   }
 
-  async getArtworkWithDetails(id: string): Promise<(ArtworkRecord & { type_name: string }) | null> {
+  async getArtworkWithDetails(id: string): Promise<(ArtworkRecord & { type_name: string; artist_name?: string }) | null> {
     try {
-      // Primary query with LEFT JOIN for type name (safe if table exists)
+      // Primary query with LEFT JOINs for type name and artist name
       const stmt = this.db.prepare(`
-        SELECT a.*, COALESCE(at.name, 'Unknown') as type_name
+        SELECT a.*, 
+               COALESCE(at.name, 'Unknown') as type_name,
+               t.value as artist_name
         FROM artwork a
         LEFT JOIN artwork_types at ON a.type_id = at.id
+        LEFT JOIN tags t ON (t.artwork_id = a.id OR t.logbook_id IN (
+          SELECT l.id FROM logbook l WHERE l.artwork_id = a.id
+        )) AND t.label = 'artist'
         WHERE a.id = ? AND a.status = 'approved'
+        GROUP BY a.id
       `);
       const result = await stmt.bind(id).first();
       if (!result) {
         console.log('[DB DEBUG] getArtworkWithDetails: Artwork not found or not approved', { id });
         return null;
       }
-      const typedResult = result as unknown as ArtworkRecord & { type_name: string };
+      const typedResult = result as unknown as ArtworkRecord & { type_name: string; artist_name?: string };
       if (typedResult.type_name === 'Unknown') {
         console.warn('[DB WARN] Artwork found but artwork_types entry missing or unmapped', {
           id,
@@ -94,15 +101,21 @@ export class DatabaseService {
         console.warn('[DB WARN] artwork_types table missing; falling back to artwork-only query');
         try {
           const fallbackStmt = this.db.prepare(`
-            SELECT a.*, 'Unknown' as type_name
+            SELECT a.*, 
+                   'Unknown' as type_name,
+                   t.value as artist_name
             FROM artwork a
+            LEFT JOIN tags t ON (t.artwork_id = a.id OR t.logbook_id IN (
+              SELECT l.id FROM logbook l WHERE l.artwork_id = a.id
+            )) AND t.label = 'artist'
             WHERE a.id = ? AND a.status = 'approved'
+            GROUP BY a.id
           `);
           const fallbackResult = await fallbackStmt.bind(id).first();
             if (!fallbackResult) {
               return null;
             }
-            return fallbackResult as unknown as ArtworkRecord & { type_name: string };
+            return fallbackResult as unknown as ArtworkRecord & { type_name: string; artist_name?: string };
         } catch (innerErr) {
           console.error('[DB ERROR] Fallback artwork-only query failed', innerErr);
           throw innerErr;
@@ -118,21 +131,25 @@ export class DatabaseService {
     lon: number,
     radius: number = 500,
     limit: number = 20
-  ): Promise<(ArtworkRecord & { type_name: string; distance_km: number })[]> {
+  ): Promise<ArtworkWithDistance[]> {
     // Convert radius from meters to degrees (approximate)
     const radiusDegrees = radius / 111000; // ~111km per degree
 
     const stmt = this.db.prepare(`
       SELECT a.*, at.name as type_name,
+             t.value as artist_name,
              (
                (? - a.lat) * (? - a.lat) + 
                (? - a.lon) * (? - a.lon)
              ) as distance_sq
       FROM artwork a
       JOIN artwork_types at ON a.type_id = at.id
+      LEFT JOIN logbook l ON l.artwork_id = a.id AND l.status = 'approved'
+      LEFT JOIN tags t ON t.logbook_id = l.id AND t.label = 'artist'
       WHERE a.status = 'approved'
         AND a.lat BETWEEN ? AND ?
         AND a.lon BETWEEN ? AND ?
+      GROUP BY a.id  -- Handle multiple logbook entries/tags per artwork
       ORDER BY distance_sq ASC
       LIMIT ?
     `);
@@ -174,14 +191,18 @@ export class DatabaseService {
     east: number,
     west: number,
     limit: number = 100
-  ): Promise<(ArtworkRecord & { type_name: string; distance_km: number })[]> {
+  ): Promise<ArtworkWithDistance[]> {
     const stmt = this.db.prepare(`
-      SELECT a.*, at.name as type_name
+      SELECT a.*, at.name as type_name,
+             t.value as artist_name
       FROM artwork a
       JOIN artwork_types at ON a.type_id = at.id
+      LEFT JOIN logbook l ON l.artwork_id = a.id AND l.status = 'approved'
+      LEFT JOIN tags t ON t.logbook_id = l.id AND t.label = 'artist'
       WHERE a.status = 'approved'
         AND a.lat BETWEEN ? AND ?
         AND a.lon BETWEEN ? AND ?
+      GROUP BY a.id  -- Handle multiple logbook entries/tags per artwork
       ORDER BY a.created_at DESC
       LIMIT ?
     `);
@@ -197,11 +218,12 @@ export class DatabaseService {
       .all();
 
     // For bounds queries, we don't calculate distance, so set to 0
-    return (results.results as unknown as (ArtworkRecord & { type_name: string })[]).map(
+    return (results.results as unknown as (ArtworkRecord & { type_name: string; artist_name?: string })[]).map(
       artwork => ({
         ...artwork,
         distance_km: 0,
-      })
+        distance_sq: 0,
+      }) as ArtworkWithDistance
     );
   }
 

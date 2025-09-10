@@ -239,6 +239,7 @@ export interface ArtworkDetails {
   title?: string | null; // Editable field
   description?: string | null; // Editable field
   created_by?: string | null; // Editable field
+  artist_name?: string | null; // Artist name extracted from tags
 }
 
 export interface LogbookEntryWithPhotos {
