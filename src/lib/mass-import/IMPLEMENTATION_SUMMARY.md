@@ -133,8 +133,8 @@ mass-import vancouver --input tasks/public-art.json --dry-run
 mass-import vancouver --input tasks/public-art.json --limit 10
 
 # 4. Bulk approve the imported submissions
-mass-import bulk-approve --source vancouver-opendata --dry-run
-mass-import bulk-approve --source vancouver-opendata
+mass-import bulk-approve --source vancouver-opendata --admin-token YOUR_ADMIN_TOKEN --dry-run
+mass-import bulk-approve --source vancouver-opendata --admin-token YOUR_ADMIN_TOKEN
 
 # 5. Full import
 mass-import vancouver --input tasks/public-art.json

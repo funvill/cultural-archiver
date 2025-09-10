@@ -1,0 +1,56 @@
+{
+  "metadata": {
+    "timestamp": "2025-09-10T06:42:30.671Z",
+    "mode": "vancouver-import",
+    "sessionId": "session_1757486550064_cd5ncljf4fb",
+    "startTime": "2025-09-10T06:42:30.064Z",
+    "endTime": "2025-09-10T06:42:30.669Z"
+  },
+  "summary": {
+    "totalRecords": 1,
+    "successfulImports": 1,
+    "failedImports": 0,
+    "skippedDuplicates": 0,
+    "totalPhotos": 1,
+    "successfulPhotos": 1,
+    "failedPhotos": 0,
+    "successRate": "100.0%",
+    "processingTime": "0.0 minutes"
+  },
+  "created_artworks": [
+    {
+      "id": "27",
+      "submissionId": "bc3c62f1-14f1-438f-a56f-99342bbc93cf",
+      "title": "Solo"
+    }
+  ],
+  "failed_records": [],
+  "duplicate_records": [],
+  "raw_batches": [
+    {
+      "batchId": "batch_1_1757486550066",
+      "results": [
+        {
+          "id": "27",
+          "title": "Solo",
+          "success": true,
+          "warnings": [],
+          "duplicateDetection": {
+            "isDuplicate": false,
+            "candidates": []
+          },
+          "photosProcessed": 1,
+          "photosFailed": 0,
+          "submissionId": "bc3c62f1-14f1-438f-a56f-99342bbc93cf"
+        }
+      ],
+      "summary": {
+        "total": 1,
+        "successful": 1,
+        "failed": 0,
+        "skipped": 0,
+        "duplicates": 0
+      }
+    }
+  ]
+}

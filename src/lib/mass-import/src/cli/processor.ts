@@ -165,8 +165,10 @@ export class MassImportProcessor {
         } catch (error) {
           // Handle individual record failures
           const recordId = this.extractRecordId(rawRecord);
+          const title = this.extractRecordTitle(rawRecord);
           results.push({
             id: recordId,
+            title: title,
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
             warnings: [],
@@ -222,8 +224,10 @@ export class MassImportProcessor {
 
       if (!parseResult.success) {
         const recordId = this.extractRecordId(rawRecord);
+        const title = this.extractRecordTitle(rawRecord);
         return {
           id: recordId,
+          title: title,
           success: false,
           error: `Invalid data format: ${parseResult.error.errors.map(e => e.message).join(', ')}`,
           warnings: [],
@@ -238,8 +242,10 @@ export class MassImportProcessor {
 
     if (!validationResult.isValid) {
       const recordId = this.extractRecordId(rawRecord);
+      const title = this.extractRecordTitle(rawRecord);
       return {
         id: recordId,
+        title: title,
         success: false,
         error: `Validation failed: ${validationResult.errors.map(e => e.message).join(', ')}`,
         warnings: validationResult.warnings.map(w => w.message),
@@ -264,6 +270,19 @@ export class MassImportProcessor {
       rawRecord.external_id ||
       rawRecord.uuid ||
       `record_${Date.now()}_${Math.random().toString(36).substring(2)}`
+    );
+  }
+
+  /**
+   * Extract record title from raw record for tracking
+   */
+  private extractRecordTitle(rawRecord: any): string {
+    // Try various common title fields
+    return (
+      rawRecord.title ||
+      rawRecord.title_of_work ||
+      rawRecord.name ||
+      'Unknown'
     );
   }
 

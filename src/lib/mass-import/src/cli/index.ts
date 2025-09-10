@@ -106,15 +106,14 @@ program
       // Display results
       displayResults(results);
 
+      // Always save a detailed report (auto-generate filename if not specified)
+      const reportFile = options.output || `import-report-${Date.now()}.json`;
+      await saveDetailedReport(results, reportFile, options.dryRun ? 'validation' : 'import');
+      console.log(chalk.green(`📄 Detailed report saved to ${reportFile}`));
+
       // Save newly created artwork URL list if requested
       if (!options.dryRun && mergedOptions.newArtworkReport) {
         await saveNewArtworkReport(results, mergedOptions, 'import');
-      }
-
-      // Save report if requested
-      if (options.output) {
-        await saveReport(results, options.output);
-        console.log(chalk.green(`📄 Report saved to ${options.output}`));
       }
 
     } catch (error) {
@@ -178,11 +177,10 @@ program
       // Display validation results
       displayValidationResults(results);
 
-      // Save report if requested
-      if (options.output) {
-        await saveReport(results, options.output);
-        console.log(chalk.green(`📄 Validation report saved to ${options.output}`));
-      }
+      // Always save a detailed validation report (auto-generate filename if not specified)
+      const reportFile = options.output || `validation-report-${Date.now()}.json`;
+      await saveDetailedReport(results, reportFile, 'validation');
+      console.log(chalk.green(`📄 Detailed validation report saved to ${reportFile}`));
 
     } catch (error) {
       console.error(chalk.red('❌ Validation failed:'), error instanceof Error ? error.message : error);
@@ -247,14 +245,13 @@ program
       // Display results
       displayResults(results);
 
+      // Always save a detailed report (auto-generate filename if not specified)
+      const reportFile = options.output || `vancouver-report-${Date.now()}.json`;
+      await saveDetailedReport(results, reportFile, options.dryRun ? 'vancouver-validation' : 'vancouver-import');
+      console.log(chalk.green(`📄 Detailed Vancouver report saved to ${reportFile}`));
+
       if (!options.dryRun && mergedOptions.newArtworkReport) {
         await saveNewArtworkReport(results, mergedOptions, 'vancouver');
-      }
-
-      // Save report if requested
-      if (options.output) {
-        await saveReport(results, options.output);
-        console.log(chalk.green(`📄 Report saved to ${options.output}`));
       }
 
     } catch (error) {
@@ -318,10 +315,15 @@ program
       const report = generateDryRunReport(results);
       displayDryRunReport(report);
 
-      // Save report if requested
-      if (options.output) {
+      // Always save both detailed report and dry-run specific report
+      const reportFile = options.output || `dry-run-report-${Date.now()}.json`;
+      await saveDetailedReport(results, reportFile, 'dry-run');
+      console.log(chalk.green(`📄 Detailed dry-run report saved to ${reportFile}`));
+      
+      // Also save the traditional dry-run format if different filename requested
+      if (options.output && options.output !== reportFile) {
         await saveDryRunReport(report, options.output);
-        console.log(chalk.green(`📄 Dry run report saved to ${options.output}`));
+        console.log(chalk.green(`📄 Traditional dry-run report saved to ${options.output}`));
       }
 
     } catch (error) {
@@ -343,15 +345,28 @@ program
   .option('--auto-confirm', 'Skip confirmation prompts (use with caution)', false)
   .option('--user-token <token>', 'Filter by user token (e.g., mass-import token)')
   .option('--max-submissions <number>', 'Maximum number of submissions to process')
+  .option('--admin-token <token>', 'Administrator token for approval operations (required)')
   .action(async (options) => {
     try {
       const globalOptions = program.opts();
       const mergedOptions = { ...globalOptions, ...options };
       const config = await loadConfig(mergedOptions);
 
+      // Validate admin token for approval operations
+      if (!options.dryRun && !options.adminToken) {
+        console.error(chalk.red('❌ Admin token is required for approval operations.'));
+        console.error(chalk.yellow('Use --admin-token <token> or --dry-run to preview.'));
+        console.error(chalk.gray('The mass import token cannot be used for approvals - admin/moderator permissions required.'));
+        process.exit(1);
+      }
+
+      // Use admin token for approval operations, mass import token for fetching
+      const approvalToken = options.adminToken || config.massImportUserToken;
+
       console.log(chalk.blue('🔍 Bulk Approval Process...'));
       console.log(chalk.gray(`API Endpoint: ${config.apiEndpoint}`));
       console.log(chalk.gray(`Mode: ${options.dryRun ? 'DRY RUN' : 'APPROVE'}`));
+      console.log(chalk.gray(`Token: ${options.dryRun ? 'Mass Import (fetch only)' : 'Admin (approval)'}`));
       
       if (options.source) {
         console.log(chalk.gray(`Source Filter: ${options.source}`));
@@ -360,7 +375,7 @@ program
         console.log(chalk.gray(`User Token Filter: ${options.userToken}`));
       }
 
-      // Get pending submissions
+      // Get pending submissions (use mass import token for read access)
       const spinner = ora('Fetching pending submissions...').start();
       const fetchOptions: {
         source?: string;
@@ -373,7 +388,7 @@ program
       if (options.maxSubmissions) {
         fetchOptions.maxSubmissions = parseInt(options.maxSubmissions, 10);
       }
-      const pendingSubmissions = await fetchPendingSubmissions(config, fetchOptions);
+      const pendingSubmissions = await fetchPendingSubmissions(config, fetchOptions, approvalToken);
       spinner.succeed(`Found ${pendingSubmissions.length} pending submissions`);
 
       if (pendingSubmissions.length === 0) {
@@ -441,7 +456,7 @@ program
         const batchSpinner = ora(`Processing batch ${i + 1}/${batches.length} (${batch.length} items)`).start();
         
         try {
-          const batchResult = await processBulkApproval(config, batch);
+          const batchResult = await processBulkApproval(config, batch, approvalToken);
           batchSpinner.succeed(`Batch ${i + 1}: ${batchResult.approved} approved, ${batchResult.errors.length} errors`);
           
           totalApproved += batchResult.approved;
@@ -608,7 +623,8 @@ async function fetchPendingSubmissions(
     source?: string;
     userToken?: string;
     maxSubmissions?: number;
-  }
+  },
+  adminToken: string
 ): Promise<any[]> {
   const url = new URL('/api/review/queue', config.apiEndpoint);
   url.searchParams.set('status', 'pending');
@@ -616,7 +632,7 @@ async function fetchPendingSubmissions(
 
   const response = await fetch(url.toString(), {
     headers: {
-      'Authorization': `Bearer ${config.massImportUserToken}`,
+      'Authorization': `Bearer ${adminToken}`,
       'Content-Type': 'application/json',
     },
   });
@@ -648,7 +664,8 @@ async function fetchPendingSubmissions(
  */
 async function processBulkApproval(
   config: MassImportConfig,
-  submissions: any[]
+  submissions: any[],
+  adminToken: string
 ): Promise<{
   approved: number;
   rejected: number;
@@ -664,18 +681,25 @@ async function processBulkApproval(
   const response = await fetch(`${config.apiEndpoint}/api/review/batch`, {
     method: 'PUT',
     headers: {
-      'Authorization': `Bearer ${config.massImportUserToken}`,
+      'Authorization': `Bearer ${adminToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(approvalData),
   });
 
   if (!response.ok) {
-    throw new Error(`Bulk approval request failed: ${response.statusText}`);
+    const errorText = await response.text();
+    throw new Error(`Bulk approval request failed: ${response.statusText} - ${errorText}`);
   }
 
   const result = await response.json();
-  return result;
+  
+  // Ensure the result has the expected structure
+  return {
+    approved: result.results?.approved || 0,
+    rejected: result.results?.rejected || 0,
+    errors: Array.isArray(result.results?.errors) ? result.results.errors : [],
+  };
 }
 
 /**
@@ -729,7 +753,7 @@ async function loadInputFile(filePath: string): Promise<any[]> {
 }
 
 /**
- * Display import results
+ * Display import results with detailed breakdown
  */
 function displayResults(results: any): void {
   console.log('\n' + chalk.blue('📊 Import Results:'));
@@ -737,6 +761,50 @@ function displayResults(results: any): void {
   console.log(chalk.red(`❌ Failed: ${results.summary.failedImports}`));
   console.log(chalk.yellow(`⚠️ Skipped (duplicates): ${results.summary.skippedDuplicates}`));
   console.log(chalk.blue(`📷 Photos processed: ${results.summary.successfulPhotos}/${results.summary.totalPhotos}`));
+  
+  // Show success rate
+  const successRate = ((results.summary.successfulImports / results.summary.totalRecords) * 100).toFixed(1);
+  console.log(chalk.blue(`📈 Success rate: ${successRate}%`));
+  
+  // Show first few created artworks
+  let createdCount = 0;
+  let failedCount = 0;
+  
+  for (const batch of results.batches || []) {
+    for (const result of batch.results || []) {
+      if (result.success && createdCount < 3) {
+        if (createdCount === 0) {
+          console.log(chalk.green('\n🎨 Sample Created Artworks:'));
+        }
+        createdCount++;
+        console.log(chalk.green(`  ✅ "${result.title || 'Unknown'}" (ID: ${result.submissionId || result.id})`));
+        if (result.externalId) {
+          console.log(chalk.gray(`     External ID: ${result.externalId}`));
+        }
+      } else if (!result.success && !result.duplicateDetection?.isDuplicate && failedCount < 3) {
+        if (failedCount === 0) {
+          console.log(chalk.red('\n❌ Sample Failed Records:'));
+        }
+        failedCount++;
+        console.log(chalk.red(`  ❌ "${result.title || 'Unknown'}": ${result.error || 'Unknown error'}`));
+        if (result.externalId) {
+          console.log(chalk.gray(`     External ID: ${result.externalId}`));
+        }
+      }
+    }
+  }
+  
+  if (results.summary.successfulImports > 3) {
+    console.log(chalk.green(`  ... and ${results.summary.successfulImports - 3} more successful imports`));
+  }
+  
+  if (results.summary.failedImports > 3) {
+    console.log(chalk.red(`  ... and ${results.summary.failedImports - 3} more failed imports`));
+  }
+  
+  if (results.summary.skippedDuplicates > 0) {
+    console.log(chalk.yellow(`\n⚠️ ${results.summary.skippedDuplicates} records skipped as potential duplicates`));
+  }
 }
 
 /**
@@ -795,16 +863,97 @@ function displayDryRunReport(report: DryRunReport): void {
 }
 
 /**
- * Save results report to file
+ * Save detailed results report to file
  */
-async function saveReport(results: any, filePath: string): Promise<void> {
-  const report = {
-    timestamp: new Date().toISOString(),
-    summary: results.summary,
-    batches: results.batches,
+async function saveDetailedReport(results: any, filePath: string, mode: string): Promise<void> {
+  const timestamp = new Date().toISOString();
+  
+  // Extract successful artworks with details
+  const createdArtworks: Array<{
+    id: string;
+    submissionId?: string;
+    title?: string;
+    location?: { lat: number; lon: number };
+    tags?: Record<string, any>;
+    externalId?: string;
+  }> = [];
+
+  // Extract failed records with detailed reasons
+  const failedRecords: Array<{
+    id: string;
+    title?: string;
+    error: string;
+    location?: { lat: number; lon: number };
+    externalId?: string;
+    duplicateCandidates?: any[];
+  }> = [];
+
+  // Extract duplicate records
+  const duplicateRecords: Array<{
+    id: string;
+    title?: string;
+    reason: string;
+    candidates: any[];
+    location?: { lat: number; lon: number };
+    externalId?: string;
+  }> = [];
+
+  // Process each batch to extract detailed information
+  for (const batch of results.batches || []) {
+    for (const result of batch.results || []) {
+      if (result.success) {
+        createdArtworks.push({
+          id: result.id,
+          submissionId: result.submissionId,
+          title: result.title || 'Unknown Title',
+          location: result.location,
+          tags: result.tags,
+          externalId: result.externalId,
+        });
+      } else if (result.duplicateDetection?.isDuplicate) {
+        duplicateRecords.push({
+          id: result.id,
+          title: result.title || 'Unknown Title',
+          reason: result.duplicateDetection.bestMatch?.reason || 'Duplicate detected',
+          candidates: result.duplicateDetection.candidates || [],
+          location: result.location,
+          externalId: result.externalId,
+        });
+      } else {
+        failedRecords.push({
+          id: result.id,
+          title: result.title || 'Unknown Title',
+          error: result.error || 'Unknown error',
+          location: result.location,
+          externalId: result.externalId,
+          duplicateCandidates: result.duplicateDetection?.candidates,
+        });
+      }
+    }
+  }
+
+  const detailedReport = {
+    metadata: {
+      timestamp,
+      mode,
+      sessionId: results.sessionId,
+      startTime: results.startTime,
+      endTime: results.endTime,
+    },
+    summary: {
+      ...results.summary,
+      successRate: ((results.summary.successfulImports / results.summary.totalRecords) * 100).toFixed(1) + '%',
+      processingTime: results.endTime && results.startTime 
+        ? `${((new Date(results.endTime).getTime() - new Date(results.startTime).getTime()) / 1000 / 60).toFixed(1)} minutes`
+        : 'Unknown',
+    },
+    created_artworks: createdArtworks,
+    failed_records: failedRecords,
+    duplicate_records: duplicateRecords,
+    raw_batches: results.batches, // Include raw batch data for debugging
   };
 
-  await fs.writeFile(filePath, JSON.stringify(report, null, 2));
+  await fs.writeFile(filePath, JSON.stringify(detailedReport, null, 2));
 }
 
 /**

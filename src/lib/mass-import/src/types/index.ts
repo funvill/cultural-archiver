@@ -108,6 +108,7 @@ export interface ProcessedImportData {
   // Core submission fields
   lat: number;
   lon: number;
+  title: string;
   note?: string;
   
   // Structured tags (mapped from raw data)
@@ -151,6 +152,7 @@ export interface DuplicateDetectionResult {
 
 export interface ImportResult {
   id: string;
+  title: string;
   success: boolean;
   error?: string;
   warnings: string[];

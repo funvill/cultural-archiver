@@ -19,7 +19,7 @@ import chalk from 'chalk';
 import * as ora from 'ora';
 import * as inquirer from 'inquirer';
 
-import { MassImportLibrary } from '../lib/mass-import';
+import { MassImportProcessor } from '../src/lib/mass-import/dist/index.js';
 import { 
   MassImportConfig, 
   ImportContext, 
@@ -28,7 +28,7 @@ import {
   MassImportResults,
   BulkApprovalConfig,
   MASS_IMPORT_CONSTANTS 
-} from '../../shared/mass-import';
+} from '../src/shared/mass-import';
 
 // CLI-specific interfaces
 interface ImportOptions {

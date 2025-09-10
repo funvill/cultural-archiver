@@ -79,6 +79,7 @@ export class MassImportAPIClient {
       if (duplicateDetection.isDuplicate && !this.config.dryRun) {
         return {
           id: recordId,
+          title: 'Unknown',
           success: false,
           error: `Duplicate detected: ${duplicateDetection.bestMatch?.reason}`,
           warnings: [],
@@ -112,6 +113,7 @@ export class MassImportAPIClient {
 
       const result: ImportResult = {
         id: recordId,
+        title: data.title || 'Untitled Artwork',
         success: true,
         warnings,
         duplicateDetection,
@@ -130,6 +132,7 @@ export class MassImportAPIClient {
       
       return {
         id: recordId,
+        title: data.title || 'Unknown',
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
         warnings: [],
@@ -178,7 +181,7 @@ export class MassImportAPIClient {
   }
 
   /**
-   * Submit data to the logbook API
+   * Submit data to the fast artwork submission API
    */
   private async submitToLogbook(
     data: ProcessedImportData,
@@ -187,13 +190,15 @@ export class MassImportAPIClient {
     const payload = {
       lat: data.lat,
       lon: data.lon,
+      title: data.title,
       note: data.note,
       user_token: this.config.massImportUserToken,
       photos: photoUrls,
-      tags: JSON.stringify(data.tags),
+      tags: data.tags,
+      consent_version: '2025-09-09.v2', // Required for fast workflow
     };
 
-    const response = await this.axios.post('/api/logbook', payload);
+    const response = await this.axios.post('/api/artworks/fast', payload);
     // Normalize response (wrapped ApiSuccess vs legacy direct object)
     const raw: unknown = response.data;
     type SubmissionShape = { id: string; warnings?: string[] };
@@ -373,6 +378,7 @@ export class DryRunAPIClient extends MassImportAPIClient {
 
       return {
         id: recordId,
+        title: data.title || 'Unknown',
         success: true,
         warnings: photoValidation.warnings,
         duplicateDetection,
@@ -383,6 +389,7 @@ export class DryRunAPIClient extends MassImportAPIClient {
     } catch (error) {
       return {
         id: recordId,
+        title: data.title || 'Unknown',
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
         warnings: [],

@@ -1,0 +1,75 @@
+{
+  "metadata": {
+    "timestamp": "2025-09-10T06:34:11.232Z",
+    "mode": "vancouver-import",
+    "sessionId": "session_1757486049435_mb1o3hgxo2h",
+    "startTime": "2025-09-10T06:34:09.435Z",
+    "endTime": "2025-09-10T06:34:11.230Z"
+  },
+  "summary": {
+    "totalRecords": 1,
+    "successfulImports": 1,
+    "failedImports": 0,
+    "skippedDuplicates": 0,
+    "totalPhotos": 1,
+    "successfulPhotos": 1,
+    "failedPhotos": 0,
+    "successRate": "100.0%",
+    "processingTime": "0.0 minutes"
+  },
+  "created_artworks": [
+    {
+      "id": "27",
+      "submissionId": "1a713ef8-1abd-4ac5-a31c-b92420589812",
+      "title": "Solo"
+    }
+  ],
+  "failed_records": [],
+  "duplicate_records": [],
+  "raw_batches": [
+    {
+      "batchId": "batch_1_1757486049437",
+      "results": [
+        {
+          "id": "27",
+          "title": "Solo",
+          "success": true,
+          "warnings": [],
+          "duplicateDetection": {
+            "isDuplicate": false,
+            "candidates": [
+              {
+                "id": "f43ec100-d776-4f43-82af-bd428a16d800",
+                "lat": 49.293313,
+                "lon": -123.133965,
+                "distance": 0,
+                "titleSimilarity": 0,
+                "confidence": 0.4,
+                "reason": "Very close proximity (0m)"
+              }
+            ],
+            "bestMatch": {
+              "id": "f43ec100-d776-4f43-82af-bd428a16d800",
+              "lat": 49.293313,
+              "lon": -123.133965,
+              "distance": 0,
+              "titleSimilarity": 0,
+              "confidence": 0.4,
+              "reason": "Very close proximity (0m)"
+            }
+          },
+          "photosProcessed": 1,
+          "photosFailed": 0,
+          "submissionId": "1a713ef8-1abd-4ac5-a31c-b92420589812"
+        }
+      ],
+      "summary": {
+        "total": 1,
+        "successful": 1,
+        "failed": 0,
+        "skipped": 0,
+        "duplicates": 0
+      }
+    }
+  ]
+}

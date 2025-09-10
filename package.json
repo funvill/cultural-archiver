@@ -53,7 +53,13 @@
     "database:create-migration": "echo 'Usage: cd src/workers && wrangler d1 migrations create cultural-archiver \"migration_message\" --env development'",
     "database:import": "powershell -Command \"$file=$env:IMPORT_FILE; if(-not $file){ Write-Host 'Set IMPORT_FILE env var to path of .sql file'; exit 1 }; Write-Host 'IMPORT WARNING: This will execute SQL against PRODUCTION database cultural-archiver.'; $c = Read-Host 'Type YES to continue'; if($c -ne 'YES'){ Write-Host 'Aborted.'; exit 1 }; wrangler d1 execute cultural-archiver --env production --config src/workers/wrangler.toml --file $file\"",
     "database:import:staging": "powershell -Command \"$file=$env:IMPORT_FILE; if(-not $file){ Write-Host 'Set IMPORT_FILE env var to path of .sql file'; exit 1 }; Write-Host 'IMPORT (staging) WARNING: This will execute SQL against STAGING database cultural-archiver.'; $c = Read-Host 'Type YES to continue'; if($c -ne 'YES'){ Write-Host 'Aborted.'; exit 1 }; wrangler d1 execute cultural-archiver --env staging --config src/workers/wrangler.toml --file $file\"",
-    "database:import:dev": "powershell -Command \"wrangler d1 execute cultural-archiver --env development --local --config src/workers/wrangler.toml --command 'SELECT name FROM sqlite_master WHERE type=\\\"table\\\" AND name NOT LIKE \\\"sqlite_%\\\";' --json | ConvertFrom-Json | ForEach-Object { $_.results | ForEach-Object { \\\"DROP TABLE IF EXISTS [\\\" + $_.name + \\\"];\\\"; } } | Out-File -FilePath _backup_database/drop_tables.sql -Encoding UTF8\" && wrangler d1 execute cultural-archiver --env development --local --config src/workers/wrangler.toml --file _backup_database/drop_tables.sql && wrangler d1 execute cultural-archiver --env development --local --config src/workers/wrangler.toml"
+    "database:import:dev": "powershell -Command \"wrangler d1 execute cultural-archiver --env development --local --config src/workers/wrangler.toml --command 'SELECT name FROM sqlite_master WHERE type=\\\"table\\\" AND name NOT LIKE \\\"sqlite_%\\\";' --json | ConvertFrom-Json | ForEach-Object { $_.results | ForEach-Object { \\\"DROP TABLE IF EXISTS [\\\" + $_.name + \\\"];\\\"; } } | Out-File -FilePath _backup_database/drop_tables.sql -Encoding UTF8\" && wrangler d1 execute cultural-archiver --env development --local --config src/workers/wrangler.toml --file _backup_database/drop_tables.sql && wrangler d1 execute cultural-archiver --env development --local --config src/workers/wrangler.toml",
+    "database:reset:dev": "tsx scripts/reset-database.ts --env dev",
+    "database:reset:staging": "tsx scripts/reset-database.ts --env staging",
+    "database:reset:prod": "tsx scripts/reset-database.ts --env prod",
+    "database:reset:dev:dry-run": "tsx scripts/reset-database.ts --env dev --dry-run",
+    "database:reset:staging:dry-run": "tsx scripts/reset-database.ts --env staging --dry-run",
+    "database:reset:prod:dry-run": "tsx scripts/reset-database.ts --env prod --dry-run"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.3",
@@ -91,7 +97,10 @@
   },
   "homepage": "https://github.com/funvill/cultural-archiver#readme",
   "dependencies": {
+    "chalk": "^5.6.2",
     "dotenv": "^17.2.2",
+    "inquirer": "^12.9.4",
+    "ora": "^8.2.0",
     "sqlite3": "^5.1.7"
   }
 }

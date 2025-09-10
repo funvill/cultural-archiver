@@ -391,12 +391,8 @@ function transformToProcessedData(
   rawData: RawImportData,
   tags: Record<string, string | number | boolean>
 ): ProcessedImportData {
-  // Build note field from title and description
+  // Build note field from description and address (not title - title goes in separate field)
   const noteParts: string[] = [];
-  
-  if (rawData.title) {
-    noteParts.push(`Title: ${rawData.title}`);
-  }
   
   if (rawData.description) {
     noteParts.push(`Description: ${rawData.description}`);
@@ -408,11 +404,24 @@ function transformToProcessedData(
 
   const note = noteParts.join('\n\n');
 
+  // Include title and description in tags for approval process
+  const enhancedTags = { ...tags };
+  if (rawData.title) {
+    enhancedTags.title = rawData.title;
+  }
+  if (rawData.description) {
+    enhancedTags.description = rawData.description;
+  }
+  if (rawData.artist || rawData.created_by) {
+    enhancedTags.artist = rawData.artist || rawData.created_by || '';
+  }
+
   const result: ProcessedImportData = {
     lat: rawData.lat,
     lon: rawData.lon,
+    title: rawData.title || 'Untitled Artwork',
     note: note.length > 500 ? note.substring(0, 497) + '...' : note,
-    tags,
+    tags: enhancedTags,
     photos: rawData.photos || [],
     source: rawData.source,
     importBatchId: generateBatchId(),

@@ -99,14 +99,54 @@ function mapVancouverToRawData(data: VancouverArtworkData): RawImportData {
   const descriptionParts: string[] = [];
   
   if (data.descriptionofwork) {
-    descriptionParts.push(data.descriptionofwork);
+    descriptionParts.push(`**Description Of Work**\n${data.descriptionofwork}`);
   }
   
   if (data.artistprojectstatement) {
-    descriptionParts.push(`Artist Statement: ${data.artistprojectstatement}`);
+    descriptionParts.push(`**Artist statement**\n${data.artistprojectstatement}`);
   }
 
-  const description = descriptionParts.join('\n\n');
+  // Add additional metadata fields
+  const metadataParts: string[] = [];
+  
+  if (data.registryid) {
+    metadataParts.push(`**Registry ID:** ${data.registryid}`);
+  }
+  
+  if (data.status) {
+    metadataParts.push(`**Status:** ${data.status}`);
+  }
+  
+  if (data.sitename) {
+    metadataParts.push(`**Site Name:** ${data.sitename}`);
+  }
+  
+  if (data.siteaddress) {
+    metadataParts.push(`**Site Address:** ${data.siteaddress}`);
+  }
+  
+  if (data.primarymaterial) {
+    metadataParts.push(`**Primary Material:** ${data.primarymaterial}`);
+  }
+  
+  if (data.locationonsite) {
+    metadataParts.push(`**Location on Site:** ${data.locationonsite}`);
+  }
+  
+  if (data.artists && data.artists.length > 0) {
+    metadataParts.push(`**Artists:** ${data.artists.join(', ')}`);
+  }
+  
+  if (data.yearofinstallation) {
+    metadataParts.push(`**Year of Installation:** ${data.yearofinstallation}`);
+  }
+
+  // Combine all parts
+  const allParts = [...descriptionParts];
+  if (metadataParts.length > 0) {
+    allParts.push(`## Additional Information\n${metadataParts.join('\n\n')}`);
+  }
+  const description = allParts.join('\n\n');
 
   // Extract artist information
   const artist = extractArtistName(data);
@@ -124,7 +164,7 @@ function mapVancouverToRawData(data: VancouverArtworkData): RawImportData {
     lat,
     lon,
     title,
-    description: description.length > 1000 ? description.substring(0, 997) + '...' : description,
+    description,
     artist,
     yearOfInstallation: data.yearofinstallation,
     material: data.primarymaterial,
@@ -240,6 +280,9 @@ function buildStructuredTags(data: VancouverArtworkData): Record<string, string 
     tags.neighbourhood = neighbourhood;
   }
   tags.registry_id = data.registryid.toString();
+  
+  // Add source tag for bulk approval filtering
+  tags.source = 'vancouver-opendata';
 
   // Status mapping
   if (data.status) {
