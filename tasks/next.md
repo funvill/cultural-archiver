@@ -17,6 +17,8 @@
 
 - Use small fixed size icons for the markers for the map. But have some ability to click though overlapping markers.
 
+- This artwork https://covapp.vancouver.ca/PublicArtRegistry/ArtworkDetail.aspx?FromArtworkSearch=False&ArtworkId=358 from this list https://covapp.vancouver.ca/PublicArtRegistry/ is not in the Vancouver open data public artwork list. Its in the data set but not on the map. something has gone wrong.
+
 ## Sign in
 
 - The system is not sending out magic links any more. I checked Resend and its not reciving any requests to send out emails.

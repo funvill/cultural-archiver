@@ -391,6 +391,7 @@ function buildStructuredTags(data: VancouverArtworkData): Record<string, string 
 
   // Core identification
   tags.registry_id = data.registryid.toString();
+  tags.external_id = data.registryid.toString(); // For duplicate detection
   
   // Add source tag for bulk approval filtering
   tags.source = 'vancouver-opendata';

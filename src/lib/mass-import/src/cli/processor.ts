@@ -18,6 +18,16 @@ import { MassImportAPIClient, DryRunAPIClient } from '../lib/api-client.js';
 import { validateImportData } from '../lib/validation.js';
 import { RawImportDataSchema } from '../types/index.js';
 
+// Import cancellation state from CLI
+let isCancelled = false;
+export const setCancellationState = (cancelled: boolean): void => {
+  isCancelled = cancelled;
+};
+
+export const checkCancellation = (): boolean => {
+  return isCancelled;
+};
+
 // ================================
 // Main Processor Class
 // ================================
@@ -84,6 +94,12 @@ export class MassImportProcessor {
       // Process each batch
       let batchIndex = 0;
       for (const batch of batches) {
+        // Check for cancellation before each batch
+        if (checkCancellation()) {
+          console.log(chalk.yellow('\n⚠️ Operation cancelled - returning partial results'));
+          break;
+        }
+        
         batchIndex++;
         
         console.log(chalk.blue(`\n🔄 Processing batch ${batchIndex}/${batches.length}`));
@@ -147,6 +163,12 @@ export class MassImportProcessor {
 
     try {
       for (let i = 0; i < batch.length; i++) {
+        // Check for cancellation before each record
+        if (checkCancellation()) {
+          console.log(chalk.yellow(`⚠️ Batch ${batchIndex} cancelled - returning partial results`));
+          break;
+        }
+        
         const rawRecord = batch[i];
         
         try {

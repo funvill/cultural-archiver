@@ -11,11 +11,56 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import fs from 'fs/promises';
-import { MassImportProcessor } from './processor.js';
+import { MassImportProcessor, setCancellationState } from './processor.js';
 import { VancouverMapper } from '../importers/vancouver.js';
 import type { MassImportConfig, DryRunReport } from '../types/index.js';
 
 const program = new Command();
+
+// ================================
+// Global Cancellation Handling
+// ================================
+
+let isCancelled = false;
+let currentSpinner: ReturnType<typeof ora> | null = null;
+
+const handleCancellation = (signal: string): void => {
+  if (isCancelled) {
+    // Force exit if already cancelled once
+    console.log(chalk.red('\n🛑 Force termination'));
+    process.exit(1);
+  }
+  
+  isCancelled = true;
+  setCancellationState(true);
+  
+  if (currentSpinner) {
+    currentSpinner.fail(chalk.yellow('Operation cancelled'));
+    currentSpinner = null;
+  }
+  
+  console.log(chalk.yellow(`\n⚠️ Received ${signal} signal. Cancelling operation...`));
+  console.log(chalk.gray('Press Ctrl+C again to force exit'));
+  
+  // Give a brief moment for cleanup then exit
+  setTimeout(() => {
+    console.log(chalk.blue('👋 Graceful shutdown complete'));
+    process.exit(0);
+  }, 1000);
+};
+
+// Register signal handlers
+process.on('SIGINT', () => handleCancellation('SIGINT'));
+process.on('SIGTERM', () => handleCancellation('SIGTERM'));
+
+// Export cancellation state for use in processor
+export { isCancelled };
+
+// Helper to track spinners for cancellation
+const trackSpinner = (spinner: ReturnType<typeof ora>): ReturnType<typeof ora> => {
+  currentSpinner = spinner;
+  return spinner;
+};
 
 // ================================
 // CLI Configuration
@@ -210,7 +255,7 @@ program
       console.log(chalk.gray(`Mode: ${options.dryRun ? 'DRY RUN' : 'IMPORT'}`));
 
       // Load Vancouver data
-      const spinner = ora('Loading Vancouver data...').start();
+      const spinner = trackSpinner(ora('Loading Vancouver data...').start());
       const data = await loadInputFile(options.input);
       let limitedData = data;
       const offset = mergedOptions.offset ? parseInt(mergedOptions.offset, 10) : 0;
@@ -255,6 +300,11 @@ program
       }
 
     } catch (error) {
+      // Don't treat cancellation as an error - the processor will handle partial results
+      if (isCancelled) {
+        console.log(chalk.yellow('\n⚠️ Vancouver operation completed with partial results'));
+        process.exit(0);
+      }
       console.error(chalk.red('❌ Vancouver import failed:'), error instanceof Error ? error.message : error);
       process.exit(1);
     }

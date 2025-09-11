@@ -455,10 +455,24 @@ export function checkExternalIdDuplicate(
   const duplicate = existingArtworks.find(artwork => {
     // Check if artwork has matching external ID and source in tags
     const tags = artwork.tags_parsed || {};
-    return tags.external_id === externalId && tags.source === source;
+    
+    // Primary check: external_id + source (new format)
+    if (tags.external_id === externalId && tags.source === source) {
+      return true;
+    }
+    
+    // Fallback check: registry_id + source (backward compatibility for Vancouver imports)
+    if (source === 'vancouver-opendata' && tags.registry_id === externalId && tags.source === source) {
+      return true;
+    }
+    
+    return false;
   });
 
   if (duplicate) {
+    const tags = duplicate.tags_parsed || {};
+    const matchType = tags.external_id === externalId ? 'external_id' : 'registry_id';
+    
     const candidate: DuplicateCandidate = {
       id: duplicate.id,
       lat: duplicate.lat,
@@ -466,7 +480,7 @@ export function checkExternalIdDuplicate(
       distance: 0,
       titleSimilarity: 1,
       confidence: 1,
-      reason: `Exact match by external ID: ${externalId}`,
+      reason: `Exact match by ${matchType}: ${externalId}`,
     };
 
     if (duplicate.title) {

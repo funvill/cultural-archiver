@@ -98,4 +98,6 @@ pnpm-lock.yaml
 .playwright-mcp/
 env_*.zip
 src/lib/mass-import/new-artworks.txt
-src/lib/mass-import/vancouver-report-*.json
+vancouver-report-*.json
+*.geojson
+
