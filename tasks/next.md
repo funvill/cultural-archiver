@@ -2,11 +2,14 @@
 
 ## MVP
 
+
 - [x] Variable fields for artwork
 - [x] Optimized submit new artwork
 - Mass import
 
 ## General
+
+- ????? - Remove the creators system and replace it with a comma seperated list of keywords to search for. This means that there won't be a artist details page.
 
 - Move all the test files out of the base source folders into test folders
 - The github copilot issue started PR. There is an error that `vitest` is not installed. `I see there's an issue with vitest not being found. Let me check if dependencies are installed and try to fix this:`
@@ -41,6 +44,10 @@
 - Look into how I naturalist sends emails out to new members. Follow that list. How are they doing? Engagement with people. Copy their list. Marketing emails
 
 - Look into the calls to actions that google maps does for "good" reviews and populare reviews. Follow their lead
+
+- Use small fixed size icons for the markers for the map. But have some ability to click though overlapping markers.
+
+- This artwork https://covapp.vancouver.ca/PublicArtRegistry/ArtworkDetail.aspx?FromArtworkSearch=False&ArtworkId=358 from this list https://covapp.vancouver.ca/PublicArtRegistry/ is not in the Vancouver open data public artwork list. Its in the data set but not on the map. something has gone wrong.
 
 ## Sign in
 
@@ -146,5 +153,77 @@ Find people that would be willing to partner with me on this project. Be specifi
 
 - [X] Reorder the artwork submission page . All the information and then gets consent for submitting it. If they don't give consent then don't actually submit the documents to the website. The consent variable needs to be added to the logbook so we know what version of each consent checkbox they accept agreed to.
 
+
+----
+
+## Artist page
+
+  Executive Summary
+
+  Create dedicated artist profile pages that showcase artist information and their
+  artworks, enhancing discoverability and providing comprehensive artist
+  documentation within the Cultural Archiver platform.
+
+Create a artist page type
+The goal of this page is to tell people about the artist and list their artworks. A prime goal is to show other works by this artist.
+
+An artist can have many artworks, An artwork can have many artists, An artist can have many tags.
+
+Compoents on the artist page
+
+- Artist name - Text field
+- Description - A block of text formated as Markdown (biography, Artist statment, CV)
+- Artist tags - Artist website, Birth year, etc... Same as the artwork tags
+- List of artworks - A search results cards of all the artworks that this author is in the artwork's artist field.
+
+Notes:
+
+- The artist page should be editable by logged in users.
+- Any changes to the artist page need a moderator approval.
+- Don't use the existing creators tables or systems.
+- The URL for the artist page is /artist/{UUID}
+
+
+----
+
+npx tsx src/cli/index.ts vancouver --limit 1
+
+----
+
+Analysis: Tags Field vs Tags Table
+Current Usage
+Artwork.tags field: Contains rich JSON data with structured metadata from the mass import system and user submissions. In production, all 154 artwork records have structured tag data stored in this field.
+
+Tags table: Currently empty in production (0 records). The functions to query this table exist but are never called in the actual application code.
+
+The Purpose of Each
+Artwork.tags field (JSON):
+
+Primary storage for artwork metadata using the structured tag schema
+Contains rich data from mass imports (Vancouver Open Data) with extensive metadata like registry IDs, materials, descriptions, etc.
+Used for JSON queries with indexes like json_extract(tags, '$.tags.tourism')
+Supports the structured tag schema with versioning and timestamps
+This is the active, production system
+Tags table (relational):
+
+Legacy/unused key-value pair storage system
+Was designed for storing individual tag entries as separate database rows
+Has functions like getTagsForArtwork() and insertTags() but they're never called
+This is dead code that can be safely removed
+Recommendation: Remove the Tags Table
+Yes, we can and should remove the tags table for these reasons:
+
+Not used in production - 0 records, no active code paths
+Redundant - The artwork.tags JSON field serves all current needs
+Better performance - JSON queries with indexes are more efficient than joins
+Simpler architecture - One source of truth for tag data
+Test coverage confirms - All 556 tests pass without using the tags table
+Migration Plan
+I'll create a migration to:
+
+Remove the tags table
+Remove unused functions from database service
+Remove unused TypeScript types
+Clean up any references in documentation
 
 ----

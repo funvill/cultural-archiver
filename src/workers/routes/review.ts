@@ -76,6 +76,8 @@ export async function getReviewQueue(
     const limitNum = Math.min(parseInt(limit) || 20, MAX_REVIEW_BATCH_SIZE);
     const offsetNum = parseInt(offset) || 0;
 
+    console.log(`[DEBUG] Review queue params:`, { status, limit, offset, limitNum, offsetNum });
+
     // Query pending submissions
     const stmt = c.env.DB.prepare(`
       SELECT 
@@ -88,6 +90,12 @@ export async function getReviewQueue(
     `);
 
     const results = await stmt.bind(status, limitNum, offsetNum).all();
+    
+    console.log(`[DEBUG] Database query result:`, { 
+      success: results.success, 
+      count: results.results?.length,
+      meta: results.meta 
+    });
 
     if (!results.success) {
       throw new ApiError('Failed to fetch review queue', 'DATABASE_ERROR', 500);
@@ -98,36 +106,28 @@ export async function getReviewQueue(
 
     // Format submissions for review
     const submissions = results.results.map((row: unknown) => {
-      const submissionRow = row as SubmissionRow;
-      // Convert SubmissionRow to LogbookRecord for parsing
-      const logbookRecord: LogbookRecord = {
-        id: submissionRow.id,
-        artwork_id: submissionRow.artwork_id,
-        user_token: submissionRow.user_token,
-        lat: submissionRow.lat,
-        lon: submissionRow.lon,
-        note: submissionRow.note,
-        photos: submissionRow.photos,
-        status: submissionRow.status as 'pending' | 'approved' | 'rejected',
-        created_at: submissionRow.created_at,
-      };
-      const parsedData = parseSubmissionData(logbookRecord);
-
-      const submission = {
-        id: parsedData.id,
-        type: parsedData.artwork_type_name || 'Unknown',
-        lat: parsedData.lat,
-        lon: parsedData.lon,
-        note: parsedData.note || '',
-        photos: parsedData.photos ? JSON.parse(parsedData.photos) : [],
-        tags: parsedData.tags ? JSON.parse(parsedData.tags) : {},
-        status: parsedData.status,
-        created_at: parsedData.created_at,
-        artwork_id: parsedData.artwork_id,
-      };
-
-      return submission;
-    });
+      try {
+        const submissionRow = row as SubmissionRow;
+        
+        return {
+          id: submissionRow.id,
+          type: 'Other',
+          lat: submissionRow.lat || 49.2827,
+          lon: submissionRow.lon || -123.1207,
+          note: submissionRow.note || 'No note provided',
+          photos: submissionRow.photos ? JSON.parse(submissionRow.photos) : [],
+          tags: {},
+          status: submissionRow.status,
+          created_at: submissionRow.created_at,
+          artwork_id: submissionRow.artwork_id,
+        };
+      } catch (error) {
+        console.error(`Failed to process submission ${(row as { id?: string })?.id}:`, error);
+        return null;
+      }
+    }).filter(submission => submission !== null); // Remove failed submissions
+    
+    console.log(`[DEBUG] Review queue returning ${submissions.length} submissions`);
 
     return c.json({
       submissions,
@@ -156,6 +156,7 @@ export async function getReviewQueue(
 function parseSubmissionData(logbookEntry: LogbookRecord): ParsedSubmissionData {
   try {
     if (logbookEntry.note) {
+      // Try to parse as new format with _submission field
       const noteData = JSON.parse(logbookEntry.note);
       if (noteData._submission) {
         return {
@@ -169,9 +170,29 @@ function parseSubmissionData(logbookEntry: LogbookRecord): ParsedSubmissionData 
           artwork_type_name: noteData._submission.type_name || 'Unknown',
         };
       }
+      
+      // Handle old format: "Tags: {...}"
+      if (typeof logbookEntry.note === 'string' && logbookEntry.note.startsWith('Tags: ')) {
+        const tagsString = logbookEntry.note.substring(6); // Remove "Tags: " prefix
+        try {
+          const tags = JSON.parse(tagsString);
+          return {
+            ...logbookEntry,
+            total_count: 0,
+            lat: logbookEntry.lat || 49.2827,
+            lon: logbookEntry.lon || -123.1207,
+            type_id: 'other',
+            tags: JSON.stringify(tags),
+            note: null,
+            artwork_type_name: 'Other',
+          };
+        } catch (tagParseError) {
+          console.warn('Failed to parse tags from old format note:', tagParseError);
+        }
+      }
     }
   } catch (error) {
-    // If parsing fails, return as-is with default values
+    console.warn('Failed to parse submission note:', error);
   }
 
   return {

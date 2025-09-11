@@ -108,6 +108,7 @@ export interface ProcessedImportData {
   // Core submission fields
   lat: number;
   lon: number;
+  title: string;
   note?: string;
   
   // Structured tags (mapped from raw data)
@@ -151,6 +152,7 @@ export interface DuplicateDetectionResult {
 
 export interface ImportResult {
   id: string;
+  title: string;
   success: boolean;
   error?: string;
   warnings: string[];
@@ -255,7 +257,14 @@ export interface VancouverArtworkData {
   geo_point_2d: {
     lat: number;
     lon: number;
-  };
+  } | null;
+  geom?: {
+    type: string;
+    geometry?: {
+      coordinates: [number, number];
+      type: string;
+    };
+  } | null;
   geo_local_area?: string;
   descriptionofwork?: string;
   artists?: string[];

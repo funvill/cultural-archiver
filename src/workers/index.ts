@@ -44,6 +44,8 @@ import { submitArtworkEdit, getUserPendingEdits, validateArtworkEdit, exportArtw
 import { bulkExportToOSM, getExportStats } from './routes/export';
 import { getUserSubmissions, getUserProfile, sendTestEmail } from './routes/user';
 import { handleSearchRequest, handleSearchSuggestions } from './routes/search';
+import { processMassImportPhotos } from './routes/mass-import-photos';
+import { processMassImport } from './routes/mass-import';
 import {
   requestMagicLink,
   verifyMagicLink,
@@ -785,6 +787,12 @@ app.get(
 
 // Development/testing endpoint for email configuration
 app.post('/api/test-email', withErrorHandling(sendTestEmail));
+
+// Mass import photo processing endpoint
+// Mass import endpoints
+app.post('/api/mass-import', withErrorHandling(processMassImport)); // Primary mass import endpoint
+app.post('/api/mass-import/submit', withErrorHandling(processMassImportPhotos)); // JSON endpoint for photo URLs
+app.post('/api/mass-import/photos', validateFileUploads, withErrorHandling(processMassImportPhotos)); // Keep for backward compatibility
 
 // ================================
 // Consent Management Endpoints

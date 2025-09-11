@@ -18,6 +18,16 @@ import { MassImportAPIClient, DryRunAPIClient } from '../lib/api-client.js';
 import { validateImportData } from '../lib/validation.js';
 import { RawImportDataSchema } from '../types/index.js';
 
+// Import cancellation state from CLI
+let isCancelled = false;
+export const setCancellationState = (cancelled: boolean): void => {
+  isCancelled = cancelled;
+};
+
+export const checkCancellation = (): boolean => {
+  return isCancelled;
+};
+
 // ================================
 // Main Processor Class
 // ================================
@@ -84,6 +94,12 @@ export class MassImportProcessor {
       // Process each batch
       let batchIndex = 0;
       for (const batch of batches) {
+        // Check for cancellation before each batch
+        if (checkCancellation()) {
+          console.log(chalk.yellow('\n⚠️ Operation cancelled - returning partial results'));
+          break;
+        }
+        
         batchIndex++;
         
         console.log(chalk.blue(`\n🔄 Processing batch ${batchIndex}/${batches.length}`));
@@ -147,6 +163,12 @@ export class MassImportProcessor {
 
     try {
       for (let i = 0; i < batch.length; i++) {
+        // Check for cancellation before each record
+        if (checkCancellation()) {
+          console.log(chalk.yellow(`⚠️ Batch ${batchIndex} cancelled - returning partial results`));
+          break;
+        }
+        
         const rawRecord = batch[i];
         
         try {
@@ -165,8 +187,10 @@ export class MassImportProcessor {
         } catch (error) {
           // Handle individual record failures
           const recordId = this.extractRecordId(rawRecord);
+          const title = this.extractRecordTitle(rawRecord);
           results.push({
             id: recordId,
+            title: title,
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
             warnings: [],
@@ -222,8 +246,10 @@ export class MassImportProcessor {
 
       if (!parseResult.success) {
         const recordId = this.extractRecordId(rawRecord);
+        const title = this.extractRecordTitle(rawRecord);
         return {
           id: recordId,
+          title: title,
           success: false,
           error: `Invalid data format: ${parseResult.error.errors.map(e => e.message).join(', ')}`,
           warnings: [],
@@ -238,8 +264,10 @@ export class MassImportProcessor {
 
     if (!validationResult.isValid) {
       const recordId = this.extractRecordId(rawRecord);
+      const title = this.extractRecordTitle(rawRecord);
       return {
         id: recordId,
+        title: title,
         success: false,
         error: `Validation failed: ${validationResult.errors.map(e => e.message).join(', ')}`,
         warnings: validationResult.warnings.map(w => w.message),
@@ -264,6 +292,19 @@ export class MassImportProcessor {
       rawRecord.external_id ||
       rawRecord.uuid ||
       `record_${Date.now()}_${Math.random().toString(36).substring(2)}`
+    );
+  }
+
+  /**
+   * Extract record title from raw record for tracking
+   */
+  private extractRecordTitle(rawRecord: any): string {
+    // Try various common title fields
+    return (
+      rawRecord.title ||
+      rawRecord.title_of_work ||
+      rawRecord.name ||
+      'Unknown'
     );
   }
 

@@ -20,6 +20,7 @@ export interface ArtworkRecord {
   title?: string | null; // Artwork title (editable field)
   description?: string | null; // Artwork description (editable field)
   created_by?: string | null; // Creator/artist name(s) (editable field)
+  artist_name?: string | null; // Artist name extracted from tags (read-only)
 }
 
 export interface ArtworkApiResponse {

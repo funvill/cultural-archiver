@@ -10,7 +10,6 @@ const LATITUDE_RANGE = { min: -90, max: 90 };
 const LONGITUDE_RANGE = { min: -180, max: 180 };
 
 // Text length limits
-const NOTE_MAX_LENGTH = 500;
 const TITLE_MAX_LENGTH = 100;
 const ARTIST_MAX_LENGTH = 100;
 
@@ -101,16 +100,9 @@ export function validateCoordinates(lat: number | string, lon: number | string):
 }
 
 /**
- * Validate note text length
+ * Validate note text - always valid now (no length limit)
  */
-export function validateNote(note: string): FieldValidationResult {
-  if (note.length > NOTE_MAX_LENGTH) {
-    return {
-      isValid: false,
-      error: `Note must be ${NOTE_MAX_LENGTH} characters or less (current: ${note.length})`,
-    };
-  }
-
+export function validateNote(_note: string): FieldValidationResult {
   return { isValid: true, error: null };
 }
 

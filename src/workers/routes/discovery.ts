@@ -120,13 +120,24 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
           });
         }
 
+        // Parse tags for duplicate detection compatibility
+        let tags_parsed: Record<string, unknown> = {};
+        try {
+          if (artwork.tags) {
+            tags_parsed = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
+          }
+        } catch (e) {
+          console.warn('Failed to parse artwork tags for nearby API', { artwork_id: artwork.id, error: e });
+        }
+
         return {
           ...artwork,
-            type_name: artwork.type_name,
-            recent_photo: combinedPhotos.length > 0 ? combinedPhotos[0] : undefined,
-            photo_count: combinedPhotos.length,
-            distance_km: artwork.distance_km, // Keep the distance for sorting/filtering
-        } as ArtworkWithPhotos;
+          type_name: artwork.type_name,
+          recent_photo: combinedPhotos.length > 0 ? combinedPhotos[0] : undefined,
+          photo_count: combinedPhotos.length,
+          distance_km: artwork.distance_km, // Keep the distance for sorting/filtering
+          tags_parsed, // Add parsed tags for mass import duplicate detection
+        } as ArtworkWithPhotos & { tags_parsed: Record<string, unknown> };
       })
     );
 

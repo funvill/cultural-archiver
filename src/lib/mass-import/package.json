@@ -21,7 +21,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "vitest",
+    "test": "vitest run",
     "test:basic": "tsx test/test-basic.ts",
     "test:integration": "npm run build && tsx test/test-integration.ts",
     "lint": "eslint src/",

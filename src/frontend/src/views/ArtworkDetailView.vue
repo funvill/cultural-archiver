@@ -94,14 +94,33 @@ const artworkDescription = computed(() => {
 const artworkCreators = computed(() => {
   if (!artwork.value) return 'Unknown';
 
-  // First try the new editable created_by field from the database
-  if (artwork.value.created_by && artwork.value.created_by.trim()) {
-    return artwork.value.created_by.trim();
+  // First try the new artist_name field extracted from tags
+  if (artwork.value.artist_name && artwork.value.artist_name.trim()) {
+    return artwork.value.artist_name.trim();
   }
 
-  // Fallback to tags_parsed for backward compatibility
+  // Second try tags_parsed for artist information (Vancouver mass import data)
+  if (artwork.value?.tags_parsed?.artist) {
+    return artwork.value.tags_parsed.artist as string;
+  }
+
+  // Third try tags_parsed for backward compatibility with other artist fields
   if (artwork.value?.tags_parsed?.creator) {
     return artwork.value.tags_parsed.creator as string;
+  }
+
+  // Fourth try tags_parsed for artist_ids (Vancouver import has numeric artist IDs)
+  if (artwork.value?.tags_parsed?.artist_ids) {
+    return `Artist ID: ${artwork.value.tags_parsed.artist_ids}`;
+  }
+
+  // Last fallback - only use created_by if it doesn't look like a UUID
+  if (artwork.value.created_by && artwork.value.created_by.trim()) {
+    const createdBy = artwork.value.created_by.trim();
+    // Don't show UUIDs as artist names (mass import user tokens)
+    if (!createdBy.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      return createdBy;
+    }
   }
 
   return 'Unknown';

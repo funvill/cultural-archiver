@@ -34,15 +34,6 @@ export class MassImportAPIClient {
       },
     });
 
-    // Add request interceptor for authentication
-    this.axios.interceptors.request.use(request => {
-      // Add mass import user token to requests
-      if (request.data) {
-        request.data.user_token = config.massImportUserToken;
-      }
-      return request;
-    });
-
     // Add retry logic for failed requests
     this.setupRetryLogic();
   }
@@ -57,6 +48,9 @@ export class MassImportAPIClient {
       // Step 1: Check for duplicates
       const existingArtworks = await this.fetchNearbyArtworks(data.lat, data.lon);
       
+      // Debug logging for the specific records we're importing
+      console.log(`[DUPLICATE_DEBUG] Processing import record: external_id="${data.externalId}", source="${data.source}"`);
+      
       // Check external ID first (exact match)
       let duplicateDetection = null;
       if (data.externalId && data.source) {
@@ -68,6 +62,8 @@ export class MassImportAPIClient {
             bestMatch: exactDuplicate,
           };
         }
+      } else {
+        console.log(`[DUPLICATE_DEBUG] Missing external_id or source for exact duplicate check`);
       }
 
       // If no exact match, do fuzzy duplicate detection
@@ -79,6 +75,7 @@ export class MassImportAPIClient {
       if (duplicateDetection.isDuplicate && !this.config.dryRun) {
         return {
           id: recordId,
+          title: 'Unknown',
           success: false,
           error: `Duplicate detected: ${duplicateDetection.bestMatch?.reason}`,
           warnings: [],
@@ -88,30 +85,30 @@ export class MassImportAPIClient {
         };
       }
 
-      // Step 2: Process photos if not in dry-run mode
+      // Step 2: Extract photo URLs for mass import endpoint
       let photosProcessed = 0;
       let photosFailed = 0;
-      let processedPhotos: string[] = [];
+      const photoUrls: string[] = data.photos.map(photo => photo.url); // Extract URLs from photo objects
 
       if (!this.config.dryRun && data.photos.length > 0) {
-        const photoResults = await this.processPhotos(data.photos);
-        photosProcessed = photoResults.successful.length;
-        photosFailed = photoResults.failed.length;
-        processedPhotos = photoResults.successful;
+        // The mass import endpoint will handle photo downloading and processing
+        photosProcessed = data.photos.length; // Assume all will be processed by backend
+        photosFailed = 0; // Backend will handle failures internally
       }
 
-      // Step 3: Submit to logbook API if not in dry-run mode
+      // Step 3: Submit to mass import API if not in dry-run mode
       let submissionId: string | undefined;
       const warnings: string[] = [];
 
       if (!this.config.dryRun) {
-        const submissionResult = await this.submitToLogbook(data, processedPhotos);
+        const submissionResult = await this.submitToMassImport(data, photoUrls);
         submissionId = submissionResult.id;
         warnings.push(...submissionResult.warnings);
       }
 
       const result: ImportResult = {
         id: recordId,
+        title: data.title || 'Untitled Artwork',
         success: true,
         warnings,
         duplicateDetection,
@@ -130,6 +127,7 @@ export class MassImportAPIClient {
       
       return {
         id: recordId,
+        title: data.title || 'Unknown',
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
         warnings: [],
@@ -153,24 +151,51 @@ export class MassImportAPIClient {
       // duplicate detection. Keep a fallback request path for any legacy
       // deployments just in case.
       const endpoint = '/api/artworks/nearby';
+      
+      // Use a larger radius for duplicate detection to ensure we catch nearby artworks
+      // The duplicate detection algorithm will filter by precise distance anyway
+      const searchRadius = Math.max(this.config.duplicateDetectionRadius, 100); // minimum 100m search
+      
       const response = await this.axios.get(endpoint, {
         params: {
           lat,
           lon,
-          radius: this.config.duplicateDetectionRadius,
-          limit: 20, // Limit to prevent large responses
+          radius: searchRadius,
+          limit: 50, // Increase limit to catch more potential duplicates
         },
       });
+      
+      // Debug logging for duplicate detection issues
+      console.log(`[DUPLICATE_DEBUG] Fetching nearby artworks at ${lat},${lon} within ${searchRadius}m`);
+      
       // Worker responses are wrapped with ApiResponse { success, data: { artworks: [...] }}
       const raw: unknown = response.data;
 
-      interface NearbyWrapped { data?: { artworks?: ExistingArtwork[] }; artworks?: ExistingArtwork[] }
-      const candidate = raw as NearbyWrapped;
-      if (candidate) {
-        if (Array.isArray(candidate.artworks)) return candidate.artworks;
-        if (candidate.data && Array.isArray(candidate.data.artworks)) return candidate.data.artworks;
+      interface NearbyWrapped { 
+        data?: { artworks?: ExistingArtwork[] }; 
+        artworks?: ExistingArtwork[] 
       }
-      return [];
+      
+      const candidate = raw as NearbyWrapped;
+      let artworks: ExistingArtwork[] = [];
+      
+      if (candidate) {
+        if (Array.isArray(candidate.artworks)) {
+          artworks = candidate.artworks;
+        } else if (candidate.data && Array.isArray(candidate.data.artworks)) {
+          artworks = candidate.data.artworks;
+        }
+      }
+      
+      console.log(`[DUPLICATE_DEBUG] Found ${artworks.length} nearby artworks`);
+      
+      // Log details about each artwork for debugging
+      artworks.forEach(artwork => {
+        const tags = artwork.tags_parsed || {};
+        console.log(`[DUPLICATE_DEBUG] Artwork ${artwork.id}: title="${artwork.title}", external_id="${tags.external_id || 'none'}", source="${tags.source || 'none'}"`);
+      });
+      
+      return artworks;
     } catch (error) {
       console.warn('Failed to fetch nearby artworks for duplicate detection:', error);
       return []; // Continue without duplicate detection rather than failing
@@ -178,97 +203,62 @@ export class MassImportAPIClient {
   }
 
   /**
-   * Submit data to the logbook API
+   * Submit data to the mass import API with the new endpoint format
    */
-  private async submitToLogbook(
+  private async submitToMassImport(
     data: ProcessedImportData,
     photoUrls: string[]
   ): Promise<{ id: string; warnings: string[] }> {
-    const payload = {
-      lat: data.lat,
-      lon: data.lon,
-      note: data.note,
-      user_token: this.config.massImportUserToken,
-      photos: photoUrls,
-      tags: JSON.stringify(data.tags),
+    // Use the new mass import endpoint that matches our documentation
+    const requestBody = {
+      user_uuid: this.config.massImportUserToken,
+      artwork: {
+        title: data.title || 'Untitled Artwork',
+        lat: data.lat,
+        lon: data.lon,
+        photos: photoUrls.map(url => ({ url })),
+      },
+      // Create logbook entry with notes and tags
+      logbook: [{
+        note: data.note || `Imported from ${data.source}`,
+        timestamp: new Date().toISOString(),
+        tags: data.tags ? Object.entries(data.tags).map(([label, value]) => ({
+          label,
+          value: String(value),
+        })) : [],
+      }],
     };
 
-    const response = await this.axios.post('/api/logbook', payload);
-    // Normalize response (wrapped ApiSuccess vs legacy direct object)
+    const response = await this.axios.post('/api/mass-import', requestBody, {
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    // Parse response matching new endpoint format
     const raw: unknown = response.data;
-    type SubmissionShape = { id: string; warnings?: string[] };
-    let submission: SubmissionShape | undefined;
-    if (raw && typeof raw === 'object') {
-      if ('data' in (raw as Record<string, unknown>)) {
-        const inner = (raw as { data?: unknown }).data;
-        if (inner && typeof inner === 'object' && 'id' in inner) {
-          submission = inner as SubmissionShape;
-        }
-      } else if ('id' in (raw as Record<string, unknown>)) {
-        submission = raw as SubmissionShape;
-      }
-    }
-    if (!submission) {
-      throw new Error('Unexpected logbook submission response shape');
-    }
-    return {
-      id: submission.id,
-      warnings: submission.warnings || [],
+    type SubmissionShape = { 
+      success: boolean; 
+      data: { 
+        artwork_id: string; 
+        status: string; 
+        message: string;
+      } 
     };
-  }
-
-  /**
-   * Process photos for upload
-   */
-  private async processPhotos(photos: PhotoInfo[]): Promise<{
-    successful: string[];
-    failed: Array<{ photo: PhotoInfo; error: string }>;
-  }> {
-    const successful: string[] = [];
-    const failed: Array<{ photo: PhotoInfo; error: string }> = [];
-
-    for (const photo of photos) {
-      try {
-        const processedUrl = await this.processPhoto(photo);
-        successful.push(processedUrl);
-      } catch (error) {
-        console.warn(`Failed to process photo ${photo.url}:`, error);
-        failed.push({
-          photo,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-      }
-    }
-
-    return { successful, failed };
-  }
-
-  /**
-   * Process a single photo for upload
-   */
-  private async processPhoto(photo: PhotoInfo): Promise<string> {
-    // For now, return the original URL
-    // In a full implementation, this would:
-    // 1. Download the photo
-    // 2. Validate format and size
-    // 3. Upload to R2 storage
-    // 4. Generate thumbnails
-    // 5. Return the R2 URL
     
-    // Validate that the photo URL is accessible
-    try {
-      const response = await axios.head(photo.url, { timeout: 10000 });
-      
-      // Check if it's actually an image
-      const contentType = response.headers['content-type'];
-      if (!contentType || !contentType.startsWith('image/')) {
-        throw new Error(`URL does not point to an image: ${contentType}`);
-      }
-
-      return photo.url; // Return original URL for now
-    } catch (error) {
-      throw new Error(`Photo not accessible: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    if (!raw || typeof raw !== 'object' || !('success' in raw)) {
+      throw new Error('Unexpected mass import response format');
     }
+    
+    const submission = raw as SubmissionShape;
+    if (!submission.success || !submission.data) {
+      throw new Error(`Mass import failed: ${submission.data?.message || 'Unknown error'}`);
+    }
+    
+    return {
+      id: submission.data.artwork_id,
+      warnings: [], // New endpoint doesn't return warnings in response
+    };
   }
 
   /**
@@ -373,6 +363,7 @@ export class DryRunAPIClient extends MassImportAPIClient {
 
       return {
         id: recordId,
+        title: data.title || 'Unknown',
         success: true,
         warnings: photoValidation.warnings,
         duplicateDetection,
@@ -383,6 +374,7 @@ export class DryRunAPIClient extends MassImportAPIClient {
     } catch (error) {
       return {
         id: recordId,
+        title: data.title || 'Unknown',
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error occurred',
         warnings: [],

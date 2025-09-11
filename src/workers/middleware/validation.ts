@@ -11,7 +11,6 @@ import { isValidLatitude, isValidLongitude } from '../lib/spatial';
 import { tagValidationService, convertToValidationApiError } from '../lib/tag-validation';
 import type { StructuredTags } from '../../shared/tag-schema';
 import {
-  MAX_NOTE_LENGTH,
   MAX_PHOTOS_PER_SUBMISSION,
   ARTWORK_TYPES,
   MIN_SEARCH_RADIUS,
@@ -108,7 +107,6 @@ export const logbookSubmissionSchema = z.object({
     .max(180, 'Longitude must be between -180 and 180'),
   note: z
     .string()
-    .max(MAX_NOTE_LENGTH, `Note must be ${MAX_NOTE_LENGTH} characters or less`)
     .optional(),
   type: z.enum(ARTWORK_TYPES).optional(),
 });
@@ -770,15 +768,8 @@ export async function validateLogbookFormData(
         }
       }
 
-      // Extract and validate optional note
+      // Extract optional note
       const note = formData.get('note')?.toString();
-      if (note && note.length > MAX_NOTE_LENGTH) {
-        validationErrors.push({
-          field: 'note',
-          message: `Note must be ${MAX_NOTE_LENGTH} characters or less`,
-          code: 'TOO_LONG',
-        });
-      }
 
       if (validationErrors.length > 0) {
         throw new ValidationApiError(validationErrors);
@@ -846,15 +837,8 @@ export async function validateLogbookFormData(
         }
       }
 
-      // Extract and validate optional note
+      // Extract optional note
       const note = formData.note?.toString();
-      if (note && note.length > MAX_NOTE_LENGTH) {
-        validationErrors.push({
-          field: 'note',
-          message: `Note must be ${MAX_NOTE_LENGTH} characters or less`,
-          code: 'TOO_LONG',
-        });
-      }
 
       if (validationErrors.length > 0) {
         throw new ValidationApiError(validationErrors);

@@ -242,9 +242,9 @@ function handleKeydown(event: KeyboardEvent): void {
             <span class="font-medium">Material:</span>
             <span class="ml-1 truncate">{{ artwork.tags.material }}</span>
           </div>
-          <div v-if="artwork.tags.year" class="flex items-center">
+          <div v-if="artwork.tags.year || artwork.tags.year_of_installation" class="flex items-center">
             <span class="font-medium">Year:</span>
-            <span class="ml-1">{{ artwork.tags.year }}</span>
+            <span class="ml-1">{{ artwork.tags.year || artwork.tags.year_of_installation }}</span>
           </div>
         </div>
       </div>

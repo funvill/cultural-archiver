@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//c/Users/funvill/Documents/git/cultural-archiver/src/shared/**)",
+      "Read(//c/Users/funvill/Documents/git/cultural-archiver/src/workers/**)",
+      "Read(//c/Users/funvill/Documents/git/cultural-archiver/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "apiEndpoint": "https://art-api.abluestar.com",
+  "massImportUserToken": "00000000-0000-0000-0000-000000000002",
+  "batchSize": 50,
+  "maxRetries": 3,
+  "retryDelay": 1000,
+  "duplicateDetectionRadius": 50,
+  "titleSimilarityThreshold": 0.8,
+  "dryRun": false,
+  "verbose": false
+}

@@ -66,6 +66,11 @@ All responses follow a consistent JSON format:
 }
 ```
 
+
+## Mass-Import API
+
+For trusted, high-volume imports of artworks, see the [Mass-Import API documentation](./mass-import.md). This endpoint allows moderators and admins to import large batches of artworks, images, logbook entries, and tags from public datasets. All imported records are automatically approved and attributed to the importing user.
+
 ## Endpoints
 
 ### Submission Endpoints
