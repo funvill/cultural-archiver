@@ -75,7 +75,7 @@ export class MassImportAPIClient {
       if (duplicateDetection.isDuplicate && !this.config.dryRun) {
         return {
           id: recordId,
-          title: 'Unknown',
+          title: data.title || 'Unknown',
           success: false,
           error: `Duplicate detected: ${duplicateDetection.bestMatch?.reason}`,
           warnings: [],

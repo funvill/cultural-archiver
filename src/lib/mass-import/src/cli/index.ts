@@ -13,6 +13,8 @@ import ora from 'ora';
 import fs from 'fs/promises';
 import { MassImportProcessor, setCancellationState } from './processor.js';
 import { VancouverMapper } from '../importers/vancouver.js';
+import { loadOSMData, getOSMProcessingStats } from '../importers/osm.js';
+import { ImporterRegistry } from '../lib/importer-registry.js';
 import type { MassImportConfig, DryRunReport } from '../types/index.js';
 
 const program = new Command();
@@ -96,69 +98,48 @@ program
 
 program
   .command('import')
-  .description('Import public art data from a JSON file')
-  .argument('<file>', 'Input JSON file path')
-  .option('--source <name>', 'Data source name', 'unknown')
+  .description('Import public art data using specified importer')
+  .argument('<file>', 'Input data file path')
+  .option('--importer <name>', 'Data source importer (required). Use "all" to run all importers. Available: ' + ImporterRegistry.getAll().join(', '))
+  .option('--source <name>', 'Data source name override')
   .option('--dry-run', 'Perform validation only without importing', false)
   .option('--output <file>', 'Output report file path')
-  .option('--continue-on-error', 'Continue processing when individual records fail', false)
+  .option('--stop-on-error', 'Stop processing when batch failures occur (default is to continue)', false)
   .action(async (file, options) => {
     try {
-  // Merge global options (defined on root program) with command options so flags
-  // like --batch-size propagate correctly. Commander only passes command-local
-  // options to the action handler by default.
-  const globalOptions = program.opts();
-  const mergedOptions = { ...globalOptions, ...options };
-  const config = await loadConfig(mergedOptions);
-      const processor = new MassImportProcessor(config);
-
-      console.log(chalk.blue('🚀 Starting mass import process...'));
-      console.log(chalk.gray(`Source: ${options.source}`));
-      console.log(chalk.gray(`File: ${file}`));
-      console.log(chalk.gray(`Mode: ${options.dryRun ? 'DRY RUN' : 'IMPORT'}`));
-
-      // Load and parse input file
-      const spinner = ora('Loading input file...').start();
-      const data = await loadInputFile(file);
-      // Apply optional record limit
-      let limitedData = data;
-      const offset = mergedOptions.offset ? parseInt(mergedOptions.offset, 10) : 0;
-      if (!isNaN(offset) && offset > 0) {
-        if (offset >= data.length) {
-          console.log(chalk.red(`⚠️ Offset ${offset} exceeds dataset length (${data.length}). No records to process.`));
-          limitedData = [];
-        } else {
-          limitedData = data.slice(offset);
-          console.log(chalk.yellow(`⚠️ Offset applied: skipping first ${offset} records`));
-        }
+      // Validate importer selection
+      if (!options.importer) {
+        console.error(chalk.red('❌ Error: Importer is required.'));
+        console.log(chalk.yellow(ImporterRegistry.getHelpMessage()));
+        process.exit(1);
       }
-      if (mergedOptions.limit) {
-        const limit = parseInt(mergedOptions.limit, 10);
-        if (!isNaN(limit) && limit > 0 && limitedData.length > limit) {
-          limitedData = limitedData.slice(0, limit);
-          console.log(chalk.yellow(`⚠️ Record limit applied: processing ${limit} records (window ${offset}-${offset + limit - 1})`));
+
+      const importerValidation = ImporterRegistry.validateImporter(options.importer);
+      if (!importerValidation.valid) {
+        console.error(chalk.red('❌ Error: ' + importerValidation.message));
+        if (importerValidation.suggestions) {
+          console.log(chalk.yellow('💡 Did you mean: ' + importerValidation.suggestions.join(', ') + '?'));
         }
+        process.exit(1);
       }
-      spinner.succeed(`Loaded ${data.length} records from ${file}`);
 
-      // Process data
-  const results = await processor.processData(limitedData, {
-        source: options.source,
-        dryRun: options.dryRun,
-        continueOnError: options.continueOnError,
-      });
+      // Merge global options with command options
+      const globalOptions = program.opts();
+      const mergedOptions = { ...globalOptions, ...options };
+      const config = await loadConfig(mergedOptions);
 
-      // Display results
-      displayResults(results);
-
-      // Always save a detailed report (auto-generate filename if not specified)
-      const reportFile = options.output || `import-report-${Date.now()}.json`;
-      await saveDetailedReport(results, reportFile, options.dryRun ? 'validation' : 'import');
-      console.log(chalk.green(`📄 Detailed report saved to ${reportFile}`));
-
-      // Save newly created artwork URL list if requested
-      if (!options.dryRun && mergedOptions.newArtworkReport) {
-        await saveNewArtworkReport(results, mergedOptions, 'import');
+      if (options.importer === 'all') {
+        // Run all importers sequentially
+        const allImporters = ImporterRegistry.getAll();
+        console.log(chalk.blue(`🚀 Running all importers sequentially: ${allImporters.join(', ')}`));
+        
+        for (const importerName of allImporters) {
+          console.log(chalk.cyan(`\n📦 Processing with ${importerName} importer...`));
+          await runSingleImporter(importerName, file, mergedOptions, config);
+        }
+      } else {
+        // Run single importer
+        await runSingleImporter(options.importer, file, mergedOptions, config);
       }
 
     } catch (error) {
@@ -753,6 +734,97 @@ async function processBulkApproval(
 }
 
 /**
+ * Run import process with a single importer
+ */
+async function runSingleImporter(
+  importerName: string, 
+  file: string, 
+  options: any, 
+  config: MassImportConfig
+): Promise<void> {
+  const importer = ImporterRegistry.get(importerName);
+  if (!importer) {
+    throw new Error(`Importer '${importerName}' not found`);
+  }
+
+  const processor = new MassImportProcessor(config);
+  
+  console.log(chalk.blue(`🚀 Starting ${importerName} import process...`));
+  console.log(chalk.gray(`Importer: ${importer.description}`));
+  console.log(chalk.gray(`File: ${file}`));
+  console.log(chalk.gray(`Mode: ${options.dryRun ? 'DRY RUN' : 'IMPORT'}`));
+
+  // Set the mapper for this importer
+  processor.setMapper(importer.mapper);
+
+  // Load and parse input file based on importer type
+  const spinner = ora('Loading input file...').start();
+  let data: any[];
+  
+  if (importerName === 'osm') {
+    // Use OSM-specific data loading
+    data = loadOSMData(file);
+    
+    // Display OSM-specific statistics
+    const stats = getOSMProcessingStats(data);
+    console.log(chalk.cyan('\n📊 OSM Dataset Statistics:'));
+    for (const [key, value] of Object.entries(stats)) {
+      console.log(chalk.gray(`  ${key}: ${value}`));
+    }
+  } else {
+    // Use generic data loading
+    data = await loadInputFile(file);
+  }
+
+  // Apply optional record limit
+  let limitedData = data;
+  const offset = options.offset ? parseInt(options.offset, 10) : 0;
+  if (!isNaN(offset) && offset > 0) {
+    if (offset >= data.length) {
+      console.log(chalk.red(`⚠️ Offset ${offset} exceeds dataset length (${data.length}). No records to process.`));
+      limitedData = [];
+    } else {
+      limitedData = data.slice(offset);
+      console.log(chalk.yellow(`⚠️ Offset applied: skipping first ${offset} records`));
+    }
+  }
+  if (options.limit) {
+    const limit = parseInt(options.limit, 10);
+    if (!isNaN(limit) && limit > 0 && limitedData.length > limit) {
+      limitedData = limitedData.slice(0, limit);
+      console.log(chalk.yellow(`⚠️ Record limit applied: processing ${limit} records (window ${offset}-${offset + limit - 1})`));
+    }
+  }
+  spinner.succeed(`Loaded ${data.length} records from ${file}`);
+
+  // Process data
+  const results = await processor.processData(limitedData, {
+    source: options.source || importerName,
+    dryRun: options.dryRun,
+    continueOnError: !options.stopOnError, // Default to true, unless --stop-on-error is set
+  });
+
+  // Display results
+  displayResults(results);
+
+  // Always save a detailed report (auto-generate filename if not specified)
+  const reportFile = options.output || `${importerName}-report-${Date.now()}.json`;
+  await saveDetailedReport(results, reportFile, options.dryRun ? 'validation' : 'import', {
+    importerName,
+    inputFile: file,
+    options: options,
+    config,
+    totalAvailableRecords: data.length,
+  });
+  console.log(chalk.green(`📄 Detailed ${importerName} report saved to ${reportFile}`));
+
+  // Save newly created artwork URL list if requested
+  if (!options.dryRun && options.newArtworkReport) {
+    await saveNewArtworkReport(results, options, importerName);
+  }
+}
+
+/**
  * Load configuration from options and config file
  */
 async function loadConfig(options: any): Promise<MassImportConfig> {
@@ -915,14 +987,26 @@ function displayDryRunReport(report: DryRunReport): void {
 /**
  * Save detailed results report to file
  */
-async function saveDetailedReport(results: any, filePath: string, mode: string): Promise<void> {
+async function saveDetailedReport(
+  results: any, 
+  filePath: string, 
+  mode: string, 
+  auditInfo?: {
+    importerName: string;
+    inputFile: string;
+    options: any;
+    config: any;
+    totalAvailableRecords: number;
+  }
+): Promise<void> {
   const timestamp = new Date().toISOString();
   
   // Extract successful artworks with details
   const createdArtworks: Array<{
-    id: string;
+    ExternalID: string;
     submissionId?: string;
     title?: string;
+    url?: string;
     location?: { lat: number; lon: number };
     tags?: Record<string, any>;
     externalId?: string;
@@ -952,10 +1036,15 @@ async function saveDetailedReport(results: any, filePath: string, mode: string):
   for (const batch of results.batches || []) {
     for (const result of batch.results || []) {
       if (result.success) {
+        const baseUrl = 'https://art.abluestar.com';
+        // Only generate URL for actual artwork IDs (submissionId), not for dry-run external IDs
+        const artworkUrl = result.submissionId ? `${baseUrl}/artwork/${result.submissionId}` : undefined;
+        
         createdArtworks.push({
-          id: result.id,
+          ExternalID: result.id, // Always use the external ID here (OSM node ID)
           submissionId: result.submissionId,
           title: result.title || 'Unknown Title',
+          ...(artworkUrl && { url: artworkUrl }),
           location: result.location,
           tags: result.tags,
           externalId: result.externalId,
@@ -990,6 +1079,27 @@ async function saveDetailedReport(results: any, filePath: string, mode: string):
       startTime: results.startTime,
       endTime: results.endTime,
     },
+    parameters: auditInfo ? {
+      importer: auditInfo.importerName,
+      inputFile: auditInfo.inputFile,
+      totalAvailableRecords: auditInfo.totalAvailableRecords,
+      configuration: {
+        // CLI options (excluding sensitive data)
+        dryRun: auditInfo.options.dryRun,
+        batchSize: auditInfo.options.batchSize,
+        limit: auditInfo.options.limit,
+        offset: auditInfo.options.offset,
+        stopOnError: auditInfo.options.stopOnError,
+        source: auditInfo.options.source,
+        verbose: auditInfo.options.verbose,
+        // Config settings (excluding sensitive data)
+        apiEndpoint: auditInfo.config.apiEndpoint,
+        duplicateDetectionRadius: auditInfo.config.duplicateDetectionRadius,
+        titleSimilarityThreshold: auditInfo.config.titleSimilarityThreshold,
+        maxRetries: auditInfo.config.maxRetries,
+        retryDelay: auditInfo.config.retryDelay,
+      },
+    } : null,
     summary: {
       ...results.summary,
       successRate: ((results.summary.successfulImports / results.summary.totalRecords) * 100).toFixed(1) + '%',
