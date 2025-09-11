@@ -6,14 +6,12 @@ These are small changes that I did inline.
 
 - [x] database reset should also reset the `moderation_decisions`, and `admin_actions` table
 
-
 - ✅ FIXED - The GitHub Actions workflow had issues with vitest dependency installation. Fixed by:
   - Updated Node.js version from 23.x to 22.x (more stable)
   - Fixed cache placement to occur before dependency installation  
   - Updated cache action from v3 to v4
   - Simplified workspace dependency installation using npm workspaces correctly
   - Verified that vitest is properly installed in both frontend and workers workspaces
-
 
 ## Sign in
 
@@ -65,7 +63,7 @@ Update the add artwork workflow
     3B) The user clicks one of the existing artworks to add the logbook entry to the existing artwork.
   4) After they fill in the addtional information. They are asked for consent to use this inforamtion then its submitted to the website.
 
----- 
+----
 
 - [x] The "Change location". Should pop up a model dialog with a map, and a pin in the center. The user drags around the map until the pin in the center is in the right location. Then the customer clicks "update location" to save the location.
 - On the "Add new artwork page"
@@ -88,10 +86,8 @@ Add the consent checkboxes above the submit button.
 The customer must agree to all the consent terms of service before they can submit the new artwork. Each one should have its own checkbox.
 Add a button to "Check and agree to all" that automaticly checks all the consent checkboxes. Part of the submission should include the versions of the different consents that they agreed to for our recoreds.
 
-
-
-Update the consent checklist. 
-First one should be "CC0 Public Domain Dedication". Update the note about this license to include mention of 
+Update the consent checklist.
+First one should be "CC0 Public Domain Dedication". Update the note about this license to include mention of
 
 - Text, images, and metadata they submit.
 - Confirmation they own the copyright or have the right to release it under CC0.
@@ -101,7 +97,7 @@ First one should be "CC0 Public Domain Dedication". Update the note about this l
 Next should be a general terms of service. This one bundles a bunch of things together. A lot of this can be linked out to a terms of service or privicy policy page. This checkbox can include things like
 
 - Age Verification (18+) - I confirm that I am 18 years of age or older and legally able to provide consent for photo submissions.
-- Public Commons Contribution - I understand that my submissions will become part of a public cultural archive and may be used for educational, research, and cultural preservation purposes. Shared far and wide. 
+- Public Commons Contribution - I understand that my submissions will become part of a public cultural archive and may be used for educational, research, and cultural preservation purposes. Shared far and wide.
 - Freedom of Panorama Acknowledgment - I understand Canada's Freedom of Panorama laws and confirm that my photos are taken from publicly accessible locations (with link)
 - confirm submissions are accurate to the best of their knowledge (location, attribution, description, etc.).
 - Confirmation they won’t submit personal data (faces, license plates, addresses in text fields, etc.) unless it’s incidental and compliant with your privacy policy.
@@ -109,27 +105,31 @@ Next should be a general terms of service. This one bundles a bunch of things to
 - User agrees to indemnify the project from claims if they submit content they didn’t have rights to.
 - You (the project) don’t guarantee permanence of submissions (they could be removed, modified, or archived).
 
-3rd checkbox is specifically about the photos 
+3rd checkbox is specifically about the photos
 
 Photo Rights Checklist
+
 - I took these photos myself or have explicit permission from the photographer to submit them.
 - Photos were taken in public spaces where photography is permitted.
 - The artwork is in a publicly accessible location and I have the right to photograph and share it under Canada's Freedom of Panorama provisions.
 
-The "Submit Artwork" button should not be enabled until the user clicks all of the consent checkboxes. 
+The "Submit Artwork" button should not be enabled until the user clicks all of the consent checkboxes.
 
-Remove the note about the "Consent Status". The user needs to agree to all the checkboxes for all submissions. 
+Remove the note about the "Consent Status". The user needs to agree to all the checkboxes for all submissions.
 
-All of the consent boxes should be small and link out to more information when possiable or required. 
+All of the consent boxes should be small and link out to more information when possiable or required.
 
-ASk me questions about this feature before implmenting it. 
-
+ASk me questions about this feature before implmenting it.
 
 ## Map
 
 - [x] The artwork search radius should be the visable screen based on the zoom level and the screen size.
 - [x] The icon used as the marker on the map should be based off of the tag "Artwork Type". If the artwork does not have a "Artwork Type", then use a default. Each "Artwork Type" should have a different icon.
 - [x] Zooming out should cluster artwork markers on the map.
+- [x] Add map options navigation drawer. This should look like the "layers" icon and should be above the other map controls at the bottom of the screen.
+  - [x] Add a checkbox to the map options, enables or disables clustering of map markers on the map
+- [x] The map page should remember where what your last location was and the zoom level. So if you refresh the page again, it will return to the old location. Use local storage for this.
+  - Implemented via localStorage `map:lastState` and honored on initialization; geolocation no longer overrides saved state. Added clustering toggle in options drawer with persistence (`map:clusterEnabled`).
 
 ## Admin page
 
@@ -160,6 +160,9 @@ The admin page is a super user that can give moderators permissions to other use
 }
 ```
 
+## App Bar
+
+- Help, logout, Admin, and Moderator links should automaticly be moved into the menu (hamburger). The menu should always be shown on the right hand side. Navigation Drawer
 
 ## Users
 
@@ -175,8 +178,6 @@ Note: There is no "Reviewer" user. there is only a Moderator user.
 If any user is currently marked as a "Reviewer", make a migration step to assign them to "Moderator", and remove the "Reviewer" type.
 
 Do an audit and list any other user type.
-
-
 
 ## Migration system
 
@@ -198,7 +199,6 @@ Notes:
 - Ths migration system should use CloudFlare D1 build in migration system. https://developers.cloudflare.com/d1/reference/migrations/
 - See the list of D1 commands https://developers.cloudflare.com/workers/wrangler/commands/#d1 Such as "wrangler migrations create", "migrations list", "migrations apply", and "export"
 - It should use wrangler, it should not using any nodejs scripts, or powershell scripts, or bash scripts.
-
 
 ## Mass import
 
@@ -324,9 +324,6 @@ artwork.description += "locationonsite:\n" + $.locationonsite + "\n";
 artwork.description += "artists:\n" + $.artists + "\n";
 artwork.description += "yearofinstallation:\n" + $.yearofinstallation + "\n";
 
-
-
-
 ```json
 {
     "registryid": 27,
@@ -378,10 +375,6 @@ artwork.description += "yearofinstallation:\n" + $.yearofinstallation + "\n";
     }
   }
 ```
-
-
-
-
 
 ## Mass import artwork with unknonw tags
 
@@ -523,7 +516,6 @@ POST https://art-api.abluestar.com/api/artwork/REDACTED/edit - Ok @ 2025-09-09, 
 
 ----
 
-
 ## Vancouver Mass Import
 
 The Mass import for vancouver, imports the text correctly. But the import is missing the image.
@@ -536,21 +528,17 @@ Example: `[{photourl: {"url": "https://opendata.vancouver.ca/api/explore/v2.1/ca
 
 The mass import should use a special endpoint that suits its needs. replace src\workers\routes\mass-import-photos.ts with a special endpoint specifically for mass import that handles both the images, and the creation of the artwork and the logbooks.
 
-
 ----
 
 While I am testing, I am reseting the production database between tests of the mass-import. using `npm run database:reset:prod`. This script should reset the production database and remove all the data but it shouldn't remove the tables or the schema. But I am finding that I need to migrate the database after each database reset. 
 
 Review the `database:reset:prod` script with the migration steps in mind. specifically `0009_add_consent_version_tracking.sql`
 
-
 ----
   
 Mass import UUID error
 
 The mass import seems to be generating its own IDs for the artwork, and logbook tables (maybe other tables) instead of using a UUID. This means that the artwork pages urls are `https://art.abluestar.com/artwork/artwork-1757533783575-sz2ucn1` instead of the expected `https://art.abluestar.com/artwork/79e3ab63-2d75-401e-98f8-9c3aa6d001f7`. Because the frontend is expecting UUIDs instead of keywords for the id, the front end is showing the following error "Artwork Not Found - Invalid artwork ID format. Please check the URL and try again."
-
-
 
 ### Mass import vancouver artists
 
@@ -562,13 +550,9 @@ The artist ID can be looked up in this file `tasks\public-art-artists.json` or o
 
 Update the mass import script for vancouver to look up the artist name from the artist ID and use the name instead of the ID for the artwork artist field.
 
-
-
 ## Vancouver mass import tags
 
 In the Vancouver mass import, the fields in the dataset should become tags of the artwork's logbook entry. For example: Fields in the data like "Site Address", etc... should be tags in the logbook entry for the artwork.
-
-
 
 ## Mass import duplications
 
@@ -588,8 +572,6 @@ etc...
 Then set the threashold to 0.7
 
 The report should list the existing artwork url, a confadence score that its the same and the artwork that was attempted to be imported.
-
-
 
 ## Artist page
 
@@ -617,4 +599,3 @@ Notes:
 - Any changes to the artist page need a moderator approval.
 - Don't use the existing creators tables or systems.
 - The URL for the artist page is /artist/{UUID}
-

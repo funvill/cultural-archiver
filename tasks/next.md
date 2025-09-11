@@ -67,12 +67,16 @@
 - artcollect.app
 - iArchivist.org
 
+## Find partners
+
+Find people that would be willing to partner with me on this project. Be specific and say that you are NOT looking for monetary support but are looking for in-kind support. Advertisement, recommendations, etc.
+
+- Burrard Arts Foundation, Centre for Digital Media students. They spondered a simlare project in the past. https://intergalactic.com/content/muse-public-art-app?utm_source=chatgpt.com
+- Canada Council - They prefer events over resources. The event could be a mass hunt for new art.
+
 ## General
 
 - ????? - Remove the creators system and replace it with a comma seperated list of keywords to search for. This means that there won't be a artist details page.
-
-
-
 - `support@art.abluestar.com` currently errors out when sending an email to this address. This address should forward to my personal address.
 - Check to make sure that the only email address that is public is `support@art.abluestar.com`
 
@@ -112,10 +116,7 @@
 
 ## Map page
 
-- [ ] The map page should remember where what your last location was and the zoom level. So if you refresh the page again, it will return to the old location. Use local storage for this.
-
-- Add map options navigation drawer. This should look like the "layers" icon and should be above the other map controls at the bottom of the screen.
-  - Add a checkbox to the map options, enables or disables clustering of map markers on the map
+- In the map options, allow for filtering the map markers by the artwork type.
 
 ## Admin page
 
@@ -126,16 +127,6 @@ The admin page is a super user that can give moderators permissions to other use
 - Move the tabs "New Submissions", and "Artwork Edits" to below the Moderate stats. (Simlare to the admin page)
 - The "pending review" stat should also include the "Artwork Edits" pending.
 
-## App Bar
-
-- Help, logout, Admin, and Moderator links should automaticly be moved into the menu (hamburger). The menu should always be shown on the right hand side. Navigation Drawer
-
-## Find partners
-
-Find people that would be willing to partner with me on this project. Be specific and say that you are NOT looking for monetary support but are looking for in-kind support. Advertisement, recommendations, etc.
-
-- Burrard Arts Foundation, Centre for Digital Media students. They spondered a simlare project in the past. https://intergalactic.com/content/muse-public-art-app?utm_source=chatgpt.com
-- Canada Council - They prefer events over resources. The event could be a mass hunt for new art.
 
 ## Add artwork
 

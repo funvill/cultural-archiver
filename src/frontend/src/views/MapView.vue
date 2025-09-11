@@ -38,6 +38,7 @@ onMounted(() => {
     if (saved) {
       const parsed = JSON.parse(saved) as { center: Coordinates; zoom: number };
       if (parsed?.center?.latitude && parsed?.center?.longitude && typeof parsed.zoom === 'number') {
+        // Set store first so MapComponent receives the props at initial render
         artworksStore.setMapCenter(parsed.center);
         artworksStore.setMapZoom(parsed.zoom);
       }
@@ -46,7 +47,7 @@ onMounted(() => {
     console.warn('Failed to restore map state', e);
   }
 
-  // Load artworks if we have a location
+  // Load artworks after store initialized; use currentLocation if present
   if (artworksStore.currentLocation) {
     artworksStore.fetchNearbyArtworks();
   }

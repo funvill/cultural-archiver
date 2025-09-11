@@ -7,6 +7,7 @@ import {
   MapPinIcon,
   PlusIcon,
   MinusIcon,
+  Squares2X2Icon,
 } from '@heroicons/vue/24/outline';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -42,6 +43,30 @@ const userLocationMarker = ref<L.Marker | null>(null);
 const artworkMarkers = ref<L.Marker[]>([]);
 // Use any for cluster type to avoid type issues if markercluster types not available
 const markerClusterGroup = ref<any | null>(null);
+// Map options state
+const showOptionsPanel = ref(false);
+const clusterEnabled = ref(true);
+// Saved map state presence
+const hadSavedMapState = ref(false);
+
+function readSavedMapState(): { center: Coordinates; zoom: number } | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('map:lastState');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { center?: Coordinates; zoom?: number };
+    if (
+      parsed &&
+      parsed.center &&
+      typeof parsed.center.latitude === 'number' &&
+      typeof parsed.center.longitude === 'number' &&
+      typeof parsed.zoom === 'number'
+    ) {
+      return { center: parsed.center, zoom: parsed.zoom };
+    }
+  } catch {/* ignore */}
+  return null;
+}
 
 // Store
 const artworksStore = useArtworksStore();
@@ -116,14 +141,20 @@ async function initializeMap() {
     isLoading.value = true;
     error.value = null;
 
-    console.log('Creating Leaflet map...');
+  console.log('Creating Leaflet map...');
+
+  // Check for saved map state first
+  const saved = readSavedMapState();
+  hadSavedMapState.value = !!saved;
 
     // Create map
     map.value = L.map(mapContainer.value, {
-      center: props.center
+      center: saved?.center
+        ? [saved.center.latitude, saved.center.longitude]
+        : props.center
         ? [props.center.latitude, props.center.longitude]
         : [DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude],
-      zoom: props.zoom,
+      zoom: typeof saved?.zoom === 'number' ? saved.zoom : props.zoom,
       zoomControl: false, // We'll use custom controls
       attributionControl: true,
     });
@@ -269,52 +300,40 @@ async function initializeMap() {
       }
     }, 100);
 
-    // Initialize marker cluster group
-    // Note: We would need to install leaflet.markercluster for this
-    // For now, we'll use a simple layer group
-    // Attempt dynamic import of marker cluster plugin only in browser environments
-    if (typeof window !== 'undefined') {
-      try {
-        if (!(L as any).markerClusterGroup) {
-          await import('leaflet.markercluster');
-          await import('leaflet.markercluster/dist/MarkerCluster.css');
-          await import('leaflet.markercluster/dist/MarkerCluster.Default.css');
-        }
-      } catch (e) {
-        console.warn('MarkerCluster plugin not available, falling back to simple layer group', e);
-      }
-    }
+    // Initialize marker group based on clustering preference
+    // Load saved preference
+    try {
+      const saved = localStorage.getItem('map:clusterEnabled');
+      if (saved !== null) clusterEnabled.value = saved === 'true';
+    } catch {/* ignore */}
 
-    if ((L as any).markerClusterGroup) {
-      markerClusterGroup.value = (L as any).markerClusterGroup({
-        showCoverageOnHover: false,
-        disableClusteringAtZoom: 18,
-        spiderfyOnMaxZoom: true,
-      });
-    } else {
-      markerClusterGroup.value = L.layerGroup();
-    }
-    markerClusterGroup.value!.addTo(map.value);
+    await configureMarkerGroup();
 
     // Setup event listeners
     map.value.on('moveend', handleMapMove);
     map.value.on('zoomend', handleMapMove);
 
-    // Request user location if enabled, otherwise use default
-    if (props.showUserLocation && hasGeolocation.value) {
-      await requestUserLocation();
-    } else {
-      // No geolocation: show notice, but set default location and allow map to work
-      showLocationNotice.value = true;
-      artworksStore.setCurrentLocation(DEFAULT_CENTER);
-      if (map.value) {
-        map.value.setView([DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude], props.zoom);
+    // Request user location only when there's no saved state
+    if (!hadSavedMapState.value) {
+      if (props.showUserLocation && hasGeolocation.value) {
+        await requestUserLocation();
+      } else {
+        // No geolocation available and no saved state: use default
+        showLocationNotice.value = true;
+        artworksStore.setCurrentLocation(DEFAULT_CENTER);
+        if (map.value) {
+          map.value.setView([DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude], props.zoom);
+        }
+        setTimeout(() => {
+          showLocationNotice.value = false;
+        }, 10000);
       }
-
-      // Auto-dismiss location notice after 10 seconds to show the map
+    } else {
+      // We had a saved state; don't override it. Optionally show notice to enable location.
+      showLocationNotice.value = true;
       setTimeout(() => {
         showLocationNotice.value = false;
-      }, 10000);
+      }, 7000);
     }
 
     // Load initial artworks
@@ -477,6 +496,57 @@ function updateArtworkMarkers() {
   console.log('Created', artworkMarkers.value.length, 'markers');
 }
 
+// Ensure marker cluster plugin is loaded when needed
+async function ensureMarkerClusterPluginLoaded() {
+  if (typeof window === 'undefined') return;
+  try {
+    if (!(L as any).markerClusterGroup) {
+      await import('leaflet.markercluster');
+      await import('leaflet.markercluster/dist/MarkerCluster.css');
+      await import('leaflet.markercluster/dist/MarkerCluster.Default.css');
+    }
+  } catch (e) {
+    console.warn('MarkerCluster plugin not available, using simple layer group', e);
+  }
+}
+
+// Configure marker layer group according to clusterEnabled
+async function configureMarkerGroup() {
+  if (!map.value) return;
+
+  // Remove existing group from map
+  if (markerClusterGroup.value) {
+    try {
+      map.value.removeLayer(markerClusterGroup.value);
+    } catch {/* ignore */}
+  }
+
+  // Create new group
+  if (clusterEnabled.value) {
+    await ensureMarkerClusterPluginLoaded();
+    if ((L as any).markerClusterGroup) {
+      markerClusterGroup.value = (L as any).markerClusterGroup({
+        showCoverageOnHover: false,
+        disableClusteringAtZoom: 18,
+        spiderfyOnMaxZoom: true,
+      });
+    } else {
+      markerClusterGroup.value = L.layerGroup();
+    }
+  } else {
+    markerClusterGroup.value = L.layerGroup();
+  }
+
+  // Add to map and rebuild markers
+  markerClusterGroup.value!.addTo(map.value);
+  updateArtworkMarkers();
+
+  // Persist preference
+  try {
+    localStorage.setItem('map:clusterEnabled', String(clusterEnabled.value));
+  } catch {/* ignore */}
+}
+
 // Handle map movement
 function handleMapMove() {
   if (!map.value) return;
@@ -582,6 +652,16 @@ watch(
   }
 );
 
+// Apply external zoom changes (e.g., restored from localStorage)
+watch(
+  () => props.zoom,
+  (newZoom: number | undefined) => {
+    if (map.value && typeof newZoom === 'number' && newZoom !== map.value.getZoom()) {
+      map.value.setZoom(newZoom);
+    }
+  }
+);
+
 // Handle window resize
 const handleResize = () => {
   if (map.value) {
@@ -624,6 +704,14 @@ onUnmounted(() => {
     map.value.remove();
   }
 });
+
+// Watch clustering toggle
+watch(
+  () => clusterEnabled.value,
+  async () => {
+    await configureMarkerGroup();
+  }
+);
 </script>
 
 <template>
@@ -688,6 +776,38 @@ onUnmounted(() => {
 
     <!-- Map Controls -->
     <div class="absolute bottom-4 right-4 flex flex-col space-y-2 z-20">
+      <!-- Map Options (Layers) Button -->
+      <div class="relative">
+        <button
+          @click="showOptionsPanel = !showOptionsPanel"
+          class="bg-white shadow-md rounded-full p-3 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+          title="Map options"
+          aria-label="Open map options"
+          :aria-expanded="showOptionsPanel"
+        >
+          <Squares2X2Icon class="w-5 h-5 text-gray-700" />
+        </button>
+
+        <!-- Options Panel -->
+        <div
+          v-show="showOptionsPanel"
+          class="absolute bottom-14 right-0 w-56 bg-white shadow-lg rounded-lg p-3 border border-gray-200"
+          role="dialog"
+          aria-label="Map options"
+        >
+          <div class="flex items-start">
+            <input
+              id="toggle-cluster"
+              type="checkbox"
+              class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              v-model="clusterEnabled"
+            />
+            <label for="toggle-cluster" class="ml-2 text-sm text-gray-700 select-none">
+              Cluster markers
+            </label>
+          </div>
+        </div>
+      </div>
       <!-- Current Location Button -->
       <button
         v-if="hasGeolocation"
