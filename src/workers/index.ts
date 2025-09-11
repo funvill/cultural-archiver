@@ -41,6 +41,13 @@ import {
   getArtworkStats,
 } from './routes/discovery';
 import { submitArtworkEdit, getUserPendingEdits, validateArtworkEdit, exportArtworkToOSM } from './routes/artwork';
+import { 
+  getArtistsList, 
+  getArtistProfile, 
+  createArtist, 
+  submitArtistEdit, 
+  getUserPendingArtistEdits 
+} from './routes/artists';
 import { bulkExportToOSM, getExportStats } from './routes/export';
 import { getUserSubmissions, getUserProfile, sendTestEmail } from './routes/user';
 import { handleSearchRequest, handleSearchSuggestions } from './routes/search';
@@ -751,6 +758,49 @@ app.get(
 );
 
 // ================================
+// Artist Management Endpoints
+// ================================
+
+app.get(
+  '/api/artists',
+  rateLimitQueries,
+  withErrorHandling(getArtistsList)
+);
+
+app.get(
+  '/api/artists/:id',
+  rateLimitQueries,
+  validateUUID('id'),
+  withErrorHandling(getArtistProfile)
+);
+
+app.post(
+  '/api/artists',
+  ensureUserToken,
+  checkEmailVerification,
+  rateLimitSubmissions,
+  withErrorHandling(createArtist)
+);
+
+app.put(
+  '/api/artists/:id',
+  ensureUserToken,
+  checkEmailVerification,
+  rateLimitSubmissions,
+  validateUUID('id'),
+  withErrorHandling(submitArtistEdit)
+);
+
+app.get(
+  '/api/artists/:id/pending-edits',
+  ensureUserToken,
+  checkEmailVerification,
+  rateLimitQueries,
+  validateUUID('id'),
+  withErrorHandling(getUserPendingArtistEdits)
+);
+
+// ================================
 // Export Endpoints
 // ================================
 
@@ -1004,6 +1054,11 @@ app.notFound(c => {
         'GET /api/artwork/:id/pending-edits',
         'POST /api/artwork/:id/edit/validate',
         'GET /api/artwork/:id/export/osm',
+        'GET /api/artists',
+        'GET /api/artists/:id',
+        'POST /api/artists',
+        'PUT /api/artists/:id',
+        'GET /api/artists/:id/pending-edits',
         'GET /api/export/osm',
         'GET /api/export/osm/stats',
         'GET /api/search',

@@ -76,6 +76,42 @@ export interface ArtworkCreatorRecord {
 }
 
 // ================================
+// Artist System Types
+// ================================
+
+export interface ArtistRecord {
+  id: string;
+  name: string;
+  description: string | null; // Markdown biography/artist statement
+  tags: string | null; // JSON object for metadata (website, birth_year, etc.)
+  created_at: string;
+  updated_at: string;
+  status: 'active' | 'inactive';
+}
+
+export interface ArtworkArtistRecord {
+  id: string;
+  artwork_id: string;
+  artist_id: string;
+  role: string; // 'artist', 'creator', 'collaborator', 'commissioner', etc.
+  created_at: string;
+}
+
+export interface ArtistEditRecord {
+  edit_id: string;
+  artist_id: string;
+  user_token: string;
+  field_name: string;
+  field_value_old: string | null;
+  field_value_new: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  moderator_notes: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  submitted_at: string;
+}
+
+// ================================
 // API Request/Response Types
 // ================================
 
@@ -125,6 +161,60 @@ export interface CreateArtworkCreatorRequest {
   artwork_id: string;
   creator_id: string;
   role?: string;
+}
+
+// ================================
+// Artist API Types
+// ================================
+
+export interface CreateArtistRequest {
+  name: string;
+  description?: string;
+  tags?: Record<string, unknown>;
+  status?: ArtistRecord['status'];
+}
+
+export interface UpdateArtistRequest extends Partial<CreateArtistRequest> {
+  id: string;
+}
+
+export interface ArtistApiResponse extends ArtistRecord {
+  tags_parsed?: Record<string, unknown>;
+  artwork_count?: number;
+  artworks?: ArtworkWithPhotos[];
+}
+
+export interface ArtistListResponse {
+  artists: ArtistApiResponse[];
+  total: number;
+  page: number;
+  per_page: number;
+}
+
+export interface CreateArtistEditRequest {
+  artist_id: string;
+  edits: Array<{
+    field_name: string;
+    field_value_old: string | null;
+    field_value_new: string | null;
+  }>;
+}
+
+export interface ArtistEditSubmissionResponse {
+  edit_id: string;
+  status: 'pending';
+  message: string;
+  rate_limit_info?: {
+    edits_used: number;
+    edits_remaining: number;
+    rate_limit: number;
+    window_hours: number;
+  };
+}
+
+export interface ArtistPendingEditsResponse {
+  has_pending_edits: boolean;
+  submitted_at?: string;
 }
 
 // ================================
