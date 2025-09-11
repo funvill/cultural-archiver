@@ -215,6 +215,51 @@ export const TAG_DEFINITIONS: Record<string, TagDefinition> = {
     examples: ['excellent', 'good', 'fair'],
   },
 
+  city: {
+    key: 'city',
+    label: 'City',
+    description: 'City where the artwork is located',
+    category: 'physical_properties',
+    dataType: 'text',
+    required: false,
+    validation: {
+      maxLength: 100,
+    },
+    osmMapping: 'addr:city',
+    helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:addr:city',
+    examples: ['Vancouver', 'New York', 'London'],
+  },
+
+  province: {
+    key: 'province',
+    label: 'Province/State',
+    description: 'Province or state where the artwork is located',
+    category: 'physical_properties',
+    dataType: 'text',
+    required: false,
+    validation: {
+      maxLength: 100,
+    },
+    osmMapping: 'addr:state',
+    helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:addr:state',
+    examples: ['British Columbia', 'California', 'Ontario'],
+  },
+
+  country: {
+    key: 'country',
+    label: 'Country',
+    description: 'Country where the artwork is located',
+    category: 'physical_properties',
+    dataType: 'text',
+    required: false,
+    validation: {
+      maxLength: 100,
+    },
+    osmMapping: 'addr:country',
+    helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:addr:country',
+    examples: ['Canada', 'United States', 'United Kingdom'],
+  },
+
   // Location Details
   access: {
     key: 'access',

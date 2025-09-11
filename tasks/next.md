@@ -80,6 +80,10 @@ Find people that would be willing to partner with me on this project. Be specifi
 - `support@art.abluestar.com` currently errors out when sending an email to this address. This address should forward to my personal address.
 - Check to make sure that the only email address that is public is `support@art.abluestar.com`
 
+- [x] Add tag "city", "province/state", and "country" to the "Physical Properties" tag catagory.
+- In artwork edit mode, make the description text box 3 times as tall.
+
+
 ----
 
 - Need to spend some more time on the mobile and experience. I found it difficult to change and edit the tags.
@@ -230,3 +234,5 @@ The tag:artwork_type should default to "unknow"
 The advantage of using the tag:artwork_type is that it can be updated by the users from the normal tag editing.
 
 ----
+
+

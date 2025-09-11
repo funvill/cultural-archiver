@@ -273,11 +273,11 @@ function mapVancouverToRawData(data: VancouverArtworkData): RawImportData | null
   const descriptionParts: string[] = [];
   
   if (data.descriptionofwork) {
-    descriptionParts.push(`**Description Of Work**\n${data.descriptionofwork}`);
+    descriptionParts.push(`**Description Of Work**\n${data.descriptionofwork}\n\n`);
   }
   
   if (data.artistprojectstatement) {
-    descriptionParts.push(`**Artist statement**\n${data.artistprojectstatement}`);
+    descriptionParts.push(`**Artist statement**\n${data.artistprojectstatement}\n\n`);
   }
 
   // Add additional metadata fields
@@ -318,7 +318,7 @@ function mapVancouverToRawData(data: VancouverArtworkData): RawImportData | null
   // Combine all parts
   const allParts = [...descriptionParts];
   if (metadataParts.length > 0) {
-    allParts.push(`## Additional Information\n${metadataParts.join('\n\n')}`);
+    allParts.push(`**Additional Information:**\n${metadataParts.join('\n\n')}`);
   }
   const description = allParts.join('\n\n');
 

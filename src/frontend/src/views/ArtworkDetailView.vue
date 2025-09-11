@@ -8,7 +8,7 @@ import PhotoCarousel from '../components/PhotoCarousel.vue';
 import MiniMap from '../components/MiniMap.vue';
 import TagBadge from '../components/TagBadge.vue';
 import TagEditor from '../components/TagEditor.vue';
-import LogbookTimeline from '../components/LogbookTimeline.vue';
+// import LogbookTimeline from '../components/LogbookTimeline.vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { apiService } from '../services/api';
 
@@ -214,9 +214,9 @@ const artworkPhotos = computed(() => {
   return Array.from(new Set(artwork.value.photos));
 });
 
-const logbookEntries = computed(() => {
-  return artwork.value?.logbook_entries || [];
-});
+// const logbookEntries = computed(() => {
+//   return artwork.value?.logbook_entries || [];
+// });
 
 // Computed for authentication and editing permissions
 const canEdit = computed(() => {
@@ -403,19 +403,19 @@ function handleTagClick(tag: { label?: string; value?: string; key?: string }): 
   }
 }
 
-function handleLogbookEntryClick(entry: any): void {
-  // Future: implement entry detail view
-  console.log('Logbook entry clicked:', entry);
-}
+// function handleLogbookEntryClick(entry: any): void {
+//   // Future: implement entry detail view
+//   console.log('Logbook entry clicked:', entry);
+// }
 
-function handleLogbookPhotoClick(photoUrl: string): void {
-  handlePhotoFullscreen(photoUrl);
-}
+// function handleLogbookPhotoClick(photoUrl: string): void {
+//   handlePhotoFullscreen(photoUrl);
+// }
 
-function handleLoadMoreEntries(): void {
-  // Future: implement pagination
-  console.log('Load more entries requested');
-}
+// function handleLoadMoreEntries(): void {
+//   // Future: implement pagination
+//   console.log('Load more entries requested');
+// }
 
 function goToMap(): void {
   router.push('/');
@@ -942,6 +942,7 @@ async function checkPendingEdits(): Promise<void> {
           </section>
 
           <!-- Journal Timeline -->
+          <!--
           <section aria-labelledby="journal-heading">
             <LogbookTimeline
               :entries="logbookEntries"
@@ -952,6 +953,7 @@ async function checkPendingEdits(): Promise<void> {
               @load-more="handleLoadMoreEntries"
             />
           </section>
+          -->
         </div>
 
         <!-- Right column - Sidebar -->
