@@ -2,6 +2,9 @@
 // Database Schema Types
 // ================================
 
+// Import Cloudflare Worker types for D1Database
+import type { D1Database } from '@cloudflare/workers-types';
+
 export interface ArtworkTypeRecord {
   id: string;
   name: string;
@@ -593,7 +596,43 @@ export interface AuditLogRecord {
   created_at: string;
 }
 
+// ================================
+// Centralized Consent System Types
+// ================================
+
 export interface ConsentRecord {
+  id: string;                           // UUID
+  created_at: string;                   // ISO timestamp
+  user_id: string | null;               // References users.uuid, nullable for anonymous
+  anonymous_token: string | null;       // UUID for anonymous users, nullable for authenticated
+  consent_version: string;              // Frontend-provided policy version
+  content_type: string;                 // 'artwork', 'logbook', etc.
+  content_id: string;                   // Resource ID of the content
+  ip_address: string;                   // For legal compliance
+  consent_text_hash: string;            // Hash of exact consent text shown
+}
+
+export type ContentType = 'artwork' | 'logbook';
+
+export interface RecordConsentParams {
+  userId?: string;
+  anonymousToken?: string;
+  contentType: ContentType;
+  contentId: string;
+  consentVersion: string;
+  ipAddress: string;
+  consentTextHash: string;
+  source?: string;
+  requestId?: string;
+  db: D1Database;
+}
+
+export interface RecordConsentResponse {
+  id: string;
+}
+
+// Legacy consent record (for compatibility during migration)
+export interface LegacyConsentRecord {
   id: string;
   user_token: string;
   consent_version: string;
