@@ -206,16 +206,15 @@ Clean up any references in documentation
 
 ## Index page
 
-Create two index pages, these index pages show art and artists as cards with pagenation. These cards can be clicked to see the details page. 
+Create two index pages, these index pages show art and artists as cards with pagination. These cards can be clicked to see the details page.
 
-- /artwork - Should be an index page of all art. Sorted by last updated
-- /artist - Should be an index page of all artists. 
+- /artwork - Should be an index page of all artworks
+- /artist - Should be an index page of all artists
 
-These are like search results pages. but show all of each item sorted by last updated.
+These are like search results pages but show all of each item sorted by last updated.
 
 There should be 30 items on these index pages, with the ability to go to the next page
 
-Both of these pages use cards and show 30 cards per page. Use pagnate controls at the top and bottom
+Both of these pages use cards and show 30 cards per page. Use ppagination controls at the top and bottom
 
 Have a search bar at the top that leads to the search page
-
