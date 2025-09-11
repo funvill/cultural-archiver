@@ -573,3 +573,33 @@ etc...
 Then set the threashold to 0.7
 
 The report should list the existing artwork url, a confadence score that its the same and the artwork that was attempted to be imported.
+
+
+
+## Artist page
+
+  Executive Summary
+
+  Create dedicated artist profile pages that showcase artist information and their
+  artworks, enhancing discoverability and providing comprehensive artist
+  documentation within the Cultural Archiver platform.
+
+Create a artist page type
+The goal of this page is to tell people about the artist and list their artworks. A prime goal is to show other works by this artist.
+
+An artist can have many artworks, An artwork can have many artists, An artist can have many tags.
+
+Compoents on the artist page
+
+- Artist name - Text field
+- Description - A block of text formated as Markdown (biography, Artist statment, CV)
+- Artist tags - Artist website, Birth year, etc... Same as the artwork tags
+- List of artworks - A search results cards of all the artworks that this author is in the artwork's artist field.
+
+Notes:
+
+- The artist page should be editable by logged in users.
+- Any changes to the artist page need a moderator approval.
+- Don't use the existing creators tables or systems.
+- The URL for the artist page is /artist/{UUID}
+

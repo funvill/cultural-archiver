@@ -156,41 +156,14 @@ Find people that would be willing to partner with me on this project. Be specifi
 
 ----
 
-## Artist page
-
-  Executive Summary
-
-  Create dedicated artist profile pages that showcase artist information and their
-  artworks, enhancing discoverability and providing comprehensive artist
-  documentation within the Cultural Archiver platform.
-
-Create a artist page type
-The goal of this page is to tell people about the artist and list their artworks. A prime goal is to show other works by this artist.
-
-An artist can have many artworks, An artwork can have many artists, An artist can have many tags.
-
-Compoents on the artist page
-
-- Artist name - Text field
-- Description - A block of text formated as Markdown (biography, Artist statment, CV)
-- Artist tags - Artist website, Birth year, etc... Same as the artwork tags
-- List of artworks - A search results cards of all the artworks that this author is in the artwork's artist field.
-
-Notes:
-
-- The artist page should be editable by logged in users.
-- Any changes to the artist page need a moderator approval.
-- Don't use the existing creators tables or systems.
-- The URL for the artist page is /artist/{UUID}
-
-
 ----
 
 npx tsx src/cli/index.ts vancouver --limit 1
 
 ----
 
-Analysis: Tags Field vs Tags Table
+## Tags Field vs Tags Table
+
 Current Usage
 Artwork.tags field: Contains rich JSON data with structured metadata from the mass import system and user submissions. In production, all 154 artwork records have structured tag data stored in this field.
 
@@ -227,3 +200,22 @@ Remove unused TypeScript types
 Clean up any references in documentation
 
 ----
+
+
+----
+
+## Index page
+
+Create two index pages, these index pages show art and artists as cards with pagenation. These cards can be clicked to see the details page. 
+
+- /artwork - Should be an index page of all art. Sorted by last updated
+- /artist - Should be an index page of all artists. 
+
+These are like search results pages. but show all of each item sorted by last updated.
+
+There should be 30 items on these index pages, with the ability to go to the next page
+
+Both of these pages use cards and show 30 cards per page. Use pagnate controls at the top and bottom
+
+Have a search bar at the top that leads to the search page
+
