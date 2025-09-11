@@ -146,11 +146,6 @@ Find people that would be willing to partner with me on this project. Be specifi
 
 - [ ] After submitting the artwork, If no nearby art is detected in the search results. Go straight to add art details. One last step to do
 
-- [X] Reorder the artwork submission page . All the information and then gets consent for submitting it. If they don't give consent then don't actually submit the documents to the website. The consent variable needs to be added to the logbook so we know what version of each consent checkbox they accept agreed to.
-
-
-----
-
 ----
 
 npx tsx src/cli/index.ts vancouver --limit 1
@@ -213,3 +208,20 @@ There should be 30 items on these index pages, with the ability to go to the nex
 Both of these pages use cards and show 30 cards per page. Use ppagination controls at the top and bottom
 
 Have a search bar at the top that leads to the search page
+
+----
+
+## Database clean up
+
+artwork.consent_version
+In table artwork the consent_version field doesn't need to be there. Instead create a new table (consent) to recored all the consent for content from users.
+
+- user_id - User UUID
+- consent_version - The version that the user accepted
+- content_type - Artwork, etc...
+- content_id - The ID of the content where consent was given.
+
+
+
+
+ that records the consent of all user submitted data and the version that they agreed to it. 

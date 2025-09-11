@@ -51,8 +51,8 @@ export async function searchArtworks(
   try {
     // Build dynamic SQL conditions based on parsed query
     const conditions: string[] = [];
-    const params: any[] = [];
-    let relevanceSelects: string[] = [];
+    const params: (string | number)[] = [];
+    // let relevanceSelects: string[] = []; // Temporarily disabled
 
     // Base condition for status
     conditions.push('a.status = ?');
@@ -75,36 +75,29 @@ export async function searchArtworks(
         params.push(likePattern);
       }
 
-      // Add relevance scoring for text matches
-      relevanceSelects.push(`
-        CASE 
-          WHEN a.title LIKE ? THEN 5
-          WHEN at.name LIKE ? THEN 4
-          WHEN a.description LIKE ? THEN 3
-          WHEN a.created_by LIKE ? THEN 3
-          WHEN a.tags LIKE ? THEN 2
-          WHEN l.note LIKE ? THEN 1
-          ELSE 0
-        END
-      `);
+      // Add relevance scoring for text matches - temporarily disabled
+      // relevanceSelects.push(`...`);
       
-      // Add relevance parameters
-      for (let i = 0; i < 6; i++) {
-        params.push(likePattern);
-      }
+      // Add relevance parameters - temporarily disabled 
+      // for (let i = 0; i < 6; i++) {
+      //   params.push(likePattern);
+      // }
     }
 
     // Tag key searches ("tag:key" format)
+    // Support both nested ($.tags.key) and flat ($.key) structures
     parsed.tagKeys.forEach((key) => {
-      conditions.push(`json_extract(a.tags, '$.tags.${key}') IS NOT NULL`);
-      relevanceSelects.push('3'); // High relevance for tag key matches
+      conditions.push(`(json_extract(a.tags, '$.tags.${key}') IS NOT NULL OR json_extract(a.tags, '$.${key}') IS NOT NULL)`);
+      // relevanceSelects.push('3'); // Temporarily disabled
     });
 
     // Tag key-value searches ("tag:key:value" format)  
+    // Support both nested ($.tags.key) and flat ($.key) structures
     parsed.tagPairs.forEach((pair) => {
-      conditions.push(`json_extract(a.tags, '$.tags.${pair.key}') LIKE ?`);
+      conditions.push(`(json_extract(a.tags, '$.tags.${pair.key}') LIKE ? OR json_extract(a.tags, '$.${pair.key}') LIKE ?)`);
       params.push(`%${pair.value}%`);
-      relevanceSelects.push('4'); // Highest relevance for exact tag matches
+      params.push(`%${pair.value}%`); // Add the parameter twice for both conditions
+      // relevanceSelects.push('4'); // Temporarily disabled
     });
 
     // If no conditions, return empty results
@@ -117,10 +110,9 @@ export async function searchArtworks(
       };
     }
 
-    // Build the relevance score calculation
-    const relevanceScore = relevanceSelects.length > 0 
-      ? relevanceSelects.map(score => `(${score})`).join(' + ')
-      : '0';
+    // Build the relevance score calculation  
+    // Temporarily simplified to fix parameter binding issues
+    const relevanceScore = '0';
 
     // Main search query
     const searchSQL = `
@@ -313,11 +305,13 @@ export async function getSearchSuggestions(
       
       if (tagPart.includes(':')) {
         // User is typing "tag:key:" - suggest values for this key
+        // Support both nested ($.tags.key) and flat ($.key) structures
         const [key] = tagPart.split(':');
         const valueStmt = db.prepare(`
-          SELECT DISTINCT json_extract(tags, '$.tags.${key}') as tag_value
+          SELECT DISTINCT 
+            COALESCE(json_extract(tags, '$.tags.${key}'), json_extract(tags, '$.${key}')) as tag_value
           FROM artwork 
-          WHERE json_extract(tags, '$.tags.${key}') IS NOT NULL
+          WHERE (json_extract(tags, '$.tags.${key}') IS NOT NULL OR json_extract(tags, '$.${key}') IS NOT NULL)
           AND status = 'approved'
           LIMIT ?
         `);
