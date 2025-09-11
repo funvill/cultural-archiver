@@ -75,7 +75,7 @@ interface MassImportResponse {
     existingArtworkId: string;
     existingArtworkUrl: string;
   };
-  debug?: any[];
+  debug?: Record<string, unknown>[];
 }
 
 /**
@@ -220,45 +220,58 @@ export async function processMassImport(
     const artistMatchingService = new ArtistMatchingService(db);
     
     if (artistForDuplicateDetection) {
-      console.log(`[MASS_IMPORT] Looking for artist: "${artistForDuplicateDetection}"`);
+      console.log(`[MASS_IMPORT_ARTIST_DEBUG] ===== ARTIST PROCESSING START =====`);
+      console.log(`[MASS_IMPORT_ARTIST_DEBUG] Looking for artist: "${artistForDuplicateDetection}"`);
+      console.log(`[MASS_IMPORT_ARTIST_DEBUG] Import source: ${payload.importer || 'unknown'}`);
       
       // Search for existing artist
+      console.log(`[MASS_IMPORT_ARTIST_DEBUG] Searching existing artists in database...`);
       const matchingResult = await artistMatchingService.findMatchingArtists(artistForDuplicateDetection);
+      console.log(`[MASS_IMPORT_ARTIST_DEBUG] Artist search completed: found ${matchingResult.matches.length} matches`);
       
       if (matchingResult.bestMatch && matchingResult.bestMatch.score >= 0.85 && !matchingResult.isAmbiguous) {
         // High confidence match found - link to existing artist
         artistId = matchingResult.bestMatch.id;
         artistStatus = 'linked';
-        console.log(`[MASS_IMPORT] Found matching artist: ${matchingResult.bestMatch.name} (${matchingResult.bestMatch.id})`);
+        console.log(`[MASS_IMPORT_ARTIST_DEBUG] ✅ LINKED to existing artist: "${matchingResult.bestMatch.name}" (ID: ${matchingResult.bestMatch.id}, score: ${matchingResult.bestMatch.score})`);
       } else if (matchingResult.isAmbiguous) {
         // Multiple candidates found - flag for manual review
         artistStatus = 'ambiguous';
         artistCandidates = matchingResult.matches;
         artistSearchLink = artistMatchingService.generateArtistSearchUrl(artistForDuplicateDetection);
-        console.log(`[MASS_IMPORT] Multiple artist candidates found, flagged for manual review`);
+        console.log(`[MASS_IMPORT_ARTIST_DEBUG] ⚠️ AMBIGUOUS: ${matchingResult.matches.length} artist candidates found, flagged for manual review`);
+        matchingResult.matches.forEach((match, i) => {
+          console.log(`[MASS_IMPORT_ARTIST_DEBUG]   Candidate ${i + 1}: "${match.name}" (ID: ${match.id}, score: ${match.score})`);
+        });
       } else if (payload.importer === 'vancouver-mass-import') {
         // Vancouver special case - try to create artist from JSON data
-        console.log(`[MASS_IMPORT] No existing artist found, checking Vancouver data for: "${artistForDuplicateDetection}"`);
+        console.log(`[MASS_IMPORT_ARTIST_DEBUG] No existing artist found, checking Vancouver artist data...`);
+        console.log(`[MASS_IMPORT_ARTIST_DEBUG] Searching Vancouver JSON data for: "${artistForDuplicateDetection}"`);
         
         const vancouverData = vancouverArtistsData as VancouverArtistData[];
+        console.log(`[MASS_IMPORT_ARTIST_DEBUG] Vancouver data contains ${vancouverData.length} artist records`);
         const vancouverArtist = artistMatchingService.findVancouverArtistByName(artistForDuplicateDetection, vancouverData);
         
         if (vancouverArtist) {
-          console.log(`[MASS_IMPORT] Found Vancouver artist data for: ${vancouverArtist.firstname} ${vancouverArtist.lastname}`);
+          console.log(`[MASS_IMPORT_ARTIST_DEBUG] ✅ Found Vancouver artist data: ID=${vancouverArtist.artistid}, "${vancouverArtist.firstname} ${vancouverArtist.lastname}"`);
+          console.log(`[MASS_IMPORT_ARTIST_DEBUG] Vancouver artist details: country="${vancouverArtist.country}", website="${vancouverArtist.website}", biography=${vancouverArtist.biography ? `${vancouverArtist.biography.length} chars` : 'none'}`);
           
           try {
             // Create artist from Vancouver data
+            console.log(`[MASS_IMPORT_ARTIST_DEBUG] Creating new artist from Vancouver data...`);
             artistId = await artistMatchingService.createArtistFromVancouverData(artistForDuplicateDetection, vancouverArtist);
             artistStatus = 'created';
-            console.log(`[MASS_IMPORT] Created new artist from Vancouver data: ${artistId}`);
+            console.log(`[MASS_IMPORT_ARTIST_DEBUG] ✅ CREATED new artist from Vancouver data: ${artistId}`);
           } catch (error) {
-            console.error(`[MASS_IMPORT] Failed to create artist from Vancouver data:`, error);
+            console.error(`[MASS_IMPORT_ARTIST_DEBUG] ❌ Failed to create artist from Vancouver data:`, error);
             // Fall back to search link
             artistSearchLink = artistMatchingService.generateArtistSearchUrl(artistForDuplicateDetection);
+            console.log(`[MASS_IMPORT_ARTIST_DEBUG] Providing search link as fallback: ${artistSearchLink}`);
           }
         } else {
           // No Vancouver data found - create minimal artist
-          console.log(`[MASS_IMPORT] No Vancouver data found, creating minimal artist for: "${artistForDuplicateDetection}"`);
+          console.log(`[MASS_IMPORT_ARTIST_DEBUG] ❌ No Vancouver data found for: "${artistForDuplicateDetection}"`);
+          console.log(`[MASS_IMPORT_ARTIST_DEBUG] Creating minimal artist entry...`);
           
           try {
             artistId = await db.createArtistFromMassImport({
@@ -267,23 +280,27 @@ export async function processMassImport(
               sourceData: { original_name: artistForDuplicateDetection }
             });
             artistStatus = 'created';
-            console.log(`[MASS_IMPORT] Created minimal artist: ${artistId}`);
+            console.log(`[MASS_IMPORT_ARTIST_DEBUG] ✅ CREATED minimal artist: ${artistId}`);
           } catch (error) {
-            console.error(`[MASS_IMPORT] Failed to create minimal artist:`, error);
+            console.error(`[MASS_IMPORT_ARTIST_DEBUG] ❌ Failed to create minimal artist:`, error);
             artistSearchLink = artistMatchingService.generateArtistSearchUrl(artistForDuplicateDetection);
+            console.log(`[MASS_IMPORT_ARTIST_DEBUG] Providing search link as fallback: ${artistSearchLink}`);
           }
         }
       } else {
         // General import - provide search link
         artistSearchLink = artistMatchingService.generateArtistSearchUrl(artistForDuplicateDetection);
-        console.log(`[MASS_IMPORT] No artist found for general import, providing search link`);
+        console.log(`[MASS_IMPORT_ARTIST_DEBUG] ℹ️ General import - no artist found, providing search link: ${artistSearchLink}`);
       }
+      
+      console.log(`[MASS_IMPORT_ARTIST_DEBUG] ===== ARTIST PROCESSING END =====`);
+      console.log(`[MASS_IMPORT_ARTIST_DEBUG] Final status: ${artistStatus}, artistId: ${artistId || 'none'}, searchLink: ${artistSearchLink || 'none'}`);
     } else {
-      console.log(`[MASS_IMPORT] No artist name provided, skipping artist linking`);
+      console.log(`[MASS_IMPORT_ARTIST_DEBUG] No artist name provided, skipping artist linking`);
     }
 
     // Debug info for response
-    let debugInfo: Array<any> = [];
+    let debugInfo: Array<Record<string, unknown>> = [];
 
     let processedPhotoUrls: string[] = [];
 

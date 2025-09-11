@@ -139,6 +139,12 @@ function navigateToArtist(artistId: string) {
   router.push(`/artist/${artistId}`);
 }
 
+function navigateToArtistSearch(artistName: string) {
+  // Generate search URL for artist name
+  const encodedName = encodeURIComponent(artistName.trim());
+  router.push(`/search?artist=${encodedName}`);
+}
+
 const artworkTags = computed(() => {
   if (!artwork.value?.tags_parsed) return {};
 
@@ -253,6 +259,26 @@ function sanitizeMarkdownHtml(input: string): string {
 
 const displayCreators = computed(() => {
   return isEditMode.value ? editData.value.creators : artworkCreators.value;
+});
+
+const displayCreatorsList = computed(() => {
+  const creators = displayCreators.value;
+  if (creators === 'Unknown' || !creators) return [];
+  
+  // Split on comma and clean up names, filtering out system-generated values
+  return creators.split(',')
+    .map((name: string) => name.trim())
+    .filter((name: string) => {
+      // Filter out empty names, UUIDs, and artist IDs
+      if (!name || name === 'Unknown') return false;
+      if (name.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) return false;
+      if (name.startsWith('Artist ID:')) return false;
+      return true;
+    });
+});
+
+const hasDisplayableCreators = computed(() => {
+  return displayCreatorsList.value.length > 0;
 });
 
 const hasUnsavedChanges = computed(() => {
@@ -708,15 +734,32 @@ async function checkPendingEdits(): Promise<void> {
                 ({{ artist.role }})
               </span>
             </div>
-            <!-- Show legacy creator info as well if different -->
-            <div v-if="displayCreators !== 'Unknown' && !artworkArtists.some((a: any) => a.name === displayCreators)" 
-                 class="text-sm text-gray-500 italic">
-              Legacy: {{ displayCreators }}
+            <!-- Show legacy creator info as well if different from linked artists -->
+            <div v-if="hasDisplayableCreators" class="text-sm text-gray-500 italic">
+              Legacy: 
+              <span v-for="(creatorName, index) in displayCreatorsList" :key="creatorName">
+                <button
+                  @click="navigateToArtistSearch(creatorName)"
+                  class="text-blue-600 hover:text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded"
+                >
+                  {{ creatorName }}
+                </button>
+                <span v-if="index < displayCreatorsList.length - 1">, </span>
+              </span>
             </div>
           </div>
           <!-- Fallback to legacy creator info if no linked artists -->
-          <div v-else-if="displayCreators !== 'Unknown'">
-            by {{ displayCreators }}
+          <div v-else-if="hasDisplayableCreators" class="flex items-center gap-1 flex-wrap">
+            <span>by</span>
+            <span v-for="(creatorName, index) in displayCreatorsList" :key="creatorName">
+              <button
+                @click="navigateToArtistSearch(creatorName)"
+                class="text-blue-600 hover:text-blue-700 hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded"
+              >
+                {{ creatorName }}
+              </button>
+              <span v-if="index < displayCreatorsList.length - 1">, </span>
+            </span>
           </div>
           <div v-else class="text-gray-500 italic">
             Artist unknown
