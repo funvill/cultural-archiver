@@ -39,4 +39,4 @@ Use these instructions .github\instructions\process-task-list.md to process thes
 
 ## Ask me questions
 
-Ask me numbered questions about this PRD, give multiple choice answers A-D. Indicate what is the recommended choice. Uses these answers to update the PRD 
+Ask me numbered questions, give multiple choice answers A-D. Indicate what is the recommended choice. If needed provide me details required to make these choices

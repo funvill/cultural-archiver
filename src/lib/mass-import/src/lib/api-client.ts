@@ -48,9 +48,6 @@ export class MassImportAPIClient {
       // Step 1: Check for duplicates
       const existingArtworks = await this.fetchNearbyArtworks(data.lat, data.lon);
       
-      // Debug logging for the specific records we're importing
-      console.log(`[DUPLICATE_DEBUG] Processing import record: external_id="${data.externalId}", source="${data.source}"`);
-      
       // Check external ID first (exact match)
       let duplicateDetection = null;
       if (data.externalId && data.source) {
@@ -62,8 +59,6 @@ export class MassImportAPIClient {
             bestMatch: exactDuplicate,
           };
         }
-      } else {
-        console.log(`[DUPLICATE_DEBUG] Missing external_id or source for exact duplicate check`);
       }
 
       // If no exact match, do fuzzy duplicate detection
@@ -75,7 +70,7 @@ export class MassImportAPIClient {
       if (duplicateDetection.isDuplicate && !this.config.dryRun) {
         return {
           id: recordId,
-          title: 'Unknown',
+          title: data.title || 'Unknown',
           success: false,
           error: `Duplicate detected: ${duplicateDetection.bestMatch?.reason}`,
           warnings: [],
@@ -165,9 +160,6 @@ export class MassImportAPIClient {
         },
       });
       
-      // Debug logging for duplicate detection issues
-      console.log(`[DUPLICATE_DEBUG] Fetching nearby artworks at ${lat},${lon} within ${searchRadius}m`);
-      
       // Worker responses are wrapped with ApiResponse { success, data: { artworks: [...] }}
       const raw: unknown = response.data;
 
@@ -186,14 +178,6 @@ export class MassImportAPIClient {
           artworks = candidate.data.artworks;
         }
       }
-      
-      console.log(`[DUPLICATE_DEBUG] Found ${artworks.length} nearby artworks`);
-      
-      // Log details about each artwork for debugging
-      artworks.forEach(artwork => {
-        const tags = artwork.tags_parsed || {};
-        console.log(`[DUPLICATE_DEBUG] Artwork ${artwork.id}: title="${artwork.title}", external_id="${tags.external_id || 'none'}", source="${tags.source || 'none'}"`);
-      });
       
       return artworks;
     } catch (error) {
