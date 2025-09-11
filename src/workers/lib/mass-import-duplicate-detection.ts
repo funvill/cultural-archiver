@@ -95,9 +95,14 @@ export class MassImportDuplicateDetectionService {
     // 3. Calculate similarity scores for all candidates
     let bestMatch: MassImportSimilarityResult | null = null;
 
+    console.log(`[DUPLICATE_DETECTION] Evaluating ${candidates.length} candidates for similarity`);
+    console.log(`[DUPLICATE_DETECTION] Query: title="${query.title}", artist="${query.artist}", tags=${query.tags ? Object.keys(query.tags).length : 0} tags`);
+
     for (const candidate of candidates) {
       try {
         const result = this.similarityStrategy.calculateSimilarity(query, candidate, threshold);
+        
+        console.log(`[DUPLICATE_DETECTION] Candidate ${candidate.id}: title="${candidate.title}", score=${result.confidenceScore.toFixed(3)} (title=${result.scoreBreakdown.title.toFixed(3)}, artist=${result.scoreBreakdown.artist.toFixed(3)}, location=${result.scoreBreakdown.location.toFixed(3)}, tags=${result.scoreBreakdown.tags.toFixed(3)})`);
         
         // Keep track of best match (highest score)
         if (!bestMatch || result.confidenceScore > bestMatch.confidenceScore) {
@@ -111,6 +116,7 @@ export class MassImportDuplicateDetectionService {
 
     // 4. Return results
     if (bestMatch && bestMatch.isDuplicate) {
+      console.log(`[DUPLICATE_DETECTION] DUPLICATE FOUND: ${bestMatch.existingArtworkId} with confidence ${bestMatch.confidenceScore.toFixed(3)}`);
       return {
         isDuplicate: true,
         duplicateInfo: {
@@ -125,6 +131,8 @@ export class MassImportDuplicateDetectionService {
       };
     }
 
+    console.log(`[DUPLICATE_DETECTION] NO DUPLICATE: Best match score ${bestMatch?.confidenceScore.toFixed(3) || 'none'} < threshold ${threshold}`);
+    
     return {
       isDuplicate: false,
       candidatesChecked: candidates.length

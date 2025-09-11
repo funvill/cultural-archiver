@@ -1,8 +1,10 @@
 /**
  * Mass Import System - Duplicate Detection
  * 
- * This module handles duplicate detection using geographic proximity
- * and fuzzy string matching on titles.
+ * This module handles duplicate detection using multiple approaches:
+ * 1. Exact matches (external ID, content hash)
+ * 2. Geographic proximity with enhanced similarity scoring
+ * 3. Fuzzy string matching with proper normalization
  */
 
 import fuzzy from 'fuzzy';
@@ -14,11 +16,11 @@ import type {
 } from '../types';
 
 // ================================
-// Core Duplicate Detection
+// Enhanced Duplicate Detection
 // ================================
 
 /**
- * Detect potential duplicates for import data
+ * Detect potential duplicates for import data using multiple methods
  */
 export async function detectDuplicates(
   importData: ProcessedImportData,
@@ -27,7 +29,31 @@ export async function detectDuplicates(
 ): Promise<DuplicateDetectionResult> {
   const candidates: DuplicateCandidate[] = [];
 
-  // Step 1: Find artworks within geographic proximity
+  // Method 1: Check for exact external ID matches (highest priority)
+  const externalIdMatch = checkExternalIdDuplicate(
+    String(importData.tags?.external_id || ''),
+    importData.tags?.source?.toString() || 'vancouver-opendata',
+    existingArtworks
+  );
+  if (externalIdMatch) {
+    return {
+      isDuplicate: true,
+      candidates: [externalIdMatch],
+      bestMatch: externalIdMatch
+    };
+  }
+
+  // Method 2: Check for content hash matches (near-exact duplicates)
+  const contentHashMatch = checkContentHashDuplicate(importData, existingArtworks);
+  if (contentHashMatch) {
+    return {
+      isDuplicate: true,
+      candidates: [contentHashMatch],
+      bestMatch: contentHashMatch
+    };
+  }
+
+  // Method 3: Geographic proximity with enhanced similarity scoring
   const nearbyArtworks = findNearbyArtworks(
     importData.lat,
     importData.lon,
@@ -35,7 +61,7 @@ export async function detectDuplicates(
     existingArtworks
   );
 
-  // Step 2: Calculate similarity scores for nearby artworks
+  // Calculate enhanced similarity scores for nearby artworks
   for (const artwork of nearbyArtworks) {
     const candidate = await calculateSimilarity(importData, artwork, config);
     if (candidate) {
@@ -60,6 +86,86 @@ export async function detectDuplicates(
   }
 
   return result;
+}
+
+// ================================
+// Enhanced Detection Methods  
+// ================================
+
+/**
+ * Check for content hash duplicates (near-exact matches)
+ */
+function checkContentHashDuplicate(
+  importData: ProcessedImportData,
+  existingArtworks: ExistingArtwork[]
+): DuplicateCandidate | null {
+  const importHash = generateContentHash(importData);
+  
+  for (const artwork of existingArtworks) {
+    const artworkHash = generateContentHashForExisting(artwork);
+    
+    if (importHash === artworkHash) {
+      const candidate: DuplicateCandidate = {
+        id: artwork.id,
+        lat: artwork.lat,
+        lon: artwork.lon,
+        distance: 0,
+        titleSimilarity: 1,
+        confidence: 0.95, // Very high confidence for content hash match
+        reason: `Identical content hash: ${importHash.substring(0, 8)}...`,
+      };
+      
+      if (artwork.title) {
+        candidate.title = artwork.title;
+      }
+      
+      return candidate;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Generate content hash for import data
+ */
+function generateContentHash(importData: ProcessedImportData): string {
+  const title = (importData.title || '').toLowerCase().trim();
+  const coords = `${importData.lat.toFixed(6)},${importData.lon.toFixed(6)}`;
+  const tags = JSON.stringify(importData.tags || {});
+  
+  const content = [title, coords, tags].filter(Boolean).join('|');
+  
+  // Simple hash - in production you might want crypto.subtle
+  let hash = 0;
+  for (let i = 0; i < content.length; i++) {
+    const char = content.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  
+  return Math.abs(hash).toString(36);
+}
+
+/**
+ * Generate content hash for existing artwork
+ */
+function generateContentHashForExisting(artwork: ExistingArtwork): string {
+  const title = (artwork.title || '').toLowerCase().trim();
+  const coords = `${artwork.lat.toFixed(6)},${artwork.lon.toFixed(6)}`;
+  const tags = JSON.stringify(artwork.tags_parsed || {});
+  
+  const content = [title, coords, tags].filter(Boolean).join('|');
+  
+  // Simple hash - in production you might want crypto.subtle
+  let hash = 0;
+  for (let i = 0; i < content.length; i++) {
+    const char = content.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  
+  return Math.abs(hash).toString(36);
 }
 
 /**
@@ -98,12 +204,19 @@ async function calculateSimilarity(
     return null;
   }
 
-  // Extract title from import note
-  const importTitle = extractTitleFromNote(importData.note || '');
+  // Use the actual title field from import data (not extracted from note)
+  const importTitle = importData.title || '';
   const artworkTitle = artwork.title || '';
+
+  // Debug logging for title comparison
+  console.log(`[DUPLICATE_DEBUG] Comparing titles:`);
+  console.log(`[DUPLICATE_DEBUG]   Import title: "${importTitle}"`);
+  console.log(`[DUPLICATE_DEBUG]   Artwork title: "${artworkTitle}"`);
 
   // Calculate title similarity
   const titleSimilarity = calculateTitleSimilarity(importTitle, artworkTitle);
+  
+  console.log(`[DUPLICATE_DEBUG]   Title similarity score: ${titleSimilarity}`);
 
   // Calculate overall confidence based on distance and title similarity
   const confidence = calculateConfidence(distance, titleSimilarity, config);
@@ -129,26 +242,108 @@ async function calculateSimilarity(
 }
 
 /**
- * Calculate title similarity using fuzzy string matching
+ * Enhanced title similarity using multiple approaches
  */
 function calculateTitleSimilarity(title1: string, title2: string): number {
   if (!title1 || !title2) {
     return 0;
   }
 
+  // Method 1: Exact match (highest priority)
+  if (title1.toLowerCase().trim() === title2.toLowerCase().trim()) {
+    return 1.0;
+  }
+
   // Normalize titles for comparison
   const normalized1 = normalizeTitle(title1);
   const normalized2 = normalizeTitle(title2);
 
-  // Use fuzzy string matching
-  const results = fuzzy.filter(normalized1, [normalized2]);
-  if (results.length === 0) {
-    return 0;
+  // Method 2: Normalized exact match
+  if (normalized1 === normalized2 && normalized1.length > 0) {
+    return 1.0;
   }
 
-  // Convert fuzzy score to 0-1 range
-  const score = results[0]?.score ?? 0;
-  return Math.min(score / 100, 1);
+  // Method 3: Levenshtein distance
+  const levenshteinScore = calculateLevenshteinSimilarity(normalized1, normalized2);
+  
+  // Method 4: Fuzzy matching (as fallback)
+  const fuzzyScore = calculateFuzzyScore(normalized1, normalized2);
+  
+  // Return the highest score from different methods
+  const finalScore = Math.max(levenshteinScore, fuzzyScore);
+  
+  // Debug logging for title similarity issues
+  if (finalScore === 0 && title1.toLowerCase().trim() === title2.toLowerCase().trim()) {
+    console.warn(`[SIMILARITY] Title similarity returned 0 for identical titles: "${title1}" vs "${title2}"`);
+    return 1.0; // Force match for identical titles
+  }
+  
+  return finalScore;
+}
+
+/**
+ * Calculate Levenshtein similarity (same as API system)
+ */
+function calculateLevenshteinSimilarity(str1: string, str2: string): number {
+  if (str1 === str2) return 1;
+  if (str1.length === 0 || str2.length === 0) {
+    return str1.length === str2.length ? 1 : 0;
+  }
+
+  const matrix: number[][] = [];
+  const len1 = str1.length;
+  const len2 = str2.length;
+
+  // Initialize matrix
+  for (let i = 0; i <= len1; i++) {
+    matrix[i] = [];
+    matrix[i]![0] = i;
+  }
+  for (let j = 0; j <= len2; j++) {
+    matrix[0]![j] = j;
+  }
+
+  // Fill matrix
+  for (let i = 1; i <= len1; i++) {
+    for (let j = 1; j <= len2; j++) {
+      if (str1[i - 1] === str2[j - 1]) {
+        matrix[i]![j] = matrix[i - 1]![j - 1]!;
+      } else {
+        matrix[i]![j] = Math.min(
+          matrix[i - 1]![j]! + 1,     // deletion
+          matrix[i]![j - 1]! + 1,     // insertion
+          matrix[i - 1]![j - 1]! + 1  // substitution
+        );
+      }
+    }
+  }
+
+  const distance = matrix[len1]![len2]!;
+  const maxLength = Math.max(len1, len2);
+  
+  // Convert distance to similarity (0-1)
+  return maxLength === 0 ? 1 : 1 - (distance / maxLength);
+}
+
+/**
+ * Calculate fuzzy score (improved implementation)
+ */
+function calculateFuzzyScore(str1: string, str2: string): number {
+  if (!str1 || !str2) return 0;
+  
+  try {
+    const results = fuzzy.filter(str1, [str2]);
+    if (results.length === 0) {
+      return 0;
+    }
+    
+    // Convert fuzzy score to 0-1 range (fuzzy scores can go above 100)
+    const score = results[0]?.score ?? 0;
+    return Math.min(score / 100, 1);
+  } catch (error) {
+    console.warn('Fuzzy matching failed:', error);
+    return 0;
+  }
 }
 
 /**
@@ -211,23 +406,6 @@ function generateDuplicateReason(
   }
 
   return reasons.join(', ');
-}
-
-/**
- * Extract title from note field (handles various formats)
- */
-function extractTitleFromNote(note: string): string {
-  // Look for "Title: ..." pattern
-  const titleMatch = note.match(/Title:\s*([^\n]+)/i);
-  if (titleMatch && titleMatch[1]) {
-    return titleMatch[1].trim();
-  }
-
-  // Fallback to first line
-  const firstLine = note.split('\n')[0];
-  if (!firstLine) return '';
-  
-  return firstLine.length > 100 ? firstLine.substring(0, 100) : firstLine;
 }
 
 // ================================
@@ -310,5 +488,5 @@ export interface ExistingArtwork {
   lat: number;
   lon: number;
   title?: string | null;
-  tags_parsed?: Record<string, any>;
+  tags_parsed?: Record<string, unknown>;
 }

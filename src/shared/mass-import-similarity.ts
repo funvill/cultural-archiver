@@ -76,19 +76,20 @@ export class MassImportSimilarityStrategy {
     };
 
     // 1. Title Match (+0.2 points max)
-    if (query.title && candidate.title) {
-      scoreBreakdown.title = this.calculateTitleSimilarity(
-        query.title, 
-        candidate.title
-      ) * this.POINTS_TITLE;
+    if (query.title != null && candidate.title != null) {
+      const titleSimilarity = this.calculateTitleSimilarity(query.title, candidate.title);
+      scoreBreakdown.title = titleSimilarity * this.POINTS_TITLE;
+      
+      // Debug logging for title matching
+      if (titleSimilarity === 0 && query.title === candidate.title) {
+        console.warn(`[SIMILARITY] Title mismatch despite identical strings: "${query.title}" vs "${candidate.title}"`);
+      }
     }
 
     // 2. Artist Match (+0.2 points max)
     if (query.artist && candidate.created_by) {
-      scoreBreakdown.artist = this.calculateArtistSimilarity(
-        query.artist,
-        candidate.created_by
-      ) * this.POINTS_ARTIST;
+      const artistSimilarity = this.calculateArtistSimilarity(query.artist, candidate.created_by);
+      scoreBreakdown.artist = artistSimilarity * this.POINTS_ARTIST;
     }
 
     // 3. Location Proximity (+0.3 points max)
@@ -103,6 +104,18 @@ export class MassImportSimilarityStrategy {
         query.tags,
         candidate.tags
       );
+      
+      // Debug logging for tag matching
+      if (scoreBreakdown.tags === 0 && Object.keys(query.tags).length > 0) {
+        console.warn(`[SIMILARITY] No tag matches found despite ${Object.keys(query.tags).length} query tags`);
+        console.debug(`[SIMILARITY] Query tags:`, query.tags);
+        try {
+          const candidateTagsParsed = JSON.parse(candidate.tags);
+          console.debug(`[SIMILARITY] Candidate tags:`, candidateTagsParsed);
+        } catch (e) {
+          console.debug(`[SIMILARITY] Candidate tags (raw):`, candidate.tags);
+        }
+      }
     }
 
     // Calculate total confidence score
@@ -130,15 +143,21 @@ export class MassImportSimilarityStrategy {
     const normalized1 = this.normalizeString(title1);
     const normalized2 = this.normalizeString(title2);
 
-    if (!normalized1 || !normalized2) {
+    // Only return 0 for null/undefined, not empty strings
+    if (normalized1 == null || normalized2 == null) {
       return 0;
+    }
+
+    // Handle empty strings after normalization
+    if (normalized1.length === 0 || normalized2.length === 0) {
+      return normalized1.length === normalized2.length ? 1 : 0;
     }
 
     const distance = this.levenshteinDistance(normalized1, normalized2);
     const maxLength = Math.max(normalized1.length, normalized2.length);
     
     // Convert distance to similarity (0-1)
-    return maxLength === 0 ? 0 : 1 - (distance / maxLength);
+    return maxLength === 0 ? 1 : 1 - (distance / maxLength);
   }
 
   /**
@@ -194,19 +213,32 @@ export class MassImportSimilarityStrategy {
     }
 
     let matchCount = 0;
+    const queryEntries = Object.entries(queryTags);
+    const candidateEntries = Object.entries(candidateTags);
 
     // Check for fuzzy matches on both labels and values
-    for (const [queryLabel, queryValue] of Object.entries(queryTags)) {
-      for (const [candidateLabel, candidateValue] of Object.entries(candidateTags)) {
-        // Label match
-        if (this.fuzzyStringMatch(queryLabel, candidateLabel)) {
+    for (const [queryLabel, queryValue] of queryEntries) {
+      let matched = false;
+      
+      for (const [candidateLabel, candidateValue] of candidateEntries) {
+        // Exact label match with exact value match gets priority
+        if (queryLabel === candidateLabel && String(queryValue) === String(candidateValue)) {
           matchCount++;
-          break; // Don't double count same tag
+          matched = true;
+          break;
         }
         
-        // Value match
-        if (this.fuzzyStringMatch(queryValue, candidateValue)) {
+        // Fuzzy label match
+        if (this.fuzzyStringMatch(queryLabel, candidateLabel)) {
           matchCount++;
+          matched = true;
+          break;
+        }
+        
+        // Fuzzy value match (only if no label match found yet)
+        if (!matched && this.fuzzyStringMatch(String(queryValue), String(candidateValue))) {
+          matchCount++;
+          matched = true;
           break;
         }
       }
