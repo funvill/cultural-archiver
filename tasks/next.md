@@ -6,71 +6,6 @@
 - [x] Optimized submit new artwork
 - Mass import
 
-## General
-
-- ????? - Remove the creators system and replace it with a comma seperated list of keywords to search for. This means that there won't be a artist details page.
-
-- Move all the test files out of the base source folders into test folders
-- The github copilot issue started PR. There is an error that `vitest` is not installed. `I see there's an issue with vitest not being found. Let me check if dependencies are installed and try to fix this:`
-
-- `support@art.abluestar.com` currently errors out when sending an email to this address. This address should forward to my personal address.
-- Check to make sure that the only email address that is public is `support@art.abluestar.com`
-
-----
-
-- Need to spend some more time on the mobile and experience. I found it difficult to change and edit the tags.
-
-----
-
-## Prior Art research
-
-- School Of Cities - Vancouver public Art
-  - https://github.com/schoolofcities/vancouver-public-art
-  - The data is just Vancouver public art database
-  - I like the way they put a box on the left hand side when you click on an icon instead of just going direct to the artwork page
-  - Contact them and say hello, maybe we could do something together.
-  - I like how the markers on the map are small and stay the same reliative size as the map scales up and down.
-  - The markers are colored making it easy at a glance to see what each marker repersents.
-
-## Marketing and gameafication
-
-- Speak more about the gamification of the system. We want to send people notifications when a artwork that they contributed to or in artwork that they added gets 1,000 views, 10,000 views, etc. Could make them feel really proud that they've added to this social good.
-
-- Look into how I naturalist sends emails out to new members. Follow that list. How are they doing? Engagement with people. Copy their list. Marketing emails
-
-- Look into the calls to actions that google maps does for "good" reviews and populare reviews. Follow their lead
-
-- Use small fixed size icons for the markers for the map. But have some ability to click though overlapping markers.
-
-- This artwork https://covapp.vancouver.ca/PublicArtRegistry/ArtworkDetail.aspx?FromArtworkSearch=False&ArtworkId=358 from this list https://covapp.vancouver.ca/PublicArtRegistry/ is not in the Vancouver open data public artwork list. Its in the data set but not on the map. something has gone wrong.
-
-## Sign in
-
-- The system is not sending out magic links any more. I checked Resend and its not reciving any requests to send out emails.
-
-- The email should send out a passcode instead of a link. Don't train people to click links in emails. Maybe a magic phrase instead of a magic link.
-
-## Artwork Details page
-
-## Map page
-
-- [ ] The map page should remember where what your last location was and the zoom level. So if you refresh the page again, it will return to the old location. Use local storage for this.
-- [ ] Allow for an option to cluster or not to cluster pins on the map.
-
-## Admin page
-
-The admin page is a super user that can give moderators permissions to other users.
-
-## Review Queue / Moderate page
-
-- Move the tabs "New Submissions", and "Artwork Edits" to below the Moderate stats. (Simlare to the admin page)
-- The "pending review" stat should also include the "Artwork Edits" pending.
-
-## App Bar
-
-- In the app bar. Change the "add" to a Camera Icon and make it 3 times larger then all of the other menu items in the app bar. This icon should glow with a fuzzy border. This is the main button people will use and we want to bring attention to it.
-- Help, logout, Admin, and Moderator should automaticly be put in to the menu. The menu should always be shown on the right hand side.
-
 ## Choose a name
 
 - Use https://domains.cloudflare.com/ to check if the domain is avlaible
@@ -121,7 +56,6 @@ The admin page is a super user that can give moderators permissions to other use
 **No .Com**
 
 - [2] CulturalCommon.org + culturalcommon.com  (Note: the missing "S" at the end)
-      
 
 - OpenArt.org (premimum aka expensive)
 - huntart.app
@@ -132,6 +66,74 @@ The admin page is a super user that can give moderators permissions to other use
 - artcollects.org
 - artcollect.app
 - iArchivist.org
+
+## General
+
+- ????? - Remove the creators system and replace it with a comma seperated list of keywords to search for. This means that there won't be a artist details page.
+
+- ✅ FIXED - The GitHub Actions workflow had issues with vitest dependency installation. Fixed by:
+  - Updated Node.js version from 23.x to 22.x (more stable)
+  - Fixed cache placement to occur before dependency installation  
+  - Updated cache action from v3 to v4
+  - Simplified workspace dependency installation using npm workspaces correctly
+  - Verified that vitest is properly installed in both frontend and workers workspaces
+
+- `support@art.abluestar.com` currently errors out when sending an email to this address. This address should forward to my personal address.
+- Check to make sure that the only email address that is public is `support@art.abluestar.com`
+
+----
+
+- Need to spend some more time on the mobile and experience. I found it difficult to change and edit the tags.
+
+----
+
+## Prior Art research
+
+- **School Of Cities** - Vancouver public Art
+  - https://github.com/schoolofcities/vancouver-public-art
+  - The data is just Vancouver public art database
+  - I like the way they put a box on the left hand side when you click on an icon instead of just going direct to the artwork page
+  - Contact them and say hello, maybe we could do something together.
+  - I like how the markers on the map are small and stay the same reliative size as the map scales up and down.
+  - The markers are colored making it easy at a glance to see what each marker repersents.
+
+## Marketing and gameafication
+
+- Speak more about the gamification of the system. We want to send people notifications when a artwork that they contributed to or in artwork that they added gets 1,000 views, 10,000 views, etc. Could make them feel really proud that they've added to this social good.
+
+- Look into how I naturalist sends emails out to new members. Follow that list. How are they doing? Engagement with people. Copy their list. Marketing emails
+
+- Look into the calls to actions that google maps does for "good" reviews and populare reviews. Follow their lead
+
+- Use small fixed size icons for the markers for the map. But have some ability to click though overlapping markers.
+
+- This artwork https://covapp.vancouver.ca/PublicArtRegistry/ArtworkDetail.aspx?FromArtworkSearch=False&ArtworkId=358 from this list https://covapp.vancouver.ca/PublicArtRegistry/ is not in the Vancouver open data public artwork list. Its in the data set but not on the map. something has gone wrong.
+
+## Sign in
+
+- The email should send out a passcode instead of a link. Don't train people to click links in emails. Maybe a magic phrase instead of a magic link.
+
+## Artwork Details page
+
+## Map page
+
+- [ ] The map page should remember where what your last location was and the zoom level. So if you refresh the page again, it will return to the old location. Use local storage for this.
+- [ ] Allow for an option to cluster or not to cluster pins on the map.
+
+## Admin page
+
+The admin page is a super user that can give moderators permissions to other users.
+
+## Review Queue / Moderate page
+
+- Move the tabs "New Submissions", and "Artwork Edits" to below the Moderate stats. (Simlare to the admin page)
+- The "pending review" stat should also include the "Artwork Edits" pending.
+
+## App Bar
+
+- Help, logout, Admin, and Moderator should automaticly be put in to the menu. The menu should always be shown on the right hand side.
+
+
 
 ## Find partners
 

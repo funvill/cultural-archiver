@@ -101,3 +101,5 @@ src/lib/mass-import/new-artworks.txt
 vancouver-report-*.json
 *.geojson
 
+
+out.txt

@@ -11,7 +11,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [23.x]
+        node-version: [22.x]
 
     steps:
       - name: Checkout repository
@@ -23,19 +23,8 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
 
-      - name: Install dependencies
-        run: |
-          npm ci
-          npm run setup --if-present
-
-      - name: Run tests
-        run: npm run test
-
-      # - name: Check code formatting
-      #   run: npm run format:check
-
       - name: Cache dependencies
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/.npm
@@ -45,3 +34,14 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
+
+      - name: Install dependencies
+        run: |
+          npm ci
+          npm run build
+
+      - name: Run tests
+        run: npm run test
+
+      # - name: Check code formatting
+      #   run: npm run format:check
