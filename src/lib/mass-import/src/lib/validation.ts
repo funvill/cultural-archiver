@@ -105,6 +105,17 @@ function validateCoordinates(
   const errors: ValidationError[] = [];
   const warnings: ValidationError[] = [];
 
+  // Enhanced coordinate validation - check for NaN, undefined, null
+  if (!isFinite(lat) || !isFinite(lon)) {
+    errors.push({
+      field: 'coordinates',
+      message: 'Invalid coordinates: lat or lon is not a finite number',
+      severity: 'error',
+      code: 'INVALID_COORDINATES',
+    });
+    return { errors, warnings }; // Return early if coordinates are invalid
+  }
+
   // Basic coordinate validation (already handled by Zod schema)
   if (lat < -90 || lat > 90) {
     errors.push({

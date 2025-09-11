@@ -257,7 +257,14 @@ export interface VancouverArtworkData {
   geo_point_2d: {
     lat: number;
     lon: number;
-  };
+  } | null;
+  geom?: {
+    type: string;
+    geometry?: {
+      coordinates: [number, number];
+      type: string;
+    };
+  } | null;
   geo_local_area?: string;
   descriptionofwork?: string;
   artists?: string[];

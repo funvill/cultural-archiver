@@ -165,6 +165,20 @@ export const VancouverMapper: DataSourceMapper = {
       // Transform Vancouver data to RawImportData format
       const mappedData = mapVancouverToRawData(rawData);
       
+      // Handle null return (artwork should be skipped)
+      if (!mappedData) {
+        return {
+          isValid: false,
+          errors: [{
+            field: 'coordinates',
+            message: `Artwork ${rawData.registryid} skipped: No valid coordinates found`,
+            severity: 'error',
+            code: 'MISSING_COORDINATES',
+          }],
+          warnings: [],
+        };
+      }
+      
       // Use the standard validation with Vancouver-specific config
       const config = {
         apiEndpoint: 'https://art-api.abluestar.com',
@@ -219,10 +233,28 @@ export const VancouverMapper: DataSourceMapper = {
 /**
  * Transform Vancouver artwork data to RawImportData format
  */
-function mapVancouverToRawData(data: VancouverArtworkData): RawImportData {
-  // Extract coordinates
-  const lat = data.geo_point_2d.lat;
-  const lon = data.geo_point_2d.lon;
+function mapVancouverToRawData(data: VancouverArtworkData): RawImportData | null {
+  // Extract coordinates with proper null checking
+  let lat: number | undefined;
+  let lon: number | undefined;
+  
+  if (data.geo_point_2d?.lat && data.geo_point_2d?.lon) {
+    lat = data.geo_point_2d.lat;
+    lon = data.geo_point_2d.lon;
+  } else if (data.geom?.geometry?.coordinates && Array.isArray(data.geom.geometry.coordinates)) {
+    [lon, lat] = data.geom.geometry.coordinates; // GeoJSON is [lon, lat]
+  }
+  
+  if (!lat || !lon || !isFinite(lat) || !isFinite(lon)) {
+    console.warn(`Skipping artwork ${data.registryid} (${data.title_of_work}): No valid coordinates found`);
+    return null; // Skip this artwork
+  }
+
+  // Validate coordinates are within Vancouver bounds
+  if (!VancouverMapper.validateBounds!(lat, lon)) {
+    console.warn(`Artwork ${data.registryid} (${data.title_of_work}): Coordinates (${lat}, ${lon}) are outside Vancouver bounds`);
+    // Continue processing but log the warning - these might still be valid artworks
+  }
 
   // Build title (required field)
   let title = data.title_of_work || 'Untitled Artwork';
@@ -636,8 +668,10 @@ export function validateVancouverData(data: VancouverArtworkData): {
     errors.push('Missing or empty title');
   }
 
-  if (!data.geo_point_2d || !data.geo_point_2d.lat || !data.geo_point_2d.lon) {
-    errors.push('Missing or invalid coordinates');
+  if (!data.geo_point_2d) {
+    errors.push('Missing coordinates (geo_point_2d is null)');
+  } else if (!data.geo_point_2d.lat || !data.geo_point_2d.lon) {
+    errors.push('Missing or invalid coordinates (lat/lon missing from geo_point_2d)');
   }
 
   // Coordinate bounds validation
