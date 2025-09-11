@@ -27,8 +27,8 @@ export interface MassImportCandidate {
   id: string;
   coordinates: Coordinates;
   title?: string | null;
-  created_by?: string | null;  // Artist field in database
-  tags?: string | null;        // JSON string
+  created_by?: string | null;  // User UUID who submitted the artwork
+  tags?: string | null;        // JSON string containing artist and other metadata
 }
 
 export interface MassImportSimilarityResult {
@@ -50,11 +50,11 @@ export interface MassImportSimilarityResult {
 // ================================
 
 export class MassImportSimilarityStrategy {
-  private readonly POINTS_TITLE = 0.2;
-  private readonly POINTS_ARTIST = 0.2;
-  private readonly POINTS_LOCATION = 0.3;
-  private readonly POINTS_PER_TAG = 0.05;
-  private readonly LOCATION_RADIUS_METERS = 50;
+  private readonly POINTS_TITLE = 0.25;      // Increased from 0.2 - title is very important for public art
+  private readonly POINTS_ARTIST = 0.15;     // Decreased from 0.2 - artist format may vary  
+  private readonly POINTS_LOCATION = 0.4;    // Increased from 0.3 - location is most reliable for artwork
+  private readonly POINTS_PER_TAG = 0.04;    // Decreased from 0.05 - supporting evidence, not dominant
+  private readonly LOCATION_RADIUS_METERS = 25; // Decreased from 50 - more precise for public art
 
   constructor(
     private readonly baseUrl: string = 'https://art.abluestar.com'
@@ -87,9 +87,27 @@ export class MassImportSimilarityStrategy {
     }
 
     // 2. Artist Match (+0.2 points max)
-    if (query.artist && candidate.created_by) {
-      const artistSimilarity = this.calculateArtistSimilarity(query.artist, candidate.created_by);
-      scoreBreakdown.artist = artistSimilarity * this.POINTS_ARTIST;
+    if (query.artist) {
+      // Extract artist from candidate's tags, not from created_by (which is user UUID)
+      let candidateArtist: string | null = null;
+      
+      if (candidate.tags) {
+        try {
+          const candidateTags = JSON.parse(candidate.tags);
+          candidateArtist = candidateTags.artist || candidateTags.created_by || null;
+        } catch (error) {
+          console.warn(`[SIMILARITY] Failed to parse candidate tags:`, error);
+        }
+      }
+      
+      if (candidateArtist) {
+        const artistSimilarity = this.calculateArtistSimilarity(query.artist, candidateArtist);
+        scoreBreakdown.artist = artistSimilarity * this.POINTS_ARTIST;
+        
+        console.log(`[SIMILARITY] Artist comparison: "${query.artist}" vs "${candidateArtist}" = ${artistSimilarity.toFixed(3)}`);
+      } else {
+        console.log(`[SIMILARITY] No artist found in candidate tags for artwork ${candidate.id}`);
+      }
     }
 
     // 3. Location Proximity (+0.3 points max)

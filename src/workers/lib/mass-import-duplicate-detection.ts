@@ -68,7 +68,7 @@ export class MassImportDuplicateDetectionService {
    * Check for duplicates of the given artwork import data
    */
   async checkForDuplicates(request: MassImportDuplicateRequest): Promise<MassImportDuplicateResult> {
-    const threshold = request.duplicateThreshold ?? 0.7;
+    const threshold = request.duplicateThreshold ?? 0.75; // Increased from 0.7 for more conservative detection
 
     // 1. Find nearby existing artworks within 100m radius
     const candidates = await this.findNearbyArtworks(

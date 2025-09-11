@@ -48,6 +48,9 @@ export class MassImportAPIClient {
       // Step 1: Check for duplicates
       const existingArtworks = await this.fetchNearbyArtworks(data.lat, data.lon);
       
+      // Debug logging for the specific records we're importing
+      console.log(`[DUPLICATE_DEBUG] Processing import record: external_id="${data.externalId}", source="${data.source}"`);
+      
       // Check external ID first (exact match)
       let duplicateDetection = null;
       if (data.externalId && data.source) {
@@ -59,6 +62,8 @@ export class MassImportAPIClient {
             bestMatch: exactDuplicate,
           };
         }
+      } else {
+        console.log(`[DUPLICATE_DEBUG] Missing external_id or source for exact duplicate check`);
       }
 
       // If no exact match, do fuzzy duplicate detection
@@ -146,24 +151,51 @@ export class MassImportAPIClient {
       // duplicate detection. Keep a fallback request path for any legacy
       // deployments just in case.
       const endpoint = '/api/artworks/nearby';
+      
+      // Use a larger radius for duplicate detection to ensure we catch nearby artworks
+      // The duplicate detection algorithm will filter by precise distance anyway
+      const searchRadius = Math.max(this.config.duplicateDetectionRadius, 100); // minimum 100m search
+      
       const response = await this.axios.get(endpoint, {
         params: {
           lat,
           lon,
-          radius: this.config.duplicateDetectionRadius,
-          limit: 20, // Limit to prevent large responses
+          radius: searchRadius,
+          limit: 50, // Increase limit to catch more potential duplicates
         },
       });
+      
+      // Debug logging for duplicate detection issues
+      console.log(`[DUPLICATE_DEBUG] Fetching nearby artworks at ${lat},${lon} within ${searchRadius}m`);
+      
       // Worker responses are wrapped with ApiResponse { success, data: { artworks: [...] }}
       const raw: unknown = response.data;
 
-      interface NearbyWrapped { data?: { artworks?: ExistingArtwork[] }; artworks?: ExistingArtwork[] }
-      const candidate = raw as NearbyWrapped;
-      if (candidate) {
-        if (Array.isArray(candidate.artworks)) return candidate.artworks;
-        if (candidate.data && Array.isArray(candidate.data.artworks)) return candidate.data.artworks;
+      interface NearbyWrapped { 
+        data?: { artworks?: ExistingArtwork[] }; 
+        artworks?: ExistingArtwork[] 
       }
-      return [];
+      
+      const candidate = raw as NearbyWrapped;
+      let artworks: ExistingArtwork[] = [];
+      
+      if (candidate) {
+        if (Array.isArray(candidate.artworks)) {
+          artworks = candidate.artworks;
+        } else if (candidate.data && Array.isArray(candidate.data.artworks)) {
+          artworks = candidate.data.artworks;
+        }
+      }
+      
+      console.log(`[DUPLICATE_DEBUG] Found ${artworks.length} nearby artworks`);
+      
+      // Log details about each artwork for debugging
+      artworks.forEach(artwork => {
+        const tags = artwork.tags_parsed || {};
+        console.log(`[DUPLICATE_DEBUG] Artwork ${artwork.id}: title="${artwork.title}", external_id="${tags.external_id || 'none'}", source="${tags.source || 'none'}"`);
+      });
+      
+      return artworks;
     } catch (error) {
       console.warn('Failed to fetch nearby artworks for duplicate detection:', error);
       return []; // Continue without duplicate detection rather than failing

@@ -154,13 +154,24 @@ export async function processMassImport(
       }
     }
 
+    console.log(`[MASS_IMPORT] Built allTags:`, allTags);
+
+    // Extract artist information for duplicate detection
+    // Priority: 1) payload.artwork.created_by, 2) tags.artist, 3) tags.created_by
+    const artistForDuplicateDetection = payload.artwork.created_by || 
+                                       allTags.artist || 
+                                       allTags.created_by || 
+                                       undefined;
+
+    console.log(`[MASS_IMPORT] Artist for duplicate detection: "${artistForDuplicateDetection}" (from ${payload.artwork.created_by ? 'artwork.created_by' : allTags.artist ? 'tags.artist' : allTags.created_by ? 'tags.created_by' : 'none'})`);
+
     // Check for duplicates
     const duplicateResult = await duplicateDetectionService.checkForDuplicates({
       title: payload.artwork.title,
       ...(payload.artwork.description && { description: payload.artwork.description }),
       lat: payload.artwork.lat,
       lon: payload.artwork.lon,
-      ...(payload.artwork.created_by && { artist: payload.artwork.created_by }),
+      ...(artistForDuplicateDetection && { artist: artistForDuplicateDetection }),
       ...(Object.keys(allTags).length > 0 && { tags: allTags }),
       ...(payload.duplicateThreshold && { duplicateThreshold: payload.duplicateThreshold })
     });

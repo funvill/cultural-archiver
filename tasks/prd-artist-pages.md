@@ -16,6 +16,11 @@ centralized place to showcase an artist's portfolio within the platform.
 
 Implement a dedicated Artist page type with full CRUD operations
 
+## Notes
+
+- Don't use the creator field in the artwork
+- artwork_artists roll defaults to "artist"
+
 ## Technical Architecture
 
 ### Database Schema
@@ -39,7 +44,7 @@ CREATE TABLE artwork_artists (
   id TEXT PRIMARY KEY DEFAULT (uuid()),
   artwork_id TEXT NOT NULL,
   artist_id TEXT NOT NULL,
-  role TEXT DEFAULT 'creator',        -- 'creator', 'collaborator', 'commissioner', 'curator', etc.
+  role TEXT DEFAULT 'artist',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (artwork_id) REFERENCES artworks(id) ON DELETE CASCADE,
   FOREIGN KEY (artist_id) REFERENCES artists(id) ON DELETE CASCADE,

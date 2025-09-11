@@ -1,7 +1,5 @@
 # OSM Public Artwork Fetcher
 
-
-
 This tool systematically downloads **public artworks** (`tourism=artwork`) from [OpenStreetMap](https://www.openstreetmap.org/) by breaking a bounding box into smaller **map tiles** and querying the [Overpass API](https://overpass-api.de/).  
 
 It is designed for **resume-friendly bulk import** into your own system:  

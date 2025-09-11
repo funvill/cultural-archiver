@@ -452,17 +452,42 @@ export function checkExternalIdDuplicate(
     return null;
   }
 
+  console.log(`[DUPLICATE_DEBUG] Checking for external ID duplicate: ${externalId} from ${source}`);
+  console.log(`[DUPLICATE_DEBUG] Searching through ${existingArtworks.length} existing artworks`);
+
   const duplicate = existingArtworks.find(artwork => {
     // Check if artwork has matching external ID and source in tags
-    const tags = artwork.tags_parsed || {};
+    let tags: Record<string, unknown> = {};
+    
+    // Handle different possible tag formats
+    if (artwork.tags_parsed) {
+      tags = artwork.tags_parsed;
+    } else if (artwork.tags) {
+      // Fallback: try to parse raw tags field if tags_parsed is missing
+      try {
+        const rawTags = artwork.tags;
+        if (typeof rawTags === 'string') {
+          tags = JSON.parse(rawTags);
+        } else if (typeof rawTags === 'object' && rawTags !== null) {
+          tags = rawTags;
+        }
+      } catch (error) {
+        console.warn(`[DUPLICATE_DEBUG] Failed to parse tags for artwork ${artwork.id}:`, error);
+        return false;
+      }
+    }
+    
+    console.log(`[DUPLICATE_DEBUG] Artwork ${artwork.id} tags:`, tags);
     
     // Primary check: external_id + source (new format)
     if (tags.external_id === externalId && tags.source === source) {
+      console.log(`[DUPLICATE_DEBUG] MATCH found by external_id: ${externalId}`);
       return true;
     }
     
     // Fallback check: registry_id + source (backward compatibility for Vancouver imports)
     if (source === 'vancouver-opendata' && tags.registry_id === externalId && tags.source === source) {
+      console.log(`[DUPLICATE_DEBUG] MATCH found by registry_id: ${externalId}`);
       return true;
     }
     
@@ -470,7 +495,22 @@ export function checkExternalIdDuplicate(
   });
 
   if (duplicate) {
-    const tags = duplicate.tags_parsed || {};
+    let tags: Record<string, unknown> = {};
+    if (duplicate.tags_parsed) {
+      tags = duplicate.tags_parsed;
+    } else if (duplicate.tags) {
+      try {
+        const rawTags = duplicate.tags;
+        if (typeof rawTags === 'string') {
+          tags = JSON.parse(rawTags);
+        } else if (typeof rawTags === 'object' && rawTags !== null) {
+          tags = rawTags;
+        }
+      } catch {
+        // Ignore parsing errors
+      }
+    }
+    
     const matchType = tags.external_id === externalId ? 'external_id' : 'registry_id';
     
     const candidate: DuplicateCandidate = {
@@ -487,9 +527,11 @@ export function checkExternalIdDuplicate(
       candidate.title = duplicate.title;
     }
 
+    console.log(`[DUPLICATE_DEBUG] Returning duplicate candidate:`, candidate);
     return candidate;
   }
 
+  console.log(`[DUPLICATE_DEBUG] No external ID duplicate found for ${externalId}`);
   return null;
 }
 
@@ -503,4 +545,5 @@ export interface ExistingArtwork {
   lon: number;
   title?: string | null;
   tags_parsed?: Record<string, unknown>;
+  tags?: string | null; // Raw JSON tags field from database
 }
