@@ -1,4 +1,4 @@
-# Know things to do
+# Known things to do
 
 ## MVP
 
@@ -71,12 +71,7 @@
 
 - ????? - Remove the creators system and replace it with a comma seperated list of keywords to search for. This means that there won't be a artist details page.
 
-- ✅ FIXED - The GitHub Actions workflow had issues with vitest dependency installation. Fixed by:
-  - Updated Node.js version from 23.x to 22.x (more stable)
-  - Fixed cache placement to occur before dependency installation  
-  - Updated cache action from v3 to v4
-  - Simplified workspace dependency installation using npm workspaces correctly
-  - Verified that vitest is properly installed in both frontend and workers workspaces
+
 
 - `support@art.abluestar.com` currently errors out when sending an email to this address. This address should forward to my personal address.
 - Check to make sure that the only email address that is public is `support@art.abluestar.com`
@@ -118,7 +113,9 @@
 ## Map page
 
 - [ ] The map page should remember where what your last location was and the zoom level. So if you refresh the page again, it will return to the old location. Use local storage for this.
-- [ ] Allow for an option to cluster or not to cluster pins on the map.
+
+- Add map options navigation drawer. This should look like the "layers" icon and should be above the other map controls at the bottom of the screen.
+  - Add a checkbox to the map options, enables or disables clustering of map markers on the map
 
 ## Admin page
 
@@ -131,9 +128,7 @@ The admin page is a super user that can give moderators permissions to other use
 
 ## App Bar
 
-- Help, logout, Admin, and Moderator should automaticly be put in to the menu. The menu should always be shown on the right hand side.
-
-
+- Help, logout, Admin, and Moderator links should automaticly be moved into the menu (hamburger). The menu should always be shown on the right hand side. Navigation Drawer
 
 ## Find partners
 
@@ -146,7 +141,7 @@ Find people that would be willing to partner with me on this project. Be specifi
 
 - After a user uploads a photo, they are shown the search results page of artwork nearby. If the user clicks one of the artwork cards from the search results, they should be brought to a logbook submission form. On this page they can submit a new photo and any other information that they want to. This page is identical to the new artwork submission details page but instead of submitting new artwork it submits a logbook entry, and a artwork details update.
 
-- [ ] After submitting the artwork, If no nearby art is detected in the search results. Go straight to add art details. One last step to do
+- [ ] After uploading artwork, If no artworks are detected nearby the search results. Go straight to add art details page. No reason to show a page that doesn't have any actions.
 
 ----
 
@@ -193,9 +188,6 @@ Clean up any references in documentation
 
 ----
 
-
-----
-
 ## Index page
 
 Create two index pages, these index pages show art and artists as cards with pagination. These cards can be clicked to see the details page.
@@ -215,15 +207,35 @@ Have a search bar at the top that leads to the search page
 
 ## Database clean up
 
-artwork.consent_version
-In table artwork the consent_version field doesn't need to be there. Instead create a new table (consent) to recored all the consent for content from users.
+What is this field used for? Can it be removed or moved?
 
+----
+
+artwork.consent_version
+In table artwork the consent_version field doesn't need to be part of the artwork table. Instead create a new table (consent) to recored all the consent for content from users.
+
+The table strucutre could look like thi
+
+- id - TEXT PRIMARY KEY,
+- created_at - TEXT NOT NULL DEFAULT (datetime('now')),
 - user_id - User UUID
 - consent_version - The version that the user accepted
 - content_type - Artwork, etc...
 - content_id - The ID of the content where consent was given.
 
+The goal is clean up the artwork table. Any content that is provided by the user needs consent to make it avalaible to others. This table is also flexable for the future user commited data.
 
+Do the same thing for artwork, logbook tables.
 
+----
 
- that records the consent of all user submitted data and the version that they agreed to it. 
+artwork.type_id
+In the artwork table, the type_id does not need to be part of this table.
+Instead use the tag:artwork_type for the artwork type.
+Then we can drop the artwork_types table.
+
+The tag:artwork_type should default to "unknow"
+
+The advantage of using the tag:artwork_type is that it can be updated by the users from the normal tag editing.
+
+----

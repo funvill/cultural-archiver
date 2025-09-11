@@ -11,7 +11,7 @@ import {
   ArrowLeftOnRectangleIcon,
   ShieldCheckIcon,
   MagnifyingGlassIcon,
-  PhotoIcon,
+  CameraIcon,
 } from '@heroicons/vue/24/outline';
 import { useAuthStore } from '../stores/auth';
 import AuthModal from './AuthModal.vue';
@@ -37,8 +37,24 @@ const authStore = useAuthStore();
 const drawerCloseButton = ref<HTMLElement>();
 // Note: firstNavLink ref is defined but not used - keeping for future drawer focus enhancement
 
-// Navigation items
-const navigationItems: NavigationItem[] = [
+// Main navigation items (shown in desktop header)
+const mainNavigationItems: NavigationItem[] = [
+  {
+    name: 'Add',
+    path: '/add',
+    icon: CameraIcon,
+    primaryAction: true,
+  },
+];
+
+// Menu navigation items (shown in hamburger menu)
+const menuNavigationItems: NavigationItem[] = [
+  {
+    name: 'Add',
+    path: '/add',
+    icon: CameraIcon,
+    primaryAction: true,
+  },
   {
     name: 'Map',
     path: '/',
@@ -50,19 +66,13 @@ const navigationItems: NavigationItem[] = [
     icon: MagnifyingGlassIcon,
   },
   {
-    name: 'Add',
-    path: '/add',
-    icon: PhotoIcon,
-    primaryAction: true,
-  },
-  {
     name: 'Moderate',
     path: '/review',
     icon: ClipboardDocumentListIcon,
-  // New canonical flag
-  requiresModerator: true,
-  // Backward compatibility legacy flag (to remove later)
-  requiresReviewer: true,
+    // New canonical flag
+    requiresModerator: true,
+    // Backward compatibility legacy flag (to remove later)
+    requiresReviewer: true,
   },
   {
     name: 'Admin',
@@ -77,9 +87,13 @@ const navigationItems: NavigationItem[] = [
   },
 ];
 
+// Note: `drawerNavItems` uses `menuNavigationItems` directly for filtering.
+
 // Computed
-const visibleNavItems = computed(() => {
-  return navigationItems.filter(item => {
+
+// Separate computed property for drawer navigation (excludes "Add" since it's in main nav)
+const drawerNavItems = computed(() => {
+  const items = menuNavigationItems.filter(item => {
     // Hide auth-required items if not authenticated
     if (item.requiresAuth && !authStore.isAuthenticated) {
       return false;
@@ -100,6 +114,16 @@ const visibleNavItems = computed(() => {
 
     return true;
   });
+  
+  console.log('*** DRAWER DEBUG START ***');
+  console.log('menuNavigationItems:', menuNavigationItems);
+  console.log('authStore.isAuthenticated:', authStore.isAuthenticated);
+  console.log('authStore.canReview:', authStore.canReview);
+  console.log('authStore.isAdmin:', authStore.isAdmin);
+  console.log('filtered items:', items);
+  console.log('*** DRAWER DEBUG END ***');
+  
+  return items;
 });
 
 const userDisplayName = computed(() => {
@@ -124,7 +148,7 @@ function closeDrawer(): void {
   const wasOpen = showDrawer.value;
   showDrawer.value = false;
 
-  // Return focus to mobile menu button when closing drawer
+  // Return focus to navigation drawer button when closing drawer
   if (wasOpen) {
     nextTick(() => {
       const menuButton = document.querySelector(
@@ -221,9 +245,11 @@ function checkForDirtyForms(): boolean {
 
 // Enhanced keyboard navigation
 function handleKeydown(event: KeyboardEvent): void {
-  if (event.key === 'Escape' && showDrawer.value) {
-    closeDrawer();
-    return;
+  if (event.key === 'Escape') {
+    if (showDrawer.value) {
+      closeDrawer();
+      return;
+    }
   }
 
   // Handle tab trapping in drawer when open
@@ -296,7 +322,7 @@ watch(() => route.path, handleRouteChange);
 
     <!-- Top App Bar -->
     <header class="app-header bg-blue-600 text-white shadow-md" role="banner">
-      <div class="flex items-center justify-between h-16 px-4">
+      <div class="grid grid-cols-3 items-center h-16 px-4">
         <!-- Left side: Logo and Title -->
         <div class="flex items-center space-x-2 sm:space-x-3 min-w-0">
           <button
@@ -309,12 +335,11 @@ watch(() => route.path, handleRouteChange);
           </button>
         </div>
 
-        <!-- Right side: Navigation (Desktop) -->
-        <div class="hidden md:flex items-center space-x-4">
-          <!-- Navigation Links -->
-          <nav class="flex items-center space-x-4" role="navigation" aria-label="Main navigation">
+        <!-- Center: Add Button -->
+        <div class="flex justify-center">
+          <nav role="navigation" aria-label="Main navigation">
             <RouterLink
-              v-for="item in visibleNavItems"
+              v-for="item in mainNavigationItems"
               :key="item.path"
               :to="item.path"
               class="nav-link rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
@@ -336,81 +361,40 @@ watch(() => route.path, handleRouteChange);
               <span :class="item.primaryAction ? 'text-base font-semibold' : ''">{{ item.name }}</span>
             </RouterLink>
           </nav>
-
-          <!-- User Menu -->
-          <div class="flex items-center space-x-3 border-l border-blue-500 pl-4">
-            <!-- User Profile Button -->
-            <button
-              v-if="authStore.isAuthenticated"
-              @click="$router.push('/profile')"
-              class="flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium text-white hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
-              :title="`View profile for ${userDisplayName}`"
-            >
-              <UserIcon class="w-5 h-5" aria-hidden="true" />
-              <span>{{ userDisplayName }}</span>
-            </button>
-
-            <!-- Anonymous User Display -->
-            <div v-else class="text-right">
-              <div class="text-sm font-medium text-white">
-                {{ userDisplayName }}
-              </div>
-            </div>
-
-            <!-- Auth Actions -->
-            <div class="flex items-center space-x-2">
-              <template v-if="!authStore.isAuthenticated">
-                <button
-                  @click="openAuthModal('login')"
-                  class="px-3 py-2 text-sm font-medium bg-white text-blue-600 hover:bg-blue-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600"
-                >
-                  Sign In
-                </button>
-              </template>
-              <template v-else>
-                <button
-                  @click="handleLogout"
-                  class="p-2 text-blue-100 hover:text-white hover:bg-blue-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600"
-                  :title="`Sign out ${userDisplayName}`"
-                >
-                  <ArrowLeftOnRectangleIcon class="w-5 h-5" aria-hidden="true" />
-                  <span class="sr-only">Sign out</span>
-                </button>
-              </template>
-            </div>
-          </div>
         </div>
 
-        <!-- Mobile menu button -->
-        <button
-          class="md:hidden p-3 rounded-md hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
-          @click="toggleDrawer"
-          @keydown.escape="closeDrawer"
-          :aria-expanded="showDrawer"
-          aria-label="Open navigation menu"
-          aria-controls="mobile-menu"
-        >
-          <Bars3Icon v-if="!showDrawer" class="w-6 h-6" aria-hidden="true" />
-          <XMarkIcon v-else class="w-6 h-6" aria-hidden="true" />
-        </button>
+        <!-- Right side: Navigation Drawer Button -->
+        <div class="flex justify-end">
+          <button
+            class="p-2 rounded-md hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
+            @click="toggleDrawer"
+            @keydown.escape="closeDrawer"
+            :aria-expanded="showDrawer"
+            aria-label="Open navigation menu"
+            aria-controls="navigation-drawer"
+          >
+            <Bars3Icon v-if="!showDrawer" class="w-6 h-6" aria-hidden="true" />
+            <XMarkIcon v-else class="w-6 h-6" aria-hidden="true" />
+          </button>
+        </div>
       </div>
     </header>
 
-    <!-- Mobile Drawer Overlay -->
+    <!-- Navigation Drawer Overlay -->
     <div
       v-if="showDrawer"
-      class="fixed inset-0 z-40 md:hidden"
+      class="fixed inset-0 z-40"
       @click="closeDrawer"
       aria-hidden="true"
     >
       <div class="fixed inset-0 bg-black bg-opacity-50" />
     </div>
 
-    <!-- Mobile Drawer -->
+    <!-- Navigation Drawer -->
     <div
-      id="mobile-menu"
-      class="fixed top-0 left-0 z-50 h-full w-64 bg-white shadow-xl transform transition-transform duration-300 md:hidden"
-      :class="showDrawer ? 'translate-x-0' : '-translate-x-full'"
+      id="navigation-drawer"
+      class="fixed top-0 right-0 z-50 h-full w-80 bg-white shadow-xl transform transition-transform duration-300"
+      :class="showDrawer ? 'translate-x-0' : 'translate-x-full'"
       role="dialog"
       aria-modal="true"
       aria-labelledby="drawer-title"
@@ -433,65 +417,71 @@ watch(() => route.path, handleRouteChange);
       </div>
 
       <!-- Drawer Navigation -->
-      <nav class="py-4" role="navigation" aria-label="Mobile navigation">
+      <nav class="py-4" role="navigation" aria-label="Navigation menu">
+        <!-- All Navigation Items -->
         <RouterLink
-          v-for="(item, index) in visibleNavItems"
+          v-for="(item, index) in drawerNavItems"
           :key="item.path"
           v-bind="index === 0 ? { ref: 'firstNavLink' } : {}"
           :to="item.path"
-          class="drawer-link flex items-center px-4 py-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 focus:bg-blue-50 focus:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
+          class="drawer-link flex items-center px-6 py-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 focus:bg-blue-50 focus:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
           :class="[
             $route.path === item.path ? 'bg-blue-100 text-blue-600 border-r-4 border-blue-600' : '',
-            item.primaryAction ? 'relative' : ''
+            item.primaryAction ? 'relative z-0' : ''
           ]"
           :aria-current="$route.path === item.path ? 'page' : undefined"
           @click="closeDrawer"
         >
-          <span v-if="item.primaryAction" class="absolute -inset-1 rounded bg-blue-50 border border-blue-200" />
-          <component v-if="item.icon" :is="item.icon" :class="item.primaryAction ? 'w-6 h-6 mr-3' : 'w-5 h-5 mr-3'" aria-hidden="true" />
-          <span :class="item.primaryAction ? 'font-semibold text-base' : 'font-medium'">{{ item.name }}</span>
+          <span v-if="item.primaryAction" class="absolute -inset-1 rounded bg-blue-50 border border-blue-200 pointer-events-none -z-10" />
+          <component
+            v-if="item.icon"
+            :is="item.icon"
+            :class="item.primaryAction ? 'relative z-10 w-6 h-6 mr-4' : 'w-5 h-5 mr-4'"
+            aria-hidden="true"
+          />
+          <span :class="item.primaryAction ? 'relative z-10 font-semibold text-base' : 'font-medium text-base'">{{ item.name }}</span>
         </RouterLink>
 
-        <!-- Authentication Section in Mobile Drawer -->
-        <div class="border-t border-gray-200 mt-4 pt-4">
+        <!-- Authentication Section -->
+        <div class="border-t border-gray-200 mt-6 pt-6">
           <!-- User Status -->
-          <div class="px-4 py-2">
+          <div class="px-6 py-2">
             <button
               v-if="authStore.isAuthenticated"
               @click="
                 $router.push('/profile');
                 closeDrawer();
               "
-              class="w-full flex items-center space-x-2 px-3 py-2 text-left text-sm font-medium text-gray-900 hover:bg-gray-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
+              class="w-full flex items-center space-x-3 px-3 py-3 text-left text-base font-medium text-gray-900 hover:bg-gray-50 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
               :title="`View profile for ${userDisplayName}`"
             >
               <UserIcon class="w-5 h-5 text-gray-600" aria-hidden="true" />
               <span>{{ userDisplayName }}</span>
             </button>
-            <div v-else class="text-sm font-medium text-gray-900">{{ userDisplayName }}</div>
+            <div v-else class="text-base font-medium text-gray-900 px-3 py-3">{{ userDisplayName }}</div>
           </div>
 
           <!-- Auth Actions -->
-          <div v-if="!authStore.isAuthenticated" class="px-4 py-2 space-y-2">
+          <div v-if="!authStore.isAuthenticated" class="px-6 py-2">
             <button
               @click="
                 openAuthModal('login');
                 closeDrawer();
               "
-              class="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              class="w-full flex items-center justify-center px-4 py-3 text-base font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             >
               Sign In
             </button>
           </div>
-          <div v-else class="px-4 py-2">
+          <div v-else class="px-6 py-2">
             <button
               @click="
                 handleLogout();
                 closeDrawer();
               "
-              class="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-inset"
+              class="w-full flex items-center justify-center px-4 py-3 text-base font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-inset"
             >
-              <ArrowLeftOnRectangleIcon class="w-4 h-4 mr-2" aria-hidden="true" />
+              <ArrowLeftOnRectangleIcon class="w-5 h-5 mr-2" aria-hidden="true" />
               Sign Out
             </button>
           </div>
@@ -499,7 +489,7 @@ watch(() => route.path, handleRouteChange);
       </nav>
 
       <!-- Drawer Footer -->
-      <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+      <div class="absolute bottom-0 left-0 right-0 p-6 border-t border-gray-200">
         <div class="text-sm text-gray-600 text-center">Cultural Archiver v1.0</div>
       </div>
     </div>
