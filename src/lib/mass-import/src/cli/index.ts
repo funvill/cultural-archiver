@@ -740,13 +740,19 @@ async function runSingleImporter(
   importerName: string, 
   file: string, 
   options: any, 
-  config: MassImportConfig
+  _baseConfig: MassImportConfig
 ): Promise<void> {
   const importer = ImporterRegistry.get(importerName);
   if (!importer) {
     throw new Error(`Importer '${importerName}' not found`);
   }
 
+  // Reload config with importer-specific settings
+  const config = await loadConfig(options, importerName);
+  
+  // Set dry-run mode based on options
+  config.dryRun = options.dryRun || false;
+  
   const processor = new MassImportProcessor(config);
   
   console.log(chalk.blue(`🚀 Starting ${importerName} import process...`));
@@ -827,7 +833,7 @@ async function runSingleImporter(
 /**
  * Load configuration from options and config file
  */
-async function loadConfig(options: any): Promise<MassImportConfig> {
+async function loadConfig(options: any, importerName?: string): Promise<MassImportConfig> {
   let config: Partial<MassImportConfig> = {};
 
   // Load from config file if specified
@@ -837,6 +843,22 @@ async function loadConfig(options: any): Promise<MassImportConfig> {
       config = JSON.parse(configFile);
     } catch (error) {
       console.warn(chalk.yellow(`⚠️ Failed to load config file ${options.config}: ${error}`));
+    }
+  }
+
+  // Load importer-specific configuration
+  if (importerName === 'osm') {
+    try {
+      // Import the OSM config loader
+      const { loadOSMConfig } = await import('../importers/osm.js');
+      const osmConfig = loadOSMConfig();
+      
+      // Use OSM-specific settings if not overridden
+      if (!config.duplicateDetectionRadius && osmConfig.defaultConfig.duplicateDetectionRadius) {
+        config.duplicateDetectionRadius = osmConfig.defaultConfig.duplicateDetectionRadius;
+      }
+    } catch (error) {
+      console.warn(chalk.yellow(`⚠️ Failed to load OSM config: ${error}`));
     }
   }
 

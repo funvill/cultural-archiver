@@ -2,6 +2,7 @@
   "defaultConfig": {
     "user_uuid": "00000000-0000-0000-0000-000000000002",
     "duplicateThreshold": 0.7,
+    "duplicateDetectionRadius": 10000,
     "attribution": {
       "source": "OpenStreetMap",
       "license": "[ODbL](https://www.openstreetmap.org/copyright)",
@@ -18,11 +19,12 @@
       "skipIncomplete": true
     }
   },
-  "presets": {
+    "presets": {
     "vancouver": {
       "description": "Configuration for Vancouver public art imports",
       "user_uuid": "00000000-0000-0000-0000-000000000002",
       "duplicateThreshold": 0.8,
+      "duplicateDetectionRadius": 10000,
       "attribution": {
         "source": "OpenStreetMap",
         "license": "[ODbL](https://www.openstreetmap.org/copyright)",

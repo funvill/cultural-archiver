@@ -57,6 +57,7 @@ interface OSMConfig {
   defaultConfig: {
     user_uuid: string;
     duplicateThreshold: number;
+    duplicateDetectionRadius?: number;
     attribution: {
       source: string;
       license: string;
@@ -91,7 +92,7 @@ let osmConfigCache: OSMConfig | null = null;
 /**
  * Load OSM configuration
  */
-function loadOSMConfig(): OSMConfig {
+export function loadOSMConfig(): OSMConfig {
   if (osmConfigCache) {
     return osmConfigCache;
   }
@@ -333,6 +334,10 @@ export const OSMMapper: DataSourceMapper = {
   mapData: (data: OSMFeature): ValidationResult => {
     try {
       const mapped = mapOSMData(data);
+      // Load OSM config for validation settings
+      const osmConfig = loadOSMConfig();
+      const configRadius = osmConfig.defaultConfig.duplicateDetectionRadius || 10000; // 10km default for OSM
+      
       // Create config for validation
       const config = {
         apiEndpoint: 'https://art-api.abluestar.com',
@@ -340,7 +345,7 @@ export const OSMMapper: DataSourceMapper = {
         batchSize: 50,
         maxRetries: 3,
         retryDelay: 1000,
-        duplicateDetectionRadius: 100, // 100m for OSM data
+        duplicateDetectionRadius: configRadius,
         titleSimilarityThreshold: 0.7,
         dryRun: false,
       };

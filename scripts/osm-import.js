@@ -226,11 +226,15 @@ async function performImport(geoJSON, importConfig, apiConfig) {
     
     const result = await response.json();
     
-    if (!result.success) {
+    if (apiConfig.verbose) {
+      console.log('API Response:', JSON.stringify(result, null, 2));
+    }
+    
+    if (!result.data || !result.data.success) {
       throw new Error(`Import failed: ${result.message || 'Unknown error'}`);
     }
     
-    return result;
+    return result.data;
     
   } catch (error) {
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
@@ -336,6 +340,9 @@ async function main() {
 }
 
 // Run if called directly
-if (import.meta.url === `file://${process.argv[1]}`) {
+const currentModuleUrl = import.meta.url;
+const expectedUrl = `file:///${process.argv[1].replace(/\\/g, '/')}`;
+
+if (currentModuleUrl === expectedUrl || process.argv[1].includes('osm-import.js')) {
   main();
 }
