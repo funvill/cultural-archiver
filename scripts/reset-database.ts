@@ -303,13 +303,18 @@ async function clearUserData(config: DatabaseConfig, dryRun: boolean = false): P
     // Clear user-generated content
     'DELETE FROM logbook',
     'DELETE FROM artwork',
+  // Clear newly added artist-related tables (added in migration 0011)
+  'DELETE FROM artwork_artists',
+  'DELETE FROM artist_edits',
+  'DELETE FROM artists',
     
     // Clear moderation and admin action data
     'DELETE FROM moderation_decisions',
     'DELETE FROM admin_actions',
     
     // Clear migration tracking so migrations can be re-applied cleanly after reset
-    'DELETE FROM d1_migrations',
+    // NOTE: Do NOT delete d1_migrations here - keep migration tracking intact so
+    // migrations (like 0011_add_artist_tables.sql) are not accidentally removed.
   ];
 
   for (const query of clearQueries) {
@@ -466,7 +471,7 @@ async function validateResetState(config: DatabaseConfig, adminUuid: string, dry
   console.log(`  ✅ Admin permissions: ${permissionsCount} granted`);
   
   // Check user-generated tables are empty
-  const userTables = ['artwork', 'logbook', 'magic_links', 'auth_sessions', 'rate_limiting'];
+  const userTables = ['artwork', 'logbook', 'magic_links', 'auth_sessions', 'rate_limiting', 'artwork_artists', 'artist_edits', 'artists'];
   for (const table of userTables) {
     const countQuery = `SELECT COUNT(*) as count FROM ${table}`;
     const countResult = await executeQuery(config, countQuery);
@@ -560,7 +565,7 @@ async function resetDatabase(options: ResetOptions): Promise<void> {
       console.log('=====================================');
       console.log(`👤 Admin user: steven@abluestar.com`);
       console.log(`🔑 Admin UUID: ${adminUuid}`);
-      console.log(`🗄️  Environment: ${options.env}`);
+      console.log(`🗄️ Environment: ${options.env}`);
       console.log('📦 Backup created in _backup_database/');
       console.log('🎨 Ready for fresh artwork submissions!');
     }

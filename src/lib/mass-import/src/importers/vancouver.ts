@@ -85,11 +85,12 @@ function loadArtistLookup(): Map<number, string> {
   }
 
   try {
-    // Try to find the artist data file - look in the tasks directory
+    // Prefer bundled importers data in the mass-import package, fall back to workspace tasks
     const possiblePaths = [
+      path.resolve(__dirname, './public-art-artists.json'),
+      path.resolve(__dirname, '../importers/public-art-artists.json'),
+      path.resolve(process.cwd(), 'src/lib/mass-import/src/importers/public-art-artists.json'),
       path.resolve(process.cwd(), 'tasks/public-art-artists.json'),
-      path.resolve(process.cwd(), '../../../tasks/public-art-artists.json'),
-      path.resolve(__dirname, '../../../../../tasks/public-art-artists.json'),
     ];
 
     let artistData: VancouverArtist[] | null = null;

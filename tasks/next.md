@@ -2,7 +2,6 @@
 
 ## MVP
 
-
 - [x] Variable fields for artwork
 - [x] Optimized submit new artwork
 - Mass import
@@ -20,10 +19,6 @@
 ----
 
 - Need to spend some more time on the mobile and experience. I found it difficult to change and edit the tags.
-
-- The list of creators needs to be a tag instead of a dedicated field.
-
-- Database reset, Need the ability to do a database reset after the inital devlopment has been done. This is a once off script. It keeps the database schema but deletes all the content.
 
 ----
 
