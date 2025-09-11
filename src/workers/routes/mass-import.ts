@@ -14,7 +14,11 @@ import { createSuccessResponse, ValidationApiError, ApiError, UnauthorizedError 
 import { processAndUploadPhotos } from '../lib/photos';
 import { createDatabaseService } from '../lib/database';
 import { createMassImportDuplicateDetectionService } from '../lib/mass-import-duplicate-detection';
+import { ArtistMatchingService, type VancouverArtistData } from '../lib/artist-matching';
 import { CONSENT_VERSION } from '../../shared/consent';
+
+// Import Vancouver artist data
+import vancouverArtistsData from '../../lib/mass-import/src/importers/public-art-artists.json';
 
 /**
  * Mass import payload interface matching the documentation
@@ -22,13 +26,14 @@ import { CONSENT_VERSION } from '../../shared/consent';
 interface MassImportPayload {
   user_uuid: string;
   duplicateThreshold?: number; // Optional duplicate detection threshold (default: 0.7)
+  importer?: string; // Optional importer type (e.g., 'vancouver-mass-import')
   artwork: {
     title: string;
     description?: string;
     lat: number;
     lon: number;
     photos?: Array<{ url: string }>;
-    created_by?: string; // Artist name for duplicate detection
+    created_by?: string; // Artist name for duplicate detection and linking
   };
   logbook?: Array<{
     note?: string;
@@ -38,7 +43,7 @@ interface MassImportPayload {
 }
 
 /**
- * Enhanced mass import response with duplicate detection
+ * Enhanced mass import response with duplicate detection and artist linking
  */
 interface MassImportResponse {
   artwork_id?: string;
@@ -51,6 +56,11 @@ interface MassImportResponse {
     lat: number;
     lon: number;
   };
+  // Artist linking results
+  artist_id?: string; // ID of linked artist
+  artist_search_link?: string; // Search URL when artist not found
+  artist_status?: 'linked' | 'created' | 'search_required' | 'ambiguous';
+  artist_candidates?: Array<{ id: string; name: string; score: number }>;
   // Duplicate detection results
   duplicate?: {
     artworkId: string;
@@ -195,6 +205,83 @@ export async function processMassImport(
       return c.json(createSuccessResponse(response), 200);
     }
 
+    // ========================================
+    // ARTIST LINKING
+    // ========================================
+    
+    console.log(`[MASS_IMPORT] Starting artist linking process`);
+    
+    let artistId: string | undefined;
+    let artistSearchLink: string | undefined;
+    let artistStatus: 'linked' | 'created' | 'search_required' | 'ambiguous' = 'search_required';
+    let artistCandidates: Array<{ id: string; name: string; score: number }> = [];
+    
+    // Create artist matching service
+    const artistMatchingService = new ArtistMatchingService(db);
+    
+    if (artistForDuplicateDetection) {
+      console.log(`[MASS_IMPORT] Looking for artist: "${artistForDuplicateDetection}"`);
+      
+      // Search for existing artist
+      const matchingResult = await artistMatchingService.findMatchingArtists(artistForDuplicateDetection);
+      
+      if (matchingResult.bestMatch && matchingResult.bestMatch.score >= 0.85 && !matchingResult.isAmbiguous) {
+        // High confidence match found - link to existing artist
+        artistId = matchingResult.bestMatch.id;
+        artistStatus = 'linked';
+        console.log(`[MASS_IMPORT] Found matching artist: ${matchingResult.bestMatch.name} (${matchingResult.bestMatch.id})`);
+      } else if (matchingResult.isAmbiguous) {
+        // Multiple candidates found - flag for manual review
+        artistStatus = 'ambiguous';
+        artistCandidates = matchingResult.matches;
+        artistSearchLink = artistMatchingService.generateArtistSearchUrl(artistForDuplicateDetection);
+        console.log(`[MASS_IMPORT] Multiple artist candidates found, flagged for manual review`);
+      } else if (payload.importer === 'vancouver-mass-import') {
+        // Vancouver special case - try to create artist from JSON data
+        console.log(`[MASS_IMPORT] No existing artist found, checking Vancouver data for: "${artistForDuplicateDetection}"`);
+        
+        const vancouverData = vancouverArtistsData as VancouverArtistData[];
+        const vancouverArtist = artistMatchingService.findVancouverArtistByName(artistForDuplicateDetection, vancouverData);
+        
+        if (vancouverArtist) {
+          console.log(`[MASS_IMPORT] Found Vancouver artist data for: ${vancouverArtist.firstname} ${vancouverArtist.lastname}`);
+          
+          try {
+            // Create artist from Vancouver data
+            artistId = await artistMatchingService.createArtistFromVancouverData(artistForDuplicateDetection, vancouverArtist);
+            artistStatus = 'created';
+            console.log(`[MASS_IMPORT] Created new artist from Vancouver data: ${artistId}`);
+          } catch (error) {
+            console.error(`[MASS_IMPORT] Failed to create artist from Vancouver data:`, error);
+            // Fall back to search link
+            artistSearchLink = artistMatchingService.generateArtistSearchUrl(artistForDuplicateDetection);
+          }
+        } else {
+          // No Vancouver data found - create minimal artist
+          console.log(`[MASS_IMPORT] No Vancouver data found, creating minimal artist for: "${artistForDuplicateDetection}"`);
+          
+          try {
+            artistId = await db.createArtistFromMassImport({
+              name: artistForDuplicateDetection,
+              source: 'vancouver-mass-import',
+              sourceData: { original_name: artistForDuplicateDetection }
+            });
+            artistStatus = 'created';
+            console.log(`[MASS_IMPORT] Created minimal artist: ${artistId}`);
+          } catch (error) {
+            console.error(`[MASS_IMPORT] Failed to create minimal artist:`, error);
+            artistSearchLink = artistMatchingService.generateArtistSearchUrl(artistForDuplicateDetection);
+          }
+        }
+      } else {
+        // General import - provide search link
+        artistSearchLink = artistMatchingService.generateArtistSearchUrl(artistForDuplicateDetection);
+        console.log(`[MASS_IMPORT] No artist found for general import, providing search link`);
+      }
+    } else {
+      console.log(`[MASS_IMPORT] No artist name provided, skipping artist linking`);
+    }
+
     // Debug info for response
     let debugInfo: Array<any> = [];
 
@@ -290,6 +377,17 @@ export async function processMassImport(
     // This matches the current system design where photos are stored with logbook entries
 
     console.log(`[MASS_IMPORT] Created artwork ${artworkId}: ${payload.artwork.title}`);
+
+    // Link artwork to artist if we found or created one
+    if (artistId) {
+      try {
+        await db.linkArtworkToArtist(artworkId, artistId, 'artist');
+        console.log(`[MASS_IMPORT] Successfully linked artwork ${artworkId} to artist ${artistId}`);
+      } catch (error) {
+        console.error(`[MASS_IMPORT] Failed to link artwork to artist:`, error);
+        // Don't fail the entire import for linking errors
+      }
+    }
 
     // Create logbook entries if provided, or a default entry if photos were processed
     const logbookIds: string[] = [];
@@ -401,6 +499,11 @@ export async function processMassImport(
         lat: payload.artwork.lat,
         lon: payload.artwork.lon,
       },
+      // Artist linking results
+      ...(artistId && { artist_id: artistId }),
+      ...(artistSearchLink && { artist_search_link: artistSearchLink }),
+      artist_status: artistStatus,
+      ...(artistCandidates.length > 0 && { artist_candidates: artistCandidates }),
       debug: debugInfo,
     };
 

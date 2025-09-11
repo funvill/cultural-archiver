@@ -586,6 +586,124 @@ export class DatabaseService {
     }
   }
 
+  // ================================
+  // Artist Operations for Mass Import
+  // ================================
+
+  async searchArtistsByNormalizedName(normalizedName: string): Promise<{ id: string; name: string }[]> {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT id, name 
+        FROM artists 
+        WHERE LOWER(TRIM(name)) = ? AND status = 'active'
+        ORDER BY created_at ASC
+      `);
+
+      const results = await stmt.bind(normalizedName).all();
+      return results.results as unknown as { id: string; name: string }[];
+    } catch (error) {
+      console.warn('Error searching artists by normalized name:', error);
+      return [];
+    }
+  }
+
+  async searchArtistsByTokens(tokens: string[]): Promise<{ id: string; name: string; score: number }[]> {
+    if (tokens.length === 0) return [];
+
+    try {
+      // Build a query that checks if all tokens are present in the artist name
+      const tokenConditions = tokens.map(() => 'LOWER(name) LIKE ?').join(' AND ');
+      const stmt = this.db.prepare(`
+        SELECT id, name 
+        FROM artists 
+        WHERE ${tokenConditions} AND status = 'active'
+        ORDER BY created_at ASC
+      `);
+
+      const tokenParams = tokens.map(token => `%${token}%`);
+      const results = await stmt.bind(...tokenParams).all();
+      
+      // Add simple scoring based on how many tokens match
+      return (results.results as unknown as { id: string; name: string }[]).map(artist => ({
+        ...artist,
+        score: this.calculateTokenMatchScore(artist.name, tokens)
+      }));
+    } catch (error) {
+      console.warn('Error searching artists by tokens:', error);
+      return [];
+    }
+  }
+
+  private calculateTokenMatchScore(artistName: string, searchTokens: string[]): number {
+    const artistTokens = this.normalizeArtistName(artistName).split(' ').filter(t => t);
+    const matchingTokens = searchTokens.filter(searchToken => 
+      artistTokens.some(artistToken => artistToken.includes(searchToken) || searchToken.includes(artistToken))
+    );
+    return matchingTokens.length / searchTokens.length;
+  }
+
+  async createArtistFromMassImport(data: {
+    name: string;
+    description?: string;
+    tags?: Record<string, string>;
+    source: string;
+    sourceData?: any;
+  }): Promise<string> {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    // Build tags object with source metadata
+    const tags = {
+      ...data.tags,
+      import_metadata: {
+        source: data.source,
+        imported_at: now,
+        ...(data.sourceData && { source_data: data.sourceData })
+      }
+    };
+
+    const stmt = this.db.prepare(`
+      INSERT INTO artists (id, name, description, tags, created_at, updated_at, status)
+      VALUES (?, ?, ?, ?, ?, ?, 'active')
+    `);
+
+    await stmt.bind(
+      id,
+      data.name,
+      data.description || null,
+      JSON.stringify(tags),
+      now,
+      now
+    ).run();
+
+    console.log(`[DB] Created artist for mass import: ${id} - ${data.name}`);
+    return id;
+  }
+
+  async linkArtworkToArtist(artworkId: string, artistId: string, role: string = 'artist'): Promise<string> {
+    const id = crypto.randomUUID();
+    const now = new Date().toISOString();
+
+    const stmt = this.db.prepare(`
+      INSERT INTO artwork_artists (id, artwork_id, artist_id, role, created_at)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+
+    await stmt.bind(id, artworkId, artistId, role, now).run();
+    console.log(`[DB] Linked artwork ${artworkId} to artist ${artistId} with role ${role}`);
+    return id;
+  }
+
+  private normalizeArtistName(name: string): string {
+    return name
+      .trim()
+      .replace(/\s+/g, ' ') // Collapse multiple spaces
+      .toLowerCase()
+      .normalize('NFKD') // Decompose diacritics
+      .replace(/[\u0300-\u036f]/g, '') // Remove diacritics
+      .replace(/[^\w\s-]/g, ''); // Remove punctuation except hyphens
+  }
+
   async getArtworksForCreator(creatorId: string): Promise<ArtworkRecord[]> {
     const stmt = this.db.prepare(`
       SELECT a.*
