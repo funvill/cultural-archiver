@@ -77,6 +77,15 @@ const router = createRouter({
       },
     },
     {
+      path: '/artist/:id',
+      name: 'ArtistDetail',
+      component: (): Promise<Component> => import('../views/ArtistDetailView.vue'),
+      props: true,
+      meta: {
+        title: 'Artist Profile - Cultural Archiver',
+      },
+    },
+    {
       path: '/profile',
       name: 'Profile',
       component: ProfileView,

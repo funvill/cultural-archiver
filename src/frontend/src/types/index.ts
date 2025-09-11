@@ -240,6 +240,7 @@ export interface ArtworkDetails {
   description?: string | null; // Editable field
   created_by?: string | null; // Editable field
   artist_name?: string | null; // Artist name extracted from tags
+  artists: { id: string; name: string; role: string }[]; // Artists from the new artist system
 }
 
 export interface LogbookEntryWithPhotos {

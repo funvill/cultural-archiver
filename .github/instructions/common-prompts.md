@@ -37,3 +37,6 @@ After the task list is done, we want to create a new issue with these tasks
 Use these instructions .github\instructions\process-task-list.md to process these tasks tasks\tasks-prd-image-handling-rate-limiting.md for this PRD tasks\prd-image-handling-rate-limiting.md
 ```
 
+## Ask me questions
+
+Ask me numbered questions about this PRD, give multiple choice answers A-D. Indicate what is the recommended choice. Uses these answers to update the PRD 

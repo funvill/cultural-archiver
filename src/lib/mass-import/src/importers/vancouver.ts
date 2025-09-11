@@ -57,6 +57,7 @@ function getArtistNameById(artistId: number | string): string {
     const id = typeof artistId === 'string' ? parseInt(artistId, 10) : artistId;
     
     if (isNaN(id)) {
+      console.log(`[VANCOUVER_ARTIST_DEBUG] Invalid artist ID format: "${artistId}" - using fallback format`);
       return `Vancouver Open data Artist ID=${artistId}`;
     }
     
@@ -64,14 +65,16 @@ function getArtistNameById(artistId: number | string): string {
     const artistName = artistLookup.get(id);
     
     if (artistName && artistName.trim()) {
+      console.log(`[VANCOUVER_ARTIST_DEBUG] Found artist name for ID ${id}: "${artistName.trim()}"`);
       return artistName.trim();
     }
     
     // Fallback format if artist not found
+    console.log(`[VANCOUVER_ARTIST_DEBUG] No artist data found for ID ${id} - using fallback format`);
     return `Vancouver Open data Artist ID=${id}`;
     
   } catch (error) {
-    console.warn(`Error processing artist ID: ${artistId}`, error);
+    console.warn(`[VANCOUVER_ARTIST_DEBUG] Error processing artist ID: ${artistId}`, error);
     return `Vancouver Open data Artist ID=${artistId}`;
   }
 }
@@ -85,11 +88,12 @@ function loadArtistLookup(): Map<number, string> {
   }
 
   try {
-    // Try to find the artist data file - look in the tasks directory
+    // Prefer bundled importers data in the mass-import package, fall back to workspace tasks
     const possiblePaths = [
+      path.resolve(__dirname, './public-art-artists.json'),
+      path.resolve(__dirname, '../importers/public-art-artists.json'),
+      path.resolve(process.cwd(), 'src/lib/mass-import/src/importers/public-art-artists.json'),
       path.resolve(process.cwd(), 'tasks/public-art-artists.json'),
-      path.resolve(process.cwd(), '../../../tasks/public-art-artists.json'),
-      path.resolve(__dirname, '../../../../../tasks/public-art-artists.json'),
     ];
 
     let artistData: VancouverArtist[] | null = null;
@@ -110,12 +114,12 @@ function loadArtistLookup(): Map<number, string> {
     }
 
     if (!artistData) {
-      console.warn('Could not load Vancouver artist data file. Artist names will not be resolved.');
+      console.warn('[VANCOUVER_ARTIST_DEBUG] Could not load Vancouver artist data file. Artist names will not be resolved.');
       artistLookupCache = new Map();
       return artistLookupCache;
     }
 
-    console.log(`Loaded ${artistData.length} artists from ${usedPath}`);
+    console.log(`[VANCOUVER_ARTIST_DEBUG] Loaded ${artistData.length} artists from ${usedPath}`);
     
     // Create the lookup map
     artistLookupCache = new Map();
@@ -136,10 +140,13 @@ function loadArtistLookup(): Map<number, string> {
       
       if (fullName) {
         artistLookupCache.set(artist.artistid, fullName);
+        console.log(`[VANCOUVER_ARTIST_DEBUG] Mapped artist ID ${artist.artistid} -> "${fullName}"`);
+      } else {
+        console.log(`[VANCOUVER_ARTIST_DEBUG] No valid name found for artist ID ${artist.artistid} (firstname: "${artist.firstname}", lastname: "${artist.lastname}")`);
       }
     }
 
-    console.log(`Created artist lookup map with ${artistLookupCache.size} entries`);
+    console.log(`[VANCOUVER_ARTIST_DEBUG] Created artist lookup map with ${artistLookupCache.size} entries`);
     return artistLookupCache;
     
   } catch (error) {
@@ -358,19 +365,27 @@ function mapVancouverToRawData(data: VancouverArtworkData): RawImportData | null
  */
 function extractArtistName(data: VancouverArtworkData): string | undefined {
   if (!data.artists || data.artists.length === 0) {
+    console.log(`[VANCOUVER_ARTIST_DEBUG] No artists found for artwork ${data.registryid} (${data.title_of_work})`);
     return undefined;
   }
+
+  console.log(`[VANCOUVER_ARTIST_DEBUG] Processing ${data.artists.length} artist(s) for artwork ${data.registryid} (${data.title_of_work}): [${data.artists.join(', ')}]`);
 
   const artistNames: string[] = [];
 
   // Convert each artist ID to name using our dedicated function
   for (const artistIdStr of data.artists) {
+    console.log(`[VANCOUVER_ARTIST_DEBUG] Looking up artist ID: ${artistIdStr}`);
     const artistName = getArtistNameById(artistIdStr);
+    console.log(`[VANCOUVER_ARTIST_DEBUG] Artist ID ${artistIdStr} resolved to: "${artistName}"`);
     artistNames.push(artistName);
   }
 
+  const finalArtistString = artistNames.length > 0 ? artistNames.join(', ') : undefined;
+  console.log(`[VANCOUVER_ARTIST_DEBUG] Final artist string for artwork ${data.registryid}: "${finalArtistString}"`);
+
   // Return comma-separated list of artist names
-  return artistNames.length > 0 ? artistNames.join(', ') : undefined;
+  return finalArtistString;
 }
 
 /**

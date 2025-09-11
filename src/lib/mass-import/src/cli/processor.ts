@@ -233,20 +233,37 @@ export class MassImportProcessor {
     rawRecord: any,
     options: { source: string; dryRun?: boolean }
   ): Promise<ImportResult> {
+    const recordId = this.extractRecordId(rawRecord);
+    const title = this.extractRecordTitle(rawRecord);
+    
+    console.log(`[RECORD_PROCESSING_DEBUG] Starting record ${recordId}: "${title}"`);
+    
     // Step 1: Use mapper if available (for non-standard data formats like Vancouver)
     let validationResult;
     if (this.mapper) {
+      console.log(`[RECORD_PROCESSING_DEBUG] Using mapper for record ${recordId}`);
       validationResult = this.mapper.mapData(rawRecord);
+      
+      if (validationResult.isValid && validationResult.data?.tags) {
+        const artistFromTags = validationResult.data.tags.artist || validationResult.data.tags.created_by;
+        if (artistFromTags) {
+          console.log(`[RECORD_PROCESSING_DEBUG] Mapped artist for record ${recordId}: "${artistFromTags}"`);
+        } else {
+          console.log(`[RECORD_PROCESSING_DEBUG] No artist found in tags for record ${recordId}`);
+        }
+      } else {
+        console.log(`[RECORD_PROCESSING_DEBUG] No artist mapped for record ${recordId}`);
+      }
     } else {
       // Step 1b: Validate raw data format using schema for standard format
+      console.log(`[RECORD_PROCESSING_DEBUG] Using schema validation for record ${recordId}`);
       const parseResult = RawImportDataSchema.safeParse({
         ...rawRecord,
         source: options.source,
       });
 
       if (!parseResult.success) {
-        const recordId = this.extractRecordId(rawRecord);
-        const title = this.extractRecordTitle(rawRecord);
+        console.log(`[RECORD_PROCESSING_DEBUG] Schema validation failed for record ${recordId}:`, parseResult.error.errors);
         return {
           id: recordId,
           title: title,
@@ -263,8 +280,7 @@ export class MassImportProcessor {
     }
 
     if (!validationResult.isValid) {
-      const recordId = this.extractRecordId(rawRecord);
-      const title = this.extractRecordTitle(rawRecord);
+      console.log(`[RECORD_PROCESSING_DEBUG] Validation failed for record ${recordId}:`, validationResult.errors);
       return {
         id: recordId,
         title: title,
@@ -277,6 +293,8 @@ export class MassImportProcessor {
       };
     }
 
+    console.log(`[RECORD_PROCESSING_DEBUG] Record ${recordId} validation successful, submitting to API...`);
+
     // Step 2: Submit to API
     return await this.apiClient.submitImportRecord(validationResult.data!);
   }
@@ -284,7 +302,7 @@ export class MassImportProcessor {
   /**
    * Extract record ID from raw record for tracking
    */
-  private extractRecordId(rawRecord: any): string {
+  private extractRecordId(rawRecord: Record<string, unknown>): string {
     // Try various common ID fields
     return (
       rawRecord.id ||
@@ -292,20 +310,20 @@ export class MassImportProcessor {
       rawRecord.external_id ||
       rawRecord.uuid ||
       `record_${Date.now()}_${Math.random().toString(36).substring(2)}`
-    );
+    ) as string;
   }
 
   /**
    * Extract record title from raw record for tracking
    */
-  private extractRecordTitle(rawRecord: any): string {
+  private extractRecordTitle(rawRecord: Record<string, unknown>): string {
     // Try various common title fields
     return (
       rawRecord.title ||
       rawRecord.title_of_work ||
       rawRecord.name ||
       'Unknown'
-    );
+    ) as string;
   }
 
   /**

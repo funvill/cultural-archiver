@@ -126,6 +126,25 @@ const artworkCreators = computed(() => {
   return 'Unknown';
 });
 
+// Artists from the new artist system
+const artworkArtists = computed(() => {
+  return artwork.value?.artists || [];
+});
+
+const hasArtistLinks = computed(() => {
+  return artworkArtists.value.length > 0;
+});
+
+function navigateToArtist(artistId: string) {
+  router.push(`/artist/${artistId}`);
+}
+
+function navigateToArtistSearch(artistName: string) {
+  // Generate search URL for artist name
+  const encodedName = encodeURIComponent(artistName.trim());
+  router.push(`/search?artist=${encodedName}`);
+}
+
 const artworkTags = computed(() => {
   if (!artwork.value?.tags_parsed) return {};
 
@@ -240,6 +259,26 @@ function sanitizeMarkdownHtml(input: string): string {
 
 const displayCreators = computed(() => {
   return isEditMode.value ? editData.value.creators : artworkCreators.value;
+});
+
+const displayCreatorsList = computed(() => {
+  const creators = displayCreators.value;
+  if (creators === 'Unknown' || !creators) return [];
+  
+  // Split on comma and clean up names, filtering out system-generated values
+  return creators.split(',')
+    .map((name: string) => name.trim())
+    .filter((name: string) => {
+      // Filter out empty names, UUIDs, and artist IDs
+      if (!name || name === 'Unknown') return false;
+      if (name.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) return false;
+      if (name.startsWith('Artist ID:')) return false;
+      return true;
+    });
+});
+
+const hasDisplayableCreators = computed(() => {
+  return displayCreatorsList.value.length > 0;
 });
 
 const hasUnsavedChanges = computed(() => {
@@ -679,12 +718,52 @@ async function checkPendingEdits(): Promise<void> {
           <p class="mt-1 text-sm text-gray-500">{{ editData.title.length }}/512 characters</p>
         </div>
 
-        <!-- Creators (editable in edit mode) -->
-        <div
-          v-if="!isEditMode && displayCreators !== 'Unknown'"
-          class="text-base sm:text-lg text-gray-600 mb-4"
-        >
-          by {{ displayCreators }}
+        <!-- Artists and Creators -->
+        <div v-if="!isEditMode" class="text-base sm:text-lg text-gray-600 mb-4">
+          <!-- Linked Artists (new system) -->
+          <div v-if="hasArtistLinks" class="space-y-1">
+            <div v-for="artist in artworkArtists" :key="artist.id" class="flex items-center gap-2">
+              <span>by</span>
+              <button
+                @click="navigateToArtist(artist.id)"
+                class="text-blue-600 hover:text-blue-700 hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded"
+              >
+                {{ artist.name }}
+              </button>
+              <span v-if="artist.role && artist.role !== 'artist'" class="text-sm text-gray-500">
+                ({{ artist.role }})
+              </span>
+            </div>
+            <!-- Show legacy creator info as well if different from linked artists -->
+            <div v-if="hasDisplayableCreators" class="text-sm text-gray-500 italic">
+              Legacy: 
+              <span v-for="(creatorName, index) in displayCreatorsList" :key="creatorName">
+                <button
+                  @click="navigateToArtistSearch(creatorName)"
+                  class="text-blue-600 hover:text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded"
+                >
+                  {{ creatorName }}
+                </button>
+                <span v-if="index < displayCreatorsList.length - 1">, </span>
+              </span>
+            </div>
+          </div>
+          <!-- Fallback to legacy creator info if no linked artists -->
+          <div v-else-if="hasDisplayableCreators" class="flex items-center gap-1 flex-wrap">
+            <span>by</span>
+            <span v-for="(creatorName, index) in displayCreatorsList" :key="creatorName">
+              <button
+                @click="navigateToArtistSearch(creatorName)"
+                class="text-blue-600 hover:text-blue-700 hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded"
+              >
+                {{ creatorName }}
+              </button>
+              <span v-if="index < displayCreatorsList.length - 1">, </span>
+            </span>
+          </div>
+          <div v-else class="text-gray-500 italic">
+            Artist unknown
+          </div>
         </div>
         <div v-else-if="isEditMode" class="mb-4">
           <label for="edit-creators" class="block text-sm font-medium text-gray-700 mb-1"
