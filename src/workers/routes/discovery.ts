@@ -247,6 +247,9 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
     // Get creators for this artwork
     const creators: ArtworkCreatorInfo[] = await db.getCreatorsForArtwork(artworkId);
 
+    // Get artists for this artwork (from new artist system)
+    const artists = await db.getArtistsForArtwork(artworkId);
+
     // Get logbook entries for timeline with pagination
     const logbookEntries = await db.getLogbookEntriesForArtwork(artworkId, perPage, offset);
 
@@ -318,6 +321,7 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       logbook_entries: logbookEntriesWithPhotos,
       tags_parsed: tagsParsed,
       creators: creators,
+      artists: artists,
     };
 
     return c.json(createSuccessResponse(response));

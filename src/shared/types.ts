@@ -336,6 +336,7 @@ export interface ArtworkDetailResponse {
   logbook_entries: LogbookEntryWithPhotos[];
   tags_parsed: Record<string, string>;
   creators: ArtworkCreatorInfo[];
+  artists: { id: string; name: string; role: string }[]; // Artists from the new artist system
   title?: string | null; // Artwork title (editable field)
   description?: string | null; // Artwork description (editable field)
   created_by?: string | null; // Creator/artist name(s) (editable field)

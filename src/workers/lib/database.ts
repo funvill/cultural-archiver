@@ -566,6 +566,26 @@ export class DatabaseService {
     }
   }
 
+  // Get artists from the new artist system
+  async getArtistsForArtwork(artworkId: string): Promise<{ id: string; name: string; role: string }[]> {
+    try {
+      const stmt = this.db.prepare(`
+        SELECT a.id, a.name, aa.role
+        FROM artists a
+        JOIN artwork_artists aa ON a.id = aa.artist_id
+        WHERE aa.artwork_id = ? AND a.status = 'active'
+        ORDER BY aa.created_at ASC
+      `);
+
+      const results = await stmt.bind(artworkId).all();
+      return results.results as unknown as { id: string; name: string; role: string }[];
+    } catch (error) {
+      // Return empty array if artist tables don't exist yet
+      console.warn('Artist tables not found, returning empty artists list:', error);
+      return [];
+    }
+  }
+
   async getArtworksForCreator(creatorId: string): Promise<ArtworkRecord[]> {
     const stmt = this.db.prepare(`
       SELECT a.*

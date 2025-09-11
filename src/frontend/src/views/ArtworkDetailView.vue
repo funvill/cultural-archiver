@@ -126,6 +126,19 @@ const artworkCreators = computed(() => {
   return 'Unknown';
 });
 
+// Artists from the new artist system
+const artworkArtists = computed(() => {
+  return artwork.value?.artists || [];
+});
+
+const hasArtistLinks = computed(() => {
+  return artworkArtists.value.length > 0;
+});
+
+function navigateToArtist(artistId: string) {
+  router.push(`/artist/${artistId}`);
+}
+
 const artworkTags = computed(() => {
   if (!artwork.value?.tags_parsed) return {};
 
@@ -679,12 +692,35 @@ async function checkPendingEdits(): Promise<void> {
           <p class="mt-1 text-sm text-gray-500">{{ editData.title.length }}/512 characters</p>
         </div>
 
-        <!-- Creators (editable in edit mode) -->
-        <div
-          v-if="!isEditMode && displayCreators !== 'Unknown'"
-          class="text-base sm:text-lg text-gray-600 mb-4"
-        >
-          by {{ displayCreators }}
+        <!-- Artists and Creators -->
+        <div v-if="!isEditMode" class="text-base sm:text-lg text-gray-600 mb-4">
+          <!-- Linked Artists (new system) -->
+          <div v-if="hasArtistLinks" class="space-y-1">
+            <div v-for="artist in artworkArtists" :key="artist.id" class="flex items-center gap-2">
+              <span>by</span>
+              <button
+                @click="navigateToArtist(artist.id)"
+                class="text-blue-600 hover:text-blue-700 hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded"
+              >
+                {{ artist.name }}
+              </button>
+              <span v-if="artist.role && artist.role !== 'artist'" class="text-sm text-gray-500">
+                ({{ artist.role }})
+              </span>
+            </div>
+            <!-- Show legacy creator info as well if different -->
+            <div v-if="displayCreators !== 'Unknown' && !artworkArtists.some((a: any) => a.name === displayCreators)" 
+                 class="text-sm text-gray-500 italic">
+              Legacy: {{ displayCreators }}
+            </div>
+          </div>
+          <!-- Fallback to legacy creator info if no linked artists -->
+          <div v-else-if="displayCreators !== 'Unknown'">
+            by {{ displayCreators }}
+          </div>
+          <div v-else class="text-gray-500 italic">
+            Artist unknown
+          </div>
         </div>
         <div v-else-if="isEditMode" class="mb-4">
           <label for="edit-creators" class="block text-sm font-medium text-gray-700 mb-1"
