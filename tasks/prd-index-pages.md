@@ -1,168 +1,139 @@
-# PRD: Index pages for Artwork and Artists
+# PRD: Artwork and Artist Index Pages
 
-### Purpose
+This document outlines the product requirements for creating browsable index pages for all approved artworks and artists.
 
-Create two index pages that list all artworks and all artists as card grids with pagination. These pages act like full result listings (not filtered search) and provide quick access to item detail pages.
+## 1. Overview
 
-### Scope
+### 1.1. Purpose
 
-- Frontend routes: `/artwork` and `/artist` (artist detail pages are NOT required for initial delivery; see Implementation notes)
-- Display: 30 card items per page by default, pagination controls at top and bottom, plus a page-size selector (10 / 30 / 50)
-- Sorting: default by last updated (most recent first)
-- Search: search bar at the top that navigates to the main search page
-- Card click behaviour: artwork cards link to `/artwork/:id`; artist cards link to a filtered search results view for that artist (artist detail pages may be introduced later)
+The primary goal is to provide a simple, comprehensive browsing experience for all public content. These pages will serve as dedicated entry points for users to explore the entire collection of artworks and artists through a paginated grid interface.
 
-### Requirements checklist
+### 1.2. Target Audience
 
-- [ ] `/artwork` index page showing artworks (default 30 per page; user-selectable 10/30/50)
-- [ ] `/artist` index page showing artists (default 30 per page)
-- [ ] Pagination controls at top and bottom with next/previous and page number
-- [ ] Page-size selector (10 / 30 / 50) visible near pagination controls
-- [ ] Artwork cards clickable to detail pages; artist cards link to filtered search results
-- [ ] Default sort by last updated (desc)
-- [ ] Search bar at top that opens the search page (preserve entered query)
-- [ ] Basic accessibility: keyboard navigable, semantic markup, alt text (improvements planned)
-- [ ] Unit + visual tests for layout, pagination, and navigation
+All public visitors, including casual browsers and researchers.
 
-### User stories
+### 1.3. Scope
 
-- As a visitor, I can browse recent artworks in a paged grid so I can find items by recency.
-- As a visitor, I can browse artists in a paged grid so I can explore creators.
-- As a visitor, I can quickly search from the index page using the search bar.
-- As a returning user, I can use pagination to navigate to later pages of results.
-
-
-### UX / UI details
-
-- Layout: responsive grid of cards (mobile: 1–2 columns; tablet: 2–3; desktop: 3–6 depending on screen width).
-- Cards: thumbnail image (if available), title/name, short subtitle (artist for artwork, location or summary), and last-updated timestamp.
-- Click behavior: clicking the card navigates to `/artwork/:id`; artist cards navigate to a filtered `/search?artist=<name>` results page for the moment (artist detail pages can be added in a later sprint).
-- Pagination: numeric pages, previous/next arrows, and a compact display when there are many pages (e.g. 1 ... 5 6 7 ... 20). Controls appear above and below the grid.
-- Search bar: visible at the top of each index page. Typing a query + submit navigates to `/search?q=...` and preserves the query in the search input.
-- Page-size selector: a small dropdown near the pagination controls that allows choosing 10 / 30 / 50 items per page (default 30).
-- Empty state: friendly message and CTA to submit new artwork or add artist data.
-
-- Pagination URL style: use query parameters for paging and sizing (example: `/artwork?page=2&limit=30`).
-
-
-### Data contract (frontend ↔ backend)
-
-Request parameters (GET):
-
-- page: integer (default 1)
-- limit: integer (default 30, allowed 10/30/50 for UI; backend accepts other values but may cap to max 100)
-- sort: string (default `updated_desc`)
-
-Note: pagination and sizing are encoded in query params (e.g. `?page=2&limit=30`).
-
-Artwork API response shape (JSON):
-{
-  total: number,
-  page: number,
-  limit: number,
-  items: [
-    {
-      id: string,
-      title: string,
-      thumbnailUrl?: string,
-      primaryArtist?: string,
-      updatedAt: string,
-      summary?: string
-    }
-  ]
-}
-
-Artist API response shape (JSON): similar structure with artist fields: id, name, avatarUrl, updatedAt, shortBio
-
-Suggested backend strategy:
-
-- Reuse the existing search endpoint with explicit type and pagination parameters. This avoids adding duplicate endpoints and keeps filtering consistent.
-
-- Examples:
-
-- GET /api/search?type=artwork&limit=30&page=1&sort=updated_desc
-- GET /api/search?type=artist&limit=30&page=1&sort=updated_desc
-
-If the search endpoint cannot be extended or performance requires it, add dedicated optimized index endpoints later.
-
-### Sorting and consistency
-
-- Use `updatedAt` (or `last_modified`) as the sort key. Ensure it's updated whenever a record or its related data (photos, tags) changes.
-- Pagination must be stable between requests for the same dataset (avoid inconsistent order when ties exist — include `id` as a deterministic tiebreaker).
-
-### Rendering & SEO
-
-- For this feature we will not add special server-side rendering or pre-rendering for SEO in the initial delivery. Pages will be client-rendered and SEO improvements (pre-render or SSR of first page) may be added later if analytics show it is needed.
-
-### Edge cases & constraints
-
-- Fewer than 30 items: show available items and hide or disable forward controls.
-- No items: show empty state with CTA.
-- Very large page numbers: cap pages to `ceil(total/limit)` and validate `page` param.
-- Photos missing: show a neutral placeholder thumbnail.
-- Performance: use indexed queries and limit fields returned (avoid full tag JSON unless needed).
-
-### Accessibility
-
-- Implement basic accessibility for MVP: cards focusable, clear link text, images with alt text, and keyboard-operable pagination controls. Label controls for screen readers.
-- Focus management after pagination: no programmatic focus move — rely on browser default and native scrolling behaviors. A future accessibility pass may implement explicit focus handling.
-- Plan a later pass to reach WCAG 2.1 AA conformance (color contrast, ARIA refinement, extended keyboard flows) as a follow-up task.
-
-### Testing
-
-- Unit tests (Vitest): render each index page, verify page-size selector, verify 10/30/50 behavior, verify pagination UI, and verify clicking a card navigates to details or search.
-- Integration tests (playwright/Vitest): simulate API pages, test search bar navigation, and test empty state.
-- Visual snapshot tests are not required for this feature (no visual snapshot gating in CI).
-
-### Metrics & monitoring
-
-- Track page views for `/artwork` and `/artist`.
-- Track clicks on cards and use of pagination (next/prev) and search bar submits.
-- Error monitoring: log frontend JS errors and API errors; do not create automated alerting for index page error rates in the initial rollout (errors are retained in logs for on-demand review).
-
-### Performance, caching & rate limits
-
-- Thumbnail images: serve optimized ~400px wide thumbnails for card displays (balance of quality and bandwidth).
-- Image loading: lazy-load off-screen card images and prioritize (preload) above-the-fold thumbnails for the first viewport.
-- Cache strategy: no CDN caching for index API responses in initial delivery (always fetch from origin). If performance needs arise, we can introduce a CDN caching layer with TTL and stale-while-revalidate.
-- API rate limiting: follow standard public read-rate limits for search/index endpoints (e.g., 60 requests/min per client). Write operations remain more strictly limited.
-
-### Rollout plan
-
-- Deploy directly to production after passing staging QA (no feature flag). Ensure thorough staging and visual tests before merging.
-- Because this will be enabled in production immediately, prioritize a short smoke-test checklist and quick rollback plan.
-
-### Implementation notes / dev tasks
-
-1. Create Vue pages: `src/frontend/src/views/ArtworkIndexView.vue` and `ArtistIndexView.vue` (or adapt existing search results component to act as full index). Artist index should link to filtered search results for the artist until dedicated artist detail pages are implemented.
-2. Reuse card component (`Card` or `ArtworkCard`) and pagination component. If not present, create a `PaginatedGrid` wrapper.
-3. Wire API calls to the search endpoint: `/api/search?type=artwork` and `/api/search?type=artist`, passing `limit`, `page`, and `sort` parameters. Respect backend caps.
-4. Add UI for page-size selector (10/30/50) and persist selection in URL (e.g. `?limit=30`).
-5. Add tests: unit + e2e + visual snapshots.
-6. Add follow-up task to introduce artist detail pages (route, data model, and templates) in a later sprint.
-
-### Acceptance criteria (how QA will verify)
-
-- Visiting `/artwork` shows up to 30 artwork cards by default, sorted by last updated (most recent first). Changing the page-size selector updates the list (10 / 30 / 50).
-- Visiting `/artist` shows up to 30 artist cards by default. Clicking an artist card opens a filtered `/search?artist=...` results page.
-- Pagination controls appear above and below the grid and correctly navigate pages.
-- Search bar at top navigates to `/search?q=...` preserving the query.
-- Artwork cards navigate to their detail pages when clicked.
-- Basic accessibility present: keyboard navigation, semantic markup, images with alt text.
+- **Frontend:** Two new client-rendered Vue pages at `/artworks` and `/artists`.
+- **Backend:** Two new API endpoints, `/api/artworks` and `/api/artists`, to serve paginated and sorted data.
+- **Functionality:** The pages will feature a responsive grid of cards, pagination, multiple sorting options, and a page-size selector.
 
 ---
 
-Files to add/edit when implementing:
+## 2. Functional Requirements
 
-- Frontend: `src/frontend/src/views/ArtworkIndexView.vue`, `ArtistIndexView.vue`, possible `PaginatedGrid` component and unit tests under `src/frontend/src/test`.
-- Backend (if endpoints missing): add handlers in `src/workers/routes/` for `/api/artwork` and `/api/artist` with pagination and sorting.
+### 2.1. Core Features
 
-Requirements coverage mapping:
+- **Artwork Index Page:** A page at `/artworks` displaying a paginated grid of all approved artworks.
+- **Artist Index Page:** A page at `/artists` displaying a paginated grid of all approved artists.
+- **Pagination:** Controls will be present at the bottom of the grid to navigate between pages. The browser URL will update to reflect the current page (e.g., `?page=2`).
+- **Page Size Selector:** A UI control allowing users to select 10, 30, or 50 items per page. The default is 30. The selection is reflected in the URL (e.g., `?limit=30`).
+- **Sorting:** A UI control to sort the content. Options include:
+    - Last Updated (default, descending)
+    - Title/Name (ascending)
+    - Creation Date (descending)
 
-- `/artwork` and `/artist` pages: Specified above — Done (in PRD)
-- 30 items per page with pagination top and bottom: Specified above — Done
-- Page-size selector (10/30/50): Specified above — Done
-- Cards clickable to details / search results: Specified above — Done
-- Sorted by last updated: Specified above — Done
-- Search bar leading to search page: Specified above — Done
+### 2.2. Out of Scope
 
+- **Search Bar:** There will be no search functionality on these pages.
+- **Advanced SEO:** Server-side rendering or pre-rendering for SEO is not part of the initial release.
+- **Page Pre-fetching:** The frontend will not pre-fetch data for subsequent pages.
+
+---
+
+## 3. UX and UI Details
+
+### 3.1. Layout and Design
+
+- **Layout:** A responsive, flexible grid of cards. The number of columns will adapt to the screen width.
+- **Artwork Cards:** Will display:
+    1.  Thumbnail image.
+    2.  Artwork title.
+    3.  Primary artist's name.
+- **Artist Cards:** Will display:
+    1.  Thumbnail image (avatar).
+    2.  Artist's full name.
+    3.  A count of their artworks.
+    4.  A short bio (truncated to ~20 words).
+- **Placeholder Images:** If a thumbnail is missing, a colored block with the first letter of the item's title or name will be displayed.
+- **Empty State:** If no items are found, a message "No artwork found. Be the first to submit something!" will be displayed with a link to the submission page.
+
+### 3.2. User Interaction
+
+- **Card Click Behavior:**
+    - **Artwork Card:** Navigates to the artwork's detail page (`/artwork/:id`).
+    - **Artist Card:** Navigates to a filtered search results page (`/search?artist=Artist%20Name`). This is a temporary measure until dedicated artist detail pages are built.
+- **Page Size Change:** When the page size is changed, the view will attempt to keep the current top item in view by calculating the new page number.
+- **Page Title:** The browser tab title will update to reflect the current page number (e.g., "Artworks (Page 2) | Cultural Archiver").
+
+---
+
+## 4. Technical Requirements
+
+### 4.1. Backend API
+
+- **Endpoints:** Create two new dedicated endpoints:
+    - `GET /api/artworks`
+    - `GET /api/artists`
+- **Query Parameters:**
+    - `page` (integer, default: 1)
+    - `limit` (integer, default: 30)
+    - `sort` (string, e.g., `updated_desc`, `title_asc`, `created_desc`)
+- **API Response:** The JSON response for both endpoints will have the following structure:
+    ```json
+    {
+      "totalItems": 123,
+      "currentPage": 1,
+      "totalPages": 5,
+      "items": [ /* array of artwork or artist objects */ ]
+    }
+    ```
+- **Sorting Behavior:** When sorting, records with `null` values in the sort field will be placed at the end of the results.
+- **Error Handling:** Navigating to an invalid page number (e.g., `?page=999`) should result in a "Page not found" error.
+
+### 4.2. Performance and Caching
+
+- **CDN Caching:** API responses will be cached at the CDN for **1 hour**.
+- **Image Loading:** Off-screen images will be lazy-loaded using the native `loading="lazy"` attribute on `<img>` tags.
+- **Database Optimization:** If performance issues arise from calculating artist artwork counts, the preferred strategy is to add a denormalized `artwork_count` column to the `artists` table.
+
+---
+
+## 5. Implementation Plan
+
+### 5.1. Development Tasks
+
+1.  **Backend:**
+    -   Create new routes and handlers for `/api/artworks` and `/api/artists`.
+    -   Implement pagination, sorting, and data shaping logic.
+    -   Ensure `approved` status is enforced.
+2.  **Frontend:**
+    -   Create `ArtworkIndexView.vue` and `ArtistIndexView.vue`.
+    -   Develop or reuse a `PaginatedGrid` component to handle the layout and controls.
+    -   Wire up the UI to the new API endpoints.
+    -   Implement the card components for both artwork and artists.
+3.  **Navigation:**
+    -   Add "Artworks" and "Artists" links to the main site navigation bar.
+
+### 5.2. Testing
+
+- **Unit Tests (Vitest):**
+    -   Verify that the index pages render correctly.
+    -   Test pagination logic, page-size selector, and sorting controls.
+    -   Confirm that card clicks navigate to the correct URLs.
+- **Integration Tests:**
+    -   Test the full flow from page load to API call and rendering.
+    -   Verify the empty state and invalid page handling.
+
+---
+
+## 6. Acceptance Criteria
+
+-   **AC-1:** Visiting `/artworks` and `/artists` displays a paginated grid of approved items, defaulting to 30 items per page, sorted by "last updated."
+-   **AC-2:** The page size can be changed to 10, 30, or 50, and the grid updates accordingly.
+-   **AC-3:** The content can be sorted by "last updated," "title/name," and "creation date."
+-   **AC-4:** Pagination controls are present at the bottom of the grid and correctly navigate between pages.
+-   **AC-5:** Artwork cards link to their detail page; artist cards link to a filtered search page.
+-   **AC-6:** Placeholder images are shown for items without a thumbnail.
+-   **AC-7:** The browser tab title includes the current page number.
+-   **AC-8:** Navigating to a URL with an out-of-bounds page number shows a "Page not found" error.

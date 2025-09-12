@@ -8,10 +8,11 @@ Author: Steven Smethurst
 The goal is to understand the "what" and "why" of the feature, not necessarily the "how" (which the developer will figure out)
 
 - Ask me numbered questions continuing from the previouse set of questions
-- Give multiple choice answers A,B,C,D. `A` should be the recommended choice
+- Give multiple choice answers A,B,C,D. `A` should be the recommended choice. 
 - If needed, provide details that are required to make a section.
 - Show the questions in the chat, wait for the answers from the user, update the file.
-- 
+- Update the output after each set of questions have been answered.
+- Keep asking questions until the user ask to stop.
 
 ## Loop
 
