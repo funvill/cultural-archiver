@@ -5,18 +5,10 @@
 // Import Cloudflare Worker types for D1Database
 import type { D1Database } from '@cloudflare/workers-types';
 
-export interface ArtworkTypeRecord {
-  id: string;
-  name: string;
-  description: string | null;
-  created_at: string;
-}
-
 export interface ArtworkRecord {
   id: string;
   lat: number;
   lon: number;
-  type_id: string;
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null; // JSON object for key-value metadata like {"material": "bronze", "style": "modern"}
@@ -30,7 +22,6 @@ export interface ArtworkApiResponse {
   id: string;
   lat: number;
   lon: number;
-  type_id: string;
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null;
@@ -126,7 +117,6 @@ export interface ArtistEditRecord {
 export interface CreateArtworkRequest {
   lat: number;
   lon: number;
-  type_id: string;
   tags?: Record<string, unknown>;
   status?: ArtworkRecord['status'];
   title?: string;
@@ -137,11 +127,6 @@ export interface CreateArtworkRequest {
 export interface UpdateArtworkRequest extends Partial<CreateArtworkRequest> {
   id: string;
   status?: ArtworkRecord['status'];
-}
-
-export interface CreateArtworkTypeRequest {
-  name: string;
-  description?: string;
 }
 
 export interface CreateTagRequest {
@@ -336,7 +321,6 @@ export interface ArtworkDetailResponse {
   id: string;
   lat: number;
   lon: number;
-  type_id: string;
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null;
@@ -501,7 +485,6 @@ export interface SubmissionResponse {
 }
 
 export interface ArtworkListResponse extends PaginatedResponse<ArtworkRecord> {}
-export interface ArtworkTypeListResponse extends PaginatedResponse<ArtworkTypeRecord> {}
 export interface TagListResponse extends PaginatedResponse<TagRecord> {}
 export interface LogbookListResponse extends PaginatedResponse<LogbookRecord> {}
 
@@ -514,7 +497,6 @@ export interface ArtistIndexResponse extends IndexPageResponse<ArtistApiResponse
 // ================================
 
 export interface ArtworkFilters {
-  type_id?: string;
   status?: ArtworkRecord['status'];
   lat?: number;
   lon?: number;
@@ -1048,10 +1030,6 @@ export const isValidLogbookStatus = (status: string): status is LogbookRecord['s
   return ['pending', 'approved', 'rejected'].includes(status);
 };
 
-export const isValidArtworkType = (type: string): type is ArtworkTypeRecord['name'] => {
-  return ['public_art', 'street_art', 'monument', 'sculpture', 'other'].includes(type);
-};
-
 export const isValidSortDirection = (direction: string): direction is SortDirection => {
   return ['asc', 'desc'].includes(direction);
 };
@@ -1092,13 +1070,6 @@ export const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] a
 
 export const ARTWORK_STATUSES = ['pending', 'approved', 'removed'] as const;
 export const LOGBOOK_STATUSES = ['pending', 'approved', 'rejected'] as const;
-export const ARTWORK_TYPES = [
-  'public_art',
-  'street_art',
-  'monument',
-  'sculpture',
-  'other',
-] as const;
 
 // Default search radius in meters
 export const DEFAULT_SEARCH_RADIUS = 500;

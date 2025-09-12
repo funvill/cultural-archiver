@@ -7,7 +7,6 @@ import type {
   ArtworkRecord,
   LogbookRecord,
   TagRecord,
-  ArtworkTypeRecord,
   CreateArtworkRequest,
   CreateLogbookEntryRequest,
   CreateTagRequest,
@@ -38,8 +37,8 @@ export class DatabaseService {
 
     // For MVP, we'll add photos as NULL since the current schema doesn't have it
     const stmt = this.db.prepare(`
-      INSERT INTO artwork (id, lat, lon, type_id, created_at, status, tags, title, description, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO artwork (id, lat, lon, created_at, status, tags, title, description, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const tagsJson = data.tags ? JSON.stringify(data.tags) : null;
@@ -48,7 +47,6 @@ export class DatabaseService {
       id, 
       data.lat, 
       data.lon, 
-      data.type_id, 
       now, 
       status, 
       tagsJson,
@@ -56,6 +54,14 @@ export class DatabaseService {
       data.description || null, 
       data.created_by || null
     ).run();
+
+    // Create artwork_type tag if not present
+    const artworkType = (data.tags as any)?.artwork_type || 'unknown';
+    await this.createTag({
+      artwork_id: id,
+      label: 'artwork_type',
+      value: artworkType
+    });
 
     return id;
   }
@@ -68,60 +74,24 @@ export class DatabaseService {
 
   async getArtworkWithDetails(id: string): Promise<(ArtworkRecord & { type_name: string; artist_name?: string }) | null> {
     try {
-      // Primary query with LEFT JOINs for type name and artist name
+      // Query with LEFT JOIN to tags table to get artwork_type and artist name
       const stmt = this.db.prepare(`
         SELECT a.*, 
-               COALESCE(at.name, 'Unknown') as type_name,
-               t.value as artist_name
+               COALESCE(type_tag.value, 'unknown') as type_name,
+               artist_tag.value as artist_name
         FROM artwork a
-        LEFT JOIN artwork_types at ON a.type_id = at.id
-        LEFT JOIN tags t ON (t.artwork_id = a.id OR t.logbook_id IN (
-          SELECT l.id FROM logbook l WHERE l.artwork_id = a.id
-        )) AND t.label = 'artist'
+        LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
+        LEFT JOIN tags artist_tag ON (artist_tag.artwork_id = a.id AND artist_tag.label = 'artist')
         WHERE a.id = ? AND a.status = 'approved'
-        GROUP BY a.id
       `);
       const result = await stmt.bind(id).first();
       if (!result) {
         console.log('[DB DEBUG] getArtworkWithDetails: Artwork not found or not approved', { id });
         return null;
       }
-      const typedResult = result as unknown as ArtworkRecord & { type_name: string; artist_name?: string };
-      if (typedResult.type_name === 'Unknown') {
-        console.warn('[DB WARN] Artwork found but artwork_types entry missing or unmapped', {
-          id,
-          type_id: typedResult.type_id,
-        });
-      }
-      return typedResult;
+      return result as unknown as ArtworkRecord & { type_name: string; artist_name?: string };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (/no such table: artwork_types/i.test(message)) {
-        // Fallback: table not present (older prod schema). Return artwork anyway.
-        console.warn('[DB WARN] artwork_types table missing; falling back to artwork-only query');
-        try {
-          const fallbackStmt = this.db.prepare(`
-            SELECT a.*, 
-                   'Unknown' as type_name,
-                   t.value as artist_name
-            FROM artwork a
-            LEFT JOIN tags t ON (t.artwork_id = a.id OR t.logbook_id IN (
-              SELECT l.id FROM logbook l WHERE l.artwork_id = a.id
-            )) AND t.label = 'artist'
-            WHERE a.id = ? AND a.status = 'approved'
-            GROUP BY a.id
-          `);
-          const fallbackResult = await fallbackStmt.bind(id).first();
-            if (!fallbackResult) {
-              return null;
-            }
-            return fallbackResult as unknown as ArtworkRecord & { type_name: string; artist_name?: string };
-        } catch (innerErr) {
-          console.error('[DB ERROR] Fallback artwork-only query failed', innerErr);
-          throw innerErr;
-        }
-      }
-      console.error('[DB ERROR] getArtworkWithDetails failed unexpectedly', err);
+      console.error('[DB ERROR] getArtworkWithDetails failed', err);
       throw err;
     }
   }
@@ -136,20 +106,20 @@ export class DatabaseService {
     const radiusDegrees = radius / 111000; // ~111km per degree
 
     const stmt = this.db.prepare(`
-      SELECT a.*, at.name as type_name,
-             t.value as artist_name,
+      SELECT a.*, 
+             COALESCE(type_tag.value, 'unknown') as type_name,
+             artist_tag.value as artist_name,
              (
                (? - a.lat) * (? - a.lat) + 
                (? - a.lon) * (? - a.lon)
              ) as distance_sq
       FROM artwork a
-      JOIN artwork_types at ON a.type_id = at.id
-      LEFT JOIN logbook l ON l.artwork_id = a.id AND l.status = 'approved'
-      LEFT JOIN tags t ON t.logbook_id = l.id AND t.label = 'artist'
+      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
+      LEFT JOIN tags artist_tag ON (artist_tag.artwork_id = a.id AND artist_tag.label = 'artist')
       WHERE a.status = 'approved'
         AND a.lat BETWEEN ? AND ?
         AND a.lon BETWEEN ? AND ?
-      GROUP BY a.id  -- Handle multiple logbook entries/tags per artwork
+      GROUP BY a.id  -- Handle multiple tags per artwork
       ORDER BY distance_sq ASC
       LIMIT ?
     `);
@@ -193,16 +163,16 @@ export class DatabaseService {
     limit: number = 100
   ): Promise<ArtworkWithDistance[]> {
     const stmt = this.db.prepare(`
-      SELECT a.*, at.name as type_name,
-             t.value as artist_name
+      SELECT a.*, 
+             COALESCE(type_tag.value, 'unknown') as type_name,
+             artist_tag.value as artist_name
       FROM artwork a
-      JOIN artwork_types at ON a.type_id = at.id
-      LEFT JOIN logbook l ON l.artwork_id = a.id AND l.status = 'approved'
-      LEFT JOIN tags t ON t.logbook_id = l.id AND t.label = 'artist'
+      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
+      LEFT JOIN tags artist_tag ON (artist_tag.artwork_id = a.id AND artist_tag.label = 'artist')
       WHERE a.status = 'approved'
         AND a.lat BETWEEN ? AND ?
         AND a.lon BETWEEN ? AND ?
-      GROUP BY a.id  -- Handle multiple logbook entries/tags per artwork
+      GROUP BY a.id  -- Handle multiple tags per artwork
       ORDER BY a.created_at DESC
       LIMIT ?
     `);
@@ -341,10 +311,10 @@ export class DatabaseService {
 
     // Get submissions (exclude rejected)
     const query = `
-      SELECT l.*, a.lat as artwork_lat, a.lon as artwork_lon, at.name as artwork_type_name
+      SELECT l.*, a.lat as artwork_lat, a.lon as artwork_lon, COALESCE(type_tag.value, 'unknown') as artwork_type_name
       FROM logbook l
       LEFT JOIN artwork a ON l.artwork_id = a.id
-      LEFT JOIN artwork_types at ON a.type_id = at.id
+      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
       WHERE l.user_token = ? AND l.status != 'rejected'
       ORDER BY l.created_at DESC
       LIMIT ? OFFSET ?
@@ -403,28 +373,6 @@ export class DatabaseService {
   }
 
   // ================================
-  // Artwork Types Operations
-  // ================================
-
-  async getAllArtworkTypes(): Promise<ArtworkTypeRecord[]> {
-    const stmt = this.db.prepare('SELECT * FROM artwork_types ORDER BY name');
-    const results = await stmt.bind().all();
-    return results.results as unknown as ArtworkTypeRecord[];
-  }
-
-  async getArtworkTypeById(id: string): Promise<ArtworkTypeRecord | null> {
-    const stmt = this.db.prepare('SELECT * FROM artwork_types WHERE id = ?');
-    const result = await stmt.bind(id).first();
-    return result ? (result as unknown as ArtworkTypeRecord) : null;
-  }
-
-  async getArtworkTypeByName(name: string): Promise<ArtworkTypeRecord | null> {
-    const stmt = this.db.prepare('SELECT * FROM artwork_types WHERE name = ?');
-    const result = await stmt.bind(name).first();
-    return result ? (result as unknown as ArtworkTypeRecord) : null;
-  }
-
-  // ================================
   // Tag Operations
   // ================================
 
@@ -461,6 +409,18 @@ export class DatabaseService {
     const stmt = this.db.prepare('SELECT * FROM tags WHERE logbook_id = ?');
     const results = await stmt.bind(logbookId).all();
     return results.results as unknown as TagRecord[];
+  }
+
+  // Get all unique artwork types from tags
+  async getAllArtworkTypes(): Promise<string[]> {
+    const stmt = this.db.prepare(`
+      SELECT DISTINCT value 
+      FROM tags 
+      WHERE label = 'artwork_type' 
+      ORDER BY value
+    `);
+    const results = await stmt.all();
+    return (results.results as unknown as { value: string }[]).map(row => row.value);
   }
 
   // ================================
@@ -846,14 +806,6 @@ export function getPhotosFromArtwork(artwork: ArtworkRecord): string[] {
   } catch {
     return [];
   }
-}
-
-export async function getArtworkTypeByName(
-  db: D1Database,
-  name: string
-): Promise<ArtworkTypeRecord | null> {
-  const service = createDatabaseService(db);
-  return service.getArtworkTypeByName(name);
 }
 
 // ================================
