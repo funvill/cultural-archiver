@@ -891,7 +891,7 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
 
     // Get photos for each artwork
     const artworksWithPhotos = await Promise.all(
-      (artworks.results || []).map(async (artwork: any) => {
+      (artworks.results as unknown as (ArtworkRecord & { type_name?: string; updated_at?: string })[] || []).map(async (artwork) => {
         // Get logbook entries for this artwork to find photos
         const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
         const allPhotos: string[] = [];

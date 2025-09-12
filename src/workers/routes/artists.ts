@@ -17,6 +17,7 @@ import type {
   ArtistEditSubmissionResponse,
   ArtistPendingEditsResponse,
   ArtworkWithPhotos,
+  ArtworkRecord,
 } from '../../shared/types';
 import type { WorkerEnv } from '../types';
 import { createDatabaseService } from '../lib/database';
@@ -129,7 +130,7 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
       .all();
 
     // Format response with short bio (~20 words)
-    const formattedArtists: import('../../shared/types').ArtistApiResponse[] = artists.results?.map((artist: any) => {
+    const formattedArtists: import('../../shared/types').ArtistApiResponse[] = (artists.results as unknown as (import('../../shared/types').ArtistRecord & { artwork_count: number })[])?.map((artist) => {
       // Truncate description to ~20 words for card display
       let shortBio = artist.description || '';
       if (shortBio) {
@@ -227,13 +228,21 @@ export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Pro
     const artworks = await artworksStmt.bind(artistId).all();
 
     // Format artworks
-    const formattedArtworks: ArtworkWithPhotos[] = artworks.results?.map((artwork: any) => ({
-      ...artwork,
-      recent_photo: artwork.recent_photos ? 
-        safeJsonParse<string[]>(artwork.recent_photos, [])[0] : 
-        undefined,
-      photo_count: artwork.photo_count || 0,
-    })) || [];
+    const formattedArtworks: ArtworkWithPhotos[] = (artworks.results as unknown as (ArtworkRecord & { recent_photos?: string; photo_count?: number; type_name: string })[])?.map((artwork) => {
+      const result: ArtworkWithPhotos = {
+        ...artwork,
+        photo_count: artwork.photo_count || 0,
+      };
+      
+      if (artwork.recent_photos) {
+        const photos = safeJsonParse<string[]>(artwork.recent_photos, []);
+        if (photos.length > 0 && photos[0]) {
+          result.recent_photo = photos[0];
+        }
+      }
+      
+      return result;
+    }) || [];
 
     const response: ArtistApiResponse = {
       ...artist,
