@@ -537,13 +537,6 @@ export const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] a
 
 export const ARTWORK_STATUSES = ['pending', 'approved', 'removed'] as const;
 export const LOGBOOK_STATUSES = ['pending', 'approved', 'rejected'] as const;
-export const ARTWORK_TYPES = [
-  'public_art',
-  'street_art',
-  'monument',
-  'sculpture',
-  'other',
-] as const;
 
 // Default search radius in meters
 export const DEFAULT_SEARCH_RADIUS = 500;

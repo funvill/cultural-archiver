@@ -398,8 +398,8 @@ export async function processMassImport(
     const timestamp = new Date().toISOString();
 
     await db.db.prepare(`
-      INSERT INTO artwork (id, title, description, lat, lon, type_id, status, created_at, created_by)
-      VALUES (?, ?, ?, ?, ?, 'public_art', 'approved', ?, ?)
+      INSERT INTO artwork (id, title, description, lat, lon, status, created_at, created_by)
+      VALUES (?, ?, ?, ?, ?, 'approved', ?, ?)
     `).bind(
       artworkId,
       payload.artwork.title,
@@ -411,6 +411,13 @@ export async function processMassImport(
     ).run();
 
     console.log(`[MASS_IMPORT] Created artwork ${artworkId}: ${payload.artwork.title}`);
+
+    // Create artwork_type tag (default to 'public_art' for mass imports)
+    const tagId = generateId();
+    await db.db.prepare(`
+      INSERT INTO tags (id, artwork_id, logbook_id, label, value, created_at)
+      VALUES (?, ?, NULL, 'artwork_type', 'public_art', ?)
+    `).bind(tagId, artworkId, timestamp).run();
 
     // Link artwork to artist if we found or created one
     if (artistId) {
