@@ -148,7 +148,34 @@ Creation and historical context.
 
 ### Category: Location Details
 
-Access and ownership information.
+Geographic and access information.
+
+#### `city` (text)
+- **Type**: Text
+- **Required**: Optional
+- **Max Length**: 100 characters
+- **Description**: City where the artwork is located
+- **OSM Standard**: Yes (as addr:city)
+- **Example**: `"city": "vancouver"`
+- **Category**: location_details
+
+#### `province` (text)
+- **Type**: Text
+- **Required**: Optional
+- **Max Length**: 100 characters
+- **Description**: Province, state, or region where the artwork is located
+- **OSM Standard**: Yes (as addr:state)
+- **Example**: `"province": "british_columbia"`
+- **Category**: location_details
+
+#### `country` (text)
+- **Type**: Text
+- **Required**: Optional
+- **Max Length**: 100 characters
+- **Description**: Country where the artwork is located
+- **OSM Standard**: Yes (as addr:country)
+- **Example**: `"country": "canada"`
+- **Category**: location_details
 
 #### `access` (enum)
 - **Type**: Enum (single value)  

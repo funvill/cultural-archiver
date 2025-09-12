@@ -6,6 +6,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ## [Unreleased]
 
+### Changed
+
+- Vancouver mass import now appends "Imported from Vancouver Open Data" to artwork descriptions for proper attribution
+
 ### Added
 
 - Complete Artwork Details Page implementation with mobile optimization (#22)

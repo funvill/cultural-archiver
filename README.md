@@ -413,3 +413,4 @@ OSM
 ```node src/lib/mass-import/dist/cli/index.js import --importer osm src/data-collection/osm/output/merged/merged-artworks.geojson --limit 50```
 
 Vancouver
+```node dist/cli/index.js vancouver --limit 50```

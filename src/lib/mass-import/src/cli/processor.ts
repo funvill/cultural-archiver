@@ -312,8 +312,10 @@ export class MassImportProcessor {
 
     console.log(`[RECORD_PROCESSING_DEBUG] Record ${recordId} validation successful, submitting to API...`);
 
-    // Step 2: Submit to API
-    return await this.apiClient.submitImportRecord(validationResult.data!);
+    // Step 2: Submit to API (server will handle duplicate detection and tag merging)
+    const result = await this.apiClient.submitImportRecord(validationResult.data!);
+
+    return result;
   }
 
   /**

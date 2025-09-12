@@ -158,6 +158,33 @@ export const TAG_DEFINITIONS: TagDefinition[] = [
     category: 'location',
     dataType: 'yes_no',
   },
+  {
+    key: 'city',
+    label: 'City',
+    description: 'City where the artwork is located',
+    category: 'location',
+    dataType: 'text',
+    placeholder: 'Vancouver, New York, London',
+    maxLength: 100,
+  },
+  {
+    key: 'province',
+    label: 'Province/State',
+    description: 'Province or state where the artwork is located',
+    category: 'location',
+    dataType: 'text',
+    placeholder: 'British Columbia, California, Ontario',
+    maxLength: 100,
+  },
+  {
+    key: 'country',
+    label: 'Country',
+    description: 'Country where the artwork is located',
+    category: 'location',
+    dataType: 'text',
+    placeholder: 'Canada, United States, United Kingdom',
+    maxLength: 100,
+  },
 
   // Reference Data
   {

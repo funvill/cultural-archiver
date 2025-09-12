@@ -66,19 +66,8 @@ export class MassImportAPIClient {
         duplicateDetection = await detectDuplicates(data, this.config, existingArtworks);
       }
 
-      // Skip if duplicate detected (unless dry run mode)
-      if (duplicateDetection.isDuplicate && !this.config.dryRun) {
-        return {
-          id: recordId,
-          title: data.title || 'Unknown',
-          success: false,
-          error: `Duplicate detected: ${duplicateDetection.bestMatch?.reason}`,
-          warnings: [],
-          duplicateDetection,
-          photosProcessed: 0,
-          photosFailed: 0,
-        };
-      }
+      // Store duplicate detection info to pass to server, but don't skip
+      // The server will handle duplicate detection and tag merging
 
       // Step 2: Extract photo URLs for mass import endpoint
       let photosProcessed = 0;
@@ -227,6 +216,8 @@ export class MassImportAPIClient {
         artwork_id: string; 
         status: string; 
         message: string;
+        tags_merged?: number;
+        duplicate_detected?: boolean;
       } 
     };
     
@@ -239,9 +230,18 @@ export class MassImportAPIClient {
       throw new Error(`Mass import failed: ${submission.data?.message || 'Unknown error'}`);
     }
     
+    const warnings: string[] = [];
+    
+    // Add informational message about tag merging
+    if (submission.data.duplicate_detected && submission.data.tags_merged) {
+      warnings.push(`Merged ${submission.data.tags_merged} new tags with existing artwork`);
+    } else if (submission.data.duplicate_detected) {
+      warnings.push('Duplicate detected - no new tags to merge');
+    }
+    
     return {
       id: submission.data.artwork_id,
-      warnings: [], // New endpoint doesn't return warnings in response
+      warnings,
     };
   }
 

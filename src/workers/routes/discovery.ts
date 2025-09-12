@@ -21,6 +21,7 @@ import { createSuccessResponse, NotFoundError } from '../lib/errors';
 import { getValidatedData } from '../middleware/validation';
 import { safeJsonParse } from '../lib/errors';
 import { createSimilarityService } from '../lib/similarity';
+import { categorizeTagsForDisplay } from '../lib/artwork-edits';
 import type { SimilarityQuery } from '../../shared/similarity';
 
 // Database result interfaces
@@ -314,12 +315,16 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       console.warn('Failed to iterate tags object; returning empty tags_parsed', e);
     }
 
+    // Categorize tags according to current schema
+    const categorizedTags = categorizeTagsForDisplay(tagsParsed);
+
   const response: ArtworkDetailResponse = {
       ...artwork,
       type_name: artwork.type_name,
       photos: allPhotos,
       logbook_entries: logbookEntriesWithPhotos,
       tags_parsed: tagsParsed,
+      tags_categorized: categorizedTags,
       creators: creators,
       artists: artists,
     };

@@ -599,3 +599,10 @@ Notes:
 - Any changes to the artist page need a moderator approval.
 - Don't use the existing creators tables or systems.
 - The URL for the artist page is /artist/{UUID}
+
+
+----
+
+- [x] In src\lib\mass-import\osm-report-1757618334783.json all of the "title" in the "duplicate_records" are "Unknown" instead of the properties.name from the OSM import.
+
+

@@ -215,6 +215,7 @@ export interface ArtworkDetailResponse {
   type_name: string;
   logbook_entries: LogbookEntryWithPhotos[];
   tags_parsed: Record<string, string>;
+  tags_categorized: Record<string, Array<{ key: string; value: string; label: string }>>;
   creators: ArtworkCreatorInfo[];
   artists: { id: string; name: string; role: string }[]; // Artists from the new artist system
 }

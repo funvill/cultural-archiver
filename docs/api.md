@@ -287,7 +287,19 @@ GET /api/artworks/{id}
       "photos": ["photo-url-1", "photo-url-2"],
       "tags": {
         "material": "bronze",
-        "style": "modern"
+        "city": "vancouver",
+        "province": "british_columbia",
+        "country": "canada"
+      },
+      "tags_categorized": {
+        "physical_properties": [
+          {"key": "material", "value": "bronze", "label": "Material"}
+        ],
+        "location_details": [
+          {"key": "city", "value": "vancouver", "label": "City"},
+          {"key": "province", "value": "british_columbia", "label": "Province/State"},
+          {"key": "country", "value": "canada", "label": "Country"}
+        ]
       },
       "created_at": "2024-01-15T10:30:00Z"
     },

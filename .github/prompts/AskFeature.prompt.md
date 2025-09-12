@@ -18,6 +18,7 @@ The goal is to understand the "what" and "why" of the feature, not necessarily t
 - Ask 5 clarifying questions on a common theam that help define this feature
   - Each loop ask questions about a different part of the feature. For Example: Goals, Functional Requirements, User Stories, Non-Goals (Out of Scope), Design Considerations, Technical Considerations, Audience, etc...
 - Update the output file with the answers to these questions
+- Do NOT start implementing the feature. No code should change.
 
 ## Output
 
@@ -33,6 +34,10 @@ Example:
 # Feature Definition: Global Stats and Leaderboards
 
 This document outlines the requirements for the "Global Stats and Leaderboards" feature based on the clarifying questions answered.
+
+## Intial feature description
+
+When running the mass-import and a duplicate is found. Check the tags, add any new tags to the existing recored, don't overwrite the existing tags.
 
 ## 1. Goals & High-Level Vision
 

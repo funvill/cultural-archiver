@@ -21,11 +21,15 @@ import type {
   ConfigValidationResult,
   MassImportLibraryInterface,
   ImportProgress,
-  ImportError
+  ImportError,
+  MassImportDuplicateInfo,
 } from '../../shared/mass-import.js';
 import { MASS_IMPORT_CONSTANTS } from '../../shared/mass-import.js';
 
 import { ServerTagValidationService } from './tag-validation';
+import { createDatabaseService } from './database';
+import { createMassImportDuplicateDetectionService, MassImportDuplicateDetectionService } from './mass-import-duplicate-detection.js';
+import type { D1Database } from '@cloudflare/workers-types';
 
 /**
  * Mass Import Library - Core Implementation
@@ -34,11 +38,20 @@ import { ServerTagValidationService } from './tag-validation';
  * with validation, duplicate detection, and structured tag processing.
  */
 export class MassImportLibrary implements MassImportLibraryInterface {
-  constructor(_options: {
+  private duplicateDetectionService?: MassImportDuplicateDetectionService;
+  private db?: D1Database;
+
+  constructor(options: {
     apiBaseUrl?: string;
     timeout?: number;
+    db?: D1Database;
+    baseUrl?: string;
   } = {}) {
     // Network options reserved for future extension; intentionally unused currently
+    if (options.db) {
+      this.db = options.db;
+      this.duplicateDetectionService = createMassImportDuplicateDetectionService(options.db, options.baseUrl);
+    }
   }
 
   /**
@@ -616,10 +629,26 @@ export class MassImportLibrary implements MassImportLibraryInterface {
         const mappedTags = await this.mapTags(record, context.config);
         
         // Check for duplicates (would use similarity service)
-        const isDuplicate = await this.checkForDuplicate(record, context);
+        const duplicateInfo = await this.checkForDuplicate(record, context);
         
-        if (isDuplicate) {
+        if (duplicateInfo) {
           results.statistics.skipped_duplicates++;
+
+          // Merge tags
+          const newTags = await this.mergeDuplicateTags(duplicateInfo, mappedTags);
+
+          results.duplicate_matches.push({
+            external_id: this.extractExternalId(record, context.config),
+            existing_artwork_id: duplicateInfo.existingArtworkId,
+            similarity_score: duplicateInfo.confidenceScore,
+            match_details: {
+              title_similarity: duplicateInfo.scoreBreakdown.title,
+              tag_overlap: duplicateInfo.scoreBreakdown.tags,
+            },
+            action: 'merged',
+            notes: `Merged ${newTags} new tags.`,
+          });
+
           continue;
         }
         
@@ -660,10 +689,63 @@ export class MassImportLibrary implements MassImportLibraryInterface {
     }
   }
 
-  private async checkForDuplicate(_record: unknown, _context: ImportContext): Promise<boolean> {
-    // Placeholder - would integrate with similarity service
-    // This would call /api/artworks/check-similarity endpoint
-    return false;
+  private async checkForDuplicate(record: unknown, context: ImportContext): Promise<MassImportDuplicateInfo | null> {
+    if (!this.duplicateDetectionService) {
+      return null;
+    }
+
+    const lat = this.getNestedValue(record, context.config.field_mappings.coordinates.lat);
+    const lon = this.getNestedValue(record, context.config.field_mappings.coordinates.lon);
+
+    const result = await this.duplicateDetectionService.checkForDuplicates({
+      title: this.extractTitle(record, context.config),
+      lat: parseFloat(lat),
+      lon: parseFloat(lon),
+      tags: await this.mapTags(record, context.config),
+    });
+
+    if (result.isDuplicate && result.duplicateInfo) {
+      return {
+        artworkId: result.duplicateInfo.artworkId,
+        existingArtworkId: result.duplicateInfo.existingArtworkId,
+        confidenceScore: result.duplicateInfo.confidenceScore,
+        scoreBreakdown: result.duplicateInfo.scoreBreakdown,
+      };
+    }
+
+    return null;
+  }
+
+  private async mergeDuplicateTags(duplicateInfo: MassImportDuplicateInfo, newTags: Record<string, string>): Promise<number> {
+    if (!this.db) {
+      return 0;
+    }
+
+    const dbService = createDatabaseService(this.db);
+    const existingArtwork = await dbService.getArtworkById(duplicateInfo.existingArtworkId);
+
+    if (!existingArtwork) {
+      return 0;
+    }
+
+    const existingTags = JSON.parse(existingArtwork.tags || '{}');
+    let newTagsAdded = 0;
+
+    for (const [key, value] of Object.entries(newTags)) {
+      if (!Object.prototype.hasOwnProperty.call(existingTags, key)) {
+        existingTags[key] = value;
+        newTagsAdded++;
+      }
+    }
+
+    if (newTagsAdded > 0) {
+      await dbService.db.prepare('UPDATE artwork SET tags = ? WHERE id = ?')
+        .bind(JSON.stringify(existingTags), duplicateInfo.existingArtworkId)
+        .run();
+      console.log(`Merged ${newTagsAdded} new tags into existing artwork ${duplicateInfo.existingArtworkId}`);
+    }
+
+    return newTagsAdded;
   }
 
   private async submitRecord(_record: unknown, _tags: Record<string, string>, _context: ImportContext): Promise<{ id: string }> {

@@ -224,6 +224,21 @@ export interface DuplicateMatch {
   
   /** Action taken */
   action: 'skipped' | 'merged' | 'flagged';
+
+  /** Optional notes about the match */
+  notes?: string;
+}
+
+export interface MassImportDuplicateInfo {
+  artworkId: string;
+  existingArtworkId: string;
+  confidenceScore: number;
+  scoreBreakdown: {
+    title: number;
+    artist: number;
+    location: number;
+    tags: number;
+  };
 }
 
 export interface TagValidationSummary {
