@@ -28,6 +28,8 @@ import {
   consumeMagicLinkSchema,
   validateFastArtworkSubmission,
   validateCheckSimilarity,
+  artworkListSchema,
+  artistListSchema,
 } from './middleware/validation';
 import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
@@ -767,6 +769,7 @@ app.get(
 app.get(
   '/api/artists',
   rateLimitQueries,
+  validateSchema(artistListSchema, 'query'),
   withErrorHandling(getArtistsList)
 );
 
@@ -1022,7 +1025,7 @@ app.get('/p/artwork/:id', validateUUID('id'), async c => {
 // ================================
 
 // Keep some legacy endpoints for backwards compatibility
-app.get('/api/artworks', rateLimitQueries, withErrorHandling(getArtworksList));
+app.get('/api/artworks', rateLimitQueries, validateSchema(artworkListSchema, 'query'), withErrorHandling(getArtworksList));
 
 app.get('/api/logbook', async c => {
   // Redirect to user submissions

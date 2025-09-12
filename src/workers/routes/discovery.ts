@@ -823,11 +823,23 @@ function getSimilarityExplanation(result: { overallScore: number; signals: Simil
  * - sort: sorting option (updated_desc, title_asc, created_desc)
  */
 export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
-  const validatedQuery = getValidatedData<{
-    page?: number;
-    limit?: number;
-    sort?: 'updated_desc' | 'title_asc' | 'created_desc';
-  }>(c, 'query');
+  let validatedQuery;
+  try {
+    validatedQuery = getValidatedData<{
+      page?: number;
+      limit?: number;
+      sort?: 'updated_desc' | 'title_asc' | 'created_desc';
+    }>(c, 'query');
+  } catch (error) {
+    console.error('Validation error in getArtworksList:', error);
+    // Fallback to manual parsing
+    const url = new URL(c.req.url);
+    validatedQuery = {
+      page: url.searchParams.get('page') ? parseInt(url.searchParams.get('page')!, 10) : undefined,
+      limit: url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit')!, 10) : undefined,
+      sort: url.searchParams.get('sort') as 'updated_desc' | 'title_asc' | 'created_desc' | undefined,
+    };
+  }
 
   const db = createDatabaseService(c.env.DB);
   
@@ -849,8 +861,8 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
         break;
       case 'updated_desc':
       default:
-        // Use updated_at if available, fallback to created_at
-        orderClause = 'ORDER BY COALESCE(a.updated_at, a.created_at) DESC';
+        // Default to created_at since updated_at doesn't exist in schema
+        orderClause = 'ORDER BY a.created_at DESC';
         break;
     }
 
@@ -876,7 +888,7 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
     // Get artworks with type information
     const artworksQuery = `
       SELECT a.id, a.lat, a.lon, a.type_id, a.created_at, a.status, a.tags, 
-             a.title, a.description, a.created_by, a.updated_at,
+             a.title, a.description, a.created_by,
              at.name as type_name
       FROM artwork a
       LEFT JOIN artwork_types at ON a.type_id = at.id
@@ -891,7 +903,7 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
 
     // Get photos for each artwork
     const artworksWithPhotos = await Promise.all(
-      (artworks.results as unknown as (ArtworkRecord & { type_name?: string; updated_at?: string })[] || []).map(async (artwork) => {
+      (artworks.results as unknown as (ArtworkRecord & { type_name?: string })[] || []).map(async (artwork) => {
         // Get logbook entries for this artwork to find photos
         const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
         const allPhotos: string[] = [];
@@ -925,7 +937,6 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
           title: artwork.title,
           description: artwork.description,
           created_by: artwork.created_by,
-          updated_at: artwork.updated_at,
           type_name: artwork.type_name,
           photos: allPhotos,
           tags_parsed: safeJsonParse(artwork.tags, {}),

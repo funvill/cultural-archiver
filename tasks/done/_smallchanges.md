@@ -606,3 +606,4 @@ Notes:
 - [x] In src\lib\mass-import\osm-report-1757618334783.json all of the "title" in the "duplicate_records" are "Unknown" instead of the properties.name from the OSM import.
 
 
+- [x] Add tag "city", "province/state", and "country" to the "Physical Properties" tag catagory.

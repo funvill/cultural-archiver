@@ -16,8 +16,6 @@ import type {
   CreateArtistEditRequest,
   ArtistEditSubmissionResponse,
   ArtistPendingEditsResponse,
-  ArtworkWithPhotos,
-  ArtworkRecord,
 } from '../../shared/types';
 import type { WorkerEnv } from '../types';
 import { createDatabaseService } from '../lib/database';
@@ -49,104 +47,72 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
     status?: 'active' | 'inactive';
   }>(c, 'query');
 
-  const db = createDatabaseService(c.env.DB);
-  
   // Set defaults per PRD
   const page = Math.max(validatedQuery.page || 1, 1);
   const limit = Math.min(validatedQuery.limit || 30, 50);
-  const sort = validatedQuery.sort || 'updated_desc';
   const offset = (page - 1) * limit;
+  const status = validatedQuery.status || 'active';
 
   try {
-    // Build WHERE clause with filters
-    let whereClause = 'WHERE 1=1';
-    const params: (string | number)[] = [];
-    
-    if (validatedQuery.status) {
-      whereClause += ' AND a.status = ?';
-      params.push(validatedQuery.status);
-    } else {
-      // Default to active artists only
-      whereClause += ' AND a.status = ?';
-      params.push('active');
-    }
-    
+    const db = createDatabaseService(c.env.DB);
+
+    let query: string;
+    let params: unknown[];
+
     if (validatedQuery.search) {
-      whereClause += ' AND a.name LIKE ?';
-      params.push(`%${validatedQuery.search}%`);
+      // Search query
+      query = `
+        SELECT id, name, description, tags, status, created_at, updated_at,
+               (SELECT COUNT(*) FROM artwork_artists aa WHERE aa.artist_id = artists.id) as artwork_count
+        FROM artists
+        WHERE status = ? AND name LIKE ?
+        ORDER BY name ASC
+        LIMIT ? OFFSET ?
+      `;
+      params = [status, `%${validatedQuery.search}%`, limit, offset];
+    } else {
+      // Standard listing
+      query = `
+        SELECT id, name, description, tags, status, created_at, updated_at,
+               (SELECT COUNT(*) FROM artwork_artists aa WHERE aa.artist_id = artists.id) as artwork_count
+        FROM artists
+        WHERE status = ?
+        ORDER BY name ASC
+        LIMIT ? OFFSET ?
+      `;
+      params = [status, limit, offset];
     }
 
-    // Build ORDER BY clause
-    let orderClause = '';
-    switch (sort) {
-      case 'name_asc':
-        orderClause = 'ORDER BY a.name ASC';
-        break;
-      case 'created_desc':
-        orderClause = 'ORDER BY a.created_at DESC';
-        break;
-      case 'updated_desc':
-      default:
-        orderClause = 'ORDER BY COALESCE(a.updated_at, a.created_at) DESC';
-        break;
-    }
+    const stmt = db.db.prepare(query);
+    const result = await stmt.bind(...params).all();
+    const artists = result.results as (ArtistRecord & { artwork_count: number })[];
 
     // Get total count for pagination
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM artists a
-      ${whereClause}
-    `;
+    const countQuery = validatedQuery.search
+      ? `SELECT COUNT(*) as total FROM artists WHERE status = ? AND name LIKE ?`
+      : `SELECT COUNT(*) as total FROM artists WHERE status = ?`;
     
-    const countResult = await db.db.prepare(countQuery)
-      .bind(...params)
-      .first() as { total: number };
-    
-    const totalItems = countResult.total;
+    const countParams = validatedQuery.search
+      ? [status, `%${validatedQuery.search}%`]
+      : [status];
+
+    const countStmt = db.db.prepare(countQuery);
+    const countResult = await countStmt.bind(...countParams).first() as { total: number };
+    const totalItems = countResult?.total || 0;
     const totalPages = Math.ceil(totalItems / limit);
 
-    // Validate page number
-    if (page > totalPages && totalItems > 0) {
-      return c.json({
-        error: 'Page not found',
-        message: `Page ${page} does not exist. Total pages: ${totalPages}`,
-      }, 404);
-    }
-
-    // Get artists with artwork count
-    const artistsQuery = `
-      SELECT a.*, 
-             COUNT(aa.artwork_id) as artwork_count
-      FROM artists a
-      LEFT JOIN artwork_artists aa ON a.id = aa.artist_id
-      ${whereClause}
-      GROUP BY a.id
-      ${orderClause}
-      LIMIT ? OFFSET ?
-    `;
-
-    const artists = await db.db.prepare(artistsQuery)
-      .bind(...params, limit, offset)
-      .all();
-
-    // Format response with short bio (~20 words)
-    const formattedArtists: import('../../shared/types').ArtistApiResponse[] = (artists.results as unknown as (import('../../shared/types').ArtistRecord & { artwork_count: number })[])?.map((artist) => {
-      // Truncate description to ~20 words for card display
-      let shortBio = artist.description || '';
-      if (shortBio) {
-        const words = shortBio.split(/\s+/);
-        if (words.length > 20) {
-          shortBio = words.slice(0, 20).join(' ') + '...';
-        }
-      }
-
-      return {
-        ...artist,
-        tags_parsed: safeJsonParse(artist.tags, {}),
-        artwork_count: artist.artwork_count || 0,
-        short_bio: shortBio,
-      };
-    }) || [];
+    // Format artists for API response
+    const formattedArtists: import('../../shared/types').ArtistApiResponse[] = artists.map(artist => ({
+      id: artist.id,
+      name: artist.name,
+      description: artist.description || '',
+      tags: artist.tags,
+      created_at: artist.created_at,
+      updated_at: artist.updated_at,
+      status: artist.status,
+      tags_parsed: safeJsonParse(artist.tags, {}),
+      artwork_count: artist.artwork_count || 0,
+    }));
 
     // Set cache headers for 1 hour as per PRD
     c.header('Cache-Control', 'public, max-age=3600');
@@ -180,13 +146,14 @@ export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Pro
     }]);
   }
 
-  const db = createDatabaseService(c.env.DB);
-
   try {
+    const db = createDatabaseService(c.env.DB);
+
     // Get artist details
     const artistStmt = db.db.prepare(`
-      SELECT * FROM artists 
-      WHERE id = ? AND status = 'active'
+      SELECT id, name, description, tags, status, created_at, updated_at
+      FROM artists
+      WHERE id = ?
     `);
     const artist = await artistStmt.bind(artistId).first() as ArtistRecord | null;
 
@@ -196,66 +163,63 @@ export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Pro
 
     // Get artist's artworks
     const artworksStmt = db.db.prepare(`
-      SELECT 
-        a.id, a.lat, a.lon, a.type_id, a.created_at, a.status, 
-        a.tags, a.title, a.description, a.created_by,
-        at.name as type_name,
-        (
-          SELECT l.photos
-          FROM logbook l
-          WHERE l.artwork_id = a.id 
-            AND l.status = 'approved' 
-            AND l.photos IS NOT NULL 
-            AND l.photos != '[]'
-          ORDER BY l.created_at DESC
-          LIMIT 1
-        ) as recent_photos,
-        (
-          SELECT COUNT(*)
-          FROM logbook l
-          WHERE l.artwork_id = a.id 
-            AND l.status = 'approved' 
-            AND l.photos IS NOT NULL 
-            AND l.photos != '[]'
-        ) as photo_count
+      SELECT a.id, a.title, a.lat, a.lon, a.type_id, a.created_at, a.status, a.tags,
+             at.name as type_name,
+             (SELECT photos FROM logbook WHERE artwork_id = a.id ORDER BY created_at DESC LIMIT 1) as recent_photos,
+             (SELECT COUNT(*) FROM logbook WHERE artwork_id = a.id) as photo_count
       FROM artwork a
-      JOIN artwork_types at ON a.type_id = at.id
       JOIN artwork_artists aa ON a.id = aa.artwork_id
+      LEFT JOIN artwork_types at ON a.type_id = at.id
       WHERE aa.artist_id = ? AND a.status = 'approved'
       ORDER BY a.created_at DESC
     `);
-    
     const artworks = await artworksStmt.bind(artistId).all();
 
-    // Format artworks
-    const formattedArtworks: ArtworkWithPhotos[] = (artworks.results as unknown as (ArtworkRecord & { recent_photos?: string; photo_count?: number; type_name: string })[])?.map((artwork) => {
-      const result: ArtworkWithPhotos = {
-        ...artwork,
-        photo_count: artwork.photo_count || 0,
-      };
-      
-      if (artwork.recent_photos) {
-        const photos = safeJsonParse<string[]>(artwork.recent_photos, []);
-        if (photos.length > 0 && photos[0]) {
-          result.recent_photo = photos[0];
-        }
-      }
-      
-      return result;
-    }) || [];
+    interface ArtworkWithTypeAndPhotos {
+      id: string;
+      title: string | null;
+      lat: number;
+      lon: number;
+      type_id: string;
+      created_at: string;
+      status: 'pending' | 'approved' | 'removed';
+      tags: string | null;
+      type_name: string;
+      recent_photos: string | null;
+      photo_count: number;
+    }
 
-    const response: ArtistApiResponse = {
-      ...artist,
+    // Format response
+    const response: import('../../shared/types').ArtistApiResponse = {
+      id: artist.id,
+      name: artist.name,
+      description: artist.description || '',
+      tags: artist.tags,
+      created_at: artist.created_at,
+      updated_at: artist.updated_at,
+      status: artist.status,
       tags_parsed: safeJsonParse(artist.tags, {}),
-      artwork_count: formattedArtworks.length,
-      artworks: formattedArtworks,
+      artworks: (artworks.results as ArtworkWithTypeAndPhotos[])?.map((artwork) => {
+        const recentPhotos = safeJsonParse(artwork.recent_photos, []);
+        return {
+          id: artwork.id,
+          title: artwork.title,
+          lat: artwork.lat,
+          lon: artwork.lon,
+          type_id: artwork.type_id,
+          created_at: artwork.created_at,
+          status: artwork.status,
+          tags: artwork.tags,
+          type_name: artwork.type_name || '',
+          photo_count: artwork.photo_count || 0,
+          ...(recentPhotos.length > 0 && { recent_photo: recentPhotos[0] }),
+        };
+      }) || [],
+      artwork_count: artworks.results?.length || 0,
     };
 
     return c.json(createSuccessResponse(response));
   } catch (error) {
-    if (error instanceof NotFoundError) {
-      throw error;
-    }
     console.error('Failed to get artist profile:', error);
     throw error;
   }
