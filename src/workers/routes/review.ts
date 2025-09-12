@@ -374,8 +374,54 @@ export async function approveSubmission(
       created_by: (typeof submissionTags.artist === 'string' ? submissionTags.artist : 
                   typeof submissionTags.artist_name === 'string' ? submissionTags.artist_name : 
                   typeof submissionTags.created_by === 'string' ? submissionTags.created_by : null),
-    };      finalArtworkId = await insertArtwork(c.env.DB, artworkData);
-      newArtworkCreated = true;
+    };      
+    finalArtworkId = await insertArtwork(c.env.DB, artworkData);
+    newArtworkCreated = true;
+
+    // Create consent record for the new artwork 
+    // Use the original submission's consent information to create artwork consent
+    try {
+      const { recordConsent, generateConsentTextHash, getConsentRecord } = await import('../lib/consent-new');
+      
+      // Get the logbook consent record to extract consent information
+      const logbookConsentRecord = await getConsentRecord(c.env.DB, {
+        contentType: 'logbook',
+        contentId: submission.id,
+      });
+
+      if (logbookConsentRecord) {
+        const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
+        const consentTextHash = await generateConsentTextHash(
+          `Cultural Archiver Consent v${logbookConsentRecord.consent_version} - Artwork Created from Submission`
+        );
+
+        const consentParams = {
+          ...(logbookConsentRecord.user_id 
+            ? { userId: logbookConsentRecord.user_id } 
+            : logbookConsentRecord.anonymous_token 
+              ? { anonymousToken: logbookConsentRecord.anonymous_token }
+              : { anonymousToken: submission.user_token }), // fallback to submission user token
+          contentType: 'artwork' as const,
+          contentId: finalArtworkId,
+          consentVersion: logbookConsentRecord.consent_version,
+          ipAddress: clientIP,
+          consentTextHash,
+          db: c.env.DB,
+        };
+
+        const artworkConsentRecord = await recordConsent(consentParams);
+        console.info('Created consent record for new artwork:', {
+          artworkId: finalArtworkId,
+          consentId: artworkConsentRecord.id,
+          fromLogbookConsent: logbookConsentRecord.id,
+        });
+      } else {
+        console.warn('No logbook consent record found for submission:', submission.id);
+      }
+    } catch (error) {
+      console.error('Failed to create artwork consent record:', error);
+      // Don't fail the approval if consent creation fails - log and continue
+    }
     } else if (action === 'link_existing') {
       // Link to existing artwork
       if (!artwork_id) {

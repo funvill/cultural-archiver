@@ -139,6 +139,60 @@ Track active authentication sessions across devices.
 - Persistent sessions (NULL expiration)
 - Automatic cleanup of expired sessions
 
+#### consent
+
+Legal compliance table tracking user consent for all submitted content. Implements a consent-first pattern where content creation is blocked until consent is recorded.
+
+| Field               | Type | Constraints                           | Description                                      |
+| ------------------- | ---- | ------------------------------------- | ------------------------------------------------ |
+| `id`                | TEXT | PRIMARY KEY                           | Unique consent record UUID                       |
+| `created_at`        | TEXT | NOT NULL                              | ISO timestamp of consent                         |
+| `user_id`           | TEXT | NULL, FK→users.uuid                   | Authenticated user UUID (if applicable)          |
+| `anonymous_token`   | TEXT | NULL                                  | Anonymous user token (if applicable)             |
+| `consent_version`   | TEXT | NOT NULL                              | Version of legal terms (e.g., "2025-09-09.v2")  |
+| `content_type`      | TEXT | NOT NULL, CHECK('artwork','logbook')  | Type of content being consented for              |
+| `content_id`        | TEXT | NOT NULL                              | ID of the content being consented for            |
+| `ip_address`        | TEXT | NOT NULL                              | IP address for audit trail                       |
+| `consent_text_hash` | TEXT | NOT NULL                              | SHA-256 hash of consent text user agreed to      |
+
+**Indexes:**
+
+- `idx_consent_user_id` on `user_id` for user consent lookups
+- `idx_consent_anonymous_token` on `anonymous_token` for anonymous consent lookups
+- `idx_consent_content` on `(content_type, content_id)` for content consent checks
+- `idx_consent_version` on `consent_version` for version tracking
+- `idx_consent_created_at` on `created_at` for temporal queries
+
+**Foreign Keys:**
+
+- `user_id` → `users.uuid` ON DELETE CASCADE
+
+**Unique Constraints:**
+
+- `UNIQUE(user_id, anonymous_token, content_type, content_id, consent_version)` prevents duplicate consent
+
+**Legal Compliance Features:**
+
+- **Consent-First Pattern**: Content creation blocked until consent recorded
+- **Immutable Records**: Consent records never modified after creation
+- **Audit Trail**: Complete record of what users agreed to and when
+- **Hash Verification**: Cryptographic proof of agreed terms
+- **Identity Flexibility**: Supports both authenticated users and anonymous tokens
+- **Version Tracking**: Links consent to specific versions of legal documents
+
+**Content Types:**
+
+- `artwork` - Direct artwork submissions and fast photo uploads
+- `logbook` - Logbook entries that may be approved as artworks
+
+**Identity Handling:**
+
+- **Authenticated Users**: `user_id` populated, `anonymous_token` is NULL
+- **Anonymous Users**: `user_id` is NULL, `anonymous_token` populated
+- **Mass Import**: Uses reserved UUID `00000000-0000-0000-0000-000000000002`
+
+**See Also:** [Consent System Documentation](./consent-system.md) for detailed implementation guide.
+
 ### artwork_types
 
 Lookup table for predefined artwork categories.

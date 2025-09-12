@@ -377,6 +377,9 @@ The project uses these Cloudflare services:
 ### Documentation
 
 - **[API Documentation](docs/api.md)**: Complete endpoint specifications with examples
+- **[Consent System](docs/consent-system.md)**: Legal compliance and consent tracking implementation
+- **[Database Schema](docs/database.md)**: Complete database documentation with consent table
+- **[Authentication](docs/authentication.md)**: User authentication and anonymous token system
 - **[Deployment Guide](docs/deployment.md)**: Cloudflare Workers, D1, KV, and R2 setup
 - **[Development Guide](docs/development.md)**: Local development and debugging
 - **[Rate Limiting](docs/rate-limiting.md)**: Configuration and monitoring

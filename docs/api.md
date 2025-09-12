@@ -71,6 +71,56 @@ All responses follow a consistent JSON format:
 
 For trusted, high-volume imports of artworks, see the [Mass-Import API documentation](./mass-import.md). This endpoint allows moderators and admins to import large batches of artworks, images, logbook entries, and tags from public datasets. All imported records are automatically approved and attributed to the importing user.
 
+## Consent System
+
+All content submission endpoints implement a **consent-first pattern** where user consent must be recorded before any content creation occurs. This ensures legal compliance and provides a complete audit trail.
+
+### Consent Requirements
+
+- **Legal Agreement**: Users must agree to terms and conditions before submitting content
+- **Version Tracking**: Consent is linked to specific versions of legal documents
+- **Content Specificity**: Each piece of content (artwork/logbook) requires separate consent
+- **Audit Trail**: Complete record of what users agreed to and when
+
+### Consent Flow
+
+1. **User submits content**: Through any submission endpoint
+2. **Consent recorded**: System automatically records consent with cryptographic hash
+3. **Content created**: Only proceeds if consent recording succeeds
+4. **Response includes**: Consent ID for audit purposes
+
+### Consent Blocking
+
+Submissions will be **blocked** with a `409 Conflict` response if consent cannot be recorded:
+
+```json
+{
+  "success": false,
+  "error": {
+    "message": "Submission blocked: Consent could not be recorded",
+    "code": "SUBMISSION_BLOCKED",
+    "details": {
+      "message": "Your consent is required before submitting content",
+      "consentVersion": "2025-09-09.v2"
+    }
+  }
+}
+```
+
+### Consent Data
+
+Each consent record includes:
+
+- **User Identity**: Authenticated UUID or anonymous token
+- **Content Type**: `"artwork"` or `"logbook"`
+- **Content ID**: UUID of the specific content
+- **Consent Version**: Version of legal terms agreed to
+- **Timestamp**: Exact time of consent (ISO 8601)
+- **IP Address**: For audit trail and abuse prevention
+- **Content Hash**: SHA-256 hash of consent text for integrity
+
+**See Also:** [Consent System Documentation](./consent-system.md) for detailed technical implementation.
+
 ## Endpoints
 
 ### Submission Endpoints

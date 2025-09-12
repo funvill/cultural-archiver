@@ -686,6 +686,7 @@ app.post(
 // Fast photo-first workflow - new artwork submission endpoint
 app.post(
   '/api/artworks/fast',
+  ensureUserToken,
   rateLimitSubmissions,
   validateFileUploads,
   validateFastArtworkSubmission,

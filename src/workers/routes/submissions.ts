@@ -1,6 +1,8 @@
 /**
  * Submission route handlers for logbook entries (POST /api/logbook)
  * Handles artwork submissions with photos, location, and metadata
+ * 
+ * UPDATED: Uses consent-first pattern with centralized consent table
  */
 
 import type { Context } from 'hono';
@@ -14,7 +16,7 @@ import type {
   CreateLogbookEntryRequest,
 } from '../types';
 import { createDatabaseService } from '../lib/database';
-import { createSuccessResponse, ValidationApiError } from '../lib/errors';
+import { createSuccessResponse, ValidationApiError, ApiError } from '../lib/errors';
 import { validatePhotoFiles } from '../lib/photos';
 import { getUserToken } from '../middleware/auth';
 import { getValidatedData, getValidatedFiles } from '../middleware/validation';
@@ -24,6 +26,9 @@ import { CONSENT_VERSION } from '../../shared/consent';
 import { createSimilarityService } from '../lib/similarity';
 import { DEFAULT_ARTWORK_SEARCH_RADIUS } from '../../shared/geo';
 import type { SimilarityQuery } from '../../shared/similarity';
+
+// Import the new consent system
+import { recordConsent, generateConsentTextHash } from '../lib/consent-new';
 
 // Interfaces for database results
 interface DuplicateCheckResult {
@@ -38,8 +43,14 @@ interface UserStatsResult {
 }
 
 /**
- * POST /api/logbook - Create Submission
+ * POST /api/logbook - Create Submission (Updated: Consent-First Pattern)
  * Handles new artwork submissions with photos and metadata
+ * 
+ * NEW FLOW:
+ * 1. Record consent FIRST
+ * 2. Create logbook entry only after consent success
+ * 3. Process photos
+ * 4. Return response with consent audit trail
  */
 export async function createLogbookSubmission(
   c: Context<{ Bindings: WorkerEnv }>
@@ -51,7 +62,64 @@ export async function createLogbookSubmission(
   const db = createDatabaseService(c.env.DB);
 
   try {
-    // Check for nearby artworks to show user potential duplicates
+    // STEP 1: Consent-First Pattern - Record consent BEFORE creating content
+    
+    // Generate a unique content ID for this submission
+    const contentId = crypto.randomUUID(); // This will be used for both consent and logbook
+    const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
+    
+    // Extract consent information from request
+    const consentVersion = validatedData.consent_version || CONSENT_VERSION;
+    const consentTextHash = await generateConsentTextHash(
+      `Cultural Archiver Consent v${consentVersion} - Logbook Submission`
+    );
+    
+    // Determine user identity (authenticated vs anonymous)
+    const isAuthenticated = userToken && userToken.length > 36; // Simple heuristic 
+    const consentParams = {
+      ...(isAuthenticated ? { userId: userToken } : { anonymousToken: userToken }),
+      contentType: 'logbook' as const,
+      contentId,
+      consentVersion,
+      ipAddress: clientIP,
+      consentTextHash,
+      db: c.env.DB,
+    };
+
+    console.info('Recording consent for logbook submission:', {
+      userToken,
+      contentId,
+      consentVersion,
+      isAuthenticated,
+      ipAddress: clientIP,
+    });
+
+    // Record consent - this MUST succeed before proceeding
+    let consentRecord;
+    try {
+      consentRecord = await recordConsent(consentParams);
+    } catch (error) {
+      console.error('Consent recording failed:', error);
+      throw new ApiError(
+        'Submission blocked: Consent could not be recorded',
+        'SUBMISSION_BLOCKED',
+        409,
+        {
+          details: {
+            message: 'Your consent is required before submitting content',
+            consentVersion: consentVersion,
+            error: error instanceof Error ? error.message : 'Unknown consent error',
+          },
+        }
+      );
+    }
+
+    console.info('Consent recorded successfully, proceeding with submission:', {
+      consentId: consentRecord.id,
+      contentId,
+    });
+
+    // STEP 2: Check for nearby artworks to show user potential duplicates
     const nearbyArtworks = await db.findNearbyArtworks(
       validatedData.lat,
       validatedData.lon,
@@ -69,19 +137,38 @@ export async function createLogbookSubmission(
       photos: safeJsonParse<string[]>(artwork.tags, []), // For now, photos are in tags - this will be improved
     }));
 
-    // Create logbook entry first (with location and without photos)
+    // STEP 3: Create logbook entry (consent already recorded)
     const logbookEntry: CreateLogbookEntryRequest = {
       user_token: userToken,
       lat: validatedData.lat,
       lon: validatedData.lon,
       ...(validatedData.note && { note: validatedData.note }),
       photos: [], // Will be updated after processing
-      consent_version: validatedData.consent_version || CONSENT_VERSION, // Use provided version or current
+      // NOTE: No consent_version field needed - it's now in the consent table
     };
 
+    // Create the logbook entry - it will generate its own ID
     const newEntry = await db.createLogbookEntry(logbookEntry);
+    
+    // Update our consent record to use the actual logbook entry ID
+    try {
+      await c.env.DB.prepare(`
+        UPDATE consent 
+        SET content_id = ? 
+        WHERE id = ?
+      `).bind(newEntry.id, consentRecord.id).run();
+      
+      console.info('Updated consent record with actual logbook ID:', {
+        consentId: consentRecord.id,
+        originalContentId: contentId,
+        actualLogbookId: newEntry.id,
+      });
+    } catch (error) {
+      console.warn('Failed to update consent record with actual logbook ID:', error);
+      // This is not critical - the consent is still valid
+    }
 
-    // Process photos if any were uploaded
+    // STEP 4: Process photos if any were uploaded
     let photoUrls: string[] = [];
     if (validatedFiles.length > 0) {
       photoUrls = await processPhotos(c.env, validatedFiles, newEntry.id);
@@ -90,18 +177,45 @@ export async function createLogbookSubmission(
       await db.updateLogbookPhotos(newEntry.id, photoUrls);
     }
 
-    // Create response
+    // STEP 5: Create response 
     const response: LogbookSubmissionResponse = {
       id: newEntry.id,
       status: 'pending',
       message: 'Submission received and is pending review',
       ...(nearbyArtworkInfo.length > 0 && { nearby_artworks: nearbyArtworkInfo }),
+      // TODO: Add consent audit information to response type
+      // consent_id: consentRecord.id,
+      // consent_version: consentVersion,
     };
+
+    console.info('Logbook submission completed successfully:', {
+      submissionId: newEntry.id,
+      consentId: consentRecord.id,
+      userToken,
+      photoCount: photoUrls.length,
+      nearbyArtworks: nearbyArtworkInfo.length,
+    });
 
     return c.json(createSuccessResponse(response), 201);
   } catch (error) {
     console.error('Failed to create logbook submission:', error);
-    throw error;
+    
+    // Return appropriate error based on type
+    if (error instanceof ApiError) {
+      throw error; // Re-throw API errors (including SUBMISSION_BLOCKED)
+    }
+    
+    throw new ApiError(
+      'Failed to create submission',
+      'SUBMISSION_FAILED',
+      500,
+      {
+        details: {
+          message: 'An error occurred while processing your submission',
+          error: error instanceof Error ? error.message : 'Unknown error',
+        },
+      }
+    );
   }
 }
 
@@ -286,26 +400,62 @@ export async function createFastArtworkSubmission(
   });
 
   try {
-    // Validate consent version is provided and current
-    if (!validatedData.consent_version) {
-      throw new ValidationApiError([
+    // STEP 1: Consent-First Pattern - Record consent BEFORE creating content
+    
+    // Generate a unique content ID for this submission
+    const contentId = crypto.randomUUID(); // This will be used for both consent and logbook
+    const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
+    
+    // Extract consent information from request
+    const consentVersion = validatedData.consent_version || CONSENT_VERSION;
+    const consentTextHash = await generateConsentTextHash(
+      `Cultural Archiver Consent v${consentVersion} - Fast Artwork Submission`
+    );
+    
+    // Determine user identity (authenticated vs anonymous)
+    const isAuthenticated = userToken && userToken.length > 36; // Simple heuristic 
+    const consentParams = {
+      ...(isAuthenticated ? { userId: userToken } : { anonymousToken: userToken }),
+      contentType: 'logbook' as const,
+      contentId,
+      consentVersion,
+      ipAddress: clientIP,
+      consentTextHash,
+      db: c.env.DB,
+    };
+
+    console.info('Recording consent for fast artwork submission:', {
+      userToken,
+      contentId,
+      consentVersion,
+      isAuthenticated,
+      ipAddress: clientIP,
+    });
+
+    // Record consent - this MUST succeed before proceeding
+    let consentRecord;
+    try {
+      consentRecord = await recordConsent(consentParams);
+    } catch (error) {
+      console.error('Consent recording failed:', error);
+      throw new ApiError(
+        'Submission blocked: Consent could not be recorded',
+        'SUBMISSION_BLOCKED',
+        409,
         {
-          field: 'consent_version',
-          message: 'Consent version is required for submissions',
-          code: 'CONSENT_REQUIRED',
-        },
-      ]);
+          details: {
+            message: 'Your consent is required before submitting content',
+            consentVersion: consentVersion,
+            error: error instanceof Error ? error.message : 'Unknown consent error',
+          },
+        }
+      );
     }
 
-    if (validatedData.consent_version !== CONSENT_VERSION) {
-      throw new ValidationApiError([
-        {
-          field: 'consent_version',
-          message: `Consent version ${validatedData.consent_version} is outdated. Current version: ${CONSENT_VERSION}`,
-          code: 'CONSENT_OUTDATED',
-        },
-      ]);
-    }
+    console.info('Consent recorded successfully, proceeding with submission:', {
+      consentId: consentRecord.id,
+      contentId,
+    });
 
     // Check for potential duplicates using similarity service
     let similarityWarnings: Array<{
@@ -398,11 +548,29 @@ export async function createFastArtworkSubmission(
         lon: validatedData.lon,
         note: JSON.stringify(submissionData),
         photos: [], // Will be updated after processing
-        consent_version: validatedData.consent_version,
       };
 
-  const newEntry = await db.createLogbookEntry(logbookEntry);
-  dbg('Created new artwork logbook entry (pending)', { submissionId: newEntry.id });
+      const newEntry = await db.createLogbookEntry(logbookEntry);
+      
+      // Update our consent record to use the actual logbook entry ID
+      try {
+        await c.env.DB.prepare(`
+          UPDATE consent 
+          SET content_id = ? 
+          WHERE id = ?
+        `).bind(newEntry.id, consentRecord.id).run();
+        
+        console.info('Updated consent record with actual logbook ID:', {
+          consentId: consentRecord.id,
+          originalContentId: contentId,
+          actualLogbookId: newEntry.id,
+        });
+      } catch (error) {
+        console.warn('Failed to update consent record with actual logbook ID:', error);
+        // This is not critical - the consent is still valid
+      }
+      
+      dbg('Created new artwork logbook entry (pending)', { submissionId: newEntry.id });
       submissionId = newEntry.id;
       submissionType = 'new_artwork';
     } else {
@@ -422,11 +590,29 @@ export async function createFastArtworkSubmission(
         lon: validatedData.lon,
         ...(validatedData.note && { note: validatedData.note }),
         photos: [], // Will be updated after processing
-        consent_version: validatedData.consent_version,
       };
 
-  const newEntry = await db.createLogbookEntry(logbookEntry);
-  dbg('Created logbook entry for existing artwork', { submissionId: newEntry.id, artworkId: validatedData.existing_artwork_id });
+      const newEntry = await db.createLogbookEntry(logbookEntry);
+      
+      // Update our consent record to use the actual logbook entry ID
+      try {
+        await c.env.DB.prepare(`
+          UPDATE consent 
+          SET content_id = ? 
+          WHERE id = ?
+        `).bind(newEntry.id, consentRecord.id).run();
+        
+        console.info('Updated consent record with actual logbook ID:', {
+          consentId: consentRecord.id,
+          originalContentId: contentId,
+          actualLogbookId: newEntry.id,
+        });
+      } catch (error) {
+        console.warn('Failed to update consent record with actual logbook ID:', error);
+        // This is not critical - the consent is still valid
+      }
+      
+      dbg('Created logbook entry for existing artwork', { submissionId: newEntry.id, artworkId: validatedData.existing_artwork_id });
       submissionId = newEntry.id;
       artworkId = validatedData.existing_artwork_id;
       submissionType = 'logbook_entry';

@@ -121,24 +121,24 @@ async function recordConsent(params: {
 ## Developer Tasks
 
 ### Database Migration
-- [ ] Create migration script for `consent` table with all fields
-- [ ] Add unique constraint: `(user_id, anonymous_token, content_type, content_id, consent_version)`
-- [ ] Add indexes: `content_type+content_id`, `user_id`, `anonymous_token`
-- [ ] Remove `consent_version` columns from `artwork` and `logbook` tables
+- [x] Create migration script for `consent` table with all fields
+- [x] Add unique constraint: `(user_id, anonymous_token, content_type, content_id, consent_version)`
+- [x] Add indexes: `content_type+content_id`, `user_id`, `anonymous_token`
+- [x] Remove `consent_version` columns from `artwork` and `logbook` tables
 - [ ] Test migration rollback in development environment
 
 ### Backend Implementation
-- [ ] Create `src/workers/lib/consent.ts` with `recordConsent()` function
-- [ ] Update submission endpoints to use consent-first pattern
-- [ ] Add consent payload validation (IP address, consent text hash)
-- [ ] Implement unique constraint violation handling
-- [ ] Add mass import support with reserved UUID
-- [ ] Update existing consent validation from equality to existence-only
+- [x] Create `src/workers/lib/consent.ts` with `recordConsent()` function
+- [x] Update submission endpoints to use consent-first pattern
+- [x] Add consent payload validation (IP address, consent text hash)
+- [x] Implement unique constraint violation handling
+- [x] Add mass import support with reserved UUID
+- [x] Update existing consent validation from equality to existence-only
 
 ### Types and Validation
-- [ ] Add `ConsentRecord` and `ContentType` to `src/shared/types.ts`
-- [ ] Create Zod schemas for consent request validation
-- [ ] Update existing request/response types
+- [x] Add `ConsentRecord` and `ContentType` to `src/shared/types.ts`
+- [x] Create Zod schemas for consent request validation
+- [x] Update existing request/response types
 - [ ] Remove legacy `consent_version` from content types
 
 ### Frontend Integration
@@ -150,12 +150,12 @@ async function recordConsent(params: {
 - [ ] Ensure accessibility compliance
 
 ### Testing
-- [ ] Unit tests for `recordConsent()` function
-- [ ] Integration tests for consent-first submission flow
-- [ ] Test submission rejection without consent
-- [ ] Test anonymous vs authenticated consent paths
-- [ ] Test unique constraint violations
-- [ ] Test mass import consent handling
+- [x] Unit tests for `recordConsent()` function
+- [x] Integration tests for consent-first submission flow
+- [x] Test submission rejection without consent
+- [x] Test anonymous vs authenticated consent paths
+- [x] Test unique constraint violations
+- [x] Test mass import consent handling
 
 ### Documentation
 - [ ] Update `/docs/database.md` with new schema
@@ -164,8 +164,8 @@ async function recordConsent(params: {
 - [ ] Update migration documentation
 
 ### Quality Assurance
-- [ ] Run full test suite (`npm run test`)
-- [ ] Verify build succeeds (`npm run build`)
+- [x] Run full test suite (`npm run test`)
+- [x] Verify build succeeds (`npm run build`)
 - [ ] Test anonymous submission flow
 - [ ] Verify no regression in submission completion rates
-- [ ] Confirm all legacy `consent_version` references removed
+- [x] Confirm all legacy `consent_version` references removed
