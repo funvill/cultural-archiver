@@ -12,12 +12,10 @@ import type { Context } from 'hono';
 import type {
   ArtistRecord,
   ArtistApiResponse,
-  ArtistListResponse,
   CreateArtistRequest,
   CreateArtistEditRequest,
   ArtistEditSubmissionResponse,
   ArtistPendingEditsResponse,
-  ArtworkWithPhotos,
 } from '../../shared/types';
 import type { WorkerEnv } from '../types';
 import { createDatabaseService } from '../lib/database';
@@ -36,81 +34,94 @@ function generateUUID(): string {
 }
 
 /**
- * GET /api/artists - List Artists
+ * GET /api/artists - List Artists (Index Page)
  * Returns paginated list of artists with optional search/filter
+ * Updated to match PRD requirements for index pages
  */
 export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const validatedQuery = getValidatedData<{
     page?: number;
-    per_page?: number;
+    limit?: number;
+    sort?: 'updated_desc' | 'name_asc' | 'created_desc';
     search?: string;
     status?: 'active' | 'inactive';
   }>(c, 'query');
 
-  const db = createDatabaseService(c.env.DB);
-  
-  // Set defaults
-  const page = validatedQuery.page || 1;
-  const perPage = Math.min(validatedQuery.per_page || 20, 100);
-  const offset = (page - 1) * perPage;
+  // Set defaults per PRD
+  const page = Math.max(validatedQuery.page || 1, 1);
+  const limit = Math.min(validatedQuery.limit || 30, 50);
+  const offset = (page - 1) * limit;
+  const status = validatedQuery.status || 'active';
 
   try {
-    // Build query with filters
-    let whereClause = 'WHERE 1=1';
-    const params: (string | number)[] = [];
-    
-    if (validatedQuery.status) {
-      whereClause += ' AND status = ?';
-      params.push(validatedQuery.status);
-    } else {
-      // Default to active artists only
-      whereClause += ' AND status = ?';
-      params.push('active');
-    }
-    
+    const db = createDatabaseService(c.env.DB);
+
+    let query: string;
+    let params: unknown[];
+
     if (validatedQuery.search) {
-      whereClause += ' AND name LIKE ?';
-      params.push(`%${validatedQuery.search}%`);
+      // Search query
+      query = `
+        SELECT id, name, description, tags, status, created_at, updated_at,
+               (SELECT COUNT(*) FROM artwork_artists aa WHERE aa.artist_id = artists.id) as artwork_count
+        FROM artists
+        WHERE status = ? AND name LIKE ?
+        ORDER BY name ASC
+        LIMIT ? OFFSET ?
+      `;
+      params = [status, `%${validatedQuery.search}%`, limit, offset];
+    } else {
+      // Standard listing
+      query = `
+        SELECT id, name, description, tags, status, created_at, updated_at,
+               (SELECT COUNT(*) FROM artwork_artists aa WHERE aa.artist_id = artists.id) as artwork_count
+        FROM artists
+        WHERE status = ?
+        ORDER BY name ASC
+        LIMIT ? OFFSET ?
+      `;
+      params = [status, limit, offset];
     }
 
-    // Get artists with artwork count
-    const artistsQuery = `
-      SELECT a.*, 
-             COUNT(aa.artwork_id) as artwork_count
-      FROM artists a
-      LEFT JOIN artwork_artists aa ON a.id = aa.artist_id
-      ${whereClause}
-      GROUP BY a.id
-      ORDER BY a.name ASC
-      LIMIT ? OFFSET ?
-    `;
-    
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM artists a
-      ${whereClause}
-    `;
+    const stmt = db.db.prepare(query);
+    const result = await stmt.bind(...params).all();
+    const artists = result.results as (ArtistRecord & { artwork_count: number })[];
 
-    const artists = await db.db.prepare(artistsQuery)
-      .bind(...params, perPage, offset)
-      .all();
+    // Get total count for pagination
+    const countQuery = validatedQuery.search
+      ? `SELECT COUNT(*) as total FROM artists WHERE status = ? AND name LIKE ?`
+      : `SELECT COUNT(*) as total FROM artists WHERE status = ?`;
     
-    const countResult = await db.db.prepare(countQuery)
-      .bind(...params)
-      .first() as { total: number };
+    const countParams = validatedQuery.search
+      ? [status, `%${validatedQuery.search}%`]
+      : [status];
 
-    // Format response
-    const formattedArtists: ArtistApiResponse[] = artists.results?.map((artist: any) => ({
-      ...artist,
+    const countStmt = db.db.prepare(countQuery);
+    const countResult = await countStmt.bind(...countParams).first() as { total: number };
+    const totalItems = countResult?.total || 0;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    // Format artists for API response
+    const formattedArtists: import('../../shared/types').ArtistApiResponse[] = artists.map(artist => ({
+      id: artist.id,
+      name: artist.name,
+      description: artist.description || '',
+      tags: artist.tags,
+      created_at: artist.created_at,
+      updated_at: artist.updated_at,
+      status: artist.status,
       tags_parsed: safeJsonParse(artist.tags, {}),
       artwork_count: artist.artwork_count || 0,
-    })) || [];
+    }));
 
-    const response: ArtistListResponse = {
-      artists: formattedArtists,
-      total: countResult.total,
-      page,
-      per_page: perPage,
+    // Set cache headers for 1 hour as per PRD
+    c.header('Cache-Control', 'public, max-age=3600');
+
+    const response: import('../../shared/types').ArtistIndexResponse = {
+      totalItems,
+      currentPage: page,
+      totalPages,
+      items: formattedArtists,
     };
 
     return c.json(createSuccessResponse(response));
@@ -135,13 +146,14 @@ export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Pro
     }]);
   }
 
-  const db = createDatabaseService(c.env.DB);
-
   try {
+    const db = createDatabaseService(c.env.DB);
+
     // Get artist details
     const artistStmt = db.db.prepare(`
-      SELECT * FROM artists 
-      WHERE id = ? AND status = 'active'
+      SELECT id, name, description, tags, status, created_at, updated_at
+      FROM artists
+      WHERE id = ?
     `);
     const artist = await artistStmt.bind(artistId).first() as ArtistRecord | null;
 
@@ -151,58 +163,63 @@ export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Pro
 
     // Get artist's artworks
     const artworksStmt = db.db.prepare(`
-      SELECT 
-        a.id, a.lat, a.lon, a.type_id, a.created_at, a.status, 
-        a.tags, a.title, a.description, a.created_by,
-        at.name as type_name,
-        (
-          SELECT l.photos
-          FROM logbook l
-          WHERE l.artwork_id = a.id 
-            AND l.status = 'approved' 
-            AND l.photos IS NOT NULL 
-            AND l.photos != '[]'
-          ORDER BY l.created_at DESC
-          LIMIT 1
-        ) as recent_photos,
-        (
-          SELECT COUNT(*)
-          FROM logbook l
-          WHERE l.artwork_id = a.id 
-            AND l.status = 'approved' 
-            AND l.photos IS NOT NULL 
-            AND l.photos != '[]'
-        ) as photo_count
+      SELECT a.id, a.title, a.lat, a.lon, a.type_id, a.created_at, a.status, a.tags,
+             at.name as type_name,
+             (SELECT photos FROM logbook WHERE artwork_id = a.id ORDER BY created_at DESC LIMIT 1) as recent_photos,
+             (SELECT COUNT(*) FROM logbook WHERE artwork_id = a.id) as photo_count
       FROM artwork a
-      JOIN artwork_types at ON a.type_id = at.id
       JOIN artwork_artists aa ON a.id = aa.artwork_id
+      LEFT JOIN artwork_types at ON a.type_id = at.id
       WHERE aa.artist_id = ? AND a.status = 'approved'
       ORDER BY a.created_at DESC
     `);
-    
     const artworks = await artworksStmt.bind(artistId).all();
 
-    // Format artworks
-    const formattedArtworks: ArtworkWithPhotos[] = artworks.results?.map((artwork: any) => ({
-      ...artwork,
-      recent_photo: artwork.recent_photos ? 
-        safeJsonParse<string[]>(artwork.recent_photos, [])[0] : 
-        undefined,
-      photo_count: artwork.photo_count || 0,
-    })) || [];
+    interface ArtworkWithTypeAndPhotos {
+      id: string;
+      title: string | null;
+      lat: number;
+      lon: number;
+      type_id: string;
+      created_at: string;
+      status: 'pending' | 'approved' | 'removed';
+      tags: string | null;
+      type_name: string;
+      recent_photos: string | null;
+      photo_count: number;
+    }
 
-    const response: ArtistApiResponse = {
-      ...artist,
+    // Format response
+    const response: import('../../shared/types').ArtistApiResponse = {
+      id: artist.id,
+      name: artist.name,
+      description: artist.description || '',
+      tags: artist.tags,
+      created_at: artist.created_at,
+      updated_at: artist.updated_at,
+      status: artist.status,
       tags_parsed: safeJsonParse(artist.tags, {}),
-      artwork_count: formattedArtworks.length,
-      artworks: formattedArtworks,
+      artworks: (artworks.results as ArtworkWithTypeAndPhotos[])?.map((artwork) => {
+        const recentPhotos = safeJsonParse(artwork.recent_photos, []);
+        return {
+          id: artwork.id,
+          title: artwork.title,
+          lat: artwork.lat,
+          lon: artwork.lon,
+          type_id: artwork.type_id,
+          created_at: artwork.created_at,
+          status: artwork.status,
+          tags: artwork.tags,
+          type_name: artwork.type_name || '',
+          photo_count: artwork.photo_count || 0,
+          ...(recentPhotos.length > 0 && { recent_photo: recentPhotos[0] }),
+        };
+      }) || [],
+      artwork_count: artworks.results?.length || 0,
     };
 
     return c.json(createSuccessResponse(response));
   } catch (error) {
-    if (error instanceof NotFoundError) {
-      throw error;
-    }
     console.error('Failed to get artist profile:', error);
     throw error;
   }

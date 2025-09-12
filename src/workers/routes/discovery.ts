@@ -813,3 +813,154 @@ function getSimilarityExplanation(result: { overallScore: number; signals: Simil
     ? `${scorePercent}% similar (${explanations.join(', ')})`
     : `${scorePercent}% similar`;
 }
+
+/**
+ * GET /api/artworks - List All Approved Artworks (Index Page)
+ * Returns paginated list of all approved artworks for browsing
+ * Query parameters:
+ * - page: page number (default: 1)
+ * - limit: items per page (default: 30, max: 50)
+ * - sort: sorting option (updated_desc, title_asc, created_desc)
+ */
+export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  let validatedQuery;
+  try {
+    validatedQuery = getValidatedData<{
+      page?: number;
+      limit?: number;
+      sort?: 'updated_desc' | 'title_asc' | 'created_desc';
+    }>(c, 'query');
+  } catch (error) {
+    console.error('Validation error in getArtworksList:', error);
+    // Fallback to manual parsing
+    const url = new URL(c.req.url);
+    validatedQuery = {
+      page: url.searchParams.get('page') ? parseInt(url.searchParams.get('page')!, 10) : undefined,
+      limit: url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit')!, 10) : undefined,
+      sort: url.searchParams.get('sort') as 'updated_desc' | 'title_asc' | 'created_desc' | undefined,
+    };
+  }
+
+  const db = createDatabaseService(c.env.DB);
+  
+  // Set defaults per PRD
+  const page = Math.max(validatedQuery.page || 1, 1);
+  const limit = Math.min(validatedQuery.limit || 30, 50);
+  const sort = validatedQuery.sort || 'updated_desc';
+  const offset = (page - 1) * limit;
+
+  try {
+    // Build ORDER BY clause
+    let orderClause = '';
+    switch (sort) {
+      case 'title_asc':
+        orderClause = 'ORDER BY COALESCE(a.title, at.name) ASC, a.created_at DESC';
+        break;
+      case 'created_desc':
+        orderClause = 'ORDER BY a.created_at DESC';
+        break;
+      case 'updated_desc':
+      default:
+        // Default to created_at since updated_at doesn't exist in schema
+        orderClause = 'ORDER BY a.created_at DESC';
+        break;
+    }
+
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM artwork a
+      WHERE a.status = 'approved'
+    `;
+    
+    const countResult = await db.db.prepare(countQuery).first() as { total: number };
+    const totalItems = countResult.total;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    // Validate page number
+    if (page > totalPages && totalItems > 0) {
+      return c.json({
+        error: 'Page not found',
+        message: `Page ${page} does not exist. Total pages: ${totalPages}`,
+      }, 404);
+    }
+
+    // Get artworks with type information
+    const artworksQuery = `
+      SELECT a.id, a.lat, a.lon, a.type_id, a.created_at, a.status, a.tags, 
+             a.title, a.description, a.created_by,
+             at.name as type_name
+      FROM artwork a
+      LEFT JOIN artwork_types at ON a.type_id = at.id
+      WHERE a.status = 'approved'
+      ${orderClause}
+      LIMIT ? OFFSET ?
+    `;
+
+    const artworks = await db.db.prepare(artworksQuery)
+      .bind(limit, offset)
+      .all();
+
+    // Get photos for each artwork
+    const artworksWithPhotos = await Promise.all(
+      (artworks.results as unknown as (ArtworkRecord & { type_name?: string })[] || []).map(async (artwork) => {
+        // Get logbook entries for this artwork to find photos
+        const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
+        const allPhotos: string[] = [];
+        
+        logbookEntries.forEach(entry => {
+          if (entry.photos) {
+            const photos = safeJsonParse<string[]>(entry.photos, []);
+            allPhotos.push(...photos);
+          }
+        });
+
+        // Get primary artist name from tags or created_by field
+        let artistName = artwork.created_by || 'Unknown Artist';
+        if (artwork.tags) {
+          const tags = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
+          if (tags.artist_name && typeof tags.artist_name === 'string') {
+            artistName = tags.artist_name;
+          } else if (tags.created_by && typeof tags.created_by === 'string') {
+            artistName = tags.created_by;
+          }
+        }
+
+        return {
+          id: artwork.id,
+          lat: artwork.lat,
+          lon: artwork.lon,
+          type_id: artwork.type_id,
+          created_at: artwork.created_at,
+          status: artwork.status,
+          tags: artwork.tags,
+          title: artwork.title,
+          description: artwork.description,
+          created_by: artwork.created_by,
+          type_name: artwork.type_name,
+          photos: allPhotos,
+          tags_parsed: safeJsonParse(artwork.tags, {}),
+          // Add derived fields for card display
+          recent_photo: allPhotos.length > 0 ? allPhotos[0] : null,
+          photo_count: allPhotos.length,
+          artist_name: artistName,
+        } as import('../../shared/types').ArtworkApiResponse;
+      })
+    );
+
+    // Set cache headers for 1 hour as per PRD
+    c.header('Cache-Control', 'public, max-age=3600');
+
+    const response: import('../../shared/types').ArtworkIndexResponse = {
+      totalItems,
+      currentPage: page,
+      totalPages,
+      items: artworksWithPhotos,
+    };
+
+    return c.json(createSuccessResponse(response));
+  } catch (error) {
+    console.error('Failed to get artworks list:', error);
+    throw error;
+  }
+}

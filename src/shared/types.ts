@@ -40,6 +40,11 @@ export interface ArtworkApiResponse {
   title?: string | null; // Artwork title (editable field)
   description?: string | null; // Artwork description (editable field)
   created_by?: string | null; // Creator/artist name(s) (editable field)
+  // Additional fields for index page display
+  recent_photo?: string | null; // First photo for card display
+  photo_count?: number; // Total number of photos
+  artist_name?: string | null; // Primary artist name for display
+  updated_at?: string | null; // For sorting by last updated
 }
 
 export interface LogbookRecord {
@@ -185,6 +190,7 @@ export interface ArtistApiResponse extends ArtistRecord {
   tags_parsed?: Record<string, unknown>;
   artwork_count?: number;
   artworks?: ArtworkWithPhotos[];
+  short_bio?: string; // Truncated bio for card display (~20 words)
 }
 
 export interface ArtistListResponse {
@@ -473,6 +479,14 @@ export interface PaginatedResponse<T> {
   has_more: boolean;
 }
 
+// New standardized index page response format per PRD
+export interface IndexPageResponse<T> {
+  totalItems: number;
+  currentPage: number;
+  totalPages: number;
+  items: T[];
+}
+
 export interface StatusResponse {
   status: 'ok' | 'error';
   version?: string;
@@ -490,6 +504,10 @@ export interface ArtworkListResponse extends PaginatedResponse<ArtworkRecord> {}
 export interface ArtworkTypeListResponse extends PaginatedResponse<ArtworkTypeRecord> {}
 export interface TagListResponse extends PaginatedResponse<TagRecord> {}
 export interface LogbookListResponse extends PaginatedResponse<LogbookRecord> {}
+
+// Index page response types per PRD
+export interface ArtworkIndexResponse extends IndexPageResponse<ArtworkApiResponse> {}
+export interface ArtistIndexResponse extends IndexPageResponse<ArtistApiResponse> {}
 
 // ================================
 // Search and Filter Types

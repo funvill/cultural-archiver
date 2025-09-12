@@ -12,6 +12,8 @@ import {
   ShieldCheckIcon,
   MagnifyingGlassIcon,
   CameraIcon,
+  PhotoIcon,
+  UserGroupIcon,
 } from '@heroicons/vue/24/outline';
 import { useAuthStore } from '../stores/auth';
 import AuthModal from './AuthModal.vue';
@@ -59,6 +61,16 @@ const menuNavigationItems: NavigationItem[] = [
     name: 'Map',
     path: '/',
     icon: MapIcon,
+  },
+  {
+    name: 'Artworks',
+    path: '/artworks',
+    icon: PhotoIcon,
+  },
+  {
+    name: 'Artists',
+    path: '/artists',
+    icon: UserGroupIcon,
   },
   {
     name: 'Search',

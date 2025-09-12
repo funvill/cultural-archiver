@@ -606,6 +606,9 @@ Notes:
 - [x] In src\lib\mass-import\osm-report-1757618334783.json all of the "title" in the "duplicate_records" are "Unknown" instead of the properties.name from the OSM import.
 
 
+
+- [x] Add tag "city", "province/state", and "country" to the "Physical Properties" tag catagory.
+
 ----
 
 
@@ -653,3 +656,4 @@ There should be 30 items on these index pages, with the ability to go to the nex
 Both of these pages use cards and show 30 cards per page. Use ppagination controls at the top and bottom
 
 Have a search bar at the top that leads to the search page
+

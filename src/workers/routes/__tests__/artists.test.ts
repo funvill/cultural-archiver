@@ -79,6 +79,7 @@ function createMockContext(params: Record<string, string> = {}, body: any = {}) 
       json: vi.fn().mockResolvedValue(body),
     },
     json: vi.fn().mockReturnValue(new Response()),
+    header: vi.fn(), // Add header method for cache control
     env: mockEnv,
   } as any;
 }
@@ -112,7 +113,7 @@ describe('Artist Routes', () => {
       const { getValidatedData } = await import('../../middleware/validation');
       vi.mocked(getValidatedData).mockReturnValue({
         page: 1,
-        per_page: 20,
+        limit: 20,
       });
 
       const c = createMockContext();
@@ -138,11 +139,11 @@ describe('Artist Routes', () => {
       const c = createMockContext();
       await getArtistsList(c);
 
-      // Should use search in query
+      // Should use search in query (with new default limit of 30)
       expect(mockDbStmt.bind).toHaveBeenCalledWith(
-        expect.stringContaining('active'),
-        expect.stringContaining('Test'),
-        20,
+        'active',
+        '%Test%',
+        30,
         0
       );
     });

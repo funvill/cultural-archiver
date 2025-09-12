@@ -457,6 +457,61 @@ export const apiService = {
   },
 
   // ================================
+  // Index Pages Endpoints
+  // ================================
+
+  /**
+   * Get paginated list of all approved artworks
+   */
+  async getArtworksList(
+    page: number = 1,
+    limit: number = 30,
+    sort: 'updated_desc' | 'title_asc' | 'created_desc' = 'updated_desc'
+  ): Promise<
+    ApiResponse<{
+      totalItems: number;
+      currentPage: number;
+      totalPages: number;
+      items: Array<import('../../../shared/types').ArtworkApiResponse>;
+    }>
+  > {
+    return client.get('/artworks', {
+      page: page.toString(),
+      limit: limit.toString(),
+      sort,
+    });
+  },
+
+  /**
+   * Get paginated list of all active artists
+   */
+  async getArtistsList(
+    page: number = 1,
+    limit: number = 30,
+    sort: 'updated_desc' | 'name_asc' | 'created_desc' = 'updated_desc',
+    search?: string
+  ): Promise<
+    ApiResponse<{
+      totalItems: number;
+      currentPage: number;
+      totalPages: number;
+      items: Array<import('../../../shared/types').ArtistApiResponse>;
+    }>
+  > {
+    const params: Record<string, string> = {
+      page: page.toString(),
+      limit: limit.toString(),
+      sort,
+    };
+    
+    if (search && search.trim()) {
+      params.search = search.trim();
+    }
+
+    return client.get('/artists', params);
+  },
+
+  // ================================
   // Search Endpoints
   // ================================
 

@@ -188,6 +188,24 @@ export const reviewSubmissionSchema = z.object({
 export const structuredTagsSchema = z.record(z.union([z.string(), z.number(), z.boolean()]));
 
 // ================================
+// Index Page Schemas
+// ================================
+
+export const artworkListSchema = z.object({
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+  sort: z.enum(['updated_desc', 'title_asc', 'created_desc']).optional(),
+});
+
+export const artistListSchema = z.object({
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+  sort: z.enum(['updated_desc', 'name_asc', 'created_desc']).optional(),
+  search: z.string().optional(),
+  status: z.enum(['active', 'inactive']).optional(),
+});
+
+// ================================
 // Fast Workflow Schemas
 // ================================
 
@@ -603,6 +621,7 @@ export async function validateFastArtworkSubmission(
       { field: 'body', message: 'Fast submission validation failed', code: 'VALIDATION_ERROR' },
     ]);
   }
+
   await next();
 }
 export const validateCheckSimilarity = validateSchema(checkSimilaritySchema, 'body');

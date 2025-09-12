@@ -367,6 +367,97 @@ GET /api/artworks/{id}
 }
 ```
 
+#### Browse All Artworks
+
+Get a paginated list of all approved artworks for browsing.
+
+```http
+GET /api/artworks
+```
+
+**Parameters**:
+
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Results per page (10, 30, 50, default: 30)
+- `sort` (optional): Sort order (`updated`, `title_asc`, `created`, default: `updated`)
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "totalItems": 245,
+    "currentPage": 1,
+    "totalPages": 9,
+    "items": [
+      {
+        "id": "artwork-uuid",
+        "lat": 49.2827,
+        "lon": -123.1207,
+        "type_name": "Public Art",
+        "status": "approved",
+        "recent_photo": "https://art-photos.abluestar.com/2024/01/15/photo.jpg",
+        "photo_count": 3,
+        "title": "Victory Angel",
+        "artist_name": "Jane Doe",
+        "created_at": "2024-01-15T10:30:00Z",
+        "updated_at": "2024-02-10T14:20:00Z"
+      }
+    ]
+  }
+}
+```
+
+#### Browse All Artists
+
+Get a paginated list of all artists with artwork counts.
+
+```http
+GET /api/artists
+```
+
+**Parameters**:
+
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Results per page (10, 30, 50, default: 30)
+- `sort` (optional): Sort order (`name`, `artwork_count`, `updated`, default: `name`)
+- `search` (optional): Search by artist name
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "totalItems": 87,
+    "currentPage": 1,
+    "totalPages": 3,
+    "items": [
+      {
+        "id": "artist-uuid",
+        "name": "Jane Doe",
+        "description": "Canadian sculptor known for...",
+        "short_bio": "Canadian sculptor known for public art installations in Vancouver and...",
+        "artwork_count": 12,
+        "tags_parsed": {
+          "country": "Canada",
+          "website": "https://janedoe.art"
+        },
+        "created_at": "2024-01-10T08:00:00Z",
+        "updated_at": "2024-02-15T12:30:00Z",
+        "status": "active"
+      }
+    ]
+  }
+}
+```
+
+**Error Responses**:
+
+- `404 Not Found`: Page number exceeds available pages
+- `400 Bad Request`: Invalid parameters
+
 ### Tag and Metadata Endpoints
 
 #### Edit Artwork Tags

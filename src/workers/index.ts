@@ -28,6 +28,8 @@ import {
   consumeMagicLinkSchema,
   validateFastArtworkSubmission,
   validateCheckSimilarity,
+  artworkListSchema,
+  artistListSchema,
 } from './middleware/validation';
 import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
@@ -39,6 +41,7 @@ import {
   getArtworksInBounds,
   checkArtworkSimilarity,
   getArtworkStats,
+  getArtworksList,
 } from './routes/discovery';
 import { submitArtworkEdit, getUserPendingEdits, validateArtworkEdit, exportArtworkToOSM } from './routes/artwork';
 import { 
@@ -766,6 +769,7 @@ app.get(
 app.get(
   '/api/artists',
   rateLimitQueries,
+  validateSchema(artistListSchema, 'query'),
   withErrorHandling(getArtistsList)
 );
 
@@ -1021,17 +1025,7 @@ app.get('/p/artwork/:id', validateUUID('id'), async c => {
 // ================================
 
 // Keep some legacy endpoints for backwards compatibility
-app.get('/api/artworks', async c => {
-  // Redirect to nearby with default Vancouver coordinates
-  const defaultLat = 49.2827;
-  const defaultLon = -123.1207;
-  const url = new URL(c.req.url);
-  url.pathname = '/api/artworks/nearby';
-  url.searchParams.set('lat', defaultLat.toString());
-  url.searchParams.set('lon', defaultLon.toString());
-
-  return c.redirect(url.toString(), 302);
-});
+app.get('/api/artworks', rateLimitQueries, validateSchema(artworkListSchema, 'query'), withErrorHandling(getArtworksList));
 
 app.get('/api/logbook', async c => {
   // Redirect to user submissions
