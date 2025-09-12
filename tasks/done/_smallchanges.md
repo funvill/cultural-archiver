@@ -606,3 +606,50 @@ Notes:
 - [x] In src\lib\mass-import\osm-report-1757618334783.json all of the "title" in the "duplicate_records" are "Unknown" instead of the properties.name from the OSM import.
 
 
+----
+
+
+artwork.consent_version
+In table artwork the consent_version field doesn't need to be part of the artwork table. Instead create a new table (consent) to recored all the consent for content from users.
+
+The table strucutre could look like thi
+
+- id - TEXT PRIMARY KEY,
+- created_at - TEXT NOT NULL DEFAULT (datetime('now')),
+- user_id - User UUID
+- consent_version - The version that the user accepted
+- content_type - Artwork, etc...
+- content_id - The ID of the content where consent was given.
+
+The goal is clean up the artwork table. Any content that is provided by the user needs consent to make it avalaible to others. This table is also flexable for the future user commited data.
+
+Do the same thing for artwork, logbook tables.
+
+----
+
+artwork.type_id
+In the artwork table, the type_id does not need to be part of this table.
+Instead use the tag:artwork_type for the artwork type.
+Then we can drop the artwork_types table.
+
+The tag:artwork_type should default to "unknow"
+
+The advantage of using the tag:artwork_type is that it can be updated by the users from the normal tag editing.
+
+----
+
+
+## Index page
+
+Create two index pages, these index pages show art and artists as cards with pagination. These cards can be clicked to see the details page.
+
+- /artwork - Should be an index page of all artworks
+- /artist - Should be an index page of all artists
+
+These are like search results pages but show all of each item sorted by last updated.
+
+There should be 30 items on these index pages, with the ability to go to the next page
+
+Both of these pages use cards and show 30 cards per page. Use ppagination controls at the top and bottom
+
+Have a search bar at the top that leads to the search page
