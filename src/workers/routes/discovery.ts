@@ -191,7 +191,6 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
             ...enhanced,
             // Keep original artwork properties that might not be in enhanced result
             photo_count: original?.photo_count ?? 0,
-            type_id: original?.type_id ?? '',
             created_at: original?.created_at ?? '',
             status: original?.status ?? 'approved',
           };
@@ -405,14 +404,14 @@ export async function searchArtworks(
     // For MVP, we'll do a simple text search on notes
     // In production, this would use a proper search index
     const stmt = db.db.prepare(`
-      SELECT DISTINCT a.*, at.name as type_name,
+      SELECT DISTINCT a.*, COALESCE(type_tag.value, 'unknown') as type_name,
              0 as distance_km -- TODO: Calculate if lat/lon provided
       FROM artwork a
-      JOIN artwork_types at ON a.type_id = at.id
+      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
       LEFT JOIN logbook l ON a.id = l.artwork_id
       WHERE a.status = 'approved'
         AND (
-          at.name LIKE ? OR
+          type_tag.value LIKE ? OR
           l.note LIKE ?
         )
       ORDER BY a.created_at DESC
@@ -462,9 +461,9 @@ export async function getPopularArtworks(
 
   try {
     const stmt = db.db.prepare(`
-      SELECT a.*, at.name as type_name, COUNT(l.id) as submission_count
+      SELECT a.*, COALESCE(type_tag.value, 'unknown') as type_name, COUNT(l.id) as submission_count
       FROM artwork a
-      JOIN artwork_types at ON a.type_id = at.id
+      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
       LEFT JOIN logbook l ON a.id = l.artwork_id AND l.status = 'approved'
       WHERE a.status = 'approved'
       GROUP BY a.id
@@ -515,9 +514,9 @@ export async function getRecentArtworks(
 
   try {
     const stmt = db.db.prepare(`
-      SELECT a.*, at.name as type_name
+      SELECT a.*, COALESCE(type_tag.value, 'unknown') as type_name
       FROM artwork a
-      JOIN artwork_types at ON a.type_id = at.id
+      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
       WHERE a.status = 'approved'
       ORDER BY a.created_at DESC
       LIMIT ?
@@ -887,11 +886,11 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
 
     // Get artworks with type information
     const artworksQuery = `
-      SELECT a.id, a.lat, a.lon, a.type_id, a.created_at, a.status, a.tags, 
+      SELECT a.id, a.lat, a.lon, a.created_at, a.status, a.tags, 
              a.title, a.description, a.created_by,
-             at.name as type_name
+             COALESCE(type_tag.value, 'unknown') as type_name
       FROM artwork a
-      LEFT JOIN artwork_types at ON a.type_id = at.id
+      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
       WHERE a.status = 'approved'
       ${orderClause}
       LIMIT ? OFFSET ?
@@ -930,7 +929,6 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
           id: artwork.id,
           lat: artwork.lat,
           lon: artwork.lon,
-          type_id: artwork.type_id,
           created_at: artwork.created_at,
           status: artwork.status,
           tags: artwork.tags,

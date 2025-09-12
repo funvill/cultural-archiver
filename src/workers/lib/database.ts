@@ -693,13 +693,20 @@ export async function insertArtwork(
 ): Promise<string> {
   const service = createDatabaseService(db);
 
+  // Parse existing tags and extract artwork_type if present
+  let parsedTags = {};
+  try {
+    parsedTags = artwork.tags ? JSON.parse(artwork.tags) : {};
+  } catch (error) {
+    console.warn('[DATABASE] Failed to parse artwork tags, using empty object', error);
+  }
+
   // Convert artwork to CreateArtworkRequest format - include title, description, and created_by
   // Only include these fields if they have non-null values
   const createRequest: CreateArtworkRequest = {
     lat: artwork.lat,
     lon: artwork.lon,
-    type_id: artwork.type_id,
-    tags: artwork.tags ? JSON.parse(artwork.tags) : {},
+    tags: parsedTags,
     status: artwork.status, // Pass through the status
     ...(artwork.title && { title: artwork.title }), // Only include if not null/empty
     ...(artwork.description && { description: artwork.description }), // Only include if not null/empty

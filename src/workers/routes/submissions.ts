@@ -530,10 +530,10 @@ export async function createFastArtworkSubmission(
         _submission: {
           lat: validatedData.lat,
           lon: validatedData.lon,
-          type_id: 'other', // Default type for fast submissions
-          type_name: 'Other',
+          type_name: 'unknown',
           tags: {
             ...(validatedData.tags || {}),
+            artwork_type: 'unknown', // Default type for fast submissions
             // Include title in tags for approval extraction
             ...(validatedData.title && { title: validatedData.title }),
           },
