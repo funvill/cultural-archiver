@@ -192,9 +192,30 @@ export async function processMassImport(
     if (duplicateResult.isDuplicate && duplicateResult.duplicateInfo) {
       console.log(`[MASS_IMPORT] Duplicate detected with confidence score: ${duplicateResult.duplicateInfo.confidenceScore}`);
       
+      // Merge tags
+      const existingArtwork = await db.getArtworkById(duplicateResult.duplicateInfo.existingArtworkId);
+      let newTagsAdded = 0;
+      if (existingArtwork) {
+        const existingTags = existingArtwork.tags ? JSON.parse(existingArtwork.tags) : {};
+        
+        for (const [key, value] of Object.entries(allTags)) {
+          if (!Object.prototype.hasOwnProperty.call(existingTags, key)) {
+            existingTags[key] = value;
+            newTagsAdded++;
+          }
+        }
+
+        if (newTagsAdded > 0) {
+          await db.db.prepare('UPDATE artwork SET tags = ? WHERE id = ?')
+            .bind(JSON.stringify(existingTags), existingArtwork.id)
+            .run();
+          console.log(`[MASS_IMPORT] Merged ${newTagsAdded} new tags into existing artwork ${existingArtwork.id}`);
+        }
+      }
+
       const response: MassImportResponse = {
         status: 'duplicate_detected',
-        message: `Duplicate artwork detected with ${Math.round(duplicateResult.duplicateInfo.confidenceScore * 100)}% confidence`,
+        message: `Duplicate artwork detected. Merged ${newTagsAdded} new tags.`,
         coordinates: {
           lat: payload.artwork.lat,
           lon: payload.artwork.lon,
@@ -389,10 +410,6 @@ export async function processMassImport(
       payload.user_uuid
     ).run();
 
-    // If we processed photos, we need to associate them with the artwork
-    // For now, we'll store them in the first logbook entry as photos are typically associated with logbook entries
-    // This matches the current system design where photos are stored with logbook entries
-
     console.log(`[MASS_IMPORT] Created artwork ${artworkId}: ${payload.artwork.title}`);
 
     // Link artwork to artist if we found or created one
@@ -441,22 +458,6 @@ export async function processMassImport(
         logbookIds.push(logbookId);
 
         // Create tags for this logbook entry if provided
-        console.log(`[MASS_IMPORT] Checking for tags in logbook entry...`);
-        console.log(`[MASS_IMPORT] logbookEntry.tags exists: ${!!logbookEntry.tags}`);
-        console.log(`[MASS_IMPORT] logbookEntry.tags type: ${typeof logbookEntry.tags}`);
-        console.log(`[MASS_IMPORT] logbookEntry.tags length: ${logbookEntry.tags?.length || 'undefined'}`);
-        console.log(`[MASS_IMPORT] logbookEntry.tags content: ${JSON.stringify(logbookEntry.tags)}`);
-        
-        // Store debug info in response for immediate feedback
-        if (!debugInfo) debugInfo = [];
-        debugInfo.push({
-          logbookId,
-          tagsExists: !!logbookEntry.tags,
-          tagsType: typeof logbookEntry.tags,
-          tagsLength: logbookEntry.tags?.length || 0,
-          tagsContent: logbookEntry.tags
-        });
-        
         if (logbookEntry.tags && logbookEntry.tags.length > 0) {
           console.log(`[MASS_IMPORT] Starting to process ${logbookEntry.tags.length} tags for artwork...`);
           
@@ -476,9 +477,6 @@ export async function processMassImport(
           ).run();
 
           console.log(`[MASS_IMPORT] ✅ Successfully updated artwork ${artworkId} with ${logbookEntry.tags.length} tags`);
-          console.log(`[MASS_IMPORT] ✅ Tags JSON: ${JSON.stringify(tagsObject)}`);
-        } else {
-          console.log(`[MASS_IMPORT] ❌ No tags to process - condition failed`);
         }
       }
     } else if (processedPhotoUrls.length > 0) {
@@ -508,7 +506,7 @@ export async function processMassImport(
     const response: MassImportResponse = {
       artwork_id: artworkId,
       logbook_ids: logbookIds,
-      status: 'approved', // All mass imports are auto-approved (no duplicates detected)
+      status: 'approved',
       message: 'Mass import submission processed successfully',
       photos_processed: processedPhotoUrls.length,
       photos_failed: (payload.artwork.photos?.length || 0) - processedPhotoUrls.length,

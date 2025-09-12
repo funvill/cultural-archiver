@@ -406,3 +406,11 @@ Everyone is welcome to contribute to this project. See the CONTRIBUTING.md for g
 - **ESLint**: Configured with Vue/TypeScript rules
 - **Prettier**: Consistent code formatting
 - **Conventional Commits**: Use `feat:`, `fix:`, `refactor:`, etc.
+
+### Data import
+
+OSM
+```node src/lib/mass-import/dist/cli/index.js import --importer osm src/data-collection/osm/output/merged/merged-artworks.geojson --limit 50```
+
+Vancouver
+```node dist/cli/index.js vancouver --limit 50```

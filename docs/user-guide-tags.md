@@ -39,8 +39,11 @@ Creation and historical context.
 - **`heritage`**: Heritage designation (world_heritage, national, regional, local, listed, none)
 
 ### 4. Location Details
-Access and ownership information.
+Geographic and access information.
 
+- **`city`**: City where the artwork is located (e.g., "vancouver")
+- **`province`**: Province, state, or region (e.g., "british_columbia")
+- **`country`**: Country where the artwork is located (e.g., "canada")
 - **`access`**: Public accessibility (yes, no, restricted, private, seasonal)
 - **`operator`**: Managing organization or entity
 
@@ -157,6 +160,13 @@ URL must be a valid HTTP/HTTPS address
 ### Tag-Based Search
 
 The structured tags enable powerful search capabilities:
+
+**Find by Location**:
+```
+tag:city:vancouver
+tag:province:british_columbia
+tag:country:canada
+```
 
 **Find by Type**:
 ```

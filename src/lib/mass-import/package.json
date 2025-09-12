@@ -19,7 +19,7 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"const fs=require('fs'); const path=require('path'); if(!fs.existsSync('dist/importers')) fs.mkdirSync('dist/importers', {recursive: true}); fs.copyFileSync(path.join('src','importers','osm-config.json'), path.join('dist','importers','osm-config.json'))\"",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:basic": "tsx test/test-basic.ts",

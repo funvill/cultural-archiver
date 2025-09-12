@@ -4,7 +4,7 @@
 
 - [x] Variable fields for artwork
 - [x] Optimized submit new artwork
-- Mass import
+- [x] Mass import
 
 ## Choose a name
 
@@ -235,4 +235,10 @@ The advantage of using the tag:artwork_type is that it can be updated by the use
 
 ----
 
+
+## Mass Import merge tags
+
+- When running the mass-import and a duplicate is found. Check the tags, add any new tags to the existing recored, don't overwrite the existing tags.
+
+- Update the "source_url" value to be clickable as a link. This means it shouldn't search that tag, that link should be clickable.
 

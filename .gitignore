@@ -99,7 +99,6 @@ pnpm-lock.yaml
 env_*.zip
 src/lib/mass-import/new-artworks.txt
 vancouver-report-*.json
+osm-report-*.json
 *.geojson
-
-
 out.txt

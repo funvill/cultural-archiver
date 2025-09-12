@@ -219,7 +219,7 @@ export const TAG_DEFINITIONS: Record<string, TagDefinition> = {
     key: 'city',
     label: 'City',
     description: 'City where the artwork is located',
-    category: 'physical_properties',
+    category: 'location_details',
     dataType: 'text',
     required: false,
     validation: {
@@ -234,7 +234,7 @@ export const TAG_DEFINITIONS: Record<string, TagDefinition> = {
     key: 'province',
     label: 'Province/State',
     description: 'Province or state where the artwork is located',
-    category: 'physical_properties',
+    category: 'location_details',
     dataType: 'text',
     required: false,
     validation: {
@@ -249,7 +249,7 @@ export const TAG_DEFINITIONS: Record<string, TagDefinition> = {
     key: 'country',
     label: 'Country',
     description: 'Country where the artwork is located',
-    category: 'physical_properties',
+    category: 'location_details',
     dataType: 'text',
     required: false,
     validation: {
@@ -337,9 +337,10 @@ export const TAG_DEFINITIONS: Record<string, TagDefinition> = {
 // ================================
 
 export const TAG_SCHEMA_VERSION: TagSchemaVersion = {
-  version: '1.0.0',
-  releaseDate: '2024-12-19',
+  version: '1.0.1',
+  releaseDate: '2025-09-11',
   changes: [
+    'Fix: Re-categorized city, province, and country tags to location_details.',
     'Initial implementation of structured tag schema',
     '15 essential tags across 5 categories',
     'OpenStreetMap-compatible validation and export support',

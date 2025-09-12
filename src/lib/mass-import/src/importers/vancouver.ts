@@ -320,6 +320,10 @@ function mapVancouverToRawData(data: VancouverArtworkData): RawImportData | null
   if (metadataParts.length > 0) {
     allParts.push(`**Additional Information:**\n${metadataParts.join('\n\n')}`);
   }
+  
+  // Add data source attribution
+  allParts.push('Imported from Vancouver Open Data - [Open Government Licence](https://opendata.vancouver.ca/explore/dataset/public-art/).');
+  
   const description = allParts.join('\n\n');
 
   // Extract artist information

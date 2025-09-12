@@ -53,6 +53,7 @@ import { getUserSubmissions, getUserProfile, sendTestEmail } from './routes/user
 import { handleSearchRequest, handleSearchSuggestions } from './routes/search';
 import { processMassImportPhotos } from './routes/mass-import-photos';
 import { processMassImport } from './routes/mass-import';
+import { handleOSMImport, handleOSMValidate } from './routes/mass-import-osm';
 import {
   requestMagicLink,
   verifyMagicLink,
@@ -843,6 +844,8 @@ app.post('/api/test-email', withErrorHandling(sendTestEmail));
 app.post('/api/mass-import', withErrorHandling(processMassImport)); // Primary mass import endpoint
 app.post('/api/mass-import/submit', withErrorHandling(processMassImportPhotos)); // JSON endpoint for photo URLs
 app.post('/api/mass-import/photos', validateFileUploads, withErrorHandling(processMassImportPhotos)); // Keep for backward compatibility
+app.post('/api/mass-import/osm', withErrorHandling(handleOSMImport)); // OSM GeoJSON mass import
+app.post('/api/mass-import/osm/validate', withErrorHandling(handleOSMValidate)); // OSM validation endpoint
 
 // ================================
 // Consent Management Endpoints

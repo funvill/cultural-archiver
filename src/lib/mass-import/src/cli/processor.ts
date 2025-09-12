@@ -115,12 +115,23 @@ export class MassImportProcessor {
 
         // Check if we should continue on batch failures
         if (batchResult.summary.failed > 0 && !options.continueOnError) {
-          console.log(chalk.yellow('⚠️ Stopping due to batch failures (use --continue-on-error to continue)'));
+          console.log(chalk.yellow('⚠️ Stopping due to batch failures (remove --stop-on-error to continue processing)'));
           break;
         }
       }
 
       session.endTime = new Date().toISOString();
+      
+      // Track how many records were actually processed vs intended
+      const actualProcessedRecords = session.batches.reduce((total, batch) => total + batch.summary.total, 0);
+      
+      // Add processed count to summary for transparency
+      (session.summary as any).processedRecords = actualProcessedRecords;
+      
+      // Only update totalRecords if processing was incomplete to show the discrepancy
+      if (actualProcessedRecords < session.summary.totalRecords) {
+        console.log(chalk.yellow(`⚠️ Processing incomplete: ${actualProcessedRecords}/${session.summary.totalRecords} records processed`));
+      }
       
       // Display final summary
       this.displayFinalSummary(session);
@@ -234,7 +245,7 @@ export class MassImportProcessor {
     options: { source: string; dryRun?: boolean }
   ): Promise<ImportResult> {
     const recordId = this.extractRecordId(rawRecord);
-    const title = this.extractRecordTitle(rawRecord);
+    let title = this.extractRecordTitle(rawRecord);
     
     console.log(`[RECORD_PROCESSING_DEBUG] Starting record ${recordId}: "${title}"`);
     
@@ -243,6 +254,12 @@ export class MassImportProcessor {
     if (this.mapper) {
       console.log(`[RECORD_PROCESSING_DEBUG] Using mapper for record ${recordId}`);
       validationResult = this.mapper.mapData(rawRecord);
+      
+      // Update title from mapped data if available
+      if (validationResult.isValid && validationResult.data?.title) {
+        title = validationResult.data.title;
+        console.log(`[RECORD_PROCESSING_DEBUG] Updated title from mapper for record ${recordId}: "${title}"`);
+      }
       
       if (validationResult.isValid && validationResult.data?.tags) {
         const artistFromTags = validationResult.data.tags.artist || validationResult.data.tags.created_by;
@@ -295,8 +312,10 @@ export class MassImportProcessor {
 
     console.log(`[RECORD_PROCESSING_DEBUG] Record ${recordId} validation successful, submitting to API...`);
 
-    // Step 2: Submit to API
-    return await this.apiClient.submitImportRecord(validationResult.data!);
+    // Step 2: Submit to API (server will handle duplicate detection and tag merging)
+    const result = await this.apiClient.submitImportRecord(validationResult.data!);
+
+    return result;
   }
 
   /**
