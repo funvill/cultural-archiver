@@ -80,13 +80,8 @@ export async function recordConsent(params: RecordConsentParams): Promise<Record
   const now = new Date().toISOString();
 
   try {
-    // Generate hash for consent text using Web Crypto API
-    const encoder = new TextEncoder();
-    const data = encoder.encode(consentTextHash);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     // Insert consent record into database
+    // Note: consentTextHash is already a SHA-256 hash from generateConsentTextHash()
     const insertQuery = `
       INSERT INTO consent (
         id, created_at, user_id, anonymous_token, 
@@ -105,7 +100,7 @@ export async function recordConsent(params: RecordConsentParams): Promise<Record
         contentType,
         contentId,
         ipAddress,
-        hashHex // Use the generated hash instead of the input
+        consentTextHash // Use the already-hashed value directly
       )
       .run();
 

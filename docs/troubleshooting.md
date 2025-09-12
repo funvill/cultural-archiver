@@ -8,6 +8,7 @@ This guide covers common issues, debugging techniques, and solutions for the Cul
 - [Database Problems](#database-problems)
 - [Migration Issues](#migration-issues)
 - [Authentication & Rate Limiting](#authentication--rate-limiting)
+- [Consent System Issues](#consent-system-issues)
 - [Photo Processing](#photo-processing)
 - [Cloudflare Services](#cloudflare-services)
 - [Development Environment](#development-environment)
@@ -579,6 +580,125 @@ echo "test content" | wrangler r2 object put cultural-archiver-photos test.txt
 # List uploaded files
 wrangler r2 object list cultural-archiver-photos --prefix="submissions/"
 ```
+
+## Consent System Issues
+
+### Missing Consent Records for Approved Artworks
+
+**Symptoms:**
+
+- Artworks exist in database but no corresponding consent records
+- Approved artworks from logbook submissions missing consent
+
+**Cause:**
+
+The approval process wasn't creating artwork consent records when converting logbook submissions to artworks.
+
+**Solution:**
+
+Fixed in `review.ts` - the approval process now creates artwork consent records:
+
+```typescript
+// Enhanced approval process creates artwork consent
+const artworkConsentRecord = await recordConsent({
+  userId: userToken && userToken.length > 36 ? userToken : undefined,
+  anonymousToken: userToken && userToken.length <= 36 ? userToken : undefined,
+  contentType: 'artwork',
+  contentId: artworkId,
+  consentVersion: CONSENT_VERSION,
+  ipAddress: clientIP,
+  consentTextHash: artworkConsentTextHash,
+  db: c.env.DB,
+});
+```
+
+### Submission Failures with Consent Errors
+
+**Symptoms:**
+
+- "Either userId or anonymousToken must be provided" errors
+- Fast artwork submissions failing completely
+
+**Cause:**
+
+Missing `ensureUserToken` middleware on submission routes causing empty user tokens.
+
+**Solution:**
+
+Add `ensureUserToken` middleware to all submission routes:
+
+```typescript
+// Fixed middleware order in index.ts
+app.use('/api/artworks/fast', ensureUserToken);
+app.use('/api/artworks/fast', addUserTokenToResponse);
+app.use('/api/artworks/fast', handleFastPhotoUpload);
+```
+
+### Double-Hashed Consent Text
+
+**Symptoms:**
+
+- Different consent_text_hash values for same consent text
+- Hash verification failures
+
+**Cause:**
+
+The `recordConsent()` function was re-hashing already-hashed consent text.
+
+**Solution:**
+
+Use pre-computed hash directly in database storage:
+
+```typescript
+// Fixed - use the already-computed hash directly
+await db.prepare(insertQuery)
+  .bind(
+    consentId,
+    now,
+    userId || null,
+    anonymousToken || null,
+    consentVersion,
+    contentType,
+    contentId,
+    ipAddress,
+    consentTextHash // Use the already-hashed value directly
+  )
+  .run();
+```
+
+### Debug Consent Issues
+
+**Check consent for specific content:**
+
+```sql
+SELECT * FROM consent 
+WHERE content_type = 'artwork' 
+AND content_id = 'your-artwork-id-here';
+```
+
+**Verify consent hash generation:**
+
+```javascript
+const crypto = require('crypto');
+const text = 'Cultural Archiver Consent v2025-09-09.v2 - Artwork Submission';
+const hash = await crypto.webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+console.log(Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join(''));
+```
+
+**Monitor consent creation patterns:**
+
+```sql
+SELECT 
+  content_type,
+  consent_version,
+  COUNT(*) as consent_count,
+  DATE(created_at) as consent_date
+FROM consent 
+GROUP BY content_type, consent_version, DATE(created_at)
+ORDER BY consent_date DESC;
+```
+
+**See Also:** [Consent System Documentation](./consent-system.md) for detailed implementation guide.
 
 ## Cloudflare Services
 
