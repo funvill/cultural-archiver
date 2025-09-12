@@ -8,6 +8,8 @@ const HelpView = (): Promise<Component> => import('../views/HelpView.vue');
 const MapView = (): Promise<Component> => import('../views/MapView.vue');
 const SubmitView = (): Promise<Component> => import('../views/SubmitView.vue');
 const ArtworkDetailView = (): Promise<Component> => import('../views/ArtworkDetailView.vue');
+const ArtworkIndexView = (): Promise<Component> => import('../views/ArtworkIndexView.vue');
+const ArtistIndexView = (): Promise<Component> => import('../views/ArtistIndexView.vue');
 const ProfileView = (): Promise<Component> => import('../views/ProfileView.vue');
 const ReviewView = (): Promise<Component> => import('../views/ReviewView.vue');
 const AdminView = (): Promise<Component> => import('../views/AdminView.vue');
@@ -48,6 +50,22 @@ const router = createRouter({
       component: SubmitView,
       meta: {
         title: 'Submit Artwork - Cultural Archiver',
+      },
+    },
+    {
+      path: '/artworks',
+      name: 'ArtworkIndex',
+      component: ArtworkIndexView,
+      meta: {
+        title: 'Artworks - Cultural Archiver',
+      },
+    },
+    {
+      path: '/artists',
+      name: 'ArtistIndex',
+      component: ArtistIndexView,
+      meta: {
+        title: 'Artists - Cultural Archiver',
       },
     },
     {

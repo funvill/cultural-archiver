@@ -40,6 +40,11 @@ export interface ArtworkApiResponse {
   title?: string | null; // Artwork title (editable field)
   description?: string | null; // Artwork description (editable field)
   created_by?: string | null; // Creator/artist name(s) (editable field)
+  // Additional fields for index page display
+  recent_photo?: string | null; // First photo for card display
+  photo_count?: number; // Total number of photos
+  artist_name?: string | null; // Primary artist name for display
+  updated_at?: string | null; // For sorting by last updated
 }
 
 export interface LogbookRecord {
