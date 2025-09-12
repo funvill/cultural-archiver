@@ -12,7 +12,6 @@ import type { Context } from 'hono';
 import type {
   ArtistRecord,
   ArtistApiResponse,
-  ArtistListResponse,
   CreateArtistRequest,
   CreateArtistEditRequest,
   ArtistEditSubmissionResponse,
@@ -36,41 +35,81 @@ function generateUUID(): string {
 }
 
 /**
- * GET /api/artists - List Artists
+ * GET /api/artists - List Artists (Index Page)
  * Returns paginated list of artists with optional search/filter
+ * Updated to match PRD requirements for index pages
  */
 export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const validatedQuery = getValidatedData<{
     page?: number;
-    per_page?: number;
+    limit?: number;
+    sort?: 'updated_desc' | 'name_asc' | 'created_desc';
     search?: string;
     status?: 'active' | 'inactive';
   }>(c, 'query');
 
   const db = createDatabaseService(c.env.DB);
   
-  // Set defaults
-  const page = validatedQuery.page || 1;
-  const perPage = Math.min(validatedQuery.per_page || 20, 100);
-  const offset = (page - 1) * perPage;
+  // Set defaults per PRD
+  const page = Math.max(validatedQuery.page || 1, 1);
+  const limit = Math.min(validatedQuery.limit || 30, 50);
+  const sort = validatedQuery.sort || 'updated_desc';
+  const offset = (page - 1) * limit;
 
   try {
-    // Build query with filters
+    // Build WHERE clause with filters
     let whereClause = 'WHERE 1=1';
     const params: (string | number)[] = [];
     
     if (validatedQuery.status) {
-      whereClause += ' AND status = ?';
+      whereClause += ' AND a.status = ?';
       params.push(validatedQuery.status);
     } else {
       // Default to active artists only
-      whereClause += ' AND status = ?';
+      whereClause += ' AND a.status = ?';
       params.push('active');
     }
     
     if (validatedQuery.search) {
-      whereClause += ' AND name LIKE ?';
+      whereClause += ' AND a.name LIKE ?';
       params.push(`%${validatedQuery.search}%`);
+    }
+
+    // Build ORDER BY clause
+    let orderClause = '';
+    switch (sort) {
+      case 'name_asc':
+        orderClause = 'ORDER BY a.name ASC';
+        break;
+      case 'created_desc':
+        orderClause = 'ORDER BY a.created_at DESC';
+        break;
+      case 'updated_desc':
+      default:
+        orderClause = 'ORDER BY COALESCE(a.updated_at, a.created_at) DESC';
+        break;
+    }
+
+    // Get total count for pagination
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM artists a
+      ${whereClause}
+    `;
+    
+    const countResult = await db.db.prepare(countQuery)
+      .bind(...params)
+      .first() as { total: number };
+    
+    const totalItems = countResult.total;
+    const totalPages = Math.ceil(totalItems / limit);
+
+    // Validate page number
+    if (page > totalPages && totalItems > 0) {
+      return c.json({
+        error: 'Page not found',
+        message: `Page ${page} does not exist. Total pages: ${totalPages}`,
+      }, 404);
     }
 
     // Get artists with artwork count
@@ -81,36 +120,41 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
       LEFT JOIN artwork_artists aa ON a.id = aa.artist_id
       ${whereClause}
       GROUP BY a.id
-      ORDER BY a.name ASC
+      ${orderClause}
       LIMIT ? OFFSET ?
-    `;
-    
-    const countQuery = `
-      SELECT COUNT(*) as total
-      FROM artists a
-      ${whereClause}
     `;
 
     const artists = await db.db.prepare(artistsQuery)
-      .bind(...params, perPage, offset)
+      .bind(...params, limit, offset)
       .all();
-    
-    const countResult = await db.db.prepare(countQuery)
-      .bind(...params)
-      .first() as { total: number };
 
-    // Format response
-    const formattedArtists: ArtistApiResponse[] = artists.results?.map((artist: any) => ({
-      ...artist,
-      tags_parsed: safeJsonParse(artist.tags, {}),
-      artwork_count: artist.artwork_count || 0,
-    })) || [];
+    // Format response with short bio (~20 words)
+    const formattedArtists: import('../../shared/types').ArtistApiResponse[] = artists.results?.map((artist: any) => {
+      // Truncate description to ~20 words for card display
+      let shortBio = artist.description || '';
+      if (shortBio) {
+        const words = shortBio.split(/\s+/);
+        if (words.length > 20) {
+          shortBio = words.slice(0, 20).join(' ') + '...';
+        }
+      }
 
-    const response: ArtistListResponse = {
-      artists: formattedArtists,
-      total: countResult.total,
-      page,
-      per_page: perPage,
+      return {
+        ...artist,
+        tags_parsed: safeJsonParse(artist.tags, {}),
+        artwork_count: artist.artwork_count || 0,
+        short_bio: shortBio,
+      };
+    }) || [];
+
+    // Set cache headers for 1 hour as per PRD
+    c.header('Cache-Control', 'public, max-age=3600');
+
+    const response: import('../../shared/types').ArtistIndexResponse = {
+      totalItems,
+      currentPage: page,
+      totalPages,
+      items: formattedArtists,
     };
 
     return c.json(createSuccessResponse(response));
