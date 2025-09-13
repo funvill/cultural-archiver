@@ -222,7 +222,6 @@ curl http://127.0.0.1:8787/api/auth/status
 
 - `tasks/progress-database-schema-update.md` - This file (current status)
 - `tasks/mass-import-schema-update-results.md` - Mass import update results
-- `tasks/next.md` - General project next steps
 
 ### Communication
 
@@ -272,5 +271,3 @@ curl http://127.0.0.1:8787/api/auth/status
 **Priority**: Focus on TypeScript error resolution first, then backend API validation.
 
 **Confidence Level**: High - Core architecture and database changes are complete and working. Remaining issues are technical debt from type strictness settings rather than fundamental problems.
- 
- 

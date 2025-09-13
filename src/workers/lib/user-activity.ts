@@ -194,7 +194,7 @@ export async function cleanExpiredSessions(
     AND expires_at < datetime('now')
   `).run();
 
-  return result.changes || 0;
+  return result.meta.changes || 0;
 }
 
 // ================================
@@ -257,7 +257,7 @@ export async function cleanExpiredActivity(
   }
   
   const result = await db.prepare(query).bind(...params).run();
-  return result.changes || 0;
+  return result.meta.changes || 0;
 }
 
 export async function getUserActivityStats(

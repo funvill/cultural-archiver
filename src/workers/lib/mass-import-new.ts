@@ -5,10 +5,8 @@
 
 import type { D1Database } from '@cloudflare/workers-types';
 import type { 
-  SubmissionRecord, 
   NewArtworkRecord, 
-  NewArtistRecord,
-  UserActivityRecord 
+  NewArtistRecord
 } from '../../shared/types.js';
 import { createSubmission, approveSubmission } from './submissions.js';
 import { recordUserActivity } from './user-activity.js';
@@ -197,7 +195,7 @@ async function createArtworkSubmission(
     photos: record.photos ? JSON.stringify(record.photos) : null,
     tags: record.tags ? JSON.stringify(record.tags) : null,
     description: record.description || null,
-    source_type: record.source_type,
+    source_type: record.source_type === 'api_import' ? 'manual_entry' : record.source_type as 'user_submission' | 'osm_import' | 'manual_entry',
     source_id: record.source_id
   };
 
@@ -207,11 +205,11 @@ async function createArtworkSubmission(
     lat: record.lat,
     lon: record.lon,
     notes: `Mass import from ${config.sourceName}. Source ID: ${record.source_id}`,
-    photos: record.photos,
-    tags: record.tags,
+    ...(record.photos && { photos: record.photos }),
+    ...(record.tags && { tags: record.tags }),
     newData: newArtworkData,
     verificationStatus: config.autoApprove ? 'verified' : 'pending',
-    artistId
+    ...(artistId && { artistId })
   });
 }
 
@@ -238,7 +236,7 @@ async function createArtistFromImport(
     website: null,
     social_media: null,
     notes: `Created during mass import from ${config.sourceName}`,
-    source_type: record.source_type,
+    source_type: record.source_type === 'api_import' || record.source_type === 'osm_import' ? 'manual_entry' : record.source_type as 'user_submission' | 'manual_entry',
     source_id: record.source_id
   };
 
@@ -254,7 +252,8 @@ async function createArtistFromImport(
   if (config.autoApprove) {
     const approved = await approveSubmission(db, submissionId, config.importerToken, 'Auto-approved mass import artist');
     if (approved) {
-      return await getArtistIdFromSubmission(db, submissionId);
+      const artistId = await getArtistIdFromSubmission(db, submissionId);
+      return artistId || undefined;
     }
   }
 
@@ -345,23 +344,23 @@ function calculateStringSimilarity(str1: string, str2: string): number {
 }
 
 function levenshteinDistance(str1: string, str2: string): number {
-  const matrix = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(null));
+  const matrix: number[][] = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(0));
   
-  for (let i = 0; i <= str1.length; i++) matrix[0][i] = i;
-  for (let j = 0; j <= str2.length; j++) matrix[j][0] = j;
+  for (let i = 0; i <= str1.length; i++) matrix[0]![i] = i;
+  for (let j = 0; j <= str2.length; j++) matrix[j]![0] = j;
   
   for (let j = 1; j <= str2.length; j++) {
     for (let i = 1; i <= str1.length; i++) {
       const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
-      matrix[j][i] = Math.min(
-        matrix[j][i - 1] + 1,     // deletion
-        matrix[j - 1][i] + 1,     // insertion
-        matrix[j - 1][i - 1] + indicator // substitution
+      matrix[j]![i] = Math.min(
+        matrix[j]![i - 1]! + 1,     // deletion
+        matrix[j - 1]![i]! + 1,     // insertion
+        matrix[j - 1]![i - 1]! + indicator // substitution
       );
     }
   }
   
-  return matrix[str2.length][str1.length];
+  return matrix[str2.length]![str1.length]!;
 }
 
 // ================================

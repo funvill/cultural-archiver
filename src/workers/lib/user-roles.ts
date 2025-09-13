@@ -365,8 +365,8 @@ export async function createRoleFromTemplate(
     role,
     permissions,
     grantedBy,
-    expiresAt: options.expiresAt,
-    metadata: options.metadata
+    ...(options.expiresAt && { expiresAt: options.expiresAt }),
+    ...(options.metadata && { metadata: options.metadata })
   });
 }
 
@@ -417,7 +417,7 @@ export async function extendRoleExpiry(
 // ================================
 
 export async function auditRoleChanges(
-  db: D1Database,
+  _db: D1Database,
   action: 'grant' | 'revoke' | 'extend' | 'modify',
   roleId: string,
   performedBy: string,
@@ -437,9 +437,9 @@ export async function auditRoleChanges(
 }
 
 export async function validateRoleTransition(
-  currentRole: string | null,
+  _currentRole: string | null,
   newRole: 'admin' | 'moderator' | 'curator' | 'reviewer',
-  grantedBy: string,
+  _grantedBy: string,
   grantedByRoles: string[]
 ): Promise<{ valid: boolean; reason?: string }> {
   // Admins can grant any role

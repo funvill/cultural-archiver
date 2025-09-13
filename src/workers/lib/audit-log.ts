@@ -397,12 +397,25 @@ export async function getUserActivity(
   dateRange?: { start: string; end: string },
   limit: number = 100
 ): Promise<NewAuditLogRecord[]> {
-  return getAuditLogs(db, {
+  const params: {
+    userToken: string;
+    limit: number;
+    startDate?: string;
+    endDate?: string;
+  } = {
     userToken,
-    startDate: dateRange?.start || undefined,
-    endDate: dateRange?.end || undefined,
     limit
-  });
+  };
+  
+  if (dateRange?.start) {
+    params.startDate = dateRange.start;
+  }
+  
+  if (dateRange?.end) {
+    params.endDate = dateRange.end;
+  }
+  
+  return getAuditLogs(db, params);
 }
 
 export async function getEntityHistory(
@@ -410,7 +423,7 @@ export async function getEntityHistory(
   entityType: 'artwork' | 'artist' | 'submission' | 'user_activity' | 'user_role',
   entityId: string,
   limit: number = 50
-): Promise<AuditLogRecord[]> {
+): Promise<NewAuditLogRecord[]> {
   return getAuditLogs(db, {
     entityType,
     entityId,
@@ -422,7 +435,7 @@ export async function getSecurityEvents(
   db: D1Database,
   dateRange?: { start: string; end: string },
   limit: number = 100
-): Promise<AuditLogRecord[]> {
+): Promise<NewAuditLogRecord[]> {
   let query = `
     SELECT * FROM audit_log 
     WHERE metadata IS NOT NULL 
@@ -438,7 +451,7 @@ export async function getSecurityEvents(
   query += ` ORDER BY created_at DESC LIMIT ?`;
   params.push(limit);
   
-  const results = await db.prepare(query).bind(...params).all<AuditLogRecord>();
+  const results = await db.prepare(query).bind(...params).all<NewAuditLogRecord>();
   return results.results || [];
 }
 
@@ -459,13 +472,13 @@ export async function cleanOldAuditLogs(
     AND json_extract(metadata, '$.suspiciousAction') IS NULL
   `).bind(cutoffDate.toISOString()).run();
 
-  return result.changes || 0;
+  return result.meta.changes || 0;
 }
 
 export async function archiveSecurityEvents(
   db: D1Database,
   archivePeriodDays: number = 90
-): Promise<AuditLogRecord[]> {
+): Promise<NewAuditLogRecord[]> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - archivePeriodDays);
   
@@ -475,7 +488,7 @@ export async function archiveSecurityEvents(
     WHERE created_at < ?
     AND json_extract(metadata, '$.suspiciousAction') IS NOT NULL
     ORDER BY created_at DESC
-  `).bind(cutoffDate.toISOString()).all<AuditLogRecord>();
+  `).bind(cutoffDate.toISOString()).all<NewAuditLogRecord>();
 
   return events.results || [];
 }

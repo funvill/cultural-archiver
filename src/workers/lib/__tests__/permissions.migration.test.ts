@@ -25,10 +25,10 @@ describe('Migration Integrity: reviewer role removal', () => {
           bind: () => ({
             all: async () => ({
               success: true,
-              results: [ { permission: 'moderator' } ],
+              results: [ { role: 'moderator' } ],
             }),
           }),
-          all: async () => ({ success: true, results: [ { permission: 'moderator' } ]}),
+          all: async () => ({ success: true, results: [ { role: 'moderator' } ]}),
         } as unknown as D1PreparedStatementTest;
       },
     };
