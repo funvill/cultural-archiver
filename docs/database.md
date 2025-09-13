@@ -2,22 +2,126 @@
 
 ## 🗄️ Production Database Infrastructure - Fully Operational
 
-The Cultural Archiver uses a **production-ready SQLite database** (Cloudflare D1) with complete migration system, spatial indexing, and enterprise-grade schema design supporting the fast photo-first workflow.
+The Cultural Archiver uses a **production-ready SQLite database** (Cloudflare D1) with unified submission system, role-based permissions, and comprehensive audit logging supporting efficient cultural archiving workflows.
 
-### **🔄 Migration System Status**
-- **✅ 6 Migrations Applied**: Complete schema with all required tables and relationships
-- **✅ Migration Tracking**: Automated tracking via `d1_migrations` table  
-- **✅ Version Control**: Sequential numbering system (0001-0006) for schema evolution
-- **✅ CLI Tools**: PowerShell-compatible commands for database management
-- **🆕 NEW: Unified Submissions Schema**: Transitioned from legacy logbook table to unified submissions table with backward compatibility
+### **🔄 Database Schema Status**
+- **✅ Unified Submissions System**: Complete transition from legacy logbook/artwork_edits to single submissions table
+- **✅ Role-Based Permissions**: New user_roles table with admin/moderator/curator roles
+- **✅ Enhanced Audit Logging**: Comprehensive tracking of all system actions
+- **✅ TypeScript Integration**: All 653 unit tests passing with full type safety
+- **✅ Migration System**: Sequential migration tracking via `d1_migrations` table
+- **✅ CLI Tools**: PowerShell-compatible database management commands
 
-### **🎯 Fast Photo Workflow Support**  
-- **✅ Spatial Indexing**: Optimized for ±0.0045 degrees (~500m) similarity queries
-- **✅ EXIF Integration**: Photo metadata extraction and location detection
-- **✅ Duplicate Detection**: Multi-signal similarity scoring (location + title + tags)
-- **✅ Real Photo Storage**: R2 integration with thumbnail generation pipeline
+### **🎯 Unified Submission Workflow**  
+- **✅ Single Submissions Table**: Handles logbook entries, artwork edits, artist edits, and new submissions
+- **✅ Flexible Data Structure**: JSON fields for photos, tags, old/new data for edits
+- **✅ Email Verification**: Optional email verification workflow for submissions
+- **✅ Spatial Indexing**: Optimized for location-based submission queries
+- **✅ Moderation Queue**: Streamlined review workflow with reviewer notes
 
 ## Database Tables
+
+### Core Content Tables
+
+#### artwork
+
+Primary table for public artwork locations and metadata.
+
+| Field        | Type | Constraints                           | Description                        |
+| ------------ | ---- | ------------------------------------- | ---------------------------------- |
+| `id`         | TEXT | PRIMARY KEY                           | Unique identifier                  |
+| `title`      | TEXT | NOT NULL                              | Artwork title                      |
+| `description`| TEXT | NULL                                  | Artwork description               |
+| `artist_names`| TEXT | NULL                                  | JSON array of artist names        |
+| `lat`        | REAL | NOT NULL                              | Latitude coordinate (-90 to 90)    |
+| `lon`        | REAL | NOT NULL                              | Longitude coordinate (-180 to 180) |
+| `address`    | TEXT | NULL                                  | Street address                     |
+| `tags`       | TEXT | NULL                                  | JSON object for structured metadata |
+| `photos`     | TEXT | NULL                                  | JSON array of photo URLs           |
+| `status`     | TEXT | CHECK('pending','approved','rejected') | Moderation status                  |
+| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Creation timestamp                 |
+| `updated_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Last update timestamp              |
+
+**Indexes:**
+- `idx_artwork_lat_lon` on `(lat, lon)` for spatial queries
+- `idx_artwork_status` on `status` for filtering approved artwork
+- `idx_artwork_created_at` on `created_at DESC` for chronological ordering
+
+#### artists
+
+Artist information and portfolio details.
+
+| Field        | Type | Constraints                           | Description                        |
+| ------------ | ---- | ------------------------------------- | ---------------------------------- |
+| `id`         | TEXT | PRIMARY KEY                           | Unique identifier                  |
+| `name`       | TEXT | NOT NULL                              | Artist name                        |
+| `bio`        | TEXT | NULL                                  | Artist biography                   |
+| `website`    | TEXT | NULL                                  | Artist website URL                 |
+| `tags`       | TEXT | NULL                                  | JSON object for metadata           |
+| `photos`     | TEXT | NULL                                  | JSON array of photo URLs           |
+| `status`     | TEXT | CHECK('pending','approved','rejected') | Moderation status                  |
+| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Creation timestamp                 |
+| `updated_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Last update timestamp              |
+
+### Unified Submission System
+
+#### submissions
+
+**Primary submission table** - handles all content submissions including logbook entries, artwork edits, artist edits, and new artwork/artist submissions.
+
+| Field               | Type | Constraints                                                     | Description                                         |
+| ------------------- | ---- | --------------------------------------------------------------- | --------------------------------------------------- |
+| `id`                | TEXT | PRIMARY KEY                                                     | Unique identifier                                   |
+| `submission_type`   | TEXT | CHECK('logbook_entry','artwork_edit','artist_edit','new_artwork','new_artist') | Type of submission                                  |
+| `user_token`        | TEXT | NOT NULL                                                        | Anonymous UUID or authenticated user ID             |
+| `email`             | TEXT | NULL                                                            | Optional email for verification                     |
+| `submitter_name`    | TEXT | NULL                                                            | Optional submitter name                             |
+| `artwork_id`        | TEXT | NULL, FK→artwork.id                                             | Reference to artwork (for edits/photos)            |
+| `artist_id`         | TEXT | NULL, FK→artists.id                                             | Reference to artist (for artist edits)             |
+| `lat`               | REAL | NULL                                                            | Latitude for location-based submissions             |
+| `lon`               | REAL | NULL                                                            | Longitude for location-based submissions            |
+| `notes`             | TEXT | NULL                                                            | Submission notes (≤500 chars at app level)         |
+| `photos`            | TEXT | NULL                                                            | JSON array of photo URLs: `["url1", "url2"]`       |
+| `tags`              | TEXT | NULL                                                            | JSON object of structured tags                      |
+| `old_data`          | TEXT | NULL                                                            | JSON object of original data (for edits)           |
+| `new_data`          | TEXT | NULL                                                            | JSON object of proposed changes (for edits)        |
+| `verification_status` | TEXT | CHECK('pending','verified','unverified')                     | Email verification status                           |
+| `status`            | TEXT | CHECK('pending','approved','rejected')                         | Moderation status                                   |
+| `reviewer_token`    | TEXT | NULL                                                            | Reviewer who processed submission                   |
+| `review_notes`      | TEXT | NULL                                                            | Reviewer's notes                                    |
+| `reviewed_at`       | TEXT | NULL                                                            | Review timestamp                                    |
+| `created_at`        | TEXT | NOT NULL, DEFAULT datetime('now')                               | Creation timestamp                                  |
+| `updated_at`        | TEXT | NOT NULL, DEFAULT datetime('now')                               | Last update timestamp                               |
+
+**Indexes:**
+- `idx_submissions_user_token` on `user_token` for user-specific queries
+- `idx_submissions_artwork_id` on `artwork_id` for artwork-related submissions
+- `idx_submissions_artist_id` on `artist_id` for artist-related submissions
+- `idx_submissions_status` on `status` for moderation workflows
+- `idx_submissions_type` on `submission_type` for filtering by type
+- `idx_submissions_location` on `(lat, lon)` for spatial queries
+- `idx_submissions_created_at` on `created_at DESC` for chronological ordering
+
+**Foreign Keys:**
+- `artwork_id` → `artwork.id` ON DELETE CASCADE
+- `artist_id` → `artists.id` ON DELETE CASCADE
+
+**Submission Types:**
+- `logbook_entry` - Photo submissions for existing or new artworks
+- `artwork_edit` - Edits to artwork metadata (title, description, etc.)
+- `artist_edit` - Edits to artist information
+- `new_artwork` - New artwork submissions via fast workflow
+- `new_artist` - New artist profile submissions
+
+**Status Workflow:**
+- `pending` - Awaiting moderation
+- `approved` - Accepted (creates/updates target entity)
+- `rejected` - Rejected (hidden from user)
+
+**Verification Status:**
+- `pending` - Email verification not yet sent
+- `verified` - Email verified via magic link
+- `unverified` - Email verification failed or expired
 
 ### Authentication System Tables
 
@@ -34,16 +138,34 @@ Core table for authenticated users with UUID claiming functionality.
 | `email_verified_at` | TEXT | NULL                              | When email was verified via magic link        |
 | `status`            | TEXT | CHECK('active','suspended')       | Account status                                |
 
+#### user_roles
+
+**Role-based permissions system** - manages user access levels and permissions.
+
+| Field        | Type    | Constraints                               | Description                                |
+| ------------ | ------- | ----------------------------------------- | ------------------------------------------ |
+| `id`         | TEXT    | PRIMARY KEY                               | Unique identifier                          |
+| `user_token` | TEXT    | NOT NULL                                  | User token (UUID)                          |
+| `role`       | TEXT    | CHECK('admin','moderator','user','banned') | User role                                |
+| `granted_by` | TEXT    | NOT NULL                                  | Who granted this role                      |
+| `granted_at` | TEXT    | NOT NULL, DEFAULT datetime('now')         | When role was granted                      |
+| `revoked_at` | TEXT    | NULL                                      | When role was revoked (NULL if active)    |
+| `revoked_by` | TEXT    | NULL                                      | Who revoked this role                      |
+| `is_active`  | INTEGER | NOT NULL, DEFAULT 1                       | Whether role is currently active           |
+| `notes`      | TEXT    | NULL                                      | Optional notes about role assignment       |
+
 **Indexes:**
+- `idx_user_roles_user_token` on `user_token` WHERE `is_active = 1`
+- `idx_user_roles_role` on `role` WHERE `is_active = 1`
 
-- `idx_users_email` on `email` for login lookups
-- `idx_users_status` on `status` for filtering
-- `idx_users_last_login` on `last_login` for analytics
+**Unique Constraints:**
+- `UNIQUE(user_token, role)` - prevents duplicate role assignments
 
-**Status Workflow:**
-
-- `active` - Normal account in good standing
-- `suspended` - Account temporarily restricted
+**Role Types:**
+- `admin` - Full system access
+- `moderator` - Can review and approve submissions
+- `user` - Standard user permissions (default)
+- `banned` - Restricted access
 
 #### magic_links
 
@@ -450,67 +572,6 @@ Each field change is stored as a separate row with old/new values, enabling:
 - `verified` - Email verified via magic link
 - `unverified` - Email verification failed or expired
 
-### logbook (LEGACY - Backward Compatibility)
-
-**DEPRECATED**: Legacy community submissions table. Use `submissions` table for new implementations.
-
-Community submissions and entries for artworks.
-
-| Field        | Type | Constraints                            | Description                                        |
-| ------------ | ---- | -------------------------------------- | -------------------------------------------------- |
-| `id`         | TEXT | PRIMARY KEY                            | Unique identifier                                  |
-| `artwork_id` | TEXT | NULL, FK→artwork.id                    | Reference to artwork (NULL for new submissions)    |
-| `user_token` | TEXT | NOT NULL                               | Anonymous UUID or authenticated user ID            |
-| `note`       | TEXT | NULL                                   | Optional submission note (≤500 chars at app level) |
-| `photos`     | TEXT | NULL                                   | JSON array of R2 URLs: `["url1", "url2"]`          |
-| `status`     | TEXT | CHECK('pending','approved','rejected') | Moderation status                                  |
-| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now')      | Creation timestamp                                 |
-
-**Indexes:**
-
-- `idx_logbook_artwork_id` on `artwork_id` for relationship queries
-- `idx_logbook_status` on `status` for moderation workflows
-- `idx_logbook_user_token` on `user_token` for user-specific queries
-
-**Foreign Keys:**
-
-- `artwork_id` → `artwork.id` ON DELETE CASCADE
-
-**Status Workflow:**
-
-- `pending` - Awaiting moderation
-- `approved` - Accepted (creates/updates artwork)
-- `rejected` - Rejected (hidden from user)
-
-### tags
-
-Flexible tagging system for additional metadata.
-
-| Field          | Type | Constraints                       | Description                              |
-| -------------- | ---- | --------------------------------- | ---------------------------------------- |
-| `id`           | TEXT | PRIMARY KEY                       | Unique identifier                        |
-| `artwork_id`   | TEXT | NULL, FK→artwork.id               | Reference to artwork                     |
-| `logbook_id`   | TEXT | NULL, FK→logbook.id               | Reference to logbook entry (LEGACY)     |
-| `submission_id`| TEXT | NULL, FK→submissions.id           | Reference to submission (NEW)            |
-| `label`        | TEXT | NOT NULL                          | Tag category (e.g., "material", "style") |
-| `value`        | TEXT | NOT NULL                          | Tag value (e.g., "bronze", "modern")     |
-| `created_at`   | TEXT | NOT NULL, DEFAULT datetime('now') | Creation timestamp                       |
-
-**Indexes:**
-
-- `idx_tags_artwork_id` on `artwork_id`
-- `idx_tags_logbook_id` on `logbook_id` (LEGACY)
-- `idx_tags_submission_id` on `submission_id` (NEW)
-- `idx_tags_label` on `label` for category-based queries
-
-**Foreign Keys:**
-
-- `artwork_id` → `artwork.id` ON DELETE CASCADE
-- `logbook_id` → `logbook.id` ON DELETE CASCADE (LEGACY)
-- `submission_id` → `submissions.id` ON DELETE CASCADE (NEW)
-
-**Note:** Exactly one of `artwork_id`, `logbook_id`, or `submission_id` must be non-NULL.
-
 ## Relationships
 
 ```text
@@ -522,200 +583,139 @@ magic_links
  │
  │ rate_limiting (identifier joins)
  │
-artwork_types ──┐
-                │ 1:N
-                ▼
-              artwork ──┐
-                │ 1:N  │ 1:N
-                ▼      ▼
-          submissions  tags ─── logbook (LEGACY)
-                │ 1:N     │ 1:N  │ 1:N
-                ▼         ▼      ▼
-               tags      tags   tags
+ │         user_roles ─── 1:N ─── user_token
+ │
+ ▼
+artists ──┐               ┌── artwork ──┐
+          │ 1:N       1:N │             │ 1:N
+          ▼               ▼             ▼
+        submissions ──────────────── submissions
+          │ 1:N                        │
+          ▼                            ▼
+      audit_log                   user_activity
 ```
 
-**NEW UNIFIED FLOW**: The `submissions` table is the primary submission mechanism, with `logbook` maintained for backward compatibility.
-
-## Authentication Workflows
-
-### Account Creation Flow
-
-1. **Anonymous user** gets UUID on first visit (stored in cookie)
-2. **User submits content** using anonymous UUID
-3. **Account creation**: User enters email → magic link sent
-4. **Magic link clicked** → account created with current UUID claimed
-5. **User authenticated** → can see all content from claimed UUID
-
-### Login Flow
-
-1. **Returning user** enters email → magic link sent
-2. **Magic link clicked** → user authenticated
-3. **Cross-device login**: If different UUID, replace browser UUID with account UUID
-4. **User sees all content** from their account UUID
-
-### Rate Limiting Flow
-
-1. **Magic link request** → check rate limits (email + IP)
-2. **Within limits** → generate token, send email, increment counters
-3. **Rate exceeded** → reject with clear error message and reset time
-4. **Cleanup task** → reset expired rate limit windows
-
-### Session Management Flow
-
-1. **Successful authentication** → create session record
-2. **Session token** → hashed and stored, plain token sent to client
-3. **API requests** → validate session hash, update last_accessed_at
-4. **Logout** → mark session inactive, generate new anonymous UUID
+**Unified Submission Flow:**
+- All content changes flow through the `submissions` table
+- Approved submissions create/update target entities (artwork, artists)
+- Complete audit trail maintained in `audit_log`
+- Role-based permissions control who can approve submissions
 
 ## Common Queries
 
 ### Find artworks near a location
 
 ```sql
--- Find approved artworks within ~500m radius (approximate)
-SELECT a.*, at.name as type_name
+-- Find approved artworks within ~500m radius
+SELECT a.*, 
+       json_extract(a.tags, '$.artwork_type') as artwork_type,
+       json_extract(a.tags, '$.material') as material
 FROM artwork a
-JOIN artwork_types at ON a.type_id = at.id
 WHERE a.status = 'approved'
   AND a.lat BETWEEN ? - 0.0045 AND ? + 0.0045
-  AND a.lon BETWEEN ? - 0.0045 AND ? + 0.0045;
+  AND a.lon BETWEEN ? - 0.0045 AND ? + 0.0045
+ORDER BY a.created_at DESC;
 ```
 
-### Get artwork with latest submissions
-
-**NEW PATTERN** (using submissions table):
+### Get artwork with recent submissions
 
 ```sql
 -- Get artwork details with recent submissions (unified approach)
 SELECT a.*, s.notes, s.photos, s.created_at as submission_date,
-       s.submission_type, s.status as submission_status
+       s.submission_type, s.status as submission_status,
+       s.submitter_name, s.email
 FROM artwork a
 LEFT JOIN submissions s ON a.id = s.artwork_id
 WHERE a.id = ?
-  AND s.submission_type IN ('logbook_entry', 'artwork_edit')
+  AND (s.submission_type IN ('logbook_entry', 'artwork_edit') OR s.id IS NULL)
 ORDER BY s.created_at DESC;
 ```
 
-**LEGACY PATTERN** (using logbook table):
-
-```sql
--- Get artwork details with recent logbook entries
-SELECT a.*, at.name as type_name,
-       l.note, l.photos, l.created_at as submission_date
-FROM artwork a
-JOIN artwork_types at ON a.type_id = at.id
-LEFT JOIN logbook l ON a.id = l.artwork_id
-WHERE a.id = ?
-ORDER BY l.created_at DESC;
-```
-
-### User's submissions
-
-**NEW PATTERN** (using submissions table):
+### User's submissions across all types
 
 ```sql
 -- Get all submissions for a user token (unified view)
-SELECT s.*, a.lat, a.lon, a.title as artwork_title
+SELECT s.*, 
+       a.title as artwork_title, a.lat, a.lon,
+       ar.name as artist_name
 FROM submissions s
 LEFT JOIN artwork a ON s.artwork_id = a.id
+LEFT JOIN artists ar ON s.artist_id = ar.id
 WHERE s.user_token = ?
 ORDER BY s.created_at DESC;
 ```
 
-**LEGACY PATTERN** (using logbook table):
-
-```sql
--- Get all submissions for a user token
-SELECT l.*, a.lat, a.lon, at.name as type_name
-FROM logbook l
-LEFT JOIN artwork a ON l.artwork_id = a.id
-LEFT JOIN artwork_types at ON a.type_id = at.id
-WHERE l.user_token = ?
-ORDER BY l.created_at DESC;
-```
-
-### Pending moderation queue
-
-**NEW PATTERN** (using submissions table):
+### Moderation queue (all submission types)
 
 ```sql
 -- Get submissions awaiting moderation (all types)
-SELECT s.*, a.lat, a.lon, a.title as artwork_title
+SELECT s.*, 
+       a.title as artwork_title, a.lat, a.lon,
+       ar.name as artist_name,
+       u.email as user_email
 FROM submissions s
 LEFT JOIN artwork a ON s.artwork_id = a.id
+LEFT JOIN artists ar ON s.artist_id = ar.id
+LEFT JOIN users u ON s.user_token = u.uuid
 WHERE s.status = 'pending'
 ORDER BY s.created_at ASC;
 ```
 
-**LEGACY PATTERN** (using logbook table):
+### Check user permissions
 
 ```sql
--- Get submissions awaiting moderation
-SELECT l.*, a.lat, a.lon, at.name as type_name
-FROM logbook l
-LEFT JOIN artwork a ON l.artwork_id = a.id
-LEFT JOIN artwork_types at ON a.type_id = at.id
-WHERE l.status = 'pending'
-ORDER BY l.created_at ASC;
+-- Get active roles for a user
+SELECT role, granted_at, granted_by
+FROM user_roles 
+WHERE user_token = ? 
+  AND is_active = 1 
+  AND (revoked_at IS NULL OR revoked_at > datetime('now'));
 ```
 
 ## Performance Considerations
 
 ### Spatial Queries
-
 - The `(lat, lon)` composite index enables efficient radius searches
 - For precise distance calculations, use the haversine formula in application code
 - Consider query bounds of ±0.0045 degrees (~500m at mid-latitudes) for initial filtering
 
-### Indexing Strategy
+### Unified Submissions Table
+- Single table approach eliminates complex JOINs between legacy logbook/artwork_edits tables
+- JSON fields (`photos`, `tags`, `old_data`, `new_data`) provide flexibility without schema changes
+- Indexes on `submission_type` and `status` enable efficient moderation workflows
 
-- All foreign keys are indexed for fast JOINs
-- Status fields are indexed for filtering workflows
-- `user_token` index supports user-specific queries
-
-### JSON Fields
-
-- `tags` and `photos` fields store JSON as TEXT
-- Parse JSON at application level, not in SQL queries
-- Consider extracting frequently-queried JSON keys to separate columns if needed
+### Role-Based Permissions
+- Simple role hierarchy (admin > moderator > user) with efficient lookups
+- Single query to check user permissions via `user_roles` table
+- Active role filtering via index on `is_active = 1`
 
 ## Migration System
 
-The Cultural Archiver uses a comprehensive database migration system for managing Cloudflare D1 schema changes and data operations:
+The Cultural Archiver uses a comprehensive database migration system for managing Cloudflare D1 schema changes:
 
-- **Migration Files**: Located in `src/workers/migrations/` directory with sequential numbering (0001_description.sql, 0002_add_table.sql, etc.)
-- **State Tracking**: Applied migrations are tracked in `d1_migrations` table automatically
-- **Backup System**: Export commands create timestamped backups in `_backup_database/` directory
-- **Environment Isolation**: Separate commands for development, staging, and production environments
+- **Migration Files**: Located in `src/workers/migrations/` with sequential numbering
+- **State Tracking**: Applied migrations tracked in `d1_migrations` table automatically
+- **Backup System**: Export commands create timestamped backups in `_backup_database/`
+- **Environment Isolation**: Separate commands for development and production environments
 
 ### Migration Commands (PowerShell Compatible)
 
 ```powershell
 # Export database backups
 npm run database:export:dev        # Export development database
-npm run database:export            # Export production database  
-npm run database:export:staging    # Export staging database
+npm run database:export:prod       # Export production database  
 
 # Apply migrations
-npm run database:migration:dev        # Apply migrations to development
-npm run database:migration            # Apply migrations to production
-npm run database:migration:staging    # Apply migrations to staging
-
-# Import SQL files (development: destructive reset logic handled automatically)
-# For production/staging set IMPORT_FILE env var then run import (confirmation prompt will appear)
-$env:IMPORT_FILE="_backup_database\\database_production.sql"; npm run database:import        # Import to production (prompts YES)
-$env:IMPORT_FILE="_backup_database\\some_staging_dump.sql";   npm run database:import:staging # Import to staging (prompts YES)
-npm run database:import:dev <file.sql>                           # Import to development (local, drops tables automatically)
+npm run database:migration:dev     # Apply migrations to development
+npm run database:migration:prod    # Apply migrations to production
 
 # Check migration status
 npm run database:status:dev        # Check development status
-npm run database:status            # Check production status
-npm run database:status:staging    # Check staging status
+npm run database:status:prod       # Check production status
 ```
 
 ### Migration Guidelines
-
-- Use sequential 4-digit numbering with descriptions (0001_initial_schema.sql, 0002_add_users.sql)
+- Use sequential numbering with descriptions (0001_initial_schema.sql, 0002_add_users.sql)
 - Use SQLite-compatible syntax (Cloudflare D1 is SQLite-based)
 - Use `TEXT` for JSON storage, not native JSON type
 - Use `REAL` for floating-point numbers (lat/lon coordinates)
@@ -723,19 +723,26 @@ npm run database:status:staging    # Check staging status
 - Create backups before production migrations using export commands
 - Follow existing table naming conventions (snake_case)
 - Include proper constraints and indexes for performance
-- Avoid D1-incompatible patterns (PRAGMA, WITHOUT ROWID, AUTOINCREMENT)
-- Use `$env:IMPORT_FILE` with `database:import` / `database:import:staging` to avoid accidental path typos.
-- Always run an export before a production import or migration application.
-- After applying a data-cleanup migration (e.g., removing internal tags) verify effect with a SELECT count query.
-- See [docs/migrations.md](./migrations.md) for complete migration documentation
 
 ## TypeScript Integration
 
 The database schema is reflected in TypeScript types in `src/shared/types.ts`:
 
-- `ArtworkTypeRecord` - artwork_types table
-- `ArtworkRecord` - artwork table
-- `LogbookRecord` - logbook table
-- `TagRecord` - tags table
+**Core Tables:**
+- `ArtworkRecord` - artwork table with enhanced fields
+- `ArtistRecord` - artists table
+- `SubmissionRecord` - unified submissions table (replaces LogbookRecord/ArtworkEditRecord)
+- `UserRoleRecord` - role-based permissions
+- `UserRecord` - user authentication
 
-Refer to the types file for complete interface definitions and validation functions.
+**API Types:**
+- `ArtworkApiResponse` - artwork with parsed JSON fields
+- `ArtistApiResponse` - artist with metadata
+- `CreateSubmissionRequest` - submission creation
+- `AuthStatusResponse` - authentication status
+
+**Legacy Types (Backward Compatibility):**
+- `LogbookRecord` - maintained for existing code
+- `TagRecord` - separate tags table (being phased out)
+
+All types include proper validation functions and status guards for type safety across the frontend and backend systems.
