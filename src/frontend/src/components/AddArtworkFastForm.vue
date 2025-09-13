@@ -350,7 +350,7 @@ onBeforeUnmount(() => {
           <div v-if="currentStep === 'details' || submission.state.title" class="step-content">
             <ArtworkDetailsSection
               :title="submission.state.title"
-              :type-id="submission.state.type_id"
+              :artwork-type="(submission.state.tags.artwork_type || 'public_art').toString()"
               :tags="submission.state.tags"
               :note="submission.state.note"
               @update="submission.updateArtworkDetails"

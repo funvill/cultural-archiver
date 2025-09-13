@@ -45,25 +45,25 @@ export async function hasPermission(
       return { hasPermission: true, permission };
     }
 
-    // Query database
+    // Query database using new user_roles table
     const stmt = db.prepare(`
-      SELECT permission, granted_at, granted_by
-      FROM user_permissions
-      WHERE user_uuid = ? AND permission = ? AND is_active = 1
+      SELECT role, granted_at, granted_by
+      FROM user_roles
+      WHERE user_token = ? AND role = ? AND is_active = 1
       LIMIT 1
     `);
 
     const result = (await stmt.bind(userUuid, permission).first()) as
-      | { permission: string; granted_at?: string; granted_by?: string }
+      | { role: string; granted_at?: string; granted_by?: string }
       | null;
 
-    if (result && typeof result.permission === 'string') {
+    if (result && typeof result.role === 'string') {
       // Update cache
-      updatePermissionCache(userUuid, [result.permission as Permission]);
+      updatePermissionCache(userUuid, [result.role as Permission]);
 
       return {
         hasPermission: true,
-        permission: result.permission as Permission,
+        permission: result.role as Permission,
         grantedAt: result.granted_at as string,
         grantedBy: result.granted_by as string,
       };
@@ -95,14 +95,14 @@ export async function hasAnyPermission(
       }
     }
 
-    // Query database
+    // Query database using new user_roles table
     const placeholders = permissions.map(() => '?').join(',');
     const stmt = db.prepare(`
-      SELECT permission, granted_at, granted_by
-      FROM user_permissions
-      WHERE user_uuid = ? AND permission IN (${placeholders}) AND is_active = 1
+      SELECT role, granted_at, granted_by
+      FROM user_roles
+      WHERE user_token = ? AND role IN (${placeholders}) AND is_active = 1
       ORDER BY 
-        CASE permission 
+        CASE role 
           WHEN 'admin' THEN 1 
           WHEN 'moderator' THEN 2 
           ELSE 3 
@@ -111,16 +111,16 @@ export async function hasAnyPermission(
     `);
 
     const result = (await stmt.bind(userUuid, ...permissions).first()) as
-      | { permission: string; granted_at?: string; granted_by?: string }
+      | { role: string; granted_at?: string; granted_by?: string }
       | null;
 
-    if (result && typeof result.permission === 'string') {
+    if (result && typeof result.role === 'string') {
       // Update cache with found permission
-      updatePermissionCache(userUuid, [result.permission as Permission]);
+      updatePermissionCache(userUuid, [result.role as Permission]);
 
       return {
         hasPermission: true,
-        permission: result.permission as Permission,
+        permission: result.role as Permission,
         grantedAt: result.granted_at as string,
         grantedBy: result.granted_by as string,
       };
@@ -144,13 +144,13 @@ export async function getUserPermissions(db: D1Database, userUuid: string): Prom
       return cached.permissions;
     }
 
-    // Query database
+    // Query database using new user_roles table
     const stmt = db.prepare(`
-      SELECT permission
-      FROM user_permissions
-      WHERE user_uuid = ? AND is_active = 1
+      SELECT role
+      FROM user_roles
+      WHERE user_token = ? AND is_active = 1
       ORDER BY 
-        CASE permission 
+        CASE role 
           WHEN 'admin' THEN 1 
           WHEN 'moderator' THEN 2 
           ELSE 3 
@@ -161,7 +161,7 @@ export async function getUserPermissions(db: D1Database, userUuid: string): Prom
 
     if (results.success) {
       const permissions = results.results.map(
-        row => (row as { permission: Permission }).permission
+        row => (row as { role: Permission }).role
       );
       updatePermissionCache(userUuid, permissions);
       return permissions;
@@ -194,9 +194,9 @@ export async function grantPermission(
     // Generate permission ID
     const permissionId = crypto.randomUUID();
 
-    // Insert new permission
+    // Insert new role using new user_roles table
     const stmt = db.prepare(`
-      INSERT INTO user_permissions (id, user_uuid, permission, granted_by, notes)
+      INSERT INTO user_roles (id, user_token, role, granted_by, notes)
       VALUES (?, ?, ?, ?, ?)
     `);
 
@@ -235,11 +235,11 @@ export async function revokePermission(
       return { success: false, error: 'User does not have this permission' };
     }
 
-    // Revoke the permission (soft delete)
+    // Revoke the permission (soft delete) using new user_roles table
     const stmt = db.prepare(`
-      UPDATE user_permissions
+      UPDATE user_roles
       SET is_active = 0, revoked_at = datetime('now'), revoked_by = ?, notes = COALESCE(notes || ' | ', '') || ?
-      WHERE user_uuid = ? AND permission = ? AND is_active = 1
+      WHERE user_token = ? AND role = ? AND is_active = 1
     `);
 
     const revokeReason = reason || 'Permission revoked';

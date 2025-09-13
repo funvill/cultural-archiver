@@ -1,7 +1,7 @@
 # Mass-Import API Documentation
 
 ## Overview
-The Mass-Import API endpoint allows trusted users (moderators or higher) to import large batches of artworks, including images and logbook entries (with tags), from public datasets. This endpoint is designed for efficient, automated ingestion of hundreds of records at once, such as from city open data sources.
+The Mass-Import API endpoint allows trusted users (moderators or higher) to import large batches of artworks, including images and submissions, from public datasets. This endpoint is designed for efficient, automated ingestion of hundreds of records at once, such as from city open data sources.
 
 - **Endpoint:** `/api/mass-import`
 - **Method:** `POST`
@@ -22,11 +22,11 @@ The Mass-Import API endpoint allows trusted users (moderators or higher) to impo
       { "url": "https://..." }
     ]
   },
-  "logbook": [
+  "submissions": [
     {
+      "submission_type": "logbook_entry",
       "note": "Installed in 2020",
-      "timestamp": "2020-06-01T00:00:00Z",
-      "tags": [{ "label": "event", "value": "installation" }]
+      "tags": { "event": "installation", "material": "bronze" }
     }
   ]
 }
@@ -36,13 +36,13 @@ The Mass-Import API endpoint allows trusted users (moderators or higher) to impo
 - `user_uuid`: (string, required) UUID of the moderator or admin performing the import. All imported records are attributed to this user and are automatically approved.
 - `artwork`: (object, required) Main artwork data. Includes title, description, coordinates, and photos.
   - `photos`: (array) List of image URLs to import. The system will fetch, store, and generate thumbnails for each image.
-- `logbook`: (array, optional) Logbook entries to attach to the artwork. Each entry can include notes, timestamps, and tags (label/value pairs for metadata).
+- `submissions`: (array, optional) Submission entries to attach to the artwork. Each entry can include notes and structured tags as a JSON object.
 
 ## Behavior
-- All imported artworks, logbook entries, and images are automatically approved and published under the provided user UUID.
+- All imported artworks, submissions, and images are automatically approved and published under the provided user UUID.
 - The endpoint processes each record atomically: if any part fails (e.g., image fetch error), the entire import for that record is rolled back.
 - Images are fetched from provided URLs, stored in Cloudflare R2, and thumbnails are generated.
-- Tags are attached to logbook entries as specified.
+- Tags are stored as structured JSON objects within submissions.
 
 ## Response
 - **201 Created**: On success, returns the new artwork ID and status.
@@ -64,11 +64,11 @@ Content-Type: application/json
       { "url": "https://example.com/photo.jpg" }
     ]
   },
-  "logbook": [
+  "submissions": [
     {
+      "submission_type": "logbook_entry",
       "note": "Installed in 2020",
-      "timestamp": "2020-06-01T00:00:00Z",
-      "tags": [{ "label": "event", "value": "installation" }]
+      "tags": { "event": "installation", "material": "bronze" }
     }
   ]
 }

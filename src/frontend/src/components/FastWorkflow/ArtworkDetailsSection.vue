@@ -9,7 +9,7 @@ import { XMarkIcon, InformationCircleIcon } from '@heroicons/vue/24/outline';
 
 interface Props {
   title: string;
-  typeId: string;
+  artworkType: string;
   tags: Record<string, string | number>;
   note: string;
 }
@@ -23,7 +23,7 @@ const props = defineProps<Props>();
 const emit = defineEmits<{
   'update': [details: {
     title?: string;
-    type_id?: string;
+    artworkType?: string;
     tags?: Record<string, string | number>;
     note?: string;
   }];
@@ -46,9 +46,9 @@ function updateTitle(event: Event) {
   emit('update', { title: target.value });
 }
 
-function updateTypeId(event: Event) {
+function updateArtworkType(event: Event) {
   const target = event.target as HTMLSelectElement;
-  emit('update', { type_id: target.value });
+  emit('update', { artworkType: target.value });
 }
 
 function updateNote(event: Event) {
@@ -169,8 +169,8 @@ function updateCustomTagValue(index: number, event: Event) {
         </label>
         <select
           id="artwork-type"
-          :value="typeId"
-          @change="updateTypeId"
+          :value="artworkType"
+          @change="updateArtworkType"
           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
         >
           <option value="public_art">Public Art</option>

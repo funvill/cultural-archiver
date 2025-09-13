@@ -68,6 +68,7 @@ export class MassImportDuplicateDetectionService {
    * Check for duplicates of the given artwork import data
    */
   async checkForDuplicates(request: MassImportDuplicateRequest): Promise<MassImportDuplicateResult> {
+
     const threshold = request.duplicateThreshold ?? 0.75; // Increased from 0.7 for more conservative detection
 
     // 1. Find nearby existing artworks within 100m radius
@@ -96,7 +97,8 @@ export class MassImportDuplicateDetectionService {
     let bestMatch: MassImportSimilarityResult | null = null;
 
     console.log(`[DUPLICATE_DETECTION] Evaluating ${candidates.length} candidates for similarity`);
-    console.log(`[DUPLICATE_DETECTION] Query: title="${query.title}", artist="${query.artist}", tags=${query.tags ? Object.keys(query.tags).length : 0} tags`);
+    const tagCount = query.tags ? Object.keys(query.tags as Record<string, string>).length : 0;
+    console.log(`[DUPLICATE_DETECTION] Query: title="${query.title}", artist="${query.artist}", tags=${tagCount} tags`);
 
     for (const candidate of candidates) {
       try {
@@ -105,7 +107,7 @@ export class MassImportDuplicateDetectionService {
         console.log(`[DUPLICATE_DETECTION] Candidate ${candidate.id}: title="${candidate.title}", score=${result.confidenceScore.toFixed(3)} (title=${result.scoreBreakdown.title.toFixed(3)}, artist=${result.scoreBreakdown.artist.toFixed(3)}, location=${result.scoreBreakdown.location.toFixed(3)}, tags=${result.scoreBreakdown.tags.toFixed(3)})`);
         
         // Keep track of best match (highest score)
-        if (!bestMatch || result.confidenceScore > bestMatch.confidenceScore) {
+        if (!bestMatch || result.confidenceScore > bestMatch!.confidenceScore) {
           bestMatch = result;
         }
       } catch (error) {
@@ -115,17 +117,17 @@ export class MassImportDuplicateDetectionService {
     }
 
     // 4. Return results
-    if (bestMatch && bestMatch.isDuplicate) {
-      console.log(`[DUPLICATE_DETECTION] DUPLICATE FOUND: ${bestMatch.existingArtworkId} with confidence ${bestMatch.confidenceScore.toFixed(3)}`);
+    if (bestMatch && bestMatch!.isDuplicate) {
+      console.log(`[DUPLICATE_DETECTION] DUPLICATE FOUND: ${bestMatch!.existingArtworkId} with confidence ${bestMatch!.confidenceScore.toFixed(3)}`);
       return {
         isDuplicate: true,
         duplicateInfo: {
-          artworkId: bestMatch.artworkId,
+          artworkId: bestMatch!.artworkId,
           title: request.title,
-          confidenceScore: bestMatch.confidenceScore,
-          scoreBreakdown: bestMatch.scoreBreakdown,
-          existingArtworkId: bestMatch.existingArtworkId,
-          existingArtworkUrl: bestMatch.existingArtworkUrl
+          confidenceScore: bestMatch!.confidenceScore,
+          scoreBreakdown: bestMatch!.scoreBreakdown,
+          existingArtworkId: bestMatch!.existingArtworkId,
+          existingArtworkUrl: bestMatch!.existingArtworkUrl
         },
         candidatesChecked: candidates.length
       };

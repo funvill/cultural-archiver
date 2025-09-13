@@ -33,11 +33,10 @@ export const artworkSubmissionService = {
       formData.append('lon', payload.longitude.toString());
       formData.append('consent_version', CONSENT_VERSION);
       if (payload.title) formData.append('title', payload.title);
-      if (payload.artworkType) formData.append('type_id', payload.artworkType);
       if (payload.notes) formData.append('note', payload.notes);
-
       // Build lightweight structured tags from provided optional metadata so backend can retain it later
       const tagPayload: Record<string, string | number> = {};
+      if (payload.artworkType) tagPayload.artwork_type = payload.artworkType;
       if (payload.description) tagPayload.description = payload.description;
       if (payload.artist) tagPayload.artist_name = payload.artist;
       if (payload.materials) tagPayload.material = payload.materials; // singular consistent with schema

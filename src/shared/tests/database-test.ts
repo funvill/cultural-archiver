@@ -3,7 +3,7 @@
  * These functions validate CRUD operations on all MVP database tables
  */
 
-import type { ArtworkTypeRecord, ArtworkRecord, LogbookRecord, TagRecord } from '../types.js';
+import type { ArtworkRecord, LogbookRecord, TagRecord } from '../types.js';
 
 // Test interface for database operations
 interface DatabaseConnection {
@@ -23,73 +23,19 @@ interface TestResult {
 }
 
 /**
- * Test CRUD operations on artwork_types table
- */
-export function testArtworkTypesCRUD(db: DatabaseConnection): TestResult {
-  try {
-    // Test INSERT
-    const insertStmt = db.prepare(`
-      INSERT INTO artwork_types (id, name, description) 
-      VALUES (?, ?, ?)
-    `);
-
-    const testId = 'test-type-' + Date.now();
-    const result = insertStmt.run(testId, 'test_type', 'Test artwork type');
-
-    if (result.changes !== 1) {
-      return { passed: false, error: 'Failed to insert artwork type' };
-    }
-
-    // Test SELECT
-    const selectStmt = db.prepare('SELECT * FROM artwork_types WHERE id = ?');
-    const record = selectStmt.get(testId) as unknown as ArtworkTypeRecord;
-
-    if (!record || record.name !== 'test_type') {
-      return { passed: false, error: 'Failed to retrieve inserted artwork type' };
-    }
-
-    // Test UPDATE
-    const updateStmt = db.prepare('UPDATE artwork_types SET description = ? WHERE id = ?');
-    const updateResult = updateStmt.run('Updated description', testId);
-
-    if (updateResult.changes !== 1) {
-      return { passed: false, error: 'Failed to update artwork type' };
-    }
-
-    // Verify update
-    const updatedRecord = selectStmt.get(testId) as unknown as ArtworkTypeRecord;
-    if (updatedRecord.description !== 'Updated description') {
-      return { passed: false, error: 'Update verification failed' };
-    }
-
-    // Test DELETE
-    const deleteStmt = db.prepare('DELETE FROM artwork_types WHERE id = ?');
-    const deleteResult = deleteStmt.run(testId);
-
-    if (deleteResult.changes !== 1) {
-      return { passed: false, error: 'Failed to delete artwork type' };
-    }
-
-    return { passed: true, details: 'All CRUD operations successful' };
-  } catch (error) {
-    return { passed: false, error: `Unexpected error: ${error}` };
-  }
-}
-
-/**
- * Test CRUD operations on artwork table including foreign key relationships
+ * Test CRUD operations on artwork table with tag-based artwork types
  */
 export function testArtworkCRUD(db: DatabaseConnection): TestResult {
   try {
-    // Test INSERT with foreign key
+    // Test INSERT without type_id (now using tags)
     const insertStmt = db.prepare(`
-      INSERT INTO artwork (id, lat, lon, type_id, status, tags) 
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO artwork (id, lat, lon, status, tags) 
+      VALUES (?, ?, ?, ?, ?)
     `);
 
     const testId = 'test-artwork-' + Date.now();
     const tags = JSON.stringify({ material: 'test', condition: 'new' });
-    const result = insertStmt.run(testId, 49.2827, -123.1207, 'public_art', 'pending', tags);
+    const result = insertStmt.run(testId, 49.2827, -123.1207, 'pending', tags);
 
     if (result.changes !== 1) {
       return { passed: false, error: 'Failed to insert artwork' };
@@ -99,7 +45,7 @@ export function testArtworkCRUD(db: DatabaseConnection): TestResult {
     const selectStmt = db.prepare('SELECT * FROM artwork WHERE id = ?');
     const record = selectStmt.get(testId) as unknown as ArtworkRecord;
 
-    if (!record || record.lat !== 49.2827 || record.type_id !== 'public_art') {
+    if (!record || record.lat !== 49.2827 || record.status !== 'pending') {
       return { passed: false, error: 'Failed to retrieve inserted artwork' };
     }
 
@@ -581,7 +527,6 @@ export function runAllDatabaseTests(db: DatabaseConnection): {
   const results: Record<string, TestResult> = {};
 
   try {
-    results.artworkTypesCRUD = testArtworkTypesCRUD(db);
     results.artworkCRUD = testArtworkCRUD(db);
     results.logbookCRUD = testLogbookCRUD(db);
     results.tagsCRUD = testTagsCRUD(db);

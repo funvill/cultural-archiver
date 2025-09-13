@@ -510,8 +510,8 @@ app.get('/api/debug/permissions/:userToken', async c => {
 
     // Test 3: Check legacy logbook count
     const logbookStmt = c.env.DB.prepare(`
-      SELECT COUNT(*) as count FROM logbook 
-      WHERE user_token = ? AND status = 'approved'
+      SELECT COUNT(*) as count FROM submissions 
+      WHERE user_token = ? AND status = 'approved' AND submission_type = 'logbook'
     `);
     const logbookResult = await logbookStmt.bind(userToken).first();
     console.log('[DEBUG] Legacy logbook count:', logbookResult);

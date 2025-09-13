@@ -167,8 +167,8 @@ export async function getUUIDClaimInfo(
   // Count existing submissions for this UUID
   const stmt = env.DB.prepare(`
     SELECT COUNT(*) as count 
-    FROM logbook 
-    WHERE user_token = ?
+    FROM submissions 
+    WHERE user_token = ? AND submission_type = 'logbook'
   `);
   const result = await stmt.bind(anonymousUUID).first();
   const submissionCount = (result as { count: number } | null)?.count || 0;

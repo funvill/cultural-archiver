@@ -262,8 +262,8 @@ describe('Cultural Archiver API Integration Tests', (): void => {
     it('should structure artwork queries correctly', (): void => {
       const queryStructure = {
         table: 'artwork',
-        fields: ['id', 'lat', 'lon', 'type_id', 'status', 'created_at'],
-        joins: ['artwork_types'],
+        fields: ['id', 'lat', 'lon', 'status', 'created_at'],
+        joins: ['tags'],
         filters: ['status = ?', 'lat BETWEEN ? AND ?', 'lon BETWEEN ? AND ?'],
       };
 
@@ -425,7 +425,7 @@ describe('Cultural Archiver API Integration Tests', (): void => {
           'admin_comments',
         ];
 
-        const publicFields = ['id', 'lat', 'lon', 'type_id', 'status', 'created_at', 'tags'];
+        const publicFields = ['id', 'lat', 'lon', 'status', 'created_at', 'tags'];
 
         // Ensure sensitive fields are not in public fields
         sensitiveFields.forEach(field => {

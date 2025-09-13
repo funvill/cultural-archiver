@@ -78,7 +78,6 @@ export interface SubmissionState {
   
   // Step 5: Artwork Details (for new artwork)
   title: string;
-  type_id: string;
   tags: Record<string, string | number>;
   note: string;
   
@@ -103,8 +102,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
     similarityLoading: false,
     selectedArtwork: null,
     title: '',
-    type_id: 'public_art',
-    tags: {},
+    tags: { artwork_type: 'public_art' },
     note: '',
     consentVersion: CONSENT_VERSION,
     isSubmitting: false,
@@ -330,12 +328,12 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
    */
   function updateArtworkDetails(details: {
     title?: string;
-    type_id?: string;
+    artworkType?: string;
     tags?: Record<string, string | number>;
     note?: string;
   }) {
     if (details.title !== undefined) state.value.title = details.title;
-    if (details.type_id !== undefined) state.value.type_id = details.type_id;
+    if (details.artworkType !== undefined) state.value.tags.artwork_type = details.artworkType;
     if (details.tags !== undefined) state.value.tags = { ...state.value.tags, ...details.tags };
     if (details.note !== undefined) state.value.note = details.note;
   }
@@ -369,7 +367,6 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
       // Add artwork-specific data
       if (isNewArtwork.value) {
         formData.append('title', state.value.title);
-        formData.append('type_id', state.value.type_id);
         if (Object.keys(state.value.tags).length > 0) {
           formData.append('tags', JSON.stringify(state.value.tags));
         }
@@ -427,8 +424,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
       similarityLoading: false,
       selectedArtwork: null,
       title: '',
-      type_id: 'public_art',
-      tags: {},
+      tags: { artwork_type: 'public_art' },
       note: '',
       consentVersion: CONSENT_VERSION,
       isSubmitting: false,

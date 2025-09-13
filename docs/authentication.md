@@ -80,6 +80,102 @@ The authentication system uses four main tables:
 - `POST /api/auth/logout`: Logout with new anonymous UUID
 - `GET /api/auth/status`: Get authentication status
 
+### Role-Based Permissions System
+
+The Cultural Archiver implements a flexible role-based permissions system alongside the authentication system.
+
+#### Database Schema
+
+**user_roles**: Role assignments for authenticated users
+
+- `id` (TEXT, PRIMARY KEY): Role assignment UUID
+- `user_token` (TEXT): User's UUID token
+- `role` (TEXT): Role name ('admin', 'moderator', 'user', 'banned')
+- `granted_by` (TEXT): UUID of user who granted this role
+- `granted_at` (TEXT): Role grant timestamp
+- `revoked_at` (TEXT): Role revocation timestamp (NULL if active)
+- `revoked_by` (TEXT): UUID of user who revoked this role
+- `is_active` (INTEGER): Whether role is currently active (1 or 0)
+- `notes` (TEXT): Optional notes about role assignment
+
+#### Role Hierarchy
+
+**admin**: Full system access
+- Can review and approve all submissions
+- Can manage user roles and permissions
+- Can access administrative functions
+- Can perform moderation actions
+
+**moderator**: Content moderation capabilities
+- Can review and approve submissions
+- Can access moderation queue
+- Can approve/reject content
+- Cannot manage user roles
+
+**user**: Standard user permissions (default)
+- Can submit content
+- Can view approved content
+- Can edit own submissions
+- Limited to public features
+
+**banned**: Restricted access
+- Cannot submit content
+- Read-only access to approved content
+- Cannot participate in community features
+
+#### Permission Checking
+
+**lib/user-roles.ts**: Core role management
+
+- Role assignment and revocation
+- Permission checking utilities
+- Active role validation
+- Role inheritance logic
+
+**middleware/auth.ts**: Enhanced authentication middleware
+
+- Role-based access control
+- Permission validation for endpoints
+- Legacy permission compatibility
+- Role checking decorators
+
+#### API Integration
+
+**Enhanced Auth Status Response**:
+
+```json
+{
+  "user_token": "uuid-string",
+  "is_authenticated": true,
+  "roles": ["moderator"],
+  "permissions": {
+    "can_review": true,
+    "can_moderate": true,
+    "can_admin": false
+  },
+  "legacy_flags": {
+    "is_moderator": true,
+    "is_reviewer": true,
+    "is_admin": false
+  }
+}
+```
+
+**Role Management Endpoints**:
+
+- `GET /api/admin/roles/{user_token}`: Get user roles (admin only)
+- `POST /api/admin/roles/{user_token}`: Grant role (admin only)
+- `DELETE /api/admin/roles/{user_token}/{role}`: Revoke role (admin only)
+
+#### Migration from Legacy Permissions
+
+The system maintains backward compatibility with the legacy `user_permissions` table:
+
+- Existing `reviewer` permissions → `moderator` role
+- Existing `admin` permissions → `admin` role
+- Legacy API flags maintained during transition period
+- Gradual migration of permission checking logic
+
 ### Frontend Components
 
 #### Vue Components

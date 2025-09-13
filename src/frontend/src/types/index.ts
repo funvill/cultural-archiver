@@ -228,7 +228,6 @@ export interface ArtworkDetails {
   id: string;
   lat: number;
   lon: number;
-  type_id: string;
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null;
@@ -282,7 +281,6 @@ export interface ArtworkWithPhotos {
   id: string;
   lat: number;
   lon: number;
-  type_id: string;
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null;
