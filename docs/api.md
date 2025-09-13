@@ -123,14 +123,16 @@ Each consent record includes:
 
 ## Endpoints
 
-### Submission Endpoints
+### Unified Submission System
 
-#### Submit New Artwork
+The Cultural Archiver uses a unified submission system where all content submissions (logbook entries, artwork edits, artist edits, new artwork/artist submissions) flow through a single `/api/submissions` endpoint. This provides consistent handling, validation, and moderation workflows.
 
-Submit a new artwork for community review.
+#### Submit New Content
+
+Submit various types of content for community review through the unified submission system.
 
 ```http
-POST /api/logbook
+POST /api/submissions
 ```
 
 **Content-Type**: `multipart/form-data`
@@ -139,11 +141,23 @@ POST /api/logbook
 
 **Parameters**:
 
-- `lat` (required): Latitude (-90 to 90)
-- `lon` (required): Longitude (-180 to 180)
-- `note` (optional): Description (max 500 characters)
-- `type` (optional): Artwork type (`public_art`, `street_art`, `monument`, `sculpture`, `other`)
+- `submission_type` (required): Type of submission
+  - `logbook_entry` - Photo submission for existing or new artwork
+  - `artwork_edit` - Edit to artwork metadata
+  - `artist_edit` - Edit to artist information  
+  - `new_artwork` - New artwork submission
+  - `new_artist` - New artist profile submission
+- `lat` (required for location-based submissions): Latitude (-90 to 90)
+- `lon` (required for location-based submissions): Longitude (-180 to 180)
+- `artwork_id` (required for artwork_edit/logbook_entry): Target artwork UUID
+- `artist_id` (required for artist_edit): Target artist UUID
+- `notes` (optional): Description (max 500 characters)
 - `photos` (optional): Up to 3 image files (15MB each, JPEG/PNG/WebP/GIF)
+- `tags` (optional): JSON object with structured metadata
+- `old_data` (required for edits): JSON object of current data
+- `new_data` (required for edits): JSON object of proposed changes
+- `email` (optional): Email for verification workflow
+- `submitter_name` (optional): Submitter name
 
 **Response** (201 Created):
 
@@ -152,29 +166,37 @@ POST /api/logbook
   "success": true,
   "data": {
     "submission_id": "uuid-string",
+    "submission_type": "logbook_entry",
     "status": "pending",
+    "verification_status": "pending",
     "nearby_artworks": [
       {
         "id": "artwork-uuid",
         "distance_km": 0.15,
-        "type_name": "Public Art"
+        "title": "Downtown Mural",
+        "photos": ["https://art-photos.abluestar.com/photo.jpg"]
       }
-    ]
+    ],
+    "created_at": "2024-01-15T10:30:00Z"
   }
 }
 ```
 
-**Example**:
+**Example - Logbook Entry**:
 
 ```javascript
 const formData = new FormData();
+formData.append('submission_type', 'logbook_entry');
 formData.append('lat', '49.2827');
 formData.append('lon', '-123.1207');
-formData.append('note', 'Beautiful mural on building wall');
-formData.append('type', 'street_art');
+formData.append('notes', 'Beautiful mural on building wall');
 formData.append('photos', fileInput.files[0]);
+formData.append('tags', JSON.stringify({
+  "artwork_type": "mural",
+  "material": "paint"
+}));
 
-const response = await fetch('/api/logbook', {
+const response = await fetch('/api/submissions', {
   method: 'POST',
   headers: {
     Authorization: 'Bearer your-user-token',
@@ -182,6 +204,40 @@ const response = await fetch('/api/logbook', {
   body: formData,
 });
 ```
+
+**Example - Artwork Edit**:
+
+```javascript
+const formData = new FormData();
+formData.append('submission_type', 'artwork_edit');
+formData.append('artwork_id', 'artwork-uuid');
+formData.append('old_data', JSON.stringify({
+  title: "Old Title",
+  description: "Old description"
+}));
+formData.append('new_data', JSON.stringify({
+  title: "Corrected Title",
+  description: "Updated description with more details"
+}));
+
+const response = await fetch('/api/submissions', {
+  method: 'POST',
+  headers: {
+    Authorization: 'Bearer your-user-token',
+  },
+  body: formData,
+});
+```
+
+#### Legacy Endpoint (Backward Compatibility)
+
+The original logbook endpoint is maintained for backward compatibility:
+
+```http
+POST /api/logbook
+```
+
+This endpoint automatically creates a submission with `submission_type: "logbook_entry"` and forwards to the unified submissions system.
 
 ### Discovery Endpoints
 
@@ -728,7 +784,7 @@ GET /api/export/osm/stats
 
 #### Get User Submissions
 
-Retrieve the authenticated user's submission history.
+Retrieve the authenticated user's submission history across all submission types.
 
 ```http
 GET /api/me/submissions
@@ -740,6 +796,8 @@ GET /api/me/submissions
 
 - `page` (optional): Page number (default: 1)
 - `per_page` (optional): Items per page (1-100, default: 20)
+- `submission_type` (optional): Filter by type (`logbook_entry`, `artwork_edit`, `artist_edit`, `new_artwork`, `new_artist`)
+- `status` (optional): Filter by status (`pending`, `approved`, `rejected`)
 
 **Response** (200 OK):
 
@@ -750,13 +808,34 @@ GET /api/me/submissions
     "submissions": [
       {
         "id": "submission-uuid",
+        "submission_type": "logbook_entry",
         "lat": 49.2827,
         "lon": -123.1207,
-        "note": "Street art submission",
+        "notes": "Street art submission",
         "status": "approved",
+        "verification_status": "verified",
         "artwork_id": "artwork-uuid",
-        "photos": ["photo-url"],
-        "created_at": "2024-01-15T10:30:00Z"
+        "artist_id": null,
+        "photos": ["https://art-photos.abluestar.com/photo.jpg"],
+        "tags": {
+          "artwork_type": "mural",
+          "material": "paint"
+        },
+        "created_at": "2024-01-15T10:30:00Z",
+        "reviewed_at": "2024-01-16T09:15:00Z"
+      },
+      {
+        "id": "edit-submission-uuid",
+        "submission_type": "artwork_edit",
+        "artwork_id": "artwork-uuid",
+        "old_data": {
+          "title": "Old Title"
+        },
+        "new_data": {
+          "title": "Corrected Title"
+        },
+        "status": "pending",
+        "created_at": "2024-01-17T14:22:00Z"
       }
     ],
     "pagination": {
@@ -764,6 +843,20 @@ GET /api/me/submissions
       "per_page": 20,
       "total": 5,
       "total_pages": 1
+    },
+    "summary": {
+      "by_type": {
+        "logbook_entry": 3,
+        "artwork_edit": 2,
+        "artist_edit": 0,
+        "new_artwork": 0,
+        "new_artist": 0
+      },
+      "by_status": {
+        "pending": 1,
+        "approved": 3,
+        "rejected": 1
+      }
     }
   }
 }
@@ -771,7 +864,7 @@ GET /api/me/submissions
 
 #### Get User Profile
 
-Retrieve user statistics and preferences.
+Retrieve user statistics, role information, and preferences.
 
 ```http
 GET /api/me/profile
@@ -786,14 +879,28 @@ GET /api/me/profile
   "success": true,
   "data": {
     "user_token": "user-uuid",
-    "is_moderator": false,
-    "can_review": false,
-    "is_reviewer": false, // deprecated alias (to be removed after deprecation period)
-    "is_admin": false,
+    "roles": ["user"],
+    "permissions": {
+      "can_review": false,
+      "can_moderate": false,
+      "can_admin": false
+    },
+    "legacy_flags": {
+      "is_moderator": false,
+      "is_reviewer": false,
+      "is_admin": false
+    },
     "statistics": {
       "total_submissions": 12,
       "approved_submissions": 8,
-      "pending_submissions": 2
+      "pending_submissions": 2,
+      "by_type": {
+        "logbook_entry": 8,
+        "artwork_edit": 3,
+        "artist_edit": 1,
+        "new_artwork": 0,
+        "new_artist": 0
+      }
     },
     "rate_limits": {
       "submissions": {
@@ -811,12 +918,13 @@ GET /api/me/profile
 }
 ```
 
-Fields:
-
-- `is_moderator` – True if the user has active moderator permission.
-- `can_review` – Convenience flag (currently mirrors `is_moderator` or `is_admin`).
-- `is_reviewer` – Deprecated legacy alias retained temporarily for backward compatibility.
-- `is_admin` – User has administrative privileges (implies moderation capabilities).
+**Role System**:
+- `roles`: Array of active user roles (`admin`, `moderator`, `user`, `banned`)
+- `permissions`: Computed permissions based on roles
+  - `can_admin`: Full system access (role: admin)
+  - `can_moderate`: Can review and approve submissions (role: moderator or admin)
+  - `can_review`: Can access review interface (role: moderator or admin)
+- `legacy_flags`: Backward compatibility flags (deprecated)
 
 ### Authentication Endpoints
 
@@ -906,22 +1014,24 @@ GET /api/auth/verify-status
 
 ### Moderation Endpoints
 
-_Note: These endpoints require reviewer permissions_
+_Note: These endpoints require moderator or admin role_
 
 #### Get Review Queue
 
-Retrieve pending submissions for moderation.
+Retrieve pending submissions for moderation across all submission types.
 
 ```http
 GET /api/review/queue
 ```
 
-**Authentication**: Required (Reviewer)
+**Authentication**: Required (Moderator or Admin)
 
 **Parameters**:
 
 - `page` (optional): Page number (default: 1)
 - `per_page` (optional): Items per page (default: 20)
+- `submission_type` (optional): Filter by type (`logbook_entry`, `artwork_edit`, `artist_edit`, `new_artwork`, `new_artist`)
+- `sort` (optional): Sort order (`created_at`, `priority`) (default: `created_at`)
 
 **Response** (200 OK):
 
@@ -932,19 +1042,42 @@ GET /api/review/queue
     "submissions": [
       {
         "id": "submission-uuid",
+        "submission_type": "logbook_entry",
         "lat": 49.2827,
         "lon": -123.1207,
-        "note": "Street art submission",
-        "photos": ["photo-url"],
+        "notes": "Street art submission",
+        "photos": ["https://art-photos.abluestar.com/photo.jpg"],
+        "tags": {
+          "artwork_type": "mural",
+          "material": "paint"
+        },
         "user_token": "user-uuid",
+        "email": "user@example.com",
+        "verification_status": "verified",
         "created_at": "2024-01-15T10:30:00Z",
         "nearby_artworks": [
           {
             "id": "artwork-uuid",
             "distance_km": 0.1,
-            "type_name": "Street Art"
+            "title": "Existing Mural",
+            "status": "approved"
           }
         ]
+      },
+      {
+        "id": "edit-submission-uuid",
+        "submission_type": "artwork_edit",
+        "artwork_id": "artwork-uuid",
+        "old_data": {
+          "title": "Old Title",
+          "description": "Basic description"
+        },
+        "new_data": {
+          "title": "Corrected Title", 
+          "description": "Detailed description with historical context"
+        },
+        "user_token": "user-uuid",
+        "created_at": "2024-01-16T14:22:00Z"
       }
     ],
     "pagination": {
@@ -952,6 +1085,16 @@ GET /api/review/queue
       "per_page": 20,
       "total": 15,
       "total_pages": 1
+    },
+    "summary": {
+      "by_type": {
+        "logbook_entry": 8,
+        "artwork_edit": 5,
+        "artist_edit": 2,
+        "new_artwork": 0,
+        "new_artist": 0
+      },
+      "total_pending": 15
     }
   }
 }
@@ -959,13 +1102,13 @@ GET /api/review/queue
 
 #### Approve Submission
 
-Approve a pending submission and create or link to artwork.
+Approve a pending submission and apply changes to target entities.
 
 ```http
 POST /api/review/approve/{submission_id}
 ```
 
-**Authentication**: Required (Reviewer)
+**Authentication**: Required (Moderator or Admin)
 
 **Content-Type**: `application/json`
 
@@ -973,23 +1116,34 @@ POST /api/review/approve/{submission_id}
 
 ```json
 {
-  "action": "create_new_artwork",
-  "artwork_overrides": {
-    "type_id": "public_art",
+  "action": "approve",
+  "reviewer_notes": "Verified location and content",
+  "overrides": {
     "tags": {
       "material": "bronze",
-      "condition": "good"
+      "condition": "excellent"
     }
   }
 }
 ```
 
-**Response** (201 Created):
+**Response** (200 OK):
 
 ```json
 {
   "success": true,
   "data": {
+    "submission_id": "submission-uuid",
+    "status": "approved",
+    "target_entity": {
+      "type": "artwork",
+      "id": "artwork-uuid",
+      "action": "created"
+    },
+    "reviewed_at": "2024-01-16T10:30:00Z"
+  }
+}
+```
     "artwork_id": "artwork-uuid",
     "action_taken": "created_new_artwork",
     "photos_migrated": 2
