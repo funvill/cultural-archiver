@@ -741,8 +741,8 @@ The database schema is reflected in TypeScript types in `src/shared/types.ts`:
 - `CreateSubmissionRequest` - submission creation
 - `AuthStatusResponse` - authentication status
 
-**Legacy Types (Backward Compatibility):**
-- `LogbookRecord` - maintained for existing code
-- `TagRecord` - separate tags table (being phased out)
+**Legacy Types (Removed):**
+- `LogbookRecord` - replaced by `SubmissionRecord`
+- `TagRecord` - replaced by JSON tags in artwork/artist records
 
 All types include proper validation functions and status guards for type safety across the frontend and backend systems.

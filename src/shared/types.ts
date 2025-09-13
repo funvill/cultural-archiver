@@ -38,26 +38,8 @@ export interface ArtworkApiResponse {
   updated_at?: string | null; // For sorting by last updated
 }
 
-export interface LogbookRecord {
-  id: string;
-  artwork_id: string | null;
-  user_token: string;
-  lat: number | null;
-  lon: number | null;
-  note: string | null;
-  photos: string | null; // JSON array of R2 URLs like ["url1", "url2", "url3"]
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
-}
-
-export interface TagRecord {
-  id: string;
-  artwork_id: string | null;
-  logbook_id: string | null;
-  label: string;
-  value: string;
-  created_at: string;
-}
+// Removed obsolete LogbookRecord - replaced by SubmissionRecord in unified schema
+// Removed obsolete TagRecord - tags are now JSON in artwork/artist records
 
 export interface CreatorRecord {
   id: string;
@@ -129,21 +111,8 @@ export interface UpdateArtworkRequest extends Partial<CreateArtworkRequest> {
   status?: ArtworkRecord['status'];
 }
 
-export interface CreateTagRequest {
-  artwork_id?: string;
-  logbook_id?: string;
-  label: string;
-  value: string;
-}
-
-export interface CreateLogbookEntryRequest {
-  artwork_id?: string;
-  user_token: string;
-  lat?: number;
-  lon?: number;
-  note?: string;
-  photos?: string[];
-}
+// Removed obsolete CreateTagRequest - tags are now JSON in artwork/artist records
+// Removed obsolete CreateLogbookEntryRequest - replaced by unified submissions system
 
 export interface CreateCreatorRequest {
   name: string;
@@ -271,21 +240,9 @@ export interface ArtworkEditReviewData {
 // MVP Worker API Types
 // ================================
 
-// Submission Endpoints
-export interface LogbookSubmissionRequest {
-  lat: number;
-  lon: number;
-  note?: string;
-  type?: string;
-  photos?: File[];
-}
+// Removed obsolete LogbookSubmissionRequest - replaced by unified submissions system
 
-export interface LogbookSubmissionResponse {
-  id: string;
-  status: 'pending';
-  message: string;
-  nearby_artworks?: NearbyArtworkInfo[];
-}
+// Removed obsolete LogbookSubmissionResponse - replaced by unified submissions system
 
 export interface NearbyArtworkInfo {
   id: string;
@@ -326,7 +283,7 @@ export interface ArtworkDetailResponse {
   tags: string | null;
   photos: string[]; // Parsed photo URLs
   type_name: string;
-  logbook_entries: LogbookEntryWithPhotos[];
+  submissions: SubmissionRecord[]; // Replaced logbook_entries with unified submissions
   tags_parsed: Record<string, string>;
   creators: ArtworkCreatorInfo[];
   artists: { id: string; name: string; role: string }[]; // Artists from the new artist system
@@ -342,24 +299,17 @@ export interface ArtworkCreatorInfo {
   role: string;
 }
 
-export interface LogbookEntryWithPhotos extends LogbookRecord {
-  photos_parsed: string[];
-}
+// Removed obsolete LogbookEntryWithPhotos - replaced by SubmissionRecord
 
-// User Management Endpoints
+// User Management Endpoints - updated for unified submissions system
 export interface UserSubmissionsResponse {
-  submissions: UserSubmissionInfo[];
+  submissions: SubmissionRecord[]; // Updated to use unified submissions
   total: number;
   page: number;
   per_page: number;
 }
 
-export interface UserSubmissionInfo extends LogbookRecord {
-  artwork_lat?: number;
-  artwork_lon?: number;
-  artwork_type_name?: string;
-  photos_parsed: string[];
-}
+// Removed obsolete UserSubmissionInfo - replaced by SubmissionRecord
 
 // Legacy Authentication Endpoints (deprecated - use types from Authentication System Types section)
 export interface LegacyMagicLinkRequest {
@@ -394,7 +344,7 @@ export interface ReviewSubmissionResponse {
   success: boolean;
   message: string;
   artwork_id?: string;
-  submission_status: LogbookRecord['status'];
+  submission_status: SubmissionRecord['status']; // Updated to use unified submission status
 }
 
 // Rate Limiting Types
@@ -485,8 +435,7 @@ export interface SubmissionResponse {
 }
 
 export interface ArtworkListResponse extends PaginatedResponse<ArtworkRecord> {}
-export interface TagListResponse extends PaginatedResponse<TagRecord> {}
-export interface LogbookListResponse extends PaginatedResponse<LogbookRecord> {}
+// Removed obsolete TagListResponse and LogbookListResponse - replaced by unified submissions system
 
 // Index page response types per PRD
 export interface ArtworkIndexResponse extends IndexPageResponse<ArtworkApiResponse> {}
@@ -506,14 +455,7 @@ export interface ArtworkFilters {
   search?: string;
 }
 
-export interface LogbookFilters {
-  artwork_id?: string;
-  user_token?: string;
-  status?: LogbookRecord['status'];
-  created_after?: string;
-  created_before?: string;
-  search?: string;
-}
+// Removed obsolete LogbookFilters - replaced by unified submission filtering
 
 // ================================
 // EXIF and Metadata Types
@@ -585,7 +527,7 @@ export interface AuditLogRecord {
     | 'photo_uploaded'
     | 'photo_processed'
     | 'batch_processed';
-  entity_type: 'artwork' | 'logbook' | 'user' | 'photo' | 'consent';
+  entity_type: 'artwork' | 'artist' | 'submission' | 'user' | 'photo' | 'consent'; // Updated to use submission instead of logbook
   entity_id: string;
   user_token: string;
   moderator_token?: string;
@@ -808,27 +750,7 @@ export interface MagicLinkRecord {
   is_signup: boolean;
 }
 
-export interface RateLimitRecord {
-  identifier: string;
-  identifier_type: 'email' | 'ip';
-  request_count: number;
-  window_start: string;
-  last_request_at: string;
-  blocked_until: string | null;
-}
-
-export interface AuthSessionRecord {
-  id: string;
-  user_uuid: string;
-  token_hash: string;
-  created_at: string;
-  last_accessed_at: string;
-  expires_at: string | null;
-  ip_address: string | null;
-  user_agent: string | null;
-  is_active: boolean;
-  device_info: string | null;
-}
+// Removed obsolete RateLimitRecord and AuthSessionRecord - replaced by UserActivityRecord in unified schema
 
 // API Request/Response Types
 export interface MagicLinkRequest {
@@ -1026,9 +948,7 @@ export const isValidArtworkStatus = (status: string): status is ArtworkRecord['s
   return ['pending', 'approved', 'removed'].includes(status);
 };
 
-export const isValidLogbookStatus = (status: string): status is LogbookRecord['status'] => {
-  return ['pending', 'approved', 'rejected'].includes(status);
-};
+// Removed obsolete isValidLogbookStatus - replaced by submission status validation
 
 export const isValidSortDirection = (direction: string): direction is SortDirection => {
   return ['asc', 'desc'].includes(direction);
@@ -1039,11 +959,7 @@ export const isValidUserStatus = (status: string): status is UserRecord['status'
   return ['active', 'suspended'].includes(status);
 };
 
-export const isValidRateLimitIdentifierType = (
-  type: string
-): type is RateLimitRecord['identifier_type'] => {
-  return ['email', 'ip'].includes(type);
-};
+// Removed obsolete isValidRateLimitIdentifierType - replaced by UserActivityRecord validation
 
 export const isValidUUID = (uuid: string): boolean => {
   const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -1069,7 +985,7 @@ export const MAX_UPLOAD_SIZE = 10 * 1024 * 1024; // 10MB
 export const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 
 export const ARTWORK_STATUSES = ['pending', 'approved', 'removed'] as const;
-export const LOGBOOK_STATUSES = ['pending', 'approved', 'rejected'] as const;
+// Removed obsolete LOGBOOK_STATUSES - replaced by submission status constants
 
 // Default search radius in meters
 export const DEFAULT_SEARCH_RADIUS = 500;
@@ -1348,13 +1264,40 @@ export interface ListDataDumpsResponse {
 // NEW UNIFIED SCHEMA TYPES
 // ================================
 
+// Submission Record (replaces logbook and artwork_edits)
+export interface SubmissionRecord {
+  id: string;
+  artwork_id: string | null;
+  artist_id: string | null;
+  user_token: string;
+  submission_type: 'new_artwork' | 'artwork_edit' | 'artwork_photos' | 'new_artist' | 'artist_edit';
+  field_changes: string | null; // JSON: {"title": {"old": "...", "new": "..."}}
+  photos: string | null; // JSON array: ["url1", "url2"]
+  note: string | null;
+  lat: number | null;
+  lon: number | null;
+  
+  // Integrated consent tracking
+  consent_version: string;
+  consent_text_hash: string;
+  ip_address: string;
+  user_agent: string | null;
+  
+  // Moderation workflow
+  status: 'pending' | 'approved' | 'rejected';
+  moderator_notes: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null;
+  submitted_at: string;
+}
+
 // User Activity Record (replaces rate_limits and auth_sessions)
 export interface UserActivityRecord {
   id: string;
   identifier: string; // email, IP, or user_token
   identifier_type: 'email' | 'ip' | 'user_token';
   activity_type: 'rate_limit' | 'auth_session' | 'submission';
-  window_start: string; // ISO timestamp for rate limiting windows
+  window_start: string | null; // ISO timestamp for rate limiting windows
   request_count: number;
   session_data: string | null; // JSON string for session metadata
   last_activity_at: string;
@@ -1362,102 +1305,21 @@ export interface UserActivityRecord {
   expires_at: string | null;
 }
 
-// Submission Record (replaces logbook and artwork_edits)
-export interface SubmissionRecord {
-  id: string;
-  submission_type: 'logbook_entry' | 'artwork_edit' | 'artist_edit' | 'new_artwork' | 'new_artist';
-  user_token: string;
-  email: string | null;
-  submitter_name: string | null;
-  artwork_id: string | null;
-  artist_id: string | null;
-  lat: number | null;
-  lon: number | null;
-  notes: string | null;
-  photos: string | null; // JSON array
-  tags: string | null; // JSON object
-  old_data: string | null; // JSON object for edits
-  new_data: string | null; // JSON object for edits
-  verification_status: 'pending' | 'verified' | 'unverified';
-  status: 'pending' | 'approved' | 'rejected';
-  reviewer_token: string | null;
-  review_notes: string | null;
-  reviewed_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
 // User Role Record (new role-based permissions)
 export interface UserRoleRecord {
   id: string;
   user_token: string;
-  role: 'admin' | 'moderator' | 'curator' | 'reviewer';
-  permissions: string; // JSON array of permission strings
+  role: 'admin' | 'moderator' | 'user' | 'banned';
   granted_by: string;
   granted_at: string;
-  expires_at: string | null;
-  revoked_by: string | null;
   revoked_at: string | null;
-  metadata: string | null; // JSON object for additional data
-  status: 'active' | 'revoked' | 'expired';
-  created_at: string;
-  updated_at: string;
-}
-
-// Enhanced Audit Log Record (unified audit trail)
-export interface NewAuditLogRecord {
-  id: string;
-  entity_type: 'artwork' | 'artist' | 'submission' | 'user_activity' | 'user_role';
-  entity_id: string;
-  action: 'create' | 'update' | 'delete' | 'approve' | 'reject' | 'view' | 'export';
-  user_token: string | null;
-  ip_address: string | null;
-  user_agent: string | null;
-  old_data: string | null; // JSON object
-  new_data: string | null; // JSON object
-  metadata: string | null; // JSON object
-  created_at: string;
-}
-
-// Enhanced Artwork Record for new schema
-export interface NewArtworkRecord {
-  id: string;
-  title: string;
-  artist_names: string | null; // Comma-separated or JSON array
-  year_created: number | null;
-  medium: string | null;
-  dimensions: string | null;
-  lat: number;
-  lon: number;
-  address: string | null;
-  neighborhood: string | null;
-  city: string | null;
-  region: string | null;
-  country: string | null;
-  photos: string | null; // JSON array
-  tags: string | null; // JSON object
-  description: string | null;
-  status: 'pending' | 'approved' | 'removed';
-  source_type: 'user_submission' | 'osm_import' | 'manual_entry';
-  source_id: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-// Enhanced Artist Record for new schema
-export interface NewArtistRecord {
-  id: string;
-  name: string;
-  biography: string | null;
-  birth_year: number | null;
-  death_year: number | null;
-  nationality: string | null;
-  website: string | null;
-  social_media: string | null; // JSON object
+  revoked_by: string | null;
+  is_active: boolean;
   notes: string | null;
-  status: 'active' | 'inactive';
-  source_type: 'user_submission' | 'manual_entry';
-  source_id: string | null;
-  created_at: string;
-  updated_at: string;
 }
+
+// ================================
+// LEGACY TYPES (Maintaining for compatibility)
+// ================================
+
+// Removed duplicate and obsolete type definitions - using the unified schema types above

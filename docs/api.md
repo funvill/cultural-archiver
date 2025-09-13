@@ -125,7 +125,7 @@ Each consent record includes:
 
 ### Unified Submission System
 
-The Cultural Archiver uses a unified submission system where all content submissions (logbook entries, artwork edits, artist edits, new artwork/artist submissions) flow through a single `/api/submissions` endpoint. This provides consistent handling, validation, and moderation workflows.
+The Cultural Archiver uses a unified submission system where all content submissions (photo submissions, artwork edits, artist edits, new artwork/artist submissions) flow through a single `/api/submissions` endpoint. This provides consistent handling, validation, and moderation workflows.
 
 #### Submit New Content
 
@@ -142,14 +142,14 @@ POST /api/submissions
 **Parameters**:
 
 - `submission_type` (required): Type of submission
-  - `logbook_entry` - Photo submission for existing or new artwork
+  - `artwork_photos` - Photo submission for existing or new artwork
   - `artwork_edit` - Edit to artwork metadata
   - `artist_edit` - Edit to artist information  
   - `new_artwork` - New artwork submission
   - `new_artist` - New artist profile submission
 - `lat` (required for location-based submissions): Latitude (-90 to 90)
 - `lon` (required for location-based submissions): Longitude (-180 to 180)
-- `artwork_id` (required for artwork_edit/logbook_entry): Target artwork UUID
+- `artwork_id` (required for artwork_edit/artwork_photos): Target artwork UUID
 - `artist_id` (required for artist_edit): Target artist UUID
 - `notes` (optional): Description (max 500 characters)
 - `photos` (optional): Up to 3 image files (15MB each, JPEG/PNG/WebP/GIF)
@@ -166,7 +166,7 @@ POST /api/submissions
   "success": true,
   "data": {
     "submission_id": "uuid-string",
-    "submission_type": "logbook_entry",
+    "submission_type": "artwork_photos",
     "status": "pending",
     "verification_status": "pending",
     "nearby_artworks": [
@@ -182,11 +182,11 @@ POST /api/submissions
 }
 ```
 
-**Example - Logbook Entry**:
+**Example - Photo Submission**:
 
 ```javascript
 const formData = new FormData();
-formData.append('submission_type', 'logbook_entry');
+formData.append('submission_type', 'artwork_photos');
 formData.append('lat', '49.2827');
 formData.append('lon', '-123.1207');
 formData.append('notes', 'Beautiful mural on building wall');
@@ -228,16 +228,6 @@ const response = await fetch('/api/submissions', {
   body: formData,
 });
 ```
-
-#### Legacy Endpoint (Backward Compatibility)
-
-The original logbook endpoint is maintained for backward compatibility:
-
-```http
-POST /api/logbook
-```
-
-This endpoint automatically creates a submission with `submission_type: "logbook_entry"` and forwards to the unified submissions system.
 
 ### Discovery Endpoints
 
@@ -796,7 +786,7 @@ GET /api/me/submissions
 
 - `page` (optional): Page number (default: 1)
 - `per_page` (optional): Items per page (1-100, default: 20)
-- `submission_type` (optional): Filter by type (`logbook_entry`, `artwork_edit`, `artist_edit`, `new_artwork`, `new_artist`)
+- `submission_type` (optional): Filter by type (`artwork_photos`, `artwork_edit`, `artist_edit`, `new_artwork`, `new_artist`)
 - `status` (optional): Filter by status (`pending`, `approved`, `rejected`)
 
 **Response** (200 OK):
@@ -808,7 +798,7 @@ GET /api/me/submissions
     "submissions": [
       {
         "id": "submission-uuid",
-        "submission_type": "logbook_entry",
+        "submission_type": "artwork_photos",
         "lat": 49.2827,
         "lon": -123.1207,
         "notes": "Street art submission",
@@ -846,7 +836,7 @@ GET /api/me/submissions
     },
     "summary": {
       "by_type": {
-        "logbook_entry": 3,
+        "artwork_photos": 3,
         "artwork_edit": 2,
         "artist_edit": 0,
         "new_artwork": 0,
@@ -895,7 +885,7 @@ GET /api/me/profile
       "approved_submissions": 8,
       "pending_submissions": 2,
       "by_type": {
-        "logbook_entry": 8,
+        "artwork_photos": 8,
         "artwork_edit": 3,
         "artist_edit": 1,
         "new_artwork": 0,
@@ -1030,7 +1020,7 @@ GET /api/review/queue
 
 - `page` (optional): Page number (default: 1)
 - `per_page` (optional): Items per page (default: 20)
-- `submission_type` (optional): Filter by type (`logbook_entry`, `artwork_edit`, `artist_edit`, `new_artwork`, `new_artist`)
+- `submission_type` (optional): Filter by type (`artwork_photos`, `artwork_edit`, `artist_edit`, `new_artwork`, `new_artist`)
 - `sort` (optional): Sort order (`created_at`, `priority`) (default: `created_at`)
 
 **Response** (200 OK):
@@ -1042,7 +1032,7 @@ GET /api/review/queue
     "submissions": [
       {
         "id": "submission-uuid",
-        "submission_type": "logbook_entry",
+        "submission_type": "artwork_photos",
         "lat": 49.2827,
         "lon": -123.1207,
         "notes": "Street art submission",
@@ -1088,7 +1078,7 @@ GET /api/review/queue
     },
     "summary": {
       "by_type": {
-        "logbook_entry": 8,
+        "artwork_photos": 8,
         "artwork_edit": 5,
         "artist_edit": 2,
         "new_artwork": 0,
