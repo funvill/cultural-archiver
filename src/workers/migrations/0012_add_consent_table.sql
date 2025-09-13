@@ -29,14 +29,14 @@ CREATE INDEX idx_consent_anonymous_token ON consent(anonymous_token);
 CREATE INDEX idx_consent_version ON consent(consent_version);
 CREATE INDEX idx_consent_created_at ON consent(created_at);
 
+-- Drop the existing consent version indexes first before removing the columns
+DROP INDEX IF EXISTS idx_artwork_consent_version;
+DROP INDEX IF EXISTS idx_logbook_consent_version;
+
 -- Remove consent_version columns from artwork and logbook tables
 -- This centralizes consent tracking in the dedicated consent table
 ALTER TABLE artwork DROP COLUMN consent_version;
 ALTER TABLE logbook DROP COLUMN consent_version;
-
--- Drop the existing consent version indexes since we're removing the columns
-DROP INDEX IF EXISTS idx_artwork_consent_version;
-DROP INDEX IF EXISTS idx_logbook_consent_version;
 
 -- Sample data for testing the consent system
 -- Mass import reserved UUID for system-generated content
