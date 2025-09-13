@@ -47,6 +47,7 @@ export interface ArtworkApiResponse {
   updated_at?: string | null; // For sorting by last updated
 }
 
+// Legacy LogbookRecord - maintained for backward compatibility
 export interface LogbookRecord {
   id: string;
   artwork_id: string | null;
@@ -57,6 +58,100 @@ export interface LogbookRecord {
   photos: string | null; // JSON array of R2 URLs like ["url1", "url2", "url3"]
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
+}
+
+// New Unified Submissions Record - consolidates logbook and artwork_edits functionality
+export interface SubmissionRecord {
+  id: string;
+  user_token: string;
+  submission_type: 'new_artwork' | 'edit_artwork' | 'additional_info';
+  
+  // Location fields (for new_artwork submissions)
+  lat: number | null;
+  lon: number | null;
+  type_id: string | null; // References artwork_types.id
+  
+  // Target reference (for edit_artwork and additional_info submissions)
+  target_artwork_id: string | null; // References artwork.id
+  
+  // Content fields (common to all submission types)
+  note: string | null;
+  photos: string | null; // JSON array of photo URLs: ["url1", "url2"]
+  tags: string | null;    // JSON object for metadata tags
+  title: string | null;
+  description: string | null;
+  created_by: string | null;
+  
+  // Edit-specific data (JSON object with field changes)
+  field_changes: string | null; // JSON: {"field_name": {"old": "old_value", "new": "new_value"}}
+  
+  // Moderation workflow
+  status: 'pending' | 'approved' | 'rejected';
+  moderator_notes: string | null;
+  reviewed_at: string | null;
+  reviewed_by: string | null; // User token/UUID of moderator
+  
+  // Audit trail
+  created_at: string;
+  updated_at: string;
+}
+
+// ================================
+// Submission Utility Types
+// ================================
+
+// Type-specific submission interfaces for better type safety
+export interface NewArtworkSubmission extends Omit<SubmissionRecord, 'submission_type' | 'target_artwork_id' | 'field_changes'> {
+  submission_type: 'new_artwork';
+  lat: number; // Required for new artwork
+  lon: number; // Required for new artwork
+  type_id: string; // Required for new artwork
+  target_artwork_id: null;
+  field_changes: null;
+}
+
+export interface EditArtworkSubmission extends Omit<SubmissionRecord, 'submission_type' | 'lat' | 'lon' | 'type_id'> {
+  submission_type: 'edit_artwork';
+  target_artwork_id: string; // Required for edits
+  field_changes: string; // Required for edits - JSON object
+  lat: null;
+  lon: null;
+  type_id: null;
+}
+
+export interface AdditionalInfoSubmission extends Omit<SubmissionRecord, 'submission_type' | 'field_changes'> {
+  submission_type: 'additional_info';
+  target_artwork_id: string; // Required for additional info
+  field_changes: null;
+}
+
+// Union type for type-safe submission handling
+export type TypedSubmissionRecord = NewArtworkSubmission | EditArtworkSubmission | AdditionalInfoSubmission;
+
+// Submission creation request helpers
+export interface CreateNewArtworkSubmissionRequest {
+  lat: number;
+  lon: number;
+  type_id: string;
+  note?: string;
+  photos?: File[];
+  tags?: Record<string, unknown>;
+  title?: string;
+  description?: string;
+  created_by?: string;
+}
+
+export interface CreateEditArtworkSubmissionRequest {
+  target_artwork_id: string;
+  field_changes: Record<string, { old: string | null; new: string | null }>;
+  note?: string;
+}
+
+export interface CreateAdditionalInfoSubmissionRequest {
+  target_artwork_id: string;
+  note?: string;
+  photos?: File[];
+  tags?: Record<string, unknown>;
 }
 
 export interface TagRecord {
@@ -286,7 +381,7 @@ export interface ArtworkEditReviewData {
 // MVP Worker API Types
 // ================================
 
-// Submission Endpoints
+// Legacy Submission Endpoints (maintained for backward compatibility)
 export interface LogbookSubmissionRequest {
   lat: number;
   lon: number;
@@ -300,6 +395,63 @@ export interface LogbookSubmissionResponse {
   status: 'pending';
   message: string;
   nearby_artworks?: NearbyArtworkInfo[];
+}
+
+// ================================
+// Unified Submissions API Types
+// ================================
+
+// Unified submission request - handles all submission types
+export interface UnifiedSubmissionRequest {
+  submission_type: 'new_artwork' | 'edit_artwork' | 'additional_info';
+  
+  // Required for new_artwork submissions
+  lat?: number;
+  lon?: number;
+  type_id?: string; // artwork type ID
+  
+  // Required for edit_artwork and additional_info submissions  
+  target_artwork_id?: string;
+  
+  // Common fields for all submission types
+  note?: string;
+  photos?: File[];
+  tags?: Record<string, unknown>; // Will be JSON-stringified
+  title?: string;
+  description?: string;
+  created_by?: string;
+  
+  // For edit_artwork submissions
+  field_changes?: Record<string, { old: string | null; new: string | null }>;
+}
+
+export interface UnifiedSubmissionResponse {
+  id: string;
+  submission_type: 'new_artwork' | 'edit_artwork' | 'additional_info';
+  status: 'pending';
+  message: string;
+  nearby_artworks?: NearbyArtworkInfo[]; // For new_artwork submissions
+  target_artwork?: {
+    id: string;
+    title: string | null;
+    location: { lat: number; lon: number };
+  }; // For edit_artwork and additional_info submissions
+}
+
+// Enhanced response for parsed submission data
+export interface SubmissionApiResponse extends SubmissionRecord {
+  photos_parsed: string[]; // Already parsed from JSON
+  tags_parsed: Record<string, unknown>; // Already parsed from JSON
+  field_changes_parsed?: Record<string, { old: string | null; new: string | null }>; // For edit submissions
+}
+
+// List submissions response
+export interface SubmissionsListResponse {
+  submissions: SubmissionApiResponse[];
+  total: number;
+  page: number;
+  per_page: number;
+  has_more: boolean;
 }
 
 export interface NearbyArtworkInfo {
@@ -1048,6 +1200,15 @@ export const isValidLogbookStatus = (status: string): status is LogbookRecord['s
   return ['pending', 'approved', 'rejected'].includes(status);
 };
 
+// Unified submissions validators
+export const isValidSubmissionType = (type: string): type is SubmissionRecord['submission_type'] => {
+  return ['new_artwork', 'edit_artwork', 'additional_info'].includes(type);
+};
+
+export const isValidSubmissionStatus = (status: string): status is SubmissionRecord['status'] => {
+  return ['pending', 'approved', 'rejected'].includes(status);
+};
+
 export const isValidArtworkType = (type: string): type is ArtworkTypeRecord['name'] => {
   return ['public_art', 'street_art', 'monument', 'sculpture', 'other'].includes(type);
 };
@@ -1092,6 +1253,10 @@ export const SUPPORTED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp'] a
 
 export const ARTWORK_STATUSES = ['pending', 'approved', 'removed'] as const;
 export const LOGBOOK_STATUSES = ['pending', 'approved', 'rejected'] as const;
+
+// Unified submissions constants
+export const SUBMISSION_TYPES = ['new_artwork', 'edit_artwork', 'additional_info'] as const;
+export const SUBMISSION_STATUSES = ['pending', 'approved', 'rejected'] as const;
 export const ARTWORK_TYPES = [
   'public_art',
   'street_art',
