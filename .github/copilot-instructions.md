@@ -92,7 +92,7 @@
 - Return consistent error responses with descriptive messages
 - Rate limit submissions (10/day per user token, 60/hour for lookups)
 - Validate coordinates and enforce character limits (500 for notes)
-- Implement pagination for large datasets (logbook entries: 10 per page)
+- Implement pagination for large datasets (submissions: 10 per page)
 
 ### Backend Development Patterns
 
@@ -212,28 +212,29 @@ npm run database:status:staging # Check migration status for staging
 
 **Example Migration File:**
 ```sql
--- Migration: Add artwork tagging system
+-- Migration: Add user roles system
 -- Date: 2025-09-07
--- Description: Creates tags table for flexible artwork categorization
+-- Description: Creates user_roles table for role-based permissions
 
-CREATE TABLE tags (
+CREATE TABLE user_roles (
     id TEXT PRIMARY KEY,
-    artwork_id TEXT,
-    logbook_id TEXT,
-    label TEXT NOT NULL,
-    value TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    FOREIGN KEY (artwork_id) REFERENCES artwork(id) ON DELETE CASCADE,
-    FOREIGN KEY (logbook_id) REFERENCES logbook(id) ON DELETE CASCADE
+    user_token TEXT NOT NULL,
+    role TEXT NOT NULL CHECK (role IN ('admin', 'moderator', 'user', 'banned')),
+    granted_by TEXT NOT NULL,
+    granted_at TEXT NOT NULL DEFAULT (datetime('now')),
+    revoked_at TEXT,
+    revoked_by TEXT,
+    is_active INTEGER NOT NULL DEFAULT 1,
+    notes TEXT,
+    UNIQUE(user_token, role)
 );
 
-CREATE INDEX idx_tags_artwork_id ON tags(artwork_id);
-CREATE INDEX idx_tags_logbook_id ON tags(logbook_id);
-CREATE INDEX idx_tags_label ON tags(label);
+CREATE INDEX IF NOT EXISTS idx_user_roles_user_token ON user_roles(user_token) WHERE is_active = 1;
+CREATE INDEX IF NOT EXISTS idx_user_roles_role ON user_roles(role) WHERE is_active = 1;
 
 -- Sample data for testing
-INSERT INTO tags (id, artwork_id, label, value) 
-VALUES ('sample-tag-1', 'SAMPLE-artwork-approved-1', 'material', 'bronze');
+INSERT INTO user_roles (id, user_token, role, granted_by) 
+VALUES ('sample-role-1', 'sample-user-token-1', 'moderator', 'system');
 ```
 
 ### Backup and Recovery
