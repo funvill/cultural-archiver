@@ -1083,3 +1083,243 @@ export function getValidatedTags(c: Context): StructuredTags | undefined {
 export function getTagWarnings(c: Context): Array<{ key: string; message: string }> {
   return c.get('tag_warnings') || [];
 }
+
+/**
+ * Validate unified submission form data and files
+ * Handles new_artwork, edit_artwork, and additional_info submission types
+ */
+export async function validateUnifiedSubmissionFormData(
+  c: Context<{ Bindings: WorkerEnv }>,
+  next: Next
+): Promise<void | Response> {
+  try {
+    const contentType = c.req.header('Content-Type');
+    
+    if (!contentType?.includes('multipart/form-data')) {
+      throw new ValidationApiError([
+        {
+          field: 'content-type',
+          message: 'Unified submissions must use multipart/form-data',
+          code: 'UNSUPPORTED_CONTENT_TYPE',
+        },
+      ]);
+    }
+
+    // Parse form data
+    const formData = await c.req.formData();
+    const validationErrors = [];
+    
+    // Validate submission type (required)
+    const submissionType = formData.get('submission_type') as string;
+    if (!submissionType) {
+      validationErrors.push({
+        field: 'submission_type',
+        message: 'Submission type is required',
+        code: 'REQUIRED',
+      });
+    } else if (!['new_artwork', 'edit_artwork', 'additional_info'].includes(submissionType)) {
+      validationErrors.push({
+        field: 'submission_type',
+        message: 'Must be one of: new_artwork, edit_artwork, additional_info',
+        code: 'INVALID_ENUM',
+      });
+    }
+
+    // Type-specific validations
+    if (submissionType === 'new_artwork') {
+      // Validate location fields for new artwork
+      const latValue = formData.get('lat') as string;
+      const lonValue = formData.get('lon') as string;
+      const typeId = formData.get('type_id') as string;
+
+      if (!latValue) {
+        validationErrors.push({
+          field: 'lat',
+          message: 'Latitude is required for new artwork submissions',
+          code: 'REQUIRED',
+        });
+      } else {
+        const lat = parseFloat(latValue);
+        if (isNaN(lat) || !isValidLatitude(lat)) {
+          validationErrors.push({
+            field: 'lat',
+            message: 'Valid latitude between -90 and 90 is required',
+            code: 'INVALID',
+          });
+        }
+      }
+
+      if (!lonValue) {
+        validationErrors.push({
+          field: 'lon',
+          message: 'Longitude is required for new artwork submissions',
+          code: 'REQUIRED',
+        });
+      } else {
+        const lon = parseFloat(lonValue);
+        if (isNaN(lon) || !isValidLongitude(lon)) {
+          validationErrors.push({
+            field: 'lon',
+            message: 'Valid longitude between -180 and 180 is required',
+            code: 'INVALID',
+          });
+        }
+      }
+
+      if (!typeId) {
+        validationErrors.push({
+          field: 'type_id',
+          message: 'Artwork type is required for new artwork submissions',
+          code: 'REQUIRED',
+        });
+      }
+    } else if (submissionType === 'edit_artwork') {
+      // Validate target artwork and field changes for edits
+      const targetArtworkId = formData.get('target_artwork_id') as string;
+      const fieldChangesStr = formData.get('field_changes') as string;
+
+      if (!targetArtworkId) {
+        validationErrors.push({
+          field: 'target_artwork_id',
+          message: 'Target artwork ID is required for edit submissions',
+          code: 'REQUIRED',
+        });
+      }
+
+      if (!fieldChangesStr) {
+        validationErrors.push({
+          field: 'field_changes',
+          message: 'Field changes are required for edit submissions',
+          code: 'REQUIRED',
+        });
+      } else {
+        try {
+          const fieldChanges = JSON.parse(fieldChangesStr);
+          if (!fieldChanges || typeof fieldChanges !== 'object') {
+            throw new Error('Field changes must be a valid object');
+          }
+        } catch (error) {
+          validationErrors.push({
+            field: 'field_changes',
+            message: 'Field changes must be valid JSON object',
+            code: 'INVALID_FORMAT',
+          });
+        }
+      }
+    } else if (submissionType === 'additional_info') {
+      // Validate target artwork for additional info
+      const targetArtworkId = formData.get('target_artwork_id') as string;
+
+      if (!targetArtworkId) {
+        validationErrors.push({
+          field: 'target_artwork_id',
+          message: 'Target artwork ID is required for additional info submissions',
+          code: 'REQUIRED',
+        });
+      }
+    }
+
+    // Validate optional fields
+    const note = formData.get('note') as string;
+    if (note && note.length > 500) {
+      validationErrors.push({
+        field: 'note',
+        message: 'Note cannot exceed 500 characters',
+        code: 'MAX_LENGTH',
+      });
+    }
+
+    const title = formData.get('title') as string;
+    if (title && title.length > 200) {
+      validationErrors.push({
+        field: 'title',
+        message: 'Title cannot exceed 200 characters',
+        code: 'MAX_LENGTH',
+      });
+    }
+
+    const description = formData.get('description') as string;
+    if (description && description.length > 1000) {
+      validationErrors.push({
+        field: 'description',
+        message: 'Description cannot exceed 1000 characters',
+        code: 'MAX_LENGTH',
+      });
+    }
+
+    // Validate tags if provided
+    const tagsStr = formData.get('tags') as string;
+    if (tagsStr) {
+      try {
+        const tags = JSON.parse(tagsStr);
+        if (tags && typeof tags !== 'object') {
+          throw new Error('Tags must be a valid object');
+        }
+      } catch (error) {
+        validationErrors.push({
+          field: 'tags',
+          message: 'Tags must be valid JSON object',
+          code: 'INVALID_FORMAT',
+        });
+      }
+    }
+
+    // Validate files (photos)
+    const photoFiles: File[] = [];
+    for (const [key, value] of formData.entries()) {
+      if (key.startsWith('photo') && value instanceof File) {
+        photoFiles.push(value);
+      }
+    }
+
+    if (photoFiles.length > MAX_PHOTOS_PER_SUBMISSION) {
+      validationErrors.push({
+        field: 'photos',
+        message: `Cannot upload more than ${MAX_PHOTOS_PER_SUBMISSION} photos`,
+        code: 'MAX_FILES',
+      });
+    }
+
+    // Validate photo files if present
+    if (photoFiles.length > 0) {
+      for (let i = 0; i < photoFiles.length; i++) {
+        const file = photoFiles[i];
+        
+        // Check file size (15MB max)
+        if (file.size > 15 * 1024 * 1024) {
+          validationErrors.push({
+            field: `photo_${i}`,
+            message: 'Photo size cannot exceed 15MB',
+            code: 'FILE_SIZE',
+          });
+        }
+
+        // Check file type
+        if (!file.type.startsWith('image/')) {
+          validationErrors.push({
+            field: `photo_${i}`,
+            message: 'File must be an image',
+            code: 'FILE_TYPE',
+          });
+        }
+      }
+    }
+
+    if (validationErrors.length > 0) {
+      throw new ValidationApiError(validationErrors);
+    }
+
+    // Store validated files in context
+    c.set('validated_files', photoFiles);
+
+    await next();
+  } catch (error) {
+    if (error instanceof ValidationApiError) {
+      throw error;
+    }
+    console.error('Unified submission validation error:', error);
+    throw new ValidationApiError([
+      { field: 'form', message: 'Unified submission validation failed', code: 'VALIDATION_ERROR' },
+    ]);
+  }
+}

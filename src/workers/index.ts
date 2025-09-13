@@ -30,11 +30,17 @@ import {
   validateCheckSimilarity,
   artworkListSchema,
   artistListSchema,
+  validateUnifiedSubmissionFormData,
 } from './middleware/validation';
 import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
 // Import route handlers
 import { createLogbookSubmission, createFastArtworkSubmission } from './routes/submissions';
+import { 
+  createUnifiedSubmission, 
+  getSubmissionsList, 
+  getSubmissionById 
+} from './routes/unified-submissions';
 import {
   getNearbyArtworks,
   getArtworkDetails,
@@ -414,6 +420,9 @@ app.get('/health', async c => {
       'GET /test',
       'GET /api/status',
       'POST /api/logbook',
+      'POST /api/submissions',
+      'GET /api/submissions',
+      'GET /api/submissions/:id',
       'GET /api/artworks/nearby',
       'GET /api/artworks/bounds',
       'GET /api/artworks/:id',
@@ -695,6 +704,40 @@ app.post(
   validateFastArtworkSubmission,
   addUserTokenToResponse,
   withErrorHandling(createFastArtworkSubmission)
+);
+
+// ================================
+// Unified Submissions Endpoints
+// ================================
+
+// POST /api/submissions - Create unified submission (new_artwork, edit_artwork, additional_info)
+app.post(
+  '/api/submissions',
+  ensureUserToken,
+  checkEmailVerification,
+  rateLimitSubmissions,
+  validateFileUploads,
+  validateUnifiedSubmissionFormData,
+  addUserTokenToResponse,
+  withErrorHandling(createUnifiedSubmission)
+);
+
+// GET /api/submissions - List submissions with filtering
+app.get(
+  '/api/submissions',
+  ensureUserToken,
+  rateLimitQueries,
+  addUserTokenToResponse,
+  withErrorHandling(getSubmissionsList)
+);
+
+// GET /api/submissions/:id - Get single submission by ID
+app.get(
+  '/api/submissions/:id',
+  ensureUserToken,
+  validateUUID('id'),
+  addUserTokenToResponse,
+  withErrorHandling(getSubmissionById)
 );
 
 // ================================
@@ -1046,6 +1089,9 @@ app.notFound(c => {
       available_endpoints: [
         'GET /photos/*',
         'POST /api/logbook',
+        'POST /api/submissions',
+        'GET /api/submissions',
+        'GET /api/submissions/:id',
         'GET /api/artworks/nearby',
         'GET /api/artworks/:id',
         'POST /api/artwork/:id/edit',
