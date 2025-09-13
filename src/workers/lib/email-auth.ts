@@ -403,7 +403,7 @@ export async function requestMagicLink(
 
     // Count anonymous submissions for this UUID
     const submissionsStmt = env.DB.prepare(`
-      SELECT COUNT(*) as count FROM logbook WHERE user_token = ?
+      SELECT COUNT(*) as count FROM submissions WHERE user_token = ?
     `);
     const submissionsResult = await submissionsStmt.bind(anonymousUUID).first();
     const anonymousSubmissions = (submissionsResult as { count: number } | null)?.count || 0;

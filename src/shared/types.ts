@@ -1343,3 +1343,121 @@ export interface ListDataDumpsResponse {
   };
   error?: string;
 }
+
+// ================================
+// NEW UNIFIED SCHEMA TYPES
+// ================================
+
+// User Activity Record (replaces rate_limits and auth_sessions)
+export interface UserActivityRecord {
+  id: string;
+  identifier: string; // email, IP, or user_token
+  identifier_type: 'email' | 'ip' | 'user_token';
+  activity_type: 'rate_limit' | 'auth_session' | 'submission';
+  window_start: string; // ISO timestamp for rate limiting windows
+  request_count: number;
+  session_data: string | null; // JSON string for session metadata
+  last_activity_at: string;
+  created_at: string;
+  expires_at: string | null;
+}
+
+// Submission Record (replaces logbook and artwork_edits)
+export interface SubmissionRecord {
+  id: string;
+  submission_type: 'logbook_entry' | 'artwork_edit' | 'artist_edit' | 'new_artwork' | 'new_artist';
+  user_token: string;
+  email: string | null;
+  submitter_name: string | null;
+  artwork_id: string | null;
+  artist_id: string | null;
+  lat: number | null;
+  lon: number | null;
+  notes: string | null;
+  photos: string | null; // JSON array
+  tags: string | null; // JSON object
+  old_data: string | null; // JSON object for edits
+  new_data: string | null; // JSON object for edits
+  verification_status: 'pending' | 'verified' | 'unverified';
+  status: 'pending' | 'approved' | 'rejected';
+  reviewer_token: string | null;
+  review_notes: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// User Role Record (new role-based permissions)
+export interface UserRoleRecord {
+  id: string;
+  user_token: string;
+  role: 'admin' | 'moderator' | 'curator' | 'reviewer';
+  permissions: string; // JSON array of permission strings
+  granted_by: string;
+  granted_at: string;
+  expires_at: string | null;
+  revoked_by: string | null;
+  revoked_at: string | null;
+  metadata: string | null; // JSON object for additional data
+  status: 'active' | 'revoked' | 'expired';
+  created_at: string;
+  updated_at: string;
+}
+
+// Enhanced Audit Log Record (unified audit trail)
+export interface NewAuditLogRecord {
+  id: string;
+  entity_type: 'artwork' | 'artist' | 'submission' | 'user_activity' | 'user_role';
+  entity_id: string;
+  action: 'create' | 'update' | 'delete' | 'approve' | 'reject' | 'view' | 'export';
+  user_token: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+  old_data: string | null; // JSON object
+  new_data: string | null; // JSON object
+  metadata: string | null; // JSON object
+  created_at: string;
+}
+
+// Enhanced Artwork Record for new schema
+export interface NewArtworkRecord {
+  id: string;
+  title: string;
+  artist_names: string | null; // Comma-separated or JSON array
+  year_created: number | null;
+  medium: string | null;
+  dimensions: string | null;
+  lat: number;
+  lon: number;
+  address: string | null;
+  neighborhood: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  photos: string | null; // JSON array
+  tags: string | null; // JSON object
+  description: string | null;
+  status: 'pending' | 'approved' | 'removed';
+  source_type: 'user_submission' | 'osm_import' | 'manual_entry';
+  source_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Enhanced Artist Record for new schema
+export interface NewArtistRecord {
+  id: string;
+  name: string;
+  biography: string | null;
+  birth_year: number | null;
+  death_year: number | null;
+  nationality: string | null;
+  website: string | null;
+  social_media: string | null; // JSON object
+  notes: string | null;
+  status: 'active' | 'inactive';
+  source_type: 'user_submission' | 'manual_entry';
+  source_id: string | null;
+  created_at: string;
+  updated_at: string;
+}

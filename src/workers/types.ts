@@ -20,7 +20,6 @@ export interface ArtworkRecord {
   id: string;
   lat: number;
   lon: number;
-  type_id: string;
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null; // JSON object for key-value metadata like {"material": "bronze", "style": "modern"}
@@ -73,7 +72,6 @@ export interface ArtworkCreatorRecord {
 export interface CreateArtworkRequest {
   lat: number;
   lon: number;
-  type_id: string;
   tags?: Record<string, unknown>;
   status?: ArtworkRecord['status'];
   title?: string;
@@ -141,8 +139,7 @@ export interface FastArtworkSubmissionRequest {
   
   // Artwork data
   title: string; // Required for new artworks
-  type_id?: string; // Optional, defaults to 'public_art'
-  tags?: Record<string, string | number>; // Structured tags
+  tags?: Record<string, string | number>; // Structured tags (includes artwork_type)
   
   // Submission metadata
   note?: string;
@@ -207,7 +204,6 @@ export interface ArtworkDetailResponse {
   id: string;
   lat: number;
   lon: number;
-  type_id: string;
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null;
@@ -320,7 +316,7 @@ export interface LogbookListResponse extends PaginatedResponse<LogbookRecord> {}
 // ================================
 
 export interface ArtworkFilters {
-  type_id?: string;
+  artwork_type?: string; // Filter by artwork type tag value
   status?: ArtworkRecord['status'];
   lat?: number;
   lon?: number;

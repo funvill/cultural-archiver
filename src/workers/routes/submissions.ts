@@ -289,9 +289,9 @@ export async function checkDuplicateSubmission(
 
   try {
     const stmt = db.prepare(`
-      SELECT COUNT(*) as count FROM logbook 
+      SELECT COUNT(*) as count FROM submissions 
       WHERE user_token = ? 
-        AND created_at > ?
+        AND submitted_at > ?
         AND ABS(49.2827 - ?) < 0.001 -- Rough coordinate check within ~100m
         AND ABS(-123.1207 - ?) < 0.001
     `);
@@ -348,8 +348,8 @@ export async function getUserSubmissionStats(
         COUNT(*) as total_submissions,
         SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_submissions,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_submissions,
-        MAX(created_at) as last_submission_at
-      FROM logbook 
+        MAX(submitted_at) as last_submission_at
+      FROM submissions 
       WHERE user_token = ? AND status != 'rejected'
     `);
 

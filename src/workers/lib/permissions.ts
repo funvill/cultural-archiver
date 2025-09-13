@@ -47,23 +47,23 @@ export async function hasPermission(
 
     // Query database
     const stmt = db.prepare(`
-      SELECT permission, granted_at, granted_by
+      SELECT permission_type, granted_at, granted_by
       FROM user_permissions
-      WHERE user_uuid = ? AND permission = ? AND is_active = 1
+      WHERE user_id = ? AND permission_type = ?
       LIMIT 1
     `);
 
     const result = (await stmt.bind(userUuid, permission).first()) as
-      | { permission: string; granted_at?: string; granted_by?: string }
+      | { permission_type: string; granted_at?: string; granted_by?: string }
       | null;
 
-    if (result && typeof result.permission === 'string') {
+    if (result && typeof result.permission_type === 'string') {
       // Update cache
-      updatePermissionCache(userUuid, [result.permission as Permission]);
+      updatePermissionCache(userUuid, [result.permission_type as Permission]);
 
       return {
         hasPermission: true,
-        permission: result.permission as Permission,
+        permission: result.permission_type as Permission,
         grantedAt: result.granted_at as string,
         grantedBy: result.granted_by as string,
       };
@@ -98,11 +98,11 @@ export async function hasAnyPermission(
     // Query database
     const placeholders = permissions.map(() => '?').join(',');
     const stmt = db.prepare(`
-      SELECT permission, granted_at, granted_by
+      SELECT permission_type, granted_at, granted_by
       FROM user_permissions
-      WHERE user_uuid = ? AND permission IN (${placeholders}) AND is_active = 1
+      WHERE user_id = ? AND permission_type IN (${placeholders})
       ORDER BY 
-        CASE permission 
+        CASE permission_type 
           WHEN 'admin' THEN 1 
           WHEN 'moderator' THEN 2 
           ELSE 3 
@@ -111,16 +111,16 @@ export async function hasAnyPermission(
     `);
 
     const result = (await stmt.bind(userUuid, ...permissions).first()) as
-      | { permission: string; granted_at?: string; granted_by?: string }
+      | { permission_type: string; granted_at?: string; granted_by?: string }
       | null;
 
-    if (result && typeof result.permission === 'string') {
+    if (result && typeof result.permission_type === 'string') {
       // Update cache with found permission
-      updatePermissionCache(userUuid, [result.permission as Permission]);
+      updatePermissionCache(userUuid, [result.permission_type as Permission]);
 
       return {
         hasPermission: true,
-        permission: result.permission as Permission,
+        permission: result.permission_type as Permission,
         grantedAt: result.granted_at as string,
         grantedBy: result.granted_by as string,
       };

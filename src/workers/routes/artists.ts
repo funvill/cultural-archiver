@@ -62,8 +62,8 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
     if (validatedQuery.search) {
       // Search query
       query = `
-        SELECT id, name, description, tags, status, created_at, updated_at,
-               (SELECT COUNT(*) FROM artwork_artists aa WHERE aa.artist_id = artists.id) as artwork_count
+        SELECT id, name, bio as description, tags, status, created_at, updated_at,
+               (SELECT COUNT(*) FROM artwork WHERE artist_names LIKE '%"' || artists.name || '"%' AND status = 'approved') as artwork_count
         FROM artists
         WHERE status = ? AND name LIKE ?
         ORDER BY name ASC
@@ -73,8 +73,8 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
     } else {
       // Standard listing
       query = `
-        SELECT id, name, description, tags, status, created_at, updated_at,
-               (SELECT COUNT(*) FROM artwork_artists aa WHERE aa.artist_id = artists.id) as artwork_count
+        SELECT id, name, bio as description, tags, status, created_at, updated_at,
+               (SELECT COUNT(*) FROM artwork WHERE artist_names LIKE '%"' || artists.name || '"%' AND status = 'approved') as artwork_count
         FROM artists
         WHERE status = ?
         ORDER BY name ASC
@@ -151,7 +151,7 @@ export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Pro
 
     // Get artist details
     const artistStmt = db.db.prepare(`
-      SELECT id, name, description, tags, status, created_at, updated_at
+      SELECT id, name, bio as description, tags, status, created_at, updated_at
       FROM artists
       WHERE id = ?
     `);
@@ -163,17 +163,14 @@ export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Pro
 
     // Get artist's artworks
     const artworksStmt = db.db.prepare(`
-      SELECT a.id, a.title, a.lat, a.lon, a.type_id, a.created_at, a.status, a.tags,
-             at.name as type_name,
-             (SELECT photos FROM logbook WHERE artwork_id = a.id ORDER BY created_at DESC LIMIT 1) as recent_photos,
-             (SELECT COUNT(*) FROM logbook WHERE artwork_id = a.id) as photo_count
+      SELECT a.id, a.title, a.lat, a.lon, a.created_at, a.status, a.tags,
+             (SELECT photos FROM submissions WHERE artwork_id = a.id AND submission_type = 'logbook' ORDER BY submitted_at DESC LIMIT 1) as recent_photos,
+             (SELECT COUNT(*) FROM submissions WHERE artwork_id = a.id AND submission_type = 'logbook') as photo_count
       FROM artwork a
-      JOIN artwork_artists aa ON a.id = aa.artwork_id
-      LEFT JOIN artwork_types at ON a.type_id = at.id
-      WHERE aa.artist_id = ? AND a.status = 'approved'
+      WHERE artist_names LIKE '%"' || ? || '"%' AND a.status = 'approved'
       ORDER BY a.created_at DESC
     `);
-    const artworks = await artworksStmt.bind(artistId).all();
+    const artworks = await artworksStmt.bind(artist.name).all();
 
     interface ArtworkWithTypeAndPhotos {
       id: string;

@@ -228,7 +228,7 @@ curl -X DELETE http://localhost:8787/debug/rate-limits/your-token
 # Get nearby artworks
 curl "http://localhost:8787/api/artworks/nearby?lat=49.2827&lon=-123.1207&radius=1000"
 
-# Submit new artwork
+# Submit new artwork (legacy endpoint - backward compatible)
 curl -X POST http://localhost:8787/api/logbook \
   -H "Authorization: Bearer test-user-uuid" \
   -F "lat=49.2827" \
@@ -259,6 +259,13 @@ Import the collection from `postman-collection.json` in the repository root. It 
 2. Apply manually to your development database
 3. Test with existing data
 4. Update TypeScript types in `src/shared/types.ts`
+
+**Current Schema Status:**
+
+- The system now uses a unified `submissions` table for all user submissions
+- Legacy `logbook` table is maintained for backward compatibility
+- All new submissions are stored in the `submissions` table with `submission_type` field
+- See `docs/database.md` for complete schema documentation
 
 ### Sample Data
 

@@ -135,6 +135,8 @@ const logbookEntry = await createLogbookEntry({
 - **Consent Text**: `"Cultural Archiver Consent v{version} - Logbook Submission"`
 - **Hash Example**: `8aefe787f867b56c485d537ea1d339790a6197f33a2c38af57829ad67fd1a1e6`
 
+**Note**: Logbook submissions are now stored in the unified `submissions` table with `submission_type = 'logbook_entry'`. The consent system continues to work with the legacy `/api/logbook` endpoint for backward compatibility.
+
 ### Artwork Submissions
 
 - **Content Type**: `"artwork"`  

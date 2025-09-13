@@ -24,6 +24,12 @@ import { createSimilarityService } from '../lib/similarity';
 import { categorizeTagsForDisplay } from '../lib/artwork-edits';
 import type { SimilarityQuery } from '../../shared/similarity';
 
+// Import new database patch for submissions compatibility
+import { 
+  getLogbookEntriesForArtworkFromSubmissions,
+  getAllLogbookEntriesForArtworkFromSubmissions 
+} from '../lib/database-patch.js';
+
 // Database result interfaces
 interface ArtworkStatsResult {
   total_artworks: number;
@@ -83,8 +89,8 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
     // Format response with photos and additional info
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       artworks.map(async artwork => {
-        // Get logbook entries for this artwork to find photos
-        const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
+        // Get logbook entries for this artwork to find photos - UPDATED: using submissions
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
 
         // Extract photos from logbook entries
         const combinedPhotos: string[] = [];
@@ -250,8 +256,8 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
     // Get artists for this artwork (from new artist system)
     const artists = await db.getArtistsForArtwork(artworkId);
 
-    // Get logbook entries for timeline with pagination
-    const logbookEntries = await db.getLogbookEntriesForArtwork(artworkId, perPage, offset);
+    // Get logbook entries for timeline with pagination - UPDATED: using submissions
+    const logbookEntries = await getLogbookEntriesForArtworkFromSubmissions(c.env.DB, artworkId, perPage, offset);
 
     // Format logbook entries with parsed photos
     const logbookEntriesWithPhotos: LogbookEntryWithPhotos[] = logbookEntries.map(entry => ({
@@ -361,8 +367,9 @@ export async function getArtworkStats(db: D1Database): Promise<{
     const submissionStmt = db.prepare(`
       SELECT 
         COUNT(*) as total_submissions,
-        SUM(CASE WHEN created_at > datetime('now', '-7 days') THEN 1 ELSE 0 END) as recent_submissions
-      FROM logbook
+        SUM(CASE WHEN submitted_at > datetime('now', '-7 days') THEN 1 ELSE 0 END) as recent_submissions
+      FROM submissions
+      WHERE submission_type = 'logbook'
     `);
 
     const [artworkResult, submissionResult] = await Promise.all([
@@ -424,7 +431,7 @@ export async function searchArtworks(
     // Format results similar to nearby artworks
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       (results.results as unknown as ArtworkWithPhotos[]).map(async artwork => {
-        const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
 
         const allPhotos: string[] = [];
         logbookEntries.forEach(entry => {
@@ -476,7 +483,7 @@ export async function getPopularArtworks(
     // Format results
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       (results.results as unknown as ArtworkWithPhotos[]).map(async artwork => {
-        const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
 
         const allPhotos: string[] = [];
         logbookEntries.forEach(entry => {
@@ -527,7 +534,7 @@ export async function getRecentArtworks(
     // Format results
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       (results.results as unknown as ArtworkWithPhotos[]).map(async artwork => {
-        const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
 
         const allPhotos: string[] = [];
         logbookEntries.forEach(entry => {
@@ -580,7 +587,7 @@ export async function getArtworksInBounds(c: Context<{ Bindings: WorkerEnv }>): 
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       artworks.map(async (artwork: ArtworkRecord & { type_name: string; distance_km: number }) => {
         // Get logbook entries for this artwork to find photos
-        const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
 
         // Extract photos from logbook entries
         const allPhotos: string[] = [];
@@ -685,7 +692,7 @@ export async function checkArtworkSimilarity(c: Context<{ Bindings: WorkerEnv }>
     // Format candidates with photos for display
     const candidatesWithPhotos = await Promise.all(
       candidates.slice(0, 5).map(async artwork => { // Limit to top 5 for performance
-        const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
         const allPhotos: string[] = [];
         
         logbookEntries.forEach(entry => {
@@ -853,7 +860,7 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
     let orderClause = '';
     switch (sort) {
       case 'title_asc':
-        orderClause = 'ORDER BY COALESCE(a.title, at.name) ASC, a.created_at DESC';
+        orderClause = 'ORDER BY COALESCE(a.title, json_extract(a.tags, \'$.artwork_type\'), \'unknown\') ASC, a.created_at DESC';
         break;
       case 'created_desc':
         orderClause = 'ORDER BY a.created_at DESC';
@@ -887,10 +894,9 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
     // Get artworks with type information
     const artworksQuery = `
       SELECT a.id, a.lat, a.lon, a.created_at, a.status, a.tags, 
-             a.title, a.description, a.created_by,
-             COALESCE(type_tag.value, 'unknown') as type_name
+             a.title, a.description, a.artist_names,
+             COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name
       FROM artwork a
-      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
       WHERE a.status = 'approved'
       ${orderClause}
       LIMIT ? OFFSET ?
@@ -902,9 +908,9 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
 
     // Get photos for each artwork
     const artworksWithPhotos = await Promise.all(
-      (artworks.results as unknown as (ArtworkRecord & { type_name?: string })[] || []).map(async (artwork) => {
+      (artworks.results as unknown as (ArtworkRecord & { type_name?: string; artist_names?: string })[] || []).map(async (artwork) => {
         // Get logbook entries for this artwork to find photos
-        const logbookEntries = await db.getLogbookEntriesForArtwork(artwork.id);
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
         const allPhotos: string[] = [];
         
         logbookEntries.forEach(entry => {
@@ -914,14 +920,24 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
           }
         });
 
-        // Get primary artist name from tags or created_by field
-        let artistName = artwork.created_by || 'Unknown Artist';
-        if (artwork.tags) {
+        // Get primary artist name from artist_names or tags
+        let artistName = 'Unknown Artist';
+        
+        // First try the artist_names JSON array
+        if (artwork.artist_names) {
+          const artistNames = safeJsonParse<string[]>(artwork.artist_names, []);
+          if (artistNames.length > 0 && artistNames[0]) {
+            artistName = artistNames[0]; // Use first artist
+          }
+        }
+        
+        // Fallback to tags
+        if (artistName === 'Unknown Artist' && artwork.tags) {
           const tags = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
           if (tags.artist_name && typeof tags.artist_name === 'string') {
             artistName = tags.artist_name;
-          } else if (tags.created_by && typeof tags.created_by === 'string') {
-            artistName = tags.created_by;
+          } else if (tags.artist && typeof tags.artist === 'string') {
+            artistName = tags.artist;
           }
         }
 
@@ -934,7 +950,7 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
           tags: artwork.tags,
           title: artwork.title,
           description: artwork.description,
-          created_by: artwork.created_by,
+          artist_names: artwork.artist_names,
           type_name: artwork.type_name,
           photos: allPhotos,
           tags_parsed: safeJsonParse(artwork.tags, {}),

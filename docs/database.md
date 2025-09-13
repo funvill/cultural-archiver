@@ -9,6 +9,7 @@ The Cultural Archiver uses a **production-ready SQLite database** (Cloudflare D1
 - **✅ Migration Tracking**: Automated tracking via `d1_migrations` table  
 - **✅ Version Control**: Sequential numbering system (0001-0006) for schema evolution
 - **✅ CLI Tools**: PowerShell-compatible commands for database management
+- **🆕 NEW: Unified Submissions Schema**: Transitioned from legacy logbook table to unified submissions table with backward compatibility
 
 ### **🎯 Fast Photo Workflow Support**  
 - **✅ Spatial Indexing**: Optimized for ±0.0045 degrees (~500m) similarity queries
@@ -386,7 +387,72 @@ Each field change is stored as a separate row with old/new values, enabling:
 - Future extensibility for new editable fields
 - Complete audit trail of all changes
 
-### logbook
+### submissions
+
+**NEW UNIFIED TABLE**: Unified submission system replacing legacy logbook and artwork_edits tables.
+
+| Field               | Type | Constraints                                                     | Description                                         |
+| ------------------- | ---- | --------------------------------------------------------------- | --------------------------------------------------- |
+| `id`                | TEXT | PRIMARY KEY                                                     | Unique identifier                                   |
+| `submission_type`   | TEXT | CHECK('logbook_entry','artwork_edit','artist_edit','new_artwork','new_artist') | Type of submission                                  |
+| `user_token`        | TEXT | NOT NULL                                                        | Anonymous UUID or authenticated user ID             |
+| `email`             | TEXT | NULL                                                            | Optional email for verification                     |
+| `submitter_name`    | TEXT | NULL                                                            | Optional submitter name                             |
+| `artwork_id`        | TEXT | NULL, FK→artwork.id                                             | Reference to artwork (for edits/photos)            |
+| `artist_id`         | TEXT | NULL, FK→artists.id                                             | Reference to artist (for artist edits)             |
+| `lat`               | REAL | NULL                                                            | Latitude for location-based submissions             |
+| `lon`               | REAL | NULL                                                            | Longitude for location-based submissions            |
+| `notes`             | TEXT | NULL                                                            | Submission notes (≤500 chars at app level)         |
+| `photos`            | TEXT | NULL                                                            | JSON array of R2 URLs: `["url1", "url2"]`          |
+| `tags`              | TEXT | NULL                                                            | JSON object of structured tags                      |
+| `old_data`          | TEXT | NULL                                                            | JSON object of original data (for edits)           |
+| `new_data`          | TEXT | NULL                                                            | JSON object of proposed changes (for edits)        |
+| `verification_status` | TEXT | CHECK('pending','verified','unverified')                     | Email verification status                           |
+| `status`            | TEXT | CHECK('pending','approved','rejected')                         | Moderation status                                   |
+| `reviewer_token`    | TEXT | NULL                                                            | Reviewer who processed submission                   |
+| `review_notes`      | TEXT | NULL                                                            | Reviewer's notes                                    |
+| `reviewed_at`       | TEXT | NULL                                                            | Review timestamp                                    |
+| `created_at`        | TEXT | NOT NULL, DEFAULT datetime('now')                               | Creation timestamp                                  |
+| `updated_at`        | TEXT | NOT NULL, DEFAULT datetime('now')                               | Last update timestamp                               |
+
+**Indexes:**
+
+- `idx_submissions_user_token` on `user_token` for user-specific queries
+- `idx_submissions_artwork_id` on `artwork_id` for artwork-related submissions
+- `idx_submissions_artist_id` on `artist_id` for artist-related submissions
+- `idx_submissions_status` on `status` for moderation workflows
+- `idx_submissions_type` on `submission_type` for filtering by type
+- `idx_submissions_location` on `lat, lon` for spatial queries
+- `idx_submissions_created_at` on `created_at` for chronological ordering
+
+**Foreign Keys:**
+
+- `artwork_id` → `artwork.id` ON DELETE CASCADE
+- `artist_id` → `artists.id` ON DELETE CASCADE
+
+**Submission Types:**
+
+- `logbook_entry` - Photo submissions for existing or new artworks
+- `artwork_edit` - Edits to artwork metadata (title, description, etc.)
+- `artist_edit` - Edits to artist information
+- `new_artwork` - New artwork submissions via fast workflow
+- `new_artist` - New artist profile submissions
+
+**Status Workflow:**
+
+- `pending` - Awaiting moderation
+- `approved` - Accepted (creates/updates target entity)
+- `rejected` - Rejected (hidden from user)
+
+**Verification Status:**
+
+- `pending` - Email verification not yet sent
+- `verified` - Email verified via magic link
+- `unverified` - Email verification failed or expired
+
+### logbook (LEGACY - Backward Compatibility)
+
+**DEPRECATED**: Legacy community submissions table. Use `submissions` table for new implementations.
 
 Community submissions and entries for artworks.
 
@@ -420,27 +486,30 @@ Community submissions and entries for artworks.
 
 Flexible tagging system for additional metadata.
 
-| Field        | Type | Constraints                       | Description                              |
-| ------------ | ---- | --------------------------------- | ---------------------------------------- |
-| `id`         | TEXT | PRIMARY KEY                       | Unique identifier                        |
-| `artwork_id` | TEXT | NULL, FK→artwork.id               | Reference to artwork                     |
-| `logbook_id` | TEXT | NULL, FK→logbook.id               | Reference to logbook entry               |
-| `label`      | TEXT | NOT NULL                          | Tag category (e.g., "material", "style") |
-| `value`      | TEXT | NOT NULL                          | Tag value (e.g., "bronze", "modern")     |
-| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now') | Creation timestamp                       |
+| Field          | Type | Constraints                       | Description                              |
+| -------------- | ---- | --------------------------------- | ---------------------------------------- |
+| `id`           | TEXT | PRIMARY KEY                       | Unique identifier                        |
+| `artwork_id`   | TEXT | NULL, FK→artwork.id               | Reference to artwork                     |
+| `logbook_id`   | TEXT | NULL, FK→logbook.id               | Reference to logbook entry (LEGACY)     |
+| `submission_id`| TEXT | NULL, FK→submissions.id           | Reference to submission (NEW)            |
+| `label`        | TEXT | NOT NULL                          | Tag category (e.g., "material", "style") |
+| `value`        | TEXT | NOT NULL                          | Tag value (e.g., "bronze", "modern")     |
+| `created_at`   | TEXT | NOT NULL, DEFAULT datetime('now') | Creation timestamp                       |
 
 **Indexes:**
 
 - `idx_tags_artwork_id` on `artwork_id`
-- `idx_tags_logbook_id` on `logbook_id`
+- `idx_tags_logbook_id` on `logbook_id` (LEGACY)
+- `idx_tags_submission_id` on `submission_id` (NEW)
 - `idx_tags_label` on `label` for category-based queries
 
 **Foreign Keys:**
 
 - `artwork_id` → `artwork.id` ON DELETE CASCADE
-- `logbook_id` → `logbook.id` ON DELETE CASCADE
+- `logbook_id` → `logbook.id` ON DELETE CASCADE (LEGACY)
+- `submission_id` → `submissions.id` ON DELETE CASCADE (NEW)
 
-**Note:** Either `artwork_id` OR `logbook_id` must be non-NULL (but not both).
+**Note:** Exactly one of `artwork_id`, `logbook_id`, or `submission_id` must be non-NULL.
 
 ## Relationships
 
@@ -459,11 +528,13 @@ artwork_types ──┐
               artwork ──┐
                 │ 1:N  │ 1:N
                 ▼      ▼
-             logbook  tags
-                │ 1:N
-                ▼
-               tags
+          submissions  tags ─── logbook (LEGACY)
+                │ 1:N     │ 1:N  │ 1:N
+                ▼         ▼      ▼
+               tags      tags   tags
 ```
+
+**NEW UNIFIED FLOW**: The `submissions` table is the primary submission mechanism, with `logbook` maintained for backward compatibility.
 
 ## Authentication Workflows
 
@@ -512,6 +583,21 @@ WHERE a.status = 'approved'
 
 ### Get artwork with latest submissions
 
+**NEW PATTERN** (using submissions table):
+
+```sql
+-- Get artwork details with recent submissions (unified approach)
+SELECT a.*, s.notes, s.photos, s.created_at as submission_date,
+       s.submission_type, s.status as submission_status
+FROM artwork a
+LEFT JOIN submissions s ON a.id = s.artwork_id
+WHERE a.id = ?
+  AND s.submission_type IN ('logbook_entry', 'artwork_edit')
+ORDER BY s.created_at DESC;
+```
+
+**LEGACY PATTERN** (using logbook table):
+
 ```sql
 -- Get artwork details with recent logbook entries
 SELECT a.*, at.name as type_name,
@@ -525,6 +611,19 @@ ORDER BY l.created_at DESC;
 
 ### User's submissions
 
+**NEW PATTERN** (using submissions table):
+
+```sql
+-- Get all submissions for a user token (unified view)
+SELECT s.*, a.lat, a.lon, a.title as artwork_title
+FROM submissions s
+LEFT JOIN artwork a ON s.artwork_id = a.id
+WHERE s.user_token = ?
+ORDER BY s.created_at DESC;
+```
+
+**LEGACY PATTERN** (using logbook table):
+
 ```sql
 -- Get all submissions for a user token
 SELECT l.*, a.lat, a.lon, at.name as type_name
@@ -536,6 +635,19 @@ ORDER BY l.created_at DESC;
 ```
 
 ### Pending moderation queue
+
+**NEW PATTERN** (using submissions table):
+
+```sql
+-- Get submissions awaiting moderation (all types)
+SELECT s.*, a.lat, a.lon, a.title as artwork_title
+FROM submissions s
+LEFT JOIN artwork a ON s.artwork_id = a.id
+WHERE s.status = 'pending'
+ORDER BY s.created_at ASC;
+```
+
+**LEGACY PATTERN** (using logbook table):
 
 ```sql
 -- Get submissions awaiting moderation

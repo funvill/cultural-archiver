@@ -80,11 +80,11 @@ export async function getReviewQueue(
     // Query pending submissions
     const stmt = c.env.DB.prepare(`
       SELECT 
-        l.*,
+        s.*,
         COUNT(*) OVER() as total_count
-      FROM logbook l
-      WHERE l.status = ?
-      ORDER BY l.created_at ASC
+      FROM submissions s
+      WHERE s.status = ? AND s.submission_type = 'logbook'
+      ORDER BY s.submitted_at ASC
       LIMIT ? OFFSET ?
     `);
 
@@ -328,7 +328,7 @@ export async function approveSubmission(
       titleType: typeof submissionTags.title,
       descriptionType: typeof submissionTags.description
     });
-    const artworkData: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'> = {
+    const artworkData: Omit<ArtworkRecord, 'id' | 'created_at'> = {
       lat: overrides?.lat || submission.lat,
       lon: overrides?.lon || submission.lon,
       tags: submission.tags || '{}',
@@ -602,7 +602,8 @@ export async function getReviewStats(
       SELECT 
         status,
         COUNT(*) as count
-      FROM logbook
+      FROM submissions
+      WHERE submission_type = 'logbook'
       GROUP BY status
     `);
 
@@ -615,12 +616,12 @@ export async function getReviewStats(
     // Get recent activity
     const recentStmt = c.env.DB.prepare(`
       SELECT 
-        DATE(created_at) as date,
+        DATE(submitted_at) as date,
         status,
         COUNT(*) as count
-      FROM logbook
-      WHERE created_at >= date('now', '-30 days')
-      GROUP BY DATE(created_at), status
+      FROM submissions
+      WHERE submitted_at >= date('now', '-30 days') AND submission_type = 'logbook'
+      GROUP BY DATE(submitted_at), status
       ORDER BY date DESC
     `);
 
@@ -725,7 +726,7 @@ export async function processBatchReview(
               descriptionType: typeof submissionTags.description
             });
             
-            const artworkData: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'> = {
+            const artworkData: Omit<ArtworkRecord, 'id' | 'created_at'> = {
               lat: submission.lat,
               lon: submission.lon,
               tags: submission.tags || '{}',
