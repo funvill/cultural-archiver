@@ -388,25 +388,7 @@ export interface UserSubmissionsResponse {
 
 // Removed obsolete UserSubmissionInfo - replaced by SubmissionRecord
 
-// Legacy Authentication Endpoints (deprecated - use types from Authentication System Types section)
-export interface LegacyMagicLinkRequest {
-  email: string;
-}
 
-export interface LegacyMagicLinkResponse {
-  message: string;
-  success: boolean;
-}
-
-export interface LegacyConsumeMagicLinkRequest {
-  token: string;
-}
-
-export interface LegacyConsumeMagicLinkResponse {
-  success: boolean;
-  message: string;
-  user_token?: string;
-}
 
 // Moderation Endpoints
 export interface ReviewSubmissionRequest {
@@ -650,21 +632,7 @@ export interface RecordConsentResponse {
   id: string;
 }
 
-// Legacy consent record (for compatibility during migration)
-export interface LegacyConsentRecord {
-  id: string;
-  user_token: string;
-  consent_version: string;
-  age_verification: boolean;
-  cc0_licensing: boolean;
-  public_commons: boolean;
-  freedom_of_panorama: boolean;
-  ip_address?: string;
-  user_agent?: string;
-  consented_at: string;
-  expires_at?: string;
-  revoked_at?: string;
-}
+
 
 // ================================
 // Structured Tagging System Types
@@ -997,25 +965,7 @@ export interface ApiSuccessResponse<T = unknown> {
 export interface ApiErrorResponse extends ApiError {}
 
 // ================================
-// Legacy Types (for future use or compatibility)
-// ================================
 
-export interface LegacyUser {
-  id: string;
-  email: string;
-  name: string;
-  role: 'admin' | 'curator' | 'viewer';
-  created_at: string;
-  last_login: string | null;
-}
-
-export interface LegacySession {
-  id: string;
-  user_id: string;
-  token: string;
-  expires_at: string;
-  created_at: string;
-}
 
 // ================================
 // Type Guards and Validators

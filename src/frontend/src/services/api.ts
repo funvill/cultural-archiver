@@ -39,11 +39,7 @@ interface MagicLinkConsumeRequest {
   token: string;
 }
 
-interface VerificationStatus {
-  email_verified: boolean;
-  email?: string;
-  verification_sent_at?: string;
-}
+
 
 // Configuration
 const API_BASE_URL = getApiBaseUrl();
@@ -665,53 +661,7 @@ export const apiService = {
     return client.post('/auth/logout');
   },
 
-  // Legacy endpoints for backward compatibility (deprecated)
-  /**
-   * @deprecated Use verifyMagicLink instead
-   */
-  async consumeMagicLink(request: MagicLinkConsumeRequest): Promise<{
-    success: boolean;
-    message: string;
-    user: {
-      uuid: string;
-      email: string;
-      created_at: string;
-      email_verified_at: string;
-    };
-    session: {
-      token: string;
-      expires_at: string;
-    };
-    uuid_replaced: boolean;
-    is_new_account: boolean;
-  }> {
-    const response = await this.verifyMagicLink(request);
-    if (!response.data) {
-      throw new Error('Magic link verification failed');
-    }
-    return response.data;
-  },
 
-  /**
-   * @deprecated Use getAuthStatus instead
-   */
-  async getVerificationStatus(): Promise<ApiResponse<VerificationStatus>> {
-    const status = await this.getAuthStatus();
-    const userData = status.data?.user;
-    const verificationStatus: VerificationStatus = {
-      email_verified: status.data?.is_authenticated || false,
-    };
-
-    if (userData?.email) {
-      verificationStatus.email = userData.email;
-    }
-
-    return {
-      success: true,
-      data: verificationStatus,
-      timestamp: new Date().toISOString(),
-    };
-  },
 
   // ================================
   // Review/Moderation Endpoints

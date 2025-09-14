@@ -7,18 +7,7 @@ import type { Context, Next } from 'hono';
 import type { WorkerEnv } from '../types';
 import { UnauthorizedError, ForbiddenError } from '../lib/errors';
 
-// One-time deprecation warning emitter for legacy reviewer flag usage
-let hasWarnedReviewerDeprecation = false;
-function warnReviewerDeprecation(source: string): void {
-  if (!hasWarnedReviewerDeprecation) {
-    hasWarnedReviewerDeprecation = true;
-    // Cloudflare Workers: console.warn is acceptable for operational notices
-    console.warn(
-      `[DEPRECATION] 'isReviewer' flag accessed (${source}). This alias will be removed in a future release. ` +
-        `Use 'isModerator' (role) and/or 'canReview' (capability). See migration note in CHANGELOG and permissions audit.`
-    );
-  }
-}
+
 
 export interface AuthContext {
   userToken: string;
@@ -274,18 +263,7 @@ export function getUserToken(c: Context): string {
   return c.get('userToken') || '';
 }
 
-/**
- * Check if current user is a reviewer
- */
-/**
- * @deprecated Use isModeratorUser(c) or canReview(c) instead.
- * Will be removed after deprecation period.
- */
-export function isReviewer(c: Context): boolean {
-  warnReviewerDeprecation('middleware.auth.isReviewer()');
-  const authContext = getAuthContext(c);
-  return authContext.isReviewer || authContext.isModerator || authContext.canReview || false;
-}
+
 
 export function isModeratorUser(c: Context): boolean {
   const authContext = getAuthContext(c);

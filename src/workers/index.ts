@@ -63,9 +63,6 @@ import {
   verifyMagicLink,
   logout,
   getAuthStatus,
-  // Legacy endpoints for backward compatibility
-  consumeMagicLinkToken,
-  getVerificationStatus,
   getDevMagicLink,
 } from './routes/auth';
 import {
@@ -436,10 +433,7 @@ app.get('/health', async c => {
       'POST /api/auth/verify-magic-link',
       'POST /api/auth/logout',
       'GET /api/auth/status',
-      // Legacy auth endpoints
       'POST /api/auth/magic-link',
-      'POST /api/auth/consume',
-      'GET /api/auth/verify-status',
       'GET /api/review/queue',
       'GET /api/review/stats',
       'GET /api/review/submission/:id',
@@ -905,18 +899,6 @@ app.post(
   withErrorHandling(requestMagicLink)
 );
 
-app.post(
-  '/api/auth/consume',
-  validateSchema(consumeMagicLinkSchema, 'body'),
-  addUserTokenToResponse,
-  withErrorHandling(consumeMagicLinkToken)
-);
-
-app.get(
-  '/api/auth/verify-status',
-  addUserTokenToResponse,
-  withErrorHandling(getVerificationStatus)
-);
 
 // Development helper endpoint (Resend fallback)
 app.get('/api/auth/dev-magic-link', withErrorHandling(getDevMagicLink));
@@ -1073,10 +1055,7 @@ app.notFound(c => {
         'POST /api/auth/verify-magic-link',
         'POST /api/auth/logout',
         'GET /api/auth/status',
-        // Legacy endpoints
         'POST /api/auth/magic-link',
-        'POST /api/auth/consume',
-        'GET /api/auth/verify-status',
         'GET /api/review/queue',
         'POST /api/review/approve/:id',
         'POST /api/review/reject/:id',

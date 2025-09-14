@@ -118,9 +118,6 @@ export interface NavigationItem {
   path: string;
   icon?: unknown; // Vue component or string
   requiresAuth?: boolean;
-  /** @deprecated Use requiresModerator. Will be removed after deprecation period. */
-  requiresReviewer?: boolean;
-  /** True if route requires moderator/canReview permission */
   requiresModerator?: boolean;
   requiresAdmin?: boolean;
   /** Marks the primary call-to-action item (styled larger) */
@@ -499,9 +496,7 @@ declare module 'vue-router' {
   interface RouteMeta {
     title?: string;
     requiresAuth?: boolean;
-  /** @deprecated Use requiresModerator instead. */
-  requiresReviewer?: boolean;
-  requiresModerator?: boolean;
+    requiresModerator?: boolean;
   }
 }
 
