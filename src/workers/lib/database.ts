@@ -9,7 +9,7 @@ import type {
   LogbookRecord,
   TagRecord,
   CreateArtworkRequest,
-  CreateLogbookEntryRequest,
+  CreateSubmissionEntryRequest,
   CreateTagRequest,
   CreatorRecord,
   CreateCreatorRequest,
@@ -204,7 +204,7 @@ export class DatabaseService {
   // Logbook Operations
   // ================================
 
-  async createLogbookEntry(data: CreateLogbookEntryRequest): Promise<LogbookRecord> {
+  async createLogbookEntry(data: CreateSubmissionEntryRequest): Promise<LogbookRecord> {
     const id = crypto.randomUUID();
     const now = new Date().toISOString();
 

@@ -17,10 +17,10 @@ import type {
   AuditLogsResponse,
   AuditStatistics,
   NearbyArtworksResponse,
-  UserSubmissionInfo,
   GenerateDataDumpResponse,
   ListDataDumpsResponse,
   ArtworkEditReviewData,
+  UserSubmissionsResponse,
 } from '../../../shared/types';
 import type { UserProfile, ReviewQueueItem, ReviewStats, ArtworkDetails } from '../types';
 import { getApiBaseUrl } from '../utils/api-config';
@@ -572,39 +572,8 @@ export const apiService = {
   /**
    * Get user submissions
    */
-  async getUserSubmissions(
-    status?: string,
-    page: number = 1,
-    limit: number = 20
-  ): Promise<PaginatedResponse<UserSubmissionInfo>> {
-    const params: Record<string, string> = {
-      page: page.toString(),
-      per_page: limit.toString(),
-    };
-
-    if (status) {
-      params.status = status;
-    }
-
-    const response = await client.get<
-      ApiResponse<{
-        submissions: UserSubmissionInfo[];
-        total: number;
-        page: number;
-        per_page: number;
-      }>
-    >('/me/submissions', params);
-
-    // Transform backend response to shared PaginatedResponse format
-    return {
-      items: response.data?.submissions || [],
-      total: response.data?.total || 0,
-      page: response.data?.page || page,
-      per_page: response.data?.per_page || limit,
-      has_more: response.data
-        ? response.data.page * response.data.per_page < response.data.total
-        : false,
-    };
+  async getUserSubmissions(): Promise<ApiResponse<UserSubmissionsResponse>> {
+    return client.get('/user/submissions');
   },
 
   /**
@@ -807,7 +776,7 @@ export const apiService = {
   /**
    * Get review statistics
    */
-  async getReviewStats(): Promise<ReviewStats> {
+  async getReviewStats(): Promise<ApiResponse<ReviewStats>> {
     return client.get('/review/stats');
   },
 

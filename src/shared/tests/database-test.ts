@@ -3,7 +3,7 @@
  * These functions validate CRUD operations on all MVP database tables
  */
 
-import type { ArtworkRecord, LogbookRecord, TagRecord } from '../types.js';
+import type { ArtworkRecord } from '../types.js';
 
 // Test interface for database operations
 interface DatabaseConnection {
@@ -80,232 +80,6 @@ export function testArtworkCRUD(db: DatabaseConnection): TestResult {
 }
 
 /**
- * Test CRUD operations on logbook table
- */
-export function testLogbookCRUD(db: DatabaseConnection): TestResult {
-  try {
-    // First create a test artwork to reference
-    const artworkStmt = db.prepare(`
-      INSERT INTO artwork (id, lat, lon, type_id, status) 
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    const artworkId = 'test-artwork-for-logbook-' + Date.now();
-    artworkStmt.run(artworkId, 49.2827, -123.1207, 'public_art', 'approved');
-
-    // Test INSERT
-    const insertStmt = db.prepare(`
-      INSERT INTO logbook (id, artwork_id, user_token, note, photos, status) 
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    const testId = 'test-logbook-' + Date.now();
-    const photos = JSON.stringify([
-      'https://test-url.com/photo1.jpg',
-      'https://test-url.com/photo2.jpg',
-    ]);
-    const result = insertStmt.run(
-      testId,
-      artworkId,
-      'test-user-token',
-      'Test note',
-      photos,
-      'pending'
-    );
-
-    if (result.changes !== 1) {
-      return { passed: false, error: 'Failed to insert logbook entry' };
-    }
-
-    // Test SELECT
-    const selectStmt = db.prepare('SELECT * FROM logbook WHERE id = ?');
-    const record = selectStmt.get(testId) as unknown as LogbookRecord;
-
-    if (!record || record.artwork_id !== artworkId || record.note !== 'Test note') {
-      return { passed: false, error: 'Failed to retrieve inserted logbook entry' };
-    }
-
-    // Test JSON array parsing
-    if (record.photos) {
-      const parsedPhotos = JSON.parse(record.photos);
-      if (!Array.isArray(parsedPhotos) || parsedPhotos.length !== 2) {
-        return { passed: false, error: 'JSON photos array not properly stored/retrieved' };
-      }
-    }
-
-    // Test UPDATE
-    const updateStmt = db.prepare('UPDATE logbook SET status = ?, note = ? WHERE id = ?');
-    const updateResult = updateStmt.run('approved', 'Updated test note', testId);
-
-    if (updateResult.changes !== 1) {
-      return { passed: false, error: 'Failed to update logbook entry' };
-    }
-
-    // Clean up
-    const deleteLogbookStmt = db.prepare('DELETE FROM logbook WHERE id = ?');
-    deleteLogbookStmt.run(testId);
-
-    const deleteArtworkStmt = db.prepare('DELETE FROM artwork WHERE id = ?');
-    deleteArtworkStmt.run(artworkId);
-
-    return {
-      passed: true,
-      details: 'All CRUD operations and foreign key relationships successful',
-    };
-  } catch (error) {
-    return { passed: false, error: `Unexpected error: ${error}` };
-  }
-}
-
-/**
- * Test CRUD operations on tags table with foreign key relationships
- */
-export function testTagsCRUD(db: DatabaseConnection): TestResult {
-  try {
-    // Create test artwork and logbook entries to reference
-    const artworkStmt = db.prepare(`
-      INSERT INTO artwork (id, lat, lon, type_id, status) 
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    const artworkId = 'test-artwork-for-tags-' + Date.now();
-    artworkStmt.run(artworkId, 49.2827, -123.1207, 'public_art', 'approved');
-
-    const logbookStmt = db.prepare(`
-      INSERT INTO logbook (id, artwork_id, user_token, note, status) 
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    const logbookId = 'test-logbook-for-tags-' + Date.now();
-    logbookStmt.run(logbookId, artworkId, 'test-user', 'Test note', 'approved');
-
-    // Test INSERT for artwork tag
-    const insertArtworkTagStmt = db.prepare(`
-      INSERT INTO tags (id, artwork_id, logbook_id, label, value) 
-      VALUES (?, ?, ?, ?, ?)
-    `);
-
-    const artworkTagId = 'test-artwork-tag-' + Date.now();
-    const result1 = insertArtworkTagStmt.run(artworkTagId, artworkId, null, 'material', 'bronze');
-
-    if (result1.changes !== 1) {
-      return { passed: false, error: 'Failed to insert artwork tag' };
-    }
-
-    // Test INSERT for logbook tag
-    const logbookTagId = 'test-logbook-tag-' + Date.now();
-    const result2 = insertArtworkTagStmt.run(
-      logbookTagId,
-      null,
-      logbookId,
-      'condition',
-      'excellent'
-    );
-
-    if (result2.changes !== 1) {
-      return { passed: false, error: 'Failed to insert logbook tag' };
-    }
-
-    // Test SELECT
-    const selectStmt = db.prepare('SELECT * FROM tags WHERE id = ?');
-    const artworkTag = selectStmt.get(artworkTagId) as unknown as TagRecord;
-    const logbookTag = selectStmt.get(logbookTagId) as unknown as TagRecord;
-
-    if (!artworkTag || artworkTag.artwork_id !== artworkId || artworkTag.label !== 'material') {
-      return { passed: false, error: 'Failed to retrieve artwork tag' };
-    }
-
-    if (!logbookTag || logbookTag.logbook_id !== logbookId || logbookTag.label !== 'condition') {
-      return { passed: false, error: 'Failed to retrieve logbook tag' };
-    }
-
-    // Test UPDATE
-    const updateStmt = db.prepare('UPDATE tags SET value = ? WHERE id = ?');
-    const updateResult = updateStmt.run('silver', artworkTagId);
-
-    if (updateResult.changes !== 1) {
-      return { passed: false, error: 'Failed to update tag' };
-    }
-
-    // Clean up
-    const deleteTagStmt = db.prepare('DELETE FROM tags WHERE id IN (?, ?)');
-    deleteTagStmt.run(artworkTagId, logbookTagId);
-
-    const deleteLogbookStmt = db.prepare('DELETE FROM logbook WHERE id = ?');
-    deleteLogbookStmt.run(logbookId);
-
-    const deleteArtworkStmt = db.prepare('DELETE FROM artwork WHERE id = ?');
-    deleteArtworkStmt.run(artworkId);
-
-    return { passed: true, details: 'All CRUD operations with foreign keys successful' };
-  } catch (error) {
-    return { passed: false, error: `Unexpected error: ${error}` };
-  }
-}
-
-/**
- * Test foreign key integrity and cascade deletes
- */
-export function testForeignKeyIntegrity(db: DatabaseConnection): TestResult {
-  try {
-    // Create test data
-    const artworkStmt = db.prepare(`
-      INSERT INTO artwork (id, lat, lon, type_id, status) 
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    const artworkId = 'test-fk-artwork-' + Date.now();
-    artworkStmt.run(artworkId, 49.2827, -123.1207, 'public_art', 'approved');
-
-    const logbookStmt = db.prepare(`
-      INSERT INTO logbook (id, artwork_id, user_token, note, status) 
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    const logbookId = 'test-fk-logbook-' + Date.now();
-    logbookStmt.run(logbookId, artworkId, 'test-user', 'Test note', 'approved');
-
-    const tagStmt = db.prepare(`
-      INSERT INTO tags (id, artwork_id, logbook_id, label, value) 
-      VALUES (?, ?, ?, ?, ?)
-    `);
-    const artworkTagId = 'test-fk-artwork-tag-' + Date.now();
-    const logbookTagId = 'test-fk-logbook-tag-' + Date.now();
-    tagStmt.run(artworkTagId, artworkId, null, 'material', 'bronze');
-    tagStmt.run(logbookTagId, null, logbookId, 'condition', 'good');
-
-    // Verify data exists
-    const countStmt = db.prepare(
-      'SELECT COUNT(*) as count FROM tags WHERE artwork_id = ? OR logbook_id = ?'
-    );
-    const beforeResult = countStmt.get(artworkId, logbookId) as { count: number } | undefined;
-    const beforeCount = beforeResult?.count || 0;
-
-    if (beforeCount !== 2) {
-      return { passed: false, error: 'Test data not properly created' };
-    }
-
-    // Test CASCADE DELETE - delete artwork should delete related logbook and tags
-    const deleteArtworkStmt = db.prepare('DELETE FROM artwork WHERE id = ?');
-    deleteArtworkStmt.run(artworkId);
-
-    // Verify cascade delete worked
-    const afterResult = countStmt.get(artworkId, logbookId) as { count: number } | undefined;
-    const afterCount = afterResult?.count || 0;
-    const logbookResult = db
-      .prepare('SELECT COUNT(*) as count FROM logbook WHERE id = ?')
-      .get(logbookId) as { count: number } | undefined;
-    const logbookCount = logbookResult?.count || 0;
-
-    if (afterCount !== 0 || logbookCount !== 0) {
-      return { passed: false, error: 'CASCADE DELETE did not work properly' };
-    }
-
-    return {
-      passed: true,
-      details: 'Foreign key constraints and cascade deletes working correctly',
-    };
-  } catch (error) {
-    return { passed: false, error: `Unexpected error: ${error}` };
-  }
-}
-
-/**
  * Test status enum validation with CHECK constraints
  */
 export function testStatusEnumValidation(db: DatabaseConnection): TestResult {
@@ -361,9 +135,6 @@ export function testStatusEnumValidation(db: DatabaseConnection): TestResult {
     }
 
     // Clean up
-    const deleteLogbookStmt = db.prepare('DELETE FROM logbook WHERE id = ?');
-    deleteLogbookStmt.run(logbookId);
-
     const deleteArtworkStmt = db.prepare('DELETE FROM artwork WHERE id = ?');
     deleteArtworkStmt.run(validId);
 
@@ -458,22 +229,6 @@ export function testJSONFieldParsing(db: DatabaseConnection): TestResult {
 
     artworkStmt.run(artworkId, 49.2827, -123.1207, 'public_art', 'approved', tagsJson);
 
-    // Test logbook photos JSON array
-    const logbookStmt = db.prepare(`
-      INSERT INTO logbook (id, artwork_id, user_token, note, photos, status) 
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    const logbookId = 'test-json-logbook-' + Date.now();
-    const photosArray = [
-      'https://example.com/photo1.jpg',
-      'https://example.com/photo2.jpg',
-      'https://example.com/photo3.jpg',
-    ];
-    const photosJson = JSON.stringify(photosArray);
-
-    logbookStmt.run(logbookId, artworkId, 'test-user', 'Test note', photosJson, 'approved');
-
     // Retrieve and parse JSON fields
     const artworkSelectStmt = db.prepare('SELECT * FROM artwork WHERE id = ?');
     const artwork = artworkSelectStmt.get(artworkId) as unknown as ArtworkRecord;
@@ -487,26 +242,7 @@ export function testJSONFieldParsing(db: DatabaseConnection): TestResult {
       return { passed: false, error: 'Artwork tags JSON parsing failed' };
     }
 
-    const logbookSelectStmt = db.prepare('SELECT * FROM logbook WHERE id = ?');
-    const logbook = logbookSelectStmt.get(logbookId) as unknown as LogbookRecord;
-
-    if (!logbook.photos) {
-      return { passed: false, error: 'Logbook photos JSON was not stored' };
-    }
-
-    const parsedPhotos = JSON.parse(logbook.photos);
-    if (!Array.isArray(parsedPhotos) || parsedPhotos.length !== 3) {
-      return { passed: false, error: 'Logbook photos JSON parsing failed' };
-    }
-
-    if (parsedPhotos[0] !== 'https://example.com/photo1.jpg') {
-      return { passed: false, error: 'Logbook photos array content incorrect' };
-    }
-
     // Clean up
-    const deleteLogbookStmt = db.prepare('DELETE FROM logbook WHERE id = ?');
-    deleteLogbookStmt.run(logbookId);
-
     const deleteArtworkStmt = db.prepare('DELETE FROM artwork WHERE id = ?');
     deleteArtworkStmt.run(artworkId);
 
@@ -528,9 +264,6 @@ export function runAllDatabaseTests(db: DatabaseConnection): {
 
   try {
     results.artworkCRUD = testArtworkCRUD(db);
-    results.logbookCRUD = testLogbookCRUD(db);
-    results.tagsCRUD = testTagsCRUD(db);
-    results.foreignKeyIntegrity = testForeignKeyIntegrity(db);
     results.statusEnumValidation = testStatusEnumValidation(db);
     results.spatialQueries = testSpatialQueries(db);
     results.jsonFieldParsing = testJSONFieldParsing(db);

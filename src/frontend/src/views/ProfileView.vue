@@ -2,774 +2,274 @@
 import { ref, computed, onMounted } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { apiService } from '../services/api';
-import type { UserSubmissionInfo } from '../../../shared/types';
+import type { SubmissionRecord } from '../../../shared/types';
 import type { UserProfile } from '../types/index';
 
-// Type alias for compatibility
-type UserSubmission = UserSubmissionInfo;
+type SubmissionWithData = SubmissionRecord & {
+  data_parsed?: {
+    title?: string;
+    photos?: { url: string }[];
+    lat?: number;
+    lon?: number;
+    tags?: { [key: string]: any };
+  };
+  artwork_type_name?: string;
+};
 
-// Store and router
-const authStore = useAuthStore();
-
-// State
-const loading = ref(true);
+const submissions = ref<SubmissionWithData[]>([]);
+const profile = ref<UserProfile | null>(null);
+const isLoading = ref(true);
 const error = ref<string | null>(null);
-const submissions = ref<UserSubmission[]>([]);
-const userProfile = ref<UserProfile | null>(null);
-const activeTab = ref('overview');
-const sortBy = ref('created_at');
-const sortOrder = ref<'asc' | 'desc'>('desc');
-const currentPage = ref(1);
-const pageSize = 10;
+const filterStatus = ref('all');
+const sortOrder = ref<'newest' | 'oldest'>('newest');
 
-// Tab configuration
-const tabs = computed(() => [
-  {
-    id: 'overview',
-    name: 'Overview',
-    icon: 'svg',
-    count: submissions.value.length,
-  },
-  {
-    id: 'pending',
-    name: 'Pending',
-    icon: 'svg',
-    count: pendingCount.value,
-  },
-  {
-    id: 'approved',
-    name: 'Approved',
-    icon: 'svg',
-    count: approvedCount.value,
-  },
-  {
-    id: 'rejected',
-    name: 'Rejected',
-    icon: 'svg',
-    count: rejectedCount.value,
-  },
-  {
-    id: 'debug',
-    name: 'Debug Info',
-    icon: 'svg',
-    count: undefined,
-  },
-]);
-
-// Computed
-const approvedCount = computed(
-  () => submissions.value.filter((s: UserSubmission) => s.status === 'approved').length
-);
-
-const pendingCount = computed(
-  () => submissions.value.filter((s: UserSubmission) => s.status === 'pending').length
-);
-
-const rejectedCount = computed(
-  () => submissions.value.filter((s: UserSubmission) => s.status === 'rejected').length
-);
-
-const filteredSubmissions = computed(() => {
-  let filtered = submissions.value;
-
-  // Filter by tab
-  if (activeTab.value !== 'overview') {
-    filtered = filtered.filter((s: UserSubmission) => s.status === activeTab.value);
-  }
-
-  // Sort
-  filtered.sort((a: UserSubmission, b: UserSubmission) => {
-    let aVal: any = a[sortBy.value as keyof UserSubmission];
-    let bVal: any = b[sortBy.value as keyof UserSubmission];
-
-    if (sortBy.value === 'created_at') {
-      aVal = new Date(aVal).getTime();
-      bVal = new Date(bVal).getTime();
+const filteredAndSortedSubmissions = computed(() => {
+  let processed = submissions.value.map(s => {
+    const data_parsed: SubmissionWithData['data_parsed'] = {};
+    if (s.submission_type === 'new_artwork' || s.submission_type === 'artwork_edit') {
+      if (s.field_changes) {
+        try {
+          const changes = JSON.parse(s.field_changes);
+          data_parsed.title = changes.title?.new || changes.title;
+          data_parsed.tags = changes.tags?.new || changes.tags;
+        } catch (e) {
+          console.error('Error parsing field_changes', e);
+        }
+      }
+      if (s.photos) {
+        try {
+          data_parsed.photos = JSON.parse(s.photos);
+        } catch (e) {
+          console.error('Error parsing photos', e);
+        }
+      }
+      if (s.lat !== null && s.lat !== undefined) {
+        data_parsed.lat = s.lat;
+      }
+      if (s.lon !== null && s.lon !== undefined) {
+        data_parsed.lon = s.lon;
+      }
+    }
+    
+    let artwork_type_name = 'Submission';
+    if (data_parsed.tags?.artwork_type) {
+      artwork_type_name = (data_parsed.tags.artwork_type as string).replace(/_/g, ' ');
     }
 
-    if (sortOrder.value === 'asc') {
-      return aVal > bVal ? 1 : -1;
-    } else {
-      return aVal < bVal ? 1 : -1;
-    }
+    return { ...s, data_parsed, artwork_type_name };
   });
 
-  return filtered;
+  if (filterStatus.value !== 'all') {
+    processed = processed.filter((s: SubmissionWithData) => s.status === filterStatus.value);
+  }
+
+  processed.sort((a: SubmissionWithData, b: SubmissionWithData) => {
+    const dateA = new Date(a.submitted_at).getTime();
+    const dateB = new Date(b.submitted_at).getTime();
+    return sortOrder.value === 'newest' ? dateB - dateA : dateA - dateB;
+  });
+
+  return processed;
 });
 
-const totalPages = computed(() => Math.ceil(filteredSubmissions.value.length / pageSize));
-
-const startIndex = computed(() => (currentPage.value - 1) * pageSize);
-
-const endIndex = computed(() => startIndex.value + pageSize);
-
-const paginatedSubmissions = computed(() =>
-  filteredSubmissions.value.slice(startIndex.value, endIndex.value)
-);
-
-// Lifecycle
-onMounted(() => {
-  loadSubmissions();
+const submissionStats = computed(() => {
+  return submissions.value.reduce(
+    (acc: { total: number; pending: number; approved: number; rejected: number }, s: SubmissionWithData) => {
+      acc.total++;
+      if (s.status === 'pending') acc.pending++;
+      else if (s.status === 'approved') acc.approved++;
+      else if (s.status === 'rejected') acc.rejected++;
+      return acc;
+    },
+    { total: 0, pending: 0, approved: 0, rejected: 0 },
+  );
 });
 
-// Methods
-async function loadSubmissions() {
+async function fetchUserProfile() {
+  const authStore = useAuthStore();
   if (!authStore.token) {
-    error.value = 'Please sign in to view your submissions';
-    loading.value = false;
+    error.value = 'User not authenticated.';
+    isLoading.value = false;
     return;
   }
-
-  loading.value = true;
-  error.value = null;
-
   try {
-    // Load both submissions and profile data
-    const [submissionsResponse, profileResponse] = await Promise.all([
-      apiService.getUserSubmissions(),
-      apiService.getUserProfile(),
-    ]);
-
-    submissions.value = submissionsResponse.items || [];
-    userProfile.value = profileResponse.data || null;
+    isLoading.value = true;
+    const response = await apiService.getUserProfile();
+    if (response.data) {
+      profile.value = response.data;
+    }
+    await fetchUserSubmissions();
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load profile data';
+    error.value = 'Failed to fetch user profile.';
+    console.error(err);
   } finally {
-    loading.value = false;
+    isLoading.value = false;
   }
 }
 
-function getTabTitle(tabId: string): string {
-  const titleMap: Record<string, string> = {
-    overview: 'All Submissions',
-    pending: 'Pending Review',
-    approved: 'Approved Submissions',
-    rejected: 'Rejected Submissions',
-  };
-  return titleMap[tabId] || 'Submissions';
-}
-
-function getStatusBadgeClass(status: string): string {
-  const statusMap: Record<string, string> = {
-    approved: 'bg-green-100 text-green-800 border border-green-200',
-    pending: 'bg-yellow-100 text-yellow-900 border border-yellow-200',
-    rejected: 'bg-red-100 text-red-800 border border-red-200',
-  };
-  return statusMap[status] || 'bg-gray-100 text-gray-900 border border-gray-200';
-}
-
-function formatDate(dateString: string): string {
+async function fetchUserSubmissions() {
   try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return 'Unknown';
+    const response = await apiService.getUserSubmissions();
+    if (response.data) {
+      submissions.value = response.data.submissions;
+    }
+  } catch (err) {
+    error.value = 'Failed to fetch user submissions.';
+    console.error(err);
   }
 }
+
+function getStatusClass(status: string) {
+  switch (status) {
+    case 'approved':
+      return 'bg-green-100 text-green-800';
+    case 'pending':
+      return 'bg-yellow-100 text-yellow-800';
+    case 'rejected':
+      return 'bg-red-100 text-red-800';
+    default:
+      return 'bg-gray-100 text-gray-800';
+  }
+}
+
+function formatDate(dateString: string) {
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+onMounted(fetchUserProfile);
 </script>
 
 <template>
-  <div class="profile-view">
-    <!-- Page Header -->
-    <div class="bg-white border-b border-gray-200 py-4 sm:py-6">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div
-          class="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0"
-        >
-          <div>
-            <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">My Profile</h1>
-            <p class="mt-2 text-base sm:text-lg text-gray-600">
-              Manage your submissions and account settings
-            </p>
-          </div>
-          <div class="flex items-center space-x-3">
-            <div class="text-right">
-              <p class="text-sm font-medium text-gray-900">
-                {{ authStore.isEmailVerified ? 'Verified User' : 'Anonymous User' }}
-              </p>
-              <p class="text-xs text-gray-600">
-                {{
-                  authStore.token ? `ID: ${authStore.token.slice(0, 8)}...` : 'Not authenticated'
-                }}
-              </p>
-            </div>
-            <div
-              class="w-10 h-10 rounded-full flex items-center justify-center"
-              :class="
-                authStore.isEmailVerified
-                  ? 'bg-green-100 text-green-600'
-                  : 'bg-gray-100 text-gray-600'
-              "
-            >
-              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fill-rule="evenodd"
-                  d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                  clip-rule="evenodd"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
-      </div>
+  <div class="profile-view p-4 sm:p-6 lg:p-8">
+    <div v-if="isLoading" class="text-center">
+      <p>Loading profile...</p>
+    </div>
+    <div v-if="error" class="text-center text-red-500">
+      <p>{{ error }}</p>
     </div>
 
-    <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        <!-- Sidebar -->
-        <div class="lg:col-span-1">
-          <nav class="space-y-1">
-            <button
-              v-for="tab in tabs"
-              :key="tab.id"
-              @click="activeTab = tab.id"
-              class="w-full text-left px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              :class="
-                activeTab === tab.id
-                  ? 'bg-blue-100 text-blue-700'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-              "
-            >
-              <div class="flex items-center">
-                <component :is="tab.icon" class="mr-3 h-5 w-5" />
-                {{ tab.name }}
-                <span
-                  v-if="tab.count !== undefined"
-                  class="ml-auto text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full"
-                >
-                  {{ tab.count }}
-                </span>
-              </div>
-            </button>
-          </nav>
+    <div v-if="!isLoading && !error && profile">
+      <header class="mb-8">
+        <h1 class="text-3xl font-bold tracking-tight text-gray-900">My Profile</h1>
+        <p class="mt-2 text-lg text-gray-600">
+          Welcome back, <span class="font-semibold">{{ profile.debug?.user_info?.email || 'Contributor' }}</span>.
+        </p>
+      </header>
+
+      <!-- Stats Section -->
+      <section class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        <div class="bg-white p-6 rounded-lg shadow">
+          <h3 class="text-sm font-medium text-gray-500">Total Submissions</h3>
+          <p class="mt-2 text-3xl font-bold">{{ submissionStats.total }}</p>
         </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+          <h3 class="text-sm font-medium text-gray-500">Approved</h3>
+          <p class="mt-2 text-3xl font-bold text-green-600">{{ submissionStats.approved }}</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+          <h3 class="text-sm font-medium text-gray-500">Pending</h3>
+          <p class="mt-2 text-3xl font-bold text-yellow-600">{{ submissionStats.pending }}</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow">
+          <h3 class="text-sm font-medium text-gray-500">Rejected</h3>
+          <p class="mt-2 text-3xl font-bold text-red-600">{{ submissionStats.rejected }}</p>
+        </div>
+      </section>
 
-        <!-- Content Area -->
-        <div class="lg:col-span-3">
-          <!-- Statistics Cards -->
-          <div v-if="activeTab === 'overview'" class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white p-6 rounded-lg border border-gray-200">
-              <div class="flex items-center">
-                <div class="flex-shrink-0">
-                  <svg
-                    class="h-8 w-8 text-blue-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                </div>
-                <div class="ml-4">
-                  <p class="text-sm font-medium text-gray-600">Total Submissions</p>
-                  <p class="text-2xl font-semibold text-gray-900">{{ submissions.length }}</p>
-                </div>
-              </div>
+      <!-- Submissions List -->
+      <section>
+        <div class="flex flex-wrap items-center justify-between mb-4 gap-4">
+          <h2 class="text-2xl font-bold">My Submissions</h2>
+          <div class="flex flex-wrap items-center gap-4">
+            <div>
+              <label for="filter-status" class="sr-only">Filter by status</label>
+              <select
+                id="filter-status"
+                v-model="filterStatus"
+                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+              </select>
             </div>
-
-            <div class="bg-white p-6 rounded-lg border border-gray-200">
-              <div class="flex items-center">
-                <div class="flex-shrink-0">
-                  <svg
-                    class="h-8 w-8 text-green-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                </div>
-                <div class="ml-4">
-                  <p class="text-sm font-medium text-gray-600">Approved</p>
-                  <p class="text-2xl font-semibold text-gray-900">{{ approvedCount }}</p>
-                </div>
-              </div>
-            </div>
-
-            <div class="bg-white p-6 rounded-lg border border-gray-200">
-              <div class="flex items-center">
-                <div class="flex-shrink-0">
-                  <svg
-                    class="h-8 w-8 text-yellow-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                    />
-                  </svg>
-                </div>
-                <div class="ml-4">
-                  <p class="text-sm font-medium text-gray-600">Pending Review</p>
-                  <p class="text-2xl font-semibold text-gray-900">{{ pendingCount }}</p>
-                </div>
-              </div>
+            <div>
+              <label for="sort-order" class="sr-only">Sort order</label>
+              <select
+                id="sort-order"
+                v-model="sortOrder"
+                class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+              >
+                <option value="newest">Newest First</option>
+                <option value="oldest">Oldest First</option>
+              </select>
             </div>
           </div>
+        </div>
 
-          <!-- Submissions List -->
-          <div class="bg-white rounded-lg border border-gray-200">
-            <!-- Header -->
-            <div class="px-6 py-4 border-b border-gray-200">
-              <div class="flex items-center justify-between">
-                <h2 class="text-lg font-semibold text-gray-900">
-                  {{ getTabTitle(activeTab) }}
-                </h2>
-                <div class="flex items-center space-x-2">
-                  <select
-                    v-model="sortBy"
-                    class="text-sm border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="created_at">Date Created</option>
-                    <option value="status">Status</option>
-                  </select>
-                  <button
-                    @click="sortOrder = sortOrder === 'asc' ? 'desc' : 'asc'"
-                    class="text-sm text-gray-600 hover:text-gray-900 px-2 py-1 rounded-md hover:bg-gray-100"
-                  >
-                    {{ sortOrder === 'asc' ? '↑' : '↓' }}
-                  </button>
+        <div class="bg-white shadow overflow-hidden rounded-md">
+          <ul role="list" class="divide-y divide-gray-200">
+            <li v-for="submission in filteredAndSortedSubmissions" :key="submission.id" class="p-4 sm:p-6">
+              <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="flex-grow">
+                  <div class="flex items-center gap-3">
+                    <span
+                      :class="getStatusClass(submission.status)"
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
+                    >
+                      {{ submission.status }}
+                    </span>
+                    <h3 class="text-lg font-semibold text-gray-800">
+                      <router-link
+                        v-if="submission.artwork_id"
+                        :to="`/artwork/${submission.artwork_id}`"
+                        class="hover:underline"
+                      >
+                        {{ submission.data_parsed?.title || submission.artwork_type_name || 'Artwork Submission' }}
+                      </router-link>
+                      <span v-else>
+                        {{ submission.data_parsed?.title || submission.artwork_type_name || 'Artwork Submission' }}
+                      </span>
+                    </h3>
+                  </div>
+                  <p class="mt-1 text-sm text-gray-500">
+                    Submitted on {{ formatDate(submission.submitted_at) }}
+                  </p>
                 </div>
-              </div>
-            </div>
 
-            <!-- Loading State -->
-            <div v-if="loading" class="p-8 text-center">
-              <svg
-                class="animate-spin h-8 w-8 mx-auto mb-4 text-blue-600"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  class="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  stroke-width="4"
-                ></circle>
-                <path
-                  class="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                ></path>
-              </svg>
-              <p class="text-gray-600">Loading submissions...</p>
-            </div>
-
-            <!-- Error State -->
-            <div v-else-if="error" class="p-8 text-center">
-              <svg
-                class="h-12 w-12 mx-auto mb-4 text-red-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-                />
-              </svg>
-              <p class="text-gray-600 mb-4">{{ error }}</p>
-              <button
-                @click="loadSubmissions"
-                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Retry
-              </button>
-            </div>
-
-            <!-- Empty State -->
-            <div v-else-if="filteredSubmissions.length === 0" class="p-8 text-center">
-              <svg
-                class="h-12 w-12 mx-auto mb-4 text-gray-600"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              <p class="text-gray-600 mb-4">
-                {{
-                  activeTab === 'overview' ? 'No submissions yet' : `No ${activeTab} submissions`
-                }}
-              </p>
-              <button
-                @click="$router.push('/submit')"
-                class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                Submit Your First Artwork
-              </button>
-            </div>
-
-            <!-- Submissions List -->
-            <div v-else class="divide-y divide-gray-200">
-              <div
-                v-for="submission in paginatedSubmissions"
-                :key="submission.id"
-                class="p-6 hover:bg-gray-50 transition-colors"
-              >
-                <div class="flex items-start justify-between">
-                  <div class="flex-1">
-                    <!-- Submission Header -->
-                    <div class="flex items-center justify-between mb-2">
-                      <div class="flex items-center space-x-3">
-                        <h3 class="text-lg font-medium text-gray-900">
-                          {{ submission.artwork_type_name || 'Artwork Submission' }}
-                        </h3>
-                        <span
-                          class="inline-block px-2 py-1 text-xs font-medium rounded-full"
-                          :class="getStatusBadgeClass(submission.status)"
-                        >
-                          {{ submission.status }}
-                        </span>
-                      </div>
-                      <div class="text-sm text-gray-600">
-                        {{ formatDate(submission.created_at) }}
-                      </div>
-                    </div>
-
-                    <!-- Photos Preview -->
+                <div class="flex-shrink-0 w-full sm:w-auto mt-4 sm:mt-0">
+                  <div class="flex items-center justify-end gap-4">
                     <div
-                      v-if="submission.photos_parsed && submission.photos_parsed.length > 0"
-                      class="flex space-x-2 mb-3"
+                      v-if="submission.data_parsed?.photos && submission.data_parsed?.photos.length > 0"
+                      class="w-16 h-16 bg-gray-100 rounded-md overflow-hidden"
                     >
                       <img
-                        v-if="submission.photos_parsed[0]"
-                        :src="submission.photos_parsed[0]"
-                        alt="Submitted photo"
-                        class="w-16 h-16 object-cover rounded-lg border border-gray-200"
+                        v-if="submission.data_parsed?.photos[0]?.url"
+                        :src="submission.data_parsed?.photos[0]?.url"
+                        alt="Submission photo"
+                        class="w-full h-full object-cover"
                       />
                     </div>
-
-                    <!-- Description -->
-                    <p v-if="submission.note" class="text-sm text-gray-700 mb-3 line-clamp-2">
-                      {{ submission.note }}
-                    </p>
-
-                    <!-- Location -->
-                    <div class="flex items-center text-sm text-gray-600 mb-3">
-                      <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path
-                          fill-rule="evenodd"
-                          d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z"
-                          clip-rule="evenodd"
-                        />
-                      </svg>
-                      {{ submission.artwork_lat?.toFixed(4) }},
-                      {{ submission.artwork_lon?.toFixed(4) }}
-                    </div>
-
-                    <!-- Actions -->
-                    <div class="flex items-center space-x-4">
-                      <button
-                        v-if="submission.artwork_id"
-                        @click="$router.push(`/artwork/${submission.artwork_id}`)"
-                        class="text-sm text-blue-600 hover:text-blue-800 underline"
-                      >
-                        View Artwork →
-                      </button>
+                    <div class="text-right">
+                      <p class="text-sm font-medium text-gray-900">
+                        {{ submission.submission_type.replace(/_/g, ' ') }}
+                      </p>
+                      <p v-if="submission.lat && submission.lon" class="text-xs text-gray-500">
+                        {{ submission.lat.toFixed(4) }}, {{ submission.lon.toFixed(4) }}
+                      </p>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-
-            <!-- Pagination -->
-            <div v-if="totalPages > 1" class="px-6 py-4 border-t border-gray-200">
-              <div class="flex items-center justify-between">
-                <div class="text-sm text-gray-700">
-                  Showing {{ startIndex + 1 }} to
-                  {{ Math.min(endIndex, filteredSubmissions.length) }} of
-                  {{ filteredSubmissions.length }} submissions
-                </div>
-                <div class="flex space-x-2">
-                  <button
-                    @click="currentPage--"
-                    :disabled="currentPage === 1"
-                    class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Previous
-                  </button>
-                  <button
-                    @click="currentPage++"
-                    :disabled="currentPage === totalPages"
-                    class="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    Next
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Debug Information Tab -->
-          <div v-if="activeTab === 'debug'" class="bg-white rounded-lg border border-gray-200 p-6">
-            <h2 class="text-lg font-semibold text-gray-900 mb-6">Debug Information</h2>
-
-            <div v-if="userProfile?.debug" class="space-y-6">
-              <!-- User Information Section -->
-              <div class="border-b border-gray-200 pb-6">
-                <h3 class="text-md font-medium text-gray-900 mb-4">User Information</h3>
-                <div
-                  v-if="userProfile.debug.user_info"
-                  class="grid grid-cols-1 md:grid-cols-2 gap-4"
-                >
-                  <div class="space-y-2">
-                    <div>
-                      <strong>UUID:</strong>
-                      <code class="bg-gray-100 px-2 py-1 rounded text-sm">{{
-                        userProfile.debug.user_info.uuid
-                      }}</code>
-                    </div>
-                    <div>
-                      <strong>Email:</strong> {{ userProfile.debug.user_info.email || 'None' }}
-                    </div>
-                    <div>
-                      <strong>Status:</strong>
-                      <span
-                        class="px-2 py-1 rounded text-xs"
-                        :class="
-                          userProfile.debug.user_info.status === 'active'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        "
-                        >{{ userProfile.debug.user_info.status }}</span
-                      >
-                    </div>
-                  </div>
-                  <div class="space-y-2">
-                    <div>
-                      <strong>Created:</strong>
-                      {{ formatDate(userProfile.debug.user_info.created_at) }}
-                    </div>
-                    <div>
-                      <strong>Updated:</strong>
-                      {{ formatDate(userProfile.debug.user_info.updated_at) }}
-                    </div>
-                    <div>
-                      <strong>Email Verified:</strong>
-                      {{ userProfile.debug.user_info.email_verified ? 'Yes' : 'No' }}
-                    </div>
-                  </div>
-                </div>
-                <div v-else class="text-gray-500 italic">No user information found in database</div>
-              </div>
-
-              <!-- Permissions Section -->
-              <div class="border-b border-gray-200 pb-6">
-                <h3 class="text-md font-medium text-gray-900 mb-4">User Permissions</h3>
-                <div v-if="userProfile.debug.permissions.length > 0" class="space-y-3">
-                  <div
-                    v-for="permission in userProfile.debug.permissions"
-                    :key="`${permission.permission}-${permission.granted_at}`"
-                    class="border border-gray-200 rounded-lg p-4"
-                  >
-                    <div class="flex items-center justify-between mb-2">
-                      <div class="flex items-center space-x-2">
-                        <span
-                          class="px-3 py-1 rounded-full text-sm font-medium"
-                          :class="
-                            permission.permission === 'admin'
-                              ? 'bg-red-100 text-red-800'
-                              : 'bg-blue-100 text-blue-800'
-                          "
-                        >
-                          {{ permission.permission }}
-                        </span>
-                        <span
-                          class="px-2 py-1 rounded text-xs"
-                          :class="
-                            permission.is_active
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-gray-100 text-gray-800'
-                          "
-                        >
-                          {{ permission.is_active ? 'Active' : 'Revoked' }}
-                        </span>
-                      </div>
-                      <span class="text-sm text-gray-600">{{
-                        formatDate(permission.granted_at)
-                      }}</span>
-                    </div>
-                    <div class="text-sm text-gray-600">
-                      <div>
-                        <strong>Granted by:</strong>
-                        {{ permission.granted_by_email || permission.granted_by }}
-                      </div>
-                      <div v-if="permission.revoked_at">
-                        <strong>Revoked at:</strong> {{ formatDate(permission.revoked_at) }}
-                      </div>
-                      <div v-if="permission.notes">
-                        <strong>Notes:</strong> {{ permission.notes }}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div v-else class="text-gray-500 italic">No permissions granted</div>
-              </div>
-
-              <!-- Authentication Context Section -->
-              <div class="border-b border-gray-200 pb-6">
-                <h3 class="text-md font-medium text-gray-900 mb-4">Authentication Context</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div class="space-y-2">
-                    <div>
-                      <strong>Token:</strong>
-                      <code class="bg-gray-100 px-2 py-1 rounded text-sm"
-                        >{{ userProfile.debug.auth_context.user_token.substring(0, 12) }}...</code
-                      >
-                    </div>
-                    <div>
-                      <strong>Is Moderator:</strong>
-                      <span
-                        class="px-2 py-1 rounded text-xs"
-                        :class="
-                          (userProfile.debug.auth_context.is_moderator || userProfile.debug.auth_context.is_reviewer)
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        "
-                        >{{ (userProfile.debug.auth_context.is_moderator || userProfile.debug.auth_context.is_reviewer) ? 'Yes' : 'No' }}</span
-                      >
-                    </div>
-                    <div>
-                      <strong>Is Authenticated:</strong>
-                      <span
-                        class="px-2 py-1 rounded text-xs"
-                        :class="
-                          userProfile.debug.auth_context.is_authenticated
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        "
-                        >{{ userProfile.debug.auth_context.is_authenticated ? 'Yes' : 'No' }}</span
-                      >
-                    </div>
-                  </div>
-                  <div class="space-y-2">
-                    <div>
-                      <strong>Email Verified:</strong>
-                      <span
-                        class="px-2 py-1 rounded text-xs"
-                        :class="
-                          userProfile.debug.auth_context.is_verified_email
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-gray-100 text-gray-800'
-                        "
-                        >{{ userProfile.debug.auth_context.is_verified_email ? 'Yes' : 'No' }}</span
-                      >
-                    </div>
-                    <div>
-                      <strong>Is Admin:</strong>
-                      <span
-                        class="px-2 py-1 rounded text-xs"
-                        :class="
-                          userProfile.debug.auth_context.is_admin
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-gray-100 text-gray-800'
-                        "
-                        >{{ userProfile.debug.auth_context.is_admin ? 'Yes' : 'No' }}</span
-                      >
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Request Headers Section -->
-              <div class="border-b border-gray-200 pb-6">
-                <h3 class="text-md font-medium text-gray-900 mb-4">Request Headers</h3>
-                <div class="space-y-2">
-                  <div>
-                    <strong>Authorization:</strong>
-                    {{ userProfile.debug.request_headers.authorization }}
-                  </div>
-                  <div>
-                    <strong>X-User-Token:</strong>
-                    {{ userProfile.debug.request_headers.user_token }}
-                  </div>
-                  <div>
-                    <strong>User Agent:</strong>
-                    <code class="bg-gray-100 px-2 py-1 rounded text-sm break-all">{{
-                      userProfile.debug.request_headers.user_agent
-                    }}</code>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Rate Limits Section -->
-              <div>
-                <h3 class="text-md font-medium text-gray-900 mb-4">Rate Limits</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div class="space-y-2">
-                    <div>
-                      <strong>Submissions Remaining:</strong>
-                      {{ userProfile.debug.rate_limits.submissions_remaining }}
-                    </div>
-                    <div>
-                      <strong>Email Blocked:</strong>
-                      <span
-                        class="px-2 py-1 rounded text-xs"
-                        :class="
-                          userProfile.debug.rate_limits.email_blocked === 'Yes'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-green-100 text-green-800'
-                        "
-                        >{{ userProfile.debug.rate_limits.email_blocked }}</span
-                      >
-                    </div>
-                  </div>
-                  <div class="space-y-2">
-                    <div>
-                      <strong>Queries Remaining:</strong>
-                      {{ userProfile.debug.rate_limits.queries_remaining }}
-                    </div>
-                    <div>
-                      <strong>IP Blocked:</strong>
-                      <span
-                        class="px-2 py-1 rounded text-xs"
-                        :class="
-                          userProfile.debug.rate_limits.ip_blocked === 'Yes'
-                            ? 'bg-red-100 text-red-800'
-                            : 'bg-green-100 text-green-800'
-                        "
-                        >{{ userProfile.debug.rate_limits.ip_blocked }}</span
-                      >
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div v-else class="text-gray-500 italic">No debug information available</div>
-          </div>
+            </li>
+          </ul>
         </div>
-      </div>
+      </section>
     </div>
   </div>
 </template>
@@ -782,10 +282,11 @@ function formatDate(dateString: string): string {
 
 /* Text clamping for multiline truncation */
 .line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
   overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 /* Loading animations */
@@ -805,15 +306,15 @@ function formatDate(dateString: string): string {
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
   .profile-view .grid {
-    @apply grid-cols-1;
+    grid-template-columns: 1fr;
   }
 
   .profile-view .lg\:col-span-1 {
-    @apply order-2;
+    order: 2;
   }
 
   .profile-view .lg\:col-span-3 {
-    @apply order-1;
+    order: 1;
   }
 }
 </style>

@@ -9,8 +9,9 @@
  */
 
 import type { D1Database } from '@cloudflare/workers-types';
-import type { RawImportData, ArtworkArtistRecord } from '../../shared/types';
+import type { ArtworkArtistRecord } from '../../shared/types';
 import { createDatabaseService } from './database';
+import type { MassImportRow } from '../../shared/mass-import';
 
 // ================================
 // Service Types
@@ -51,7 +52,6 @@ export interface ArtistLinkingResult {
 
 export class ArtistAutoCreationService {
   private db: ReturnType<typeof createDatabaseService>;
-  private readonly HIGH_SIMILARITY_THRESHOLD = 0.95;
 
   constructor(database: D1Database) {
     this.db = createDatabaseService(database);
@@ -62,7 +62,7 @@ export class ArtistAutoCreationService {
    */
   async processArtworkArtists(
     artworkId: string,
-    artworkData: RawImportData,
+    artworkData: MassImportRow,
     config: ArtistAutoCreationConfig
   ): Promise<ArtistLinkingResult> {
     const result: ArtistLinkingResult = {
@@ -119,7 +119,7 @@ export class ArtistAutoCreationService {
    */
   async processSingleArtist(
     artistName: string,
-    artworkData: RawImportData,
+    artworkData: MassImportRow,
     config: ArtistAutoCreationConfig
   ): Promise<ArtistAutoCreationResult> {
     // 1. Search for existing artists with fuzzy matching
@@ -172,7 +172,7 @@ export class ArtistAutoCreationService {
       ORDER BY name
     `).all();
 
-    const allArtists = result.results || [];
+    const allArtists = (result.results || []) as any[];
     const matches: ArtistMatchResult[] = [];
 
     // Calculate similarity scores for each artist
@@ -201,7 +201,7 @@ export class ArtistAutoCreationService {
    */
   async createArtistFromArtworkData(
     artistName: string,
-    artworkData: RawImportData,
+    artworkData: MassImportRow,
     config: ArtistAutoCreationConfig
   ): Promise<string> {
     const artistId = crypto.randomUUID();
@@ -275,7 +275,7 @@ export class ArtistAutoCreationService {
       ORDER BY aa.created_at
     `).bind(artworkId).all();
 
-    return (result.results || []).map(row => ({
+    return (result.results || []).map((row: any) => ({
       artwork_id: row.artwork_id as string,
       artist_id: row.artist_id as string,
       role: row.role as string,
@@ -290,7 +290,7 @@ export class ArtistAutoCreationService {
   /**
    * Extract artist names from artwork data
    */
-  private extractArtistNames(artworkData: RawImportData): string[] {
+  private extractArtistNames(artworkData: MassImportRow): string[] {
     const names: string[] = [];
 
     // Check artist field
@@ -343,10 +343,10 @@ export class ArtistAutoCreationService {
    * Calculate Levenshtein distance between two strings
    */
   private levenshteinDistance(str1: string, str2: string): number {
-    const matrix = [];
+    const matrix: number[][] = Array.from({ length: str2.length + 1 }, () => Array(str1.length + 1).fill(0));
     
     for (let i = 0; i <= str2.length; i++) {
-      matrix[i] = [i];
+      matrix[i][0] = i;
     }
     
     for (let j = 0; j <= str1.length; j++) {

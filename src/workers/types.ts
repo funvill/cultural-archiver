@@ -96,7 +96,7 @@ export interface CreateTagRequest {
   value: string;
 }
 
-export interface CreateLogbookEntryRequest {
+export interface CreateSubmissionEntryRequest {
   artwork_id?: string;
   user_token: string;
   lat?: number;
@@ -122,7 +122,7 @@ export interface CreateArtworkCreatorRequest {
 // ================================
 
 // Submission Endpoints
-export interface LogbookSubmissionRequest {
+export interface SubmissionRequest {
   lat: number;
   lon: number;
   note?: string;
@@ -163,7 +163,7 @@ export interface FastArtworkSubmissionResponse {
   }>;
 }
 
-export interface LogbookSubmissionResponse {
+export interface SubmissionResponse {
   id: string;
   status: 'pending';
   message: string;

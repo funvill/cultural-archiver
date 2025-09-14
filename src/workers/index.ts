@@ -17,7 +17,7 @@ import {
 } from './middleware/auth';
 import { rateLimitSubmissions, rateLimitQueries, addRateLimitStatus } from './middleware/rateLimit';
 import {
-  validateLogbookFormData,
+  validateSubmissionFormData,
   validateNearbyArtworksQuery,
   validateBoundsQuery,
   validateUserSubmissionsQuery,
@@ -34,7 +34,7 @@ import {
 import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
 // Import route handlers
-import { createLogbookSubmission, createFastArtworkSubmission } from './routes/submissions';
+import { createSubmission, createFastArtworkSubmission } from './routes/submissions';
 import {
   getNearbyArtworks,
   getArtworkDetails,
@@ -682,9 +682,9 @@ app.post(
   '/api/logbook',
   rateLimitSubmissions,
   validateFileUploads,
-  validateLogbookFormData,
+  validateSubmissionFormData,
   addUserTokenToResponse,
-  withErrorHandling(createLogbookSubmission)
+  withErrorHandling(createSubmission)
 );
 
 // Fast photo-first workflow - new artwork submission endpoint

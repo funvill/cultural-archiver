@@ -52,7 +52,7 @@
 ## File Structure
 
 - `/src/frontend/` - Vue 3 application with TypeScript
-  - `/src/components/` - Reusable Vue components (PhotoCarousel, MiniMap, TagBadge, LogbookTimeline)
+  - `/src/components/` - Reusable Vue components (PhotoCarousel, MiniMap, TagBadge)
   - `/src/views/` - Page-level components (ArtworkDetailView, MapView, SubmitView)
   - `/src/stores/` - Pinia state management
   - `/src/services/` - API service layer with proper error handling

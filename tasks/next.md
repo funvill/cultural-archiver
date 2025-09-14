@@ -76,7 +76,6 @@ Find people that would be willing to partner with me on this project. Be specifi
 
 ## General
 
-- ????? - Remove the creators system and replace it with a comma seperated list of keywords to search for. This means that there won't be a artist details page.
 - `support@art.abluestar.com` currently errors out when sending an email to this address. This address should forward to my personal address.
 - Check to make sure that the only email address that is public is `support@art.abluestar.com`
 
@@ -131,28 +130,27 @@ The admin page is a super user that can give moderators permissions to other use
 - Move the tabs "New Submissions", and "Artwork Edits" to below the Moderate stats. (Simlare to the admin page)
 - The "pending review" stat should also include the "Artwork Edits" pending.
 
-
 ## Add artwork
 
 - After a user uploads a photo, they are shown the search results page of artwork nearby. If the user clicks one of the artwork cards from the search results, they should be brought to a logbook submission form. On this page they can submit a new photo and any other information that they want to. This page is identical to the new artwork submission details page but instead of submitting new artwork it submits a logbook entry, and a artwork details update.
 
 - [ ] After uploading artwork, If no artworks are detected nearby the search results. Go straight to add art details page. No reason to show a page that doesn't have any actions.
 
-----
-
-npx tsx src/cli/index.ts vancouver --limit 1
-
-----
-
-## Database clean up
-
-What is this field used for? Can it be removed or moved?
 
 ----
 
 ## Mass Import merge tags
 
-- When running the mass-import and a duplicate is found. Check the tags, add any new tags to the existing recored, don't overwrite the existing tags.
-
 - Update the "source_url" value to be clickable as a link. This means it shouldn't search that tag, that link should be clickable.
+  - Tags that have urls in them, should be clickable
+
+----
+
+- All IDs across the whole system should be UUIDs. Ensure that all IDs in the database use UUIDs and they are fixed in the database to only accept UUIDs.
+- All table id should be replaced with UUID.
+- 
+
+
+----
+
 

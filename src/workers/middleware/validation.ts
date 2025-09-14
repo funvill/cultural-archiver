@@ -95,7 +95,7 @@ export const coordinateSchema = z.object({
 // Submission Validation Schemas
 // ================================
 
-export const logbookSubmissionSchema = z.object({
+export const submissionSchema = z.object({
   lat: z
     .number()
     .min(-90, 'Latitude must be between -90 and 90')
@@ -292,7 +292,7 @@ export function validateSchema<T extends Record<string, unknown>>(
  * Specific validation middleware for common use cases
  */
 
-export const validateLogbookSubmission = validateSchema(logbookSubmissionSchema, 'body');
+export const validateSubmission = validateSchema(submissionSchema, 'body');
 
 // Custom validation for query parameters that need number conversion
 export async function validateNearbyArtworksQuery(
@@ -727,9 +727,9 @@ export function getValidatedFiles(c: Context): File[] {
  * Validate UUID parameter
  */
 /**
- * Validate logbook submission from form data (for file uploads) or JSON (for text-only submissions)
+ * Validate submission from form data (for file uploads) or JSON (for text-only submissions)
  */
-export async function validateLogbookFormData(
+export async function validateSubmissionFormData(
   c: Context<{ Bindings: WorkerEnv }>,
   next: Next
 ): Promise<void | Response> {
@@ -802,7 +802,7 @@ export async function validateLogbookFormData(
       const jsonData = await c.req.json();
 
       // Validate using Zod schema
-      const result = logbookSubmissionSchema.parse(jsonData);
+      const result = submissionSchema.parse(jsonData);
 
       // Store validated data in context
       c.set('validated_body', result);

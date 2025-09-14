@@ -16,8 +16,10 @@ Create and maintain a progress file while implementing a PRD (Product Requiremen
   - `[ ]` for incomplete tasks
   - `[x]` for completed tasks
 - After completing each major task:
-  - Write a **logbook summary** describing what has been accomplished.
+  - Write a **summary** describing what has been accomplished.
   - Update the progress file with the latest task status and notes.
+- [ ] `npm run test` passes with 0 failures
+- [ ] `npm run build` completes with 0 errors
 
 ## Progress File Requirements
 
