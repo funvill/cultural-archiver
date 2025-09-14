@@ -71,10 +71,9 @@ export interface ArtistRecord {
 }
 
 export interface ArtworkArtistRecord {
-  id: string;
   artwork_id: string;
   artist_id: string;
-  role: string; // 'artist', 'creator', 'collaborator', 'commissioner', etc.
+  role: string; // 'artist', 'primary', 'contributor', 'collaborator', etc.
   created_at: string;
 }
 
