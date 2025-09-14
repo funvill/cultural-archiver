@@ -78,7 +78,7 @@ async function recordConsent(params: {
 ### Implementation Details
 - **Validation**: Exactly one of `userId` or `anonymousToken` required
 - **Error Handling**: Handle unique constraint violations gracefully
-- **Mass Import**: Use reserved `MASS_IMPORT_USER_UUID = '00000000-0000-0000-0000-000000000002'`
+- **Mass Import**: Use reserved `MASS_IMPORT_USER_UUID = 'a0000000-1000-4000-8000-000000000002'` (from shared/constants.ts)
 - **Pattern**: Create consent record BEFORE creating content
 - **Failure Response**: Return `SUBMISSION_BLOCKED` (409) if consent fails
 

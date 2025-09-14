@@ -76,21 +76,21 @@ node dist/cli/cli-entry.js list-plugins
 node dist/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter json \
-  --input vancouver-data.json \
+  --input example-vancouver-data.json \
   --output processed-art.json
 
 # Import test data and display in console
 node dist/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter console \
-  --input test-data.json \
+  --input example-vancouver-data.json \
   --config test-config.json
 
 # Process only first 10 records for testing
 node dist/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter json \
-  --input large-dataset.json \
+  --input example-vancouver-data.json \
   --output sample.json \
   --limit 10
 
@@ -98,7 +98,7 @@ node dist/cli/cli-entry.js import \
 node dist/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter json \
-  --input large-dataset.json \
+  --input example-vancouver-data.json \
   --output batch2.json \
   --offset 100 \
   --limit 50

@@ -35,8 +35,8 @@ const SIMILARITY_WEIGHTS = {
 
 **Additional Security Issues:**
 ```typescript
-// ❌ HARDCODED SYSTEM UUID  
-MASS_IMPORT_USER_UUID: '00000000-0000-0000-0000-000000000002'
+// ✅ PROPERLY DEFINED SYSTEM UUID  
+MASS_IMPORT_USER_UUID: 'a0000000-1000-4000-8000-000000000002' // Now using proper UUID format from shared/constants.ts
 ```
 
 ### 3. Poor Error Handling Patterns

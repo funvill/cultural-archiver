@@ -12,7 +12,7 @@ import type {
   ImporterConfig, 
   PluginMetadata
 } from '../types/plugin.js';
-import type { RawImportData, ValidationResult, ValidationError } from '../types/index.js';
+import type { RawImportData, ValidationResult, ValidationError, PhotoInfo } from '../types/index.js';
 
 // ================================
 // Plugin Configuration
@@ -63,6 +63,17 @@ interface VancouverArtworkRecord {
   url?: string;
   neighbourhood: string;
   ownership?: string;
+  photourl?: VancouverPhotoInfo;
+  photocredits?: string | null;
+  [key: string]: unknown;
+}
+
+interface VancouverPhotoInfo {
+  url: string;
+  filename: string;
+  width?: number;
+  height?: number;
+  mimetype?: string;
   [key: string]: unknown;
 }
 
@@ -235,6 +246,31 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
   // ================================
 
   /**
+   * Extract photos from Vancouver photourl field
+   */
+  private extractPhotos(record: VancouverArtworkRecord): PhotoInfo[] {
+    const photos: PhotoInfo[] = [];
+
+    // Check if photourl exists and has a URL
+    if (record.photourl?.url) {
+      const photoInfo: PhotoInfo = {
+        url: record.photourl.url,
+        filename: record.photourl.filename || undefined,
+        credit: record.photocredits || undefined,
+      };
+
+      // Add caption if we can derive one from the title or description
+      if (record.title_of_work) {
+        photoInfo.caption = `Photo of "${record.title_of_work}"`;
+      }
+
+      photos.push(photoInfo);
+    }
+
+    return photos;
+  }
+
+  /**
    * Map a single artwork record to standardized format
    */
   private async mapSingleRecord(record: VancouverArtworkRecord, config: VancouverPublicArtConfig): Promise<RawImportData> {
@@ -250,6 +286,9 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
     // Build comprehensive tags
     const tags = await this.buildComprehensiveTags(record, config.tagMappings);
 
+    // Extract photos from photourl field
+    const photos = this.extractPhotos(record);
+
     // Map core fields
     const mappedRecord: RawImportData = {
       lat: coordinates.lat,
@@ -260,7 +299,7 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
       source: 'vancouver-public-art',
       externalId: this.generateImportId(record),
       tags,
-      photos: [], // Photos will be processed separately if available
+      photos,
     };
 
     return mappedRecord;

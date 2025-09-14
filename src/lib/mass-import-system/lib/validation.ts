@@ -21,8 +21,8 @@ import type {
 // Constants
 // ================================
 
-// Mass Import User UUID for attribution
-export const MASS_IMPORT_USER_TOKEN = '00000000-0000-0000-0000-000000000002';
+// Mass Import User UUID for attribution (from shared/constants.ts)
+export const MASS_IMPORT_USER_TOKEN = 'a0000000-1000-4000-8000-000000000002';
 
 // Vancouver coordinate bounds for validation
 export const VANCOUVER_BOUNDS = {

@@ -312,8 +312,8 @@ Legal compliance table tracking user consent for all submitted content. Implemen
 **Identity Handling:**
 
 - **Authenticated Users**: `user_id` populated, `anonymous_token` is NULL
-- **Anonymous Users**: `user_id` is NULL, `anonymous_token` populated
-- **Mass Import**: Uses reserved UUID `00000000-0000-0000-0000-000000000002`
+- **Anonymous Users**: `user_id` is NULL, `anonymous_token` populated  
+- **Mass Import**: Uses reserved UUID `a0000000-1000-4000-8000-000000000002` (MASS_IMPORT_USER_UUID from shared/constants.ts)
 
 **See Also:** [Consent System Documentation](./consent-system.md) for detailed implementation guide.
 

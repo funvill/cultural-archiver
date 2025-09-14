@@ -79,7 +79,7 @@ program
 
 program
   .option('--api-endpoint <url>', 'API endpoint URL', 'https://art-api.abluestar.com')
-  .option('--token <token>', 'Mass import user token', '00000000-0000-0000-0000-000000000002')
+  .option('--token <token>', 'Mass import user token', 'a0000000-1000-4000-8000-000000000002') // MASS_IMPORT_USER_UUID
   .option('--batch-size <number>', 'Batch size for processing', '50')
   .option('--max-retries <number>', 'Maximum retry attempts', '3')
   .option('--retry-delay <number>', 'Delay between retries in ms', '1000')
@@ -587,7 +587,7 @@ program
       console.log(chalk.blue('\n✅ Configuration Validation:'));
       const validationResults = [];
 
-      if (!config.massImportUserToken || config.massImportUserToken === '00000000-0000-0000-0000-000000000002') {
+      if (!config.massImportUserToken || config.massImportUserToken === 'a0000000-1000-4000-8000-000000000002') { // MASS_IMPORT_USER_UUID
         validationResults.push(chalk.yellow('⚠️ Using default mass import user token - consider setting custom token'));
       } else {
         validationResults.push(chalk.green('✅ Custom user token configured'));
@@ -865,7 +865,7 @@ async function loadConfig(options: any, importerName?: string): Promise<MassImpo
   // Override with CLI options
   return {
     apiEndpoint: options.apiEndpoint || config.apiEndpoint || 'https://art-api.abluestar.com',
-    massImportUserToken: options.token || config.massImportUserToken || '00000000-0000-0000-0000-000000000002',
+    massImportUserToken: options.token || config.massImportUserToken || 'a0000000-1000-4000-8000-000000000002', // MASS_IMPORT_USER_UUID
     batchSize: parseInt(options.batchSize || config.batchSize || '50'),
     maxRetries: parseInt(options.maxRetries || config.maxRetries || '3'),
     retryDelay: parseInt(options.retryDelay || config.retryDelay || '1000'),
