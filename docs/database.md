@@ -6,11 +6,12 @@ The Cultural Archiver uses a **production-ready SQLite database** (Cloudflare D1
 
 ### **🔄 Database Schema Status**
 - **✅ Unified Submissions System**: Complete transition from legacy logbook/artwork_edits to single submissions table
-- **✅ Role-Based Permissions**: New user_roles table with admin/moderator/curator roles
-- **✅ Enhanced Audit Logging**: Comprehensive tracking of all system actions
-- **✅ TypeScript Integration**: All 653 unit tests passing with full type safety
-- **✅ Migration System**: Sequential migration tracking via `d1_migrations` table
-- **✅ CLI Tools**: PowerShell-compatible database management commands
+- **✅ Role-Based Permissions**: New user_roles table with admin/moderator/user roles operational
+- **✅ Enhanced Audit Logging**: Comprehensive tracking of all system actions via auth_sessions and rate_limiting
+- **✅ TypeScript Integration**: All 672 unit tests passing with full type safety (1 skipped)
+- **✅ Migration System**: Sequential migration tracking via `d1_migrations` table with PowerShell-compatible CLI
+- **✅ Artist Management**: Complete artists table with artwork_artists linking table for many-to-many relationships
+- **✅ Authentication Infrastructure**: Full magic links, auth sessions, and rate limiting operational
 
 ### **🎯 Unified Submission Workflow**  
 - **✅ Single Submissions Table**: Handles logbook entries, artwork edits, artist edits, and new submissions
@@ -87,7 +88,7 @@ Artist information and portfolio details.
 | `new_data`          | TEXT | NULL                                                            | JSON object of proposed changes (for edits)        |
 | `verification_status` | TEXT | CHECK('pending','verified','unverified')                     | Email verification status                           |
 | `status`            | TEXT | CHECK('pending','approved','rejected')                         | Moderation status                                   |
-| `reviewer_token`    | TEXT | NULL                                                            | Reviewer who processed submission                   |
+| `reviewed_by`       | TEXT | NULL                                                            | Reviewer who processed submission                   |
 | `review_notes`      | TEXT | NULL                                                            | Reviewer's notes                                    |
 | `reviewed_at`       | TEXT | NULL                                                            | Review timestamp                                    |
 | `created_at`        | TEXT | NOT NULL, DEFAULT datetime('now')                               | Creation timestamp                                  |
@@ -315,6 +316,34 @@ Legal compliance table tracking user consent for all submitted content. Implemen
 - **Mass Import**: Uses reserved UUID `00000000-0000-0000-0000-000000000002`
 
 **See Also:** [Consent System Documentation](./consent-system.md) for detailed implementation guide.
+
+#### artwork_artists
+
+**Many-to-many linking table** - manages relationships between artworks and artists, supporting collaborative works and proper attribution tracking.
+
+| Field        | Type | Constraints                           | Description                        |
+| ------------ | ---- | ------------------------------------- | ---------------------------------- |
+| `artwork_id` | TEXT | NOT NULL, FK→artwork.id               | Reference to artwork               |
+| `artist_id`  | TEXT | NOT NULL, FK→artists.id               | Reference to artist                |
+| `role`       | TEXT | NOT NULL, DEFAULT 'artist'            | Artist role (e.g., 'primary', 'contributor', 'artist') |
+| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Creation timestamp                 |
+
+**Primary Key**: `(artwork_id, artist_id)`
+
+**Indexes:**
+- `idx_artwork_artists_artwork_id` on `artwork_id` for artwork-based queries
+- `idx_artwork_artists_artist_id` on `artist_id` for artist-based queries  
+- `idx_artwork_artists_role` on `role` for role-based filtering
+
+**Foreign Keys:**
+- `artwork_id` → `artwork.id` ON DELETE CASCADE
+- `artist_id` → `artists.id` ON DELETE CASCADE
+
+**Role Types:**
+- `artist` - Standard artist attribution (default)
+- `primary` - Primary artist for collaborative works
+- `contributor` - Contributing artist
+- `collaborator` - Collaborative partner
 
 ### artwork_types
 
@@ -729,20 +758,33 @@ npm run database:status:prod       # Check production status
 The database schema is reflected in TypeScript types in `src/shared/types.ts`:
 
 **Core Tables:**
-- `ArtworkRecord` - artwork table with enhanced fields
-- `ArtistRecord` - artists table
+- `ArtworkRecord` - artwork table with enhanced fields and structured tags
+- `ArtistRecord` - artists table with bio and metadata
 - `SubmissionRecord` - unified submissions table (replaces LogbookRecord/ArtworkEditRecord)
-- `UserRoleRecord` - role-based permissions
+- `UserRoleRecord` - role-based permissions system
 - `UserRecord` - user authentication
+- `MagicLinkRecord` - email-based authentication tokens
+- `AuthSessionRecord` - active user sessions
+- `RateLimitingRecord` - API rate limiting
+- `ConsentRecord` - legal compliance tracking
+- `ArtworkArtistRecord` - many-to-many artwork-artist relationships
 
 **API Types:**
-- `ArtworkApiResponse` - artwork with parsed JSON fields
-- `ArtistApiResponse` - artist with metadata
-- `CreateSubmissionRequest` - submission creation
-- `AuthStatusResponse` - authentication status
+- `ArtworkApiResponse` - artwork with parsed JSON fields and display metadata
+- `ArtistApiResponse` - artist with metadata and artwork counts
+- `CreateSubmissionRequest` - unified submission creation
+- `AuthStatusResponse` - authentication status with roles and permissions
+- `CreateSubmissionEntryRequest` - legacy logbook submission format
 
-**Legacy Types (Removed):**
-- `LogbookRecord` - replaced by `SubmissionRecord`
+**New Record Creation Types:**
+- `NewArtworkRecord` - complete artwork creation with all fields
+- `NewArtistRecord` - artist creation with bio, website, and tags
+- `CreateArtworkRequest` - API request format for artwork creation
+- `CreateArtistRequest` - API request format for artist creation
+
+**Legacy Types (Maintained for Compatibility):**
+- `LogbookRecord` - mapped to SubmissionRecord for backwards compatibility
 - `TagRecord` - replaced by JSON tags in artwork/artist records
+- `ArtworkEditRecord` - replaced by SubmissionRecord with edit data
 
-All types include proper validation functions and status guards for type safety across the frontend and backend systems.
+All types include proper validation functions and status guards for type safety across the frontend and backend systems. The unified submission system provides consistent typing for all content operations while maintaining backward compatibility with legacy endpoints.
