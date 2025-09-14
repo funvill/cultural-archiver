@@ -5,6 +5,7 @@
 
 import type { D1Database } from '@cloudflare/workers-types';
 import type { UserRoleRecord } from '../../shared/types.js';
+import { generateUUID } from '../../shared/constants.js';
 
 // ================================
 // Core Role Management Functions
@@ -21,7 +22,7 @@ export async function createUserRole(
     metadata?: Record<string, unknown>;
   }
 ): Promise<string> {
-  const id = crypto.randomUUID();
+  const id = generateUUID();
   const now = new Date().toISOString();
   
   await db.prepare(`

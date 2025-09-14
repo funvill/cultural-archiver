@@ -5,6 +5,7 @@
 
 import type { D1Database } from '@cloudflare/workers-types';
 import type { AuditLogRecord } from '../../shared/types.js';
+import { generateUUID } from '../../shared/constants.js';
 
 // ================================
 // Core Audit Logging Functions
@@ -24,7 +25,7 @@ export async function createAuditLog(
     metadata?: Record<string, unknown> | undefined;
   }
 ): Promise<string> {
-  const id = crypto.randomUUID();
+  const id = generateUUID();
   const now = new Date().toISOString();
   
   await db.prepare(`

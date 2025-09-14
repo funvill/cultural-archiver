@@ -5,6 +5,7 @@
 
 import type { D1Database } from '@cloudflare/workers-types';
 import type { UserActivityRecord } from '../../shared/types.js';
+import { generateUUID } from '../../shared/constants.js';
 
 // ================================
 // Core User Activity Operations
@@ -17,7 +18,7 @@ export async function recordUserActivity(
   activityType: 'rate_limit' | 'auth_session' | 'submission',
   sessionData?: Record<string, unknown>
 ): Promise<string> {
-  const id = crypto.randomUUID();
+  const id = generateUUID();
   const windowStart = getWindowStart(activityType);
   
   await db.prepare(`

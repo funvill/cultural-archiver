@@ -4,6 +4,7 @@
  */
 
 import { CONSENT_VERSION } from '../../shared/consent';
+import { generateUUID } from '../../shared/constants.js';
 import type {
   ArtworkRecord,
   LogbookRecord,
@@ -33,7 +34,7 @@ export class DatabaseService {
   // ================================
 
   async createArtwork(data: CreateArtworkRequest): Promise<string> {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const now = new Date().toISOString();
 
     // For MVP, we'll add photos as NULL since the current schema doesn't have it
@@ -205,7 +206,7 @@ export class DatabaseService {
   // ================================
 
   async createLogbookEntry(data: CreateSubmissionEntryRequest): Promise<LogbookRecord> {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const now = new Date().toISOString();
 
     // Use submissions table with logbook_entry submission_type
@@ -346,7 +347,7 @@ export class DatabaseService {
   // ================================
 
   async createTag(data: CreateTagRequest): Promise<TagRecord> {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const now = new Date().toISOString();
 
     const stmt = this.db.prepare(`
@@ -466,7 +467,7 @@ export class DatabaseService {
   // ================================
 
   async createCreator(data: CreateCreatorRequest): Promise<string> {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const now = new Date().toISOString();
 
     const stmt = this.db.prepare(`
@@ -491,7 +492,7 @@ export class DatabaseService {
   }
 
   async linkArtworkToCreator(data: CreateArtworkCreatorRequest): Promise<string> {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const now = new Date().toISOString();
 
     const stmt = this.db.prepare(`
@@ -620,7 +621,7 @@ export class DatabaseService {
     source: string;
     sourceData?: any;
   }): Promise<string> {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const now = new Date().toISOString();
 
     // Build tags object with source metadata
@@ -652,7 +653,7 @@ export class DatabaseService {
   }
 
   async linkArtworkToArtist(artworkId: string, artistId: string, role: string = 'artist'): Promise<string> {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const now = new Date().toISOString();
 
     const stmt = this.db.prepare(`
