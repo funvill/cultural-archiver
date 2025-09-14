@@ -4,7 +4,7 @@
 // Replaces various audit trails with unified audit_log table
 
 import type { D1Database } from '@cloudflare/workers-types';
-import type { NewAuditLogRecord } from '../../shared/types.js';
+import type { AuditLogRecord } from '../../shared/types.js';
 
 // ================================
 // Core Audit Logging Functions
@@ -52,10 +52,10 @@ export async function createAuditLog(
 export async function getAuditLog(
   db: D1Database,
   id: string
-): Promise<NewAuditLogRecord | null> {
+): Promise<AuditLogRecord | null> {
   const result = await db.prepare(`
     SELECT * FROM audit_log WHERE id = ?
-  `).bind(id).first<NewAuditLogRecord>();
+  `).bind(id).first<AuditLogRecord>();
 
   return result || null;
 }
@@ -73,7 +73,7 @@ export async function getAuditLogs(
     limit?: number;
     offset?: number;
   } = {}
-): Promise<NewAuditLogRecord[]> {
+): Promise<AuditLogRecord[]> {
   let query = `SELECT * FROM audit_log WHERE 1=1`;
   const params: (string | number)[] = [];
   
@@ -124,7 +124,7 @@ export async function getAuditLogs(
     }
   }
   
-  const results = await db.prepare(query).bind(...params).all<NewAuditLogRecord>();
+  const results = await db.prepare(query).bind(...params).all<AuditLogRecord>();
   return results.results || [];
 }
 
@@ -396,7 +396,7 @@ export async function getUserActivity(
   userToken: string,
   dateRange?: { start: string; end: string },
   limit: number = 100
-): Promise<NewAuditLogRecord[]> {
+): Promise<AuditLogRecord[]> {
   const params: {
     userToken: string;
     limit: number;
@@ -423,7 +423,7 @@ export async function getEntityHistory(
   entityType: 'artwork' | 'artist' | 'submission' | 'user_activity' | 'user_role',
   entityId: string,
   limit: number = 50
-): Promise<NewAuditLogRecord[]> {
+): Promise<AuditLogRecord[]> {
   return getAuditLogs(db, {
     entityType,
     entityId,
@@ -435,7 +435,7 @@ export async function getSecurityEvents(
   db: D1Database,
   dateRange?: { start: string; end: string },
   limit: number = 100
-): Promise<NewAuditLogRecord[]> {
+): Promise<AuditLogRecord[]> {
   let query = `
     SELECT * FROM audit_log 
     WHERE metadata IS NOT NULL 
@@ -451,7 +451,7 @@ export async function getSecurityEvents(
   query += ` ORDER BY created_at DESC LIMIT ?`;
   params.push(limit);
   
-  const results = await db.prepare(query).bind(...params).all<NewAuditLogRecord>();
+  const results = await db.prepare(query).bind(...params).all<AuditLogRecord>();
   return results.results || [];
 }
 
@@ -478,7 +478,7 @@ export async function cleanOldAuditLogs(
 export async function archiveSecurityEvents(
   db: D1Database,
   archivePeriodDays: number = 90
-): Promise<NewAuditLogRecord[]> {
+): Promise<AuditLogRecord[]> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - archivePeriodDays);
   
@@ -488,7 +488,7 @@ export async function archiveSecurityEvents(
     WHERE created_at < ?
     AND json_extract(metadata, '$.suspiciousAction') IS NOT NULL
     ORDER BY created_at DESC
-  `).bind(cutoffDate.toISOString()).all<NewAuditLogRecord>();
+  `).bind(cutoffDate.toISOString()).all<AuditLogRecord>();
 
   return events.results || [];
 }

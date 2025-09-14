@@ -33,7 +33,7 @@ export async function getLogbookEntriesForArtworkFromSubmissions(
       user_token: submission.user_token,
       lat: submission.lat || null,
       lon: submission.lon || null,
-      note: submission.notes,
+      note: submission.note, // Fixed: was submission.notes, should be submission.note
       photos: submission.photos ? JSON.stringify(submission.photos) : null,
       status: submission.status as 'pending' | 'approved' | 'rejected',
       created_at: submission.created_at
@@ -61,7 +61,7 @@ export async function getAllLogbookEntriesForArtworkFromSubmissions(
       user_token: submission.user_token,
       lat: submission.lat || null,
       lon: submission.lon || null,
-      note: submission.notes,
+      note: submission.note, // Fixed: was submission.notes, should be submission.note
       photos: submission.photos ? JSON.stringify(submission.photos) : null,
       status: submission.status as 'pending' | 'approved' | 'rejected',
       created_at: submission.created_at

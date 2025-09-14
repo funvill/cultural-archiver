@@ -202,7 +202,7 @@ export class ArtistAutoCreationService {
   async createArtistFromArtworkData(
     artistName: string,
     artworkData: RawImportData,
-    config: ArtistAutoCreationConfig
+    _config: ArtistAutoCreationConfig // Prefix with underscore to indicate intentionally unused
   ): Promise<string> {
     const artistId = crypto.randomUUID();
     const timestamp = new Date().toISOString();
@@ -343,31 +343,35 @@ export class ArtistAutoCreationService {
    * Calculate Levenshtein distance between two strings
    */
   private levenshteinDistance(str1: string, str2: string): number {
-    const matrix: number[][] = Array.from({ length: str2.length + 1 }, () => Array(str1.length + 1).fill(0));
+    // Initialize matrix with proper dimensions and default values
+    const matrix: number[][] = [];
+    for (let i = 0; i <= str2.length; i++) {
+      matrix[i] = new Array(str1.length + 1).fill(0);
+    }
     
     for (let i = 0; i <= str2.length; i++) {
-      matrix[i][0] = i;
+      matrix[i]![0] = i; // Non-null assertion since we just created the array
     }
     
     for (let j = 0; j <= str1.length; j++) {
-      matrix[0][j] = j;
+      matrix[0]![j] = j; // Non-null assertion since we just created the array
     }
     
     for (let i = 1; i <= str2.length; i++) {
       for (let j = 1; j <= str1.length; j++) {
         if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
-          matrix[i][j] = matrix[i - 1][j - 1];
+          matrix[i]![j] = matrix[i - 1]![j - 1]!;
         } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j - 1] + 1,
-            matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1
+          matrix[i]![j] = Math.min(
+            matrix[i - 1]![j - 1]! + 1,
+            matrix[i]![j - 1]! + 1,
+            matrix[i - 1]![j]! + 1
           );
         }
       }
     }
     
-    return matrix[str2.length][str1.length];
+    return matrix[str2.length]![str1.length]!; // Non-null assertion for final result
   }
 }
 

@@ -11,9 +11,7 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { 
   RawImportData,
-  DuplicationScore,
-  ValidationError,
-  MassImportRequestV2
+  DuplicationScore
 } from '../../shared/mass-import';
 import { createDatabaseService } from './database';
 
@@ -212,7 +210,7 @@ export class MassImportV2DuplicateDetectionService {
     // Get existing record
     const existing = await this.db.db.prepare(`
       SELECT tags FROM ${tableName} WHERE id = ?
-    `).bind(entityId).first();
+    `).bind(entityId).first() as { tags: string | null } | null;
 
     if (!existing) {
       throw new Error(`${entityType} ${entityId} not found`);
@@ -406,31 +404,31 @@ export class MassImportV2DuplicateDetectionService {
    * Calculate Levenshtein distance between two strings
    */
   private levenshteinDistance(s1: string, s2: string): number {
-    const matrix = [];
+    const matrix: number[][] = [];
     
     for (let i = 0; i <= s2.length; i++) {
       matrix[i] = [i];
     }
     
     for (let j = 0; j <= s1.length; j++) {
-      matrix[0][j] = j;
+      matrix[0]![j] = j; // Non-null assertion since we just created the array
     }
     
     for (let i = 1; i <= s2.length; i++) {
       for (let j = 1; j <= s1.length; j++) {
         if (s2.charAt(i - 1) === s1.charAt(j - 1)) {
-          matrix[i][j] = matrix[i - 1][j - 1];
+          matrix[i]![j] = matrix[i - 1]![j - 1]!;
         } else {
-          matrix[i][j] = Math.min(
-            matrix[i - 1][j - 1] + 1,
-            matrix[i][j - 1] + 1,
-            matrix[i - 1][j] + 1
+          matrix[i]![j] = Math.min(
+            matrix[i - 1]![j - 1]! + 1,
+            matrix[i]![j - 1]! + 1,
+            matrix[i - 1]![j]! + 1
           );
         }
       }
     }
     
-    return matrix[s2.length][s1.length];
+    return matrix[s2.length]![s1.length]!; // Non-null assertion for final result
   }
 
   /**

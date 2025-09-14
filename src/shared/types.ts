@@ -117,6 +117,8 @@ export interface NewArtworkRecord {
   region?: string | null;
   country?: string | null;
   photos?: string | null; // JSON array of photo URLs
+  source_type?: string | null; // Source system type
+  source_id?: string | null; // Original ID from source system
 }
 
 export interface NewArtistRecord {
@@ -135,6 +137,8 @@ export interface NewArtistRecord {
   website?: string | null;
   social_media?: string | null;
   notes?: string | null;
+  source_type?: string | null; // Source system type
+  source_id?: string | null; // Original ID from source system
 }
 
 // ================================
@@ -151,6 +155,7 @@ export interface AuthSessionRecord {
   user_agent: string | null;
   is_active: boolean;
   device_info: string | null;
+  expires_at: string | null; // Session expiration time
 }
 
 export interface RateLimitRecord {
@@ -1358,12 +1363,15 @@ export interface SubmissionRecord {
   ip_address: string;
   user_agent: string | null;
   
+  // Timestamps
+  created_at: string;
+  submitted_at: string;
+  
   // Moderation workflow
   status: 'pending' | 'approved' | 'rejected';
   moderator_notes: string | null;
   reviewed_at: string | null;
   reviewed_by: string | null; // reviewer token/id
-  submitted_at: string;
 }
 
 // User Activity Record (replaces rate_limits and auth_sessions)
