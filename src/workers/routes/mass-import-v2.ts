@@ -28,6 +28,7 @@ import { processAndUploadPhotos } from '../lib/photos';
 import { createDatabaseService } from '../lib/database';
 import { createMassImportV2DuplicateDetectionService } from '../lib/mass-import-v2-duplicate-detection';
 import { createArtistAutoCreationService } from '../lib/artist-auto-creation';
+import { SYSTEM_ADMIN_USER_UUID, generateUUID } from '../../shared/constants';
 import type { 
   MassImportRequestV2, 
   MassImportResponseV2, 
@@ -39,7 +40,7 @@ import type {
 // Constants and Configuration
 // ================================
 
-const MASS_IMPORT_SYSTEM_USER_TOKEN = '00000000-0000-0000-0000-000000000001';
+const MASS_IMPORT_SYSTEM_USER_TOKEN = SYSTEM_ADMIN_USER_UUID;
 const MAX_PROCESSING_TIME_MS = 60000; // 1 minute timeout as per PRD
 const MAX_BATCH_SIZE = 10; // Maximum records per batch
 const DEFAULT_DUPLICATE_THRESHOLD = 0.7;
@@ -445,8 +446,8 @@ async function processSingleArtwork(
   const photoUrls = await processArtworkPhotos(artworkData, env, response);
 
   // 3. Create artwork record via submissions table
-  const artworkId = crypto.randomUUID();
-  const submissionId = crypto.randomUUID();
+  const artworkId = generateUUID();
+  const submissionId = generateUUID();
   const timestamp = new Date().toISOString();
 
   // Create submission record
@@ -571,8 +572,8 @@ async function processSingleArtist(
   }
 
   // 2. Create artist record
-  const artistId = crypto.randomUUID();
-  const submissionId = crypto.randomUUID();
+  const artistId = generateUUID();
+  const submissionId = generateUUID();
   const timestamp = new Date().toISOString();
 
   // Create submission record

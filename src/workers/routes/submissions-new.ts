@@ -13,6 +13,7 @@ import { getValidatedData, getValidatedFiles } from '../middleware/validation';
 import { processAndUploadPhotos } from '../lib/photos';
 import { CONSENT_VERSION } from '../../shared/consent';
 import { DEFAULT_ARTWORK_SEARCH_RADIUS } from '../../shared/geo';
+import { generateUUID } from '../../shared/constants';
 
 // Import new unified services
 import {
@@ -124,7 +125,7 @@ export async function createLogbookSubmission(
     }
 
     // Record consent
-    const contentId = crypto.randomUUID();
+    const contentId = generateUUID();
     const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
     const consentVersion = validatedData.consent_version || CONSENT_VERSION;
     const consentTextHash = await generateConsentTextHash(
@@ -346,7 +347,7 @@ export async function createNewArtworkSubmissionHandler(
     await recordUserActivity(c.env.DB, userToken, 'user_token', 'submission');
 
     // Record consent
-    const contentId = crypto.randomUUID();
+    const contentId = generateUUID();
     const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
     const consentVersion = validatedData.consent_version || CONSENT_VERSION;
     const consentTextHash = await generateConsentTextHash(

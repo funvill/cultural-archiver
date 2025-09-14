@@ -5,6 +5,7 @@
 
 import type { D1Database } from '@cloudflare/workers-types';
 import type { SubmissionRecord, NewArtworkRecord, NewArtistRecord } from '../../shared/types.js';
+import { generateUUID } from '../../shared/constants.js';
 
 // ================================
 // Core Submission Operations
@@ -29,7 +30,7 @@ export async function createSubmission(
     verificationStatus?: 'pending' | 'verified' | 'unverified';
   }
 ): Promise<string> {
-  const id = crypto.randomUUID();
+  const id = generateUUID();
   const now = new Date().toISOString();
   
   await db.prepare(`
@@ -442,7 +443,7 @@ async function createArtworkFromSubmission(
   submission: SubmissionRecord
 ): Promise<boolean> {
   const newData = JSON.parse(submission.new_data as string) as Partial<NewArtworkRecord>;
-  const artworkId = crypto.randomUUID();
+  const artworkId = generateUUID();
   const now = new Date().toISOString();
   
   const result = await db.prepare(`
@@ -489,7 +490,7 @@ async function createArtistFromSubmission(
   submission: SubmissionRecord
 ): Promise<boolean> {
   const newData = JSON.parse(submission.new_data as string) as Partial<NewArtistRecord>;
-  const artistId = crypto.randomUUID();
+  const artistId = generateUUID();
   const now = new Date().toISOString();
   
   const result = await db.prepare(`

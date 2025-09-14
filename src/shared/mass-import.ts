@@ -5,6 +5,8 @@
  * with duplicate detection, structured tagging, and bulk approval workflows.
  */
 
+import { MASS_IMPORT_USER_UUID } from './constants';
+
 export interface MassImportConfig {
   /** Data source identifier (e.g., 'vancouver-public-art') */
   source: string;
@@ -446,7 +448,7 @@ export const MASS_IMPORT_CONSTANTS = {
   DEFAULT_PHOTO_TIMEOUT_SECONDS: 30,
   
   /** Mass import user UUID */
-  MASS_IMPORT_USER_UUID: '00000000-0000-0000-0000-000000000002',
+  MASS_IMPORT_USER_UUID,
   
   /** Required tags for all mass imports */
   REQUIRED_IMPORT_TAGS: [
