@@ -11,8 +11,6 @@ import { UnauthorizedError, ForbiddenError } from '../lib/errors';
 
 export interface AuthContext {
   userToken: string;
-  /** Deprecated: will be removed after migration; use isModerator or canReview */
-  isReviewer: boolean;
   /** True if user has moderator permission (or higher). */
   isModerator: boolean;
   /** User can perform review actions (alias of isModerator or admin). */
@@ -82,7 +80,6 @@ export async function ensureUserToken(
   c.set('isNewToken', isNewToken); // Track if this is a new token
   c.set('authContext', {
     userToken,
-    isReviewer: false,
     isModerator: false,
     canReview: false,
     isVerifiedEmail: false,
@@ -116,7 +113,6 @@ export async function requireReviewer(
 
     // Update auth context (set all related flags)
     const authContext = c.get('authContext');
-    authContext.isReviewer = true; // deprecated
     authContext.isModerator = true;
     authContext.canReview = true;
     c.set('authContext', authContext);
@@ -155,9 +151,8 @@ export async function requireAdmin(
 
     // Update auth context
     const authContext = c.get('authContext');
-  authContext.isReviewer = true; // deprecated
-  authContext.isModerator = true;
-  authContext.canReview = true;
+    authContext.isModerator = true;
+    authContext.canReview = true;
     authContext.isAdmin = true;
     c.set('authContext', authContext);
 
@@ -248,9 +243,8 @@ export function getAuthContext(c: Context): AuthContext {
   return (
     c.get('authContext') || {
       userToken: '',
-  isReviewer: false,
-  isModerator: false,
-  canReview: false,
+      isModerator: false,
+      canReview: false,
       isVerifiedEmail: false,
     }
   );
@@ -272,7 +266,7 @@ export function isModeratorUser(c: Context): boolean {
 
 export function canReview(c: Context): boolean {
   const authContext = getAuthContext(c);
-  return authContext.canReview || authContext.isModerator || authContext.isAdmin || authContext.isReviewer || false;
+  return authContext.canReview || authContext.isModerator || authContext.isAdmin || false;
 }
 
 /**

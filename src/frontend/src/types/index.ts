@@ -11,8 +11,6 @@ export interface User {
   id: string;
   email: string;
   emailVerified: boolean;
-  /** Deprecated: will be removed after migration. Use isModerator/canReview */
-  isReviewer?: boolean;
   /** True if user has moderator (or higher) permission */
   isModerator?: boolean;
   /** Alias convenience flag for components performing review actions */

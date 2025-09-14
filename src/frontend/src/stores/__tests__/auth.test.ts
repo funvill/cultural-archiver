@@ -332,12 +332,10 @@ describe('Auth Store', () => {
     it('returns correct reviewer status', () => {
       const store = useAuthStore();
 
-  // Simulate moderator privilege (new canonical flag path)
-  store.setPermissions(['moderator']);
-  expect(store.isModerator).toBe(true);
-  expect(store.canReview).toBe(true);
-  // Backward compatibility alias still true
-  expect(store.isReviewer).toBe(true);
+      // Simulate moderator privilege (new canonical flag path)
+      store.setPermissions(['moderator']);
+      expect(store.isModerator).toBe(true);
+      expect(store.canReview).toBe(true);
     });
   });
 

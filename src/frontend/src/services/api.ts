@@ -710,13 +710,6 @@ export const apiService = {
   },
 
   /**
-   * Approve submission (legacy method)
-   */
-  async approveSubmission(id: string, reason?: string): Promise<ApiResponse<{ message: string }>> {
-    return client.post(`/review/approve/${id}`, { reason });
-  },
-
-  /**
    * Reject submission
    */
   async rejectSubmission(id: string, reason?: string): Promise<ApiResponse<{ message: string }>> {
