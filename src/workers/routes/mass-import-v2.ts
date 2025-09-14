@@ -255,6 +255,7 @@ export async function processMassImportV2(
         response,
         { db, duplicateService, artistService, env: c.env }
       );
+      response.auditTrail.batchesProcessed++;
     }
 
     // 6. Process artists if provided
@@ -265,6 +266,7 @@ export async function processMassImportV2(
         response,
         { db, duplicateService, artistService, env: c.env }
       );
+      response.auditTrail.batchesProcessed++;
     }
 
     // 7. Finalize response
