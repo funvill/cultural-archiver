@@ -5,6 +5,8 @@
  * with structured field mapping and tag transformation.
  */
 
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import type { 
   ImporterPlugin, 
   ImporterConfig, 
@@ -43,21 +45,34 @@ export interface VancouverPublicArtConfig extends ImporterConfig {
 // ================================
 
 interface VancouverArtworkRecord {
+  registryid: number;
   title_of_work: string;
-  descriptionofwork: string;
+  descriptionofwork?: string;
   artistprojectstatement?: string;
   geo_point_2d: {
     lat: number;
     lon: number;
   };
   type: string;
-  artists: string[];
-  primarymaterial: string;
+  artists: string[] | string | undefined;
+  primarymaterial?: string;
   yearofinstallation: string;
-  sitename: string;
+  sitename?: string;
+  siteaddress?: string;
   status: string;
   url?: string;
   neighbourhood: string;
+  ownership?: string;
+  [key: string]: unknown;
+}
+
+interface VancouverArtistRecord {
+  artistid: number;
+  firstname: string;
+  lastname: string;
+  artisturl?: string;
+  biography?: string;
+  country?: string;
   [key: string]: unknown;
 }
 
@@ -78,6 +93,9 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
     requiredFields: ['title_of_work', 'geo_point_2d'],
     optionalFields: ['descriptionofwork', 'artistprojectstatement', 'artists', 'type']
   };
+
+  // Artist lookup cache
+  private artistLookup: Map<string, VancouverArtistRecord> = new Map();
 
   // Configuration schema for validation
   configSchema = {
@@ -108,6 +126,9 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
     if (!Array.isArray(sourceData)) {
       throw new Error('Vancouver Public Art data must be an array of artwork records');
     }
+
+    // Load artist lookup data
+    await this.loadArtistLookup();
 
     const mappedData: RawImportData[] = [];
 
@@ -220,15 +241,22 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
     // Extract coordinates
     const coordinates = this.extractCoordinates(record, config.fieldMappings.coordinates);
     
-    // Build tags using configured mappings
-    const tags = await this.buildTags(record, config.tagMappings);
+    // Build description from artist project statement
+    const description = this.buildDescription(record);
+    
+    // Get artist names from IDs
+    const artistNames = this.lookupArtistNames(record.artists);
+    
+    // Build comprehensive tags
+    const tags = await this.buildComprehensiveTags(record, config.tagMappings);
 
     // Map core fields
     const mappedRecord: RawImportData = {
       lat: coordinates.lat,
       lon: coordinates.lon,
-      title: this.getFieldValue(record, config.fieldMappings.title) || 'Untitled',
-      description: this.getFieldValue(record, config.fieldMappings.description) || '',
+      title: record.title_of_work || 'Untitled',
+      description,
+      artist: artistNames.join(', '), // Add artist field at top level
       source: 'vancouver-public-art',
       externalId: this.generateImportId(record),
       tags,
@@ -236,6 +264,153 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
     };
 
     return mappedRecord;
+  }
+
+  /**
+   * Load artist lookup data from the artists JSON file
+   */
+  private async loadArtistLookup(): Promise<void> {
+    if (this.artistLookup.size > 0) {
+      return; // Already loaded
+    }
+
+    try {
+      // Try multiple possible paths for the artist lookup file
+      const possiblePaths = [
+        path.resolve('src/lib/mass-import-system/importers/public-art-artists.json'),
+        path.resolve('./importers/public-art-artists.json'),
+        path.join(process.cwd(), 'src/lib/mass-import-system/importers/public-art-artists.json'),
+        path.join(process.cwd(), 'importers/public-art-artists.json')
+      ];
+
+      let artistsData: string | null = null;
+      for (const artistsFilePath of possiblePaths) {
+        try {
+          artistsData = await fs.readFile(artistsFilePath, 'utf-8');
+          console.log(`📋 Loaded artist lookup from: ${artistsFilePath}`);
+          break;
+        } catch (error) {
+          // Try next path
+          continue;
+        }
+      }
+
+      if (!artistsData) {
+        console.warn('⚠️ Could not find artist lookup file, artist IDs will not be resolved to names');
+        return;
+      }
+
+      const artists = JSON.parse(artistsData) as VancouverArtistRecord[];
+      
+      // Build lookup map
+      for (const artist of artists) {
+        this.artistLookup.set(String(artist.artistid), artist);
+      }
+      
+      console.log(`📋 Loaded ${this.artistLookup.size} artists into lookup table`);
+    } catch (error) {
+      console.warn('Failed to load artist lookup data:', error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  /**
+   * Build description from artist project statement and metadata
+   */
+  private buildDescription(record: VancouverArtworkRecord): string {
+    const parts: string[] = [];
+    
+    // Add artist project statement if available
+    if (record.artistprojectstatement) {
+      // Clean up the statement - remove extra quotes and normalize
+      let statement = record.artistprojectstatement.trim();
+      if (statement.startsWith('"') && statement.endsWith('"')) {
+        statement = statement.slice(1, -1);
+      }
+      parts.push(`**Artist Project Statement**: ${statement}`);
+    }
+    
+    // Add description of work if available and different from statement
+    if (record.descriptionofwork && record.descriptionofwork !== record.artistprojectstatement) {
+      parts.push(`**Description**: ${record.descriptionofwork}`);
+    }
+    
+    // Add import source attribution
+    if (record.registryid) {
+      parts.push(`\nImported from Vancouver Open Data (registryid: ${record.registryid})`);
+    }
+    
+    return parts.join('\n\n');
+  }
+
+  /**
+   * Look up artist names from artist IDs
+   */
+  private lookupArtistNames(artistIds: string[] | string | undefined): string[] {
+    if (!artistIds) {
+      return [];
+    }
+    
+    // Handle case where artistIds might be a string or not an array
+    let idsArray: string[];
+    if (typeof artistIds === 'string') {
+      idsArray = [artistIds];
+    } else if (Array.isArray(artistIds)) {
+      idsArray = artistIds;
+    } else {
+      console.warn('artistIds is not an array or string:', typeof artistIds, artistIds);
+      return [];
+    }
+    
+    const names: string[] = [];
+    
+    for (const artistId of idsArray) {
+      const artist = this.artistLookup.get(String(artistId));
+      if (artist) {
+        const fullName = `${artist.firstname} ${artist.lastname}`.trim();
+        names.push(fullName);
+      } else {
+        console.warn(`Artist ID ${artistId} not found in lookup table`);
+        names.push(`Artist ID ${artistId}`);
+      }
+    }
+    
+    return names;
+  }
+
+  /**
+   * Build comprehensive tags including all relevant metadata
+   */
+  private async buildComprehensiveTags(record: VancouverArtworkRecord, tagMappings: Record<string, string | TagMapping>): Promise<Record<string, string>> {
+    const tags: Record<string, string> = {};
+
+    // Add core mapped tags
+    const basicTags = await this.buildTags(record, tagMappings);
+    Object.assign(tags, basicTags);
+
+    // Add comprehensive metadata tags
+    if (record.registryid) tags.registryid = String(record.registryid);
+    if (record.type) tags.type = record.type;
+    if (record.status) tags.status = record.status;
+    if (record.sitename) tags.sitename = record.sitename;
+    if (record.siteaddress) tags.siteaddress = record.siteaddress;
+    if (record.ownership) tags.ownership = record.ownership;
+    if (record.neighbourhood) tags.neighbourhood = record.neighbourhood;
+    if (record.yearofinstallation) tags.yearofinstallation = record.yearofinstallation;
+    if (record.primarymaterial) tags.primarymaterial = record.primarymaterial;
+
+    // Add raw artist IDs as well for reference
+    if (record.artists) {
+      if (Array.isArray(record.artists)) {
+        tags.artist_ids = record.artists.join(',');
+      } else if (typeof record.artists === 'string') {
+        tags.artist_ids = record.artists;
+      }
+    }
+
+    // Add artwork type indicator
+    tags.content_type = 'artwork';
+
+    return tags;
   }
 
   /**
