@@ -330,8 +330,8 @@ export async function approveSubmission(
   // Update submission status
   const updateSuccess = await updateSubmission(db, submissionId, {
     status: 'approved',
-    reviewer_token: reviewerToken || null,
-    review_notes: reviewNotes || null,
+    reviewed_by: reviewerToken || null, // Fixed: was reviewer_token, should be reviewed_by
+    moderator_notes: reviewNotes || null, // Fixed: was review_notes, should be moderator_notes
     reviewed_at: new Date().toISOString()
   });
 
@@ -349,8 +349,8 @@ export async function rejectSubmission(
 ): Promise<boolean> {
   return updateSubmission(db, submissionId, {
     status: 'rejected',
-    reviewer_token: reviewerToken || null,
-    review_notes: reviewNotes || null,
+    reviewed_by: reviewerToken || null, // Fixed: was reviewer_token, should be reviewed_by
+    moderator_notes: reviewNotes || null, // Fixed: was review_notes, should be moderator_notes
     reviewed_at: new Date().toISOString()
   });
 }
@@ -361,9 +361,10 @@ async function applySubmissionChanges(
 ): Promise<boolean> {
   try {
     switch (submission.submission_type) {
-      case 'logbook_entry':
-        // Logbook entries are just records - no changes to apply
-        return true;
+      case 'new_artwork':
+        // Create new artwork from submission data
+        if (!submission.new_data) return false;
+        return await createArtworkFromSubmission(db, submission);
 
       case 'artwork_edit':
         if (!submission.artwork_id || !submission.new_data) return false;
@@ -467,7 +468,7 @@ async function createArtworkFromSubmission(
     newData.country || null,
     submission.photos || newData.photos || null,
     submission.tags || newData.tags || null,
-    newData.description || submission.notes || null,
+    newData.description || submission.note || null, // Fixed: was submission.notes, should be submission.note
     'approved',
     'user_submission',
     submission.id,
@@ -506,7 +507,7 @@ async function createArtistFromSubmission(
     newData.nationality || null,
     newData.website || null,
     newData.social_media || null,
-    newData.notes || submission.notes || null,
+    newData.notes || submission.note || null, // Fixed: was submission.notes, should be submission.note
     'approved',
     'user_submission',
     submission.id,

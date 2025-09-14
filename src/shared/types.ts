@@ -92,6 +92,79 @@ export interface ArtistEditRecord {
 }
 
 // ================================
+// Record Creation Types
+// ================================
+
+export interface NewArtworkRecord {
+  id: string;
+  lat: number;
+  lon: number;
+  created_at: string;
+  status: 'pending' | 'approved' | 'removed';
+  tags: string | null; // JSON object for key-value metadata
+  title?: string | null;
+  description?: string | null;
+  created_by?: string | null;
+  artist_name?: string | null;
+  // Additional fields for mass import compatibility
+  artist_names?: string | null; // Multiple artists, comma-separated
+  year_created?: number | null;
+  medium?: string | null;
+  dimensions?: string | null;
+  address?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  region?: string | null;
+  country?: string | null;
+  photos?: string | null; // JSON array of photo URLs
+}
+
+export interface NewArtistRecord {
+  id: string;
+  name: string;
+  description: string | null;
+  tags: string | null; // JSON object for metadata
+  created_at: string;
+  updated_at: string;
+  status: 'active' | 'inactive';
+  // Additional fields for mass import compatibility
+  biography?: string | null;
+  birth_year?: number | null;
+  death_year?: number | null;
+  nationality?: string | null;
+  website?: string | null;
+  social_media?: string | null;
+  notes?: string | null;
+}
+
+// ================================
+// Legacy Types (for backward compatibility during transition)
+// ================================
+
+export interface AuthSessionRecord {
+  id: string;
+  user_uuid: string;
+  token_hash: string;
+  created_at: string;
+  last_accessed_at: string;
+  ip_address: string | null; // Allow null for anonymous sessions
+  user_agent: string | null;
+  is_active: boolean;
+  device_info: string | null;
+}
+
+export interface RateLimitRecord {
+  id: string;
+  identifier: string;
+  identifier_type: 'email' | 'ip' | 'user_token';
+  window_start: string;
+  request_count: number;
+  created_at: string;
+  expires_at: string;
+  blocked_until?: string | null; // For temporary blocking
+}
+
+// ================================
 // API Request/Response Types
 // ================================
 
@@ -1276,6 +1349,9 @@ export interface SubmissionRecord {
   lat: number | null;
   lon: number | null;
   
+  // Legacy field for backward compatibility (replaced by field_changes)
+  new_data?: string | null; // JSON object - deprecated, use field_changes
+  
   // Integrated consent tracking
   consent_version: string;
   consent_text_hash: string;
@@ -1286,7 +1362,7 @@ export interface SubmissionRecord {
   status: 'pending' | 'approved' | 'rejected';
   moderator_notes: string | null;
   reviewed_at: string | null;
-  reviewed_by: string | null;
+  reviewed_by: string | null; // reviewer token/id
   submitted_at: string;
 }
 

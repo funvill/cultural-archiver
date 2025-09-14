@@ -11,7 +11,7 @@
 import type { D1Database } from '@cloudflare/workers-types';
 import type { ArtworkArtistRecord } from '../../shared/types';
 import { createDatabaseService } from './database';
-import type { MassImportRow } from '../../shared/mass-import';
+import type { RawImportData } from '../../shared/mass-import';
 
 // ================================
 // Service Types
@@ -62,7 +62,7 @@ export class ArtistAutoCreationService {
    */
   async processArtworkArtists(
     artworkId: string,
-    artworkData: MassImportRow,
+    artworkData: RawImportData,
     config: ArtistAutoCreationConfig
   ): Promise<ArtistLinkingResult> {
     const result: ArtistLinkingResult = {
@@ -119,7 +119,7 @@ export class ArtistAutoCreationService {
    */
   async processSingleArtist(
     artistName: string,
-    artworkData: MassImportRow,
+    artworkData: RawImportData,
     config: ArtistAutoCreationConfig
   ): Promise<ArtistAutoCreationResult> {
     // 1. Search for existing artists with fuzzy matching
@@ -201,7 +201,7 @@ export class ArtistAutoCreationService {
    */
   async createArtistFromArtworkData(
     artistName: string,
-    artworkData: MassImportRow,
+    artworkData: RawImportData,
     config: ArtistAutoCreationConfig
   ): Promise<string> {
     const artistId = crypto.randomUUID();
@@ -290,7 +290,7 @@ export class ArtistAutoCreationService {
   /**
    * Extract artist names from artwork data
    */
-  private extractArtistNames(artworkData: MassImportRow): string[] {
+  private extractArtistNames(artworkData: RawImportData): string[] {
     const names: string[] = [];
 
     // Check artist field
