@@ -271,6 +271,20 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       allPhotos.push(...entry.photos_parsed);
     });
 
+    // Include photos from artwork.photos field (from mass import and direct uploads)
+    try {
+      if (artwork.photos) {
+        const artworkPhotos = safeJsonParse<string[]>(artwork.photos, []);
+        artworkPhotos.forEach(photoUrl => {
+          if (typeof photoUrl === 'string' && !allPhotos.includes(photoUrl)) {
+            allPhotos.push(photoUrl);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to parse artwork.photos field', e);
+    }
+
     // Also include any artwork-level photos stored in tags._photos (set during approval)
     // updateArtworkPhotos stores photos inside root JSON object under _photos key.
     try {

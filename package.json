@@ -53,8 +53,11 @@
     "database:import:dev": "powershell -Command \"npx wrangler d1 execute cultural-archiver --env development --local --config src/workers/wrangler.toml --command 'SELECT name FROM sqlite_master WHERE type=\\\"table\\\" AND name NOT LIKE \\\"sqlite_%\\\";' --json | ConvertFrom-Json | ForEach-Object { $_.results | ForEach-Object { \\\"DROP TABLE IF EXISTS [\\\" + $_.name + \\\"];\\\"; } } | Out-File -FilePath _backup_database/drop_tables.sql -Encoding UTF8\" && npx wrangler d1 execute cultural-archiver --env development --local --config src/workers/wrangler.toml --file _backup_database/drop_tables.sql && npx wrangler d1 execute cultural-archiver --env development --local --config src/workers/wrangler.toml",
     "database:reset:dev": "tsx scripts/reset-database.ts --env dev",
     "database:reset:prod": "tsx scripts/reset-database.ts --env prod",
+    "database:reset:local": "tsx scripts/reset-local-database.ts --create-admin",
+    "database:reset:local:comment": "echo 'Resets LOCAL SQLite database used by wrangler dev (not remote). Use this for local development reset.'",
     "database:reset:dev:dry-run": "tsx scripts/reset-database.ts --env dev --dry-run",
-    "database:reset:prod:dry-run": "tsx scripts/reset-database.ts --env prod --dry-run"
+    "database:reset:prod:dry-run": "tsx scripts/reset-database.ts --env prod --dry-run",
+    "database:reset:local:dry-run": "tsx scripts/reset-local-database.ts --create-admin --dry-run"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.3",

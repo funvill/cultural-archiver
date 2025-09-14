@@ -69,13 +69,15 @@ ENVIRONMENT = "development"
 FRONTEND_URL = "http://localhost:5173"
 LOG_LEVEL = "debug"
 API_VERSION = "1.0.0"
+# CORS configuration for development
+CORS_ORIGINS = "http://localhost:5173,http://localhost:5174,http://localhost:8787"
 # Email configuration
 EMAIL_FROM_ADDRESS = "noreply@art.abluestar.com"
 EMAIL_FROM_NAME = "Cultural Archiver (Dev)"
 EMAIL_REPLY_TO = "support@art.abluestar.com"
 EMAIL_ENABLED = "true"
-PHOTOS_BASE_URL = "http://localhost:8787/photos"
-R2_PUBLIC_URL = "http://localhost:8787/photos"
+PHOTOS_BASE_URL = "/photos"
+R2_PUBLIC_URL = "/photos"
 CLOUDFLARE_ACCOUNT_ID = "development"
 # Cloudflare Images configuration (set via secrets for production)
 CLOUDFLARE_IMAGES_ENABLED = "false"

@@ -23,6 +23,7 @@ export interface ArtworkRecord {
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null; // JSON object for key-value metadata like {"material": "bronze", "style": "modern"}
+  photos: string | null; // JSON array of photo URLs like ["url1", "url2", "url3"]
   title: string | null; // Editable artwork title field
   description: string | null; // Editable artwork description field
   created_by: string | null; // Editable creator/artist field

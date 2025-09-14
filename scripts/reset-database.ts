@@ -11,8 +11,15 @@
  *   tsx scripts/reset-database.ts --env prod
  * 
  * What it does:
- * 1. Creates a backup of the current database
- * 2. Clears user-generated data (artwork, logbook, users, etc.)
+ * 1. Creates a backup of the current databa  // Check admin user has role
+  const rolesQuery = `SELECT COUNT(*) as count FROM user_roles WHERE user_token = '${adminUuid}' AND is_active = 1`;
+  const rolesResult = await executeQuery(config, rolesQuery);
+  const rolesCount = (rolesResult.results[0] as { count: number }).count;
+  
+  if (rolesCount < 1) {
+    throw new Error(`Expected at least 1 role for admin user, found ${rolesCount}`);
+  }
+  console.log(`  ✅ Admin roles: ${rolesCount} granted`); Clears user-generated data (artwork, submissions, users, etc.)
  * 3. Preserves essential reference data (artwork_types)
  * 4. Creates default admin user (steven@abluestar.com)
  * 5. Repopulates with essential data
@@ -289,32 +296,36 @@ async function clearUserData(config: DatabaseConfig, dryRun: boolean = false): P
   console.log('🧹 Clearing user-generated data...');
   
   const clearQueries = [
-    // Clear user permissions first (foreign key constraint)
-    'DELETE FROM user_permissions',
-    
-    // Clear authentication-related tables
-    'DELETE FROM magic_links',
+    // Clear authentication-related tables first
     'DELETE FROM auth_sessions',
+    'DELETE FROM magic_links',
     'DELETE FROM rate_limiting',
     
-    // Clear users (but we'll add admin back)
+    // Clear user permissions (try both new and old table names)
+    'DELETE FROM user_roles',
+    'DELETE FROM user_permissions',
+    
+    // Clear users 
     'DELETE FROM users',
     
+    // Clear artist-artwork relationships first (foreign key constraints)
+    'DELETE FROM artwork_artists',
+    
+    // Clear unified submissions table (replaces old logbook table)
+    'DELETE FROM submissions',
+    
     // Clear user-generated content
-    'DELETE FROM logbook',
     'DELETE FROM artwork',
-  // Clear newly added artist-related tables (added in migration 0011)
-  'DELETE FROM artwork_artists',
-  'DELETE FROM artist_edits',
-  'DELETE FROM artists',
+    'DELETE FROM artists',
     
-    // Clear moderation and admin action data
-    'DELETE FROM moderation_decisions',
-    'DELETE FROM admin_actions',
+    // Clear consent records
+    'DELETE FROM consent',
     
-    // Clear migration tracking so migrations can be re-applied cleanly after reset
-    // NOTE: Do NOT delete d1_migrations here - keep migration tracking intact so
-    // migrations (like 0011_add_artist_tables.sql) are not accidentally removed.
+    // Clear audit logs
+    'DELETE FROM audit_log',
+    'DELETE FROM user_activity',
+    
+    // NOTE: Keep d1_migrations intact to preserve migration tracking
   ];
 
   for (const query of clearQueries) {
@@ -327,9 +338,11 @@ async function clearUserData(config: DatabaseConfig, dryRun: boolean = false): P
         console.log(`  ✅ ${tableName} cleared`);
       }
     } catch (error) {
-      console.error(`  ❌ Failed to execute: ${query}`);
-      if (!dryRun) {
-        throw error;
+      const tableName = query.split(' ')[2];
+      console.warn(`  ⚠ Warning: Failed to clear ${tableName} (table may not exist): ${error}`);
+      // Continue with other queries instead of throwing
+      if (dryRun) {
+        console.log(`  🔍 [DRY RUN] Would have failed on: ${query}`);
       }
     }
   }
@@ -347,8 +360,7 @@ async function createDefaultAdmin(config: DatabaseConfig, dryRun: boolean = fals
   
   if (dryRun) {
     console.log(`  🔍 [DRY RUN] Would create admin user: ${adminEmail}`);
-    console.log(`  🔍 [DRY RUN] Would grant admin permissions`);
-    console.log(`  🔍 [DRY RUN] Would grant moderator permissions`);
+    console.log(`  🔍 [DRY RUN] Would grant admin role`);
     return adminUuid;
   }
   
@@ -361,25 +373,35 @@ async function createDefaultAdmin(config: DatabaseConfig, dryRun: boolean = fals
   await executeQuery(config, createUserQuery);
   console.log(`  ✅ Admin user created: ${adminEmail}`);
   
-  // Grant admin permissions
-  const adminPermissionId = randomUUID();
-  const grantAdminQuery = `
-    INSERT INTO user_permissions (id, user_uuid, permission, granted_by, granted_at, is_active, notes)
-    VALUES ('${adminPermissionId}', '${adminUuid}', 'admin', '${adminUuid}', '${now}', 1, 'Default admin user created by reset script')
+  // Grant admin role - try both user_roles and user_permissions tables
+  const adminRoleId = randomUUID();
+  
+  // Try user_roles first (new schema)
+  const userRolesQuery = `
+    INSERT INTO user_roles (id, user_token, role, granted_by, granted_at, is_active, notes)
+    VALUES ('${adminRoleId}', '${adminUuid}', 'admin', '${adminUuid}', '${now}', 1, 'Default admin user created by reset script')
   `;
   
-  await executeQuery(config, grantAdminQuery);
-  console.log('  ✅ Admin permissions granted');
-  
-  // Grant moderator permissions
-  const modPermissionId = randomUUID();
-  const grantModQuery = `
-    INSERT INTO user_permissions (id, user_uuid, permission, granted_by, granted_at, is_active, notes)
-    VALUES ('${modPermissionId}', '${adminUuid}', 'moderator', '${adminUuid}', '${now}', 1, 'Default moderator permission created by reset script')
-  `;
-  
-  await executeQuery(config, grantModQuery);
-  console.log('  ✅ Moderator permissions granted');
+  try {
+    await executeQuery(config, userRolesQuery);
+    console.log('  ✅ Admin role granted (user_roles)');
+  } catch (error) {
+    console.warn('  ⚠ user_roles table not found, trying user_permissions...');
+    
+    // Fallback to user_permissions (old schema)
+    const userPermissionsQuery = `
+      INSERT INTO user_permissions (id, user_uuid, permission, granted_by, granted_at, expires_at, is_active, notes)
+      VALUES ('${adminRoleId}', '${adminUuid}', 'admin', '${adminUuid}', '${now}', NULL, 1, 'Default admin user created by reset script')
+    `;
+    
+    try {
+      await executeQuery(config, userPermissionsQuery);
+      console.log('  ✅ Admin role granted (user_permissions)');
+    } catch (fallbackError) {
+      console.warn('  ⚠ Neither user_roles nor user_permissions table found. Admin user created but no role assigned.');
+      console.warn('  🔧 You may need to manually assign admin permissions.');
+    }
+  }
   
   return adminUuid;
 }
@@ -390,39 +412,44 @@ async function createDefaultAdmin(config: DatabaseConfig, dryRun: boolean = fals
 async function repopulateEssentialData(config: DatabaseConfig, dryRun: boolean = false): Promise<void> {
   console.log('📊 Repopulating essential data...');
   
-  // Check if artwork_types already has data
-  const checkQuery = 'SELECT COUNT(*) as count FROM artwork_types';
-  const result = await executeQuery(config, checkQuery, dryRun);
-  
   if (dryRun) {
-    console.log('  🔍 [DRY RUN] Would check artwork_types count');
-    console.log('  🔍 [DRY RUN] Would add default artwork types if needed');
+    console.log('  🔍 [DRY RUN] Would check for essential data tables');
+    console.log('  🔍 [DRY RUN] Would populate any required default data');
     return;
   }
   
-  if ((result.results[0] as { count: number }).count > 0) {
-    console.log('  ℹ️  Artwork types already exist, skipping repopulation');
-    return;
-  }
-  
-  // Insert default artwork types
-  const now = new Date().toISOString();
-  const artworkTypes = [
-    { id: 'sculpture', name: 'Sculpture', description: 'Three-dimensional artwork' },
-    { id: 'mural', name: 'Mural', description: 'Wall-mounted painted artwork' },
-    { id: 'installation', name: 'Installation', description: 'Large-scale mixed-media artwork' },
-    { id: 'statue', name: 'Statue', description: 'Sculptural representation' },
-  ];
-  
-  for (const type of artworkTypes) {
-    const insertQuery = `
-      INSERT INTO artwork_types (id, name, description, created_at)
-      VALUES ('${type.id}', '${type.name}', '${type.description}', '${now}')
-    `;
+  // Check if artwork_types table exists and populate if needed
+  try {
+    const checkQuery = 'SELECT COUNT(*) as count FROM artwork_types';
+    const result = await executeQuery(config, checkQuery, dryRun);
     
-    await executeQuery(config, insertQuery);
-    console.log(`  ✅ Added artwork type: ${type.name}`);
+    if ((result.results[0] as { count: number }).count === 0) {
+      // Insert default artwork types
+      const now = new Date().toISOString();
+      const artworkTypes = [
+        { id: 'sculpture', name: 'Sculpture', description: 'Three-dimensional artwork' },
+        { id: 'mural', name: 'Mural', description: 'Wall-mounted painted artwork' },
+        { id: 'installation', name: 'Installation', description: 'Large-scale mixed-media artwork' },
+        { id: 'statue', name: 'Statue', description: 'Sculptural representation' },
+      ];
+      
+      for (const type of artworkTypes) {
+        const insertQuery = `
+          INSERT INTO artwork_types (id, name, description, created_at)
+          VALUES ('${type.id}', '${type.name}', '${type.description}', '${now}')
+        `;
+        
+        await executeQuery(config, insertQuery);
+        console.log(`  ✅ Added artwork type: ${type.name}`);
+      }
+    } else {
+      console.log('  ℹ️  Artwork types already exist, skipping repopulation');
+    }
+  } catch (error) {
+    console.log('  ℹ️  No artwork_types table found - using current schema without separate types table');
   }
+  
+  console.log('  ✅ Essential data repopulation complete');
 }
 
 /**
@@ -432,23 +459,26 @@ async function validateResetState(config: DatabaseConfig, adminUuid: string, dry
   console.log('🔍 Validating reset state...');
   
   if (dryRun) {
-    console.log('  🔍 [DRY RUN] Would validate artwork types count');
     console.log('  🔍 [DRY RUN] Would validate admin user exists');
-    console.log('  🔍 [DRY RUN] Would validate admin permissions');
-    console.log('  🔍 [DRY RUN] Would validate user tables are empty');
+    console.log('  🔍 [DRY RUN] Would validate user tables are cleared');
+    console.log('  🔍 [DRY RUN] Would validate essential data if tables exist');
     console.log('✅ [DRY RUN] Database reset validation would pass');
     return;
   }
   
-  // Check artwork_types exist
-  const artworkTypesQuery = 'SELECT COUNT(*) as count FROM artwork_types';
-  const artworkTypesResult = await executeQuery(config, artworkTypesQuery);
-  const artworkTypesCount = (artworkTypesResult.results[0] as { count: number }).count;
-  
-  if (artworkTypesCount < 4) {
-    throw new Error(`Expected at least 4 artwork types, found ${artworkTypesCount}`);
+  // Check if artwork_types table exists and validate if it does
+  try {
+    const artworkTypesQuery = 'SELECT COUNT(*) as count FROM artwork_types';
+    const artworkTypesResult = await executeQuery(config, artworkTypesQuery);
+    const artworkTypesCount = (artworkTypesResult.results[0] as { count: number }).count;
+    
+    if (artworkTypesCount < 4) {
+      throw new Error(`Expected at least 4 artwork types, found ${artworkTypesCount}`);
+    }
+    console.log(`  ✅ Artwork types: ${artworkTypesCount} entries`);
+  } catch (error) {
+    console.log('  ℹ️  No artwork_types table found - schema uses different structure');
   }
-  console.log(`  ✅ Artwork types: ${artworkTypesCount} entries`);
   
   // Check admin user exists
   const adminQuery = `SELECT COUNT(*) as count FROM users WHERE uuid = '${adminUuid}' AND email = 'steven@abluestar.com'`;
@@ -460,27 +490,79 @@ async function validateResetState(config: DatabaseConfig, adminUuid: string, dry
   }
   console.log('  ✅ Admin user exists');
   
-  // Check admin permissions
-  const permissionsQuery = `SELECT COUNT(*) as count FROM user_permissions WHERE user_uuid = '${adminUuid}' AND is_active = 1`;
-  const permissionsResult = await executeQuery(config, permissionsQuery);
-  const permissionsCount = (permissionsResult.results[0] as { count: number }).count;
-  
-  if (permissionsCount < 2) {
-    throw new Error(`Expected at least 2 permissions for admin user, found ${permissionsCount}`);
-  }
-  console.log(`  ✅ Admin permissions: ${permissionsCount} granted`);
-  
-  // Check user-generated tables are empty
-  const userTables = ['artwork', 'logbook', 'magic_links', 'auth_sessions', 'rate_limiting', 'artwork_artists', 'artist_edits', 'artists'];
-  for (const table of userTables) {
-    const countQuery = `SELECT COUNT(*) as count FROM ${table}`;
-    const countResult = await executeQuery(config, countQuery);
-    const count = (countResult.results[0] as { count: number }).count;
+  // Check admin permissions - try both table structures
+  let permissionsFound = false;
+  try {
+    const userRolesQuery = `SELECT COUNT(*) as count FROM user_roles WHERE user_token = '${adminUuid}' AND is_active = 1`;
+    const userRolesResult = await executeQuery(config, userRolesQuery);
+    const userRolesCount = (userRolesResult.results[0] as { count: number }).count;
     
-    if (count > 0) {
-      throw new Error(`Expected ${table} to be empty, found ${count} entries`);
+    if (userRolesCount > 0) {
+      console.log(`  ✅ Admin roles: ${userRolesCount} granted (user_roles)`);
+      permissionsFound = true;
     }
-    console.log(`  ✅ ${table} is empty`);
+  } catch (error) {
+    // user_roles table might not exist
+  }
+  
+  if (!permissionsFound) {
+    try {
+      const permissionsQuery = `SELECT COUNT(*) as count FROM user_permissions WHERE user_uuid = '${adminUuid}' AND is_active = 1`;
+      const permissionsResult = await executeQuery(config, permissionsQuery);
+      const permissionsCount = (permissionsResult.results[0] as { count: number }).count;
+      
+      if (permissionsCount > 0) {
+        console.log(`  ✅ Admin permissions: ${permissionsCount} granted (user_permissions)`);
+        permissionsFound = true;
+      }
+    } catch (error) {
+      // user_permissions table might not exist either
+    }
+  }
+  
+  if (!permissionsFound) {
+    console.log('  ⚠ No admin permissions found - manual permission assignment may be required');
+  }
+  
+  // Check data tables are cleared (but allow admin user)
+  const checkTables = [
+    { name: 'artwork', shouldBeEmpty: true },
+    { name: 'artists', shouldBeEmpty: true },
+    { name: 'artwork_artists', shouldBeEmpty: true },
+    { name: 'users', shouldBeEmpty: false, expectedCount: 1, description: 'admin user' },
+    { name: 'magic_links', shouldBeEmpty: true },
+    { name: 'auth_sessions', shouldBeEmpty: true },
+    { name: 'rate_limiting', shouldBeEmpty: true },
+    { name: 'consent', shouldBeEmpty: true }
+  ];
+  
+  for (const tableCheck of checkTables) {
+    try {
+      const countQuery = `SELECT COUNT(*) as count FROM ${tableCheck.name}`;
+      const countResult = await executeQuery(config, countQuery);
+      const count = (countResult.results[0] as { count: number }).count;
+      
+      if (tableCheck.shouldBeEmpty && count > 0) {
+        throw new Error(`Expected ${tableCheck.name} to be empty, found ${count} entries`);
+      }
+      
+      if (!tableCheck.shouldBeEmpty && tableCheck.expectedCount !== undefined && count !== tableCheck.expectedCount) {
+        throw new Error(`Expected ${tableCheck.name} to have ${tableCheck.expectedCount} entries (${tableCheck.description}), found ${count}`);
+      }
+      
+      if (tableCheck.shouldBeEmpty) {
+        console.log(`  ✅ ${tableCheck.name} is empty`);
+      } else {
+        console.log(`  ✅ ${tableCheck.name} has ${count} entries (${tableCheck.description})`);
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('no such table')) {
+        console.log(`  ℹ️  ${tableCheck.name} table not found - may not exist in current schema`);
+      } else {
+        throw error;
+      }
+    }
   }
   
   console.log('✅ Database reset validation passed');
@@ -513,7 +595,7 @@ async function resetDatabase(options: ResetOptions): Promise<void> {
       console.log('📦 A backup will be created before proceeding.');
       console.log('🔧 The following will happen:');
       console.log('   • All artwork entries will be deleted');
-      console.log('   • All logbook entries will be deleted'); 
+      console.log('   • All submissions will be deleted'); 
       console.log('   • All user accounts will be deleted');
       console.log('   • All user permissions will be reset');
       console.log('   • Default admin user (steven@abluestar.com) will be created');

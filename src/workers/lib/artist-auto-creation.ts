@@ -91,7 +91,7 @@ export class ArtistAutoCreationService {
         if (artistResult.artistId) {
           // Link artist to artwork
           if (config.autoLinkArtwork) {
-            await this.linkArtworkToArtist(artworkId, artistResult.artistId, 'artist');
+            await this.linkArtworkToArtist(artworkId, artistResult.artistId, 'primary');
             result.linkedArtistIds.push(artistResult.artistId);
             
             if (artistResult.wasCreated) {
@@ -241,7 +241,7 @@ export class ArtistAutoCreationService {
   async linkArtworkToArtist(
     artworkId: string,
     artistId: string,
-    role: string = 'artist'
+    role: string = 'primary'
   ): Promise<void> {
     // Check if link already exists
     const existing = await this.db.db.prepare(`

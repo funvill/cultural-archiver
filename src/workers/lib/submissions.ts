@@ -601,3 +601,20 @@ export async function getSubmissionStats(
 
   return stats;
 }
+
+/**
+ * Get user's pending edits for a specific artwork
+ */
+export async function getUserPendingArtworkEdits(
+  db: D1Database,
+  userToken: string,
+  artworkId: string
+): Promise<SubmissionRecord[]> {
+  const results = await db.prepare(`
+    SELECT * FROM submissions 
+    WHERE user_token = ? AND artwork_id = ? AND submission_type = 'artwork_edit' AND status = 'pending'
+    ORDER BY created_at DESC
+  `).bind(userToken, artworkId).all<SubmissionRecord>();
+  
+  return results.results || [];
+}

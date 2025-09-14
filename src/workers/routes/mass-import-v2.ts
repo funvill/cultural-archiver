@@ -157,8 +157,8 @@ function validateRawImportData(data: any, fieldPrefix: string, errors: Validatio
   if (data.title && data.title.length > 200) {
     errors.push({ field: `${fieldPrefix}.title`, message: 'Title must be 200 characters or less', code: 'FIELD_TOO_LONG' });
   }
-  if (data.description && data.description.length > 1000) {
-    errors.push({ field: `${fieldPrefix}.description`, message: 'Description must be 1000 characters or less', code: 'FIELD_TOO_LONG' });
+  if (data.description && data.description.length > 10000) {
+    errors.push({ field: `${fieldPrefix}.description`, message: 'Description must be 10000 characters or less', code: 'FIELD_TOO_LONG' });
   }
   if (data.artist && data.artist.length > 500) {
     errors.push({ field: `${fieldPrefix}.artist`, message: 'Artist must be 500 characters or less', code: 'FIELD_TOO_LONG' });
@@ -450,16 +450,15 @@ async function processSingleArtwork(
   const submissionId = generateUUID();
   const timestamp = new Date().toISOString();
 
-  // Create submission record
+  // Create submission record (artwork_id is NULL for new artwork submissions)
   await db.db.prepare(`
     INSERT INTO submissions (
       id, submission_type, user_token, artwork_id, lat, lon, notes, photos, tags,
       status, created_at, updated_at
-    ) VALUES (?, 'new_artwork', ?, ?, ?, ?, ?, ?, ?, 'approved', ?, ?)
+    ) VALUES (?, 'new_artwork', ?, NULL, ?, ?, ?, ?, ?, 'approved', ?, ?)
   `).bind(
     submissionId,
     MASS_IMPORT_SYSTEM_USER_TOKEN,
-    artworkId,
     artworkData.lat,
     artworkData.lon,
     artworkData.description || null,

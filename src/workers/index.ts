@@ -600,7 +600,10 @@ app.use('/api/artwork/*/edit*', checkEmailVerification);
 // Serve photos from R2 storage
 app.get('/photos/*', async c => {
   try {
-    const key = c.req.path.substring(1); // Remove leading slash to get "photos/..."
+    // Remove /photos/ prefix from path to get the actual R2 key
+    // URL: /photos/originals/2025/09/14/file.jpg -> Key: originals/2025/09/14/file.jpg
+    const fullPath = c.req.path; // /photos/originals/2025/09/14/file.jpg
+    const key = fullPath.substring('/photos/'.length); // originals/2025/09/14/file.jpg
     console.log(`[PHOTO DEBUG] Looking for key: ${key}`);
 
     // Get object from R2
