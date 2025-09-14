@@ -99,6 +99,12 @@ export class ApiExporter implements ExporterPlugin {
       ...options,
     } as ApiExporterOptions;
     
+    // If verbose is true, enable request and response logging
+    if (this.options.verbose) {
+      this.options.logRequests = true;
+      this.options.logResponses = true;
+    }
+    
     console.log(`🔧 API Exporter configured:`, this.options);
   }
 
@@ -350,13 +356,54 @@ export class ApiExporter implements ExporterPlugin {
     }
     
     const method = this.config.method ?? 'POST';
-    const payload = { record };
+    
+    // Transform the record to match the mass-import v2 API format
+    const payload = this.transformToApiFormat(record);
     
     if (this.options.logRequests && this.options.verbose) {
       console.log(`📤 ${method} ${this.config.apiEndpoint}:`, payload);
     }
     
     return await this.makeRequestWithRetry(this.config.apiEndpoint, method, payload);
+  }
+
+  private transformToApiFormat(record: RawImportData | Record<string, unknown>): unknown {
+    // Transform single record to mass-import v2 API format
+    const recordData = record as Record<string, unknown>;
+    
+    // Generate a unique import ID for this batch
+    const importId = `mass-import-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    return {
+      metadata: {
+        importId,
+        source: {
+          pluginName: 'mass-import-system',
+          pluginVersion: '1.0.0',
+          originalDataSource: String(recordData.source || 'unknown')
+        },
+        timestamp: new Date().toISOString()
+      },
+      config: {
+        duplicateThreshold: 0.7,
+        enableTagMerging: true,
+        createMissingArtists: true,
+        batchSize: 1
+      },
+      data: {
+        artworks: [{
+          title: String(recordData.title || ''),
+          description: String(recordData.description || ''),
+          lat: Number(recordData.lat),
+          lon: Number(recordData.lon),
+          artist: String(recordData.artist || ''),
+          source: String(recordData.source || ''),
+          externalId: String(recordData.externalId || ''),
+          tags: (recordData.tags as Record<string, unknown>) || {},
+          photos: (recordData.photos as unknown[]) || []
+        }]
+      }
+    };
   }
 
   private async makeRequestWithRetry(url: string, method: string, data: unknown): Promise<ApiResponse> {

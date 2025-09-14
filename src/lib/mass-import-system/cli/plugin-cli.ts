@@ -27,6 +27,8 @@ interface CLIOptions {
   config?: string;
   output?: string;
   batchSize?: number;
+  limit?: number;
+  offset?: number;
   dryRun?: boolean;
   verbose?: boolean;
   generateReport?: boolean;
@@ -77,6 +79,8 @@ export class PluginCLI {
       .option('--config <path>', 'Plugin configuration file path')
       .option('--output <path>', 'Output file path (for file-based exporters)')
       .option('--batch-size <number>', 'Batch size for processing', '50')
+      .option('--limit <number>', 'Limit the number of records to process')
+      .option('--offset <number>', 'Skip the first N records before processing')
       .option('--dry-run', 'Run in dry-run mode without making changes', false)
       .option('--verbose', 'Enable verbose logging', false)
       .option('--generate-report', 'Generate processing report', false)
@@ -147,6 +151,8 @@ export class PluginCLI {
       const processingOptions: ProcessingOptions = {
         ...(options.dryRun !== undefined && { dryRun: options.dryRun }),
         batchSize: parseInt(options.batchSize?.toString() ?? '50'),
+        ...(options.limit !== undefined && { limit: parseInt(options.limit.toString()) }),
+        ...(options.offset !== undefined && { offset: parseInt(options.offset.toString()) }),
         ...(options.generateReport !== undefined && { generateReport: options.generateReport }),
         ...(options.reportPath !== undefined && { reportPath: options.reportPath }),
         ...(options.input !== undefined && { inputFile: options.input }),

@@ -153,7 +153,7 @@ export async function processMassImportPhotos(
       user_token: payload.user_token,
       lat: payload.lat,
       lon: payload.lon,
-      note: initialNote,
+      notes: initialNote,
       photos: processedPhotoUrls,
       consent_version: payload.consent_version || CONSENT_VERSION,
     };

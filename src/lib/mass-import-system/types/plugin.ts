@@ -153,6 +153,8 @@ export interface ProcessingOptions {
   verbose?: boolean;
   dryRun?: boolean;
   batchSize?: number;
+  limit?: number;
+  offset?: number;
   inputFile?: string;
   exporterOptions?: ExporterOptions;
   exporterConfig?: ExporterConfig;

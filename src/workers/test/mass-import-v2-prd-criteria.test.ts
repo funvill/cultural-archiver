@@ -397,7 +397,7 @@ describe('PRD Success Criteria Tests', () => {
       expect(responseData.data.auditTrail).toBeDefined();
       expect(responseData.data.auditTrail.importStarted).toBeDefined();
       expect(responseData.data.auditTrail.importCompleted).toBeDefined();
-      expect(responseData.data.auditTrail.systemUserToken).toBe('00000000-0000-0000-0000-000000000001');
+      expect(responseData.data.auditTrail.systemUserToken).toBe('a0000000-1000-4000-8000-000000000001');
       expect(responseData.data.auditTrail.batchesProcessed).toBeGreaterThan(0);
 
       // Verify traceability back to source

@@ -142,7 +142,7 @@ export async function createSubmission(
       user_token: userToken,
       lat: validatedData.lat,
       lon: validatedData.lon,
-      ...(validatedData.note && { note: validatedData.note }),
+      ...(validatedData.notes && { notes: validatedData.notes }),
       photos: [], // Will be updated after processing
       // NOTE: No consent_version field needed - it's now in the consent table
     };
@@ -291,7 +291,7 @@ export async function checkDuplicateSubmission(
     const stmt = db.prepare(`
       SELECT COUNT(*) as count FROM submissions 
       WHERE user_token = ? 
-        AND submitted_at > ?
+        AND created_at > ?
         AND ABS(49.2827 - ?) < 0.001 -- Rough coordinate check within ~100m
         AND ABS(-123.1207 - ?) < 0.001
     `);
@@ -348,7 +348,7 @@ export async function getUserSubmissionStats(
         COUNT(*) as total_submissions,
         SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_submissions,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_submissions,
-        MAX(submitted_at) as last_submission_at
+        MAX(created_at) as last_submission_at
       FROM submissions 
       WHERE user_token = ? AND status != 'rejected'
     `);
@@ -538,7 +538,7 @@ export async function createFastArtworkSubmission(
             ...(validatedData.title && { title: validatedData.title }),
           },
         },
-        note: validatedData.note || 'Fast photo-first submission',
+        notes: validatedData.notes || 'Fast photo-first submission',
       };
 
       // Create new artwork submission (submission entry without artwork_id)
@@ -546,7 +546,7 @@ export async function createFastArtworkSubmission(
         user_token: userToken,
         lat: validatedData.lat,
         lon: validatedData.lon,
-        note: JSON.stringify(submissionData),
+        notes: JSON.stringify(submissionData),
         photos: [], // Will be updated after processing
       };
 
@@ -588,7 +588,7 @@ export async function createFastArtworkSubmission(
         user_token: userToken,
         lat: validatedData.lat,
         lon: validatedData.lon,
-        ...(validatedData.note && { note: validatedData.note }),
+        ...(validatedData.notes && { notes: validatedData.notes }),
         photos: [], // Will be updated after processing
       };
 

@@ -37,6 +37,8 @@
 ### Avalaible
 
 - [1] seekart.app + seekartapp.com
+  - The problem is that this name "Seekart" is used by a AI Art generator "
+  Seekart | Create Unique AI-Generated Digital Artwork" https://seek.art/, and https://www.seaart.ai/... so the domain is plutted
 
 - seekerart.app + seekarterapp.com
 - artgame.app + artgameapp.com
@@ -82,6 +84,8 @@ Find people that would be willing to partner with me on this project. Be specifi
 
 - In artwork edit mode, make the description text box 3 times as tall.
 - Create a script to remove the deployed recoreds on cloudflare for the frontend and backend workers. These are piling up for no reason.
+
+- Add an artwork for NULL island https://en.wikipedia.org/wiki/Null_Island 
 
 ----
 
@@ -148,7 +152,7 @@ The admin page is a super user that can give moderators permissions to other use
 
 - All IDs across the whole system should be UUIDs. Ensure that all IDs in the database use UUIDs and they are fixed in the database to only accept UUIDs.
 - All table id should be replaced with UUID.
-- 
+- Sample data should use a UUID in this format. "00000000-0000-0000-0000-????????0000", where the "?" are fixed known numbers for each sample.
 
 
 ----

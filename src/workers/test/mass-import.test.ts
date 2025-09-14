@@ -314,7 +314,7 @@ describe('Mass Import System', () => {
       expect(MASS_IMPORT_CONSTANTS.DEFAULT_DUPLICATE_RADIUS_METERS).toBe(50);
       expect(MASS_IMPORT_CONSTANTS.DEFAULT_BATCH_SIZE).toBe(50);
       expect(MASS_IMPORT_CONSTANTS.DEFAULT_MAX_CONCURRENT).toBe(5);
-      expect(MASS_IMPORT_CONSTANTS.MASS_IMPORT_USER_UUID).toBe('00000000-0000-0000-0000-000000000002');
+      expect(MASS_IMPORT_CONSTANTS.MASS_IMPORT_USER_UUID).toBe('a0000000-1000-4000-8000-000000000002');
     });
 
     it('should provide correct similarity thresholds', () => {

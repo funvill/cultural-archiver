@@ -84,7 +84,7 @@ export async function getReviewQueue(
         COUNT(*) OVER() as total_count
       FROM submissions s
       WHERE s.status = ? AND s.submission_type = 'logbook'
-      ORDER BY s.submitted_at ASC
+      ORDER BY s.created_at ASC
       LIMIT ? OFFSET ?
     `);
 
@@ -154,9 +154,9 @@ export async function getReviewQueue(
  */
 function parseSubmissionData(logbookEntry: LogbookRecord): ParsedSubmissionData {
   try {
-    if (logbookEntry.note) {
+    if (logbookEntry.notes) {
       // Try to parse as new format with _submission field
-      const noteData = JSON.parse(logbookEntry.note);
+      const noteData = JSON.parse(logbookEntry.notes);
       if (noteData._submission) {
         const submissionTags = noteData._submission.tags || {};
         return {
@@ -165,14 +165,14 @@ function parseSubmissionData(logbookEntry: LogbookRecord): ParsedSubmissionData 
           lat: noteData._submission.lat,
           lon: noteData._submission.lon,
           tags: JSON.stringify(submissionTags),
-          note: noteData.note || null, // Extract the actual user note
+          notes: noteData.notes || null, // Extract the actual user note
           artwork_type_name: submissionTags.artwork_type || noteData._submission.type_name || 'unknown',
         };
       }
       
       // Handle old format: "Tags: {...}"
-      if (typeof logbookEntry.note === 'string' && logbookEntry.note.startsWith('Tags: ')) {
-        const tagsString = logbookEntry.note.substring(6); // Remove "Tags: " prefix
+      if (typeof logbookEntry.notes === 'string' && logbookEntry.notes.startsWith('Tags: ')) {
+        const tagsString = logbookEntry.notes.substring(6); // Remove "Tags: " prefix
         try {
           const tags = JSON.parse(tagsString);
           return {
@@ -181,7 +181,7 @@ function parseSubmissionData(logbookEntry: LogbookRecord): ParsedSubmissionData 
             lat: logbookEntry.lat || 49.2827,
             lon: logbookEntry.lon || -123.1207,
             tags: JSON.stringify(tags),
-            note: null,
+            notes: null,
             artwork_type_name: 'Other',
           };
         } catch (tagParseError) {
@@ -250,7 +250,7 @@ export async function getSubmissionForReview(
         type: artworkTypeName,
         lat: submission.lat,
         lon: submission.lon,
-        note: submission.note,
+        notes: submission.notes,
         photos: submission.photos ? JSON.parse(submission.photos) : [],
         tags: submission.tags ? JSON.parse(submission.tags) : {},
         status: submission.status,
@@ -616,12 +616,12 @@ export async function getReviewStats(
     // Get recent activity
     const recentStmt = c.env.DB.prepare(`
       SELECT 
-        DATE(submitted_at) as date,
+        DATE(created_at) as date,
         status,
         COUNT(*) as count
       FROM submissions
-      WHERE submitted_at >= date('now', '-30 days') AND submission_type = 'logbook'
-      GROUP BY DATE(submitted_at), status
+      WHERE created_at >= date('now', '-30 days') AND submission_type = 'logbook'
+      GROUP BY DATE(created_at), status
       ORDER BY date DESC
     `);
 

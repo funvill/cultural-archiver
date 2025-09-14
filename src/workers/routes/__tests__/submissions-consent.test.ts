@@ -213,7 +213,7 @@ describe('Consent-First Submission Flow Integration', () => {
     });
 
     it('should handle mass import consent with reserved UUID', async () => {
-      const MASS_IMPORT_USER_UUID = '00000000-0000-0000-0000-000000000002';
+      const MASS_IMPORT_USER_UUID = 'b0000000-1000-4000-8000-000000000002';
       const contentId = 'mass-import-artwork-1';
       const consentTextHash = await generateConsentTextHash('Mass import consent');
 

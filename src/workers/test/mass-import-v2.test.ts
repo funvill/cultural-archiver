@@ -223,7 +223,7 @@ describe('Mass Import V2 API', () => {
       expect(responseData.data.results.artworks).toBeDefined();
       expect(responseData.data.results.artists).toBeDefined();
       expect(responseData.data.auditTrail).toBeDefined();
-      expect(responseData.data.auditTrail.systemUserToken).toBe('00000000-0000-0000-0000-000000000001');
+      expect(responseData.data.auditTrail.systemUserToken).toBe('a0000000-1000-4000-8000-000000000001');
     });
 
     it('should handle mixed artwork and artist data', async () => {

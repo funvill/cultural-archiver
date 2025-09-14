@@ -127,7 +127,7 @@ export const nearbyArtworksQuerySchema = z.object({
 export const artworkIdSchema = z.object({
   id: z.string().refine(value => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    const sampleDataRegex = /^SAMPLE-[a-zA-Z0-9-]+$/;
+    const sampleDataRegex = /^(SAMPLE-[a-zA-Z0-9-]+|[a-f]0000000-1000-4000-8000-[0-9a-f]{12})$/;
     return uuidRegex.test(value) || sampleDataRegex.test(value);
   }, 'Artwork ID must be a valid UUID or sample data format'),
 });
@@ -899,7 +899,7 @@ export function validateUUID(paramName: string = 'id') {
     }
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    const sampleDataRegex = /^SAMPLE-[a-zA-Z0-9-]+$/;
+    const sampleDataRegex = /^(SAMPLE-[a-zA-Z0-9-]+|[a-f]0000000-1000-4000-8000-[0-9a-f]{12})$/;
 
     if (!uuidRegex.test(value) && !sampleDataRegex.test(value)) {
       throw new ValidationApiError([

@@ -164,7 +164,7 @@ export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Pro
     // Get artist's artworks
     const artworksStmt = db.db.prepare(`
       SELECT a.id, a.title, a.lat, a.lon, a.created_at, a.status, a.tags,
-             (SELECT photos FROM submissions WHERE artwork_id = a.id AND submission_type = 'logbook' ORDER BY submitted_at DESC LIMIT 1) as recent_photos,
+             (SELECT photos FROM submissions WHERE artwork_id = a.id AND submission_type = 'logbook' ORDER BY created_at DESC LIMIT 1) as recent_photos,
              (SELECT COUNT(*) FROM submissions WHERE artwork_id = a.id AND submission_type = 'logbook') as photo_count
       FROM artwork a
       WHERE artist_names LIKE '%"' || ? || '"%' AND a.status = 'approved'

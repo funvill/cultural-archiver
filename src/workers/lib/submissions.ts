@@ -38,7 +38,7 @@ export async function createSubmission(
       id, submission_type, user_token, email, submitter_name,
       artwork_id, artist_id, lat, lon, notes, photos, tags,
       old_data, new_data, verification_status, status,
-      submitted_at, updated_at
+      created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     id,
@@ -139,7 +139,7 @@ export async function getLogbookEntries(
   offset: number = 0
 ): Promise<SubmissionRecord[]> {
   let query = `
-    SELECT *, submitted_at as created_at FROM submissions 
+    SELECT * FROM submissions 
     WHERE submission_type = 'logbook_entry' AND artwork_id = ?
   `;
   const params: (string | number)[] = [artworkId];
@@ -149,7 +149,7 @@ export async function getLogbookEntries(
     params.push(status);
   }
   
-  query += ` ORDER BY submitted_at DESC LIMIT ? OFFSET ?`;
+  query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
   
   const results = await db.prepare(query).bind(...params).all<SubmissionRecord>();
@@ -174,7 +174,7 @@ export async function getLogbookEntriesByUser(
     params.push(status);
   }
   
-  query += ` ORDER BY submitted_at DESC LIMIT ? OFFSET ?`;
+  query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
   
   const results = await db.prepare(query).bind(...params).all<SubmissionRecord>();
@@ -221,7 +221,7 @@ export async function getArtworkEdits(
     params.push(status);
   }
   
-  query += ` ORDER BY submitted_at DESC LIMIT ? OFFSET ?`;
+  query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
   
   const results = await db.prepare(query).bind(...params).all<SubmissionRecord>();
@@ -268,7 +268,7 @@ export async function getArtistEdits(
     params.push(status);
   }
   
-  query += ` ORDER BY submitted_at DESC LIMIT ? OFFSET ?`;
+  query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
   
   const results = await db.prepare(query).bind(...params).all<SubmissionRecord>();
@@ -374,10 +374,6 @@ async function applySubmissionChanges(
       case 'artist_edit':
         if (!submission.artist_id || !submission.new_data) return false;
         return await applyArtistChanges(db, submission.artist_id, JSON.parse(submission.new_data as string));
-
-      case 'new_artwork':
-        if (!submission.new_data) return false;
-        return await createArtworkFromSubmission(db, submission);
 
       case 'new_artist':
         if (!submission.new_data) return false;
@@ -543,7 +539,7 @@ export async function getSubmissionsByStatus(
     params.push(submissionType);
   }
   
-  query += ` ORDER BY submitted_at DESC LIMIT ? OFFSET ?`;
+  query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
   
   const results = await db.prepare(query).bind(...params).all<SubmissionRecord>();
@@ -564,7 +560,7 @@ export async function getSubmissionStats(
   const params: string[] = [];
   
   if (dateRange) {
-    query += ` WHERE submitted_at BETWEEN ? AND ?`;
+    query += ` WHERE created_at BETWEEN ? AND ?`;
     params.push(dateRange.start, dateRange.end);
   }
   

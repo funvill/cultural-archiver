@@ -447,7 +447,7 @@ export async function processMassImport(
 
         // Create logbook entry (automatically approved) in submissions table
         await db.db.prepare(`
-          INSERT INTO submissions (id, artwork_id, note, lat, lon, photos, status, submitted_at, user_token, consent_version, submission_type)
+          INSERT INTO submissions (id, artwork_id, notes, lat, lon, photos, status, created_at, user_token, consent_version, submission_type)
           VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?, 'logbook_entry')
         `).bind(
           logbookId,
@@ -491,7 +491,7 @@ export async function processMassImport(
       const logbookId = generateId();
       
       await db.db.prepare(`
-        INSERT INTO submissions (id, artwork_id, note, lat, lon, photos, status, submitted_at, user_token, consent_version, submission_type)
+        INSERT INTO submissions (id, artwork_id, notes, lat, lon, photos, status, created_at, user_token, consent_version, submission_type)
         VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?, 'logbook_entry')
       `).bind(
         logbookId,

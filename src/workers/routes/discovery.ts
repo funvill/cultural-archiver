@@ -367,7 +367,7 @@ export async function getArtworkStats(db: D1Database): Promise<{
     const submissionStmt = db.prepare(`
       SELECT 
         COUNT(*) as total_submissions,
-        SUM(CASE WHEN submitted_at > datetime('now', '-7 days') THEN 1 ELSE 0 END) as recent_submissions
+        SUM(CASE WHEN created_at > datetime('now', '-7 days') THEN 1 ELSE 0 END) as recent_submissions
       FROM submissions
       WHERE submission_type = 'logbook'
     `);

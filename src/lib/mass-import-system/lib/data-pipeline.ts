@@ -73,7 +73,22 @@ export class DataPipeline {
       
       // 4. Transform data using importer
       console.log(`🔄 Transforming data with ${this.importer.name} importer...`);
-      const unifiedData = await this.importer.mapData(inputData, importerConfig);
+      let unifiedData = await this.importer.mapData(inputData, importerConfig);
+      
+      // 4.1. Apply offset if specified (skip first N records)
+      if (options.offset && options.offset > 0) {
+        const originalCount = unifiedData.length;
+        unifiedData = unifiedData.slice(options.offset);
+        console.log(`⏭️  Skipped first ${options.offset} records (${unifiedData.length} remaining from ${originalCount} total)`);
+      }
+      
+      // 4.2. Apply limit if specified (take first N records after offset)
+      if (options.limit && options.limit > 0) {
+        const preLimit = unifiedData.length;
+        unifiedData = unifiedData.slice(0, options.limit);
+        console.log(`🔢 Limited to ${options.limit} records (from ${preLimit} after offset)`);
+      }
+      
       reportTracker.recordProcessedRecords(unifiedData.length);
       
       console.log(`✅ Transformed ${unifiedData.length} records`);

@@ -85,6 +85,23 @@ node dist/cli/cli-entry.js import \
   --exporter console \
   --input test-data.json \
   --config test-config.json
+
+# Process only first 10 records for testing
+node dist/cli/cli-entry.js import \
+  --importer vancouver-public-art \
+  --exporter json \
+  --input large-dataset.json \
+  --output sample.json \
+  --limit 10
+
+# Skip first 100 records and process next 50 (pagination)
+node dist/cli/cli-entry.js import \
+  --importer vancouver-public-art \
+  --exporter json \
+  --input large-dataset.json \
+  --output batch2.json \
+  --offset 100 \
+  --limit 50
 ```
 
 #### Plugin Information
@@ -298,6 +315,8 @@ For detailed testing information, see [TESTING.md](./TESTING.md).
 | `--output` | Output file path | stdout |
 | `--config` | Configuration file | auto-detect |
 | `--batch-size` | Processing batch size | 50 |
+| `--limit` | Limit number of records to process | unlimited |
+| `--offset` | Skip first N records before processing | 0 |
 | `--dry-run` | Validate without processing | false |
 | `--verbose` | Enable verbose logging | false |
 | `--generate-report` | Generate processing report | false |

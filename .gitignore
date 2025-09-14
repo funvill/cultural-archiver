@@ -106,3 +106,5 @@ out.txt
 src/lib/mass-import-system/processed-art.json
 
 src/lib/mass-import_v1_2025Sep14-021104.zip
+
+.wrangler/state/

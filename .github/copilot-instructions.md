@@ -6,8 +6,9 @@
   - Use `Invoke-WebRequest` instead of `curl`
 - Use Playwright-MCP over `simple browser` tools when available.
 - When starting a devlopment server for testing, use `npm run dev` in the project root to start the frontend and backend test servers.
-- All unit tests must pass. Run `npm run test` in the project root.
-- Build must work `npm run build`.
+- [ ] `npm run test` passes with 0 failures
+- [ ] `npm run build` completes with 0 errors
+- The project is in pre-release. We can recreate the database and lose data at this stage. In general backward compatibility is not required. I prefer database replacement over migration
 
 ## Settings
 
@@ -90,9 +91,6 @@
 
 - Follow RESTful conventions with proper HTTP status codes
 - Return consistent error responses with descriptive messages
-- Rate limit submissions (10/day per user token, 60/hour for lookups)
-- Validate coordinates and enforce character limits (500 for notes)
-- Implement pagination for large datasets (submissions: 10 per page)
 
 ### Backend Development Patterns
 
@@ -210,32 +208,6 @@ npm run database:status:staging # Check migration status for staging
 - Document schema changes in `/docs/database.md`
 - Follow existing table naming conventions (snake_case)
 
-**Example Migration File:**
-```sql
--- Migration: Add user roles system
--- Date: 2025-09-07
--- Description: Creates user_roles table for role-based permissions
-
-CREATE TABLE user_roles (
-    id TEXT PRIMARY KEY,
-    user_token TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('admin', 'moderator', 'user', 'banned')),
-    granted_by TEXT NOT NULL,
-    granted_at TEXT NOT NULL DEFAULT (datetime('now')),
-    revoked_at TEXT,
-    revoked_by TEXT,
-    is_active INTEGER NOT NULL DEFAULT 1,
-    notes TEXT,
-    UNIQUE(user_token, role)
-);
-
-CREATE INDEX IF NOT EXISTS idx_user_roles_user_token ON user_roles(user_token) WHERE is_active = 1;
-CREATE INDEX IF NOT EXISTS idx_user_roles_role ON user_roles(role) WHERE is_active = 1;
-
--- Sample data for testing
-INSERT INTO user_roles (id, user_token, role, granted_by) 
-VALUES ('sample-role-1', 'sample-user-token-1', 'moderator', 'system');
-```
 
 ### Backup and Recovery
 

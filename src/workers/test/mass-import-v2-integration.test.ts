@@ -271,7 +271,7 @@ describe('Mass Import V2 Complete Integration Test', () => {
     expect(responseData.data.auditTrail.importStarted).toBeDefined();
     expect(responseData.data.auditTrail.importCompleted).toBeDefined();
     expect(responseData.data.auditTrail.batchesProcessed).toBe(2); // 1 for artworks, 1 for artists
-    expect(responseData.data.auditTrail.systemUserToken).toBe('00000000-0000-0000-0000-000000000001');
+    expect(responseData.data.auditTrail.systemUserToken).toBe('a0000000-1000-4000-8000-000000000001');
     expect(responseData.data.auditTrail.photosDownloaded).toBe(3); // 2 + 1 + 0 from artworks (3 total photos)
     expect(responseData.data.auditTrail.photosUploaded).toBe(3);
 

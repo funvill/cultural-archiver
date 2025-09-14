@@ -2,7 +2,7 @@
  * Worker-specific types that include both shared types and Cloudflare Worker types
  */
 
-// Import Cloudflare Worker types
+// Cloudflare Worker types
 import type { D1Database, KVNamespace, R2Bucket } from '@cloudflare/workers-types';
 
 // ================================
@@ -34,7 +34,7 @@ export interface LogbookRecord {
   user_token: string;
   lat: number | null;
   lon: number | null;
-  note: string | null;
+  notes: string | null;
   photos: string | null; // JSON array of R2 URLs like ["url1", "url2", "url3"]
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
@@ -101,7 +101,7 @@ export interface CreateSubmissionEntryRequest {
   user_token: string;
   lat?: number;
   lon?: number;
-  note?: string;
+  notes?: string;
   photos?: string[];
   consent_version?: string; // Track consent version for compliance
 }
@@ -125,7 +125,7 @@ export interface CreateArtworkCreatorRequest {
 export interface SubmissionRequest {
   lat: number;
   lon: number;
-  note?: string;
+  notes?: string;
   type?: string;
   photos?: File[];
   consent_version?: string; // Track consent version for compliance
@@ -142,7 +142,7 @@ export interface FastArtworkSubmissionRequest {
   tags?: Record<string, string | number>; // Structured tags (includes artwork_type)
   
   // Submission metadata
-  note?: string;
+  notes?: string;
   photos?: File[];
   consent_version: string; // Required for fast workflow
   

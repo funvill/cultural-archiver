@@ -20,11 +20,6 @@ import { ApiError } from './errors';
 import { generateUUID } from '../../shared/constants.js';
 
 /**
- * Mass import reserved UUID for system-generated content
- */
-export const MASS_IMPORT_USER_UUID = '00000000-0000-0000-0000-000000000002';
-
-/**
  * Current consent version - update when legal terms change
  */
 export const CURRENT_CONSENT_VERSION = '1.0.0';

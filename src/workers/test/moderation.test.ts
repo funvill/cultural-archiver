@@ -1,5 +1,16 @@
 /**
- * Moderation workflow tests for the Cultural Archiver Worker API
+ * interface TestLogbookEntry {
+  id: string;
+  lat: number;
+  lon: number;
+  notes: string;
+  type: string;
+  user_token: string;
+  status: 'pending' | 'approved' | 'rejected';
+  photos?: string[];
+  artwork_id?: string;
+  approved_by?: string;
+  approved_at?: string;orkflow tests for the Cultural Archiver Worker API
  * Tests the review queue, approval/rejection flows, and data integrity using mocks
  */
 
@@ -10,7 +21,7 @@ interface MockSubmission {
   id: string;
   lat: number;
   lon: number;
-  note: string;
+  notes: string;
   type: string;
   user_token: string;
   status: 'pending' | 'approved' | 'rejected';
@@ -27,7 +38,7 @@ interface MockArtwork {
   id: string;
   lat: number;
   lon: number;
-  note: string;
+  notes: string;
   type: string;
   user_token: string;
   status: 'approved';
@@ -135,7 +146,7 @@ describe('Cultural Archiver Moderation Workflow Tests', (): void => {
     moderationService.addSubmission(submissionId, {
       lat: 49.2827,
       lon: -123.1207,
-      note: 'Test submission for moderation workflow',
+      notes: 'Test submission for moderation workflow',
       type: 'public_art',
       user_token: regularUserToken,
       photos: ['photo1.jpg', 'photo2.jpg'],
@@ -158,7 +169,7 @@ describe('Cultural Archiver Moderation Workflow Tests', (): void => {
       moderationService.addSubmission(testSubmissionId, {
         lat: 49.2828,
         lon: -123.1208,
-        note: 'Test submission for reviewer approval',
+        notes: 'Test submission for reviewer approval',
         type: 'public_art',
         user_token: regularUserToken,
       });
@@ -175,7 +186,7 @@ describe('Cultural Archiver Moderation Workflow Tests', (): void => {
       moderationService.addSubmission(testSubmissionId, {
         lat: 49.2829,
         lon: -123.1209,
-        note: 'Test artwork creation',
+        notes: 'Test artwork creation',
         type: 'sculpture',
         user_token: regularUserToken,
       });
@@ -196,7 +207,7 @@ describe('Cultural Archiver Moderation Workflow Tests', (): void => {
       moderationService.addSubmission(testSubmissionId, {
         lat: 49.283,
         lon: -123.121,
-        note: 'Status update test',
+        notes: 'Status update test',
         type: 'public_art',
         user_token: regularUserToken,
       });
@@ -217,7 +228,7 @@ describe('Cultural Archiver Moderation Workflow Tests', (): void => {
       moderationService.addSubmission(testSubmissionId, {
         lat: 49.2831,
         lon: -123.1211,
-        note: 'Double processing test',
+        notes: 'Double processing test',
         type: 'public_art',
         user_token: regularUserToken,
       });
@@ -240,7 +251,7 @@ describe('Cultural Archiver Moderation Workflow Tests', (): void => {
       moderationService.addSubmission(testSubmissionId, {
         lat: 49.2832,
         lon: -123.1212,
-        note: 'Test rejection',
+        notes: 'Test rejection',
         type: 'other',
         user_token: regularUserToken,
       });
@@ -265,7 +276,7 @@ describe('Cultural Archiver Moderation Workflow Tests', (): void => {
       moderationService.addSubmission(testSubmissionId, {
         lat: 49.2833,
         lon: -123.1213,
-        note: 'Metadata tracking test',
+        notes: 'Metadata tracking test',
         type: 'public_art',
         user_token: regularUserToken,
       });
@@ -306,7 +317,7 @@ describe('Cultural Archiver Moderation Workflow Tests', (): void => {
       moderationService.addSubmission(testSubmissionId, {
         lat: 49.2834,
         lon: -123.1214,
-        note: 'Queue filtering test',
+        notes: 'Queue filtering test',
         type: 'public_art',
         user_token: regularUserToken,
       });
@@ -380,7 +391,7 @@ describe('Cultural Archiver Moderation Workflow Tests', (): void => {
       moderationService.addSubmission(testSubmissionId, {
         lat: 49.2835,
         lon: -123.1215,
-        note: 'Photo migration test',
+        notes: 'Photo migration test',
         type: 'public_art',
         user_token: regularUserToken,
         photos: originalPhotos,
@@ -420,7 +431,7 @@ describe('Cultural Archiver Moderation Workflow Tests', (): void => {
       moderationService.addSubmission(testSubmissionId, {
         lat: 49.2836,
         lon: -123.1216,
-        note: 'Statistics test',
+        notes: 'Statistics test',
         type: 'public_art',
         user_token: regularUserToken,
       });
@@ -455,7 +466,7 @@ describe('Cultural Archiver Moderation Workflow Tests', (): void => {
       moderationService.addSubmission(testSubmissionId, {
         lat: 49.2837,
         lon: -123.1217,
-        note: 'Integrity test',
+        notes: 'Integrity test',
         type: 'public_art',
         user_token: regularUserToken,
       });

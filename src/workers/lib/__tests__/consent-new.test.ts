@@ -10,9 +10,9 @@ import {
   getConsentRecord,
   generateConsentTextHash,
   validateConsent,
-  MASS_IMPORT_USER_UUID,
   CURRENT_CONSENT_VERSION,
 } from '../consent-new';
+import { MASS_IMPORT_USER_UUID } from '../../../shared/constants';
 
 // Mock D1Database
 class MockD1Database {

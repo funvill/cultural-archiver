@@ -68,7 +68,7 @@ describe('Title/Description Extraction Fix', () => {
     );
 
     // Assert: Verify all fields including title, description, and created_by were bound
-    // Note: Now expects the call without type_id parameter
+    // notes: Now expects the call without type_id parameter
     expect(mockBind).toHaveBeenCalledWith(
       expect.any(String), // id (UUID)
       49.258, // lat
@@ -149,7 +149,7 @@ describe('Title/Description Extraction Fix', () => {
   it('should demonstrate the approval process title/description extraction pattern', () => {
     // This test demonstrates the pattern used in the approval process
     const submissionNote = JSON.stringify({
-      note: 'User submitted artwork',
+      notes: 'User submitted artwork',
       _submission: {
         lat: 49.258,
         lon: -123.074,
