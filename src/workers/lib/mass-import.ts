@@ -145,8 +145,7 @@ export class MassImportLibrary implements MassImportLibraryInterface {
           this.reportError(context, {
             severity: 'error',
             type: 'validation',
-            message: failedRecord.error_message,
-            context: { record: failedRecord.external_id }
+            message: failedRecord.error_message
           });
         }
       }
@@ -682,8 +681,7 @@ export class MassImportLibrary implements MassImportLibraryInterface {
         this.reportError(context, {
           severity: 'error',
           type: 'api',
-          message: failedRecord.error_message,
-          context: { record: failedRecord.external_id }
+          message: failedRecord.error_message
         });
       }
     }

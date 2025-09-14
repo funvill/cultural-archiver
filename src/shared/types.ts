@@ -1354,8 +1354,9 @@ export interface SubmissionRecord {
   lat: number | null;
   lon: number | null;
   
-  // Legacy field for backward compatibility (replaced by field_changes)
+  // Legacy fields for backward compatibility
   new_data?: string | null; // JSON object - deprecated, use field_changes
+  tags?: string | null; // JSON tags - deprecated, use field_changes
   
   // Integrated consent tracking
   consent_version: string;
@@ -1392,13 +1393,14 @@ export interface UserActivityRecord {
 export interface UserRoleRecord {
   id: string;
   user_token: string;
-  role: 'admin' | 'moderator' | 'user' | 'banned';
+  role: 'admin' | 'moderator' | 'curator' | 'reviewer' | 'user' | 'banned';
   granted_by: string;
   granted_at: string;
   revoked_at: string | null;
   revoked_by: string | null;
   is_active: boolean;
   notes: string | null;
+  permissions?: string; // JSON array of permission strings
 }
 
 // ================================

@@ -4,7 +4,6 @@ import { createRouter, createWebHistory, type Router } from 'vue-router';
 import { createPinia, type Pinia } from 'pinia';
 import ProfileView from '../ProfileView.vue';
 import { useAuthStore } from '../../stores/auth';
-import { apiService } from '../../services/api';
 
 // Mock stores
 vi.mock('../../stores/auth', () => ({

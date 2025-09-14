@@ -672,7 +672,7 @@ export interface MassImportSystemConfig {
 /**
  * Import error types for structured error handling
  */
-export interface ImportError {
+export interface ImportErrorV2 {
   recordIndex: number;
   recordType: 'artwork' | 'artist';
   recordTitle: string;

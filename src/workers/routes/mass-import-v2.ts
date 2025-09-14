@@ -34,7 +34,6 @@ import type {
   RawImportData,
   ValidationError
 } from '../../shared/mass-import';
-import { CONSENT_VERSION } from '../../shared/consent';
 
 // ================================
 // Constants and Configuration
@@ -44,6 +43,13 @@ const MASS_IMPORT_SYSTEM_USER_TOKEN = '00000000-0000-0000-0000-000000000001';
 const MAX_PROCESSING_TIME_MS = 60000; // 1 minute timeout as per PRD
 const MAX_BATCH_SIZE = 10; // Maximum records per batch
 const DEFAULT_DUPLICATE_THRESHOLD = 0.7;
+const DEFAULT_DUPLICATE_WEIGHTS = {
+  gps: 0.6,
+  title: 0.25,
+  artist: 0.2,
+  referenceIds: 0.5,
+  tagSimilarity: 0.05
+};
 
 // ================================
 // Request Validation
@@ -332,6 +338,13 @@ async function processArtworkBatch(
   for (let i = 0; i < artworks.length; i++) {
     const artwork = artworks[i];
     
+    if (!artwork) {
+      console.error(`[MASS_IMPORT_V2] Artwork at index ${i} is undefined`);
+      response.summary.totalFailed++;
+      response.summary.totalProcessed++;
+      continue;
+    }
+    
     try {
       await processIndividualTransaction(async () => {
         await processSingleArtwork(artwork, request, response, services);
@@ -361,6 +374,13 @@ async function processArtistBatch(
 
   for (let i = 0; i < artists.length; i++) {
     const artist = artists[i];
+    
+    if (!artist) {
+      console.error(`[MASS_IMPORT_V2] Artist at index ${i} is undefined`);
+      response.summary.totalFailed++;
+      response.summary.totalProcessed++;
+      continue;
+    }
     
     try {
       await processIndividualTransaction(async () => {
@@ -393,7 +413,7 @@ async function processSingleArtwork(
   const duplicateResult = await duplicateService.checkArtworkDuplicates({
     data: artworkData,
     threshold: request.config.duplicateThreshold || DEFAULT_DUPLICATE_THRESHOLD,
-    weights: request.config.duplicateWeights
+    weights: request.config.duplicateWeights || DEFAULT_DUPLICATE_WEIGHTS
   });
 
   if (duplicateResult.isDuplicate && duplicateResult.existingId) {
@@ -520,10 +540,10 @@ async function processSingleArtist(
   // 1. Check for duplicates
   const duplicateResult = await duplicateService.checkArtistDuplicates({
     name: artistData.title, // Using title as artist name
-    bio: artistData.description,
-    externalId: artistData.externalId,
+    bio: artistData.description || '', // Provide empty string instead of undefined
+    externalId: artistData.externalId || '', // Provide empty string instead of undefined
     threshold: request.config.duplicateThreshold || DEFAULT_DUPLICATE_THRESHOLD,
-    weights: request.config.duplicateWeights
+    weights: request.config.duplicateWeights || DEFAULT_DUPLICATE_WEIGHTS
   });
 
   if (duplicateResult.isDuplicate && duplicateResult.existingId) {

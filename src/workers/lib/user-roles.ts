@@ -130,6 +130,7 @@ export async function hasPermission(
   
   for (const role of roles) {
     try {
+      if (!role.permissions) continue; // Skip roles without permissions
       const permissions = JSON.parse(role.permissions) as string[];
       if (permissions.includes(requiredPermission) || permissions.includes('*')) {
         return true;
@@ -157,7 +158,11 @@ export async function hasAnyRole(
   requiredRoles: ('admin' | 'moderator' | 'curator' | 'reviewer')[]
 ): Promise<boolean> {
   const roles = await getUserRolesByToken(db, userToken, false);
-  return roles.some(role => requiredRoles.includes(role.role));
+  return roles.some(role => {
+    // Type guard to ensure role matches expected type
+    const adminRole = role.role as 'admin' | 'moderator' | 'curator' | 'reviewer';
+    return requiredRoles.includes(adminRole);
+  });
 }
 
 export async function getUserPermissions(
@@ -179,6 +184,7 @@ export async function getUserPermissions(
   for (const role of roles) {
     userRoles.add(role.role);
     try {
+      if (!role.permissions) continue; // Skip roles without permissions
       const permissions = JSON.parse(role.permissions) as string[];
       permissions.forEach(permission => allPermissions.add(permission));
     } catch (error) {
