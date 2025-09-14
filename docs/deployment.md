@@ -11,12 +11,26 @@ This guide covers deploying the Cultural Archiver Worker API to Cloudflare Worke
 
 ## Overview
 
-The Cultural Archiver API requires the following Cloudflare services:
+The Cultural Archiver consists of two main components deployed on Cloudflare infrastructure:
 
-- **Cloudflare Workers**: API runtime
+### Frontend (Vue 3 Application)
+- **Deployment**: Cloudflare Worker with static assets
+- **Configuration**: `src/frontend/wrangler.jsonc`
+- **Domain**: `art.abluestar.com`
+- **Features**: SPA routing, static asset serving
+
+### Backend (Hono API)
+- **Deployment**: Cloudflare Worker
+- **Configuration**: `src/workers/wrangler.toml`
+- **Domain**: `art-api.abluestar.com`
+- **Features**: API endpoints, database operations, business logic
+
+### Required Cloudflare Services
+- **Cloudflare Workers**: Runtime for both frontend and backend
 - **D1 Database**: SQLite-compatible database for artwork and submissions
-- **KV Storage**: Rate limiting, sessions, and magic links
+- **KV Storage**: Rate limiting, sessions, magic links, and caching
 - **R2 Storage**: Photo uploads and static assets
+- **Email Routing** (optional): For contact forms and notifications
 
 ## Initial Setup
 
@@ -39,6 +53,8 @@ npm install
 
 ### 3. Configure Wrangler
 
+#### Backend Configuration
+
 Update `src/workers/wrangler.toml` with your Cloudflare account details:
 
 ```toml
@@ -48,6 +64,63 @@ compatibility_date = "2024-01-15"
 compatibility_flags = ["nodejs_compat"]
 
 [env.production]
+name = "cultural-archiver-api-prod"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "cultural-archiver-production"
+database_id = "your-d1-database-id"
+
+[[env.production.kv_namespaces]]
+binding = "SESSIONS"
+id = "your-sessions-kv-id"
+
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "your-cache-kv-id"
+
+[[env.production.kv_namespaces]]
+binding = "RATE_LIMITS"
+id = "your-rate-limits-kv-id"
+
+[[env.production.kv_namespaces]]
+binding = "MAGIC_LINKS"
+id = "your-magic-links-kv-id"
+
+[[env.production.r2_buckets]]
+binding = "PHOTOS_BUCKET"
+bucket_name = "cultural-archiver-photos-prod"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+FRONTEND_URL = "https://art.abluestar.com"
+API_VERSION = "1.0.0"
+```
+
+#### Frontend Configuration
+
+Update `src/frontend/wrangler.jsonc` for frontend deployment:
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
+  "name": "cultural-archiver-frontend",
+  "compatibility_date": "2024-01-15",
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "single-page-application"
+  },
+  "routes": [
+    {
+      "pattern": "art.abluestar.com/*",
+      "zone_name": "abluestar.com"
+    }
+  ],
+  "vars": {
+    "API_BASE_URL": "https://art-api.abluestar.com"
+  }
+}
+```
 name = "cultural-archiver-api"
 
 [env.staging]

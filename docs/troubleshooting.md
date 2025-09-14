@@ -49,6 +49,55 @@ cat wrangler.toml
 
 **Check environment variables:**
 
+```bash
+# Verify all required environment variables are set
+wrangler secret list
+
+# Required secrets for production:
+# - DATABASE_ID (D1 database identifier)
+# - PHOTOS_BUCKET (R2 bucket name)
+# - SESSIONS_KV (KV namespace for sessions)
+# - RATE_LIMITS_KV (KV namespace for rate limiting)
+# - MAGIC_LINKS_KV (KV namespace for magic links)
+# - CACHE_KV (KV namespace for caching)
+
+# Check wrangler.toml bindings match your Cloudflare resources
+```
+
+### 404 Not Found Errors
+
+**Symptoms:**
+- Specific API endpoints returning 404
+- Frontend routes not working
+
+**Common Causes:**
+1. **Endpoint not defined in worker routes**
+2. **Frontend SPA routing misconfigured**
+3. **Cloudflare routing issues**
+
+**Solutions:**
+
+```bash
+# Check if endpoint exists in current codebase
+grep -r "app\.(get|post|put|delete)" src/workers/index.ts
+
+# Test specific endpoint locally
+curl -X GET http://localhost:8787/api/status
+curl -X GET http://localhost:8787/health
+
+# Check frontend SPA routing in wrangler.jsonc
+cat src/frontend/wrangler.jsonc
+```
+
+**Current API endpoints that should work:**
+- `GET /health` - Health check
+- `GET /api/status` - API status with authentication
+- `POST /api/logbook` - Submit photo/artwork
+- `GET /api/artworks/nearby` - Find nearby artworks
+- `GET /api/me/profile` - User profile
+- `POST /api/auth/request-magic-link` - Request authentication
+- `GET /api/review/queue` - Moderation queue (admin/moderator only)
+
 ```typescript
 // Add to worker for debugging
 console.log('Environment check:', {

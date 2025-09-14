@@ -8,9 +8,26 @@ Rate limiting is implemented using Cloudflare KV storage with per-user-token tra
 
 ### Rate Limit Types
 
-1. **Submission Limits**: 60 submissions per hour per user token
-2. **Query Limits**: 60 queries per hour per user token
-3. **Magic Link Limits**: 5 requests per hour per email address
+1. **Submission Limits**: 10 submissions per day per user token (logbook entries, artwork edits)
+2. **Query Limits**: 60 queries per hour per user token (search, discovery, details)
+3. **Magic Link Limits**: 5 requests per hour per email address (authentication)
+4. **Admin Operations**: No limits for admin users (mass import, moderation)
+
+### Current Rate Limit Values
+
+```typescript
+// Production rate limits
+const RATE_LIMITS = {
+  SUBMISSIONS_PER_DAY: 10,      // Photo submissions and content edits
+  QUERIES_PER_HOUR: 60,         // API queries and searches
+  MAGIC_LINKS_PER_HOUR: 5,      // Email authentication requests
+  
+  // Special cases
+  MASS_IMPORT: 'unlimited',     // Admin-only operations
+  HEALTH_CHECK: 'unlimited',    // System monitoring
+  STATIC_ASSETS: 'unlimited'    // Frontend assets
+};
+```
 
 ## Implementation Architecture
 
@@ -19,11 +36,11 @@ Rate limiting is implemented using Cloudflare KV storage with per-user-token tra
 Rate limits use Cloudflare KV with structured keys:
 
 ```typescript
-// KV Key Patterns
+// KV Key Patterns  
 const RATE_LIMIT_KEYS = {
-  submissions: `rate:submit:${userToken}:${hour}`, // YYYY-MM-DD-HH format
-  queries: `rate:query:${userToken}:${hour}`, // YYYY-MM-DD-HH format
-  magicLinks: `rate:magic:${email}:${hour}`, // YYYY-MM-DD-HH format
+  submissions: `rate:submit:${userToken}:${date}`, // YYYY-MM-DD format (daily)
+  queries: `rate:query:${userToken}:${hour}`,      // YYYY-MM-DD-HH format (hourly)
+  magicLinks: `rate:magic:${email}:${hour}`,       // YYYY-MM-DD-HH format (hourly)
 };
 ```
 
@@ -33,7 +50,9 @@ const RATE_LIMIT_KEYS = {
 interface RateLimitCounter {
   count: number;
   firstRequest: number; // Unix timestamp
-  lastRequest: number; // Unix timestamp
+  lastRequest: number;  // Unix timestamp
+  window: string;       // Time window identifier
+  resetTime: number;    // When counter resets
 }
 ```
 
