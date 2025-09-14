@@ -1,5 +1,6 @@
--- Add user_roles table alongside existing user_permissions
--- This is a simpler approach than the complete schema replacement in 0014
+-- Add user_roles table for role-based permissions
+-- Date: 2025-01-14
+-- Description: Creates user_roles table for managing user access levels
 
 CREATE TABLE IF NOT EXISTS user_roles (
   id TEXT PRIMARY KEY,
@@ -17,20 +18,3 @@ CREATE TABLE IF NOT EXISTS user_roles (
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_user_roles_user_token ON user_roles(user_token) WHERE is_active = 1;
 CREATE INDEX IF NOT EXISTS idx_user_roles_role ON user_roles(role) WHERE is_active = 1;
-
--- Migrate existing permissions to roles
--- Convert 'reviewer' to 'moderator' role
-INSERT OR IGNORE INTO user_roles (id, user_token, role, granted_by, granted_at, is_active)
-SELECT 
-  'role-' || user_id || '-' || permission_type,
-  user_id,
-  CASE 
-    WHEN permission_type = 'reviewer' THEN 'moderator'
-    WHEN permission_type = 'admin' THEN 'admin'
-    ELSE 'user'
-  END,
-  COALESCE(granted_by, 'migration'),
-  granted_at,
-  1
-FROM user_permissions 
-WHERE permission_type IN ('reviewer', 'admin');

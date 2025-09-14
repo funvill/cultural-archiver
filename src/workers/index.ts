@@ -56,6 +56,7 @@ import { getUserSubmissions, getUserProfile, sendTestEmail } from './routes/user
 import { handleSearchRequest, handleSearchSuggestions } from './routes/search';
 import { processMassImportPhotos } from './routes/mass-import-photos';
 import { processMassImport } from './routes/mass-import';
+import { processMassImportV2 } from './routes/mass-import-v2';
 import { handleOSMImport, handleOSMValidate } from './routes/mass-import-osm';
 import {
   requestMagicLink,
@@ -846,7 +847,8 @@ app.post('/api/test-email', withErrorHandling(sendTestEmail));
 
 // Mass import photo processing endpoint
 // Mass import endpoints
-app.post('/api/mass-import', withErrorHandling(processMassImport)); // Primary mass import endpoint
+app.post('/api/mass-import/v2', withErrorHandling(processMassImportV2)); // NEW V2 endpoint for CLI plugin system
+app.post('/api/mass-import', withErrorHandling(processMassImport)); // Legacy V1 endpoint
 app.post('/api/mass-import/submit', withErrorHandling(processMassImportPhotos)); // JSON endpoint for photo URLs
 app.post('/api/mass-import/photos', validateFileUploads, withErrorHandling(processMassImportPhotos)); // Keep for backward compatibility
 app.post('/api/mass-import/osm', withErrorHandling(handleOSMImport)); // OSM GeoJSON mass import
