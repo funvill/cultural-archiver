@@ -345,69 +345,9 @@ Legal compliance table tracking user consent for all submitted content. Implemen
 - `contributor` - Contributing artist
 - `collaborator` - Collaborative partner
 
-### artwork_types
 
-Lookup table for predefined artwork categories.
 
-| Field         | Type | Constraints                       | Description                              |
-| ------------- | ---- | --------------------------------- | ---------------------------------------- |
-| `id`          | TEXT | PRIMARY KEY                       | Unique identifier                        |
-| `name`        | TEXT | NOT NULL, UNIQUE                  | Human-readable type name                 |
-| `description` | TEXT | NULL                              | Optional description of the artwork type |
-| `created_at`  | TEXT | NOT NULL, DEFAULT datetime('now') | Creation timestamp                       |
 
-**Indexes:**
-
-- `idx_artwork_types_name` on `name` for lookup queries
-
-**Pre-populated values:**
-
-- `public_art` - "Public art installations and commissioned works"
-- `street_art` - "Street art, murals, and graffiti"
-- `monument` - "Monuments, memorials, and commemorative structures"
-- `sculpture` - "Sculptural works and installations"
-- `other` - "Other types of public artwork"
-
-### artwork
-
-Core table storing public artwork locations and metadata with structured tagging system.
-
-| Field        | Type | Constraints                           | Description                        |
-| ------------ | ---- | ------------------------------------- | ---------------------------------- |
-| `id`         | TEXT | PRIMARY KEY                           | Unique identifier                  |
-| `lat`        | REAL | NOT NULL                              | Latitude coordinate (-90 to 90)    |
-| `lon`        | REAL | NOT NULL                              | Longitude coordinate (-180 to 180) |
-| `type_id`    | TEXT | NOT NULL, FK→artwork_types.id         | Reference to artwork type          |
-| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Creation timestamp                 |
-| `status`     | TEXT | CHECK('pending','approved','removed') | Moderation status                  |
-| `tags`       | TEXT | NULL                                  | JSON object for structured metadata (see Structured Tags section) |
-| `title`      | TEXT | NULL                                  | Artwork title (editable field)    |
-| `description`| TEXT | NULL                                  | Artwork description (editable field) |
-| `created_by` | TEXT | NULL                                  | Creator/artist name (editable field) |
-
-**Indexes:**
-
-- `idx_artwork_lat_lon` on `(lat, lon)` for spatial queries
-- `idx_artwork_status` on `status` for filtering
-- `idx_artwork_type_id` on `type_id` for type-based filtering
-- `idx_artwork_tags_fts` on `tags` for full-text search on tags
-- `idx_artwork_tourism_tag` on `json_extract(tags, '$.tags.tourism')` for OSM compatibility
-- `idx_artwork_type_tag` on `json_extract(tags, '$.tags.artwork_type')` for artwork type filtering
-- `idx_artwork_artist_tag` on `json_extract(tags, '$.tags.artist_name')` for artist searches
-- `idx_artwork_name_tag` on `json_extract(tags, '$.tags.name')` for artwork name searches
-- `idx_artwork_title` on `title` for text search
-- `idx_artwork_description` on `description` for text search  
-- `idx_artwork_created_by` on `created_by` for creator search
-
-**Foreign Keys:**
-
-- `type_id` → `artwork_types.id`
-
-**Status Workflow:**
-
-- `pending` - Newly submitted, awaiting moderation
-- `approved` - Verified and visible on public map
-- `removed` - Removed from public view (soft delete)
 
 #### Structured Tags System
 
@@ -485,121 +425,9 @@ SELECT * FROM artwork
 WHERE json_extract(tags, '$.tags.access') = 'yes';
 ```
 
-### artwork_edits
 
-Community-proposed edits to existing artwork records stored in flexible key-value format.
 
-| Field             | Type | Constraints                            | Description                          |
-| ----------------- | ---- | -------------------------------------- | ------------------------------------ |
-| `edit_id`         | TEXT | PRIMARY KEY                            | Unique edit identifier (UUID)        |
-| `artwork_id`      | TEXT | NOT NULL, FK→artwork.id                | Reference to artwork being edited    |
-| `user_token`      | TEXT | NOT NULL                               | User proposing the edit              |
-| `field_name`      | TEXT | NOT NULL                               | Field being edited (e.g., 'title')   |
-| `field_value_old` | TEXT | NULL                                   | Original value before edit (JSON)    |
-| `field_value_new` | TEXT | NULL                                   | Proposed new value (JSON)            |
-| `status`          | TEXT | CHECK('pending','approved','rejected') | Moderation status                    |
-| `moderator_notes` | TEXT | NULL                                   | Feedback from moderator on rejection |
-| `reviewed_at`     | TEXT | NULL                                   | Timestamp when moderated             |
-| `reviewed_by`     | TEXT | NULL                                   | Moderator who reviewed               |
-| `submitted_at`    | TEXT | NOT NULL, DEFAULT datetime('now')      | When edit was submitted              |
 
-**Indexes:**
-
-- `idx_artwork_edits_artwork_id` on `artwork_id` for per-artwork queries
-- `idx_artwork_edits_user_token` on `user_token` for per-user queries
-- `idx_artwork_edits_status` on `status` for filtering by moderation status
-- `idx_artwork_edits_submitted_at` on `submitted_at DESC` for chronological ordering
-- `idx_artwork_edits_moderation_queue` on `(status, submitted_at DESC)` for moderation queue
-- `idx_artwork_edits_user_pending` on `(user_token, artwork_id, status)` for pending edits check
-
-**Foreign Keys:**
-
-- `artwork_id` → `artwork.id` (CASCADE DELETE)
-
-**Status Workflow:**
-
-- `pending` - Newly submitted edit, awaiting moderation
-- `approved` - Edit approved and applied to original artwork
-- `rejected` - Edit rejected with moderator feedback
-
-**Editable Fields:**
-
-- `title` - Artwork title
-- `description` - Artwork description
-- `created_by` - Creator information (comma-separated)
-- `tags` - JSON object with key-value metadata tags
-
-**Key-Value Design:**
-
-Each field change is stored as a separate row with old/new values, enabling:
-
-- Atomic approval/rejection of entire edit submissions
-- Clear diff views for moderation
-- Future extensibility for new editable fields
-- Complete audit trail of all changes
-
-### submissions
-
-**NEW UNIFIED TABLE**: Unified submission system replacing legacy logbook and artwork_edits tables.
-
-| Field               | Type | Constraints                                                     | Description                                         |
-| ------------------- | ---- | --------------------------------------------------------------- | --------------------------------------------------- |
-| `id`                | TEXT | PRIMARY KEY                                                     | Unique identifier                                   |
-| `submission_type`   | TEXT | CHECK('logbook_entry','artwork_edit','artist_edit','new_artwork','new_artist') | Type of submission                                  |
-| `user_token`        | TEXT | NOT NULL                                                        | Anonymous UUID or authenticated user ID             |
-| `email`             | TEXT | NULL                                                            | Optional email for verification                     |
-| `submitter_name`    | TEXT | NULL                                                            | Optional submitter name                             |
-| `artwork_id`        | TEXT | NULL, FK→artwork.id                                             | Reference to artwork (for edits/photos)            |
-| `artist_id`         | TEXT | NULL, FK→artists.id                                             | Reference to artist (for artist edits)             |
-| `lat`               | REAL | NULL                                                            | Latitude for location-based submissions             |
-| `lon`               | REAL | NULL                                                            | Longitude for location-based submissions            |
-| `notes`             | TEXT | NULL                                                            | Submission notes (≤500 chars at app level)         |
-| `photos`            | TEXT | NULL                                                            | JSON array of R2 URLs: `["url1", "url2"]`          |
-| `tags`              | TEXT | NULL                                                            | JSON object of structured tags                      |
-| `old_data`          | TEXT | NULL                                                            | JSON object of original data (for edits)           |
-| `new_data`          | TEXT | NULL                                                            | JSON object of proposed changes (for edits)        |
-| `verification_status` | TEXT | CHECK('pending','verified','unverified')                     | Email verification status                           |
-| `status`            | TEXT | CHECK('pending','approved','rejected')                         | Moderation status                                   |
-| `reviewer_token`    | TEXT | NULL                                                            | Reviewer who processed submission                   |
-| `review_notes`      | TEXT | NULL                                                            | Reviewer's notes                                    |
-| `reviewed_at`       | TEXT | NULL                                                            | Review timestamp                                    |
-| `created_at`        | TEXT | NOT NULL, DEFAULT datetime('now')                               | Creation timestamp                                  |
-| `updated_at`        | TEXT | NOT NULL, DEFAULT datetime('now')                               | Last update timestamp                               |
-
-**Indexes:**
-
-- `idx_submissions_user_token` on `user_token` for user-specific queries
-- `idx_submissions_artwork_id` on `artwork_id` for artwork-related submissions
-- `idx_submissions_artist_id` on `artist_id` for artist-related submissions
-- `idx_submissions_status` on `status` for moderation workflows
-- `idx_submissions_type` on `submission_type` for filtering by type
-- `idx_submissions_location` on `lat, lon` for spatial queries
-- `idx_submissions_created_at` on `created_at` for chronological ordering
-
-**Foreign Keys:**
-
-- `artwork_id` → `artwork.id` ON DELETE CASCADE
-- `artist_id` → `artists.id` ON DELETE CASCADE
-
-**Submission Types:**
-
-- `logbook_entry` - Photo submissions for existing or new artworks
-- `artwork_edit` - Edits to artwork metadata (title, description, etc.)
-- `artist_edit` - Edits to artist information
-- `new_artwork` - New artwork submissions via fast workflow
-- `new_artist` - New artist profile submissions
-
-**Status Workflow:**
-
-- `pending` - Awaiting moderation
-- `approved` - Accepted (creates/updates target entity)
-- `rejected` - Rejected (hidden from user)
-
-**Verification Status:**
-
-- `pending` - Email verification not yet sent
-- `verified` - Email verified via magic link
-- `unverified` - Email verification failed or expired
 
 ## Relationships
 
@@ -616,19 +444,20 @@ magic_links
  │
  ▼
 artists ──┐               ┌── artwork ──┐
-          │ 1:N       1:N │             │ 1:N
+          │ N:M       1:N │             │ 1:N
           ▼               ▼             ▼
-        submissions ──────────────── submissions
-          │ 1:N                        │
-          ▼                            ▼
-      audit_log                   user_activity
+   artwork_artists    submissions ─────────
+          │ N:M           │
+          ▼               ▼
+       artwork         consent
 ```
 
 **Unified Submission Flow:**
+
 - All content changes flow through the `submissions` table
 - Approved submissions create/update target entities (artwork, artists)
-- Complete audit trail maintained in `audit_log`
 - Role-based permissions control who can approve submissions
+- Many-to-many relationships between artworks and artists via `artwork_artists` table
 
 ## Common Queries
 
@@ -782,9 +611,4 @@ The database schema is reflected in TypeScript types in `src/shared/types.ts`:
 - `CreateArtworkRequest` - API request format for artwork creation
 - `CreateArtistRequest` - API request format for artist creation
 
-**Legacy Types (Maintained for Compatibility):**
-- `LogbookRecord` - mapped to SubmissionRecord for backwards compatibility
-- `TagRecord` - replaced by JSON tags in artwork/artist records
-- `ArtworkEditRecord` - replaced by SubmissionRecord with edit data
-
-All types include proper validation functions and status guards for type safety across the frontend and backend systems. The unified submission system provides consistent typing for all content operations while maintaining backward compatibility with legacy endpoints.
+All types include proper validation functions and status guards for type safety across the frontend and backend systems. The unified submission system provides consistent typing for all content operations.

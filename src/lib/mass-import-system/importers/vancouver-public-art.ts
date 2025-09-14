@@ -375,7 +375,7 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
     
     // Add import source attribution
     if (record.registryid) {
-      parts.push(`\nImported from Vancouver Open Data (registryid: ${record.registryid})`);
+      parts.push(`\n\nImported from Vancouver Open Data (registryid: ${record.registryid})`);
     }
     
     return parts.join('\n\n');
@@ -405,7 +405,10 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
     for (const artistId of idsArray) {
       const artist = this.artistLookup.get(String(artistId));
       if (artist) {
-        const fullName = `${artist.firstname} ${artist.lastname}`.trim();
+        // Handle case where firstname might be null
+        const firstName = artist.firstname || '';
+        const lastName = artist.lastname || '';
+        const fullName = `${firstName} ${lastName}`.trim();
         names.push(fullName);
       } else {
         console.warn(`Artist ID ${artistId} not found in lookup table`);
@@ -425,6 +428,14 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
     // Add core mapped tags
     const basicTags = await this.buildTags(record, tagMappings);
     Object.assign(tags, basicTags);
+
+    // Override artist tag with resolved names instead of IDs
+    if (record.artists) {
+      const artistNames = this.lookupArtistNames(record.artists);
+      if (artistNames.length > 0) {
+        tags.artist = artistNames.join(', ');
+      }
+    }
 
     // Add comprehensive metadata tags
     if (record.registryid) tags.registryid = String(record.registryid);

@@ -255,27 +255,24 @@ describe('Artwork Editing Routes', () => {
     test('should retrieve user pending edits successfully', async () => {
       const mockPendingEdits = [
         {
-          edit_id: 'edit-1',
-          field_name: 'title',
-          submitted_at: '2025-01-01T00:00:00.000Z',
+          id: 'edit-1',
+          submission_type: 'artwork_edit',
+          new_data: '{"title": "Updated Title"}',
+          created_at: '2025-01-01T00:00:00.000Z',
         },
       ];
 
-      const mockArtworkEditsService = {
-        getUserPendingEdits: vi.fn().mockResolvedValue(mockPendingEdits),
+      const mockDbStmt = {
+        bind: vi.fn().mockReturnThis(),
+        all: vi.fn().mockResolvedValue({ success: true, results: mockPendingEdits }),
       };
-
-      const { ArtworkEditsService } = await import('../lib/artwork-edits');
-      (ArtworkEditsService as any).mockImplementation(() => mockArtworkEditsService);
+      mockDb.prepare.mockReturnValue(mockDbStmt);
 
       const c = createMockContext({ id: 'artwork-123' });
 
       await getUserPendingEdits(c);
 
-      expect(mockArtworkEditsService.getUserPendingEdits).toHaveBeenCalledWith(
-        'test-user-token',
-        'artwork-123'
-      );
+      expect(mockDbStmt.bind).toHaveBeenCalledWith('test-user-token', 'artwork-123');
       expect(c.json).toHaveBeenCalledWith({
         success: true,
         data: {
@@ -287,17 +284,17 @@ describe('Artwork Editing Routes', () => {
     });
 
     test('should return no pending edits when none exist', async () => {
-      const mockArtworkEditsService = {
-        getUserPendingEdits: vi.fn().mockResolvedValue([]),
+      const mockDbStmt = {
+        bind: vi.fn().mockReturnThis(),
+        all: vi.fn().mockResolvedValue({ success: true, results: [] }),
       };
-
-      const { ArtworkEditsService } = await import('../lib/artwork-edits');
-      (ArtworkEditsService as any).mockImplementation(() => mockArtworkEditsService);
+      mockDb.prepare.mockReturnValue(mockDbStmt);
 
       const c = createMockContext({ id: 'artwork-123' });
 
       await getUserPendingEdits(c);
 
+      expect(mockDbStmt.bind).toHaveBeenCalledWith('test-user-token', 'artwork-123');
       expect(c.json).toHaveBeenCalledWith({
         success: true,
         data: {

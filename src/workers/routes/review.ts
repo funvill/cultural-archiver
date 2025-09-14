@@ -338,6 +338,7 @@ export async function approveSubmission(
       created_by: (typeof submissionTags.artist === 'string' ? submissionTags.artist : 
                   typeof submissionTags.artist_name === 'string' ? submissionTags.artist_name : 
                   typeof submissionTags.created_by === 'string' ? submissionTags.created_by : null),
+      photos: submission.photos || null
     };      
     finalArtworkId = await insertArtwork(c.env.DB, artworkData);
     newArtworkCreated = true;
@@ -735,6 +736,7 @@ export async function processBatchReview(
               description: typeof submissionTags.description === 'string' ? submissionTags.description : null,
               created_by: (typeof submissionTags.artist === 'string' ? submissionTags.artist : 
                           typeof submissionTags.created_by === 'string' ? submissionTags.created_by : null),
+              photos: submission.photos || null
             };
 
             const artworkId = await insertArtwork(c.env.DB, artworkData);
