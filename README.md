@@ -156,11 +156,12 @@ The frontend uses `X-User-Token` header by default.
 #### Submission Workflow
 
 ```http
-POST /api/logbook
+POST /api/submissions
 Content-Type: multipart/form-data
 X-User-Token: {user-token}
 
 # Submit artwork with photos and location
+submission_type: artwork_photos
 lat: 49.2827
 lon: -123.1207
 note: "Beautiful street art on Main Street"
@@ -217,11 +218,11 @@ GET /api/review/queue
 Authorization: Bearer {reviewer-token}
 
 # Approve submission
-POST /api/review/approve/{logbook-id}
+POST /api/review/approve/{submission-id}
 Authorization: Bearer {reviewer-token}
 
 # Reject submission
-POST /api/review/reject/{logbook-id}
+POST /api/review/reject/{submission-id}
 Authorization: Bearer {reviewer-token}
 ```
 
@@ -413,7 +414,7 @@ Everyone is welcome to contribute to this project. See the CONTRIBUTING.md for g
 ### Data import
 
 OSM
-```node src/lib/mass-import/dist/cli/index.js import --importer osm src/data-collection/osm/output/merged/merged-artworks.geojson --limit 50```
+```node src/lib/mass-import-system/dist/cli/index.js import --importer osm src/data-collection/osm/output/merged/merged-artworks.geojson --limit 50```
 
 Vancouver
 ```node dist/cli/index.js vancouver --limit 50```

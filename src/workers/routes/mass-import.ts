@@ -18,7 +18,7 @@ import { ArtistMatchingService, type VancouverArtistData } from '../lib/artist-m
 import { CONSENT_VERSION } from '../../shared/consent';
 
 // Import Vancouver artist data
-import vancouverArtistsData from '../../lib/mass-import/src/importers/public-art-artists.json';
+import vancouverArtistsData from '../../lib/mass-import-system/importers/public-art-artists.json';
 
 /**
  * Mass import payload interface matching the documentation
@@ -398,8 +398,8 @@ export async function processMassImport(
     const timestamp = new Date().toISOString();
 
     await db.db.prepare(`
-      INSERT INTO artwork (id, title, description, lat, lon, type_id, status, created_at, created_by)
-      VALUES (?, ?, ?, ?, ?, 'public_art', 'approved', ?, ?)
+      INSERT INTO artwork (id, title, description, lat, lon, status, created_at, created_by)
+      VALUES (?, ?, ?, ?, ?, 'approved', ?, ?)
     `).bind(
       artworkId,
       payload.artwork.title,
@@ -411,6 +411,13 @@ export async function processMassImport(
     ).run();
 
     console.log(`[MASS_IMPORT] Created artwork ${artworkId}: ${payload.artwork.title}`);
+
+    // Create artwork_type tag (default to 'public_art' for mass imports)
+    const tagId = generateId();
+    await db.db.prepare(`
+      INSERT INTO tags (id, artwork_id, logbook_id, label, value, created_at)
+      VALUES (?, ?, NULL, 'artwork_type', 'public_art', ?)
+    `).bind(tagId, artworkId, timestamp).run();
 
     // Link artwork to artist if we found or created one
     if (artistId) {
@@ -438,10 +445,10 @@ export async function processMassImport(
         // Put photos in the first logbook entry if we processed any
         const photosForThisEntry = (i === 0 && processedPhotoUrls.length > 0) ? processedPhotoUrls : [];
 
-        // Create logbook entry (automatically approved)
+        // Create logbook entry (automatically approved) in submissions table
         await db.db.prepare(`
-          INSERT INTO logbook (id, artwork_id, note, lat, lon, photos, status, created_at, user_token, consent_version)
-          VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?)
+          INSERT INTO submissions (id, artwork_id, note, lat, lon, photos, status, submitted_at, user_token, consent_version, submission_type)
+          VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?, 'logbook_entry')
         `).bind(
           logbookId,
           artworkId,
@@ -484,8 +491,8 @@ export async function processMassImport(
       const logbookId = generateId();
       
       await db.db.prepare(`
-        INSERT INTO logbook (id, artwork_id, note, lat, lon, photos, status, created_at, user_token, consent_version)
-        VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?)
+        INSERT INTO submissions (id, artwork_id, note, lat, lon, photos, status, submitted_at, user_token, consent_version, submission_type)
+        VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?, 'logbook_entry')
       `).bind(
         logbookId,
         artworkId,

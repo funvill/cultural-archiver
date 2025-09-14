@@ -76,7 +76,8 @@ console.log('Environment check:', {
 
 ```typescript
 // Verify route registration in src/workers/index.ts
-app.route('/api/logbook', submissionRoutes);
+app.route('/api/submissions', submissionRoutes); // Unified submissions endpoint
+app.route('/api/logbook', submissionRoutes);     // Legacy compatibility
 app.route('/api/artworks', discoveryRoutes);
 app.route('/api/me', userRoutes);
 app.route('/api/auth', authRoutes);
@@ -588,11 +589,11 @@ wrangler r2 object list cultural-archiver-photos --prefix="submissions/"
 **Symptoms:**
 
 - Artworks exist in database but no corresponding consent records
-- Approved artworks from logbook submissions missing consent
+- Approved artworks from submissions missing consent
 
 **Cause:**
 
-The approval process wasn't creating artwork consent records when converting logbook submissions to artworks.
+The approval process wasn't creating artwork consent records when converting submissions to artworks.
 
 **Solution:**
 

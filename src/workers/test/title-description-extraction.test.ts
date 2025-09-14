@@ -48,7 +48,6 @@ describe('Title/Description Extraction Fix', () => {
     const artworkData: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'> = {
       lat: 49.258,
       lon: -123.074,
-      type_id: 'public_art',
       status: 'approved',
       tags: JSON.stringify({
         material: 'fiberglass',
@@ -69,11 +68,11 @@ describe('Title/Description Extraction Fix', () => {
     );
 
     // Assert: Verify all fields including title, description, and created_by were bound
+    // Note: Now expects the call without type_id parameter
     expect(mockBind).toHaveBeenCalledWith(
       expect.any(String), // id (UUID)
       49.258, // lat
       -123.074, // lon
-      'public_art', // type_id
       expect.any(String), // created_at (ISO string)
       'approved', // status
       expect.stringContaining('material'), // tags (JSON string)
@@ -91,7 +90,6 @@ describe('Title/Description Extraction Fix', () => {
     const artworkData: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'> = {
       lat: 49.258,
       lon: -123.074,
-      type_id: 'public_art',
       status: 'approved',
       tags: JSON.stringify({ material: 'metal' }),
       title: null,
@@ -108,7 +106,6 @@ describe('Title/Description Extraction Fix', () => {
       expect.any(String), // id
       49.258, // lat
       -123.074, // lon
-      'public_art', // type_id
       expect.any(String), // created_at
       'approved', // status
       expect.stringContaining('material'), // tags
@@ -131,7 +128,6 @@ describe('Title/Description Extraction Fix', () => {
     const artworkData: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'> = {
       lat: 49.258,
       lon: -123.074,
-      type_id: 'sculpture',
       status: 'approved',
       tags: JSON.stringify(submissionTags),
       title: submissionTags.title,
@@ -144,10 +140,10 @@ describe('Title/Description Extraction Fix', () => {
 
     // Assert: Verify the complete flow worked
     const bindCall = mockBind.mock.calls[0];
-    expect(bindCall[6]).toContain('bronze'); // tags JSON contains original tag data
-    expect(bindCall[7]).toBe('Test Artwork Title'); // title extracted
-    expect(bindCall[8]).toBe('Test artwork description with details'); // description extracted  
-    expect(bindCall[9]).toBe('Test Artist'); // created_by extracted
+    expect(bindCall[5]).toContain('bronze'); // tags JSON contains original tag data (index 5 instead of 6)
+    expect(bindCall[6]).toBe('Test Artwork Title'); // title extracted (index 6 instead of 7)
+    expect(bindCall[7]).toBe('Test artwork description with details'); // description extracted (index 7 instead of 8)
+    expect(bindCall[8]).toBe('Test Artist'); // created_by extracted (index 8 instead of 9)
   });
 
   it('should demonstrate the approval process title/description extraction pattern', () => {

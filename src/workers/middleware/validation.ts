@@ -12,7 +12,6 @@ import { tagValidationService, convertToValidationApiError } from '../lib/tag-va
 import type { StructuredTags } from '../../shared/tag-schema';
 import {
   MAX_PHOTOS_PER_SUBMISSION,
-  ARTWORK_TYPES,
   MIN_SEARCH_RADIUS,
   MAX_SEARCH_RADIUS,
 } from '../types';
@@ -108,7 +107,7 @@ export const logbookSubmissionSchema = z.object({
   note: z
     .string()
     .optional(),
-  type: z.enum(ARTWORK_TYPES).optional(),
+  type: z.string().optional(),
 });
 
 // ================================
@@ -174,7 +173,6 @@ export const reviewSubmissionSchema = z.object({
     .object({
       lat: z.number().min(-90).max(90).optional(),
       lon: z.number().min(-180).max(180).optional(),
-      type_id: z.enum(ARTWORK_TYPES).optional(),
       tags: z.record(z.string()).optional(),
     })
     .optional(),
@@ -214,7 +212,6 @@ export const fastArtworkSubmissionSchema = z.object({
   lon: z.number().min(-180).max(180),
   // Title is now optional for true photo-first workflow
   title: z.string().min(1).max(500).optional(),
-  type_id: z.string().optional(),
   tags: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
   note: z.string().max(500).optional(),
   consent_version: z.string().min(1),
@@ -529,8 +526,6 @@ export async function validateFastArtworkSubmission(
       }
       const title = formData.get('title');
       if (title && title.toString().trim().length > 0) build.title = title.toString().trim();
-      const typeId = formData.get('type_id');
-      if (typeId) build.type_id = typeId.toString();
       const note = formData.get('note');
       if (note) build.note = note.toString();
       const consentVersion = formData.get('consent_version');
@@ -590,7 +585,6 @@ export async function validateFastArtworkSubmission(
         consent_version: (body.consent_version ?? '').toString(),
       };
       if (body.title) build.title = body.title.toString();
-      if (body.type_id) build.type_id = body.type_id.toString();
       if (body.note) build.note = body.note.toString();
       if (body.existing_artwork_id) build.existing_artwork_id = body.existing_artwork_id.toString();
       if (body.tags) {

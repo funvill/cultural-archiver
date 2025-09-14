@@ -70,7 +70,7 @@ describe('Permission Management', () => {
       const mockPrepare = vi.fn().mockReturnValue({
         bind: vi.fn().mockReturnValue({
           first: vi.fn().mockResolvedValue({
-            permission: 'moderator',
+            role: 'moderator',
             granted_at: '2025-01-03T15:30:00Z',
             granted_by: 'admin-1',
           }),
@@ -100,7 +100,7 @@ describe('Permission Management', () => {
       const mockPrepare = vi.fn().mockReturnValue({
         bind: vi.fn().mockReturnValue({
           first: vi.fn().mockResolvedValue({
-            permission: 'admin',
+            role: 'admin',
             granted_at: '2025-01-03T15:30:00Z',
             granted_by: 'system',
           }),
@@ -118,7 +118,7 @@ describe('Permission Management', () => {
         bind: vi.fn().mockReturnValue({
           all: vi.fn().mockResolvedValue({
             success: true,
-            results: [{ permission: 'moderator' }, { permission: 'admin' }],
+            results: [{ role: 'moderator' }, { role: 'admin' }],
           }),
         }),
       });
@@ -133,7 +133,7 @@ describe('Permission Management', () => {
       const mockPrepareAdmin = vi.fn().mockReturnValue({
         bind: vi.fn().mockReturnValue({
           first: vi.fn().mockResolvedValue({
-            permission: 'admin',
+            role: 'admin',
             granted_at: '2025-01-03T15:30:00Z',
             granted_by: 'system',
           }),
@@ -147,7 +147,7 @@ describe('Permission Management', () => {
       const mockPrepareModerator = vi.fn().mockReturnValue({
         bind: vi.fn().mockReturnValue({
           first: vi.fn().mockResolvedValue({
-            permission: 'moderator',
+            role: 'moderator',
             granted_at: '2025-01-03T15:30:00Z',
             granted_by: 'admin-1',
           }),
@@ -191,7 +191,7 @@ describe('Permission Management', () => {
       const mockPrepare = vi.fn().mockReturnValue({
         bind: vi.fn().mockReturnValue({
           first: vi.fn().mockResolvedValue({
-            permission: 'moderator',
+            role: 'moderator',
             granted_at: '2025-01-03T15:30:00Z',
             granted_by: 'admin-1',
           }),
@@ -215,7 +215,7 @@ describe('Permission Management', () => {
           return {
             bind: vi.fn().mockReturnValue({
               first: vi.fn().mockResolvedValue({
-                permission: 'moderator',
+                role: 'moderator',
                 granted_at: '2025-01-03T15:30:00Z',
                 granted_by: 'admin-1',
               }),
@@ -341,7 +341,7 @@ describe('Permission Management', () => {
         bind: vi.fn().mockReturnValue({
           all: vi.fn().mockResolvedValue({
             success: true,
-            results: [{ permission: 'moderator' }],
+            results: [{ role: 'moderator' }],
           }),
         }),
       });
@@ -365,7 +365,7 @@ describe('Permission Management', () => {
         bind: vi.fn().mockReturnValue({
           all: vi.fn().mockResolvedValue({
             success: true,
-            results: [{ permission: 'admin' }],
+            results: [{ role: 'admin' }],
           }),
         }),
       });
