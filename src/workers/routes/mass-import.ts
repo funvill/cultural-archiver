@@ -18,7 +18,7 @@ import { ArtistMatchingService, type VancouverArtistData } from '../lib/artist-m
 import { CONSENT_VERSION } from '../../shared/consent';
 
 // Import Vancouver artist data
-import vancouverArtistsData from '../../lib/mass-import/src/importers/public-art-artists.json';
+import vancouverArtistsData from '../../lib/mass-import-system/importers/public-art-artists.json';
 
 /**
  * Mass import payload interface matching the documentation

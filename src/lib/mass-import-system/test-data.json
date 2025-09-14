@@ -1,0 +1,22 @@
+[
+  {
+    "title_of_work": "Test Artwork 1",
+    "geo_point_2d": {
+      "lat": 49.2827,
+      "lon": -123.1207
+    },
+    "artists": "Test Artist",
+    "descriptionofwork": "A test artwork for demonstration",
+    "type": "sculpture"
+  },
+  {
+    "title_of_work": "Test Artwork 2", 
+    "geo_point_2d": {
+      "lat": 49.2647,
+      "lon": -123.0870
+    },
+    "artists": "Another Artist",
+    "descriptionofwork": "Another test artwork",
+    "type": "mural"
+  }
+]

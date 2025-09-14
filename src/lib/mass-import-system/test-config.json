@@ -1,0 +1,24 @@
+{
+  "importer": {
+    "dataFile": "test-data.json",
+    "processingMode": "sequential",
+    "duplicateRadiusMeters": 50,
+    "fieldMappings": {
+      "title": "title_of_work",
+      "description": "descriptionofwork",
+      "notes": "artistprojectstatement",
+      "coordinates": {
+        "lat": "geo_point_2d.lat",
+        "lon": "geo_point_2d.lon"
+      }
+    },
+    "tagMappings": {
+      "artist": "artists",
+      "type": "type"
+    }
+  },
+  "exporter": {
+    "format": "table",
+    "verbose": true
+  }
+}
