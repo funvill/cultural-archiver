@@ -1,0 +1,103 @@
+{
+  "metadata": {
+    "operation": {
+      "importer": "ProgressImporter",
+      "exporter": "ProgressExporter",
+      "inputFile": "test-data.json",
+      "startTime": "2025-09-14T06:04:45.914Z",
+      "endTime": "2025-09-14T06:04:45.915Z",
+      "duration": 1
+    },
+    "parameters": {
+      "cliFlags": [
+        "--generateReport",
+        "--inputFile",
+        "test-data.json"
+      ],
+      "importerConfig": {},
+      "exporterConfig": {},
+      "dryRun": false
+    },
+    "environment": {
+      "nodeVersion": "v24.4.1",
+      "platform": "win32 10.0.26100",
+      "timestamp": "2025-09-14T06:04:45.914Z"
+    }
+  },
+  "summary": {
+    "totalRecords": 3,
+    "successful": 3,
+    "failed": 0,
+    "skipped": 0,
+    "other": 0,
+    "successRate": 100,
+    "processingTime": 1,
+    "averageRecordTime": 0
+  },
+  "records": [
+    {
+      "id": "rec_1757829885915_eykx0dkfz",
+      "externalId": "test-1",
+      "status": "successful",
+      "reason": "exported",
+      "timestamp": "2025-09-14T06:04:45.915Z",
+      "data": {
+        "lat": 49.28566279257567,
+        "lon": -123.12230939826237,
+        "title": "Test Artwork 1",
+        "description": "Description for test artwork 1",
+        "source": "test-source",
+        "externalId": "test-1",
+        "artist": "Test Artist 1",
+        "tags": {
+          "category": "test",
+          "type": "artwork-1",
+          "generated": true
+        }
+      }
+    },
+    {
+      "id": "rec_1757829885915_d1dy5ej0s",
+      "externalId": "test-2",
+      "status": "successful",
+      "reason": "exported",
+      "timestamp": "2025-09-14T06:04:45.915Z",
+      "data": {
+        "lat": 49.279893927342265,
+        "lon": -123.12411298666655,
+        "title": "Test Artwork 2",
+        "description": "Description for test artwork 2",
+        "source": "test-source",
+        "externalId": "test-2",
+        "artist": "Test Artist 2",
+        "tags": {
+          "category": "test",
+          "type": "artwork-2",
+          "generated": true
+        }
+      }
+    },
+    {
+      "id": "rec_1757829885915_w7xyhjs8x",
+      "externalId": "test-3",
+      "status": "successful",
+      "reason": "exported",
+      "timestamp": "2025-09-14T06:04:45.915Z",
+      "data": {
+        "lat": 49.28486631729155,
+        "lon": -123.1245792282185,
+        "title": "Test Artwork 3",
+        "description": "Description for test artwork 3",
+        "source": "test-source",
+        "externalId": "test-3",
+        "artist": "Test Artist 3",
+        "tags": {
+          "category": "test",
+          "type": "artwork-3",
+          "generated": true
+        }
+      }
+    }
+  ],
+  "errors": []
+}

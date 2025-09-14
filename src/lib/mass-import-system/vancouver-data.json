@@ -1,0 +1,35 @@
+[
+  {
+    "title_of_work": "The Birds",
+    "descriptionofwork": "A stunning sculpture featuring abstract bird forms in flight",
+    "artistprojectstatement": "This piece explores themes of freedom and movement in urban spaces",
+    "artists": "Sarah Chen",
+    "type": "Sculpture",
+    "geo_point_2d": {
+      "lon": -123.1207,
+      "lat": 49.2827
+    }
+  },
+  {
+    "title_of_work": "Harmony Plaza",
+    "descriptionofwork": "An interactive sound installation that responds to pedestrian movement",
+    "artistprojectstatement": "Creating musical harmony through community interaction and urban design",
+    "artists": "David Martinez; Lisa Wong",
+    "type": "Installation",
+    "geo_point_2d": {
+      "lon": -123.087,
+      "lat": 49.2647
+    }
+  },
+  {
+    "title_of_work": "Ocean Memories",
+    "descriptionofwork": "A series of glass panels depicting the history of Vancouver's waterfront",
+    "artistprojectstatement": "Preserving the maritime heritage of our city through contemporary art",
+    "artists": "Robert Kim",
+    "type": "Public Art",
+    "geo_point_2d": {
+      "lon": -123.1336,
+      "lat": 49.2904
+    }
+  }
+]
