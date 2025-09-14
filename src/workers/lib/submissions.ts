@@ -618,3 +618,71 @@ export async function getUserPendingArtworkEdits(
   
   return results.results || [];
 }
+
+/**
+ * Get user's submission count for rate limiting
+ */
+export async function getUserSubmissionCount(
+  db: D1Database,
+  userToken: string,
+  submissionType?: 'logbook_entry' | 'artwork_edit' | 'artist_edit' | 'new_artwork' | 'new_artist',
+  hoursWindow: number = 24
+): Promise<number> {
+  const windowStart = new Date(Date.now() - hoursWindow * 60 * 60 * 1000).toISOString();
+
+  let query = `
+    SELECT COUNT(*) as count FROM submissions 
+    WHERE user_token = ? AND created_at >= ?
+  `;
+  const params: (string | number)[] = [userToken, windowStart];
+
+  if (submissionType) {
+    query += ` AND submission_type = ?`;
+    params.push(submissionType);
+  }
+
+  const result = await db.prepare(query).bind(...params).first<{ count: number }>();
+  return result?.count || 0;
+}
+
+/**
+ * Create artwork edit from legacy edit format (field-by-field edits)
+ * Compatible with the old ArtworkEditsService format
+ */
+export async function createArtworkEditFromFields(
+  db: D1Database,
+  editData: {
+    userToken: string;
+    artworkId: string;
+    edits: Array<{
+      field_name: string;
+      field_value_old: string | null;
+      field_value_new: string | null;
+    }>;
+  }
+): Promise<string> {
+  // Get current artwork data to build oldData
+  const artwork = await db.prepare(`
+    SELECT * FROM artwork WHERE id = ?
+  `).bind(editData.artworkId).first();
+
+  if (!artwork) {
+    throw new Error('Artwork not found');
+  }
+
+  // Build oldData and newData objects from the field edits
+  const oldData: Record<string, unknown> = {};
+  const newData: Record<string, unknown> = {};
+
+  for (const edit of editData.edits) {
+    oldData[edit.field_name] = edit.field_value_old;
+    newData[edit.field_name] = edit.field_value_new;
+  }
+
+  return createArtworkEdit(db, {
+    userToken: editData.userToken,
+    artworkId: editData.artworkId,
+    oldData,
+    newData
+  });
+}

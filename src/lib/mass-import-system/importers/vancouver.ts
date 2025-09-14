@@ -447,21 +447,22 @@ function buildStructuredTags(data: VancouverArtworkData): Record<string, string 
   // Add source tag for bulk approval filtering
   tags.source = 'vancouver-opendata';
 
-  // Physical properties
+  // Physical properties - use standard 'materials' tag
   if (data.primarymaterial) {
-    tags.material = normalizeMaterial(data.primarymaterial);
+    tags.materials = normalizeMaterial(data.primarymaterial);
     tags.primary_material = data.primarymaterial; // Keep original for reference
   }
 
-  // Artwork classification
+  // Artwork classification - use standard 'artwork_type' tag mapped from 'type' field
   if (data.type) {
     tags.artwork_type = normalizeArtworkType(data.type);
     tags.type = data.type; // Keep original for reference
   }
 
-  // Historical information
+  // Historical information - use standard 'installation_date' tag
   if (data.yearofinstallation) {
-    tags.start_date = data.yearofinstallation;
+    tags.installation_date = data.yearofinstallation;
+    tags.start_date = data.yearofinstallation; // Keep legacy tag for compatibility
     tags.year_of_installation = data.yearofinstallation; // Keep original for reference
   }
 
@@ -495,9 +496,9 @@ function buildStructuredTags(data: VancouverArtworkData): Record<string, string 
     tags.geo_local_area = data.geo_local_area;
   }
 
-  // Status information
+  // Status information - use standard 'condition' tag with proper mapping
   if (data.status) {
-    tags.condition = normalizeCondition(data.status);
+    tags.condition = mapVancouverStatusToCondition(data.status);
     tags.status = data.status; // Keep original for reference
   }
 
@@ -507,10 +508,10 @@ function buildStructuredTags(data: VancouverArtworkData): Record<string, string 
     // The artist names are handled separately in the extractArtistName function
   }
 
-  // Web resources
+  // Web resources - use standard 'website' tag
   if (data.url) {
     tags.website = data.url;
-    tags.source_url = data.url;
+    tags.source_url = data.url; // Keep for reference
   }
 
   // Photo information
@@ -549,7 +550,34 @@ function buildStructuredTags(data: VancouverArtworkData): Record<string, string 
 }
 
 /**
+ * Map Vancouver status to standard condition values
+ * Based on the specific status values found in Vancouver data
+ */
+function mapVancouverStatusToCondition(status: string): string {
+  const normalized = status.toLowerCase().trim();
+  
+  // Map based on the specified requirements
+  const statusMap: Record<string, string> = {
+    'no longer in place': 'removed',
+    'in place': 'good',
+    'in progress': 'unknown',
+    'deaccessioned': 'removed',
+    // Additional common variations
+    'installed': 'good',
+    'active': 'good',
+    'removed': 'removed',
+    'demolished': 'removed',
+    'relocated': 'unknown',
+    'in storage': 'unknown',
+    'unknown': 'unknown',
+  };
+
+  return statusMap[normalized] || 'unknown';
+}
+
+/**
  * Map Vancouver status to artwork condition
+ * @deprecated Use mapVancouverStatusToCondition instead
  */
 function mapVancouverStatus(status: string): 'active' | 'inactive' | 'removed' | 'unknown' {
   const normalized = status.toLowerCase().trim();
@@ -640,27 +668,6 @@ function normalizeArtworkType(type: string): string {
   };
 
   return typeMap[normalized] || normalized;
-}
-
-/**
- * Normalize condition status
- */
-function normalizeCondition(status: string): string {
-  const normalized = status.toLowerCase().trim();
-  
-  const conditionMap: Record<string, string> = {
-    'in place': 'good',
-    'installed': 'good',
-    'good': 'good',
-    'fair': 'fair',
-    'poor': 'poor',
-    'removed': 'removed',
-    'demolished': 'removed',
-    'relocated': 'unknown',
-    'in storage': 'unknown',
-  };
-
-  return conditionMap[normalized] || 'unknown';
 }
 
 // ================================

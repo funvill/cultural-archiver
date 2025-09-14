@@ -457,8 +457,37 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
       }
     }
 
-    // Add artwork type indicator
-    tags.content_type = 'artwork';
+    // Apply standard tag mappings according to specifications
+    // Standard tags mapping from Vancouver fields to standard values
+    
+    // Map artwork_type from type field
+    if (record.type) {
+      tags.artwork_type = record.type.toLowerCase().replace(/\s+/g, '_');
+      tags.type = record.type; // Keep original for reference
+    }
+    
+    // Map materials from primarymaterial field
+    if (record.primarymaterial) {
+      tags.materials = this.normalizeMaterial(record.primarymaterial);
+      tags.primarymaterial = record.primarymaterial; // Keep original for reference
+    }
+    
+    // Map installation_date from yearofinstallation field
+    if (record.yearofinstallation) {
+      tags.installation_date = record.yearofinstallation;
+      tags.yearofinstallation = record.yearofinstallation; // Keep original for reference
+    }
+    
+    // Map website from url field
+    if (record.url) {
+      tags.website = record.url;
+    }
+    
+    // Map condition from status field with specific mappings
+    if (record.status) {
+      tags.condition = this.mapVancouverStatusToCondition(record.status);
+      tags.status = record.status; // Keep original for reference
+    }
 
     return tags;
   }
@@ -560,6 +589,78 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
       default:
         return stringValue;
     }
+  }
+
+  /**
+   * Normalize material names to standard values
+   */
+  private normalizeMaterial(material: string): string {
+    const normalized = material.toLowerCase().trim();
+    
+    // Handle common Vancouver material patterns
+    const materialMap: Record<string, string> = {
+      'stainless steel': 'steel',
+      'mild steel': 'steel',
+      'corten steel': 'steel',
+      'weathering steel': 'steel',
+      'bronze': 'bronze',
+      'aluminum': 'aluminium',
+      'aluminium': 'aluminium',
+      'concrete': 'concrete',
+      'stone': 'stone',
+      'granite': 'stone',
+      'marble': 'stone',
+      'wood': 'wood',
+      'cedar': 'wood',
+      'glass': 'glass',
+      'ceramic': 'ceramic',
+      'fiberglass': 'plastic',
+      'fibreglass': 'plastic',
+    };
+
+    // Check for direct matches
+    for (const [key, value] of Object.entries(materialMap)) {
+      if (normalized.includes(key)) {
+        return value;
+      }
+    }
+
+    // Handle compound materials (take first recognized material)
+    const parts = normalized.split(/[,;\/\s]+/);
+    for (const part of parts) {
+      const trimmedPart = part.trim();
+      if (materialMap[trimmedPart]) {
+        return materialMap[trimmedPart];
+      }
+    }
+
+    // Return normalized original if no mapping found
+    return normalized;
+  }
+
+  /**
+   * Map Vancouver status to standard condition values
+   */
+  private mapVancouverStatusToCondition(status: string): string {
+    const normalized = status.toLowerCase().trim();
+    
+    // Map based on the specified requirements
+    const statusMap: Record<string, string> = {
+      'no longer in place': 'removed',
+      'in place': 'good',
+      'in progress': 'unknown',
+      'deaccessioned': 'removed',
+      // Additional common variations
+      'installed': 'good',
+      'active': 'good',
+      'removed': 'removed',
+      'demolished': 'removed',
+      'relocated': 'unknown',
+      'in storage': 'unknown',
+      'unknown': 'unknown',
+    };
+
+    return statusMap[normalized] || 'unknown';
   }
 }
 

@@ -6,13 +6,11 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { submitArtworkEdit, getUserPendingEdits, validateArtworkEdit } from '../artwork';
 import type { WorkerEnv } from '../../types';
 
-// Mock the artwork edits service
-vi.mock('../../lib/artwork-edits', () => ({
-  ArtworkEditsService: vi.fn().mockImplementation(() => ({
-    submitArtworkEdit: vi.fn(),
-    getUserPendingEdits: vi.fn(),
-    getUserPendingEditCount: vi.fn(),
-  })),
+// Mock the submissions service functions
+vi.mock('../../lib/submissions', () => ({
+  getUserPendingArtworkEdits: vi.fn(),
+  getUserSubmissionCount: vi.fn(),
+  createArtworkEditFromFields: vi.fn(),
 }));
 
 // Mock auth middleware
@@ -85,14 +83,11 @@ describe('Artwork Editing Routes', () => {
 
   describe('submitArtworkEdit', () => {
     test('should submit artwork edits successfully', async () => {
-      const mockArtworkEditsService = {
-        getUserPendingEditCount: vi.fn().mockResolvedValue(5),
-        getUserPendingEdits: vi.fn().mockResolvedValue([]),
-        submitArtworkEdit: vi.fn().mockResolvedValue(['edit-1', 'edit-2']),
-      };
-
-      const { ArtworkEditsService } = await import('../lib/artwork-edits');
-      (ArtworkEditsService as any).mockImplementation(() => mockArtworkEditsService);
+      const { getUserSubmissionCount, getUserPendingArtworkEdits, createArtworkEditFromFields } = await import('../../lib/submissions');
+      
+      (getUserSubmissionCount as any).mockResolvedValue(5);
+      (getUserPendingArtworkEdits as any).mockResolvedValue([]);
+      (createArtworkEditFromFields as any).mockResolvedValue('submission-123');
 
       const requestBody = {
         edits: [
@@ -113,23 +108,26 @@ describe('Artwork Editing Routes', () => {
 
       await submitArtworkEdit(c);
 
-      expect(mockArtworkEditsService.getUserPendingEditCount).toHaveBeenCalledWith(
+      expect(getUserSubmissionCount).toHaveBeenCalledWith(
+        mockEnv.DB,
         'test-user-token',
+        'artwork_edit',
         24
       );
-      expect(mockArtworkEditsService.getUserPendingEdits).toHaveBeenCalledWith(
+      expect(getUserPendingArtworkEdits).toHaveBeenCalledWith(
+        mockEnv.DB,
         'test-user-token',
         'artwork-123'
       );
-      expect(mockArtworkEditsService.submitArtworkEdit).toHaveBeenCalledWith({
-        artwork_id: 'artwork-123',
-        user_token: 'test-user-token',
+      expect(createArtworkEditFromFields).toHaveBeenCalledWith(mockEnv.DB, {
+        userToken: 'test-user-token',
+        artworkId: 'artwork-123',
         edits: requestBody.edits,
       });
       expect(c.json).toHaveBeenCalledWith({
         success: true,
         data: {
-          edit_ids: ['edit-1', 'edit-2'],
+          edit_ids: ['submission-123'],
           message: 'Your changes have been submitted for review',
           status: 'pending',
         },
@@ -171,13 +169,9 @@ describe('Artwork Editing Routes', () => {
     });
 
     test('should reject request when rate limit exceeded', async () => {
-      const mockArtworkEditsService = {
-        getUserPendingEditCount: vi.fn().mockResolvedValue(500),
-        getUserPendingEdits: vi.fn().mockResolvedValue([]),
-      };
-
-      const { ArtworkEditsService } = await import('../lib/artwork-edits');
-      (ArtworkEditsService as any).mockImplementation(() => mockArtworkEditsService);
+      // Mock rate limit exceeded (getUserSubmissionCount returns 500 which exceeds the 500 limit)
+      const { getUserSubmissionCount } = await import('../../lib/submissions');
+      vi.mocked(getUserSubmissionCount).mockResolvedValue(500);
 
       const requestBody = {
         edits: [
@@ -195,13 +189,33 @@ describe('Artwork Editing Routes', () => {
     });
 
     test('should reject request when user has pending edits', async () => {
-      const mockArtworkEditsService = {
-        getUserPendingEditCount: vi.fn().mockResolvedValue(5),
-        getUserPendingEdits: vi.fn().mockResolvedValue([{ edit_id: 'existing-edit' }]),
-      };
-
-      const { ArtworkEditsService } = await import('../lib/artwork-edits');
-      (ArtworkEditsService as any).mockImplementation(() => mockArtworkEditsService);
+      // Mock rate limit check to pass (under limit)
+      const { getUserSubmissionCount, getUserPendingArtworkEdits } = await import('../../lib/submissions');
+      vi.mocked(getUserSubmissionCount).mockResolvedValue(10); // Under rate limit
+      
+      // Mock user having pending edits for this artwork
+      vi.mocked(getUserPendingArtworkEdits).mockResolvedValue([{
+        id: 'existing-edit',
+        artwork_id: 'artwork-123',
+        artist_id: null,
+        user_token: 'test-user-token',
+        submission_type: 'artwork_edit' as const,
+        field_changes: '{"title": {"old": "Old", "new": "New"}}',
+        photos: null,
+        note: null,
+        lat: null,
+        lon: null,
+        consent_version: '1.0.0',
+        consent_text_hash: 'hash',
+        ip_address: '127.0.0.1',
+        user_agent: null,
+        created_at: '2023-01-01T00:00:00Z',
+        submitted_at: '2023-01-01T00:00:00Z',
+        status: 'pending' as const,
+        moderator_notes: null,
+        reviewed_at: null,
+        reviewed_by: null
+      }]);
 
       const requestBody = {
         edits: [
@@ -224,14 +238,12 @@ describe('Artwork Editing Routes', () => {
       const allowedFields = ['title', 'description', 'created_by', 'tags'];
 
       for (const field of allowedFields) {
-        const mockArtworkEditsService = {
-          getUserPendingEditCount: vi.fn().mockResolvedValue(5),
-          getUserPendingEdits: vi.fn().mockResolvedValue([]),
-          submitArtworkEdit: vi.fn().mockResolvedValue(['edit-1']),
-        };
-
-        const { ArtworkEditsService } = await import('../lib/artwork-edits');
-        (ArtworkEditsService as any).mockImplementation(() => mockArtworkEditsService);
+        // Mock successful submissions system calls
+        const { getUserSubmissionCount, getUserPendingArtworkEdits, createArtworkEditFromFields } = await import('../../lib/submissions');
+        
+        vi.mocked(getUserSubmissionCount).mockResolvedValue(5); // Below rate limit
+        vi.mocked(getUserPendingArtworkEdits).mockResolvedValue([]); // No pending edits
+        vi.mocked(createArtworkEditFromFields).mockResolvedValue('edit-1'); // Successful submission
 
         const requestBody = {
           edits: [
@@ -256,23 +268,39 @@ describe('Artwork Editing Routes', () => {
       const mockPendingEdits = [
         {
           id: 'edit-1',
-          submission_type: 'artwork_edit',
+          artwork_id: 'artwork-123',
+          artist_id: null,
+          user_token: 'test-user-token',
+          submission_type: 'artwork_edit' as const,
+          field_changes: null,
+          photos: null,
+          note: null,
+          lat: null,
+          lon: null,
           new_data: '{"title": "Updated Title"}',
+          tags: null,
+          consent_version: '1.0.0',
+          consent_text_hash: 'hash',
+          ip_address: '127.0.0.1',
+          user_agent: null,
           created_at: '2025-01-01T00:00:00.000Z',
+          submitted_at: '2025-01-01T00:00:00.000Z',
+          status: 'pending' as const,
+          moderator_notes: null,
+          reviewed_at: null,
+          reviewed_by: null
         },
       ];
 
-      const mockDbStmt = {
-        bind: vi.fn().mockReturnThis(),
-        all: vi.fn().mockResolvedValue({ success: true, results: mockPendingEdits }),
-      };
-      mockDb.prepare.mockReturnValue(mockDbStmt);
+      // Mock the submissions system function
+      const { getUserPendingArtworkEdits } = await import('../../lib/submissions');
+      vi.mocked(getUserPendingArtworkEdits).mockResolvedValue(mockPendingEdits);
 
       const c = createMockContext({ id: 'artwork-123' });
 
       await getUserPendingEdits(c);
 
-      expect(mockDbStmt.bind).toHaveBeenCalledWith('test-user-token', 'artwork-123');
+      expect(getUserPendingArtworkEdits).toHaveBeenCalledWith(mockDb, 'test-user-token', 'artwork-123');
       expect(c.json).toHaveBeenCalledWith({
         success: true,
         data: {
@@ -284,17 +312,15 @@ describe('Artwork Editing Routes', () => {
     });
 
     test('should return no pending edits when none exist', async () => {
-      const mockDbStmt = {
-        bind: vi.fn().mockReturnThis(),
-        all: vi.fn().mockResolvedValue({ success: true, results: [] }),
-      };
-      mockDb.prepare.mockReturnValue(mockDbStmt);
+      // Mock the submissions system function to return empty array
+      const { getUserPendingArtworkEdits } = await import('../../lib/submissions');
+      vi.mocked(getUserPendingArtworkEdits).mockResolvedValue([]);
 
       const c = createMockContext({ id: 'artwork-123' });
 
       await getUserPendingEdits(c);
 
-      expect(mockDbStmt.bind).toHaveBeenCalledWith('test-user-token', 'artwork-123');
+      expect(getUserPendingArtworkEdits).toHaveBeenCalledWith(mockDb, 'test-user-token', 'artwork-123');
       expect(c.json).toHaveBeenCalledWith({
         success: true,
         data: {
@@ -320,12 +346,9 @@ describe('Artwork Editing Routes', () => {
       };
       mockDb.prepare.mockReturnValue(mockDbStmt);
 
-      const mockArtworkEditsService = {
-        getUserPendingEditCount: vi.fn().mockResolvedValue(10),
-      };
-
-      const { ArtworkEditsService } = await import('../lib/artwork-edits');
-      (ArtworkEditsService as any).mockImplementation(() => mockArtworkEditsService);
+      // Mock submissions system function for rate limiting
+      const { getUserSubmissionCount } = await import('../../lib/submissions');
+      vi.mocked(getUserSubmissionCount).mockResolvedValue(10); // Below rate limit
 
       const requestBody = {
         edits: [
@@ -363,12 +386,9 @@ describe('Artwork Editing Routes', () => {
       };
       mockDb.prepare.mockReturnValue(mockDbStmt);
 
-      const mockArtworkEditsService = {
-        getUserPendingEditCount: vi.fn().mockResolvedValue(500),
-      };
-
-      const { ArtworkEditsService } = await import('../lib/artwork-edits');
-      (ArtworkEditsService as any).mockImplementation(() => mockArtworkEditsService);
+      // Mock submissions system function for rate limiting (return 500 to exceed limit)
+      const { getUserSubmissionCount } = await import('../../lib/submissions');
+      vi.mocked(getUserSubmissionCount).mockResolvedValue(500); // At rate limit
 
       const requestBody = {
         edits: [

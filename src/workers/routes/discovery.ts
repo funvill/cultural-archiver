@@ -21,7 +21,7 @@ import { createSuccessResponse, NotFoundError } from '../lib/errors';
 import { getValidatedData } from '../middleware/validation';
 import { safeJsonParse } from '../lib/errors';
 import { createSimilarityService } from '../lib/similarity';
-import { categorizeTagsForDisplay } from '../lib/artwork-edits';
+import { categorizeTagsForDisplay } from '../../shared/tag-display';
 import type { SimilarityQuery } from '../../shared/similarity';
 
 // Import new database patch for submissions compatibility

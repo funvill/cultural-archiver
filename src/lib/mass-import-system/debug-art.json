@@ -1,0 +1,37 @@
+[
+  {
+    "lat": 49.293313,
+    "lon": -123.133965,
+    "title": "Solo",
+    "description": "**Artist Project Statement**: \"McHaffie says she means to show movement, but not flight. 'My perception of the world is that very little of it is stable,' she says.\" -Vancouver Sun, July 19,1986                                             The sculpture was installed as one of ten pieces in the City Shapes sculpture symposium in the City's centennial year.\n\n**Description**: An abstract sculpture of stainless steel with carved cedar planks that fan out in a spiral.\n\n\n\nImported from Vancouver Open Data (registryid: 27)",
+    "artist": "Natalie McHaffie",
+    "source": "vancouver-public-art",
+    "externalId": "vancouver-public-art-solo-49.293313--123.133965",
+    "tags": {
+      "artist": "Natalie McHaffie",
+      "type": "Sculpture",
+      "registryid": "27",
+      "status": "In place",
+      "sitename": "Devonian Harbour Park",
+      "siteaddress": "Denman & Georgia Street",
+      "ownership": "City of Vancouver",
+      "neighbourhood": "Downtown",
+      "yearofinstallation": "1986",
+      "primarymaterial": "Stainless steel, cedar",
+      "artist_ids": "103",
+      "artwork_type": "sculpture",
+      "materials": "steel",
+      "installation_date": "1986",
+      "website": "https://covapp.vancouver.ca/PublicArtRegistry/ArtworkDetail.aspx?ArtworkId=27",
+      "condition": "good"
+    },
+    "photos": [
+      {
+        "url": "https://opendata.vancouver.ca/api/explore/v2.1/catalog/datasets/public-art/files/25a422b0cc36381e0c0ab681d38f602d",
+        "filename": "LAW27-1.jpg",
+        "credit": "SITE Photography, 2016",
+        "caption": "Photo of \"Solo\""
+      }
+    ]
+  }
+]

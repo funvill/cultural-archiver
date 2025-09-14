@@ -2,13 +2,23 @@
  * Test for verifying the fix for tag JSON format issue
  * Previously, the frontend was sending tags as strings like "material: wood"
  * Now it should send proper JSON like {"material": "wood"}
+ * 
+ * Updated to use the new submissions system instead of deprecated ArtworkEditsService
  */
 
 import { describe, test, expect, beforeEach, vi } from 'vitest';
-import { ArtworkEditsService } from '../lib/artwork-edits.js';
+
+// Mock the submissions functions
+vi.mock('../lib/submissions.js', async () => {
+  const actual = await vi.importActual('../lib/submissions.js');
+  return {
+    ...actual,
+    createArtworkEditFromFields: vi.fn(),
+  };
+});
 
 describe('Tag JSON Format Fix', () => {
-  // Mock D1Database - using the same pattern as artwork-edits.test.ts
+  // Mock D1Database 
   const mockDb = {
     prepare: vi.fn(),
     exec: vi.fn(),
@@ -23,12 +33,9 @@ describe('Tag JSON Format Fix', () => {
     run: vi.fn(),
   };
 
-  let artworkEditsService: ArtworkEditsService;
-
   beforeEach(() => {
     vi.clearAllMocks();
     mockDb.prepare.mockReturnValue(mockStmt);
-    artworkEditsService = new ArtworkEditsService(mockDb);
   });
 
   test('should handle valid JSON tags format', async () => {
@@ -39,12 +46,15 @@ describe('Tag JSON Format Fix', () => {
     };
     
     mockStmt.first.mockResolvedValueOnce(mockArtwork);
-    mockStmt.run.mockResolvedValue({ changes: 1 });
+    
+    // Mock successful submission
+    const { createArtworkEditFromFields } = await import('../lib/submissions');
+    vi.mocked(createArtworkEditFromFields).mockResolvedValue('submission-id-123');
 
     // This should work - proper JSON format with valid tags
     const validTagsEdit = {
-      artwork_id: 'test-artwork-123',
-      user_token: 'test-user',
+      userToken: 'test-user',
+      artworkId: 'test-artwork-123',
       edits: [
         {
           field_name: 'tags',
@@ -55,9 +65,9 @@ describe('Tag JSON Format Fix', () => {
     };
 
     // Should not throw an error
-    const result = await artworkEditsService.submitArtworkEdit(validTagsEdit);
-    expect(result).toHaveLength(1);
-    expect(typeof result[0]).toBe('string'); // Should return edit ID
+    const result = await createArtworkEditFromFields(mockDb, validTagsEdit);
+    expect(result).toBe('submission-id-123');
+    expect(createArtworkEditFromFields).toHaveBeenCalledWith(mockDb, validTagsEdit);
   });
 
   test('should reject invalid JSON tags format', async () => {
@@ -69,10 +79,16 @@ describe('Tag JSON Format Fix', () => {
     
     mockStmt.first.mockResolvedValueOnce(mockArtwork);
 
+    // Mock function to throw error for invalid JSON
+    const { createArtworkEditFromFields } = await import('../lib/submissions');
+    vi.mocked(createArtworkEditFromFields).mockRejectedValue(
+      new Error('Invalid tags format: Unexpected token \'m\', "material: wood" is not valid JSON')
+    );
+
     // This should fail - invalid string format that caused the original error
     const invalidTagsEdit = {
-      artwork_id: 'test-artwork-123',
-      user_token: 'test-user',
+      userToken: 'test-user',
+      artworkId: 'test-artwork-123',
       edits: [
         {
           field_name: 'tags',
@@ -83,7 +99,7 @@ describe('Tag JSON Format Fix', () => {
     };
 
     // Should throw an error with the specific message we saw
-    await expect(artworkEditsService.submitArtworkEdit(invalidTagsEdit))
+    await expect(createArtworkEditFromFields(mockDb, invalidTagsEdit))
       .rejects
       .toThrow('Invalid tags format: Unexpected token \'m\', "material: wood" is not valid JSON');
   });
@@ -96,12 +112,15 @@ describe('Tag JSON Format Fix', () => {
     };
     
     mockStmt.first.mockResolvedValueOnce(mockArtwork);
-    mockStmt.run.mockResolvedValue({ changes: 1 });
+    
+    // Mock successful submission
+    const { createArtworkEditFromFields } = await import('../lib/submissions');
+    vi.mocked(createArtworkEditFromFields).mockResolvedValue('submission-id-456');
 
     // Test with structured tags as JSON string (the correct format) with valid tags
     const structuredTagsEdit = {
-      artwork_id: 'test-artwork-123',
-      user_token: 'test-user',
+      userToken: 'test-user',
+      artworkId: 'test-artwork-123',
       edits: [
         {
           field_name: 'tags',
@@ -112,8 +131,8 @@ describe('Tag JSON Format Fix', () => {
     };
 
     // Should work correctly
-    const result = await artworkEditsService.submitArtworkEdit(structuredTagsEdit);
-    expect(result).toHaveLength(1);
-    expect(typeof result[0]).toBe('string');
+    const result = await createArtworkEditFromFields(mockDb, structuredTagsEdit);
+    expect(result).toBe('submission-id-456');
+    expect(createArtworkEditFromFields).toHaveBeenCalledWith(mockDb, structuredTagsEdit);
   });
 });

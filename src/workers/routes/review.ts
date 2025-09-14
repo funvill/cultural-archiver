@@ -7,6 +7,7 @@
 
 import type { Context } from 'hono';
 import type { WorkerEnv, AuthContext, ArtworkRecord, LogbookRecord } from '../types';
+import type { D1Database } from '@cloudflare/workers-types';
 import {
   insertArtwork,
   updateLogbookStatus,
@@ -20,8 +21,13 @@ import {
 } from '../lib/database';
 import { movePhotosToArtwork, cleanupRejectedPhotos } from '../lib/photos';
 import { calculateDistance } from '../lib/spatial';
-import { ArtworkEditsService } from '../lib/artwork-edits';
-import type { ArtworkEditReviewData } from '../../shared/types';
+import { 
+  getSubmissionsByStatus,
+  getSubmission,
+  approveSubmission as approveSubmissionInDb,
+  rejectSubmission as rejectSubmissionInDb
+} from '../lib/submissions';
+import type { ArtworkEditReviewData, SubmissionRecord, ArtworkEditDiff } from '../../shared/types';
 
 // Interfaces for database results
 interface SubmissionRow {
@@ -50,6 +56,76 @@ interface ParsedSubmissionData extends LogbookRecord {
   artwork_type_name?: string;
 }
 import { ApiError } from '../lib/errors';
+
+// ================================
+// Adapter Functions for Artwork Edit Review
+// ================================
+
+/**
+ * Convert SubmissionRecord (artwork_edit type) to ArtworkEditReviewData format
+ * for backward compatibility with existing review UI
+ */
+function convertSubmissionToArtworkEditReview(submission: SubmissionRecord): ArtworkEditReviewData {
+  // Parse the field_changes to create diffs
+  const fieldChanges = submission.field_changes ? JSON.parse(submission.field_changes) : {};
+  
+  const diffs: ArtworkEditDiff[] = [];
+  
+  // Create diffs for all fields that have changed
+  for (const [fieldName, change] of Object.entries(fieldChanges)) {
+    const changeObj = change as { old: unknown; new: unknown };
+    diffs.push({
+      field_name: fieldName,
+      old_value: typeof changeObj.old === 'string' ? changeObj.old : JSON.stringify(changeObj.old),
+      new_value: typeof changeObj.new === 'string' ? changeObj.new : JSON.stringify(changeObj.new)
+    });
+  }
+  
+  return {
+    edit_ids: [submission.id], // Single submission ID instead of multiple edit IDs
+    artwork_id: submission.artwork_id!,
+    user_token: submission.user_token,
+    submitted_at: submission.created_at,
+    diffs
+  };
+}
+
+/**
+ * Get pending artwork edits for review using the new submissions system
+ */
+async function getPendingArtworkEditsForReview(
+  db: D1Database, 
+  limit: number = 50, 
+  offset: number = 0
+): Promise<ArtworkEditReviewData[]> {
+  const submissions = await getSubmissionsByStatus(
+    db, 
+    'pending', 
+    'artwork_edit', 
+    limit, 
+    offset
+  );
+  
+  return submissions.map(convertSubmissionToArtworkEditReview);
+}
+
+/**
+ * Get artwork edit submission for review using the new submissions system
+ */
+async function getArtworkEditSubmissionForReview(
+  db: D1Database,
+  submissionId: string
+): Promise<ArtworkEditReviewData | null> {
+  const submission = await getSubmission(db, submissionId);
+  
+  if (!submission || submission.submission_type !== 'artwork_edit') {
+    return null;
+  }
+  
+  return convertSubmissionToArtworkEditReview(submission);
+}
+
+// ================================
 
 // Configuration
 const NEARBY_ARTWORK_RADIUS_METERS = 100; // For reviewer duplicate detection
@@ -795,8 +871,8 @@ export async function getArtworkEditsForReview(
     const limit = per_page;
     const offset = (page - 1) * per_page;
 
-    const editsService = new ArtworkEditsService(c.env.DB);
-    const pendingEdits: ArtworkEditReviewData[] = await editsService.getPendingEditsForReview(
+    const pendingEdits: ArtworkEditReviewData[] = await getPendingArtworkEditsForReview(
+      c.env.DB,
       limit,
       offset
     );
@@ -868,10 +944,9 @@ export async function getArtworkEditForReview(
     }
 
     const editId = c.req.param('editId');
-    const editsService = new ArtworkEditsService(c.env.DB);
 
     const editSubmission: ArtworkEditReviewData | null =
-      await editsService.getEditSubmissionForReview(editId);
+      await getArtworkEditSubmissionForReview(c.env.DB, editId);
     if (!editSubmission) {
       throw new ApiError('Edit submission not found', 'EDIT_NOT_FOUND', 404);
     }
@@ -927,20 +1002,24 @@ export async function approveArtworkEdit(
     const editId = c.req.param('editId');
     const { apply_to_artwork = true } = await c.req.json();
 
-    const editsService = new ArtworkEditsService(c.env.DB);
-
     // Get the full edit submission
     const editSubmission: ArtworkEditReviewData | null =
-      await editsService.getEditSubmissionForReview(editId);
+      await getArtworkEditSubmissionForReview(c.env.DB, editId);
     if (!editSubmission) {
       throw new ApiError('Edit submission not found', 'EDIT_NOT_FOUND', 404);
     }
 
-    // Approve all edits in the submission group
-    await editsService.approveEditSubmission(
-      editSubmission.edit_ids,
+    // Approve the submission (note: editSubmission.edit_ids contains single submission ID in new system)
+    const submissionId = editSubmission.edit_ids[0];
+    if (!submissionId) {
+      throw new ApiError('Invalid submission data', 'INVALID_SUBMISSION', 400);
+    }
+    
+    await approveSubmissionInDb(
+      c.env.DB,
+      submissionId,
       authContext.userToken,
-      apply_to_artwork
+      apply_to_artwork ? 'Approved - changes applied to artwork' : 'Approved - changes not applied'
     );
 
     // Log the moderation decision for audit trail
@@ -999,17 +1078,25 @@ export async function rejectArtworkEdit(
     const editId = c.req.param('editId');
     const { reason } = await c.req.json();
 
-    const editsService = new ArtworkEditsService(c.env.DB);
-
     // Get the full edit submission
     const editSubmission: ArtworkEditReviewData | null =
-      await editsService.getEditSubmissionForReview(editId);
+      await getArtworkEditSubmissionForReview(c.env.DB, editId);
     if (!editSubmission) {
       throw new ApiError('Edit submission not found', 'EDIT_NOT_FOUND', 404);
     }
 
-    // Reject all edits in the submission group
-    await editsService.rejectEditSubmission(editSubmission.edit_ids, authContext.userToken, reason);
+    // Reject the submission (note: editSubmission.edit_ids contains single submission ID in new system)
+    const submissionId = editSubmission.edit_ids[0];
+    if (!submissionId) {
+      throw new ApiError('Invalid submission data', 'INVALID_SUBMISSION', 400);
+    }
+    
+    await rejectSubmissionInDb(
+      c.env.DB,
+      submissionId,
+      authContext.userToken,
+      reason
+    );
 
     // Log the moderation decision for audit trail
     const { logModerationDecision, createModerationAuditContext } = await import('../lib/audit');
