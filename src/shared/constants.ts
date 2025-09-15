@@ -18,6 +18,9 @@ export const SYSTEM_ADMIN_USER_UUID = 'a0000000-1000-4000-8000-000000000001';
 /** Anonymous System User - Used for anonymous operations when no user is available */
 export const ANONYMOUS_SYSTEM_USER_UUID = 'a0000000-1000-4000-8000-000000000003';
 
+/** Unknown Artist - Used for artworks where the artist is unknown or anonymous */
+export const UNKNOWN_ARTIST_UUID = 'd0000000-1000-4000-8000-000000000001';
+
 // ================================
 // Sample Data UUIDs
 // ================================
@@ -86,18 +89,6 @@ export const SAMPLE_USER_ACTIVITY_1_UUID = 'f0000000-1000-4000-8000-000000000801
 export const SAMPLE_USER_ACTIVITY_2_UUID = 'f0000000-1000-4000-8000-000000000802';
 
 // ================================
-// Legacy UUID Patterns (for migration)
-// ================================
-
-/** Legacy system UUIDs that may exist in the database and need to be updated */
-export const LEGACY_SYSTEM_UUIDS = {
-  /** Old mass import user ID pattern */
-  OLD_MASS_IMPORT: '00000000-0000-0000-0000-000000000002',
-  /** Old system admin pattern */
-  OLD_SYSTEM_ADMIN: '00000000-0000-0000-0000-000000000001',
-} as const;
-
-// ================================
 // UUID Validation and Generation
 // ================================
 
@@ -144,6 +135,7 @@ export const ALL_SAMPLE_UUIDS = [
   SYSTEM_ADMIN_USER_UUID,
   MASS_IMPORT_USER_UUID,
   ANONYMOUS_SYSTEM_USER_UUID,
+  UNKNOWN_ARTIST_UUID,
   SAMPLE_USER_UUID,
   SAMPLE_ARTWORK_1_UUID,
   SAMPLE_ARTWORK_2_UUID,
