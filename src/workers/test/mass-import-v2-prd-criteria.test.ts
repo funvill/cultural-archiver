@@ -279,7 +279,6 @@ describe('PRD Success Criteria Tests', () => {
               artist: 'Jane Doe',
               material: 'bronze',
               type: 'statue',
-              address: '123 Main St',
               neighborhood: 'Downtown',
               siteName: 'Victory Square',
               photos: [

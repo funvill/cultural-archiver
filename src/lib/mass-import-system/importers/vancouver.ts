@@ -329,9 +329,6 @@ function mapVancouverToRawData(data: VancouverArtworkData): RawImportData | null
   // Extract artist information
   const artist = extractArtistName(data);
 
-  // Build address from site information
-  const address = buildAddress(data);
-
   // Process photo information
   const photos = extractPhotoInfo(data);
 
@@ -347,7 +344,6 @@ function mapVancouverToRawData(data: VancouverArtworkData): RawImportData | null
     yearOfInstallation: data.yearofinstallation,
     material: data.primarymaterial,
     type: data.type,
-    address,
     neighborhood: data.neighbourhood || data.geo_local_area,
     siteName: data.sitename,
     photos,
@@ -390,29 +386,6 @@ function extractArtistName(data: VancouverArtworkData): string | undefined {
 
   // Return comma-separated list of artist names
   return finalArtistString;
-}
-
-/**
- * Build address string from Vancouver location data
- */
-function buildAddress(data: VancouverArtworkData): string | undefined {
-  const addressParts: string[] = [];
-
-  if (data.siteaddress) {
-    addressParts.push(data.siteaddress);
-  }
-
-  if (data.sitename && data.sitename !== data.siteaddress) {
-    addressParts.push(data.sitename);
-  }
-
-  if (data.neighbourhood) {
-    addressParts.push(data.neighbourhood);
-  }
-
-  addressParts.push('Vancouver, BC, Canada');
-
-  return addressParts.length > 1 ? addressParts.join(', ') : undefined;
 }
 
 /**

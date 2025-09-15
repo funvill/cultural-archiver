@@ -348,7 +348,7 @@ export async function getArtworkDetails(
     // Get artwork details
     const artwork = await c.env.DB.prepare(`
       SELECT id, title, artist_names, year_created, medium, dimensions,
-             lat, lon, address, neighborhood, city, region, country,
+             lat, lon, neighborhood, city, region, country,
              description, photos, tags, status, source_type, source_id,
              created_at, updated_at
       FROM artwork 
@@ -369,7 +369,6 @@ export async function getArtworkDetails(
       dimensions: string | null;
       lat: number;
       lon: number;
-      address: string | null;
       neighborhood: string | null;
       city: string | null;
       region: string | null;
@@ -433,7 +432,7 @@ export async function exportArtworkOSM(
     // Get artwork details
     const artwork = await c.env.DB.prepare(`
       SELECT id, title, artist_names, year_created, medium,
-             lat, lon, address, description, tags
+             lat, lon, description, tags
       FROM artwork 
       WHERE id = ? AND status = 'approved'
     `).bind(artworkId).first();
@@ -450,7 +449,6 @@ export async function exportArtworkOSM(
       medium: string | null;
       lat: number;
       lon: number;
-      address: string | null;
       description: string | null;
       tags: string | null;
     };
@@ -469,7 +467,6 @@ export async function exportArtworkOSM(
       'start_date': artworkData.year_created ? artworkData.year_created.toString() : '',
       'material': artworkData.medium || '',
       'description': artworkData.description || '',
-      'addr:full': artworkData.address || '',
       ...tags // Include any additional tags
     };
 

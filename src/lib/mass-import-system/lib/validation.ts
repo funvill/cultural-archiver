@@ -241,10 +241,7 @@ function mapStandardFieldsToTags(
     }
   }
 
-  // Location details
-  if (rawData.address && !tags.addr_full) {
-    tags.addr_full = rawData.address;
-  }
+  // No address processing - location details should be in tags
 }
 
 /**
@@ -402,15 +399,11 @@ function transformToProcessedData(
   rawData: RawImportData,
   tags: Record<string, string | number | boolean>
 ): ProcessedImportData {
-  // Build note field from description and address (not title - title goes in separate field)
+  // Build note field from description (not title - title goes in separate field)
   const noteParts: string[] = [];
   
   if (rawData.description) {
     noteParts.push(`${rawData.description}`);
-  }
-  
-  if (rawData.address) {
-    noteParts.push(`Address: ${rawData.address}`);
   }
 
   const note = noteParts.join('\n\n');

@@ -97,7 +97,6 @@ export interface NewArtworkRecord {
   year_created?: number | null;
   medium?: string | null;
   dimensions?: string | null;
-  address?: string | null;
   neighborhood?: string | null;
   city?: string | null;
   region?: string | null;

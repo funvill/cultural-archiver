@@ -445,10 +445,10 @@ async function createArtworkFromSubmission(
   const result = await db.prepare(`
     INSERT INTO artwork (
       id, title, year_created, medium, dimensions,
-      lat, lon, address, neighborhood, city, region, country,
+      lat, lon, neighborhood, city, region, country,
       photos, tags, description, status, source_type, source_id,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     artworkId,
     newData.title || 'Untitled',
@@ -457,7 +457,6 @@ async function createArtworkFromSubmission(
     newData.dimensions || null,
     submission.lat || newData.lat || null,
     submission.lon || newData.lon || null,
-    newData.address || null,
     newData.neighborhood || null,
     newData.city || null,
     newData.region || null,

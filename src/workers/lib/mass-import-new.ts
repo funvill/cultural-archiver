@@ -187,7 +187,6 @@ async function createArtworkSubmission(
     dimensions: record.dimensions || null,
     lat: record.lat,
     lon: record.lon,
-    address: record.address || null,
     neighborhood: record.neighborhood || null,
     city: record.city || null,
     region: record.region || null,

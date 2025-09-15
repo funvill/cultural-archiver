@@ -58,8 +58,7 @@ function convertLegacyRecord(legacyItem: any): MassImportRecord {
     record.description = legacyItem.description || legacyItem.desc;
   }
 
-  // Map location fields
-  if (legacyItem.address) record.address = legacyItem.address;
+  // Map location fields (no address field - location data should be in tags)
   if (legacyItem.neighborhood || legacyItem.area) {
     record.neighborhood = legacyItem.neighborhood || legacyItem.area;
   }
@@ -166,10 +165,6 @@ export function migrateVancouverArtData(vancouverData: any[]): MassImportRecord[
       record.neighborhood = item.neighbourhood;
     }
 
-    if (item.address || item.siteaddress) {
-      record.address = item.address || item.siteaddress;
-    }
-
     // Vancouver-specific tags
     const tags: Record<string, string> = {
       artwork_type: item.type || 'public_art',
@@ -243,13 +238,7 @@ export function migrateOSMData(osmData: any[]): MassImportRecord[] {
       record.description = tags.description || tags.note;
     }
 
-    // OSM location
-    if (tags['addr:street'] && tags['addr:housenumber']) {
-      record.address = `${tags['addr:housenumber']} ${tags['addr:street']}`;
-    } else if (tags['addr:street']) {
-      record.address = tags['addr:street'];
-    }
-
+    // OSM location (no address field - location data should be in tags)
     if (tags['addr:city']) record.city = tags['addr:city'];
     if (tags['addr:state'] || tags['addr:province']) {
       record.region = tags['addr:state'] || tags['addr:province'];

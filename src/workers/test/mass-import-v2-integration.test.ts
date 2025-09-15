@@ -43,7 +43,6 @@ const vancouverTestData: MassImportRequestV2 = {
         artist: 'Douglas Coupland',
         material: 'aluminum',
         type: 'sculpture',
-        address: '1038 Canada Pl, Vancouver, BC',
         neighborhood: 'Downtown',
         siteName: 'Jack Poole Plaza',
         photos: [
@@ -86,7 +85,6 @@ const vancouverTestData: MassImportRequestV2 = {
         artist: 'Raymond Saunders',
         material: 'bronze',
         type: 'functional_art',
-        address: 'Water St & Cambie St, Vancouver, BC',
         neighborhood: 'Gastown',
         siteName: 'Gastown Steam Clock',
         photos: [

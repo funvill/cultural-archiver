@@ -386,7 +386,6 @@ export async function createNewArtworkSubmissionHandler(
       dimensions: validatedData.dimensions || null,
       lat: validatedData.lat,
       lon: validatedData.lon,
-      address: validatedData.address || null,
       neighborhood: validatedData.neighborhood || null,
       city: validatedData.city || null,
       region: validatedData.region || null,
