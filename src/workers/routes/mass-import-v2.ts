@@ -540,7 +540,7 @@ async function processSingleArtist(
   // 1. Check for duplicates
   const duplicateResult = await duplicateService.checkArtistDuplicates({
     name: artistData.title, // Using title as artist name
-    bio: artistData.description || '', // Provide empty string instead of undefined
+    description: artistData.description || '', // Provide empty string instead of undefined
     externalId: artistData.externalId || '', // Provide empty string instead of undefined
     threshold: request.config.duplicateThreshold || DEFAULT_DUPLICATE_THRESHOLD,
     weights: request.config.duplicateWeights || DEFAULT_DUPLICATE_WEIGHTS
@@ -599,7 +599,7 @@ async function processSingleArtist(
   // Create artist record
   await db.db.prepare(`
     INSERT INTO artists (
-      id, name, bio, tags, status, created_at, updated_at
+      id, name, description, tags, status, created_at, updated_at
     ) VALUES (?, ?, ?, ?, 'approved', ?, ?)
   `).bind(
     artistId,

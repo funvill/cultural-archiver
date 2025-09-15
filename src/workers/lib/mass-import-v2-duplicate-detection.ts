@@ -36,7 +36,7 @@ export interface ArtworkDuplicateRequest {
 export interface ArtistDuplicateRequest {
   name: string;
   website?: string;
-  bio?: string;
+  description?: string;
   externalId?: string;
   threshold: number;
   weights?: DuplicateDetectionWeights;
@@ -286,7 +286,7 @@ export class MassImportV2DuplicateDetectionService {
     const searchPattern = `%${name.toLowerCase()}%`;
     
     const result = await this.db.db.prepare(`
-      SELECT id, name, bio, tags
+      SELECT id, name, description, tags
       FROM artists 
       WHERE status = 'approved'
         AND LOWER(name) LIKE ?
@@ -348,18 +348,18 @@ export class MassImportV2DuplicateDetectionService {
     const refScore = incoming.externalId ? 
       this.calculateTextSimilarity(incoming.externalId, candidate.id || '') * weights.referenceIds : 0;
 
-    // Bio similarity (if available)
-    const bioScore = incoming.bio && candidate.bio ? 
-      this.calculateTextSimilarity(incoming.bio, candidate.bio) * weights.tagSimilarity : 0;
+    // Description similarity (if available)
+    const descriptionScore = incoming.description && candidate.description ? 
+      this.calculateTextSimilarity(incoming.description, candidate.description) * weights.tagSimilarity : 0;
 
-    const total = nameScore + refScore + bioScore;
+    const total = nameScore + refScore + descriptionScore;
 
     return {
       gps: 0, // Not applicable for artists
       title: nameScore,
       artist: 0, // Not applicable
       referenceIds: refScore,
-      tagSimilarity: bioScore,
+      tagSimilarity: descriptionScore,
       total
     };
   }

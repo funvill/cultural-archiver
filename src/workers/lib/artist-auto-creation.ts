@@ -166,7 +166,7 @@ export class ArtistAutoCreationService {
   async findMatchingArtists(searchName: string): Promise<ArtistMatchResult[]> {
     // Get all approved artists for fuzzy matching
     const result = await this.db.db.prepare(`
-      SELECT id, name, bio, tags
+      SELECT id, name, description, tags
       FROM artists
       WHERE status = 'approved'
       ORDER BY name
@@ -219,7 +219,7 @@ export class ArtistAutoCreationService {
     // Create artist record
     await this.db.db.prepare(`
       INSERT INTO artists (
-        id, name, bio, tags, status, created_at, updated_at
+        id, name, description, tags, status, created_at, updated_at
       ) VALUES (?, ?, ?, ?, 'approved', ?, ?)
     `).bind(
       artistId,

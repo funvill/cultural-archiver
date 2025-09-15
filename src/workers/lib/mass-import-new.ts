@@ -228,11 +228,10 @@ async function createArtistFromImport(
   // Create new artist submission
   const newArtistData: Partial<NewArtistRecord> = {
     name: record.artist_name,
-    biography: null,
+    description: null,
     birth_year: null,
     death_year: null,
     nationality: null,
-    website: null,
     social_media: null,
     notes: `Created during mass import from ${config.sourceName}`,
     source_type: record.source_type === 'api_import' || record.source_type === 'osm_import' ? 'manual_entry' : record.source_type as 'user_submission' | 'manual_entry',

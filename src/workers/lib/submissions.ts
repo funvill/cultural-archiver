@@ -489,20 +489,20 @@ async function createArtistFromSubmission(
   
   const result = await db.prepare(`
     INSERT INTO artists (
-      id, name, biography, birth_year, death_year, nationality,
-      website, social_media, notes, status, source_type, source_id,
+      id, name, description, birth_year, death_year, nationality,
+      social_media, notes, tags, status, source_type, source_id,
       created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     artistId,
     newData.name || 'Unknown Artist',
-    newData.biography || null,
+    newData.description || null,
     newData.birth_year || null,
     newData.death_year || null,
     newData.nationality || null,
-    newData.website || null,
     newData.social_media || null,
     newData.notes || submission.note || null, // Fixed: was submission.notes, should be submission.note
+    '{}', // tags as empty JSON object
     'approved',
     'user_submission',
     submission.id,

@@ -62,7 +62,7 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
     if (validatedQuery.search) {
       // Search query - updated to use artwork_artists table instead of artist_names field
       query = `
-        SELECT a.id, a.name, a.bio as description, a.aliases, a.tags, a.status, a.created_at, a.updated_at,
+        SELECT a.id, a.name, a.description, a.aliases, a.tags, a.status, a.created_at, a.updated_at,
                (SELECT COUNT(DISTINCT aa.artwork_id) 
                 FROM artwork_artists aa 
                 JOIN artwork aw ON aa.artwork_id = aw.id 
@@ -76,7 +76,7 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
     } else {
       // Standard listing - updated to use artwork_artists table instead of artist_names field
       query = `
-        SELECT a.id, a.name, a.bio as description, a.aliases, a.tags, a.status, a.created_at, a.updated_at,
+        SELECT a.id, a.name, a.description, a.aliases, a.tags, a.status, a.created_at, a.updated_at,
                (SELECT COUNT(DISTINCT aa.artwork_id) 
                 FROM artwork_artists aa 
                 JOIN artwork aw ON aa.artwork_id = aw.id 
@@ -158,7 +158,7 @@ export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Pro
 
     // Get artist details
     const artistStmt = db.db.prepare(`
-      SELECT id, name, bio as description, aliases, tags, status, created_at, updated_at
+      SELECT id, name, description, aliases, tags, status, created_at, updated_at
       FROM artists
       WHERE id = ?
     `);

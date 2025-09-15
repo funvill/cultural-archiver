@@ -116,11 +116,9 @@ export interface NewArtistRecord {
   updated_at: string;
   status: 'active' | 'inactive';
   // Additional fields for mass import compatibility
-  biography?: string | null;
   birth_year?: number | null;
   death_year?: number | null;
   nationality?: string | null;
-  website?: string | null;
   social_media?: string | null;
   notes?: string | null;
   source_type?: string | null; // Source system type
