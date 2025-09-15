@@ -476,15 +476,14 @@ async function processSingleArtwork(
   // Create artwork record
   await db.db.prepare(`
     INSERT INTO artwork (
-      id, lat, lon, title, description, artist_names, photos, tags, status, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'approved', ?)
+      id, lat, lon, title, description, photos, tags, status, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'approved', ?)
   `).bind(
     artworkId,
     artworkData.lat,
     artworkData.lon,
     artworkData.title,
     artworkData.description || null,
-    JSON.stringify([artworkData.artist || artworkData.created_by].filter(Boolean)),
     JSON.stringify(photoUrls),
     JSON.stringify({
       ...artworkData.tags,

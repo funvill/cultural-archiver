@@ -32,9 +32,10 @@ function convertLegacyRecord(legacyItem: any): MassImportRecord {
     source_type: 'api_import'
   };
 
-  // Map artist information
+  // Map artist information - will be handled through artwork_artists relationship
   if (legacyItem.artist || legacyItem.created_by || legacyItem.artist_name) {
-    record.artist_names = legacyItem.artist || legacyItem.created_by || legacyItem.artist_name;
+    // Store artist name for later processing in artwork_artists table
+    record.artist_name = legacyItem.artist || legacyItem.created_by || legacyItem.artist_name;
   }
 
   // Map optional fields
@@ -143,7 +144,7 @@ export function migrateVancouverArtData(vancouverData: any[]): MassImportRecord[
 
     // Vancouver-specific mappings
     if (item.artists || item.artist) {
-      record.artist_names = item.artists || item.artist;
+      record.artist_name = item.artists || item.artist;
     }
 
     if (item.yearofinstallation || item.year) {
@@ -220,7 +221,7 @@ export function migrateOSMData(osmData: any[]): MassImportRecord[] {
 
     // OSM artist mapping
     if (tags.artist || tags['artist:name'] || tags.author) {
-      record.artist_names = tags.artist || tags['artist:name'] || tags.author;
+      record.artist_name = tags.artist || tags['artist:name'] || tags.author;
     }
 
     // OSM year mapping

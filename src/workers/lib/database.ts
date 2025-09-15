@@ -69,14 +69,16 @@ export class DatabaseService {
     return result ? (result as unknown as ArtworkRecord) : null;
   }
 
-  async getArtworkWithDetails(id: string): Promise<(ArtworkRecord & { type_name: string; artist_name?: string; artist_names?: string }) | null> {
+  async getArtworkWithDetails(id: string): Promise<(ArtworkRecord & { type_name: string; artist_name?: string }) | null> {
     try {
-      // Query artwork table directly - tags are stored as JSON in the tags column
+      // Query artwork table with artist information - join with artwork_artists and artists tables
       const stmt = this.db.prepare(`
         SELECT a.*, 
-               'unknown' as type_name,
-               a.created_by as artist_name
+               COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name,
+               COALESCE(art.name, a.created_by, 'Unknown Artist') as artist_name
         FROM artwork a
+        LEFT JOIN artwork_artists aa ON a.id = aa.artwork_id AND aa.role = 'primary'
+        LEFT JOIN artists art ON aa.artist_id = art.id
         WHERE a.id = ? AND a.status = 'approved'
       `);
       const result = await stmt.bind(id).first();
@@ -84,7 +86,7 @@ export class DatabaseService {
         console.log('[DB DEBUG] getArtworkWithDetails: Artwork not found or not approved', { id });
         return null;
       }
-      return result as unknown as ArtworkRecord & { type_name: string; artist_name?: string; artist_names?: string };
+      return result as unknown as ArtworkRecord & { type_name: string; artist_name?: string };
     } catch (err) {
       console.error('[DB ERROR] getArtworkWithDetails failed', err);
       throw err;

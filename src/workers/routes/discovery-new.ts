@@ -288,12 +288,15 @@ export async function listArtworks(c: Context<{ Bindings: WorkerEnv }>): Promise
       }, 404);
     }
 
-    // Get artworks with type information
+    // Get artworks with type information and primary artist
     const artworksQuery = `
       SELECT a.id, a.lat, a.lon, a.created_at, a.status, a.tags, 
-             a.title, a.description, a.artist_names,
-             COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name
+             a.title, a.description,
+             COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name,
+             COALESCE(art.name, 'Unknown Artist') as primary_artist_name
       FROM artwork a
+      LEFT JOIN artwork_artists aa ON a.id = aa.artwork_id AND aa.role = 'primary'
+      LEFT JOIN artists art ON aa.artist_id = art.id
       WHERE a.status = 'approved'
       ${orderClause}
       LIMIT ? OFFSET ?
@@ -305,7 +308,7 @@ export async function listArtworks(c: Context<{ Bindings: WorkerEnv }>): Promise
 
     // Get photos for each artwork
     const artworksWithPhotos = await Promise.all(
-      (artworks.results as unknown as (ArtworkRecord & { type_name?: string; artist_names?: string })[] || []).map(async (artwork) => {
+      (artworks.results as unknown as (ArtworkRecord & { type_name?: string; primary_artist_name?: string })[] || []).map(async (artwork) => {
         // Get logbook entries for this artwork to find photos
         const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
         const allPhotos: string[] = [];
@@ -317,18 +320,10 @@ export async function listArtworks(c: Context<{ Bindings: WorkerEnv }>): Promise
           }
         });
 
-        // Get primary artist name from artist_names or tags
-        let artistName = 'Unknown Artist';
+        // Use primary artist name from JOIN query, with fallback to tags
+        let artistName = artwork.primary_artist_name || 'Unknown Artist';
         
-        // First try the artist_names JSON array
-        if (artwork.artist_names) {
-          const artistNames = safeJsonParse<string[]>(artwork.artist_names, []);
-          if (artistNames.length > 0 && artistNames[0]) {
-            artistName = artistNames[0]; // Use first artist
-          }
-        }
-        
-        // Fallback to tags
+        // Fallback to tags if no artist found through relationships
         if (artistName === 'Unknown Artist' && artwork.tags) {
           const tags = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
           if (tags.artist_name && typeof tags.artist_name === 'string') {
@@ -347,7 +342,6 @@ export async function listArtworks(c: Context<{ Bindings: WorkerEnv }>): Promise
           tags: artwork.tags,
           title: artwork.title,
           description: artwork.description,
-          artist_names: artwork.artist_names,
           type_name: artwork.type_name,
           photos: allPhotos,
           tags_parsed: safeJsonParse(artwork.tags, {}),
@@ -401,24 +395,30 @@ export async function listArtists(c: Context<{ Bindings: WorkerEnv }>): Promise<
     let params: unknown[];
 
     if (validatedQuery.search) {
-      // Search query
+      // Search query - use artwork_artists table instead of artist_names field
       query = `
-        SELECT id, name, bio as description, tags, status, created_at, updated_at,
-               (SELECT COUNT(*) FROM artwork WHERE artist_names LIKE '%"' || artists.name || '"%' AND status = 'approved') as artwork_count
-        FROM artists
-        WHERE status = ? AND name LIKE ?
-        ORDER BY name ASC
+        SELECT a.id, a.name, a.bio as description, a.tags, a.status, a.created_at, a.updated_at,
+               (SELECT COUNT(DISTINCT aa.artwork_id) 
+                FROM artwork_artists aa 
+                JOIN artwork aw ON aa.artwork_id = aw.id 
+                WHERE aa.artist_id = a.id AND aw.status = 'approved') as artwork_count
+        FROM artists a
+        WHERE a.status = ? AND a.name LIKE ?
+        ORDER BY a.name ASC
         LIMIT ? OFFSET ?
       `;
       params = [status, `%${validatedQuery.search}%`, limit, offset];
     } else {
-      // Standard listing
+      // Standard listing - use artwork_artists table instead of artist_names field
       query = `
-        SELECT id, name, bio as description, tags, status, created_at, updated_at,
-               (SELECT COUNT(*) FROM artwork WHERE artist_names LIKE '%"' || artists.name || '"%' AND status = 'approved') as artwork_count
-        FROM artists
-        WHERE status = ?
-        ORDER BY name ASC
+        SELECT a.id, a.name, a.bio as description, a.tags, a.status, a.created_at, a.updated_at,
+               (SELECT COUNT(DISTINCT aa.artwork_id) 
+                FROM artwork_artists aa 
+                JOIN artwork aw ON aa.artwork_id = aw.id 
+                WHERE aa.artist_id = a.id AND aw.status = 'approved') as artwork_count
+        FROM artists a
+        WHERE a.status = ?
+        ORDER BY a.name ASC
         LIMIT ? OFFSET ?
       `;
       params = [status, limit, offset];
@@ -447,6 +447,7 @@ export async function listArtists(c: Context<{ Bindings: WorkerEnv }>): Promise<
       id: artist.id,
       name: artist.name,
       description: artist.description || '',
+      aliases: artist.aliases || null,
       tags: artist.tags,
       created_at: artist.created_at,
       updated_at: artist.updated_at,

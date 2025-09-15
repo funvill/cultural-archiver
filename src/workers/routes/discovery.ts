@@ -333,19 +333,21 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
     // Categorize tags according to current schema
     const categorizedTags = categorizeTagsForDisplay(tagsParsed);
 
-    // Compute artist_name field (same logic as discovery endpoint)
+    // Compute artist_name field using artists from database relationship
     let artistName = 'Unknown Artist';
     
-    // First try the artist_names JSON array
-    if (artwork.artist_names) {
-      const artistNames = safeJsonParse<string[]>(artwork.artist_names, []);
-      if (artistNames.length > 0 && artistNames[0]) {
-        artistName = artistNames[0]; // Use first artist
+    // Check if we have artists from the database relationship
+    if (artists && artists.length > 0) {
+      // Use the first primary artist, or just the first artist if no primary found
+      const primaryArtist = artists.find(a => a.role === 'primary') || artists[0];
+      if (primaryArtist) {
+        artistName = primaryArtist.name;
       }
-    }
-    
-    // Fallback to tags
-    if (artistName === 'Unknown Artist' && tagsParsed) {
+    } else if (artwork.artist_name) {
+      // Fallback to artist_name from the database JOIN
+      artistName = artwork.artist_name;
+    } else if (tagsParsed) {
+      // Final fallback to tags
       if (tagsParsed.artist_name && typeof tagsParsed.artist_name === 'string') {
         artistName = tagsParsed.artist_name;
       } else if (tagsParsed.artist && typeof tagsParsed.artist === 'string') {
@@ -921,12 +923,15 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
       }, 404);
     }
 
-    // Get artworks with type information
+    // Get artworks with type information and primary artist
     const artworksQuery = `
       SELECT a.id, a.lat, a.lon, a.created_at, a.status, a.tags, 
-             a.title, a.description, a.artist_names,
-             COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name
+             a.title, a.description,
+             COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name,
+             COALESCE(art.name, 'Unknown Artist') as primary_artist_name
       FROM artwork a
+      LEFT JOIN artwork_artists aa ON a.id = aa.artwork_id AND aa.role = 'primary'
+      LEFT JOIN artists art ON aa.artist_id = art.id
       WHERE a.status = 'approved'
       ${orderClause}
       LIMIT ? OFFSET ?
@@ -938,7 +943,7 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
 
     // Get photos for each artwork
     const artworksWithPhotos = await Promise.all(
-      (artworks.results as unknown as (ArtworkRecord & { type_name?: string; artist_names?: string })[] || []).map(async (artwork) => {
+      (artworks.results as unknown as (ArtworkRecord & { type_name?: string; primary_artist_name?: string })[] || []).map(async (artwork) => {
         // Get logbook entries for this artwork to find photos
         const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
         const allPhotos: string[] = [];
@@ -950,18 +955,10 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
           }
         });
 
-        // Get primary artist name from artist_names or tags
-        let artistName = 'Unknown Artist';
+        // Use primary artist name from JOIN query, with fallback to tags
+        let artistName = artwork.primary_artist_name || 'Unknown Artist';
         
-        // First try the artist_names JSON array
-        if (artwork.artist_names) {
-          const artistNames = safeJsonParse<string[]>(artwork.artist_names, []);
-          if (artistNames.length > 0 && artistNames[0]) {
-            artistName = artistNames[0]; // Use first artist
-          }
-        }
-        
-        // Fallback to tags
+        // Fallback to tags if no artist found through relationships
         if (artistName === 'Unknown Artist' && artwork.tags) {
           const tags = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
           if (tags.artist_name && typeof tags.artist_name === 'string') {
@@ -980,7 +977,6 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
           tags: artwork.tags,
           title: artwork.title,
           description: artwork.description,
-          artist_names: artwork.artist_names,
           type_name: artwork.type_name,
           photos: allPhotos,
           tags_parsed: safeJsonParse(artwork.tags, {}),

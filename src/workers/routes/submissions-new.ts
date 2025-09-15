@@ -55,7 +55,6 @@ interface ArtworkEditSubmissionRequest {
 
 interface NewArtworkSubmissionRequest {
   title: string;
-  artist_names?: string;
   year_created?: number;
   medium?: string;
   dimensions?: string;
@@ -382,7 +381,6 @@ export async function createNewArtworkSubmissionHandler(
     // Prepare new artwork data
     const newArtworkData = {
       title: validatedData.title,
-      artist_names: validatedData.artist_names || null,
       year_created: validatedData.year_created || null,
       medium: validatedData.medium || null,
       dimensions: validatedData.dimensions || null,

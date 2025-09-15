@@ -60,24 +60,30 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
     let params: unknown[];
 
     if (validatedQuery.search) {
-      // Search query
+      // Search query - updated to use artwork_artists table instead of artist_names field
       query = `
-        SELECT id, name, bio as description, tags, status, created_at, updated_at,
-               (SELECT COUNT(*) FROM artwork WHERE artist_names LIKE '%"' || artists.name || '"%' AND status = 'approved') as artwork_count
-        FROM artists
-        WHERE status = ? AND name LIKE ?
-        ORDER BY name ASC
+        SELECT a.id, a.name, a.bio as description, a.aliases, a.tags, a.status, a.created_at, a.updated_at,
+               (SELECT COUNT(DISTINCT aa.artwork_id) 
+                FROM artwork_artists aa 
+                JOIN artwork aw ON aa.artwork_id = aw.id 
+                WHERE aa.artist_id = a.id AND aw.status = 'approved') as artwork_count
+        FROM artists a
+        WHERE a.status = ? AND a.name LIKE ?
+        ORDER BY a.name ASC
         LIMIT ? OFFSET ?
       `;
       params = [status, `%${validatedQuery.search}%`, limit, offset];
     } else {
-      // Standard listing
+      // Standard listing - updated to use artwork_artists table instead of artist_names field
       query = `
-        SELECT id, name, bio as description, tags, status, created_at, updated_at,
-               (SELECT COUNT(*) FROM artwork WHERE artist_names LIKE '%"' || artists.name || '"%' AND status = 'approved') as artwork_count
-        FROM artists
-        WHERE status = ?
-        ORDER BY name ASC
+        SELECT a.id, a.name, a.bio as description, a.aliases, a.tags, a.status, a.created_at, a.updated_at,
+               (SELECT COUNT(DISTINCT aa.artwork_id) 
+                FROM artwork_artists aa 
+                JOIN artwork aw ON aa.artwork_id = aw.id 
+                WHERE aa.artist_id = a.id AND aw.status = 'approved') as artwork_count
+        FROM artists a
+        WHERE a.status = ?
+        ORDER BY a.name ASC
         LIMIT ? OFFSET ?
       `;
       params = [status, limit, offset];
@@ -106,6 +112,7 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
       id: artist.id,
       name: artist.name,
       description: artist.description || '',
+      aliases: artist.aliases || null,
       tags: artist.tags,
       created_at: artist.created_at,
       updated_at: artist.updated_at,
@@ -151,7 +158,7 @@ export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Pro
 
     // Get artist details
     const artistStmt = db.db.prepare(`
-      SELECT id, name, bio as description, tags, status, created_at, updated_at
+      SELECT id, name, bio as description, aliases, tags, status, created_at, updated_at
       FROM artists
       WHERE id = ?
     `);
@@ -191,6 +198,7 @@ export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Pro
       id: artist.id,
       name: artist.name,
       description: artist.description || '',
+      aliases: artist.aliases || null,
       tags: artist.tags,
       created_at: artist.created_at,
       updated_at: artist.updated_at,

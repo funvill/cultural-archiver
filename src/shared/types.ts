@@ -50,6 +50,7 @@ export interface ArtistRecord {
   id: string;
   name: string;
   description: string | null; // Markdown biography/artist statement
+  aliases: string | null; // JSON array of alternative names for "also known as"
   tags: string | null; // JSON object for metadata (website, birth_year, etc.)
   created_at: string;
   updated_at: string;
@@ -93,7 +94,6 @@ export interface NewArtworkRecord {
   created_by?: string | null;
   artist_name?: string | null;
   // Additional fields for mass import compatibility
-  artist_names?: string | null; // Multiple artists, comma-separated
   year_created?: number | null;
   medium?: string | null;
   dimensions?: string | null;
@@ -111,6 +111,7 @@ export interface NewArtistRecord {
   id: string;
   name: string;
   description: string | null;
+  aliases: string | null; // JSON array of alternative names
   tags: string | null; // JSON object for metadata
   created_at: string;
   updated_at: string;
