@@ -49,25 +49,6 @@ const clusterEnabled = ref(true);
 // Saved map state presence
 const hadSavedMapState = ref(false);
 
-function readSavedMapState(): { center: Coordinates; zoom: number } | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem('map:lastState');
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { center?: Coordinates; zoom?: number };
-    if (
-      parsed &&
-      parsed.center &&
-      typeof parsed.center.latitude === 'number' &&
-      typeof parsed.center.longitude === 'number' &&
-      typeof parsed.zoom === 'number'
-    ) {
-      return { center: parsed.center, zoom: parsed.zoom };
-    }
-  } catch {/* ignore */}
-  return null;
-}
-
 // Store
 const artworksStore = useArtworksStore();
 

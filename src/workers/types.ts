@@ -215,6 +215,10 @@ export interface ArtworkDetailResponse {
   tags_categorized: Record<string, Array<{ key: string; value: string; label: string }>>;
   creators: ArtworkCreatorInfo[];
   artists: { id: string; name: string; role: string }[]; // Artists from the new artist system
+  title?: string | null; // Artwork title (editable field)
+  description?: string | null; // Artwork description (editable field)
+  created_by?: string | null; // Creator/artist name(s) (editable field)
+  artist_name?: string | null; // Computed artist name for display
 }
 
 export interface ArtworkCreatorInfo {

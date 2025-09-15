@@ -360,13 +360,27 @@ export interface ArtworkDetailResponse {
   tags: string | null;
   photos: string[]; // Parsed photo URLs
   type_name: string;
-  submissions: SubmissionRecord[]; // Replaced logbook_entries with unified submissions
+  logbook_entries: Array<{
+    id: string;
+    artwork_id: string | null;
+    user_token: string;
+    lat: number | null;
+    lon: number | null;
+    notes: string | null;
+    photos: string | null;
+    status: 'pending' | 'approved' | 'rejected';
+    created_at: string;
+    rejection_reason?: string;
+    photos_parsed: string[];
+  }>; // Keep logbook_entries for backward compatibility
   tags_parsed: Record<string, string>;
+  tags_categorized: Record<string, Array<{ key: string; value: string; label: string }>>; // Add tags_categorized field
   creators: ArtworkCreatorInfo[];
   artists: { id: string; name: string; role: string }[]; // Artists from the new artist system
   title?: string | null; // Artwork title (editable field)
   description?: string | null; // Artwork description (editable field)
   created_by?: string | null; // Creator/artist name(s) (editable field)
+  artist_name?: string | null; // Computed artist name for display
 }
 
 export interface ArtworkCreatorInfo {

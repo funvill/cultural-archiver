@@ -73,7 +73,7 @@ export class DatabaseService {
     return result ? (result as unknown as ArtworkRecord) : null;
   }
 
-  async getArtworkWithDetails(id: string): Promise<(ArtworkRecord & { type_name: string; artist_name?: string }) | null> {
+  async getArtworkWithDetails(id: string): Promise<(ArtworkRecord & { type_name: string; artist_name?: string; artist_names?: string }) | null> {
     try {
       // Query artwork table directly - tags are stored as JSON in the tags column
       const stmt = this.db.prepare(`
@@ -88,7 +88,7 @@ export class DatabaseService {
         console.log('[DB DEBUG] getArtworkWithDetails: Artwork not found or not approved', { id });
         return null;
       }
-      return result as unknown as ArtworkRecord & { type_name: string; artist_name?: string };
+      return result as unknown as ArtworkRecord & { type_name: string; artist_name?: string; artist_names?: string };
     } catch (err) {
       console.error('[DB ERROR] getArtworkWithDetails failed', err);
       throw err;

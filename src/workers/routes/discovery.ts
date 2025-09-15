@@ -337,6 +337,26 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
     // Categorize tags according to current schema
     const categorizedTags = categorizeTagsForDisplay(tagsParsed);
 
+    // Compute artist_name field (same logic as discovery endpoint)
+    let artistName = 'Unknown Artist';
+    
+    // First try the artist_names JSON array
+    if (artwork.artist_names) {
+      const artistNames = safeJsonParse<string[]>(artwork.artist_names, []);
+      if (artistNames.length > 0 && artistNames[0]) {
+        artistName = artistNames[0]; // Use first artist
+      }
+    }
+    
+    // Fallback to tags
+    if (artistName === 'Unknown Artist' && tagsParsed) {
+      if (tagsParsed.artist_name && typeof tagsParsed.artist_name === 'string') {
+        artistName = tagsParsed.artist_name;
+      } else if (tagsParsed.artist && typeof tagsParsed.artist === 'string') {
+        artistName = tagsParsed.artist;
+      }
+    }
+
   const response: ArtworkDetailResponse = {
       ...artwork,
       type_name: artwork.type_name,
@@ -346,6 +366,7 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       tags_categorized: categorizedTags,
       creators: creators,
       artists: artists,
+      artist_name: artistName,
     };
 
     return c.json(createSuccessResponse(response));
