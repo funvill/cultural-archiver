@@ -56,8 +56,8 @@ export class DataPipeline {
     });
 
     try {
-      // 2. Load importer-specific configuration
-      const importerConfig = await this.loadImporterConfig();
+      // 2. Load importer-specific configuration (use passed config or fallback to file)
+      const importerConfig = options.importerConfig || await this.loadImporterConfig();
       
       // 3. Validate input data with importer
       console.log(`🔍 Validating input data with ${this.importer.name} importer...`);
@@ -104,6 +104,11 @@ export class DataPipeline {
         options.exporterConfig ?? {}, 
         reportTracker
       );
+      
+      // 6a. Track duplicate count in report tracker
+      if (exportResult.recordsDuplicate !== undefined) {
+        reportTracker.setDuplicateCount(exportResult.recordsDuplicate);
+      }
       
       // 7. Generate final report if requested
       if (options.generateReport) {
@@ -202,6 +207,7 @@ export class DataPipeline {
       let totalSuccessful = 0;
       let totalFailed = 0;
       let totalSkipped = 0;
+      let totalDuplicates = 0;
       const allErrors: string[] = [];
 
       // Process each batch
@@ -217,6 +223,7 @@ export class DataPipeline {
           totalSuccessful += batchResult.recordsSuccessful;
           totalFailed += batchResult.recordsFailed;
           totalSkipped += batchResult.recordsSkipped;
+          totalDuplicates += batchResult.recordsDuplicate || 0;
           
           if (batchResult.errors) {
             allErrors.push(...batchResult.errors.map(e => e.message));
@@ -270,6 +277,7 @@ export class DataPipeline {
         recordsSuccessful: totalSuccessful,
         recordsFailed: totalFailed,
         recordsSkipped: totalSkipped,
+        recordsDuplicate: totalDuplicates,
         ...(allErrors.length > 0 && {
           errors: allErrors.map(msg => ({ 
             field: 'export', 
@@ -312,7 +320,16 @@ export class DataPipeline {
    */
   private async saveReport(report: ProcessingReport, reportPath?: string): Promise<void> {
     try {
-      const defaultPath = `./reports/mass-import-${Date.now()}.json`;
+      // Generate human-readable timestamp: YYYY-MM-DD-HHMMSS
+      const now = new Date();
+      const timestamp = now.getFullYear() + '-' +
+        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+        String(now.getDate()).padStart(2, '0') + '-' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0') +
+        String(now.getSeconds()).padStart(2, '0');
+      
+      const defaultPath = `./reports/mass-import-${timestamp}.json`;
       const outputPath = reportPath ?? defaultPath;
       
       // Ensure reports directory exists
@@ -343,12 +360,14 @@ export class DataPipeline {
     const successfulRecords = exportResult.recordsSuccessful;
     const failedRecords = exportResult.recordsFailed;
     const skippedRecords = exportResult.recordsSkipped;
+    const duplicateRecords = exportResult.recordsDuplicate || 0;
     
     return {
       totalRecords,
       successfulRecords,
       failedRecords,
       skippedRecords,
+      duplicateRecords,
       processingTime,
       averageRecordTime: totalRecords > 0 ? processingTime / totalRecords : 0
     };

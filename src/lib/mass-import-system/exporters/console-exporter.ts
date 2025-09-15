@@ -168,6 +168,7 @@ export class ConsoleExporter implements ExporterPlugin {
         recordsSuccessful: processedData.length,
         recordsFailed: 0,
         recordsSkipped: data.length - processedData.length,
+        recordsDuplicate: 0,
         summary: `Successfully exported ${processedData.length} records to console (${processingTime}ms)`,
       };
       
@@ -181,6 +182,7 @@ export class ConsoleExporter implements ExporterPlugin {
         recordsSuccessful: 0,
         recordsFailed: data.length,
         recordsSkipped: 0,
+        recordsDuplicate: 0,
         errors: [{ field: 'export', message: errorMessage, severity: 'error' }],
         summary: `Console export failed: ${errorMessage}`,
       };

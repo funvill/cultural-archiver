@@ -10,6 +10,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import * as fs from 'fs/promises';
 import * as path from 'path';
+import { fileURLToPath } from 'url';
 import { PluginRegistry } from '../lib/plugin-registry.js';
 import { DataPipeline } from '../lib/data-pipeline.js';
 import { registerCoreExporters } from '../exporters/index.js';
@@ -145,7 +146,39 @@ export class PluginCLI {
       spinner.text = 'Loading configuration...';
 
       // Load configuration files
-      const { exporterConfig } = await this.loadConfigurations(options);
+      const { importerConfig, exporterConfig } = await this.loadConfigurations(options);
+
+      // Provide default configuration for osm-artwork importer if none provided
+      const finalImporterConfig = options.importer === 'osm-artwork' && Object.keys(importerConfig).length === 0 
+        ? {
+            preset: 'general',
+            includeFeatureTypes: ['artwork', 'monument', 'sculpture', 'statue', 'mural', 'installation'],
+            tagMappings: {
+              'artwork_type': 'artwork_type',
+              'material': 'material',
+              'subject': 'subject',
+              'style': 'style'
+            },
+            descriptionFields: ['description', 'inscription', 'subject'],
+            artistFields: ['artist_name', 'artist', 'created_by'],
+            yearFields: ['start_date', 'year', 'date']
+          }
+        : importerConfig;
+
+      // Provide default configuration for api exporter if none provided
+      let finalExporterConfig = exporterConfig;
+      if (options.exporter === 'api' && Object.keys(exporterConfig).length === 0) {
+        try {
+          // Try to load the api-config.json file from the source directory
+          const currentDir = path.dirname(fileURLToPath(import.meta.url));
+          const apiConfigPath = path.resolve(currentDir, '../exporters/api-config.json');
+          const apiConfigContent = await fs.readFile(apiConfigPath, 'utf-8');
+          finalExporterConfig = JSON.parse(apiConfigContent);
+          console.log('📄 Loaded default API configuration from api-config.json');
+        } catch (error) {
+          throw new Error(`API exporter requires configuration. Please provide --config file or ensure api-config.json exists. Error: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      }
 
       // Setup processing options
       const processingOptions: ProcessingOptions = {
@@ -161,8 +194,9 @@ export class PluginCLI {
             verbose: options.verbose,
           }
         }),
+        importerConfig: finalImporterConfig,
         exporterConfig: {
-          ...exporterConfig,
+          ...finalExporterConfig,
           ...(options.output && { outputPath: options.output }),
         }
       };

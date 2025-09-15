@@ -231,7 +231,18 @@ export class OSMImporter implements ImporterPlugin {
    * Generate unique import ID for feature
    */
   generateImportId(record: unknown): string {
+    // Handle RawImportData (already transformed)
+    if (record && typeof record === 'object' && 'externalId' in record) {
+      const rawData = record as RawImportData;
+      return rawData.externalId || this.generateIdFromCoordinates(rawData.lat, rawData.lon, rawData.title);
+    }
+
+    // Handle GeoJSON feature (original data)
     const feature = record as GeoJSONFeature;
+    if (!feature.geometry?.coordinates) {
+      return `osm-unknown-${Date.now()}`;
+    }
+
     const props = feature.properties || {};
     
     // Try to use OSM ID if available
@@ -241,8 +252,16 @@ export class OSMImporter implements ImporterPlugin {
 
     // Fallback to coordinates and name
     const [lon, lat] = feature.geometry.coordinates;
-    const name = String(props.name || props.title || 'unnamed').replace(/\s+/g, '-').toLowerCase();
-    return `osm-${name}-${lat.toFixed(6)}-${lon.toFixed(6)}`;
+    const name = String(props.name || props.title || 'unnamed');
+    return this.generateIdFromCoordinates(lat, lon, name);
+  }
+
+  /**
+   * Generate ID from coordinates and name
+   */
+  private generateIdFromCoordinates(lat: number, lon: number, name: string): string {
+    const cleanName = String(name).replace(/\s+/g, '-').toLowerCase();
+    return `osm-${cleanName}-${lat.toFixed(6)}-${lon.toFixed(6)}`;
   }
 
   /**
@@ -298,12 +317,19 @@ export class OSMImporter implements ImporterPlugin {
 
     // Extract core fields
     const title = this.extractTitle(props);
-    const description = this.extractDescription(props, config.descriptionFields);
+    let description = this.extractDescription(props, config.descriptionFields);
     const artist = this.extractArtist(props, config.artistFields);
     const year = this.extractYear(props, config.yearFields);
 
-    // Build tags using configured mappings
-    const tags = this.buildTags(props, config.tagMappings);
+    // Build tags using configured mappings (exclude description fields)
+    const tags = this.buildTags(props, config.tagMappings, config.descriptionFields);
+
+    // Generate external ID first so we can use it in the description
+    const externalId = this.generateImportId(feature);
+    
+    // Enhance description with OSM source attribution
+    const osmAttribution = `\n\nImported from Open Street Maps (node: ${externalId})`;
+    description = description ? description + osmAttribution : osmAttribution.trim();
 
     // Map to standardized format
     const mappedRecord: RawImportData = {
@@ -312,7 +338,7 @@ export class OSMImporter implements ImporterPlugin {
       title: title || 'Unnamed Artwork',
       description,
       source: 'openstreetmap',
-      externalId: this.generateImportId(feature),
+      externalId,
       tags,
       ...(artist && { artist }),
       ...(year && { yearOfInstallation: year }),
@@ -360,7 +386,8 @@ export class OSMImporter implements ImporterPlugin {
     for (const field of artistFields) {
       const value = props[field];
       if (value && typeof value === 'string' && value.trim()) {
-        return value.trim();
+        // Replace " and " with "," to properly separate multiple artists
+        return value.trim().replace(/ and /g, ', ');
       }
     }
 
@@ -389,13 +416,16 @@ export class OSMImporter implements ImporterPlugin {
   /**
    * Build tags object using configured mappings
    */
-  private buildTags(props: Record<string, unknown>, tagMappings: Record<string, string>): Record<string, string> {
+  private buildTags(props: Record<string, unknown>, tagMappings: Record<string, string>, descriptionFields: string[]): Record<string, string> {
     const tags: Record<string, string> = {};
 
-    // Copy all original OSM tags first
+    // Copy all original OSM tags first, excluding description fields
     for (const [key, value] of Object.entries(props)) {
       if (value && typeof value === 'string' && value.trim()) {
-        tags[key] = value.trim();
+        // Skip description fields - they should not be in tags
+        if (!descriptionFields.includes(key)) {
+          tags[key] = value.trim();
+        }
       }
     }
 
@@ -403,7 +433,10 @@ export class OSMImporter implements ImporterPlugin {
     for (const [outputTag, sourceField] of Object.entries(tagMappings)) {
       const value = props[sourceField];
       if (value && typeof value === 'string' && value.trim()) {
-        tags[outputTag] = value.trim();
+        // Skip description fields - they should not be in tags
+        if (!descriptionFields.includes(sourceField)) {
+          tags[outputTag] = value.trim();
+        }
       }
     }
 

@@ -85,6 +85,7 @@ export interface ExportResult {
   recordsSuccessful: number;
   recordsFailed: number;
   recordsSkipped: number;
+  recordsDuplicate?: number; // New field for tracking duplicate records
   errors?: ValidationError[];
   summary?: string;
   details?: ExportResultDetails;
@@ -156,6 +157,7 @@ export interface ProcessingOptions {
   limit?: number;
   offset?: number;
   inputFile?: string;
+  importerConfig?: ImporterConfig;
   exporterOptions?: ExporterOptions;
   exporterConfig?: ExporterConfig;
 }
@@ -172,6 +174,7 @@ export interface ProcessingSummary {
   successfulRecords: number;
   failedRecords: number;
   skippedRecords: number;
+  duplicateRecords?: number; // New field for tracking duplicate records
   processingTime: number;
   averageRecordTime: number;
 }
@@ -197,6 +200,7 @@ export interface ReportSummary {
   failed: number;
   skipped: number;
   other: number;
+  duplicateRecords?: number; // Track duplicate records detected during export
   successRate: number;
   processingTime: number;
   averageRecordTime: number;
