@@ -166,27 +166,29 @@ function loadConfig(configFile, preset) {
   return config;
 }
 
-// Progress tracking
-function createProgressTracker(total) {
-  let processed = 0;
-  let succeeded = 0;
-  let failed = 0;
-  
-  return {
-    update: (batchSucceeded, batchFailed) => {
-      processed += batchSucceeded + batchFailed;
-      succeeded += batchSucceeded;
-      failed += batchFailed;
-      
-      const percent = ((processed / total) * 100).toFixed(1);
-      const successRate = processed > 0 ? ((succeeded / processed) * 100).toFixed(1) : '0.0';
-      
-      console.log(`Progress: ${processed}/${total} (${percent}%) | Success rate: ${successRate}% | Succeeded: ${succeeded}, Failed: ${failed}`);
-    },
-    getStats: () => ({ processed, succeeded, failed, total })
-  };
-}
-
+// Progress tracking  
+// function createProgressTracker(total) {
+//   let processed = 0;
+//   let succeeded = 0;
+//   let failed = 0;
+//   
+//   return {
+//     update(current) {
+//       processed = current;
+//       const percent = Math.round((processed / total) * 100);
+//       console.log(`Progress: ${processed}/${total} (${percent}%) - ✓ ${succeeded} ✗ ${failed}`);
+//     },
+//     
+//     success() {
+//       succeeded++;
+//       this.update(processed + 1);
+//     },
+//     
+//     error() {
+//       failed++;
+//       this.update(processed + 1);
+//   };
+// }
 // Main import function
 async function performImport(geoJSON, importConfig, apiConfig) {
   const payload = {

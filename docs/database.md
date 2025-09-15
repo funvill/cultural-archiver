@@ -26,22 +26,24 @@ The Cultural Archiver uses a **production-ready SQLite database** (Cloudflare D1
 
 #### artwork
 
-Primary table for public artwork locations and metadata.
+Primary table for public artwork locations and metadata. **Updated**: Normalized schema removing redundant fields.
 
 | Field        | Type | Constraints                           | Description                        |
 | ------------ | ---- | ------------------------------------- | ---------------------------------- |
-| `id`         | TEXT | PRIMARY KEY                           | Unique identifier                  |
+| `id`         | TEXT | PRIMARY KEY, UUID format              | Unique identifier (UUID)           |
 | `title`      | TEXT | NOT NULL                              | Artwork title                      |
 | `description`| TEXT | NULL                                  | Artwork description               |
-| `artist_names`| TEXT | NULL                                  | JSON array of artist names        |
 | `lat`        | REAL | NOT NULL                              | Latitude coordinate (-90 to 90)    |
 | `lon`        | REAL | NOT NULL                              | Longitude coordinate (-180 to 180) |
-| `address`    | TEXT | NULL                                  | Street address                     |
 | `tags`       | TEXT | NULL                                  | JSON object for structured metadata |
 | `photos`     | TEXT | NULL                                  | JSON array of photo URLs           |
 | `status`     | TEXT | CHECK('pending','approved','rejected') | Moderation status                  |
 | `created_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Creation timestamp                 |
 | `updated_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Last update timestamp              |
+
+**Schema Changes (Migration 0017-0020):**
+- ❌ **Removed** `artist_names` field - Artist relationships now managed via `artwork_artists` table  
+- ❌ **Removed** `address` field - Location information stored in tags system for consistency
 
 **Indexes:**
 - `idx_artwork_lat_lon` on `(lat, lon)` for spatial queries
@@ -50,19 +52,34 @@ Primary table for public artwork locations and metadata.
 
 #### artists
 
-Artist information and portfolio details.
+Table for artist information with normalized schema. **Updated**: Cleaned up redundant fields.
 
-| Field        | Type | Constraints                           | Description                        |
-| ------------ | ---- | ------------------------------------- | ---------------------------------- |
-| `id`         | TEXT | PRIMARY KEY                           | Unique identifier                  |
-| `name`       | TEXT | NOT NULL                              | Artist name                        |
-| `bio`        | TEXT | NULL                                  | Artist biography                   |
-| `website`    | TEXT | NULL                                  | Artist website URL                 |
-| `tags`       | TEXT | NULL                                  | JSON object for metadata           |
-| `photos`     | TEXT | NULL                                  | JSON array of photo URLs           |
-| `status`     | TEXT | CHECK('pending','approved','rejected') | Moderation status                  |
-| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Creation timestamp                 |
-| `updated_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Last update timestamp              |
+| Field        | Type | Constraints                      | Description                     |
+| ------------ | ---- | -------------------------------- | ------------------------------- |
+| `id`         | TEXT | PRIMARY KEY, UUID format         | Unique identifier (UUID)        |
+| `name`       | TEXT | NOT NULL                         | Artist name                     |
+| `description`| TEXT | NULL                             | Artist biography/description    |
+| `aliases`    | TEXT | NULL                             | JSON array of alternative names |
+| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now')| Creation timestamp              |
+| `updated_at` | TEXT | NOT NULL, DEFAULT datetime('now')| Last update timestamp           |
+
+**Schema Changes (Migration 0020):**
+- ✅ **Renamed** `bio` → `description` for consistency across the system
+- ❌ **Removed** `website` field - Website URLs now stored in tags system for validation and consistency
+- ✅ **Added** `aliases` field for "also known as" functionality
+- ❌ **Removed** `tags`, `photos`, `status` fields - artists don't need separate moderation workflow
+
+#### artwork_artists
+
+Many-to-many linking table between artwork and artists. **New**: Replaces embedded artist_names.
+
+| Field        | Type | Constraints    | Description              |
+| ------------ | ---- | -------------- | ------------------------ |
+| `artwork_id` | TEXT | NOT NULL, UUID | Foreign key to artwork   |
+| `artist_id`  | TEXT | NOT NULL, UUID | Foreign key to artists   |
+| `created_at` | TEXT | NOT NULL       | Link creation timestamp  |
+
+**Purpose**: Enables proper relational data modeling with referential integrity for artwork-artist relationships.
 
 ### Unified Submission System
 

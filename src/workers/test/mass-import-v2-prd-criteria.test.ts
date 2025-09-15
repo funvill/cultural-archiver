@@ -38,7 +38,7 @@ vi.mock('../lib/database', () => ({
 
 vi.mock('../lib/mass-import-v2-duplicate-detection', () => ({
   createMassImportV2DuplicateDetectionService: vi.fn(() => ({
-    checkArtworkDuplicates: vi.fn(({ data, threshold }) => {
+    checkArtworkDuplicates: vi.fn(({ data }) => {
       // Simulate realistic duplicate detection
       if (data.title === 'Victory Angel Statue' && data.lat === 49.2827) {
         return Promise.resolve({
