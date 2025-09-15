@@ -397,7 +397,7 @@ export async function listArtists(c: Context<{ Bindings: WorkerEnv }>): Promise<
     if (validatedQuery.search) {
       // Search query - use artwork_artists table instead of artist_names field
       query = `
-        SELECT a.id, a.name, a.bio as description, a.tags, a.status, a.created_at, a.updated_at,
+        SELECT a.id, a.name, a.description, a.tags, a.status, a.created_at, a.updated_at,
                (SELECT COUNT(DISTINCT aa.artwork_id) 
                 FROM artwork_artists aa 
                 JOIN artwork aw ON aa.artwork_id = aw.id 
@@ -411,7 +411,7 @@ export async function listArtists(c: Context<{ Bindings: WorkerEnv }>): Promise<
     } else {
       // Standard listing - use artwork_artists table instead of artist_names field
       query = `
-        SELECT a.id, a.name, a.bio as description, a.tags, a.status, a.created_at, a.updated_at,
+        SELECT a.id, a.name, a.description, a.tags, a.status, a.created_at, a.updated_at,
                (SELECT COUNT(DISTINCT aa.artwork_id) 
                 FROM artwork_artists aa 
                 JOIN artwork aw ON aa.artwork_id = aw.id 
