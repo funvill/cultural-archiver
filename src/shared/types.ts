@@ -40,21 +40,7 @@ export interface ArtworkApiResponse {
 
 // Removed obsolete LogbookRecord - replaced by SubmissionRecord in unified schema
 // Removed obsolete TagRecord - tags are now JSON in artwork/artist records
-
-export interface CreatorRecord {
-  id: string;
-  name: string;
-  bio: string | null;
-  created_at: string;
-}
-
-export interface ArtworkCreatorRecord {
-  id: string;
-  artwork_id: string;
-  creator_id: string;
-  role: string;
-  created_at: string;
-}
+// Removed obsolete CreatorRecord/ArtworkCreatorRecord - replaced by unified Artist system
 
 // ================================
 // Artist System Types
@@ -190,17 +176,7 @@ export interface UpdateArtworkRequest extends Partial<CreateArtworkRequest> {
 
 // Removed obsolete CreateTagRequest - tags are now JSON in artwork/artist records
 // Removed obsolete CreateLogbookEntryRequest - replaced by unified submissions system
-
-export interface CreateCreatorRequest {
-  name: string;
-  bio?: string;
-}
-
-export interface CreateArtworkCreatorRequest {
-  artwork_id: string;
-  creator_id: string;
-  role?: string;
-}
+// Removed obsolete CreateCreatorRequest/CreateArtworkCreatorRequest - replaced by unified Artist system
 
 // ================================
 // Artist API Types
@@ -375,19 +351,11 @@ export interface ArtworkDetailResponse {
   }>; // Keep logbook_entries for backward compatibility
   tags_parsed: Record<string, string>;
   tags_categorized: Record<string, Array<{ key: string; value: string; label: string }>>; // Add tags_categorized field
-  creators: ArtworkCreatorInfo[];
   artists: { id: string; name: string; role: string }[]; // Artists from the new artist system
   title?: string | null; // Artwork title (editable field)
   description?: string | null; // Artwork description (editable field)
   created_by?: string | null; // Creator/artist name(s) (editable field)
   artist_name?: string | null; // Computed artist name for display
-}
-
-export interface ArtworkCreatorInfo {
-  id: string;
-  name: string;
-  bio: string | null;
-  role: string;
 }
 
 // Removed obsolete LogbookEntryWithPhotos - replaced by SubmissionRecord

@@ -12,7 +12,6 @@ import type {
   ArtworkWithPhotos,
   LogbookEntryWithPhotos,
   NearbyArtworksResponse,
-  ArtworkCreatorInfo,
 } from '../types';
 import type { StructuredTagsData } from '../../shared/types';
 import { DEFAULT_ARTWORK_SEARCH_RADIUS } from '../../shared/geo';
@@ -250,10 +249,7 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       throw new NotFoundError('Artwork', artworkId);
     }
 
-    // Get creators for this artwork
-    const creators: ArtworkCreatorInfo[] = await db.getCreatorsForArtwork(artworkId);
-
-    // Get artists for this artwork (from new artist system)
+    // Get artists for this artwork
     const artists = await db.getArtistsForArtwork(artworkId);
 
     // Get logbook entries for timeline with pagination - UPDATED: using submissions
@@ -364,7 +360,6 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       logbook_entries: logbookEntriesWithPhotos,
       tags_parsed: tagsParsed,
       tags_categorized: categorizedTags,
-      creators: creators,
       artists: artists,
       artist_name: artistName,
     };

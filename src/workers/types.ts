@@ -51,20 +51,7 @@ export interface TagRecord {
   created_at: string;
 }
 
-export interface CreatorRecord {
-  id: string;
-  name: string;
-  bio: string | null;
-  created_at: string;
-}
-
-export interface ArtworkCreatorRecord {
-  id: string;
-  artwork_id: string;
-  creator_id: string;
-  role: string;
-  created_at: string;
-}
+// Removed obsolete CreatorRecord/ArtworkCreatorRecord - replaced by unified Artist system
 
 // ================================
 // API Request/Response Types
@@ -107,16 +94,7 @@ export interface CreateSubmissionEntryRequest {
   consent_version?: string; // Track consent version for compliance
 }
 
-export interface CreateCreatorRequest {
-  name: string;
-  bio?: string;
-}
-
-export interface CreateArtworkCreatorRequest {
-  artwork_id: string;
-  creator_id: string;
-  role?: string;
-}
+// Removed obsolete CreateCreatorRequest/CreateArtworkCreatorRequest - replaced by unified Artist system
 
 // ================================
 // MVP Worker API Types
@@ -213,7 +191,6 @@ export interface ArtworkDetailResponse {
   logbook_entries: LogbookEntryWithPhotos[];
   tags_parsed: Record<string, string>;
   tags_categorized: Record<string, Array<{ key: string; value: string; label: string }>>;
-  creators: ArtworkCreatorInfo[];
   artists: { id: string; name: string; role: string }[]; // Artists from the new artist system
   title?: string | null; // Artwork title (editable field)
   description?: string | null; // Artwork description (editable field)
@@ -221,12 +198,7 @@ export interface ArtworkDetailResponse {
   artist_name?: string | null; // Computed artist name for display
 }
 
-export interface ArtworkCreatorInfo {
-  id: string;
-  name: string;
-  bio: string | null;
-  role: string;
-}
+// Removed obsolete ArtworkCreatorInfo - replaced by unified Artist system
 
 export interface LogbookEntryWithPhotos extends LogbookRecord {
   photos_parsed: string[];

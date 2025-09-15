@@ -11,10 +11,6 @@ import type {
   CreateArtworkRequest,
   CreateSubmissionEntryRequest,
   CreateTagRequest,
-  CreatorRecord,
-  CreateCreatorRequest,
-  CreateArtworkCreatorRequest,
-  ArtworkCreatorInfo,
 } from '../types';
 
 // Database result interfaces
@@ -458,78 +454,21 @@ export class DatabaseService {
     return (result as { count: number } | null)?.count || 0;
   }
 
-  // ================================
-  // Creator Operations
-  // ================================
-
-  async createCreator(data: CreateCreatorRequest): Promise<string> {
-    const id = generateUUID();
-    const now = new Date().toISOString();
-
-    const stmt = this.db.prepare(`
-      INSERT INTO creators (id, name, bio, created_at)
-      VALUES (?, ?, ?, ?)
-    `);
-
-    await stmt.bind(id, data.name, data.bio || null, now).run();
-    return id;
-  }
-
-  async getCreatorById(id: string): Promise<CreatorRecord | null> {
-    const stmt = this.db.prepare('SELECT * FROM creators WHERE id = ?');
-    const result = await stmt.bind(id).first();
-    return result ? (result as unknown as CreatorRecord) : null;
-  }
-
-  async getCreatorByName(name: string): Promise<CreatorRecord | null> {
-    const stmt = this.db.prepare('SELECT * FROM creators WHERE name = ?');
-    const result = await stmt.bind(name).first();
-    return result ? (result as unknown as CreatorRecord) : null;
-  }
-
-  async linkArtworkToCreator(data: CreateArtworkCreatorRequest): Promise<string> {
-    const id = generateUUID();
-    const now = new Date().toISOString();
-
-    const stmt = this.db.prepare(`
-      INSERT INTO artwork_creators (id, artwork_id, creator_id, role, created_at)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-
-    await stmt.bind(id, data.artwork_id, data.creator_id, data.role || 'artist', now).run();
-    return id;
-  }
-
-  async getCreatorsForArtwork(artworkId: string): Promise<ArtworkCreatorInfo[]> {
+  async getCreatorsForArtwork(artworkId: string): Promise<{ id: string; name: string; role: string }[]> {
     try {
       const stmt = this.db.prepare(`
-        SELECT c.id, c.name, c.bio, ac.role
-        FROM creators c
-        JOIN artwork_creators ac ON c.id = ac.creator_id
-        WHERE ac.artwork_id = ?
-        ORDER BY ac.created_at ASC
+        SELECT a.id, a.name, aa.role
+        FROM artists a
+        JOIN artwork_artists aa ON a.id = aa.artist_id
+        WHERE aa.artwork_id = ? AND a.status = 'active'
+        ORDER BY aa.created_at ASC
       `);
 
       const results = await stmt.bind(artworkId).all();
-      return (results.results as unknown[]).map(
-        (rowRaw): ArtworkCreatorInfo => {
-          const row = rowRaw as {
-            id: string;
-            name: string;
-            bio: string | null;
-            role: string;
-          };
-          return {
-            id: row.id,
-            name: row.name,
-            bio: row.bio,
-            role: row.role,
-          };
-        }
-      );
+      return results.results as unknown as { id: string; name: string; role: string }[];
     } catch (error) {
-      // Return empty array if creators tables don't exist yet
-      console.warn('Creators tables not found, returning empty creators list:', error);
+      // Return empty array if artist tables don't exist yet
+      console.warn('Artist tables not found, returning empty artists list:', error);
       return [];
     }
   }
@@ -672,18 +611,7 @@ export class DatabaseService {
       .replace(/[^\w\s-]/g, ''); // Remove punctuation except hyphens
   }
 
-  async getArtworksForCreator(creatorId: string): Promise<ArtworkRecord[]> {
-    const stmt = this.db.prepare(`
-      SELECT a.*
-      FROM artwork a
-      JOIN artwork_creators ac ON a.id = ac.artwork_id
-      WHERE ac.creator_id = ?
-      ORDER BY a.created_at DESC
-    `);
-
-    const results = await stmt.bind(creatorId).all();
-    return results.results as unknown as ArtworkRecord[];
-  }
+  // Legacy getArtworksForCreator function removed - used non-existent artwork_creators table
 }
 
 // Helper function to create database service instance
@@ -827,44 +755,10 @@ export function getPhotosFromArtwork(artwork: ArtworkRecord): string[] {
 // Creator Helper Functions
 // ================================
 
-export async function createCreator(db: D1Database, data: CreateCreatorRequest): Promise<string> {
-  const service = createDatabaseService(db);
-  return service.createCreator(data);
-}
-
-export async function findCreatorById(db: D1Database, id: string): Promise<CreatorRecord | null> {
-  const service = createDatabaseService(db);
-  return service.getCreatorById(id);
-}
-
-export async function findCreatorByName(
-  db: D1Database,
-  name: string
-): Promise<CreatorRecord | null> {
-  const service = createDatabaseService(db);
-  return service.getCreatorByName(name);
-}
-
-export async function linkArtworkToCreator(
-  db: D1Database,
-  data: CreateArtworkCreatorRequest
-): Promise<string> {
-  const service = createDatabaseService(db);
-  return service.linkArtworkToCreator(data);
-}
-
 export async function getCreatorsForArtwork(
   db: D1Database,
   artworkId: string
-): Promise<ArtworkCreatorInfo[]> {
+): Promise<{ id: string; name: string; role: string }[]> {
   const service = createDatabaseService(db);
   return service.getCreatorsForArtwork(artworkId);
-}
-
-export async function getArtworksForCreator(
-  db: D1Database,
-  creatorId: string
-): Promise<ArtworkRecord[]> {
-  const service = createDatabaseService(db);
-  return service.getArtworksForCreator(creatorId);
 }
