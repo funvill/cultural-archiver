@@ -14,7 +14,6 @@ import {
   updateLogbookPhotos,
   findNearbyArtworks,
   findLogbookById,
-  insertTags,
   findArtworkById,
   updateArtworkPhotos,
   getPhotosFromArtwork,
@@ -159,7 +158,7 @@ export async function getReviewQueue(
         s.*,
         COUNT(*) OVER() as total_count
       FROM submissions s
-      WHERE s.status = ? AND s.submission_type = 'logbook'
+      WHERE s.status = ? AND s.submission_type = 'logbook_entry'
       ORDER BY s.created_at ASC
       LIMIT ? OFFSET ?
     `);
@@ -523,20 +522,8 @@ export async function approveSubmission(
       }
     }
 
-    // Add tags from submission to artwork
-    if (submission.tags) {
-      const tags = JSON.parse(submission.tags);
-      const tagEntries = Object.entries(tags).map(([label, value]) => ({
-        label,
-        value: String(value),
-        artwork_id: finalArtworkId,
-        logbook_id: null,
-      }));
-
-      if (tagEntries.length > 0) {
-        await insertTags(c.env.DB, tagEntries);
-      }
-    }
+    // Tags are already stored in the artwork's JSON tags field during artwork creation
+    // No separate tag insertion needed since we use JSON-based tag storage
 
     // Update submission status
     await updateLogbookStatus(c.env.DB, submissionId, 'approved', finalArtworkId);

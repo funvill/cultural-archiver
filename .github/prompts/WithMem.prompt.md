@@ -1,36 +1,26 @@
 ---
-model: Claude Sonnet 4
 description: 'Fix a complex issue with memory'
-LastUpdate: 2025-Sep-13
+LastUpdate: 2025-Sep-15
 Author: Steven Smethurst
 ---
 
 ## Purpose
 
-Create and maintain a progress file while resovling this issue or implementing this f feature. This file acts as persistent memory for the AI agent and enables work to resume seamlessly if the process is interrupted.
+Create and maintain a progress file while resovling this. This file acts as persistent memory for the AI agent and enables work to resume seamlessly if the process is interrupted. This is a handoff document
 
 ## Responsibilities
 
-- Break the PRD into **major tasks**, each containing **smaller sub-tasks**.
+- Break the task into **major tasks**, each containing **smaller sub-tasks**.
 - Track progress using checkboxes:
   - `[ ]` for incomplete tasks
-  - `[x]` for completed tasks
+  - `[X]` for completed tasks
 - After completing each major task:
   - Write a **summary** describing what has been accomplished.
   - Update the progress file with the latest task status and notes.
 - [ ] `npm run test` passes with 0 failures
 - [ ] `npm run build` completes with 0 errors
+- The document should include enugh information that this task can be "handed off" to another devloper.
 
-## Progress File Requirements
-
-The progress file must include:
-
-- Planning details necessary to implement the PRD
-- A hierarchical task list:
-  - Major tasks
-  - Sub-tasks under each major task
-- Task progress using markdown checkboxes
-- Periodic summaries and observations during PRD implementation
 
 ## Output Instructions
 

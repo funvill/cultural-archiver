@@ -13,11 +13,13 @@ zone_name = "abluestar.com"
 binding = "DB"
 database_name = "cultural-archiver"
 database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"
+migrations_dir = "./migrations"
 
 [[env.production.d1_databases]]
 binding = "DB"
 database_name = "cultural-archiver"
 database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"
+migrations_dir = "./migrations"
 
 # KV namespace bindings
 [[env.development.kv_namespaces]]

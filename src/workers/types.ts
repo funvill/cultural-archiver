@@ -61,6 +61,7 @@ export interface CreateArtworkRequest {
   lat: number;
   lon: number;
   tags?: Record<string, unknown>;
+  photos?: string | null;
   status?: ArtworkRecord['status'];
   title?: string;
   description?: string;

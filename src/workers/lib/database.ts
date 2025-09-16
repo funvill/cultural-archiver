@@ -32,10 +32,10 @@ export class DatabaseService {
     const id = generateUUID();
     const now = new Date().toISOString();
 
-    // For MVP, we'll add photos as NULL since the current schema doesn't have it
+    // Insert artwork with all available fields including photos
     const stmt = this.db.prepare(`
-      INSERT INTO artwork (id, lat, lon, created_at, status, tags, title, description, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO artwork (id, lat, lon, created_at, status, tags, photos, title, description, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const tagsJson = data.tags ? JSON.stringify(data.tags) : null;
@@ -47,6 +47,7 @@ export class DatabaseService {
       now, 
       status, 
       tagsJson,
+      data.photos || null,
       data.title || null,
       data.description || null, 
       data.created_by || null
@@ -344,14 +345,48 @@ export class DatabaseService {
     const id = generateUUID();
     const now = new Date().toISOString();
 
-    const stmt = this.db.prepare(`
-      INSERT INTO tags (id, artwork_id, logbook_id, label, value, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    await stmt
-      .bind(id, data.artwork_id || null, data.logbook_id || null, data.label, data.value, now)
-      .run();
+    if (data.artwork_id) {
+      // Get current tags from artwork
+      const artworkStmt = this.db.prepare('SELECT tags FROM artwork WHERE id = ?');
+      const artwork = await artworkStmt.bind(data.artwork_id).first() as { tags?: string } | null;
+      
+      let currentTags: Record<string, string | number | boolean> = {};
+      if (artwork?.tags) {
+        try {
+          currentTags = JSON.parse(artwork.tags);
+        } catch (e) {
+          console.warn('Failed to parse existing artwork tags', e);
+        }
+      }
+      
+      // Add new tag
+      currentTags[data.label] = data.value;
+      
+      // Update artwork with new tags (artwork table doesn't have updated_at column)
+      const updateStmt = this.db.prepare('UPDATE artwork SET tags = ? WHERE id = ?');
+      await updateStmt.bind(JSON.stringify(currentTags), data.artwork_id).run();
+      
+    } else if (data.logbook_id) {
+      // Get current tags from submission/logbook
+      const logbookStmt = this.db.prepare('SELECT tags FROM submissions WHERE id = ?');
+      const logbook = await logbookStmt.bind(data.logbook_id).first() as { tags?: string } | null;
+      
+      let currentTags: Record<string, string | number | boolean> = {};
+      if (logbook?.tags) {
+        try {
+          currentTags = JSON.parse(logbook.tags);
+        } catch (e) {
+          console.warn('Failed to parse existing logbook tags', e);
+        }
+      }
+      
+      // Add new tag
+      currentTags[data.label] = data.value;
+      
+      // Update submission with new tags (submissions table has updated_at column)
+      const updateSubmissionStmt = this.db.prepare('UPDATE submissions SET tags = ?, updated_at = datetime("now") WHERE id = ?');
+      await updateSubmissionStmt.bind(JSON.stringify(currentTags), data.logbook_id).run();
+    }
 
     return {
       id,
