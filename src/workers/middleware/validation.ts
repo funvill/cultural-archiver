@@ -104,7 +104,7 @@ export const submissionSchema = z.object({
     .number()
     .min(-180, 'Longitude must be between -180 and 180')
     .max(180, 'Longitude must be between -180 and 180'),
-  note: z
+  notes: z
     .string()
     .optional(),
   type: z.string().optional(),
@@ -863,7 +863,7 @@ export async function validateSubmissionFormData(
       const validatedData = {
         lat: parseFloat(latValue!),
         lon: parseFloat(lonValue!),
-        ...(note && { note }),
+        ...(note && { notes: note }),
       };
 
       c.set('validated_body', validatedData);

@@ -1280,7 +1280,7 @@ export interface SubmissionRecord {
   submission_type: 'new_artwork' | 'artwork_edit' | 'artwork_photos' | 'new_artist' | 'artist_edit';
   field_changes: string | null; // JSON: {"title": {"old": "...", "new": "..."}}
   photos: string | null; // JSON array: ["url1", "url2"]
-  note: string | null;
+  notes: string | null;
   lat: number | null;
   lon: number | null;
   
