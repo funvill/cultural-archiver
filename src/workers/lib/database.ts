@@ -34,8 +34,8 @@ export class DatabaseService {
 
     // Insert artwork with all available fields including photos
     const stmt = this.db.prepare(`
-      INSERT INTO artwork (id, lat, lon, created_at, status, tags, photos, title, description, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO artwork (id, lat, lon, created_at, updated_at, status, tags, photos, title, description, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const tagsJson = data.tags ? JSON.stringify(data.tags) : null;
@@ -45,6 +45,7 @@ export class DatabaseService {
       data.lat, 
       data.lon, 
       now, 
+      now, // updated_at
       status, 
       tagsJson,
       data.photos || null,

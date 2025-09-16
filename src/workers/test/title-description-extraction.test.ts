@@ -81,6 +81,7 @@ describe('Title/Description Extraction Fix', () => {
       49.258, // lat
       -123.074, // lon
       expect.any(String), // created_at (ISO string)
+      expect.any(String), // updated_at (ISO string)
       'approved', // status
       expect.stringContaining('material'), // tags (JSON string)
       null, // photos (null for this test)
@@ -116,6 +117,7 @@ describe('Title/Description Extraction Fix', () => {
       49.258, // lat
       -123.074, // lon
       expect.any(String), // created_at
+      expect.any(String), // updated_at
       'approved', // status
       expect.stringContaining('material'), // tags
       null, // photos - null for this test
@@ -151,11 +153,11 @@ describe('Title/Description Extraction Fix', () => {
 
     // Assert: Verify the complete flow worked
     const bindCall = mockBind.mock.calls[0];
-    expect(bindCall[5]).toContain('bronze'); // tags JSON contains original tag data (index 5)
-    expect(bindCall[6]).toBe(null); // photos field (index 6)
-    expect(bindCall[7]).toBe('Test Artwork Title'); // title extracted (index 7)
-    expect(bindCall[8]).toBe('Test artwork description with details'); // description extracted (index 8)
-    expect(bindCall[9]).toBe('Test Artist'); // created_by extracted (index 9)
+    expect(bindCall[6]).toContain('bronze'); // tags JSON contains original tag data (index 6 after adding updated_at)
+    expect(bindCall[7]).toBe(null); // photos field (index 7)
+    expect(bindCall[8]).toBe('Test Artwork Title'); // title extracted (index 8)
+    expect(bindCall[9]).toBe('Test artwork description with details'); // description extracted (index 9)
+    expect(bindCall[10]).toBe('Test Artist'); // created_by extracted (index 10)
   });
 
   it('should demonstrate the approval process title/description extraction pattern', () => {
