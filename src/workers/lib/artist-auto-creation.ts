@@ -204,7 +204,7 @@ export class ArtistAutoCreationService {
     artworkData: RawImportData,
     _config: ArtistAutoCreationConfig // Prefix with underscore to indicate intentionally unused
   ): Promise<string> {
-    const artistId = crypto.randomUUID();
+    const artistId = generateUUID();
     const timestamp = new Date().toISOString();
 
     // Build artist tags from source data
