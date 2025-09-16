@@ -17,10 +17,10 @@ import type {
   AuditLogsResponse,
   AuditStatistics,
   NearbyArtworksResponse,
-  UserSubmissionInfo,
   GenerateDataDumpResponse,
   ListDataDumpsResponse,
   ArtworkEditReviewData,
+  UserSubmissionsResponse,
 } from '../../../shared/types';
 import type { UserProfile, ReviewQueueItem, ReviewStats, ArtworkDetails } from '../types';
 import { getApiBaseUrl } from '../utils/api-config';
@@ -39,11 +39,7 @@ interface MagicLinkConsumeRequest {
   token: string;
 }
 
-interface VerificationStatus {
-  email_verified: boolean;
-  email?: string;
-  verification_sent_at?: string;
-}
+
 
 // Configuration
 const API_BASE_URL = getApiBaseUrl();
@@ -350,8 +346,9 @@ export const apiService = {
     formData.append('lat', submission.lat.toString());
     formData.append('lon', submission.lon.toString());
 
+    // Use 'notes' field name (accept legacy 'note' elsewhere)
     if (submission.note) {
-      formData.append('note', submission.note);
+      formData.append('notes', submission.note);
     }
 
     if (submission.type) {
@@ -572,39 +569,8 @@ export const apiService = {
   /**
    * Get user submissions
    */
-  async getUserSubmissions(
-    status?: string,
-    page: number = 1,
-    limit: number = 20
-  ): Promise<PaginatedResponse<UserSubmissionInfo>> {
-    const params: Record<string, string> = {
-      page: page.toString(),
-      per_page: limit.toString(),
-    };
-
-    if (status) {
-      params.status = status;
-    }
-
-    const response = await client.get<
-      ApiResponse<{
-        submissions: UserSubmissionInfo[];
-        total: number;
-        page: number;
-        per_page: number;
-      }>
-    >('/me/submissions', params);
-
-    // Transform backend response to shared PaginatedResponse format
-    return {
-      items: response.data?.submissions || [],
-      total: response.data?.total || 0,
-      page: response.data?.page || page,
-      per_page: response.data?.per_page || limit,
-      has_more: response.data
-        ? response.data.page * response.data.per_page < response.data.total
-        : false,
-    };
+  async getUserSubmissions(): Promise<ApiResponse<UserSubmissionsResponse>> {
+    return client.get('/user/submissions');
   },
 
   /**
@@ -696,53 +662,7 @@ export const apiService = {
     return client.post('/auth/logout');
   },
 
-  // Legacy endpoints for backward compatibility (deprecated)
-  /**
-   * @deprecated Use verifyMagicLink instead
-   */
-  async consumeMagicLink(request: MagicLinkConsumeRequest): Promise<{
-    success: boolean;
-    message: string;
-    user: {
-      uuid: string;
-      email: string;
-      created_at: string;
-      email_verified_at: string;
-    };
-    session: {
-      token: string;
-      expires_at: string;
-    };
-    uuid_replaced: boolean;
-    is_new_account: boolean;
-  }> {
-    const response = await this.verifyMagicLink(request);
-    if (!response.data) {
-      throw new Error('Magic link verification failed');
-    }
-    return response.data;
-  },
 
-  /**
-   * @deprecated Use getAuthStatus instead
-   */
-  async getVerificationStatus(): Promise<ApiResponse<VerificationStatus>> {
-    const status = await this.getAuthStatus();
-    const userData = status.data?.user;
-    const verificationStatus: VerificationStatus = {
-      email_verified: status.data?.is_authenticated || false,
-    };
-
-    if (userData?.email) {
-      verificationStatus.email = userData.email;
-    }
-
-    return {
-      success: true,
-      data: verificationStatus,
-      timestamp: new Date().toISOString(),
-    };
-  },
 
   // ================================
   // Review/Moderation Endpoints
@@ -791,13 +711,6 @@ export const apiService = {
   },
 
   /**
-   * Approve submission (legacy method)
-   */
-  async approveSubmission(id: string, reason?: string): Promise<ApiResponse<{ message: string }>> {
-    return client.post(`/review/approve/${id}`, { reason });
-  },
-
-  /**
    * Reject submission
    */
   async rejectSubmission(id: string, reason?: string): Promise<ApiResponse<{ message: string }>> {
@@ -807,7 +720,7 @@ export const apiService = {
   /**
    * Get review statistics
    */
-  async getReviewStats(): Promise<ReviewStats> {
+  async getReviewStats(): Promise<ApiResponse<ReviewStats>> {
     return client.get('/review/stats');
   },
 

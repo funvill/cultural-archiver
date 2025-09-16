@@ -9,6 +9,7 @@ import type {
   ExporterPlugin,
   ExporterConfig,
   ExportResult,
+  ExportRecordResult,
 } from '../types/plugin.js';
 import type { RawImportData, ValidationResult } from '../types/index.js';
 
@@ -57,8 +58,10 @@ interface BatchApiResponse {
   totalRecords: number;
   successfulRecords: number;
   failedRecords: number;
+  duplicateRecords: number; // Track duplicate records separately
   responses: ApiResponse[];
   errors: string[];
+  processedRecords: ExportRecordResult[]; // Add detailed record results
 }
 
 // ================================
@@ -98,6 +101,12 @@ export class ApiExporter implements ExporterPlugin {
       logResponses: false,
       ...options,
     } as ApiExporterOptions;
+    
+    // If verbose is true, enable request and response logging
+    if (this.options.verbose) {
+      this.options.logRequests = true;
+      this.options.logResponses = true;
+    }
     
     console.log(`🔧 API Exporter configured:`, this.options);
   }
@@ -213,10 +222,20 @@ export class ApiExporter implements ExporterPlugin {
         recordsSuccessful: batchResult.successfulRecords,
         recordsFailed: batchResult.failedRecords,
         recordsSkipped: 0,
+        recordsDuplicate: batchResult.duplicateRecords,
+        details: {
+          processedRecords: batchResult.processedRecords,
+          timing: {
+            startTime: new Date(startTime),
+            endTime: new Date(),
+            duration: processingTime
+          },
+          configuration: this.config
+        },
         ...(batchResult.errors.length > 0 && {
           errors: batchResult.errors.map(error => ({ field: 'api', message: error, severity: 'error' as const }))
         }),
-        summary: `API export: ${batchResult.successfulRecords}/${batchResult.totalRecords} records successful (${processingTime}ms)`,
+        summary: `API export: ${batchResult.successfulRecords}/${batchResult.totalRecords} records successful, ${batchResult.duplicateRecords} duplicates (${processingTime}ms)`,
       };
       
     } catch (error) {
@@ -229,6 +248,7 @@ export class ApiExporter implements ExporterPlugin {
         recordsSuccessful: 0,
         recordsFailed: data.length,
         recordsSkipped: 0,
+        recordsDuplicate: 0,
         errors: [{ field: 'export', message: errorMessage, severity: 'error' }],
         summary: `API export failed: ${errorMessage}`,
       };
@@ -265,8 +285,10 @@ export class ApiExporter implements ExporterPlugin {
     
     let totalSuccessful = 0;
     let totalFailed = 0;
+    let totalDuplicates = 0; // Track duplicates
     const allResponses: ApiResponse[] = [];
     const allErrors: string[] = [];
+    const processedRecords: ExportRecordResult[] = [];
     
     for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
       const startIndex = batchIndex * batchSize;
@@ -278,12 +300,52 @@ export class ApiExporter implements ExporterPlugin {
       try {
         const batchResponses = await this.processBatch(batchData);
         
-        for (const response of batchResponses) {
+        // Process responses and build detailed results
+        for (let i = 0; i < batchResponses.length; i++) {
+          const response = batchResponses[i];
+          const record = batchData[i];
+          if (!response || !record) continue;
+          
           allResponses.push(response);
+          
+          // Generate external ID for tracking
+          const externalId = `batch_${batchIndex}_record_${i}`;
+          
           if (response.success) {
-            totalSuccessful++;
+            // Debug: Log response data to understand the structure
+            if (this.options.verbose) {
+              console.log(`🔍 DEBUG: Response data for record ${i}:`, JSON.stringify(response.data, null, 2));
+            }
+            
+            // Check if this is a duplicate detection from the API
+            if (this.isDuplicateResponse(response)) {
+              totalDuplicates++;
+              processedRecords.push({
+                externalId,
+                status: 'skipped',
+                reason: 'duplicate',
+                recordData: record
+              });
+              
+              if (this.options.verbose) {
+                console.log(`✅ Detected duplicate for record ${i}`);
+              }
+            } else {
+              totalSuccessful++;
+              processedRecords.push({
+                externalId,
+                status: 'success',
+                recordData: record
+              });
+            }
           } else {
             totalFailed++;
+            processedRecords.push({
+              externalId,
+              status: 'failed',
+              error: response.error || 'Unknown API error',
+              recordData: record
+            });
             if (response.error) {
               allErrors.push(response.error);
             }
@@ -295,12 +357,24 @@ export class ApiExporter implements ExporterPlugin {
         totalFailed += batchData.length;
         allErrors.push(`Batch ${batchIndex + 1}: ${error instanceof Error ? error.message : String(error)}`);
         
-        // Add failed responses for each record in the batch
+        // Add failed responses and records for each record in the batch
         for (let i = 0; i < batchData.length; i++) {
+          const record = batchData[i];
+          if (!record) continue;
+          
+          const externalId = `batch_${batchIndex}_record_${i}`;
+          
           allResponses.push({
             success: false,
             statusCode: 0,
             ...(error instanceof Error && { error: `Batch processing failed: ${error.message}` }),
+          });
+          
+          processedRecords.push({
+            externalId,
+            status: 'failed',
+            error: error instanceof Error ? error.message : 'Batch processing failed',
+            recordData: record
           });
         }
       }
@@ -310,8 +384,10 @@ export class ApiExporter implements ExporterPlugin {
       totalRecords: data.length,
       successfulRecords: totalSuccessful,
       failedRecords: totalFailed,
+      duplicateRecords: totalDuplicates,
       responses: allResponses,
       errors: allErrors,
+      processedRecords
     };
   }
 
@@ -350,13 +426,89 @@ export class ApiExporter implements ExporterPlugin {
     }
     
     const method = this.config.method ?? 'POST';
-    const payload = { record };
+    
+    // Transform the record to match the mass-import v2 API format
+    const payload = this.transformToApiFormat(record);
     
     if (this.options.logRequests && this.options.verbose) {
       console.log(`📤 ${method} ${this.config.apiEndpoint}:`, payload);
     }
     
     return await this.makeRequestWithRetry(this.config.apiEndpoint, method, payload);
+  }
+
+  /**
+   * Check if API response indicates a duplicate was detected
+   * Based on the mass-import API v2 response format where duplicates return success but 0 records processed
+   */
+  private isDuplicateResponse(response: ApiResponse): boolean {
+    if (!response.success || !response.data) {
+      return false;
+    }
+    
+    try {
+      const data = response.data as Record<string, unknown>;
+      
+      // Handle nested response structure: response.data.data.summary
+      let summary = data.summary as Record<string, unknown>;
+      if (!summary && data.data) {
+        const nestedData = data.data as Record<string, unknown>;
+        summary = nestedData.summary as Record<string, unknown>;
+      }
+      
+      if (summary) {
+        // If this batch had duplicates and no successes, it's a duplicate response
+        const totalDuplicates = Number(summary.totalDuplicates) || 0;
+        const totalSucceeded = Number(summary.totalSucceeded) || 0;
+        
+        return totalDuplicates > 0 && totalSucceeded === 0;
+      }
+      
+      // Fallback: check for older API format with "duplicate" message
+      return typeof data.message === 'string' && 
+             data.message.toLowerCase().includes('duplicate');
+    } catch {
+      return false;
+    }
+  }
+
+  private transformToApiFormat(record: RawImportData | Record<string, unknown>): unknown {
+    // Transform single record to mass-import v2 API format
+    const recordData = record as Record<string, unknown>;
+    
+    // Generate a unique import ID for this batch
+    const importId = `mass-import-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    
+    return {
+      metadata: {
+        importId,
+        source: {
+          pluginName: 'mass-import-system',
+          pluginVersion: '1.0.0',
+          originalDataSource: String(recordData.source || 'unknown')
+        },
+        timestamp: new Date().toISOString()
+      },
+      config: {
+        duplicateThreshold: 0.7,
+        enableTagMerging: true,
+        createMissingArtists: true,
+        batchSize: 1
+      },
+      data: {
+        artworks: [{
+          title: String(recordData.title || ''),
+          description: String(recordData.description || ''),
+          lat: Number(recordData.lat),
+          lon: Number(recordData.lon),
+          artist: String(recordData.artist || ''),
+          source: String(recordData.source || ''),
+          externalId: String(recordData.externalId || ''),
+          tags: (recordData.tags as Record<string, unknown>) || {},
+          photos: (recordData.photos as unknown[]) || []
+        }]
+      }
+    };
   }
 
   private async makeRequestWithRetry(url: string, method: string, data: unknown): Promise<ApiResponse> {

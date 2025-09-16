@@ -341,7 +341,7 @@ export const OSMMapper: DataSourceMapper = {
       // Create config for validation
       const config = {
         apiEndpoint: 'https://art-api.abluestar.com',
-        massImportUserToken: '00000000-0000-0000-0000-000000000002',
+        massImportUserToken: 'a0000000-1000-4000-8000-000000000002', // MASS_IMPORT_USER_UUID from shared/constants.ts
         batchSize: 50,
         maxRetries: 3,
         retryDelay: 1000,

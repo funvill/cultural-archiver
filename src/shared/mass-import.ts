@@ -5,6 +5,8 @@
  * with duplicate detection, structured tagging, and bulk approval workflows.
  */
 
+import { MASS_IMPORT_USER_UUID } from './constants';
+
 export interface MassImportConfig {
   /** Data source identifier (e.g., 'vancouver-public-art') */
   source: string;
@@ -446,7 +448,7 @@ export const MASS_IMPORT_CONSTANTS = {
   DEFAULT_PHOTO_TIMEOUT_SECONDS: 30,
   
   /** Mass import user UUID */
-  MASS_IMPORT_USER_UUID: '00000000-0000-0000-0000-000000000002',
+  MASS_IMPORT_USER_UUID,
   
   /** Required tags for all mass imports */
   REQUIRED_IMPORT_TAGS: [
@@ -477,3 +479,211 @@ export const MASS_IMPORT_CONSTANTS = {
     APPROVAL_SUMMARY: '{source}-approval-{date}.json'
   }
 } as const;
+
+// ================================
+// Mass Import V2 API Types
+// ================================
+
+/**
+ * RawImportData schema compatible with CLI plugin system
+ * This matches the output format from CLI importers/plugins
+ */
+export interface RawImportData {
+  // Core location and identification
+  lat: number; // -90 to 90
+  lon: number; // -180 to 180
+  title: string; // 1-200 chars
+  description?: string; // max 1000 chars
+  
+  // Artist and creation info
+  artist?: string; // max 500 chars
+  created_by?: string; // max 500 chars
+  yearOfInstallation?: string;
+  
+  // Physical properties
+  material?: string; // max 200 chars
+  type?: string; // max 100 chars
+  
+  // Location details
+  address?: string; // max 500 chars
+  neighborhood?: string; // max 200 chars
+  siteName?: string; // max 300 chars
+  
+  // Photos
+  photos?: Array<{
+    url: string; // valid URL
+    caption?: string;
+    credit?: string;
+    filename?: string;
+  }>;
+  primaryPhotoUrl?: string; // valid URL
+  
+  // Attribution and tracking
+  source: string; // Required: data source identifier, max 100 chars
+  sourceUrl?: string; // valid URL
+  externalId?: string; // max 200 chars
+  license?: string; // max 200 chars
+  
+  // Additional metadata
+  tags?: Record<string, string | number | boolean>;
+  status?: 'active' | 'inactive' | 'removed' | 'unknown';
+}
+
+/**
+ * Mass Import Request V2 - Complete rewrite for unified submissions system
+ */
+export interface MassImportRequestV2 {
+  metadata: {
+    importId: string; // UUID for tracking this import batch
+    source: {
+      pluginName: string;
+      pluginVersion?: string;
+      originalDataSource: string; // e.g., "vancouver-open-data"
+    };
+    timestamp: string; // ISO 8601 timestamp
+  };
+  config: {
+    duplicateThreshold: number; // Default: 0.7
+    enableTagMerging: boolean; // Default: true
+    createMissingArtists: boolean; // Default: true
+    batchSize: number; // Default: 10, max: 10
+    // Optional deduplication weights override
+    duplicateWeights?: {
+      gps: number; // default: 0.6
+      title: number; // default: 0.25
+      artist: number; // default: 0.2
+      referenceIds: number; // default: 0.5
+      tagSimilarity: number; // default: 0.05
+    };
+  };
+  data: {
+    artworks?: Array<RawImportData>;
+    artists?: Array<RawImportData>;
+  };
+}
+
+/**
+ * Detailed deduplication scoring breakdown
+ */
+export interface DuplicationScore {
+  gps: number;
+  title: number;
+  artist: number;
+  referenceIds: number;
+  tagSimilarity: number;
+  total: number;
+}
+
+/**
+ * Validation error for specific fields
+ */
+export interface ValidationError {
+  field: string;
+  message: string;
+  code: string;
+}
+
+/**
+ * Mass Import Response V2 - Comprehensive response format
+ */
+export interface MassImportResponseV2 {
+  importId: string;
+  summary: {
+    totalRequested: number;
+    totalProcessed: number;
+    totalSucceeded: number;
+    totalFailed: number;
+    totalDuplicates: number;
+    processingTimeMs: number;
+  };
+  results: {
+    artworks: {
+      created: Array<{ 
+        id: string; // UUID of created artwork
+        title: string; 
+        submissionId: string;
+      }>;
+      duplicates: Array<{
+        title: string;
+        existingId: string;
+        confidenceScore: number;
+        scoreBreakdown: DuplicationScore;
+        error: "DUPLICATE_DETECTED";
+      }>;
+      failed: Array<{
+        title: string;
+        error: string;
+        validationErrors?: ValidationError[];
+      }>;
+    };
+    artists: {
+      created: Array<{ 
+        id: string; // UUID of created artist
+        name: string; 
+        submissionId: string;
+      }>;
+      autoCreated: Array<{
+        id: string; // UUID of auto-created artist
+        name: string;
+        reason: string;
+        sourceArtworkId: string;
+      }>;
+      duplicates: Array<{
+        name: string;
+        existingId: string;
+        confidenceScore: number;
+        error: "DUPLICATE_DETECTED";
+      }>;
+      failed: Array<{
+        name: string;
+        error: string;
+      }>;
+    };
+  };
+  auditTrail: {
+    importStarted: string;
+    importCompleted: string;
+    batchesProcessed: number;
+    tagsMerged: number;
+    photosDownloaded: number;
+    photosUploaded: number;
+    systemUserToken: string;
+  };
+}
+
+/**
+ * Artist auto-creation configuration
+ */
+export interface ArtistAutoCreationConfig {
+  createMissingArtists: boolean;
+  similarityThreshold: number; // default: 0.95 for strong matches
+  autoLinkArtwork: boolean; // default: true
+}
+
+/**
+ * Mass import system configuration with defaults
+ */
+export interface MassImportSystemConfig {
+  defaultUserToken: string; // UUID for mass import system user
+  autoApprove: boolean; // Always true for mass imports
+  requireConsent: boolean; // False for mass imports (system content)
+  timeoutMs: number; // 1-minute maximum processing time per import
+  maxBatchSize: number; // Maximum 10 records per batch
+}
+
+/**
+ * Import error types for structured error handling
+ */
+export interface ImportErrorV2 {
+  recordIndex: number;
+  recordType: 'artwork' | 'artist';
+  recordTitle: string;
+  errorType: 'validation' | 'duplicate' | 'database' | 'network';
+  errorMessage: string;
+  validationErrors?: Array<{
+    field: string;
+    message: string;
+    code: string;
+  }>;
+  suggestedFix?: string;
+}

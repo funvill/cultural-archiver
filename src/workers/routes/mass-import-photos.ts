@@ -11,7 +11,7 @@ import type { WorkerEnv } from '../types';
 import { createSuccessResponse, ValidationApiError, ApiError } from '../lib/errors';
 import { processAndUploadPhotos } from '../lib/photos';
 import { createDatabaseService } from '../lib/database';
-import type { CreateLogbookEntryRequest } from '../types';
+import type { CreateSubmissionEntryRequest } from '../types'; // Fixed: was CreateLogbookEntryRequest
 import { CONSENT_VERSION } from '../../shared/consent';
 
 /**
@@ -149,11 +149,11 @@ export async function processMassImportPhotos(
       initialNote += payload.note;
     }
 
-    const logbookEntry: CreateLogbookEntryRequest = {
+    const logbookEntry: CreateSubmissionEntryRequest = { // Fixed: was CreateLogbookEntryRequest
       user_token: payload.user_token,
       lat: payload.lat,
       lon: payload.lon,
-      note: initialNote,
+      notes: initialNote,
       photos: processedPhotoUrls,
       consent_version: payload.consent_version || CONSENT_VERSION,
     };

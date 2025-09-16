@@ -265,8 +265,8 @@ async function getUserSubmissionStats(
         COUNT(*) as total_submissions,
         SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_submissions,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_submissions,
-        MIN(submitted_at) as first_submission_at,
-        MAX(submitted_at) as last_submission_at
+        MIN(created_at) as first_submission_at,
+        MAX(created_at) as last_submission_at
       FROM submissions 
       WHERE user_token = ? AND status != 'rejected'
     `);
@@ -388,7 +388,7 @@ export async function getUserActivity(
       SELECT COUNT(*) as count
       FROM submissions 
       WHERE user_token = ? 
-        AND submitted_at > datetime('now', '-30 days')
+        AND created_at > datetime('now', '-30 days')
         AND status != 'rejected'
     `);
 
@@ -404,7 +404,7 @@ export async function getUserActivity(
 
     // Get last submission time as proxy for last active
     const lastActiveStmt = db.db.prepare(`
-      SELECT MAX(submitted_at) as last_active
+      SELECT MAX(created_at) as last_active
       FROM submissions
       WHERE user_token = ?
     `);
@@ -546,9 +546,9 @@ async function getUserDetailedInfo(
 } | null> {
   try {
     const stmt = env.DB.prepare(`
-      SELECT id, email, created_at, updated_at
+      SELECT uuid, email, created_at, last_login, email_verified_at, status
       FROM users 
-      WHERE id = ?
+      WHERE uuid = ?
     `);
 
     const result = await stmt.bind(userToken).first();
@@ -559,12 +559,12 @@ async function getUserDetailedInfo(
 
     // Transform the result to match the expected format
     return {
-      uuid: result.id as string,
+      uuid: result.uuid as string,
       email: result.email as string | null,
-      email_verified: false, // Email verification not implemented in new schema
-      status: 'active', // Default status since not stored in new schema
+      email_verified: result.email_verified_at !== null,
+      status: result.status as string || 'active',
       created_at: result.created_at as string,
-      updated_at: result.updated_at as string | null,
+      updated_at: result.last_login as string | null,
     };
   } catch (error) {
     console.error('Error getting user detailed info:', error);
@@ -590,12 +590,12 @@ async function getUserPermissionsInfo(
 > {
   try {
     const stmt = env.DB.prepare(`
-      SELECT up.permission_type as permission, up.granted_at, up.granted_by,
-             u_granter.email as granted_by_email
-      FROM user_permissions up
-      LEFT JOIN users u_granter ON up.granted_by = u_granter.id
-      WHERE up.user_id = ?
-      ORDER BY up.granted_at DESC
+      SELECT ur.role as permission, ur.granted_at, ur.granted_by,
+             u_granter.email as granted_by_email, ur.revoked_at, ur.notes
+      FROM user_roles ur
+      LEFT JOIN users u_granter ON ur.granted_by = u_granter.uuid
+      WHERE ur.user_token = ? AND ur.is_active = 1
+      ORDER BY ur.granted_at DESC
     `);
 
     const results = await stmt.bind(userToken).all();
@@ -609,8 +609,6 @@ async function getUserPermissionsInfo(
           notes: string | null;
         }>).map(result => ({
           ...result,
-          revoked_at: null, // Not implemented in new schema
-          notes: null, // Not implemented in new schema
         }))
       : [];
   } catch (error) {

@@ -37,6 +37,7 @@ export class ReportTracker {
   private metadata: ReportMetadata | null = null;
   private startTime: Date;
   private recordStartTimes: Map<string, number> = new Map();
+  private duplicateCount: number = 0; // Track duplicate records
 
   constructor(enabled: boolean) {
     this.enabled = enabled;
@@ -189,6 +190,14 @@ export class ReportTracker {
     this.records.push(record);
   }
 
+  /**
+   * Set the count of duplicate records detected during export
+   */
+  setDuplicateCount(count: number): void {
+    if (!this.enabled) return;
+    this.duplicateCount = count;
+  }
+
   // ================================
   // Error Tracking
   // ================================
@@ -282,6 +291,7 @@ export class ReportTracker {
       failed,
       skipped,
       other,
+      duplicateRecords: this.duplicateCount,
       successRate: total > 0 ? (successful / total) * 100 : 0,
       processingTime: duration,
       averageRecordTime,

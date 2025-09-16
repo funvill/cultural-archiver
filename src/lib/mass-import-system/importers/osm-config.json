@@ -1,6 +1,6 @@
 {
   "defaultConfig": {
-    "user_uuid": "00000000-0000-0000-0000-000000000002",
+    "user_uuid": "a0000000-1000-4000-8000-000000000002",
     "duplicateThreshold": 0.7,
     "duplicateDetectionRadius": 10000,
     "attribution": {
@@ -22,7 +22,7 @@
     "presets": {
     "vancouver": {
       "description": "Configuration for Vancouver public art imports",
-      "user_uuid": "00000000-0000-0000-0000-000000000002",
+      "user_uuid": "a0000000-1000-4000-8000-000000000002",
       "duplicateThreshold": 0.8,
       "duplicateDetectionRadius": 10000,
       "attribution": {
@@ -47,7 +47,7 @@
     },
     "strict": {
       "description": "Strict validation for high-quality imports",
-      "user_uuid": "00000000-0000-0000-0000-000000000002", 
+      "user_uuid": "a0000000-1000-4000-8000-000000000002", 
       "duplicateThreshold": 0.9,
       "attribution": {
         "source": "OpenStreetMap",
@@ -69,7 +69,7 @@
     },
     "permissive": {
       "description": "Permissive validation for maximum data inclusion",
-      "user_uuid": "00000000-0000-0000-0000-000000000002",
+      "user_uuid": "a0000000-1000-4000-8000-000000000002",
       "duplicateThreshold": 0.5,
       "attribution": {
         "source": "OpenStreetMap", 

@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { insertArtwork } from '../lib/database';
 import type { ArtworkRecord } from '../types';
+import type { D1Database } from '@cloudflare/workers-types';
 
 describe('Title/Description Extraction Fix', () => {
   let mockDB: D1Database;
@@ -28,7 +29,12 @@ describe('Title/Description Extraction Fix', () => {
         changed_db: true,
       }
     });
-    mockBind = vi.fn().mockReturnValue({ run: mockRun });
+    
+    const mockFirst = vi.fn().mockResolvedValue(null); // Mock the .first() method
+    mockBind = vi.fn().mockReturnValue({ 
+      run: mockRun,
+      first: mockFirst
+    });
     mockPrepare = vi.fn().mockReturnValue({ bind: mockBind });
     
     mockDB = {
@@ -54,6 +60,7 @@ describe('Title/Description Extraction Fix', () => {
         year: '2009',
         condition: 'excellent'
       }),
+      photos: null, // No photos for this test
       title: 'Digital Orca Sculpture', // Extracted from submission tags
       description: 'A striking blue whale sculpture created by artist Douglas Coupland, resembling a digital pixelated orca whale.', // Extracted from submission tags
       created_by: 'Douglas Coupland' // Extracted from submission tags
@@ -68,14 +75,16 @@ describe('Title/Description Extraction Fix', () => {
     );
 
     // Assert: Verify all fields including title, description, and created_by were bound
-    // Note: Now expects the call without type_id parameter
-    expect(mockBind).toHaveBeenCalledWith(
+    // Note: The first call should be the artwork insertion with all fields
+    expect(mockBind).toHaveBeenNthCalledWith(1,
       expect.any(String), // id (UUID)
       49.258, // lat
       -123.074, // lon
       expect.any(String), // created_at (ISO string)
+      expect.any(String), // updated_at (ISO string)
       'approved', // status
       expect.stringContaining('material'), // tags (JSON string)
+      null, // photos (null for this test)
       'Digital Orca Sculpture', // title - THIS IS THE KEY FIX
       'A striking blue whale sculpture created by artist Douglas Coupland, resembling a digital pixelated orca whale.', // description - THIS IS THE KEY FIX
       'Douglas Coupland' // created_by - THIS IS THE KEY FIX
@@ -92,6 +101,7 @@ describe('Title/Description Extraction Fix', () => {
       lon: -123.074,
       status: 'approved',
       tags: JSON.stringify({ material: 'metal' }),
+      photos: null, // No photos for this test
       title: null,
       description: null,
       created_by: null
@@ -100,15 +110,17 @@ describe('Title/Description Extraction Fix', () => {
     // Act: Call insertArtwork with null values
     await insertArtwork(mockDB, artworkData);
 
-    // Assert: Verify the SQL was still called properly
+    // Assert: Verify the SQL was still called properly with first call being artwork insertion
     expect(mockPrepare).toHaveBeenCalled();
-    expect(mockBind).toHaveBeenCalledWith(
+    expect(mockBind).toHaveBeenNthCalledWith(1,
       expect.any(String), // id
       49.258, // lat
       -123.074, // lon
       expect.any(String), // created_at
+      expect.any(String), // updated_at
       'approved', // status
       expect.stringContaining('material'), // tags
+      null, // photos - null for this test
       null, // title should be null in database
       null, // description should be null in database
       null  // created_by should be null in database
@@ -130,6 +142,7 @@ describe('Title/Description Extraction Fix', () => {
       lon: -123.074,
       status: 'approved',
       tags: JSON.stringify(submissionTags),
+      photos: null, // No photos for this test
       title: submissionTags.title,
       description: submissionTags.description,
       created_by: submissionTags.artist
@@ -140,16 +153,17 @@ describe('Title/Description Extraction Fix', () => {
 
     // Assert: Verify the complete flow worked
     const bindCall = mockBind.mock.calls[0];
-    expect(bindCall[5]).toContain('bronze'); // tags JSON contains original tag data (index 5 instead of 6)
-    expect(bindCall[6]).toBe('Test Artwork Title'); // title extracted (index 6 instead of 7)
-    expect(bindCall[7]).toBe('Test artwork description with details'); // description extracted (index 7 instead of 8)
-    expect(bindCall[8]).toBe('Test Artist'); // created_by extracted (index 8 instead of 9)
+    expect(bindCall[6]).toContain('bronze'); // tags JSON contains original tag data (index 6 after adding updated_at)
+    expect(bindCall[7]).toBe(null); // photos field (index 7)
+    expect(bindCall[8]).toBe('Test Artwork Title'); // title extracted (index 8)
+    expect(bindCall[9]).toBe('Test artwork description with details'); // description extracted (index 9)
+    expect(bindCall[10]).toBe('Test Artist'); // created_by extracted (index 10)
   });
 
   it('should demonstrate the approval process title/description extraction pattern', () => {
     // This test demonstrates the pattern used in the approval process
     const submissionNote = JSON.stringify({
-      note: 'User submitted artwork',
+      notes: 'User submitted artwork',
       _submission: {
         lat: 49.258,
         lon: -123.074,

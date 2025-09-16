@@ -76,16 +76,155 @@ node dist/cli/cli-entry.js list-plugins
 node dist/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter json \
-  --input vancouver-data.json \
+  --input example-vancouver-data.json \
   --output processed-art.json
 
 # Import test data and display in console
 node dist/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter console \
-  --input test-data.json \
+  --input example-vancouver-data.json \
   --config test-config.json
+
+# Process only first 10 records for testing
+node dist/cli/cli-entry.js import \
+  --importer vancouver-public-art \
+  --exporter json \
+  --input example-vancouver-data.json \
+  --output sample.json \
+  --limit 10
+
+# Skip first 100 records and process next 50 (pagination)
+node dist/cli/cli-entry.js import \
+  --importer vancouver-public-art \
+  --exporter json \
+  --input example-vancouver-data.json \
+  --output batch2.json \
+  --offset 100 \
+  --limit 50
 ```
+
+#### Import to Database
+
+The system includes an `api` exporter that can import data directly into the Cultural Archiver database via the mass-import API endpoints.
+
+**Development Database Import:**
+
+```bash
+# Import to local development database (localhost:8787)
+node dist/cli/cli-entry.js import \
+  --importer vancouver-public-art \
+  --exporter api \
+  --input importers/public-art.json \
+  --config api-config.json \
+  --limit 10
+
+# Import with custom development configuration
+node dist/cli/cli-entry.js import \
+  --importer vancouver-public-art \
+  --exporter api \
+  --input importers/public-art.json \
+  --config '{"exporter":{"apiEndpoint":"http://localhost:8787/api/mass-import/v2","authentication":{"type":"bearer","token":"test-admin-token"}}}' \
+  --limit 5
+
+# Test import with dry-run (validate without importing)
+node dist/cli/cli-entry.js import \
+  --importer vancouver-public-art \
+  --exporter api \
+  --input importers/public-art.json \
+  --config api-config.json \
+  --limit 3 \
+  --dry-run
+```
+
+**Production Database Import:**
+
+```bash
+# Import to production database (art-api.abluestar.com)
+node dist/cli/cli-entry.js import \
+  --importer vancouver-public-art \
+  --exporter api \
+  --input importers/public-art.json \
+  --config '{"exporter":{"apiEndpoint":"https://art-api.abluestar.com/api/mass-import/v2","authentication":{"type":"bearer","token":"your-production-admin-token"},"timeout":60000,"retryAttempts":3}}' \
+  --limit 50
+
+# Production import with verbose logging
+node dist/cli/cli-entry.js import \
+  --importer vancouver-public-art \
+  --exporter api \
+  --input importers/public-art.json \
+  --config production-api-config.json \
+  --verbose \
+  --generate-report
+```
+
+**Configuration Files for Database Import:**
+
+Create environment-specific configuration files:
+
+*api-config.json* (Development):
+
+```json
+{
+  "exporter": {
+    "apiEndpoint": "http://localhost:8787/api/mass-import/v2",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "authentication": {
+      "type": "bearer",
+      "token": "test-admin-token"
+    },
+    "timeout": 30000,
+    "retryAttempts": 3,
+    "retryDelay": 1000,
+    "validateResponse": true,
+    "logRequests": true,
+    "logResponses": true
+  }
+}
+```
+
+*production-api-config.json* (Production):
+
+```json
+{
+  "exporter": {
+    "apiEndpoint": "https://art-api.abluestar.com/api/mass-import/v2",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "authentication": {
+      "type": "bearer",
+      "token": "system-admin-mass-import-token"
+    },
+    "timeout": 60000,
+    "retryAttempts": 5,
+    "retryDelay": 2000,
+    "validateResponse": true,
+    "logRequests": false,
+    "logResponses": false
+  }
+}
+```
+
+**Prerequisites for Database Import:**
+
+1. **Development Environment**: Ensure the development server is running:
+
+   ```bash
+   npm run dev  # Starts frontend and backend on localhost:8787
+   ```
+
+2. **Production Environment**: Requires valid admin authentication token for `art-api.abluestar.com`
+
+3. **Authentication**: The mass-import API requires admin-level bearer tokens:
+   - Development: `test-admin-token` (configured in local environment)
+   - Production: `system-admin-mass-import-token` (secure production token)
+
+4. **Rate Limits**: The API has built-in rate limiting and batch processing. Use smaller batch sizes for initial testing.
 
 #### Plugin Information
 
@@ -134,7 +273,7 @@ const result = await pipeline.process(inputData, {
 |--------|-------------|---------|-------------|
 | `json` | JSON file export with configurable formatting | 1.0.0 | File |
 | `console` | Console output with table/JSON formatting | 1.0.0 | Console |
-| `api` | REST API export with batch processing | 1.0.0 | HTTP API |
+| `api` | REST API export to Cultural Archiver database | 1.0.0 | HTTP API |
 
 ## 🛠️ Plugin Development
 
@@ -293,12 +432,14 @@ For detailed testing information, see [TESTING.md](./TESTING.md).
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--importer` | Importer plugin name | Required |
-| `--exporter` | Exporter plugin name | Required |
+| `--exporter` | Exporter plugin name (use `api` for database import) | Required |
 | `--input` | Input file path | stdin |
-| `--output` | Output file path | stdout |
-| `--config` | Configuration file | auto-detect |
+| `--output` | Output file path (not used for `api` exporter) | stdout |
+| `--config` | Configuration file path or JSON string | auto-detect |
 | `--batch-size` | Processing batch size | 50 |
-| `--dry-run` | Validate without processing | false |
+| `--limit` | Limit number of records to process | unlimited |
+| `--offset` | Skip first N records before processing | 0 |
+| `--dry-run` | Validate without processing (test mode) | false |
 | `--verbose` | Enable verbose logging | false |
 | `--generate-report` | Generate processing report | false |
 

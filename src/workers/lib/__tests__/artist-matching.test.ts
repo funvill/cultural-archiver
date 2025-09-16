@@ -33,12 +33,8 @@ const createMockDatabaseService = (): DatabaseService => ({
   deleteTag: vi.fn(),
   getArtworkTypes: vi.fn(),
   getArtworkTypeByName: vi.fn(),
-  createCreator: vi.fn(),
-  getCreatorById: vi.fn(),
-  getCreatorByName: vi.fn(),
-  linkArtworkToCreator: vi.fn(),
+  // Legacy creator functions removed
   getCreatorsForArtwork: vi.fn(),
-  getArtworksForCreator: vi.fn(),
   getArtistsForArtwork: vi.fn(),
 } as any);
 

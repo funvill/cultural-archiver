@@ -1,0 +1,21 @@
+{
+  "importer": {},
+  "exporter": {
+    "apiEndpoint": "https://art-api.abluestar.com/api/mass-import/v2",
+    "method": "POST",
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "authentication": {
+      "type": "bearer",
+      "token": "test-admin-token"
+    },
+    "timeout": 30000,
+    "retryAttempts": 3,
+    "retryDelay": 1000,
+    "validateResponse": true,
+    "transformData": false,
+    "logRequests": true,
+    "logResponses": true
+  }
+}

@@ -12,7 +12,7 @@ import type {
   ImporterConfig, 
   PluginMetadata
 } from '../types/plugin.js';
-import type { RawImportData, ValidationResult, ValidationError } from '../types/index.js';
+import type { RawImportData, ValidationResult, ValidationError, PhotoInfo } from '../types/index.js';
 
 // ================================
 // Plugin Configuration
@@ -63,6 +63,17 @@ interface VancouverArtworkRecord {
   url?: string;
   neighbourhood: string;
   ownership?: string;
+  photourl?: VancouverPhotoInfo;
+  photocredits?: string | null;
+  [key: string]: unknown;
+}
+
+interface VancouverPhotoInfo {
+  url: string;
+  filename: string;
+  width?: number;
+  height?: number;
+  mimetype?: string;
   [key: string]: unknown;
 }
 
@@ -235,6 +246,31 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
   // ================================
 
   /**
+   * Extract photos from Vancouver photourl field
+   */
+  private extractPhotos(record: VancouverArtworkRecord): PhotoInfo[] {
+    const photos: PhotoInfo[] = [];
+
+    // Check if photourl exists and has a URL
+    if (record.photourl?.url) {
+      const photoInfo: PhotoInfo = {
+        url: record.photourl.url,
+        filename: record.photourl.filename || undefined,
+        credit: record.photocredits || undefined,
+      };
+
+      // Add caption if we can derive one from the title or description
+      if (record.title_of_work) {
+        photoInfo.caption = `Photo of "${record.title_of_work}"`;
+      }
+
+      photos.push(photoInfo);
+    }
+
+    return photos;
+  }
+
+  /**
    * Map a single artwork record to standardized format
    */
   private async mapSingleRecord(record: VancouverArtworkRecord, config: VancouverPublicArtConfig): Promise<RawImportData> {
@@ -250,6 +286,9 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
     // Build comprehensive tags
     const tags = await this.buildComprehensiveTags(record, config.tagMappings);
 
+    // Extract photos from photourl field
+    const photos = this.extractPhotos(record);
+
     // Map core fields
     const mappedRecord: RawImportData = {
       lat: coordinates.lat,
@@ -260,7 +299,7 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
       source: 'vancouver-public-art',
       externalId: this.generateImportId(record),
       tags,
-      photos: [], // Photos will be processed separately if available
+      photos,
     };
 
     return mappedRecord;
@@ -336,7 +375,7 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
     
     // Add import source attribution
     if (record.registryid) {
-      parts.push(`\nImported from Vancouver Open Data (registryid: ${record.registryid})`);
+      parts.push(`\n\nImported from Vancouver Open Data (registryid: ${record.registryid})`);
     }
     
     return parts.join('\n\n');
@@ -366,7 +405,10 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
     for (const artistId of idsArray) {
       const artist = this.artistLookup.get(String(artistId));
       if (artist) {
-        const fullName = `${artist.firstname} ${artist.lastname}`.trim();
+        // Handle case where firstname might be null
+        const firstName = artist.firstname || '';
+        const lastName = artist.lastname || '';
+        const fullName = `${firstName} ${lastName}`.trim();
         names.push(fullName);
       } else {
         console.warn(`Artist ID ${artistId} not found in lookup table`);
@@ -386,6 +428,14 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
     // Add core mapped tags
     const basicTags = await this.buildTags(record, tagMappings);
     Object.assign(tags, basicTags);
+
+    // Override artist tag with resolved names instead of IDs
+    if (record.artists) {
+      const artistNames = this.lookupArtistNames(record.artists);
+      if (artistNames.length > 0) {
+        tags.artist = artistNames.join(', ');
+      }
+    }
 
     // Add comprehensive metadata tags
     if (record.registryid) tags.registryid = String(record.registryid);
@@ -407,8 +457,37 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
       }
     }
 
-    // Add artwork type indicator
-    tags.content_type = 'artwork';
+    // Apply standard tag mappings according to specifications
+    // Standard tags mapping from Vancouver fields to standard values
+    
+    // Map artwork_type from type field
+    if (record.type) {
+      tags.artwork_type = record.type.toLowerCase().replace(/\s+/g, '_');
+      tags.type = record.type; // Keep original for reference
+    }
+    
+    // Map materials from primarymaterial field
+    if (record.primarymaterial) {
+      tags.materials = this.normalizeMaterial(record.primarymaterial);
+      tags.primarymaterial = record.primarymaterial; // Keep original for reference
+    }
+    
+    // Map installation_date from yearofinstallation field
+    if (record.yearofinstallation) {
+      tags.installation_date = record.yearofinstallation;
+      tags.yearofinstallation = record.yearofinstallation; // Keep original for reference
+    }
+    
+    // Map website from url field
+    if (record.url) {
+      tags.website = record.url;
+    }
+    
+    // Map condition from status field with specific mappings
+    if (record.status) {
+      tags.condition = this.mapVancouverStatusToCondition(record.status);
+      tags.status = record.status; // Keep original for reference
+    }
 
     return tags;
   }
@@ -510,6 +589,78 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
       default:
         return stringValue;
     }
+  }
+
+  /**
+   * Normalize material names to standard values
+   */
+  private normalizeMaterial(material: string): string {
+    const normalized = material.toLowerCase().trim();
+    
+    // Handle common Vancouver material patterns
+    const materialMap: Record<string, string> = {
+      'stainless steel': 'steel',
+      'mild steel': 'steel',
+      'corten steel': 'steel',
+      'weathering steel': 'steel',
+      'bronze': 'bronze',
+      'aluminum': 'aluminium',
+      'aluminium': 'aluminium',
+      'concrete': 'concrete',
+      'stone': 'stone',
+      'granite': 'stone',
+      'marble': 'stone',
+      'wood': 'wood',
+      'cedar': 'wood',
+      'glass': 'glass',
+      'ceramic': 'ceramic',
+      'fiberglass': 'plastic',
+      'fibreglass': 'plastic',
+    };
+
+    // Check for direct matches
+    for (const [key, value] of Object.entries(materialMap)) {
+      if (normalized.includes(key)) {
+        return value;
+      }
+    }
+
+    // Handle compound materials (take first recognized material)
+    const parts = normalized.split(/[,;\/\s]+/);
+    for (const part of parts) {
+      const trimmedPart = part.trim();
+      if (materialMap[trimmedPart]) {
+        return materialMap[trimmedPart];
+      }
+    }
+
+    // Return normalized original if no mapping found
+    return normalized;
+  }
+
+  /**
+   * Map Vancouver status to standard condition values
+   */
+  private mapVancouverStatusToCondition(status: string): string {
+    const normalized = status.toLowerCase().trim();
+    
+    // Map based on the specified requirements
+    const statusMap: Record<string, string> = {
+      'no longer in place': 'removed',
+      'in place': 'good',
+      'in progress': 'unknown',
+      'deaccessioned': 'removed',
+      // Additional common variations
+      'installed': 'good',
+      'active': 'good',
+      'removed': 'removed',
+      'demolished': 'removed',
+      'relocated': 'unknown',
+      'in storage': 'unknown',
+      'unknown': 'unknown',
+    };
+
+    return statusMap[normalized] || 'unknown';
   }
 }
 

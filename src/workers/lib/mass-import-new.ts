@@ -19,7 +19,7 @@ import { createAuditLog } from './audit-log.js';
 export interface MassImportRecord {
   source_id: string; // Original ID from source system
   title: string;
-  artist_names?: string; // Comma-separated or JSON array
+  artist_name?: string; // Single artist name (replaces artist_names)
   year_created?: number;
   medium?: string;
   dimensions?: string;
@@ -118,7 +118,7 @@ export async function importArtworkBatch(
 
       // Create artist record if needed
       let artistId: string | undefined;
-      if (config.createArtists && record.artist_names) {
+      if (config.createArtists && record.artist_name) {
         artistId = await createArtistFromImport(db, record, config);
         if (artistId) {
           result.createdArtists.push(artistId);
@@ -181,13 +181,12 @@ async function createArtworkSubmission(
   // Prepare the new artwork data
   const newArtworkData: Partial<NewArtworkRecord> = {
     title: record.title,
-    artist_names: record.artist_names || null,
+    artist_name: record.artist_name || null,
     year_created: record.year_created || null,
     medium: record.medium || null,
     dimensions: record.dimensions || null,
     lat: record.lat,
     lon: record.lon,
-    address: record.address || null,
     neighborhood: record.neighborhood || null,
     city: record.city || null,
     region: record.region || null,
@@ -218,22 +217,21 @@ async function createArtistFromImport(
   record: MassImportRecord,
   config: MassImportConfig
 ): Promise<string | undefined> {
-  if (!record.artist_names) return undefined;
+  if (!record.artist_name) return undefined;
 
   // Check if artist already exists
-  const existingArtist = await findExistingArtist(db, record.artist_names);
+  const existingArtist = await findExistingArtist(db, record.artist_name);
   if (existingArtist) {
     return existingArtist.id;
   }
 
   // Create new artist submission
   const newArtistData: Partial<NewArtistRecord> = {
-    name: record.artist_names,
-    biography: null,
+    name: record.artist_name,
+    description: null,
     birth_year: null,
     death_year: null,
     nationality: null,
-    website: null,
     social_media: null,
     notes: `Created during mass import from ${config.sourceName}`,
     source_type: record.source_type === 'api_import' || record.source_type === 'osm_import' ? 'manual_entry' : record.source_type as 'user_submission' | 'manual_entry',
@@ -274,17 +272,19 @@ export async function checkForDuplicates(
   const lonDelta = radiusMeters / (111320 * Math.cos(record.lat * Math.PI / 180));
 
   const nearbyArtworks = await db.prepare(`
-    SELECT id, title, lat, lon, artist_names
-    FROM artwork 
-    WHERE lat BETWEEN ? AND ? 
-    AND lon BETWEEN ? AND ?
-    AND status = 'approved'
+    SELECT a.id, a.title, a.lat, a.lon, art.name as primary_artist_name
+    FROM artwork a
+    LEFT JOIN artwork_artists aa ON a.id = aa.artwork_id AND aa.role = 'primary'
+    LEFT JOIN artists art ON aa.artist_id = art.id
+    WHERE a.lat BETWEEN ? AND ? 
+    AND a.lon BETWEEN ? AND ?
+    AND a.status = 'approved'
   `).bind(
     record.lat - latDelta,
     record.lat + latDelta,
     record.lon - lonDelta,
     record.lon + lonDelta
-  ).all<{id: string, title: string, lat: number, lon: number, artist_names: string | null}>();
+  ).all<{id: string, title: string, lat: number, lon: number, primary_artist_name: string | null}>();
 
   for (const artwork of nearbyArtworks.results || []) {
     const distance = calculateDistance(record.lat, record.lon, artwork.lat, artwork.lon);
@@ -295,8 +295,8 @@ export async function checkForDuplicates(
       
       // Check artist similarity if both have artists
       let artistSimilarity = 0;
-      if (record.artist_names && artwork.artist_names) {
-        artistSimilarity = calculateStringSimilarity(record.artist_names, artwork.artist_names);
+      if (record.artist_name && artwork.primary_artist_name) {
+        artistSimilarity = calculateStringSimilarity(record.artist_name, artwork.primary_artist_name);
       }
 
       // Calculate overall confidence
@@ -440,7 +440,7 @@ export function validateImportRecord(record: MassImportRecord): {
   }
 
   // Warnings for missing optional data
-  if (!record.artist_names?.trim()) {
+  if (!record.artist_name?.trim()) {
     warnings.push('No artist name provided');
   }
   if (!record.description?.trim()) {

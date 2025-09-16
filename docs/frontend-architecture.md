@@ -8,39 +8,68 @@ The Cultural Archiver frontend is a Vue 3 + TypeScript application designed with
 
 ### Core Technologies
 
-- **Vue 3**: Composition API with `<script setup>` syntax
-- **TypeScript**: Strict mode with comprehensive type coverage
-- **Tailwind CSS**: Utility-first CSS with mobile-first responsive design
-- **Vite**: Fast development server and optimized production builds
-- **Pinia**: Type-safe state management with reactive stores
-- **Vue Router**: Client-side routing with lazy loading
+- **Vue 3.4+**: Composition API with `<script setup>` syntax and enhanced TypeScript integration
+- **TypeScript 5.0+**: Strict mode with comprehensive type coverage and modern ESNext features
+- **Tailwind CSS 3.0+**: Utility-first CSS with mobile-first responsive design and dark mode support
+- **Vite 5.0+**: Fast development server, optimized production builds, and modern bundling
+- **Pinia 2.0+**: Type-safe state management with reactive stores and DevTools integration
+- **Vue Router 4.0+**: Client-side routing with lazy loading and route-level code splitting
+- **Leaflet**: Interactive maps with OpenStreetMap tiles and custom markers
+- **EXIF.js**: Photo metadata extraction for GPS coordinates and camera information
 
 ### Project Structure
 
 ```
 src/frontend/
 ├── components/          # Reusable UI components
-│   ├── AppShell.vue    # Main application shell with navigation
-│   ├── MapComponent.vue # Interactive Leaflet map
-│   ├── PhotoUpload.vue # File upload with preview
-│   ├── Modal.vue       # Accessible modal dialogs
+│   ├── AppShell.vue    # Main application shell with responsive navigation
+│   ├── MapComponent.vue # Interactive Leaflet map with clustering and popups
+│   ├── PhotoUpload.vue # File upload with drag-drop, preview, and EXIF extraction
+│   ├── PhotoCarousel.vue # Image gallery with lightbox and navigation
+│   ├── TagBadge.vue    # Styled tag display components
+│   ├── MiniMap.vue     # Compact map for detail views
+│   ├── Modal.vue       # Accessible modal dialogs with focus management
+│   ├── LoadingSpinner.vue # Loading states and skeleton screens
 │   └── LiveRegion.vue  # Screen reader announcements
-├── views/              # Page-level components
-│   ├── MapView.vue     # Home page with map
-│   ├── SubmitView.vue  # Photo submission workflow
-│   ├── ArtworkDetailView.vue # Artwork details
-│   ├── ProfileView.vue # User submissions
-│   └── ReviewView.vue  # Content moderation
-├── composables/        # Reusable business logic
-│   ├── useApi.ts      # API integration with error handling
-│   ├── useAuth.ts     # Authentication state management
-│   ├── useAnnouncer.ts # Screen reader announcements
-│   └── useFocusManagement.ts # Keyboard navigation
+├── views/              # Page-level components (route components)
+│   ├── MapView.vue     # Home page with interactive map and search
+│   ├── SubmitView.vue  # Photo submission workflow with consent management
+│   ├── ArtworkDetailView.vue # Artwork details with photo gallery and timeline
+│   ├── ArtworkIndexView.vue # Browsable list of artworks with sorting
+│   ├── ProfileView.vue # User submissions dashboard and statistics
+│   ├── ReviewView.vue  # Content moderation interface (admin/moderator only)
+│   ├── SearchView.vue  # Advanced search with filters and facets
+│   └── PhotoSearchView.vue # Reverse image search interface
+├── composables/        # Reusable business logic (Vue 3 Composition API)
+│   ├── useApi.ts       # API integration with error handling and retries
+│   ├── useAuth.ts      # Authentication state management and role checking
+│   ├── useAnnouncer.ts # Screen reader announcements for dynamic content
+│   ├── useFocusManagement.ts # Keyboard navigation and focus trapping
+│   ├── useGeolocation.ts # GPS location access with fallbacks
+│   ├── usePhotoUpload.ts # Photo handling, EXIF extraction, and validation
+│   └── usePermissions.ts # Role-based permission checking
 ├── stores/             # Pinia state stores
-│   ├── auth.ts        # User authentication state
-│   └── artworks.ts    # Artwork and map state
-└── services/           # External service integrations
-    └── api.ts         # Type-safe API client
+│   ├── auth.ts         # User authentication state and session management
+│   ├── artworks.ts     # Artwork data and map state
+│   ├── submissions.ts  # User submission history and pending items
+│   └── ui.ts           # UI state (modals, loading, notifications)
+├── services/           # External service integrations
+│   ├── api.ts          # Type-safe API client with request/response interceptors
+│   ├── consent.ts      # Legal consent management and validation
+│   └── analytics.ts    # Privacy-focused usage analytics
+├── test/               # Test utilities and mocks
+│   ├── setup.ts        # Test environment configuration
+│   ├── mocks/          # API and service mocks
+│   └── fixtures/       # Test data fixtures
+├── assets/             # Static assets
+│   ├── images/         # Icons, logos, and graphics
+│   ├── fonts/          # Web fonts (if any)
+│   └── styles/         # Global CSS and Tailwind configuration
+└── utils/              # Utility functions
+    ├── validation.ts   # Form validation helpers
+    ├── formatting.ts   # Date, number, and text formatting
+    ├── coordinates.ts  # GPS coordinate utilities
+    └── accessibility.ts # A11y helper functions
 ```
 
 ## Accessibility Features

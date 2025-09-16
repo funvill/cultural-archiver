@@ -5,7 +5,7 @@
  * without requiring complex database setup.
  */
 
-import { describe, test, expect, beforeEach } from 'vitest';
+import { describe, test, expect } from 'vitest';
 
 describe('Mass Import Similarity Strategy - Basic Tests', () => {
   test('should be importable', async () => {

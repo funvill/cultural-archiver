@@ -267,7 +267,7 @@ describe('Mass Import API Endpoint', () => {
         },
         logbook: [
           {
-            note: 'Installation completed',
+            notes: 'Installation completed',
             timestamp: '2020-06-01T00:00:00Z',
             tags: [
               { label: 'event', value: 'installation' },
@@ -310,11 +310,11 @@ describe('Mass Import API Endpoint', () => {
         },
         logbook: [
           {
-            note: 'Installation completed',
+            notes: 'Installation completed',
             tags: [{ label: 'event', value: 'installation' }],
           },
           {
-            note: 'Maintenance performed',
+            notes: 'Maintenance performed',
             tags: [{ label: 'event', value: 'maintenance' }],
           },
         ],

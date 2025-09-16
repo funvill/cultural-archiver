@@ -375,7 +375,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
       }
 
       if (state.value.note) {
-        formData.append('note', state.value.note);
+        formData.append('notes', state.value.note); // Fix: send as 'notes' not 'note'
       }
 
       const response = await fetch('/api/artworks/fast', {

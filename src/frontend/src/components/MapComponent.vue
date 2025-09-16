@@ -49,25 +49,6 @@ const clusterEnabled = ref(true);
 // Saved map state presence
 const hadSavedMapState = ref(false);
 
-function readSavedMapState(): { center: Coordinates; zoom: number } | null {
-  if (typeof window === 'undefined') return null;
-  try {
-    const raw = localStorage.getItem('map:lastState');
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as { center?: Coordinates; zoom?: number };
-    if (
-      parsed &&
-      parsed.center &&
-      typeof parsed.center.latitude === 'number' &&
-      typeof parsed.center.longitude === 'number' &&
-      typeof parsed.zoom === 'number'
-    ) {
-      return { center: parsed.center, zoom: parsed.zoom };
-    }
-  } catch {/* ignore */}
-  return null;
-}
-
 // Store
 const artworksStore = useArtworksStore();
 
@@ -75,7 +56,7 @@ const artworksStore = useArtworksStore();
 const router = useRouter();
 
 // Default coordinates (Vancouver - near sample data for testing)
-const DEFAULT_CENTER = { latitude: 49.2815, longitude: -123.122 };
+const DEFAULT_CENTER = { latitude: 49.265, longitude: -123.25 };
 
 // Custom icon for artworks
 const createArtworkIcon = (type: string) => {
@@ -144,17 +125,15 @@ async function initializeMap() {
   console.log('Creating Leaflet map...');
 
   // Check for saved map state first
-  const saved = readSavedMapState();
+  const saved = null; // readSavedMapState(); // Temporarily disabled to test new coordinates
   hadSavedMapState.value = !!saved;
 
     // Create map
     map.value = L.map(mapContainer.value, {
-      center: saved?.center
-        ? [saved.center.latitude, saved.center.longitude]
-        : props.center
+      center: props.center
         ? [props.center.latitude, props.center.longitude]
         : [DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude],
-      zoom: typeof saved?.zoom === 'number' ? saved.zoom : props.zoom,
+      zoom: props.zoom,
       zoomControl: false, // We'll use custom controls
       attributionControl: true,
     });

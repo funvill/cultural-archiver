@@ -146,7 +146,17 @@ export class OSMImporter implements ImporterPlugin {
     } catch (error) {
       errors.push({
         field: 'sourceData',
-        message: `Failed to parse GeoJSON: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Failed to parse input as JSON. The osm-artwork importer expects a GeoJSON file. Error: ${error instanceof Error ? error.message : String(error)}`,
+        severity: 'error'
+      });
+      return { isValid: false, errors, warnings };
+    }
+
+    // Check for basic data structure indicators to provide helpful error messages
+    if (!geoJsonData || typeof geoJsonData !== 'object') {
+      errors.push({
+        field: 'sourceData',
+        message: 'Input data is not a valid object. The osm-artwork importer requires a GeoJSON FeatureCollection file with geographic artwork data.',
         severity: 'error'
       });
       return { isValid: false, errors, warnings };
@@ -154,17 +164,30 @@ export class OSMImporter implements ImporterPlugin {
 
     // Validate GeoJSON structure
     if (geoJsonData.type !== 'FeatureCollection') {
+      const actualType = geoJsonData.type || 'undefined';
       errors.push({
         field: 'type',
-        message: 'GeoJSON must be a FeatureCollection',
+        message: `Expected GeoJSON FeatureCollection but found type: "${actualType}". The osm-artwork importer only accepts GeoJSON files exported from OpenStreetMap or similar sources. Please ensure your input file is a valid GeoJSON FeatureCollection.`,
         severity: 'error'
       });
     }
 
     if (!geoJsonData.features || !Array.isArray(geoJsonData.features)) {
+      const hasFeatures = 'features' in geoJsonData;
+      const featuresType = hasFeatures ? typeof geoJsonData.features : 'missing';
       errors.push({
         field: 'features',
-        message: 'GeoJSON must contain a features array',
+        message: `GeoJSON FeatureCollection must contain a "features" array (found: ${featuresType}). Your input file appears to be in a different format. The osm-artwork importer expects GeoJSON data with geographic features containing artwork, monuments, or other art objects.`,
+        severity: 'error'
+      });
+      return { isValid: false, errors, warnings };
+    }
+
+    // Check if features array is empty
+    if (geoJsonData.features.length === 0) {
+      errors.push({
+        field: 'features',
+        message: 'GeoJSON FeatureCollection contains no features. The input file appears to be valid GeoJSON but has no artwork data. Please ensure your export includes geographic features with artwork, monuments, or other art objects.',
         severity: 'error'
       });
       return { isValid: false, errors, warnings };
@@ -178,7 +201,7 @@ export class OSMImporter implements ImporterPlugin {
       if (!feature) {
         errors.push({
           field: `features[${i}]`,
-          message: `Feature ${i}: Feature is null or undefined`,
+          message: `Feature ${i}: Feature is null or undefined. This suggests corrupted GeoJSON data.`,
           severity: 'error'
         });
         continue;
@@ -187,7 +210,7 @@ export class OSMImporter implements ImporterPlugin {
       if (!feature.geometry || feature.geometry.type !== 'Point') {
         warnings.push({
           field: `features[${i}].geometry`,
-          message: `Feature ${i}: Only Point geometries are supported`,
+          message: `Feature ${i}: Only Point geometries are supported for artwork locations. LineString and Polygon features will be skipped.`,
           severity: 'warning'
         });
         continue;
@@ -196,7 +219,7 @@ export class OSMImporter implements ImporterPlugin {
       if (!feature.geometry.coordinates || !Array.isArray(feature.geometry.coordinates) || feature.geometry.coordinates.length !== 2) {
         errors.push({
           field: `features[${i}].geometry.coordinates`,
-          message: `Feature ${i}: Invalid coordinates`,
+          message: `Feature ${i}: Invalid coordinates format. Expected [longitude, latitude] array but found: ${JSON.stringify(feature.geometry.coordinates)}`,
           severity: 'error'
         });
         continue;
@@ -207,17 +230,26 @@ export class OSMImporter implements ImporterPlugin {
       if (typeof lat !== 'number' || lat < -90 || lat > 90) {
         errors.push({
           field: `features[${i}].geometry.coordinates[1]`,
-          message: `Feature ${i}: Invalid latitude ${lat}`,
+          message: `Feature ${i}: Invalid latitude ${lat}. Latitude must be a number between -90 and 90 degrees.`,
           severity: 'error'
         });
       }
       if (typeof lon !== 'number' || lon < -180 || lon > 180) {
         errors.push({
           field: `features[${i}].geometry.coordinates[0]`,
-          message: `Feature ${i}: Invalid longitude ${lon}`,
+          message: `Feature ${i}: Invalid longitude ${lon}. Longitude must be a number between -180 and 180 degrees.`,
           severity: 'error'
         });
       }
+    }
+
+    // Add helpful guidance if there were errors
+    if (errors.length > 0) {
+      errors.push({
+        field: 'help',
+        message: `The osm-artwork importer requires GeoJSON files with artwork data. Expected format: {"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "Point", "coordinates": [lon, lat]}, "properties": {...}}]}. If you have a different file format, try using a different importer plugin.`,
+        severity: 'error'
+      });
     }
 
     return {
@@ -231,7 +263,18 @@ export class OSMImporter implements ImporterPlugin {
    * Generate unique import ID for feature
    */
   generateImportId(record: unknown): string {
+    // Handle RawImportData (already transformed)
+    if (record && typeof record === 'object' && 'externalId' in record) {
+      const rawData = record as RawImportData;
+      return rawData.externalId || this.generateIdFromCoordinates(rawData.lat, rawData.lon, rawData.title);
+    }
+
+    // Handle GeoJSON feature (original data)
     const feature = record as GeoJSONFeature;
+    if (!feature.geometry?.coordinates) {
+      return `osm-unknown-${Date.now()}`;
+    }
+
     const props = feature.properties || {};
     
     // Try to use OSM ID if available
@@ -241,8 +284,16 @@ export class OSMImporter implements ImporterPlugin {
 
     // Fallback to coordinates and name
     const [lon, lat] = feature.geometry.coordinates;
-    const name = String(props.name || props.title || 'unnamed').replace(/\s+/g, '-').toLowerCase();
-    return `osm-${name}-${lat.toFixed(6)}-${lon.toFixed(6)}`;
+    const name = String(props.name || props.title || 'unnamed');
+    return this.generateIdFromCoordinates(lat, lon, name);
+  }
+
+  /**
+   * Generate ID from coordinates and name
+   */
+  private generateIdFromCoordinates(lat: number, lon: number, name: string): string {
+    const cleanName = String(name).replace(/\s+/g, '-').toLowerCase();
+    return `osm-${cleanName}-${lat.toFixed(6)}-${lon.toFixed(6)}`;
   }
 
   /**
@@ -298,12 +349,19 @@ export class OSMImporter implements ImporterPlugin {
 
     // Extract core fields
     const title = this.extractTitle(props);
-    const description = this.extractDescription(props, config.descriptionFields);
+    let description = this.extractDescription(props, config.descriptionFields);
     const artist = this.extractArtist(props, config.artistFields);
     const year = this.extractYear(props, config.yearFields);
 
-    // Build tags using configured mappings
-    const tags = this.buildTags(props, config.tagMappings);
+    // Build tags using configured mappings (exclude description fields)
+    const tags = this.buildTags(props, config.tagMappings, config.descriptionFields);
+
+    // Generate external ID first so we can use it in the description
+    const externalId = this.generateImportId(feature);
+    
+    // Enhance description with OSM source attribution
+    const osmAttribution = `\n\nImported from Open Street Maps (node: ${externalId})`;
+    description = description ? description + osmAttribution : osmAttribution.trim();
 
     // Map to standardized format
     const mappedRecord: RawImportData = {
@@ -312,7 +370,7 @@ export class OSMImporter implements ImporterPlugin {
       title: title || 'Unnamed Artwork',
       description,
       source: 'openstreetmap',
-      externalId: this.generateImportId(feature),
+      externalId,
       tags,
       ...(artist && { artist }),
       ...(year && { yearOfInstallation: year }),
@@ -360,7 +418,8 @@ export class OSMImporter implements ImporterPlugin {
     for (const field of artistFields) {
       const value = props[field];
       if (value && typeof value === 'string' && value.trim()) {
-        return value.trim();
+        // Replace " and " with "," to properly separate multiple artists
+        return value.trim().replace(/ and /g, ', ');
       }
     }
 
@@ -389,13 +448,16 @@ export class OSMImporter implements ImporterPlugin {
   /**
    * Build tags object using configured mappings
    */
-  private buildTags(props: Record<string, unknown>, tagMappings: Record<string, string>): Record<string, string> {
+  private buildTags(props: Record<string, unknown>, tagMappings: Record<string, string>, descriptionFields: string[]): Record<string, string> {
     const tags: Record<string, string> = {};
 
-    // Copy all original OSM tags first
+    // Copy all original OSM tags first, excluding description fields
     for (const [key, value] of Object.entries(props)) {
       if (value && typeof value === 'string' && value.trim()) {
-        tags[key] = value.trim();
+        // Skip description fields - they should not be in tags
+        if (!descriptionFields.includes(key)) {
+          tags[key] = value.trim();
+        }
       }
     }
 
@@ -403,7 +465,10 @@ export class OSMImporter implements ImporterPlugin {
     for (const [outputTag, sourceField] of Object.entries(tagMappings)) {
       const value = props[sourceField];
       if (value && typeof value === 'string' && value.trim()) {
-        tags[outputTag] = value.trim();
+        // Skip description fields - they should not be in tags
+        if (!descriptionFields.includes(sourceField)) {
+          tags[outputTag] = value.trim();
+        }
       }
     }
 

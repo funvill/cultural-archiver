@@ -19,7 +19,7 @@ import chalk from 'chalk';
 import * as ora from 'ora';
 import * as inquirer from 'inquirer';
 
-import { MassImportProcessor } from '../src/lib/mass-import/dist/index.js';
+// import { MassImportProcessor } from '../src/lib/mass-import/dist/index.js';
 import { 
   MassImportConfig, 
   ImportContext, 

@@ -69,7 +69,68 @@ All responses follow a consistent JSON format:
 
 ## Mass-Import API
 
-For trusted, high-volume imports of artworks, see the [Mass-Import API documentation](./mass-import.md). This endpoint allows moderators and admins to import large batches of artworks, images, logbook entries, and tags from public datasets. All imported records are automatically approved and attributed to the importing user.
+For trusted, high-volume imports of artworks, the Cultural Archiver provides two mass-import endpoints:
+
+### Mass-Import V2 (Recommended)
+
+New unified endpoint with CLI plugin integration and enhanced validation.
+
+```http
+POST /api/mass-import/v2
+```
+
+**Authentication**: Admin token required  
+**Content-Type**: `application/json`
+
+**Request Body**:
+```json
+{
+  "items": [
+    {
+      "artwork": {
+        "title": "Artwork Title",
+        "description": "Description...",
+        "lat": 49.2827,
+        "lon": -123.1207,
+        "tags": {
+          "material": "bronze",
+          "artwork_type": "statue"
+        }
+      },
+      "artist": {
+        "name": "Artist Name",
+        "bio": "Artist biography..."
+      },
+      "photos": [
+        {
+          "url": "https://example.com/photo.jpg",
+          "caption": "Photo description"
+        }
+      ]
+    }
+  ],
+  "source": {
+    "name": "Vancouver Open Data",
+    "url": "https://data.vancouver.ca/",
+    "license": "CC BY 4.0"
+  }
+}
+```
+
+**Features**:
+- ✅ Unified schema validation
+- ✅ CLI plugin integration support  
+- ✅ Enhanced duplicate detection
+- ✅ Batch processing with atomic transactions
+- ✅ Comprehensive audit logging
+
+### Mass-Import V1 (Legacy)
+
+Original endpoint for backward compatibility.
+
+```http
+POST /api/mass-import
+```
 
 ## Consent System
 
@@ -125,9 +186,31 @@ Each consent record includes:
 
 ### Unified Submission System
 
-The Cultural Archiver uses a unified submission system where all content submissions (photo submissions, artwork edits, artist edits, new artwork/artist submissions) flow through a single `/api/submissions` endpoint. This provides consistent handling, validation, and moderation workflows.
+The Cultural Archiver uses a unified submission system where all content submissions (photo submissions, artwork edits, artist edits, new artwork/artist submissions) flow through both legacy and new endpoints. The system provides consistent handling, validation, and moderation workflows.
 
-#### Submit New Content
+#### Submit Content (Legacy Logbook Endpoint)
+
+The primary endpoint for photo submissions and artwork creation.
+
+```http
+POST /api/logbook
+```
+
+**Content-Type**: `multipart/form-data`
+
+**Authentication**: Required
+
+**Parameters**:
+
+- `lat` (required): Latitude (-90 to 90)
+- `lon` (required): Longitude (-180 to 180)
+- `note` (optional): Description (max 500 characters)
+- `photos` (optional): Up to 3 image files (15MB each, JPEG/PNG/WebP/GIF)
+- `tags` (optional): JSON object with structured metadata
+- `email` (optional): Email for verification workflow
+- `submitter_name` (optional): Submitter name
+
+#### Submit New Content (Unified Submissions)
 
 Submit various types of content for community review through the unified submission system.
 
@@ -770,6 +853,327 @@ GET /api/export/osm/stats
 }
 ```
 
+### Consent System Endpoints
+
+#### Record User Consent
+
+Record user consent for content submission.
+
+```http
+POST /api/consent
+```
+
+**Authentication**: Required  
+**Content-Type**: `application/json`
+
+**Body**:
+```json
+{
+  "content_type": "artwork",
+  "content_id": "artwork-uuid",
+  "consent_version": "2025-09-09.v2"
+}
+```
+
+**Response** (201 Created):
+```json
+{
+  "success": true,
+  "data": {
+    "consent_id": "consent-uuid",
+    "recorded_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+#### Get User Consent Records
+
+Retrieve user's consent history.
+
+```http
+GET /api/consent
+```
+
+**Authentication**: Required
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "consent_records": [
+      {
+        "id": "consent-uuid",
+        "content_type": "artwork",
+        "content_id": "artwork-uuid",
+        "consent_version": "2025-09-09.v2",
+        "created_at": "2024-01-15T10:30:00Z"
+      }
+    ]
+  }
+}
+```
+
+#### Get Consent Form Data
+
+Get current consent form requirements.
+
+```http
+GET /api/consent/form-data
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "version": "2025-09-09.v2",
+    "terms": {
+      "cc0_license": "I agree to release my submissions under CC0 public domain",
+      "terms_of_service": "I have read and agree to the Terms of Service",
+      "photo_rights": "I confirm I have the right to submit these photos"
+    }
+  }
+}
+```
+
+#### Delete User Consent
+
+Remove user consent records (GDPR compliance).
+
+```http
+DELETE /api/consent
+```
+
+**Authentication**: Required
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Consent records deleted",
+    "deleted_count": 5
+  }
+}
+```
+
+### Artists Endpoints
+
+#### Get Artists List
+
+Get a paginated list of all artists with artwork counts.
+
+```http
+GET /api/artists
+```
+
+**Parameters**:
+
+- `page` (optional): Page number (default: 1)
+- `limit` (optional): Results per page (10, 30, 50, default: 30)
+- `sort` (optional): Sort order (`name`, `artwork_count`, `updated`, default: `name`)
+- `search` (optional): Search by artist name
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "totalItems": 87,
+    "currentPage": 1,
+    "totalPages": 3,
+    "items": [
+      {
+        "id": "artist-uuid",
+        "name": "Jane Doe",
+        "description": "Canadian sculptor known for...",
+        "short_bio": "Canadian sculptor known for public art installations in Vancouver and...",
+        "artwork_count": 12,
+        "tags_parsed": {
+          "country": "Canada",
+          "website": "https://janedoe.art"
+        },
+        "created_at": "2024-01-10T08:00:00Z",
+        "updated_at": "2024-02-15T12:30:00Z",
+        "status": "active"
+      }
+    ]
+  }
+}
+```
+
+#### Get Artist Profile
+
+Get detailed information about a specific artist.
+
+```http
+GET /api/artists/{id}
+```
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "artist": {
+      "id": "artist-uuid",
+      "name": "Jane Doe",
+      "bio": "Comprehensive artist biography...",
+      "website": "https://janedoe.art",
+      "tags": {
+        "country": "Canada",
+        "birth_year": "1975",
+        "medium": "sculpture"
+      },
+      "created_at": "2024-01-10T08:00:00Z",
+      "updated_at": "2024-02-15T12:30:00Z",
+      "status": "active"
+    },
+    "artworks": [
+      {
+        "id": "artwork-uuid",
+        "title": "Victory Angel",
+        "lat": 49.2827,
+        "lon": -123.1207,
+        "status": "approved",
+        "photos": ["photo-url"],
+        "created_at": "2024-01-15T10:30:00Z"
+      }
+    ]
+  }
+}
+```
+
+#### Create New Artist
+
+Create a new artist profile.
+
+```http
+POST /api/artists
+```
+
+**Authentication**: Required  
+**Content-Type**: `application/json`
+
+**Body**:
+```json
+{
+  "name": "Artist Name",
+  "bio": "Artist biography and background...",
+  "website": "https://artist-website.com",
+  "tags": {
+    "country": "Canada",
+    "medium": "painting"
+  }
+}
+```
+
+**Response** (201 Created):
+```json
+{
+  "success": true,
+  "data": {
+    "artist_id": "artist-uuid",
+    "status": "created"
+  }
+}
+```
+
+### Artwork Management Endpoints
+
+#### Edit Artwork Metadata
+
+Submit edits to existing artwork information.
+
+```http
+POST /api/artwork/{id}/edit
+```
+
+**Authentication**: Required  
+**Content-Type**: `application/json`
+
+**Body**:
+```json
+{
+  "field_name": "title",
+  "field_value_old": "Old Title",
+  "field_value_new": "Corrected Title"
+}
+```
+
+**Response** (201 Created):
+```json
+{
+  "success": true,
+  "data": {
+    "edit_id": "edit-uuid",
+    "status": "pending"
+  }
+}
+```
+
+#### Get Artwork Pending Edits
+
+Retrieve pending edits for specific artwork.
+
+```http
+GET /api/artwork/{id}/pending-edits
+```
+
+**Authentication**: Required
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "pending_edits": [
+      {
+        "edit_id": "edit-uuid",
+        "field_name": "title",
+        "field_value_old": "Old Title",
+        "field_value_new": "Corrected Title",
+        "submitted_at": "2024-01-15T10:30:00Z",
+        "status": "pending"
+      }
+    ]
+  }
+}
+```
+
+#### Validate Artwork Edit
+
+Validate an artwork edit before submission.
+
+```http
+POST /api/artwork/{id}/edit/validate
+```
+
+**Authentication**: Required  
+**Content-Type**: `application/json`
+
+**Body**:
+```json
+{
+  "field_name": "title",
+  "field_value_new": "New Title"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "valid": true,
+    "warnings": []
+  }
+}
+```
+
 ### User Management Endpoints
 
 #### Get User Submissions
@@ -918,9 +1322,121 @@ GET /api/me/profile
 
 ### Authentication Endpoints
 
+### Authentication Endpoints
+
 #### Request Magic Link
 
 Request an email verification link for enhanced user privileges.
+
+```http
+POST /api/auth/request-magic-link
+```
+
+**Content-Type**: `application/json`
+
+**Body**:
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Verification email sent",
+    "expires_in": 3600
+  }
+}
+```
+
+#### Verify Magic Link
+
+Exchange a magic link token for user verification.
+
+```http
+POST /api/auth/verify-magic-link
+```
+
+**Content-Type**: `application/json`
+
+**Body**:
+
+```json
+{
+  "token": "magic-link-token",
+  "user_token": "user-uuid"
+}
+```
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "verified": true,
+    "email": "user@example.com"
+  }
+}
+```
+
+#### Get Authentication Status
+
+Check current authentication status and user information.
+
+```http
+GET /api/auth/status
+```
+
+**Authentication**: Required
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "authenticated": true,
+    "user_token": "user-uuid",
+    "email": "user@example.com",
+    "verified": true,
+    "roles": ["user"],
+    "permissions": {
+      "can_review": false,
+      "can_moderate": false,
+      "can_admin": false
+    }
+  }
+}
+```
+
+#### Logout
+
+Terminate current authentication session.
+
+```http
+POST /api/auth/logout
+```
+
+**Authentication**: Required
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Logged out successfully"
+  }
+}
+```
+
+#### Legacy Magic Link (Deprecated)
 
 ```http
 POST /api/auth/magic-link
@@ -948,9 +1464,7 @@ POST /api/auth/magic-link
 }
 ```
 
-#### Consume Magic Link
-
-Exchange a magic link token for user verification.
+#### Consume Magic Link (Deprecated)
 
 ```http
 POST /api/auth/consume
@@ -979,9 +1493,7 @@ POST /api/auth/consume
 }
 ```
 
-#### Check Verification Status
-
-Check if a user token is email-verified.
+#### Check Verification Status (Deprecated)
 
 ```http
 GET /api/auth/verify-status
@@ -1137,6 +1649,237 @@ POST /api/review/approve/{submission_id}
     "artwork_id": "artwork-uuid",
     "action_taken": "created_new_artwork",
     "photos_migrated": 2
+  }
+}
+```
+
+#### Batch Review Operations
+
+Process multiple submissions in a single request.
+
+```http
+POST /api/review/batch
+```
+
+**Authentication**: Required (Moderator or Admin)  
+**Content-Type**: `application/json`
+
+**Body**:
+```json
+{
+  "operations": [
+    {
+      "submission_id": "submission-uuid-1",
+      "action": "approve",
+      "reviewer_notes": "Verified"
+    },
+    {
+      "submission_id": "submission-uuid-2", 
+      "action": "reject",
+      "rejection_reason": "Duplicate"
+    }
+  ]
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "processed": 2,
+    "successful": 2,
+    "failed": 0,
+    "results": [
+      {
+        "submission_id": "submission-uuid-1",
+        "status": "approved"
+      },
+      {
+        "submission_id": "submission-uuid-2",
+        "status": "rejected"
+      }
+    ]
+  }
+}
+```
+
+#### Get Artwork Edits Queue
+
+Retrieve pending artwork edits for moderation.
+
+```http
+GET /api/review/artwork-edits
+```
+
+**Authentication**: Required (Moderator or Admin)
+
+**Parameters**:
+- `page` (optional): Page number (default: 1)
+- `per_page` (optional): Items per page (default: 20)
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "edits": [
+      {
+        "edit_id": "edit-uuid",
+        "artwork_id": "artwork-uuid",
+        "field_name": "title",
+        "field_value_old": "Old Title",
+        "field_value_new": "New Title",
+        "user_token": "user-uuid",
+        "submitted_at": "2024-01-15T10:30:00Z",
+        "status": "pending"
+      }
+    ],
+    "pagination": {
+      "page": 1,
+      "per_page": 20,
+      "total": 5,
+      "total_pages": 1
+    }
+  }
+}
+```
+
+#### Get Artwork Edit Details
+
+Get detailed information about a specific artwork edit.
+
+```http
+GET /api/review/artwork-edits/{editId}
+```
+
+**Authentication**: Required (Moderator or Admin)
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "edit": {
+      "edit_id": "edit-uuid",
+      "artwork_id": "artwork-uuid",
+      "field_name": "title",
+      "field_value_old": "Old Title",
+      "field_value_new": "New Title",
+      "user_token": "user-uuid",
+      "submitted_at": "2024-01-15T10:30:00Z",
+      "status": "pending"
+    },
+    "artwork": {
+      "id": "artwork-uuid",
+      "title": "Current Title",
+      "lat": 49.2827,
+      "lon": -123.1207
+    }
+  }
+}
+```
+
+#### Approve Artwork Edit
+
+Approve a pending artwork edit.
+
+```http
+POST /api/review/artwork-edits/{editId}/approve
+```
+
+**Authentication**: Required (Moderator or Admin)  
+**Content-Type**: `application/json`
+
+**Body**:
+```json
+{
+  "reviewer_notes": "Edit verified and approved"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "edit_id": "edit-uuid",
+    "status": "approved",
+    "artwork_updated": true
+  }
+}
+```
+
+#### Reject Artwork Edit
+
+Reject a pending artwork edit.
+
+```http
+POST /api/review/artwork-edits/{editId}/reject
+```
+
+**Authentication**: Required (Moderator or Admin)  
+**Content-Type**: `application/json`
+
+**Body**:
+```json
+{
+  "rejection_reason": "Insufficient information provided"
+}
+```
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "edit_id": "edit-uuid",
+    "status": "rejected"
+  }
+}
+```
+
+#### Get Review Submission Details
+
+Get detailed information about a specific submission for review.
+
+```http
+GET /api/review/submission/{id}
+```
+
+**Authentication**: Required (Moderator or Admin)
+
+**Response** (200 OK):
+```json
+{
+  "success": true,
+  "data": {
+    "submission": {
+      "id": "submission-uuid",
+      "submission_type": "artwork_photos",
+      "lat": 49.2827,
+      "lon": -123.1207,
+      "notes": "Street art submission",
+      "photos": ["https://art-photos.abluestar.com/photo.jpg"],
+      "tags": {
+        "artwork_type": "mural",
+        "material": "paint"
+      },
+      "user_token": "user-uuid",
+      "email": "user@example.com",
+      "verification_status": "verified",
+      "created_at": "2024-01-15T10:30:00Z"
+    },
+    "context": {
+      "nearby_artworks": [
+        {
+          "id": "artwork-uuid",
+          "distance_km": 0.1,
+          "title": "Existing Mural",
+          "status": "approved"
+        }
+      ]
+    }
   }
 }
 ```

@@ -3,18 +3,14 @@
  * Provides prepared statements and helper functions for artwork, logbook, and tag operations
  */
 
-import { CONSENT_VERSION } from '../../shared/consent';
+import { generateUUID } from '../../shared/constants.js';
 import type {
   ArtworkRecord,
   LogbookRecord,
   TagRecord,
   CreateArtworkRequest,
-  CreateLogbookEntryRequest,
+  CreateSubmissionEntryRequest,
   CreateTagRequest,
-  CreatorRecord,
-  CreateCreatorRequest,
-  CreateArtworkCreatorRequest,
-  ArtworkCreatorInfo,
 } from '../types';
 
 // Database result interfaces
@@ -33,13 +29,13 @@ export class DatabaseService {
   // ================================
 
   async createArtwork(data: CreateArtworkRequest): Promise<string> {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const now = new Date().toISOString();
 
-    // For MVP, we'll add photos as NULL since the current schema doesn't have it
+    // Insert artwork with all available fields including photos
     const stmt = this.db.prepare(`
-      INSERT INTO artwork (id, lat, lon, created_at, status, tags, title, description, created_by)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO artwork (id, lat, lon, created_at, updated_at, status, tags, photos, title, description, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const tagsJson = data.tags ? JSON.stringify(data.tags) : null;
@@ -49,8 +45,10 @@ export class DatabaseService {
       data.lat, 
       data.lon, 
       now, 
+      now, // updated_at
       status, 
       tagsJson,
+      data.photos || null,
       data.title || null,
       data.description || null, 
       data.created_by || null
@@ -75,14 +73,14 @@ export class DatabaseService {
 
   async getArtworkWithDetails(id: string): Promise<(ArtworkRecord & { type_name: string; artist_name?: string }) | null> {
     try {
-      // Query with LEFT JOIN to tags table to get artwork_type and artist name
+      // Query artwork table with artist information - join with artwork_artists and artists tables
       const stmt = this.db.prepare(`
         SELECT a.*, 
-               COALESCE(type_tag.value, 'unknown') as type_name,
-               artist_tag.value as artist_name
+               COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name,
+               COALESCE(art.name, a.created_by, 'Unknown Artist') as artist_name
         FROM artwork a
-        LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
-        LEFT JOIN tags artist_tag ON (artist_tag.artwork_id = a.id AND artist_tag.label = 'artist')
+        LEFT JOIN artwork_artists aa ON a.id = aa.artwork_id AND aa.role = 'primary'
+        LEFT JOIN artists art ON aa.artist_id = art.id
         WHERE a.id = ? AND a.status = 'approved'
       `);
       const result = await stmt.bind(id).first();
@@ -204,14 +202,14 @@ export class DatabaseService {
   // Logbook Operations
   // ================================
 
-  async createLogbookEntry(data: CreateLogbookEntryRequest): Promise<LogbookRecord> {
-    const id = crypto.randomUUID();
+  async createLogbookEntry(data: CreateSubmissionEntryRequest): Promise<LogbookRecord> {
+    const id = generateUUID();
     const now = new Date().toISOString();
 
     // Use submissions table with logbook_entry submission_type
     const stmt = this.db.prepare(`
-      INSERT INTO submissions (id, artwork_id, user_token, lat, lon, note, photos, status, submitted_at, consent_version, submission_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, 'logbook_entry')
+      INSERT INTO submissions (id, artwork_id, user_token, lat, lon, notes, photos, status, created_at, submission_type)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, 'logbook_entry')
     `);
 
     const photosJson = data.photos ? JSON.stringify(data.photos) : null;
@@ -221,10 +219,9 @@ export class DatabaseService {
       data.user_token,
       data.lat || null,
       data.lon || null,
-      data.note || null,
+      data.notes || null,
       photosJson,
-      now,
-      CONSENT_VERSION
+      now
     ).run();
 
     return {
@@ -233,7 +230,7 @@ export class DatabaseService {
       user_token: data.user_token,
       lat: data.lat || null,
       lon: data.lon || null,
-      note: data.note || null,
+      notes: data.notes || null,
       photos: photosJson,
       status: 'pending',
       created_at: now,
@@ -284,7 +281,7 @@ export class DatabaseService {
       FROM submissions s
       LEFT JOIN artwork a ON s.artwork_id = a.id
       LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
-      WHERE s.user_token = ? AND s.status != 'rejected' AND s.submission_type = 'logbook'
+      WHERE s.user_token = ? AND s.status != 'rejected' AND s.submission_type = 'logbook_entry'
       ORDER BY s.submitted_at DESC
       LIMIT ? OFFSET ?
     `;
@@ -299,7 +296,7 @@ export class DatabaseService {
     // Get total count
     const countQuery = `
       SELECT COUNT(*) as total FROM submissions 
-      WHERE user_token = ? AND status != 'rejected' AND submission_type = 'logbook'
+      WHERE user_token = ? AND status != 'rejected' AND submission_type = 'logbook_entry'
     `;
     console.log(`[DB DEBUG] Executing count query: ${countQuery}`);
     const countStmt = this.db.prepare(countQuery);
@@ -319,7 +316,7 @@ export class DatabaseService {
   async getPendingSubmissions(): Promise<LogbookRecord[]> {
     const stmt = this.db.prepare(`
       SELECT * FROM submissions 
-      WHERE status = 'pending' AND submission_type = 'logbook'
+      WHERE status = 'pending' AND submission_type = 'logbook_entry'
       ORDER BY submitted_at ASC
     `);
     const results = await stmt.bind().all();
@@ -327,18 +324,18 @@ export class DatabaseService {
   }
 
   async updateLogbookStatus(id: string, status: LogbookRecord['status']): Promise<void> {
-    const stmt = this.db.prepare('UPDATE logbook SET status = ? WHERE id = ?');
-    await stmt.bind(status, id).run();
+    const stmt = this.db.prepare('UPDATE submissions SET status = ? WHERE id = ? AND submission_type = ?');
+    await stmt.bind(status, id, 'logbook_entry').run();
   }
 
   async updateLogbookPhotos(id: string, photoUrls: string[]): Promise<void> {
-    const stmt = this.db.prepare('UPDATE logbook SET photos = ? WHERE id = ?');
-    await stmt.bind(JSON.stringify(photoUrls), id).run();
+    const stmt = this.db.prepare('UPDATE submissions SET photos = ? WHERE id = ? AND submission_type = ?');
+    await stmt.bind(JSON.stringify(photoUrls), id, 'logbook_entry').run();
   }
 
   async linkLogbookToArtwork(logbookId: string, artworkId: string): Promise<void> {
-    const stmt = this.db.prepare('UPDATE logbook SET artwork_id = ? WHERE id = ?');
-    await stmt.bind(artworkId, logbookId).run();
+    const stmt = this.db.prepare('UPDATE submissions SET artwork_id = ? WHERE id = ? AND submission_type = ?');
+    await stmt.bind(artworkId, logbookId, 'logbook_entry').run();
   }
 
   // ================================
@@ -346,17 +343,51 @@ export class DatabaseService {
   // ================================
 
   async createTag(data: CreateTagRequest): Promise<TagRecord> {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const now = new Date().toISOString();
 
-    const stmt = this.db.prepare(`
-      INSERT INTO tags (id, artwork_id, logbook_id, label, value, created_at)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    await stmt
-      .bind(id, data.artwork_id || null, data.logbook_id || null, data.label, data.value, now)
-      .run();
+    if (data.artwork_id) {
+      // Get current tags from artwork
+      const artworkStmt = this.db.prepare('SELECT tags FROM artwork WHERE id = ?');
+      const artwork = await artworkStmt.bind(data.artwork_id).first() as { tags?: string } | null;
+      
+      let currentTags: Record<string, string | number | boolean> = {};
+      if (artwork?.tags) {
+        try {
+          currentTags = JSON.parse(artwork.tags);
+        } catch (e) {
+          console.warn('Failed to parse existing artwork tags', e);
+        }
+      }
+      
+      // Add new tag
+      currentTags[data.label] = data.value;
+      
+      // Update artwork with new tags (artwork table doesn't have updated_at column)
+      const updateStmt = this.db.prepare('UPDATE artwork SET tags = ? WHERE id = ?');
+      await updateStmt.bind(JSON.stringify(currentTags), data.artwork_id).run();
+      
+    } else if (data.logbook_id) {
+      // Get current tags from submission/logbook
+      const logbookStmt = this.db.prepare('SELECT tags FROM submissions WHERE id = ?');
+      const logbook = await logbookStmt.bind(data.logbook_id).first() as { tags?: string } | null;
+      
+      let currentTags: Record<string, string | number | boolean> = {};
+      if (logbook?.tags) {
+        try {
+          currentTags = JSON.parse(logbook.tags);
+        } catch (e) {
+          console.warn('Failed to parse existing logbook tags', e);
+        }
+      }
+      
+      // Add new tag
+      currentTags[data.label] = data.value;
+      
+      // Update submission with new tags (submissions table has updated_at column)
+      const updateSubmissionStmt = this.db.prepare('UPDATE submissions SET tags = ?, updated_at = datetime("now") WHERE id = ?');
+      await updateSubmissionStmt.bind(JSON.stringify(currentTags), data.logbook_id).run();
+    }
 
     return {
       id,
@@ -395,7 +426,7 @@ export class DatabaseService {
   }
 
   async getTagsForLogbook(logbookId: string): Promise<TagRecord[]> {
-    // With the new schema, tags are stored as JSON in the logbook table  
+    // With the new schema, tags are stored as JSON in the submissions table  
     const stmt = this.db.prepare('SELECT tags FROM submissions WHERE id = ? AND submission_type = \'logbook\'');
     const result = await stmt.bind(logbookId).first() as { tags?: string } | null;
     
@@ -455,84 +486,27 @@ export class DatabaseService {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const stmt = this.db.prepare(`
       SELECT COUNT(*) as count FROM submissions 
-      WHERE user_token = ? AND submitted_at > ? AND submission_type = 'logbook'
+      WHERE user_token = ? AND submitted_at > ? AND submission_type = 'logbook_entry'
     `);
     const result = await stmt.bind(userToken, twentyFourHoursAgo).first();
     return (result as { count: number } | null)?.count || 0;
   }
 
-  // ================================
-  // Creator Operations
-  // ================================
-
-  async createCreator(data: CreateCreatorRequest): Promise<string> {
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
-
-    const stmt = this.db.prepare(`
-      INSERT INTO creators (id, name, bio, created_at)
-      VALUES (?, ?, ?, ?)
-    `);
-
-    await stmt.bind(id, data.name, data.bio || null, now).run();
-    return id;
-  }
-
-  async getCreatorById(id: string): Promise<CreatorRecord | null> {
-    const stmt = this.db.prepare('SELECT * FROM creators WHERE id = ?');
-    const result = await stmt.bind(id).first();
-    return result ? (result as unknown as CreatorRecord) : null;
-  }
-
-  async getCreatorByName(name: string): Promise<CreatorRecord | null> {
-    const stmt = this.db.prepare('SELECT * FROM creators WHERE name = ?');
-    const result = await stmt.bind(name).first();
-    return result ? (result as unknown as CreatorRecord) : null;
-  }
-
-  async linkArtworkToCreator(data: CreateArtworkCreatorRequest): Promise<string> {
-    const id = crypto.randomUUID();
-    const now = new Date().toISOString();
-
-    const stmt = this.db.prepare(`
-      INSERT INTO artwork_creators (id, artwork_id, creator_id, role, created_at)
-      VALUES (?, ?, ?, ?, ?)
-    `);
-
-    await stmt.bind(id, data.artwork_id, data.creator_id, data.role || 'artist', now).run();
-    return id;
-  }
-
-  async getCreatorsForArtwork(artworkId: string): Promise<ArtworkCreatorInfo[]> {
+  async getCreatorsForArtwork(artworkId: string): Promise<{ id: string; name: string; role: string }[]> {
     try {
       const stmt = this.db.prepare(`
-        SELECT c.id, c.name, c.bio, ac.role
-        FROM creators c
-        JOIN artwork_creators ac ON c.id = ac.creator_id
-        WHERE ac.artwork_id = ?
-        ORDER BY ac.created_at ASC
+        SELECT a.id, a.name, aa.role
+        FROM artists a
+        JOIN artwork_artists aa ON a.id = aa.artist_id
+        WHERE aa.artwork_id = ? AND a.status = 'active'
+        ORDER BY aa.created_at ASC
       `);
 
       const results = await stmt.bind(artworkId).all();
-      return (results.results as unknown[]).map(
-        (rowRaw): ArtworkCreatorInfo => {
-          const row = rowRaw as {
-            id: string;
-            name: string;
-            bio: string | null;
-            role: string;
-          };
-          return {
-            id: row.id,
-            name: row.name,
-            bio: row.bio,
-            role: row.role,
-          };
-        }
-      );
+      return results.results as unknown as { id: string; name: string; role: string }[];
     } catch (error) {
-      // Return empty array if creators tables don't exist yet
-      console.warn('Creators tables not found, returning empty creators list:', error);
+      // Return empty array if artist tables don't exist yet
+      console.warn('Artist tables not found, returning empty artists list:', error);
       return [];
     }
   }
@@ -620,7 +594,7 @@ export class DatabaseService {
     source: string;
     sourceData?: any;
   }): Promise<string> {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const now = new Date().toISOString();
 
     // Build tags object with source metadata
@@ -652,7 +626,7 @@ export class DatabaseService {
   }
 
   async linkArtworkToArtist(artworkId: string, artistId: string, role: string = 'artist'): Promise<string> {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const now = new Date().toISOString();
 
     const stmt = this.db.prepare(`
@@ -675,18 +649,7 @@ export class DatabaseService {
       .replace(/[^\w\s-]/g, ''); // Remove punctuation except hyphens
   }
 
-  async getArtworksForCreator(creatorId: string): Promise<ArtworkRecord[]> {
-    const stmt = this.db.prepare(`
-      SELECT a.*
-      FROM artwork a
-      JOIN artwork_creators ac ON a.id = ac.artwork_id
-      WHERE ac.creator_id = ?
-      ORDER BY a.created_at DESC
-    `);
-
-    const results = await stmt.bind(creatorId).all();
-    return results.results as unknown as ArtworkRecord[];
-  }
+  // Legacy getArtworksForCreator function removed - used non-existent artwork_creators table
 }
 
 // Helper function to create database service instance
@@ -830,44 +793,10 @@ export function getPhotosFromArtwork(artwork: ArtworkRecord): string[] {
 // Creator Helper Functions
 // ================================
 
-export async function createCreator(db: D1Database, data: CreateCreatorRequest): Promise<string> {
-  const service = createDatabaseService(db);
-  return service.createCreator(data);
-}
-
-export async function findCreatorById(db: D1Database, id: string): Promise<CreatorRecord | null> {
-  const service = createDatabaseService(db);
-  return service.getCreatorById(id);
-}
-
-export async function findCreatorByName(
-  db: D1Database,
-  name: string
-): Promise<CreatorRecord | null> {
-  const service = createDatabaseService(db);
-  return service.getCreatorByName(name);
-}
-
-export async function linkArtworkToCreator(
-  db: D1Database,
-  data: CreateArtworkCreatorRequest
-): Promise<string> {
-  const service = createDatabaseService(db);
-  return service.linkArtworkToCreator(data);
-}
-
 export async function getCreatorsForArtwork(
   db: D1Database,
   artworkId: string
-): Promise<ArtworkCreatorInfo[]> {
+): Promise<{ id: string; name: string; role: string }[]> {
   const service = createDatabaseService(db);
   return service.getCreatorsForArtwork(artworkId);
-}
-
-export async function getArtworksForCreator(
-  db: D1Database,
-  creatorId: string
-): Promise<ArtworkRecord[]> {
-  const service = createDatabaseService(db);
-  return service.getArtworksForCreator(creatorId);
 }

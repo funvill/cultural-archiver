@@ -657,3 +657,20 @@ Both of these pages use cards and show 30 cards per page. Use ppagination contro
 
 Have a search bar at the top that leads to the search page
 
+-----
+
+
+There are some standard tags and tag catagories. We want to convert some of the tags from the vancouver-public-art import to these standard tags.
+
+The output is what is sent to the server.
+The imput is what is in the data source.
+
+output.artwork_type = input.content_type
+output.materials = input.primarymaterials
+output.installtion_date = input.yearofinstalltion
+output.website = input.url
+
+if input.status=="No longer in place" then output.condition="removed"
+if input.status=="In place" then output.condition="good"
+if input.status=="In progress" then output.condition="unknown"
+if input.status=="Deaccessioned" then output.condition="removed"

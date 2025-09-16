@@ -63,8 +63,7 @@ export const RawImportDataSchema = z.object({
   material: z.string().max(200).optional(),
   type: z.string().max(100).optional(),
   
-  // Location details
-  address: z.string().max(500).optional(),
+  // Location details (no address field - use tags instead)
   neighborhood: z.string().max(200).optional(),
   siteName: z.string().max(300).optional(),
   

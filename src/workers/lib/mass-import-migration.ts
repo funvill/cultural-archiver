@@ -32,9 +32,10 @@ function convertLegacyRecord(legacyItem: any): MassImportRecord {
     source_type: 'api_import'
   };
 
-  // Map artist information
+  // Map artist information - will be handled through artwork_artists relationship
   if (legacyItem.artist || legacyItem.created_by || legacyItem.artist_name) {
-    record.artist_names = legacyItem.artist || legacyItem.created_by || legacyItem.artist_name;
+    // Store artist name for later processing in artwork_artists table
+    record.artist_name = legacyItem.artist || legacyItem.created_by || legacyItem.artist_name;
   }
 
   // Map optional fields
@@ -57,8 +58,7 @@ function convertLegacyRecord(legacyItem: any): MassImportRecord {
     record.description = legacyItem.description || legacyItem.desc;
   }
 
-  // Map location fields
-  if (legacyItem.address) record.address = legacyItem.address;
+  // Map location fields (no address field - location data should be in tags)
   if (legacyItem.neighborhood || legacyItem.area) {
     record.neighborhood = legacyItem.neighborhood || legacyItem.area;
   }
@@ -143,7 +143,7 @@ export function migrateVancouverArtData(vancouverData: any[]): MassImportRecord[
 
     // Vancouver-specific mappings
     if (item.artists || item.artist) {
-      record.artist_names = item.artists || item.artist;
+      record.artist_name = item.artists || item.artist;
     }
 
     if (item.yearofinstallation || item.year) {
@@ -163,10 +163,6 @@ export function migrateVancouverArtData(vancouverData: any[]): MassImportRecord[
 
     if (item.neighbourhood) {
       record.neighborhood = item.neighbourhood;
-    }
-
-    if (item.address || item.siteaddress) {
-      record.address = item.address || item.siteaddress;
     }
 
     // Vancouver-specific tags
@@ -220,7 +216,7 @@ export function migrateOSMData(osmData: any[]): MassImportRecord[] {
 
     // OSM artist mapping
     if (tags.artist || tags['artist:name'] || tags.author) {
-      record.artist_names = tags.artist || tags['artist:name'] || tags.author;
+      record.artist_name = tags.artist || tags['artist:name'] || tags.author;
     }
 
     // OSM year mapping
@@ -242,13 +238,7 @@ export function migrateOSMData(osmData: any[]): MassImportRecord[] {
       record.description = tags.description || tags.note;
     }
 
-    // OSM location
-    if (tags['addr:street'] && tags['addr:housenumber']) {
-      record.address = `${tags['addr:housenumber']} ${tags['addr:street']}`;
-    } else if (tags['addr:street']) {
-      record.address = tags['addr:street'];
-    }
-
+    // OSM location (no address field - location data should be in tags)
     if (tags['addr:city']) record.city = tags['addr:city'];
     if (tags['addr:state'] || tags['addr:province']) {
       record.region = tags['addr:state'] || tags['addr:province'];

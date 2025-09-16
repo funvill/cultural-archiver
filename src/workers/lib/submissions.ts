@@ -5,6 +5,7 @@
 
 import type { D1Database } from '@cloudflare/workers-types';
 import type { SubmissionRecord, NewArtworkRecord, NewArtistRecord } from '../../shared/types.js';
+import { generateUUID } from '../../shared/constants.js';
 
 // ================================
 // Core Submission Operations
@@ -29,7 +30,7 @@ export async function createSubmission(
     verificationStatus?: 'pending' | 'verified' | 'unverified';
   }
 ): Promise<string> {
-  const id = crypto.randomUUID();
+  const id = generateUUID();
   const now = new Date().toISOString();
   
   await db.prepare(`
@@ -37,7 +38,7 @@ export async function createSubmission(
       id, submission_type, user_token, email, submitter_name,
       artwork_id, artist_id, lat, lon, notes, photos, tags,
       old_data, new_data, verification_status, status,
-      submitted_at, updated_at
+      created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     id,
@@ -138,7 +139,7 @@ export async function getLogbookEntries(
   offset: number = 0
 ): Promise<SubmissionRecord[]> {
   let query = `
-    SELECT *, submitted_at as created_at FROM submissions 
+    SELECT * FROM submissions 
     WHERE submission_type = 'logbook_entry' AND artwork_id = ?
   `;
   const params: (string | number)[] = [artworkId];
@@ -148,7 +149,7 @@ export async function getLogbookEntries(
     params.push(status);
   }
   
-  query += ` ORDER BY submitted_at DESC LIMIT ? OFFSET ?`;
+  query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
   
   const results = await db.prepare(query).bind(...params).all<SubmissionRecord>();
@@ -173,7 +174,7 @@ export async function getLogbookEntriesByUser(
     params.push(status);
   }
   
-  query += ` ORDER BY submitted_at DESC LIMIT ? OFFSET ?`;
+  query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
   
   const results = await db.prepare(query).bind(...params).all<SubmissionRecord>();
@@ -220,7 +221,7 @@ export async function getArtworkEdits(
     params.push(status);
   }
   
-  query += ` ORDER BY submitted_at DESC LIMIT ? OFFSET ?`;
+  query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
   
   const results = await db.prepare(query).bind(...params).all<SubmissionRecord>();
@@ -267,7 +268,7 @@ export async function getArtistEdits(
     params.push(status);
   }
   
-  query += ` ORDER BY submitted_at DESC LIMIT ? OFFSET ?`;
+  query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
   
   const results = await db.prepare(query).bind(...params).all<SubmissionRecord>();
@@ -330,8 +331,8 @@ export async function approveSubmission(
   // Update submission status
   const updateSuccess = await updateSubmission(db, submissionId, {
     status: 'approved',
-    reviewer_token: reviewerToken || null,
-    review_notes: reviewNotes || null,
+    reviewed_by: reviewerToken || null, // Fixed: was reviewer_token, should be reviewed_by
+    moderator_notes: reviewNotes || null, // Fixed: was review_notes, should be moderator_notes
     reviewed_at: new Date().toISOString()
   });
 
@@ -349,8 +350,8 @@ export async function rejectSubmission(
 ): Promise<boolean> {
   return updateSubmission(db, submissionId, {
     status: 'rejected',
-    reviewer_token: reviewerToken || null,
-    review_notes: reviewNotes || null,
+    reviewed_by: reviewerToken || null, // Fixed: was reviewer_token, should be reviewed_by
+    moderator_notes: reviewNotes || null, // Fixed: was review_notes, should be moderator_notes
     reviewed_at: new Date().toISOString()
   });
 }
@@ -361,9 +362,10 @@ async function applySubmissionChanges(
 ): Promise<boolean> {
   try {
     switch (submission.submission_type) {
-      case 'logbook_entry':
-        // Logbook entries are just records - no changes to apply
-        return true;
+      case 'new_artwork':
+        // Create new artwork from submission data
+        if (!submission.new_data) return false;
+        return await createArtworkFromSubmission(db, submission);
 
       case 'artwork_edit':
         if (!submission.artwork_id || !submission.new_data) return false;
@@ -372,10 +374,6 @@ async function applySubmissionChanges(
       case 'artist_edit':
         if (!submission.artist_id || !submission.new_data) return false;
         return await applyArtistChanges(db, submission.artist_id, JSON.parse(submission.new_data as string));
-
-      case 'new_artwork':
-        if (!submission.new_data) return false;
-        return await createArtworkFromSubmission(db, submission);
 
       case 'new_artist':
         if (!submission.new_data) return false;
@@ -441,33 +439,32 @@ async function createArtworkFromSubmission(
   submission: SubmissionRecord
 ): Promise<boolean> {
   const newData = JSON.parse(submission.new_data as string) as Partial<NewArtworkRecord>;
-  const artworkId = crypto.randomUUID();
+  const artworkId = generateUUID();
   const now = new Date().toISOString();
   
   const result = await db.prepare(`
     INSERT INTO artwork (
-      id, title, artist_names, year_created, medium, dimensions,
-      lat, lon, address, neighborhood, city, region, country,
+      id, title, year_created, medium, dimensions,
+      lat, lon, neighborhood, city, region, country,
       photos, tags, description, status, source_type, source_id,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     artworkId,
     newData.title || 'Untitled',
-    newData.artist_names || null,
     newData.year_created || null,
     newData.medium || null,
     newData.dimensions || null,
     submission.lat || newData.lat || null,
     submission.lon || newData.lon || null,
-    newData.address || null,
     newData.neighborhood || null,
     newData.city || null,
     newData.region || null,
     newData.country || null,
     submission.photos || newData.photos || null,
     submission.tags || newData.tags || null,
-    newData.description || submission.notes || null,
+  newData.description || submission.notes || null, // Fixed: was submission.note, should be submission.notes  
+    newData.description || submission.notes || null, // Fixed: was submission.note, should be submission.notes  
     'approved',
     'user_submission',
     submission.id,
@@ -488,25 +485,25 @@ async function createArtistFromSubmission(
   submission: SubmissionRecord
 ): Promise<boolean> {
   const newData = JSON.parse(submission.new_data as string) as Partial<NewArtistRecord>;
-  const artistId = crypto.randomUUID();
+  const artistId = generateUUID();
   const now = new Date().toISOString();
   
   const result = await db.prepare(`
     INSERT INTO artists (
-      id, name, biography, birth_year, death_year, nationality,
-      website, social_media, notes, status, source_type, source_id,
+      id, name, description, birth_year, death_year, nationality,
+      social_media, notes, tags, status, source_type, source_id,
       created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).bind(
     artistId,
     newData.name || 'Unknown Artist',
-    newData.biography || null,
+    newData.description || null,
     newData.birth_year || null,
     newData.death_year || null,
     newData.nationality || null,
-    newData.website || null,
     newData.social_media || null,
-    newData.notes || submission.notes || null,
+  newData.notes || submission.notes || null, // Fixed: was submission.note, should be submission.notes        
+    '{}', // tags as empty JSON object
     'approved',
     'user_submission',
     submission.id,
@@ -541,7 +538,7 @@ export async function getSubmissionsByStatus(
     params.push(submissionType);
   }
   
-  query += ` ORDER BY submitted_at DESC LIMIT ? OFFSET ?`;
+  query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
   
   const results = await db.prepare(query).bind(...params).all<SubmissionRecord>();
@@ -562,7 +559,7 @@ export async function getSubmissionStats(
   const params: string[] = [];
   
   if (dateRange) {
-    query += ` WHERE submitted_at BETWEEN ? AND ?`;
+    query += ` WHERE created_at BETWEEN ? AND ?`;
     params.push(dateRange.start, dateRange.end);
   }
   
@@ -602,4 +599,89 @@ export async function getSubmissionStats(
   }
 
   return stats;
+}
+
+/**
+ * Get user's pending edits for a specific artwork
+ */
+export async function getUserPendingArtworkEdits(
+  db: D1Database,
+  userToken: string,
+  artworkId: string
+): Promise<SubmissionRecord[]> {
+  const results = await db.prepare(`
+    SELECT * FROM submissions 
+    WHERE user_token = ? AND artwork_id = ? AND submission_type = 'artwork_edit' AND status = 'pending'
+    ORDER BY created_at DESC
+  `).bind(userToken, artworkId).all<SubmissionRecord>();
+  
+  return results.results || [];
+}
+
+/**
+ * Get user's submission count for rate limiting
+ */
+export async function getUserSubmissionCount(
+  db: D1Database,
+  userToken: string,
+  submissionType?: 'logbook_entry' | 'artwork_edit' | 'artist_edit' | 'new_artwork' | 'new_artist',
+  hoursWindow: number = 24
+): Promise<number> {
+  const windowStart = new Date(Date.now() - hoursWindow * 60 * 60 * 1000).toISOString();
+
+  let query = `
+    SELECT COUNT(*) as count FROM submissions 
+    WHERE user_token = ? AND created_at >= ?
+  `;
+  const params: (string | number)[] = [userToken, windowStart];
+
+  if (submissionType) {
+    query += ` AND submission_type = ?`;
+    params.push(submissionType);
+  }
+
+  const result = await db.prepare(query).bind(...params).first<{ count: number }>();
+  return result?.count || 0;
+}
+
+/**
+ * Create artwork edit from legacy edit format (field-by-field edits)
+ * Compatible with the old ArtworkEditsService format
+ */
+export async function createArtworkEditFromFields(
+  db: D1Database,
+  editData: {
+    userToken: string;
+    artworkId: string;
+    edits: Array<{
+      field_name: string;
+      field_value_old: string | null;
+      field_value_new: string | null;
+    }>;
+  }
+): Promise<string> {
+  // Get current artwork data to build oldData
+  const artwork = await db.prepare(`
+    SELECT * FROM artwork WHERE id = ?
+  `).bind(editData.artworkId).first();
+
+  if (!artwork) {
+    throw new Error('Artwork not found');
+  }
+
+  // Build oldData and newData objects from the field edits
+  const oldData: Record<string, unknown> = {};
+  const newData: Record<string, unknown> = {};
+
+  for (const edit of editData.edits) {
+    oldData[edit.field_name] = edit.field_value_old;
+    newData[edit.field_name] = edit.field_value_new;
+  }
+
+  return createArtworkEdit(db, {
+    userToken: editData.userToken,
+    artworkId: editData.artworkId,
+    oldData,
+    newData
+  });
 }

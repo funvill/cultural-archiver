@@ -40,21 +40,7 @@ export interface ArtworkApiResponse {
 
 // Removed obsolete LogbookRecord - replaced by SubmissionRecord in unified schema
 // Removed obsolete TagRecord - tags are now JSON in artwork/artist records
-
-export interface CreatorRecord {
-  id: string;
-  name: string;
-  bio: string | null;
-  created_at: string;
-}
-
-export interface ArtworkCreatorRecord {
-  id: string;
-  artwork_id: string;
-  creator_id: string;
-  role: string;
-  created_at: string;
-}
+// Removed obsolete CreatorRecord/ArtworkCreatorRecord - replaced by unified Artist system
 
 // ================================
 // Artist System Types
@@ -64,6 +50,7 @@ export interface ArtistRecord {
   id: string;
   name: string;
   description: string | null; // Markdown biography/artist statement
+  aliases: string | null; // JSON array of alternative names for "also known as"
   tags: string | null; // JSON object for metadata (website, birth_year, etc.)
   created_at: string;
   updated_at: string;
@@ -71,10 +58,9 @@ export interface ArtistRecord {
 }
 
 export interface ArtworkArtistRecord {
-  id: string;
   artwork_id: string;
   artist_id: string;
-  role: string; // 'artist', 'creator', 'collaborator', 'commissioner', etc.
+  role: string; // 'artist', 'primary', 'contributor', 'collaborator', etc.
   created_at: string;
 }
 
@@ -90,6 +76,81 @@ export interface ArtistEditRecord {
   reviewed_at: string | null;
   reviewed_by: string | null;
   submitted_at: string;
+}
+
+// ================================
+// Record Creation Types
+// ================================
+
+export interface NewArtworkRecord {
+  id: string;
+  lat: number;
+  lon: number;
+  created_at: string;
+  status: 'pending' | 'approved' | 'removed';
+  tags: string | null; // JSON object for key-value metadata
+  title?: string | null;
+  description?: string | null;
+  created_by?: string | null;
+  artist_name?: string | null;
+  // Additional fields for mass import compatibility
+  year_created?: number | null;
+  medium?: string | null;
+  dimensions?: string | null;
+  neighborhood?: string | null;
+  city?: string | null;
+  region?: string | null;
+  country?: string | null;
+  photos?: string | null; // JSON array of photo URLs
+  source_type?: string | null; // Source system type
+  source_id?: string | null; // Original ID from source system
+}
+
+export interface NewArtistRecord {
+  id: string;
+  name: string;
+  description: string | null;
+  aliases: string | null; // JSON array of alternative names
+  tags: string | null; // JSON object for metadata
+  created_at: string;
+  updated_at: string;
+  status: 'active' | 'inactive';
+  // Additional fields for mass import compatibility
+  birth_year?: number | null;
+  death_year?: number | null;
+  nationality?: string | null;
+  social_media?: string | null;
+  notes?: string | null;
+  source_type?: string | null; // Source system type
+  source_id?: string | null; // Original ID from source system
+}
+
+// ================================
+// Legacy Types (for backward compatibility during transition)
+// ================================
+
+export interface AuthSessionRecord {
+  id: string;
+  user_uuid: string;
+  token_hash: string;
+  created_at: string;
+  last_accessed_at: string;
+  ip_address: string | null; // Allow null for anonymous sessions
+  user_agent: string | null;
+  is_active: boolean;
+  device_info: string | null;
+  expires_at: string | null; // Session expiration time
+}
+
+export interface RateLimitRecord {
+  id: string;
+  identifier: string;
+  identifier_type: 'email' | 'ip' | 'user_token';
+  window_start: string;
+  request_count: number;
+  created_at: string;
+  expires_at: string;
+  blocked_until?: string | null; // For temporary blocking
 }
 
 // ================================
@@ -113,17 +174,7 @@ export interface UpdateArtworkRequest extends Partial<CreateArtworkRequest> {
 
 // Removed obsolete CreateTagRequest - tags are now JSON in artwork/artist records
 // Removed obsolete CreateLogbookEntryRequest - replaced by unified submissions system
-
-export interface CreateCreatorRequest {
-  name: string;
-  bio?: string;
-}
-
-export interface CreateArtworkCreatorRequest {
-  artwork_id: string;
-  creator_id: string;
-  role?: string;
-}
+// Removed obsolete CreateCreatorRequest/CreateArtworkCreatorRequest - replaced by unified Artist system
 
 // ================================
 // Artist API Types
@@ -283,20 +334,26 @@ export interface ArtworkDetailResponse {
   tags: string | null;
   photos: string[]; // Parsed photo URLs
   type_name: string;
-  submissions: SubmissionRecord[]; // Replaced logbook_entries with unified submissions
+  logbook_entries: Array<{
+    id: string;
+    artwork_id: string | null;
+    user_token: string;
+    lat: number | null;
+    lon: number | null;
+    notes: string | null;
+    photos: string | null;
+    status: 'pending' | 'approved' | 'rejected';
+    created_at: string;
+    rejection_reason?: string;
+    photos_parsed: string[];
+  }>; // Keep logbook_entries for backward compatibility
   tags_parsed: Record<string, string>;
-  creators: ArtworkCreatorInfo[];
+  tags_categorized: Record<string, Array<{ key: string; value: string; label: string }>>; // Add tags_categorized field
   artists: { id: string; name: string; role: string }[]; // Artists from the new artist system
   title?: string | null; // Artwork title (editable field)
   description?: string | null; // Artwork description (editable field)
   created_by?: string | null; // Creator/artist name(s) (editable field)
-}
-
-export interface ArtworkCreatorInfo {
-  id: string;
-  name: string;
-  bio: string | null;
-  role: string;
+  artist_name?: string | null; // Computed artist name for display
 }
 
 // Removed obsolete LogbookEntryWithPhotos - replaced by SubmissionRecord
@@ -311,25 +368,7 @@ export interface UserSubmissionsResponse {
 
 // Removed obsolete UserSubmissionInfo - replaced by SubmissionRecord
 
-// Legacy Authentication Endpoints (deprecated - use types from Authentication System Types section)
-export interface LegacyMagicLinkRequest {
-  email: string;
-}
 
-export interface LegacyMagicLinkResponse {
-  message: string;
-  success: boolean;
-}
-
-export interface LegacyConsumeMagicLinkRequest {
-  token: string;
-}
-
-export interface LegacyConsumeMagicLinkResponse {
-  success: boolean;
-  message: string;
-  user_token?: string;
-}
 
 // Moderation Endpoints
 export interface ReviewSubmissionRequest {
@@ -573,21 +612,7 @@ export interface RecordConsentResponse {
   id: string;
 }
 
-// Legacy consent record (for compatibility during migration)
-export interface LegacyConsentRecord {
-  id: string;
-  user_token: string;
-  consent_version: string;
-  age_verification: boolean;
-  cc0_licensing: boolean;
-  public_commons: boolean;
-  freedom_of_panorama: boolean;
-  ip_address?: string;
-  user_agent?: string;
-  consented_at: string;
-  expires_at?: string;
-  revoked_at?: string;
-}
+
 
 // ================================
 // Structured Tagging System Types
@@ -920,25 +945,7 @@ export interface ApiSuccessResponse<T = unknown> {
 export interface ApiErrorResponse extends ApiError {}
 
 // ================================
-// Legacy Types (for future use or compatibility)
-// ================================
 
-export interface LegacyUser {
-  id: string;
-  email: string;
-  name: string;
-  role: 'admin' | 'curator' | 'viewer';
-  created_at: string;
-  last_login: string | null;
-}
-
-export interface LegacySession {
-  id: string;
-  user_id: string;
-  token: string;
-  expires_at: string;
-  created_at: string;
-}
 
 // ================================
 // Type Guards and Validators
@@ -1273,9 +1280,13 @@ export interface SubmissionRecord {
   submission_type: 'new_artwork' | 'artwork_edit' | 'artwork_photos' | 'new_artist' | 'artist_edit';
   field_changes: string | null; // JSON: {"title": {"old": "...", "new": "..."}}
   photos: string | null; // JSON array: ["url1", "url2"]
-  note: string | null;
+  notes: string | null;
   lat: number | null;
   lon: number | null;
+  
+  // Legacy fields for backward compatibility
+  new_data?: string | null; // JSON object - deprecated, use field_changes
+  tags?: string | null; // JSON tags - deprecated, use field_changes
   
   // Integrated consent tracking
   consent_version: string;
@@ -1283,12 +1294,15 @@ export interface SubmissionRecord {
   ip_address: string;
   user_agent: string | null;
   
+  // Timestamps
+  created_at: string;
+  submitted_at: string;
+  
   // Moderation workflow
   status: 'pending' | 'approved' | 'rejected';
   moderator_notes: string | null;
   reviewed_at: string | null;
-  reviewed_by: string | null;
-  submitted_at: string;
+  reviewed_by: string | null; // reviewer token/id
 }
 
 // User Activity Record (replaces rate_limits and auth_sessions)
@@ -1309,13 +1323,14 @@ export interface UserActivityRecord {
 export interface UserRoleRecord {
   id: string;
   user_token: string;
-  role: 'admin' | 'moderator' | 'user' | 'banned';
+  role: 'admin' | 'moderator' | 'curator' | 'reviewer' | 'user' | 'banned';
   granted_by: string;
   granted_at: string;
   revoked_at: string | null;
   revoked_by: string | null;
   is_active: boolean;
   notes: string | null;
+  permissions?: string; // JSON array of permission strings
 }
 
 // ================================

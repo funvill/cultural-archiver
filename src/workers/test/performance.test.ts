@@ -105,7 +105,7 @@ describe('Cultural Archiver API Performance Tests', (): void => {
       const largeObject = {
         submissions: Array.from({ length: 1000 }, (_, i) => ({
           id: `submission-${i}`,
-          note: `Test submission ${i}`.repeat(10), // Larger notes
+          notes: `Test submission ${i}`.repeat(10), // Larger notes
           photos: Array.from({ length: 3 }, (_, j) => `photo-${i}-${j}.jpg`),
           tags: { category: 'test', index: i.toString() },
         })),

@@ -13,6 +13,7 @@ import { getValidatedData, getValidatedFiles } from '../middleware/validation';
 import { processAndUploadPhotos } from '../lib/photos';
 import { CONSENT_VERSION } from '../../shared/consent';
 import { DEFAULT_ARTWORK_SEARCH_RADIUS } from '../../shared/geo';
+import { generateUUID } from '../../shared/constants';
 
 // Import new unified services
 import {
@@ -54,7 +55,6 @@ interface ArtworkEditSubmissionRequest {
 
 interface NewArtworkSubmissionRequest {
   title: string;
-  artist_names?: string;
   year_created?: number;
   medium?: string;
   dimensions?: string;
@@ -124,7 +124,7 @@ export async function createLogbookSubmission(
     }
 
     // Record consent
-    const contentId = crypto.randomUUID();
+    const contentId = generateUUID();
     const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
     const consentVersion = validatedData.consent_version || CONSENT_VERSION;
     const consentTextHash = await generateConsentTextHash(
@@ -168,8 +168,13 @@ export async function createLogbookSubmission(
       verificationStatus: 'pending'
     };
 
-    if (validatedData.note) {
-      logbookData.notes = validatedData.note;
+    // Prefer `notes` field but accept legacy `note`
+    // Prefer `notes` field but accept legacy `note`
+    const vd = validatedData as unknown as { notes?: string; note?: string };
+    if (vd.notes) {
+      logbookData.notes = vd.notes;
+    } else if (vd.note) {
+      logbookData.notes = vd.note;
     }
     if (photoUrls.length > 0) {
       logbookData.photos = photoUrls;
@@ -346,7 +351,7 @@ export async function createNewArtworkSubmissionHandler(
     await recordUserActivity(c.env.DB, userToken, 'user_token', 'submission');
 
     // Record consent
-    const contentId = crypto.randomUUID();
+    const contentId = generateUUID();
     const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
     const consentVersion = validatedData.consent_version || CONSENT_VERSION;
     const consentTextHash = await generateConsentTextHash(
@@ -381,13 +386,11 @@ export async function createNewArtworkSubmissionHandler(
     // Prepare new artwork data
     const newArtworkData = {
       title: validatedData.title,
-      artist_names: validatedData.artist_names || null,
       year_created: validatedData.year_created || null,
       medium: validatedData.medium || null,
       dimensions: validatedData.dimensions || null,
       lat: validatedData.lat,
       lon: validatedData.lon,
-      address: validatedData.address || null,
       neighborhood: validatedData.neighborhood || null,
       city: validatedData.city || null,
       region: validatedData.region || null,

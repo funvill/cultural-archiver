@@ -5,6 +5,8 @@
  * with proper field mappings, validation, and attribution.
  */
 
+import { MASS_IMPORT_USER_UUID } from '../../shared/constants.js';
+
 // Import interfaces from shared types
 interface MassImportPayload {
   user_uuid: string;
@@ -91,7 +93,7 @@ export interface OSMImportResult {
  * Default OSM import configuration
  */
 export const DEFAULT_OSM_CONFIG: OSMImportConfig = {
-  user_uuid: '00000000-0000-0000-0000-000000000002', // MASS_IMPORT_USER_UUID
+  user_uuid: MASS_IMPORT_USER_UUID,
   duplicateThreshold: 0.7,
   attribution: {
     source: 'OpenStreetMap',

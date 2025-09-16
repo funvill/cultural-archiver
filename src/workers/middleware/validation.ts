@@ -95,7 +95,7 @@ export const coordinateSchema = z.object({
 // Submission Validation Schemas
 // ================================
 
-export const logbookSubmissionSchema = z.object({
+export const submissionSchema = z.object({
   lat: z
     .number()
     .min(-90, 'Latitude must be between -90 and 90')
@@ -104,7 +104,7 @@ export const logbookSubmissionSchema = z.object({
     .number()
     .min(-180, 'Longitude must be between -180 and 180')
     .max(180, 'Longitude must be between -180 and 180'),
-  note: z
+  notes: z
     .string()
     .optional(),
   type: z.string().optional(),
@@ -127,7 +127,7 @@ export const nearbyArtworksQuerySchema = z.object({
 export const artworkIdSchema = z.object({
   id: z.string().refine(value => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    const sampleDataRegex = /^SAMPLE-[a-zA-Z0-9-]+$/;
+    const sampleDataRegex = /^(SAMPLE-[a-zA-Z0-9-]+|[a-f]0000000-1000-4000-8000-[0-9a-f]{12})$/;
     return uuidRegex.test(value) || sampleDataRegex.test(value);
   }, 'Artwork ID must be a valid UUID or sample data format'),
 });
@@ -213,7 +213,7 @@ export const fastArtworkSubmissionSchema = z.object({
   // Title is now optional for true photo-first workflow
   title: z.string().min(1).max(500).optional(),
   tags: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
-  note: z.string().max(500).optional(),
+  notes: z.string().max(500).optional(),
   consent_version: z.string().min(1),
   existing_artwork_id: z.string().uuid().optional(),
 });
@@ -292,7 +292,7 @@ export function validateSchema<T extends Record<string, unknown>>(
  * Specific validation middleware for common use cases
  */
 
-export const validateLogbookSubmission = validateSchema(logbookSubmissionSchema, 'body');
+export const validateSubmission = validateSchema(submissionSchema, 'body');
 
 // Custom validation for query parameters that need number conversion
 export async function validateNearbyArtworksQuery(
@@ -526,8 +526,8 @@ export async function validateFastArtworkSubmission(
       }
       const title = formData.get('title');
       if (title && title.toString().trim().length > 0) build.title = title.toString().trim();
-      const note = formData.get('note');
-      if (note) build.note = note.toString();
+  const notes = formData.get('notes') ?? formData.get('note');
+  if (notes) build.notes = notes.toString();
       const consentVersion = formData.get('consent_version');
       if (!consentVersion) {
         throw new ValidationApiError([
@@ -584,8 +584,10 @@ export async function validateFastArtworkSubmission(
         lon: parseFloat((body.lon ?? body.longitude ?? '').toString()),
         consent_version: (body.consent_version ?? '').toString(),
       };
-      if (body.title) build.title = body.title.toString();
-      if (body.note) build.note = body.note.toString();
+  if (body.title) build.title = body.title.toString();
+  // Accept both 'notes' and legacy 'note'
+  if (body.notes) build.notes = body.notes.toString();
+  else if (body.note) build.notes = body.note.toString();
       if (body.existing_artwork_id) build.existing_artwork_id = body.existing_artwork_id.toString();
       if (body.tags) {
         try { build.tags = JSON.parse(body.tags.toString()); } catch { /* ignore */ }
@@ -727,9 +729,9 @@ export function getValidatedFiles(c: Context): File[] {
  * Validate UUID parameter
  */
 /**
- * Validate logbook submission from form data (for file uploads) or JSON (for text-only submissions)
+ * Validate submission from form data (for file uploads) or JSON (for text-only submissions)
  */
-export async function validateLogbookFormData(
+export async function validateSubmissionFormData(
   c: Context<{ Bindings: WorkerEnv }>,
   next: Next
 ): Promise<void | Response> {
@@ -781,8 +783,8 @@ export async function validateLogbookFormData(
         }
       }
 
-      // Extract optional note
-      const note = formData.get('note')?.toString();
+  // Extract optional notes (accept legacy 'note')
+  const note = formData.get('notes')?.toString() ?? formData.get('note')?.toString();
 
       if (validationErrors.length > 0) {
         throw new ValidationApiError(validationErrors);
@@ -802,7 +804,7 @@ export async function validateLogbookFormData(
       const jsonData = await c.req.json();
 
       // Validate using Zod schema
-      const result = logbookSubmissionSchema.parse(jsonData);
+      const result = submissionSchema.parse(jsonData);
 
       // Store validated data in context
       c.set('validated_body', result);
@@ -850,8 +852,8 @@ export async function validateLogbookFormData(
         }
       }
 
-      // Extract optional note
-      const note = formData.note?.toString();
+  // Extract optional notes (accept legacy 'note')
+  const note = (formData as Record<string, unknown>).notes?.toString() ?? (formData as Record<string, unknown>).note?.toString();
 
       if (validationErrors.length > 0) {
         throw new ValidationApiError(validationErrors);
@@ -861,7 +863,7 @@ export async function validateLogbookFormData(
       const validatedData = {
         lat: parseFloat(latValue!),
         lon: parseFloat(lonValue!),
-        ...(note && { note }),
+        ...(note && { notes: note }),
       };
 
       c.set('validated_body', validatedData);
@@ -899,7 +901,7 @@ export function validateUUID(paramName: string = 'id') {
     }
 
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    const sampleDataRegex = /^SAMPLE-[a-zA-Z0-9-]+$/;
+    const sampleDataRegex = /^(SAMPLE-[a-zA-Z0-9-]+|[a-f]0000000-1000-4000-8000-[0-9a-f]{12})$/;
 
     if (!uuidRegex.test(value) && !sampleDataRegex.test(value)) {
       throw new ValidationApiError([

@@ -6,11 +6,12 @@ The Cultural Archiver uses a **production-ready SQLite database** (Cloudflare D1
 
 ### **🔄 Database Schema Status**
 - **✅ Unified Submissions System**: Complete transition from legacy logbook/artwork_edits to single submissions table
-- **✅ Role-Based Permissions**: New user_roles table with admin/moderator/curator roles
-- **✅ Enhanced Audit Logging**: Comprehensive tracking of all system actions
-- **✅ TypeScript Integration**: All 653 unit tests passing with full type safety
-- **✅ Migration System**: Sequential migration tracking via `d1_migrations` table
-- **✅ CLI Tools**: PowerShell-compatible database management commands
+- **✅ Role-Based Permissions**: New user_roles table with admin/moderator/user roles operational
+- **✅ Enhanced Audit Logging**: Comprehensive tracking of all system actions via auth_sessions and rate_limiting
+- **✅ TypeScript Integration**: All 672 unit tests passing with full type safety (1 skipped)
+- **✅ Migration System**: Sequential migration tracking via `d1_migrations` table with PowerShell-compatible CLI
+- **✅ Artist Management**: Complete artists table with artwork_artists linking table for many-to-many relationships
+- **✅ Authentication Infrastructure**: Full magic links, auth sessions, and rate limiting operational
 
 ### **🎯 Unified Submission Workflow**  
 - **✅ Single Submissions Table**: Handles logbook entries, artwork edits, artist edits, and new submissions
@@ -25,22 +26,24 @@ The Cultural Archiver uses a **production-ready SQLite database** (Cloudflare D1
 
 #### artwork
 
-Primary table for public artwork locations and metadata.
+Primary table for public artwork locations and metadata. **Updated**: Normalized schema removing redundant fields.
 
 | Field        | Type | Constraints                           | Description                        |
 | ------------ | ---- | ------------------------------------- | ---------------------------------- |
-| `id`         | TEXT | PRIMARY KEY                           | Unique identifier                  |
+| `id`         | TEXT | PRIMARY KEY, UUID format              | Unique identifier (UUID)           |
 | `title`      | TEXT | NOT NULL                              | Artwork title                      |
 | `description`| TEXT | NULL                                  | Artwork description               |
-| `artist_names`| TEXT | NULL                                  | JSON array of artist names        |
 | `lat`        | REAL | NOT NULL                              | Latitude coordinate (-90 to 90)    |
 | `lon`        | REAL | NOT NULL                              | Longitude coordinate (-180 to 180) |
-| `address`    | TEXT | NULL                                  | Street address                     |
 | `tags`       | TEXT | NULL                                  | JSON object for structured metadata |
 | `photos`     | TEXT | NULL                                  | JSON array of photo URLs           |
 | `status`     | TEXT | CHECK('pending','approved','rejected') | Moderation status                  |
 | `created_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Creation timestamp                 |
 | `updated_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Last update timestamp              |
+
+**Schema Changes (Migration 0017-0020):**
+- ❌ **Removed** `artist_names` field - Artist relationships now managed via `artwork_artists` table  
+- ❌ **Removed** `address` field - Location information stored in tags system for consistency
 
 **Indexes:**
 - `idx_artwork_lat_lon` on `(lat, lon)` for spatial queries
@@ -49,19 +52,34 @@ Primary table for public artwork locations and metadata.
 
 #### artists
 
-Artist information and portfolio details.
+Table for artist information with normalized schema. **Updated**: Cleaned up redundant fields.
 
-| Field        | Type | Constraints                           | Description                        |
-| ------------ | ---- | ------------------------------------- | ---------------------------------- |
-| `id`         | TEXT | PRIMARY KEY                           | Unique identifier                  |
-| `name`       | TEXT | NOT NULL                              | Artist name                        |
-| `bio`        | TEXT | NULL                                  | Artist biography                   |
-| `website`    | TEXT | NULL                                  | Artist website URL                 |
-| `tags`       | TEXT | NULL                                  | JSON object for metadata           |
-| `photos`     | TEXT | NULL                                  | JSON array of photo URLs           |
-| `status`     | TEXT | CHECK('pending','approved','rejected') | Moderation status                  |
-| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Creation timestamp                 |
-| `updated_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Last update timestamp              |
+| Field        | Type | Constraints                      | Description                     |
+| ------------ | ---- | -------------------------------- | ------------------------------- |
+| `id`         | TEXT | PRIMARY KEY, UUID format         | Unique identifier (UUID)        |
+| `name`       | TEXT | NOT NULL                         | Artist name                     |
+| `description`| TEXT | NULL                             | Artist biography/description    |
+| `aliases`    | TEXT | NULL                             | JSON array of alternative names |
+| `created_at` | TEXT | NOT NULL, DEFAULT datetime('now')| Creation timestamp              |
+| `updated_at` | TEXT | NOT NULL, DEFAULT datetime('now')| Last update timestamp           |
+
+**Schema Changes (Migration 0020):**
+- ✅ **Renamed** `bio` → `description` for consistency across the system
+- ❌ **Removed** `website` field - Website URLs now stored in tags system for validation and consistency
+- ✅ **Added** `aliases` field for "also known as" functionality
+- ❌ **Removed** `tags`, `photos`, `status` fields - artists don't need separate moderation workflow
+
+#### artwork_artists
+
+Many-to-many linking table between artwork and artists. **New**: Replaces embedded artist_names.
+
+| Field        | Type | Constraints    | Description              |
+| ------------ | ---- | -------------- | ------------------------ |
+| `artwork_id` | TEXT | NOT NULL, UUID | Foreign key to artwork   |
+| `artist_id`  | TEXT | NOT NULL, UUID | Foreign key to artists   |
+| `created_at` | TEXT | NOT NULL       | Link creation timestamp  |
+
+**Purpose**: Enables proper relational data modeling with referential integrity for artwork-artist relationships.
 
 ### Unified Submission System
 
@@ -87,7 +105,7 @@ Artist information and portfolio details.
 | `new_data`          | TEXT | NULL                                                            | JSON object of proposed changes (for edits)        |
 | `verification_status` | TEXT | CHECK('pending','verified','unverified')                     | Email verification status                           |
 | `status`            | TEXT | CHECK('pending','approved','rejected')                         | Moderation status                                   |
-| `reviewer_token`    | TEXT | NULL                                                            | Reviewer who processed submission                   |
+| `reviewed_by`       | TEXT | NULL                                                            | Reviewer who processed submission                   |
 | `review_notes`      | TEXT | NULL                                                            | Reviewer's notes                                    |
 | `reviewed_at`       | TEXT | NULL                                                            | Review timestamp                                    |
 | `created_at`        | TEXT | NOT NULL, DEFAULT datetime('now')                               | Creation timestamp                                  |
@@ -311,74 +329,42 @@ Legal compliance table tracking user consent for all submitted content. Implemen
 **Identity Handling:**
 
 - **Authenticated Users**: `user_id` populated, `anonymous_token` is NULL
-- **Anonymous Users**: `user_id` is NULL, `anonymous_token` populated
-- **Mass Import**: Uses reserved UUID `00000000-0000-0000-0000-000000000002`
+- **Anonymous Users**: `user_id` is NULL, `anonymous_token` populated  
+- **Mass Import**: Uses reserved UUID `a0000000-1000-4000-8000-000000000002` (MASS_IMPORT_USER_UUID from shared/constants.ts)
 
 **See Also:** [Consent System Documentation](./consent-system.md) for detailed implementation guide.
 
-### artwork_types
+#### artwork_artists
 
-Lookup table for predefined artwork categories.
-
-| Field         | Type | Constraints                       | Description                              |
-| ------------- | ---- | --------------------------------- | ---------------------------------------- |
-| `id`          | TEXT | PRIMARY KEY                       | Unique identifier                        |
-| `name`        | TEXT | NOT NULL, UNIQUE                  | Human-readable type name                 |
-| `description` | TEXT | NULL                              | Optional description of the artwork type |
-| `created_at`  | TEXT | NOT NULL, DEFAULT datetime('now') | Creation timestamp                       |
-
-**Indexes:**
-
-- `idx_artwork_types_name` on `name` for lookup queries
-
-**Pre-populated values:**
-
-- `public_art` - "Public art installations and commissioned works"
-- `street_art` - "Street art, murals, and graffiti"
-- `monument` - "Monuments, memorials, and commemorative structures"
-- `sculpture` - "Sculptural works and installations"
-- `other` - "Other types of public artwork"
-
-### artwork
-
-Core table storing public artwork locations and metadata with structured tagging system.
+**Many-to-many linking table** - manages relationships between artworks and artists, supporting collaborative works and proper attribution tracking.
 
 | Field        | Type | Constraints                           | Description                        |
 | ------------ | ---- | ------------------------------------- | ---------------------------------- |
-| `id`         | TEXT | PRIMARY KEY                           | Unique identifier                  |
-| `lat`        | REAL | NOT NULL                              | Latitude coordinate (-90 to 90)    |
-| `lon`        | REAL | NOT NULL                              | Longitude coordinate (-180 to 180) |
-| `type_id`    | TEXT | NOT NULL, FK→artwork_types.id         | Reference to artwork type          |
+| `artwork_id` | TEXT | NOT NULL, FK→artwork.id               | Reference to artwork               |
+| `artist_id`  | TEXT | NOT NULL, FK→artists.id               | Reference to artist                |
+| `role`       | TEXT | NOT NULL, DEFAULT 'artist'            | Artist role (e.g., 'primary', 'contributor', 'artist') |
 | `created_at` | TEXT | NOT NULL, DEFAULT datetime('now')     | Creation timestamp                 |
-| `status`     | TEXT | CHECK('pending','approved','removed') | Moderation status                  |
-| `tags`       | TEXT | NULL                                  | JSON object for structured metadata (see Structured Tags section) |
-| `title`      | TEXT | NULL                                  | Artwork title (editable field)    |
-| `description`| TEXT | NULL                                  | Artwork description (editable field) |
-| `created_by` | TEXT | NULL                                  | Creator/artist name (editable field) |
+
+**Primary Key**: `(artwork_id, artist_id)`
 
 **Indexes:**
-
-- `idx_artwork_lat_lon` on `(lat, lon)` for spatial queries
-- `idx_artwork_status` on `status` for filtering
-- `idx_artwork_type_id` on `type_id` for type-based filtering
-- `idx_artwork_tags_fts` on `tags` for full-text search on tags
-- `idx_artwork_tourism_tag` on `json_extract(tags, '$.tags.tourism')` for OSM compatibility
-- `idx_artwork_type_tag` on `json_extract(tags, '$.tags.artwork_type')` for artwork type filtering
-- `idx_artwork_artist_tag` on `json_extract(tags, '$.tags.artist_name')` for artist searches
-- `idx_artwork_name_tag` on `json_extract(tags, '$.tags.name')` for artwork name searches
-- `idx_artwork_title` on `title` for text search
-- `idx_artwork_description` on `description` for text search  
-- `idx_artwork_created_by` on `created_by` for creator search
+- `idx_artwork_artists_artwork_id` on `artwork_id` for artwork-based queries
+- `idx_artwork_artists_artist_id` on `artist_id` for artist-based queries  
+- `idx_artwork_artists_role` on `role` for role-based filtering
 
 **Foreign Keys:**
+- `artwork_id` → `artwork.id` ON DELETE CASCADE
+- `artist_id` → `artists.id` ON DELETE CASCADE
 
-- `type_id` → `artwork_types.id`
+**Role Types:**
+- `artist` - Standard artist attribution (default)
+- `primary` - Primary artist for collaborative works
+- `contributor` - Contributing artist
+- `collaborator` - Collaborative partner
 
-**Status Workflow:**
 
-- `pending` - Newly submitted, awaiting moderation
-- `approved` - Verified and visible on public map
-- `removed` - Removed from public view (soft delete)
+
+
 
 #### Structured Tags System
 
@@ -456,121 +442,9 @@ SELECT * FROM artwork
 WHERE json_extract(tags, '$.tags.access') = 'yes';
 ```
 
-### artwork_edits
 
-Community-proposed edits to existing artwork records stored in flexible key-value format.
 
-| Field             | Type | Constraints                            | Description                          |
-| ----------------- | ---- | -------------------------------------- | ------------------------------------ |
-| `edit_id`         | TEXT | PRIMARY KEY                            | Unique edit identifier (UUID)        |
-| `artwork_id`      | TEXT | NOT NULL, FK→artwork.id                | Reference to artwork being edited    |
-| `user_token`      | TEXT | NOT NULL                               | User proposing the edit              |
-| `field_name`      | TEXT | NOT NULL                               | Field being edited (e.g., 'title')   |
-| `field_value_old` | TEXT | NULL                                   | Original value before edit (JSON)    |
-| `field_value_new` | TEXT | NULL                                   | Proposed new value (JSON)            |
-| `status`          | TEXT | CHECK('pending','approved','rejected') | Moderation status                    |
-| `moderator_notes` | TEXT | NULL                                   | Feedback from moderator on rejection |
-| `reviewed_at`     | TEXT | NULL                                   | Timestamp when moderated             |
-| `reviewed_by`     | TEXT | NULL                                   | Moderator who reviewed               |
-| `submitted_at`    | TEXT | NOT NULL, DEFAULT datetime('now')      | When edit was submitted              |
 
-**Indexes:**
-
-- `idx_artwork_edits_artwork_id` on `artwork_id` for per-artwork queries
-- `idx_artwork_edits_user_token` on `user_token` for per-user queries
-- `idx_artwork_edits_status` on `status` for filtering by moderation status
-- `idx_artwork_edits_submitted_at` on `submitted_at DESC` for chronological ordering
-- `idx_artwork_edits_moderation_queue` on `(status, submitted_at DESC)` for moderation queue
-- `idx_artwork_edits_user_pending` on `(user_token, artwork_id, status)` for pending edits check
-
-**Foreign Keys:**
-
-- `artwork_id` → `artwork.id` (CASCADE DELETE)
-
-**Status Workflow:**
-
-- `pending` - Newly submitted edit, awaiting moderation
-- `approved` - Edit approved and applied to original artwork
-- `rejected` - Edit rejected with moderator feedback
-
-**Editable Fields:**
-
-- `title` - Artwork title
-- `description` - Artwork description
-- `created_by` - Creator information (comma-separated)
-- `tags` - JSON object with key-value metadata tags
-
-**Key-Value Design:**
-
-Each field change is stored as a separate row with old/new values, enabling:
-
-- Atomic approval/rejection of entire edit submissions
-- Clear diff views for moderation
-- Future extensibility for new editable fields
-- Complete audit trail of all changes
-
-### submissions
-
-**NEW UNIFIED TABLE**: Unified submission system replacing legacy logbook and artwork_edits tables.
-
-| Field               | Type | Constraints                                                     | Description                                         |
-| ------------------- | ---- | --------------------------------------------------------------- | --------------------------------------------------- |
-| `id`                | TEXT | PRIMARY KEY                                                     | Unique identifier                                   |
-| `submission_type`   | TEXT | CHECK('logbook_entry','artwork_edit','artist_edit','new_artwork','new_artist') | Type of submission                                  |
-| `user_token`        | TEXT | NOT NULL                                                        | Anonymous UUID or authenticated user ID             |
-| `email`             | TEXT | NULL                                                            | Optional email for verification                     |
-| `submitter_name`    | TEXT | NULL                                                            | Optional submitter name                             |
-| `artwork_id`        | TEXT | NULL, FK→artwork.id                                             | Reference to artwork (for edits/photos)            |
-| `artist_id`         | TEXT | NULL, FK→artists.id                                             | Reference to artist (for artist edits)             |
-| `lat`               | REAL | NULL                                                            | Latitude for location-based submissions             |
-| `lon`               | REAL | NULL                                                            | Longitude for location-based submissions            |
-| `notes`             | TEXT | NULL                                                            | Submission notes (≤500 chars at app level)         |
-| `photos`            | TEXT | NULL                                                            | JSON array of R2 URLs: `["url1", "url2"]`          |
-| `tags`              | TEXT | NULL                                                            | JSON object of structured tags                      |
-| `old_data`          | TEXT | NULL                                                            | JSON object of original data (for edits)           |
-| `new_data`          | TEXT | NULL                                                            | JSON object of proposed changes (for edits)        |
-| `verification_status` | TEXT | CHECK('pending','verified','unverified')                     | Email verification status                           |
-| `status`            | TEXT | CHECK('pending','approved','rejected')                         | Moderation status                                   |
-| `reviewer_token`    | TEXT | NULL                                                            | Reviewer who processed submission                   |
-| `review_notes`      | TEXT | NULL                                                            | Reviewer's notes                                    |
-| `reviewed_at`       | TEXT | NULL                                                            | Review timestamp                                    |
-| `created_at`        | TEXT | NOT NULL, DEFAULT datetime('now')                               | Creation timestamp                                  |
-| `updated_at`        | TEXT | NOT NULL, DEFAULT datetime('now')                               | Last update timestamp                               |
-
-**Indexes:**
-
-- `idx_submissions_user_token` on `user_token` for user-specific queries
-- `idx_submissions_artwork_id` on `artwork_id` for artwork-related submissions
-- `idx_submissions_artist_id` on `artist_id` for artist-related submissions
-- `idx_submissions_status` on `status` for moderation workflows
-- `idx_submissions_type` on `submission_type` for filtering by type
-- `idx_submissions_location` on `lat, lon` for spatial queries
-- `idx_submissions_created_at` on `created_at` for chronological ordering
-
-**Foreign Keys:**
-
-- `artwork_id` → `artwork.id` ON DELETE CASCADE
-- `artist_id` → `artists.id` ON DELETE CASCADE
-
-**Submission Types:**
-
-- `logbook_entry` - Photo submissions for existing or new artworks
-- `artwork_edit` - Edits to artwork metadata (title, description, etc.)
-- `artist_edit` - Edits to artist information
-- `new_artwork` - New artwork submissions via fast workflow
-- `new_artist` - New artist profile submissions
-
-**Status Workflow:**
-
-- `pending` - Awaiting moderation
-- `approved` - Accepted (creates/updates target entity)
-- `rejected` - Rejected (hidden from user)
-
-**Verification Status:**
-
-- `pending` - Email verification not yet sent
-- `verified` - Email verified via magic link
-- `unverified` - Email verification failed or expired
 
 ## Relationships
 
@@ -587,19 +461,20 @@ magic_links
  │
  ▼
 artists ──┐               ┌── artwork ──┐
-          │ 1:N       1:N │             │ 1:N
+          │ N:M       1:N │             │ 1:N
           ▼               ▼             ▼
-        submissions ──────────────── submissions
-          │ 1:N                        │
-          ▼                            ▼
-      audit_log                   user_activity
+   artwork_artists    submissions ─────────
+          │ N:M           │
+          ▼               ▼
+       artwork         consent
 ```
 
 **Unified Submission Flow:**
+
 - All content changes flow through the `submissions` table
 - Approved submissions create/update target entities (artwork, artists)
-- Complete audit trail maintained in `audit_log`
 - Role-based permissions control who can approve submissions
+- Many-to-many relationships between artworks and artists via `artwork_artists` table
 
 ## Common Queries
 
@@ -729,20 +604,28 @@ npm run database:status:prod       # Check production status
 The database schema is reflected in TypeScript types in `src/shared/types.ts`:
 
 **Core Tables:**
-- `ArtworkRecord` - artwork table with enhanced fields
-- `ArtistRecord` - artists table
+- `ArtworkRecord` - artwork table with enhanced fields and structured tags
+- `ArtistRecord` - artists table with bio and metadata
 - `SubmissionRecord` - unified submissions table (replaces LogbookRecord/ArtworkEditRecord)
-- `UserRoleRecord` - role-based permissions
+- `UserRoleRecord` - role-based permissions system
 - `UserRecord` - user authentication
+- `MagicLinkRecord` - email-based authentication tokens
+- `AuthSessionRecord` - active user sessions
+- `RateLimitingRecord` - API rate limiting
+- `ConsentRecord` - legal compliance tracking
+- `ArtworkArtistRecord` - many-to-many artwork-artist relationships
 
 **API Types:**
-- `ArtworkApiResponse` - artwork with parsed JSON fields
-- `ArtistApiResponse` - artist with metadata
-- `CreateSubmissionRequest` - submission creation
-- `AuthStatusResponse` - authentication status
+- `ArtworkApiResponse` - artwork with parsed JSON fields and display metadata
+- `ArtistApiResponse` - artist with metadata and artwork counts
+- `CreateSubmissionRequest` - unified submission creation
+- `AuthStatusResponse` - authentication status with roles and permissions
+- `CreateSubmissionEntryRequest` - legacy logbook submission format
 
-**Legacy Types (Removed):**
-- `LogbookRecord` - replaced by `SubmissionRecord`
-- `TagRecord` - replaced by JSON tags in artwork/artist records
+**New Record Creation Types:**
+- `NewArtworkRecord` - complete artwork creation with all fields
+- `NewArtistRecord` - artist creation with bio, website, and tags
+- `CreateArtworkRequest` - API request format for artwork creation
+- `CreateArtistRequest` - API request format for artist creation
 
-All types include proper validation functions and status guards for type safety across the frontend and backend systems.
+All types include proper validation functions and status guards for type safety across the frontend and backend systems. The unified submission system provides consistent typing for all content operations.

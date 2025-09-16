@@ -13,7 +13,8 @@ export function useAuth() {
   // Reactive auth state
   const isAuthenticated = computed(() => authStore.isAuthenticated);
   const isAnonymous = computed(() => authStore.isAnonymous);
-  const isReviewer = computed(() => authStore.isReviewer);
+  const isModerator = computed(() => authStore.isModerator);
+  const canReview = computed(() => authStore.canReview);
   const isEmailVerified = computed(() => authStore.isEmailVerified);
   const user = computed(() => authStore.user);
   const token = computed(() => authStore.token);
@@ -104,7 +105,8 @@ export function useAuth() {
     // State
     isAuthenticated,
     isAnonymous,
-    isReviewer,
+    isModerator,
+    canReview,
     isEmailVerified,
     user,
     token,

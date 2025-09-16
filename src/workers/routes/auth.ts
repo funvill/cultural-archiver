@@ -417,29 +417,7 @@ export async function getAuthStatus(
   }
 }
 
-// Legacy endpoints for backward compatibility - to be deprecated
 
-/**
- * @deprecated Use verifyMagicLink instead
- * POST /api/auth/consume
- */
-export async function consumeMagicLinkToken(
-  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
-): Promise<Response> {
-  // Redirect to new endpoint
-  return verifyMagicLink(c);
-}
-
-/**
- * @deprecated Use getAuthStatus instead
- * GET /api/auth/verify-status
- */
-export async function getVerificationStatus(
-  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
-): Promise<Response> {
-  // Redirect to new endpoint
-  return getAuthStatus(c);
-}
 
 /**
  * Development helper: Get magic link for email when Resend fails

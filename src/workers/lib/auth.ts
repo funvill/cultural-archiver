@@ -13,6 +13,7 @@ import type {
   SessionInfo,
 } from '../../shared/types';
 import { isValidUUID, isValidEmail } from '../../shared/types';
+import { generateUUID as generateUUIDFromConstants } from '../../shared/constants.js';
 
 // ================================
 // UUID Generation and Validation
@@ -23,7 +24,7 @@ import { isValidUUID, isValidEmail } from '../../shared/types';
  * Uses the Web Crypto API for secure random generation
  */
 export function generateUUID(): string {
-  return crypto.randomUUID();
+  return generateUUIDFromConstants();
 }
 
 /**

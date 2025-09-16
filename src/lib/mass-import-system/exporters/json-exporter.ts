@@ -175,6 +175,7 @@ export class JsonExporter implements ExporterPlugin {
         recordsSuccessful: 0,
         recordsFailed: data.length,
         recordsSkipped: 0,
+        recordsDuplicate: 0,
         errors: [{ field: 'export', message: errorMessage, severity: 'error' }],
         summary: `JSON export failed: ${errorMessage}`,
       };
@@ -229,6 +230,7 @@ export class JsonExporter implements ExporterPlugin {
         recordsSuccessful: data.length,
         recordsFailed: 0,
         recordsSkipped: 0,
+        recordsDuplicate: 0,
         summary: `Successfully exported ${data.length} records to JSON file: ${this.config.outputPath}`,
       };
       
@@ -273,6 +275,7 @@ export class JsonExporter implements ExporterPlugin {
       recordsSuccessful: data.length,
       recordsFailed: 0,
       recordsSkipped: 0,
+      recordsDuplicate: 0,
       summary: `Successfully exported ${data.length} records to ${totalFiles} JSON files in ${path.dirname(this.config.outputPath)}`,
     };
   }

@@ -33,7 +33,7 @@ export const artworkSubmissionService = {
       formData.append('lon', payload.longitude.toString());
       formData.append('consent_version', CONSENT_VERSION);
       if (payload.title) formData.append('title', payload.title);
-      if (payload.notes) formData.append('note', payload.notes);
+  if (payload.notes) formData.append('notes', payload.notes);
       // Build lightweight structured tags from provided optional metadata so backend can retain it later
       const tagPayload: Record<string, string | number> = {};
       if (payload.artworkType) tagPayload.artwork_type = payload.artworkType;

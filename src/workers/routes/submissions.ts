@@ -1,5 +1,5 @@
 /**
- * Submission route handlers for logbook entries (POST /api/logbook)
+ * Submission route handlers for artwork submissions (POST /api/submissions)
  * Handles artwork submissions with photos, location, and metadata
  * 
  * UPDATED: Uses consent-first pattern with centralized consent table
@@ -8,12 +8,12 @@
 import type { Context } from 'hono';
 import type {
   WorkerEnv,
-  LogbookSubmissionRequest,
-  LogbookSubmissionResponse,
+  SubmissionRequest,
+  SubmissionResponse,
   FastArtworkSubmissionRequest,
   FastArtworkSubmissionResponse,
   NearbyArtworkInfo,
-  CreateLogbookEntryRequest,
+  CreateSubmissionEntryRequest,
 } from '../types';
 import { createDatabaseService } from '../lib/database';
 import { createSuccessResponse, ValidationApiError, ApiError } from '../lib/errors';
@@ -52,11 +52,11 @@ interface UserStatsResult {
  * 3. Process photos
  * 4. Return response with consent audit trail
  */
-export async function createLogbookSubmission(
+export async function createSubmission(
   c: Context<{ Bindings: WorkerEnv }>
 ): Promise<Response> {
   const userToken = getUserToken(c);
-  const validatedData = getValidatedData<LogbookSubmissionRequest>(c, 'body');
+  const validatedData = getValidatedData<SubmissionRequest>(c, 'body');
   const validatedFiles = getValidatedFiles(c);
 
   const db = createDatabaseService(c.env.DB);
@@ -137,18 +137,18 @@ export async function createLogbookSubmission(
       photos: safeJsonParse<string[]>(artwork.tags, []), // For now, photos are in tags - this will be improved
     }));
 
-    // STEP 3: Create logbook entry (consent already recorded)
-    const logbookEntry: CreateLogbookEntryRequest = {
+    // STEP 3: Create submission entry (consent already recorded)
+    const submissionEntry: CreateSubmissionEntryRequest = {
       user_token: userToken,
       lat: validatedData.lat,
       lon: validatedData.lon,
-      ...(validatedData.note && { note: validatedData.note }),
+      ...(validatedData.notes && { notes: validatedData.notes }),
       photos: [], // Will be updated after processing
       // NOTE: No consent_version field needed - it's now in the consent table
     };
 
-    // Create the logbook entry - it will generate its own ID
-    const newEntry = await db.createLogbookEntry(logbookEntry);
+    // Create the submission entry - it will generate its own ID
+    const newEntry = await db.createLogbookEntry(submissionEntry);
     
     // Update our consent record to use the actual logbook entry ID
     try {
@@ -178,7 +178,7 @@ export async function createLogbookSubmission(
     }
 
     // STEP 5: Create response 
-    const response: LogbookSubmissionResponse = {
+    const response: SubmissionResponse = {
       id: newEntry.id,
       status: 'pending',
       message: 'Submission received and is pending review',
@@ -291,7 +291,7 @@ export async function checkDuplicateSubmission(
     const stmt = db.prepare(`
       SELECT COUNT(*) as count FROM submissions 
       WHERE user_token = ? 
-        AND submitted_at > ?
+        AND created_at > ?
         AND ABS(49.2827 - ?) < 0.001 -- Rough coordinate check within ~100m
         AND ABS(-123.1207 - ?) < 0.001
     `);
@@ -348,7 +348,7 @@ export async function getUserSubmissionStats(
         COUNT(*) as total_submissions,
         SUM(CASE WHEN status = 'approved' THEN 1 ELSE 0 END) as approved_submissions,
         SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_submissions,
-        MAX(submitted_at) as last_submission_at
+        MAX(created_at) as last_submission_at
       FROM submissions 
       WHERE user_token = ? AND status != 'rejected'
     `);
@@ -530,27 +530,26 @@ export async function createFastArtworkSubmission(
         _submission: {
           lat: validatedData.lat,
           lon: validatedData.lon,
-          type_name: 'unknown',
+          type_name: (validatedData.tags?.artwork_type as string) || 'unknown',
           tags: {
             ...(validatedData.tags || {}),
-            artwork_type: 'unknown', // Default type for fast submissions
-            // Include title in tags for approval extraction
+            // Include title in tags for approval extraction  
             ...(validatedData.title && { title: validatedData.title }),
           },
         },
-        note: validatedData.note || 'Fast photo-first submission',
+        notes: validatedData.notes || 'Fast photo-first submission',
       };
 
-      // Create new artwork submission (logbook entry without artwork_id)
-      const logbookEntry: CreateLogbookEntryRequest = {
+      // Create new artwork submission (submission entry without artwork_id)
+      const submissionEntry: CreateSubmissionEntryRequest = {
         user_token: userToken,
         lat: validatedData.lat,
         lon: validatedData.lon,
-        note: JSON.stringify(submissionData),
+        notes: JSON.stringify(submissionData),
         photos: [], // Will be updated after processing
       };
 
-      const newEntry = await db.createLogbookEntry(logbookEntry);
+      const newEntry = await db.createLogbookEntry(submissionEntry);
       
       // Update our consent record to use the actual logbook entry ID
       try {
@@ -583,16 +582,16 @@ export async function createFastArtworkSubmission(
         }]);
       }
       
-      const logbookEntry: CreateLogbookEntryRequest = {
+      const submissionEntry: CreateSubmissionEntryRequest = {
         artwork_id: validatedData.existing_artwork_id,
         user_token: userToken,
         lat: validatedData.lat,
         lon: validatedData.lon,
-        ...(validatedData.note && { note: validatedData.note }),
+        ...(validatedData.notes && { notes: validatedData.notes }),
         photos: [], // Will be updated after processing
       };
 
-      const newEntry = await db.createLogbookEntry(logbookEntry);
+      const newEntry = await db.createLogbookEntry(submissionEntry);
       
       // Update our consent record to use the actual logbook entry ID
       try {

@@ -57,7 +57,14 @@ export class DataPipeline {
 
     try {
       // 2. Load importer-specific configuration
-      const importerConfig = await this.loadImporterConfig();
+      // If an importerConfig was passed via options and it's non-empty, use it.
+      // Otherwise, try to load the importer-specific config file.
+      let importerConfig: ImporterConfig;
+      if (options.importerConfig && Object.keys(options.importerConfig).length > 0) {
+        importerConfig = options.importerConfig;
+      } else {
+        importerConfig = await this.loadImporterConfig();
+      }
       
       // 3. Validate input data with importer
       console.log(`🔍 Validating input data with ${this.importer.name} importer...`);
@@ -66,14 +73,32 @@ export class DataPipeline {
       if (!validation.isValid) {
         const errorMessage = 'Input data validation failed';
         reportTracker.recordFailure('validation', 'validation_failed', validation.errors);
-        throw new Error(`${errorMessage}: ${validation.errors?.join(', ')}`);
+        
+        // Format error messages for better CLI output
+        const errorMessages = validation.errors?.map(err => `${err.field}: ${err.message}`) || ['Unknown validation error'];
+        throw new Error(`${errorMessage}: ${errorMessages.join('; ')}`);
       }
       
       console.log(`✅ Input data validation passed`);
       
       // 4. Transform data using importer
       console.log(`🔄 Transforming data with ${this.importer.name} importer...`);
-      const unifiedData = await this.importer.mapData(inputData, importerConfig);
+      let unifiedData = await this.importer.mapData(inputData, importerConfig);
+      
+      // 4.1. Apply offset if specified (skip first N records)
+      if (options.offset && options.offset > 0) {
+        const originalCount = unifiedData.length;
+        unifiedData = unifiedData.slice(options.offset);
+        console.log(`⏭️  Skipped first ${options.offset} records (${unifiedData.length} remaining from ${originalCount} total)`);
+      }
+      
+      // 4.2. Apply limit if specified (take first N records after offset)
+      if (options.limit && options.limit > 0) {
+        const preLimit = unifiedData.length;
+        unifiedData = unifiedData.slice(0, options.limit);
+        console.log(`🔢 Limited to ${options.limit} records (from ${preLimit} after offset)`);
+      }
+      
       reportTracker.recordProcessedRecords(unifiedData.length);
       
       console.log(`✅ Transformed ${unifiedData.length} records`);
@@ -89,6 +114,11 @@ export class DataPipeline {
         options.exporterConfig ?? {}, 
         reportTracker
       );
+      
+      // 6a. Track duplicate count in report tracker
+      if (exportResult.recordsDuplicate !== undefined) {
+        reportTracker.setDuplicateCount(exportResult.recordsDuplicate);
+      }
       
       // 7. Generate final report if requested
       if (options.generateReport) {
@@ -187,6 +217,7 @@ export class DataPipeline {
       let totalSuccessful = 0;
       let totalFailed = 0;
       let totalSkipped = 0;
+      let totalDuplicates = 0;
       const allErrors: string[] = [];
 
       // Process each batch
@@ -202,6 +233,7 @@ export class DataPipeline {
           totalSuccessful += batchResult.recordsSuccessful;
           totalFailed += batchResult.recordsFailed;
           totalSkipped += batchResult.recordsSkipped;
+          totalDuplicates += batchResult.recordsDuplicate || 0;
           
           if (batchResult.errors) {
             allErrors.push(...batchResult.errors.map(e => e.message));
@@ -255,6 +287,7 @@ export class DataPipeline {
         recordsSuccessful: totalSuccessful,
         recordsFailed: totalFailed,
         recordsSkipped: totalSkipped,
+        recordsDuplicate: totalDuplicates,
         ...(allErrors.length > 0 && {
           errors: allErrors.map(msg => ({ 
             field: 'export', 
@@ -297,7 +330,16 @@ export class DataPipeline {
    */
   private async saveReport(report: ProcessingReport, reportPath?: string): Promise<void> {
     try {
-      const defaultPath = `./reports/mass-import-${Date.now()}.json`;
+      // Generate human-readable timestamp: YYYY-MM-DD-HHMMSS
+      const now = new Date();
+      const timestamp = now.getFullYear() + '-' +
+        String(now.getMonth() + 1).padStart(2, '0') + '-' +
+        String(now.getDate()).padStart(2, '0') + '-' +
+        String(now.getHours()).padStart(2, '0') +
+        String(now.getMinutes()).padStart(2, '0') +
+        String(now.getSeconds()).padStart(2, '0');
+      
+      const defaultPath = `./reports/mass-import-${timestamp}.json`;
       const outputPath = reportPath ?? defaultPath;
       
       // Ensure reports directory exists
@@ -328,12 +370,14 @@ export class DataPipeline {
     const successfulRecords = exportResult.recordsSuccessful;
     const failedRecords = exportResult.recordsFailed;
     const skippedRecords = exportResult.recordsSkipped;
+    const duplicateRecords = exportResult.recordsDuplicate || 0;
     
     return {
       totalRecords,
       successfulRecords,
       failedRecords,
       skippedRecords,
+      duplicateRecords,
       processingTime,
       averageRecordTime: totalRecords > 0 ? processingTime / totalRecords : 0
     };

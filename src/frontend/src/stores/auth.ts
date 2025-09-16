@@ -24,10 +24,9 @@ export const useAuthStore = defineStore('auth', () => {
     () =>
       permissions.value.includes('moderator') ||
       permissions.value.includes('admin') ||
-      (user.value?.isModerator ?? user.value?.isReviewer ?? false)
+      (user.value?.isModerator ?? false)
   );
-  // Deprecated alias
-  const isReviewer = computed(() => isModerator.value);
+  
   const canReview = computed(() => isModerator.value || isAdmin.value);
   const isEmailVerified = computed(() => user.value?.emailVerified ?? false);
 
@@ -169,7 +168,6 @@ export const useAuthStore = defineStore('auth', () => {
             id: authStatus.user.uuid,
             email: authStatus.user.email,
             emailVerified: true,
-            isReviewer: false, // deprecated
             isModerator: false,
             canReview: false,
             createdAt: authStatus.user.created_at,
@@ -180,7 +178,6 @@ export const useAuthStore = defineStore('auth', () => {
           try {
             const profileResponse = await apiService.getUserProfile();
             if (profileResponse.data?.is_reviewer) {
-              userData.isReviewer = true; // deprecated field retained
               userData.isModerator = true;
               userData.canReview = true;
             }
@@ -198,8 +195,6 @@ export const useAuthStore = defineStore('auth', () => {
 
               console.log('[AUTH DEBUG] Permissions extracted from profile:', {
                 permissions: userPermissions,
-                isReviewer: // deprecated
-                  userPermissions.includes('moderator') || userPermissions.includes('admin'),
                 isAdmin: userPermissions.includes('admin'),
               });
             }
@@ -213,9 +208,8 @@ export const useAuthStore = defineStore('auth', () => {
             id: userData.id,
             email: userData.email,
             emailVerified: userData.emailVerified,
-            isReviewer: userData.isReviewer,
-            isModerator: !!userData.isModerator || userData.isReviewer,
-            canReview: !!userData.canReview || userData.isReviewer,
+            isModerator: !!userData.isModerator,
+            canReview: !!userData.canReview,
           });
         } else {
           // Anonymous user - still check for permissions
@@ -223,7 +217,6 @@ export const useAuthStore = defineStore('auth', () => {
             id: authStatus.user_token,
             email: '',
             emailVerified: false,
-            isReviewer: false,
             isModerator: false,
             canReview: false,
             createdAt: new Date().toISOString(),
@@ -233,7 +226,6 @@ export const useAuthStore = defineStore('auth', () => {
           try {
             const profileResponse = await apiService.getUserProfile();
             if (profileResponse.data?.is_reviewer) {
-              userData.isReviewer = true; // deprecated
               userData.isModerator = true;
               userData.canReview = true;
             }
@@ -251,8 +243,6 @@ export const useAuthStore = defineStore('auth', () => {
 
               console.log('[AUTH DEBUG] Anonymous user permissions extracted from profile:', {
                 permissions: userPermissions,
-                isReviewer: // deprecated
-                  userPermissions.includes('moderator') || userPermissions.includes('admin'),
                 isAdmin: userPermissions.includes('admin'),
               });
             }
@@ -267,7 +257,6 @@ export const useAuthStore = defineStore('auth', () => {
           console.log('[AUTH DEBUG] User set as anonymous:', {
             id: userData.id,
             emailVerified: userData.emailVerified,
-            isReviewer: userData.isReviewer,
             backend_authenticated: authStatus.is_authenticated,
           });
         }
@@ -326,7 +315,6 @@ export const useAuthStore = defineStore('auth', () => {
           id: response.data.token,
           email: '',
           emailVerified: false,
-          isReviewer: false,
           isModerator: false,
           canReview: false,
           createdAt: new Date().toISOString(),
@@ -349,9 +337,8 @@ export const useAuthStore = defineStore('auth', () => {
         id: fallbackToken,
         email: '',
         emailVerified: false,
-          isReviewer: false,
-          isModerator: false,
-          canReview: false,
+        isModerator: false,
+        canReview: false,
         createdAt: new Date().toISOString(),
       };
       setUser(userData);
@@ -438,7 +425,6 @@ export const useAuthStore = defineStore('auth', () => {
           id: response.data.user.uuid,
           email: response.data.user.email,
           emailVerified: true,
-          isReviewer: false, // deprecated
           isModerator: false,
           canReview: false,
           createdAt: response.data.user.created_at,
@@ -528,7 +514,6 @@ export const useAuthStore = defineStore('auth', () => {
             id: response.data.new_user_token,
             email: '',
             emailVerified: false,
-            isReviewer: false,
             isModerator: false,
             canReview: false,
             createdAt: new Date().toISOString(),
@@ -586,7 +571,6 @@ export const useAuthStore = defineStore('auth', () => {
             id: authStatus.user.uuid,
             email: authStatus.user.email,
             emailVerified: true,
-            isReviewer: false, // Will be determined by permissions
             isModerator: false,
             canReview: false,
             createdAt: authStatus.user.created_at,
@@ -612,10 +596,9 @@ export const useAuthStore = defineStore('auth', () => {
     // Computed
     isAuthenticated,
     isAnonymous,
-  // Role flags
-  isReviewer, // deprecated
-  isModerator,
-  canReview,
+    // Role flags
+    isModerator,
+    canReview,
     isAdmin,
     isEmailVerified,
 

@@ -10,9 +10,7 @@ import type {
   ArtworkRecord,
   ArtworkDetailResponse,
   ArtworkWithPhotos,
-  LogbookEntryWithPhotos,
   NearbyArtworksResponse,
-  ArtworkCreatorInfo,
 } from '../types';
 import type { StructuredTagsData } from '../../shared/types';
 import { DEFAULT_ARTWORK_SEARCH_RADIUS } from '../../shared/geo';
@@ -21,7 +19,7 @@ import { createSuccessResponse, NotFoundError } from '../lib/errors';
 import { getValidatedData } from '../middleware/validation';
 import { safeJsonParse } from '../lib/errors';
 import { createSimilarityService } from '../lib/similarity';
-import { categorizeTagsForDisplay } from '../lib/artwork-edits';
+import { categorizeTagsForDisplay } from '../../shared/tag-display';
 import type { SimilarityQuery } from '../../shared/similarity';
 
 // Import new database patch for submissions compatibility
@@ -250,17 +248,26 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       throw new NotFoundError('Artwork', artworkId);
     }
 
-    // Get creators for this artwork
-    const creators: ArtworkCreatorInfo[] = await db.getCreatorsForArtwork(artworkId);
-
-    // Get artists for this artwork (from new artist system)
+    // Get artists for this artwork
     const artists = await db.getArtistsForArtwork(artworkId);
 
     // Get logbook entries for timeline with pagination - UPDATED: using submissions
     const logbookEntries = await getLogbookEntriesForArtworkFromSubmissions(c.env.DB, artworkId, perPage, offset);
 
-    // Format logbook entries with parsed photos
-    const logbookEntriesWithPhotos: LogbookEntryWithPhotos[] = logbookEntries.map(entry => ({
+    // Format logbook entries with parsed photos (using inline type from ArtworkDetailResponse)
+    const logbookEntriesWithPhotos: Array<{
+      id: string;
+      artwork_id: string | null;
+      user_token: string;
+      lat: number | null;
+      lon: number | null;
+      notes: string | null;
+      photos: string | null;
+      status: 'pending' | 'approved' | 'rejected';
+      created_at: string;
+      rejection_reason?: string;
+      photos_parsed: string[];
+    }> = logbookEntries.map(entry => ({
       ...entry,
       photos_parsed: safeJsonParse<string[]>(entry.photos, []),
     }));
@@ -270,6 +277,20 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
     logbookEntriesWithPhotos.forEach(entry => {
       allPhotos.push(...entry.photos_parsed);
     });
+
+    // Include photos from artwork.photos field (from mass import and direct uploads)
+    try {
+      if (artwork.photos) {
+        const artworkPhotos = safeJsonParse<string[]>(artwork.photos, []);
+        artworkPhotos.forEach(photoUrl => {
+          if (typeof photoUrl === 'string' && !allPhotos.includes(photoUrl)) {
+            allPhotos.push(photoUrl);
+          }
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to parse artwork.photos field', e);
+    }
 
     // Also include any artwork-level photos stored in tags._photos (set during approval)
     // updateArtworkPhotos stores photos inside root JSON object under _photos key.
@@ -323,6 +344,28 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
     // Categorize tags according to current schema
     const categorizedTags = categorizeTagsForDisplay(tagsParsed);
 
+    // Compute artist_name field using artists from database relationship
+    let artistName = 'Unknown Artist';
+    
+    // Check if we have artists from the database relationship
+    if (artists && artists.length > 0) {
+      // Use the first primary artist, or just the first artist if no primary found
+      const primaryArtist = artists.find(a => a.role === 'primary') || artists[0];
+      if (primaryArtist) {
+        artistName = primaryArtist.name;
+      }
+    } else if (artwork.artist_name) {
+      // Fallback to artist_name from the database JOIN
+      artistName = artwork.artist_name;
+    } else if (tagsParsed) {
+      // Final fallback to tags
+      if (tagsParsed.artist_name && typeof tagsParsed.artist_name === 'string') {
+        artistName = tagsParsed.artist_name;
+      } else if (tagsParsed.artist && typeof tagsParsed.artist === 'string') {
+        artistName = tagsParsed.artist;
+      }
+    }
+
   const response: ArtworkDetailResponse = {
       ...artwork,
       type_name: artwork.type_name,
@@ -330,8 +373,8 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       logbook_entries: logbookEntriesWithPhotos,
       tags_parsed: tagsParsed,
       tags_categorized: categorizedTags,
-      creators: creators,
       artists: artists,
+      artist_name: artistName,
     };
 
     return c.json(createSuccessResponse(response));
@@ -367,7 +410,7 @@ export async function getArtworkStats(db: D1Database): Promise<{
     const submissionStmt = db.prepare(`
       SELECT 
         COUNT(*) as total_submissions,
-        SUM(CASE WHEN submitted_at > datetime('now', '-7 days') THEN 1 ELSE 0 END) as recent_submissions
+        SUM(CASE WHEN created_at > datetime('now', '-7 days') THEN 1 ELSE 0 END) as recent_submissions
       FROM submissions
       WHERE submission_type = 'logbook'
     `);
@@ -891,12 +934,15 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
       }, 404);
     }
 
-    // Get artworks with type information
+    // Get artworks with type information and primary artist
     const artworksQuery = `
       SELECT a.id, a.lat, a.lon, a.created_at, a.status, a.tags, 
-             a.title, a.description, a.artist_names,
-             COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name
+             a.title, a.description,
+             COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name,
+             COALESCE(art.name, 'Unknown Artist') as primary_artist_name
       FROM artwork a
+      LEFT JOIN artwork_artists aa ON a.id = aa.artwork_id AND aa.role = 'primary'
+      LEFT JOIN artists art ON aa.artist_id = art.id
       WHERE a.status = 'approved'
       ${orderClause}
       LIMIT ? OFFSET ?
@@ -908,7 +954,7 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
 
     // Get photos for each artwork
     const artworksWithPhotos = await Promise.all(
-      (artworks.results as unknown as (ArtworkRecord & { type_name?: string; artist_names?: string })[] || []).map(async (artwork) => {
+      (artworks.results as unknown as (ArtworkRecord & { type_name?: string; primary_artist_name?: string })[] || []).map(async (artwork) => {
         // Get logbook entries for this artwork to find photos
         const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
         const allPhotos: string[] = [];
@@ -920,18 +966,10 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
           }
         });
 
-        // Get primary artist name from artist_names or tags
-        let artistName = 'Unknown Artist';
+        // Use primary artist name from JOIN query, with fallback to tags
+        let artistName = artwork.primary_artist_name || 'Unknown Artist';
         
-        // First try the artist_names JSON array
-        if (artwork.artist_names) {
-          const artistNames = safeJsonParse<string[]>(artwork.artist_names, []);
-          if (artistNames.length > 0 && artistNames[0]) {
-            artistName = artistNames[0]; // Use first artist
-          }
-        }
-        
-        // Fallback to tags
+        // Fallback to tags if no artist found through relationships
         if (artistName === 'Unknown Artist' && artwork.tags) {
           const tags = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
           if (tags.artist_name && typeof tags.artist_name === 'string') {
@@ -950,7 +988,6 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
           tags: artwork.tags,
           title: artwork.title,
           description: artwork.description,
-          artist_names: artwork.artist_names,
           type_name: artwork.type_name,
           photos: allPhotos,
           tags_parsed: safeJsonParse(artwork.tags, {}),

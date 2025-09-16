@@ -19,7 +19,7 @@
     }
   },
   "scripts": {
-    "build": "tsc && node -e \"const fs=require('fs'); const path=require('path'); if(!fs.existsSync('dist/importers')) fs.mkdirSync('dist/importers', {recursive: true}); const importersDir = path.join('importers'); const distImportersDir = path.join('dist', 'importers'); fs.readdirSync(importersDir).filter(f => f.endsWith('.json')).forEach(f => { fs.copyFileSync(path.join(importersDir, f), path.join(distImportersDir, f)); });\"",
+    "build": "tsc && node -e \"const fs=require('fs'); const path=require('path'); if(!fs.existsSync('dist/importers')) fs.mkdirSync('dist/importers', {recursive: true}); const importersDir = path.join('importers'); const distImportersDir = path.join('dist', 'importers'); fs.readdirSync(importersDir).filter(f => f.endsWith('.json')).forEach(f => { fs.copyFileSync(path.join(importersDir, f), path.join(distImportersDir, f)); }); if(!fs.existsSync('dist/exporters')) fs.mkdirSync('dist/exporters', {recursive: true}); const exportersDir = path.join('exporters'); const distExportersDir = path.join('dist', 'exporters'); fs.readdirSync(exportersDir).filter(f => f.endsWith('.json')).forEach(f => { fs.copyFileSync(path.join(exportersDir, f), path.join(distExportersDir, f)); });\"",
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:basic": "tsx test/test-basic.ts",

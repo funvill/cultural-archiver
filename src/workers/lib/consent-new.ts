@@ -17,11 +17,7 @@ import type {
 } from '../../shared/types';
 import type { D1Database } from '@cloudflare/workers-types';
 import { ApiError } from './errors';
-
-/**
- * Mass import reserved UUID for system-generated content
- */
-export const MASS_IMPORT_USER_UUID = '00000000-0000-0000-0000-000000000002';
+import { generateUUID } from '../../shared/constants.js';
 
 /**
  * Current consent version - update when legal terms change
@@ -76,7 +72,7 @@ export async function recordConsent(params: RecordConsentParams): Promise<Record
     throw new ApiError('Missing required consent fields', 'CONSENT_MISSING_FIELDS', 400);
   }
 
-  const consentId = crypto.randomUUID();
+  const consentId = generateUUID();
   const now = new Date().toISOString();
 
   try {

@@ -141,10 +141,7 @@ const router = createRouter({
       component: ReviewView,
       meta: {
         title: 'Review Queue - Cultural Archiver',
-  // New canonical flag
-  requiresModerator: true,
-  // Backward compatibility (will be removed after deprecation window)
-  requiresReviewer: true,
+        requiresModerator: true,
       },
     },
     {
@@ -199,7 +196,6 @@ router.beforeEach(async (to, _from, next) => {
   console.log('[ROUTER DEBUG] Route guard check:', {
     route: to.path,
     requiresModerator: to.meta.requiresModerator,
-    requiresReviewer: to.meta.requiresReviewer,
     isAuthenticated: authStore.isAuthenticated,
     canReview: authStore.canReview,
     isModerator: authStore.isModerator,
@@ -222,8 +218,8 @@ router.beforeEach(async (to, _from, next) => {
     return;
   }
 
-  // Check if route requires moderator (or legacy reviewer) permissions
-  if ((to.meta.requiresModerator || to.meta.requiresReviewer) && !authStore.canReview) {
+  // Check if route requires moderator permissions
+  if (to.meta.requiresModerator && !authStore.canReview) {
     console.log('Moderator access required for this route');
     next({
       path: '/',

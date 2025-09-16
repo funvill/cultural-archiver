@@ -9,12 +9,15 @@
 
 import type { Context } from 'hono';
 import type {
-  CreateArtworkEditRequest,
   ArtworkEditSubmissionResponse,
   PendingEditsResponse,
 } from '../../shared/types';
 import type { ArtworkRecord, WorkerEnv } from '../types'; // Use local workers type
-import { ArtworkEditsService } from '../lib/artwork-edits';
+import { 
+  getUserPendingArtworkEdits,
+  getUserSubmissionCount,
+  createArtworkEditFromFields
+} from '../lib/submissions';
 import { createSuccessResponse, ValidationApiError, NotFoundError } from '../lib/errors';
 import { getUserToken } from '../middleware/auth';
 import { validateOSMExportData, createExportResponse, generateOSMXMLFile } from '../lib/osm-export';
@@ -105,11 +108,9 @@ export async function submitArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): Pr
     }
   }
 
-  const artworkEditsService = new ArtworkEditsService(c.env.DB);
-
   try {
     // Check rate limiting - 500 edits per 24 hours
-    const recentEditCount = await artworkEditsService.getUserPendingEditCount(userToken, 24);
+    const recentEditCount = await getUserSubmissionCount(c.env.DB, userToken, 'artwork_edit', 24);
     if (recentEditCount >= 500) {
       throw new ValidationApiError([
         {
@@ -121,7 +122,8 @@ export async function submitArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): Pr
     }
 
     // Check if user already has pending edits for this artwork
-    const existingPendingEdits = await artworkEditsService.getUserPendingEdits(
+    const existingPendingEdits = await getUserPendingArtworkEdits(
+      c.env.DB,
       userToken,
       artworkId
     );
@@ -136,17 +138,15 @@ export async function submitArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): Pr
       ]);
     }
 
-    // Submit the edits
-    const editRequest: CreateArtworkEditRequest = {
-      artwork_id: artworkId,
-      user_token: userToken,
+    // Submit the edits using the new submissions system
+    const submissionId = await createArtworkEditFromFields(c.env.DB, {
+      userToken,
+      artworkId,
       edits: requestBody.edits,
-    };
-
-    const editIds = await artworkEditsService.submitArtworkEdit(editRequest);
+    });
 
     const response: ArtworkEditSubmissionResponse = {
-      edit_ids: editIds,
+      edit_ids: [submissionId], // Return submission ID as edit_ids for compatibility
       message: 'Your changes have been submitted for review',
       status: 'pending',
     };
@@ -178,20 +178,25 @@ export async function getUserPendingEdits(c: Context<{ Bindings: WorkerEnv }>): 
     ]);
   }
 
-  const artworkEditsService = new ArtworkEditsService(c.env.DB);
-
   try {
-    const pendingEdits = await artworkEditsService.getUserPendingEdits(userToken, artworkId);
+    const pendingEdits = await getUserPendingArtworkEdits(c.env.DB, userToken, artworkId);
 
     const response: PendingEditsResponse = {
       has_pending_edits: pendingEdits.length > 0,
-      pending_fields: pendingEdits.map(edit => edit.field_name),
+      pending_fields: pendingEdits.flatMap(edit => {
+        try {
+          const newData = edit.new_data ? JSON.parse(edit.new_data) : {};
+          return Object.keys(newData);
+        } catch {
+          return ['artwork_edit']; // fallback if JSON parsing fails
+        }
+      }),
     };
 
     if (pendingEdits.length > 0) {
       const firstEdit = pendingEdits[0];
-      if (firstEdit?.submitted_at) {
-        response.submitted_at = firstEdit.submitted_at;
+      if (firstEdit?.created_at) {
+        response.submitted_at = firstEdit.created_at;
       }
     }
 
@@ -294,9 +299,8 @@ export async function validateArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): 
     throw new NotFoundError(`Artwork not found: ${artworkId}`);
   }
 
-  // Check rate limiting
-  const artworkEditsService = new ArtworkEditsService(c.env.DB);
-  const recentEditCount = await artworkEditsService.getUserPendingEditCount(userToken, 24);
+  // Check rate limiting using submissions system
+  const recentEditCount = await getUserSubmissionCount(c.env.DB, userToken, 'artwork_edit', 24);
 
   const response = {
     valid: true,

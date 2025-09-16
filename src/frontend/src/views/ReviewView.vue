@@ -315,11 +315,11 @@ async function loadSubmissions() {
     // Load statistics (if the stats endpoint exists)
     try {
       const statsResponse = await apiService.getReviewStats();
-      if (statsResponse) {
+      if (statsResponse.data) {
         // Calculate today's counts from recent activity
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
         const todayActivity =
-          statsResponse.recent_activity?.filter((activity: any) => activity.date === today) || [];
+          statsResponse.data.recent_activity?.filter((activity: any) => activity.date === today) || [];
 
         const approvedToday =
           todayActivity.find((activity: any) => activity.status === 'approved')?.count || 0;
@@ -327,13 +327,13 @@ async function loadSubmissions() {
           todayActivity.find((activity: any) => activity.status === 'rejected')?.count || 0;
 
         statistics.value = {
-          pending: statsResponse.status_counts.pending || 0,
+          pending: statsResponse.data.status_counts.pending || 0,
           approvedToday: approvedToday,
           rejectedToday: rejectedToday,
           total:
-            (statsResponse.status_counts.pending || 0) +
-            (statsResponse.status_counts.approved || 0) +
-            (statsResponse.status_counts.rejected || 0),
+            (statsResponse.data.status_counts.pending || 0) +
+            (statsResponse.data.status_counts.approved || 0) +
+            (statsResponse.data.status_counts.rejected || 0),
         };
 
         console.log('[ReviewView] Statistics calculated:', statistics.value);
@@ -855,7 +855,7 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
               stroke-linecap="round"
               stroke-linejoin="round"
               stroke-width="2"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0114 0z"
             />
           </svg>
           <p class="text-gray-600 mb-4">No submissions pending review</p>
@@ -1297,10 +1297,11 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
 
 /* Text clamping for multiline truncation */
 .line-clamp-3 {
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
   overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
 }
 
 /* Aspect ratio utilities for image previews */

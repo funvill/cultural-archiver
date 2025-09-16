@@ -2,8 +2,11 @@
  * Worker-specific types that include both shared types and Cloudflare Worker types
  */
 
-// Import Cloudflare Worker types
+// Cloudflare Worker types
 import type { D1Database, KVNamespace, R2Bucket } from '@cloudflare/workers-types';
+
+// Import shared types that should not be duplicated
+export * from '../shared/types';
 
 // ================================
 // Database Schema Types
@@ -23,6 +26,7 @@ export interface ArtworkRecord {
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null; // JSON object for key-value metadata like {"material": "bronze", "style": "modern"}
+  photos: string | null; // JSON array of photo URLs like ["url1", "url2", "url3"]
   title: string | null; // Editable artwork title field
   description: string | null; // Editable artwork description field
   created_by: string | null; // Editable creator/artist field
@@ -34,7 +38,7 @@ export interface LogbookRecord {
   user_token: string;
   lat: number | null;
   lon: number | null;
-  note: string | null;
+  notes: string | null;
   photos: string | null; // JSON array of R2 URLs like ["url1", "url2", "url3"]
   status: 'pending' | 'approved' | 'rejected';
   created_at: string;
@@ -50,20 +54,7 @@ export interface TagRecord {
   created_at: string;
 }
 
-export interface CreatorRecord {
-  id: string;
-  name: string;
-  bio: string | null;
-  created_at: string;
-}
-
-export interface ArtworkCreatorRecord {
-  id: string;
-  artwork_id: string;
-  creator_id: string;
-  role: string;
-  created_at: string;
-}
+// Removed obsolete CreatorRecord/ArtworkCreatorRecord - replaced by unified Artist system
 
 // ================================
 // API Request/Response Types
@@ -73,6 +64,7 @@ export interface CreateArtworkRequest {
   lat: number;
   lon: number;
   tags?: Record<string, unknown>;
+  photos?: string | null;
   status?: ArtworkRecord['status'];
   title?: string;
   description?: string;
@@ -96,36 +88,27 @@ export interface CreateTagRequest {
   value: string;
 }
 
-export interface CreateLogbookEntryRequest {
+export interface CreateSubmissionEntryRequest {
   artwork_id?: string;
   user_token: string;
   lat?: number;
   lon?: number;
-  note?: string;
+  notes?: string;
   photos?: string[];
   consent_version?: string; // Track consent version for compliance
 }
 
-export interface CreateCreatorRequest {
-  name: string;
-  bio?: string;
-}
-
-export interface CreateArtworkCreatorRequest {
-  artwork_id: string;
-  creator_id: string;
-  role?: string;
-}
+// Removed obsolete CreateCreatorRequest/CreateArtworkCreatorRequest - replaced by unified Artist system
 
 // ================================
 // MVP Worker API Types
 // ================================
 
 // Submission Endpoints
-export interface LogbookSubmissionRequest {
+export interface SubmissionRequest {
   lat: number;
   lon: number;
-  note?: string;
+  notes?: string;
   type?: string;
   photos?: File[];
   consent_version?: string; // Track consent version for compliance
@@ -142,7 +125,7 @@ export interface FastArtworkSubmissionRequest {
   tags?: Record<string, string | number>; // Structured tags (includes artwork_type)
   
   // Submission metadata
-  note?: string;
+  notes?: string;
   photos?: File[];
   consent_version: string; // Required for fast workflow
   
@@ -163,7 +146,7 @@ export interface FastArtworkSubmissionResponse {
   }>;
 }
 
-export interface LogbookSubmissionResponse {
+export interface SubmissionResponse {
   id: string;
   status: 'pending';
   message: string;
@@ -200,32 +183,12 @@ export interface ArtworkWithPhotos extends ArtworkRecord {
   photo_count: number;
 }
 
-export interface ArtworkDetailResponse {
-  id: string;
-  lat: number;
-  lon: number;
-  created_at: string;
-  status: 'pending' | 'approved' | 'removed';
-  tags: string | null;
-  photos: string[]; // Parsed photo URLs
-  type_name: string;
-  logbook_entries: LogbookEntryWithPhotos[];
-  tags_parsed: Record<string, string>;
-  tags_categorized: Record<string, Array<{ key: string; value: string; label: string }>>;
-  creators: ArtworkCreatorInfo[];
-  artists: { id: string; name: string; role: string }[]; // Artists from the new artist system
-}
+// ArtworkDetailResponse is now imported from shared types
 
-export interface ArtworkCreatorInfo {
-  id: string;
-  name: string;
-  bio: string | null;
-  role: string;
-}
+// Removed obsolete ArtworkCreatorInfo - replaced by unified Artist system
 
-export interface LogbookEntryWithPhotos extends LogbookRecord {
-  photos_parsed: string[];
-}
+// LogbookEntryWithPhotos structure is now defined inline in ArtworkDetailResponse 
+// from shared types for backward compatibility with the submissions system
 
 // User Management Endpoints
 export interface UserSubmissionsResponse {

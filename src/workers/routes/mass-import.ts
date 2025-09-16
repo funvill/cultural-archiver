@@ -397,27 +397,28 @@ export async function processMassImport(
     const artworkId = generateId();
     const timestamp = new Date().toISOString();
 
+    // Create tags object with default artwork_type for mass imports
+    const defaultTags = {
+      artwork_type: 'public_art'
+    };
+
     await db.db.prepare(`
-      INSERT INTO artwork (id, title, description, lat, lon, status, created_at, created_by)
-      VALUES (?, ?, ?, ?, ?, 'approved', ?, ?)
+      INSERT INTO artwork (id, title, description, lat, lon, tags, status, created_at, created_by)
+      VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?)
     `).bind(
       artworkId,
       payload.artwork.title,
       payload.artwork.description || null,
       payload.artwork.lat,
       payload.artwork.lon,
+      JSON.stringify(defaultTags),
       timestamp,
       payload.user_uuid
     ).run();
 
     console.log(`[MASS_IMPORT] Created artwork ${artworkId}: ${payload.artwork.title}`);
 
-    // Create artwork_type tag (default to 'public_art' for mass imports)
-    const tagId = generateId();
-    await db.db.prepare(`
-      INSERT INTO tags (id, artwork_id, logbook_id, label, value, created_at)
-      VALUES (?, ?, NULL, 'artwork_type', 'public_art', ?)
-    `).bind(tagId, artworkId, timestamp).run();
+    // Tags are now stored in the artwork's JSON tags field, no separate tag insertion needed
 
     // Link artwork to artist if we found or created one
     if (artistId) {
@@ -447,7 +448,7 @@ export async function processMassImport(
 
         // Create logbook entry (automatically approved) in submissions table
         await db.db.prepare(`
-          INSERT INTO submissions (id, artwork_id, note, lat, lon, photos, status, submitted_at, user_token, consent_version, submission_type)
+          INSERT INTO submissions (id, artwork_id, notes, lat, lon, photos, status, created_at, user_token, consent_version, submission_type)
           VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?, 'logbook_entry')
         `).bind(
           logbookId,
@@ -491,7 +492,7 @@ export async function processMassImport(
       const logbookId = generateId();
       
       await db.db.prepare(`
-        INSERT INTO submissions (id, artwork_id, note, lat, lon, photos, status, submitted_at, user_token, consent_version, submission_type)
+        INSERT INTO submissions (id, artwork_id, notes, lat, lon, photos, status, created_at, user_token, consent_version, submission_type)
         VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?, 'logbook_entry')
       `).bind(
         logbookId,

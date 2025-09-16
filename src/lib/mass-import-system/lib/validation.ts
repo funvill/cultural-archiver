@@ -21,8 +21,8 @@ import type {
 // Constants
 // ================================
 
-// Mass Import User UUID for attribution
-export const MASS_IMPORT_USER_TOKEN = '00000000-0000-0000-0000-000000000002';
+// Mass Import User UUID for attribution (from shared/constants.ts)
+export const MASS_IMPORT_USER_TOKEN = 'a0000000-1000-4000-8000-000000000002';
 
 // Vancouver coordinate bounds for validation
 export const VANCOUVER_BOUNDS = {
@@ -241,10 +241,7 @@ function mapStandardFieldsToTags(
     }
   }
 
-  // Location details
-  if (rawData.address && !tags.addr_full) {
-    tags.addr_full = rawData.address;
-  }
+  // No address processing - location details should be in tags
 }
 
 /**
@@ -402,15 +399,11 @@ function transformToProcessedData(
   rawData: RawImportData,
   tags: Record<string, string | number | boolean>
 ): ProcessedImportData {
-  // Build note field from description and address (not title - title goes in separate field)
+  // Build note field from description (not title - title goes in separate field)
   const noteParts: string[] = [];
   
   if (rawData.description) {
     noteParts.push(`${rawData.description}`);
-  }
-  
-  if (rawData.address) {
-    noteParts.push(`Address: ${rawData.address}`);
   }
 
   const note = noteParts.join('\n\n');

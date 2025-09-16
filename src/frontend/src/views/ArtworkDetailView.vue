@@ -85,7 +85,7 @@ const artworkDescription = computed(() => {
 
   // Final fallback to first logbook entry note
   const firstEntry = artwork.value.logbook_entries?.[0];
-  const noteDescription = firstEntry?.note;
+  const noteDescription = firstEntry?.notes;
   if (noteDescription && noteDescription.trim()) return noteDescription.trim();
 
   return null;

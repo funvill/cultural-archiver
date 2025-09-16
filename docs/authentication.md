@@ -49,6 +49,29 @@ The authentication system uses four main tables:
 
 **auth_sessions**: Active user sessions
 
+- `id` (TEXT, PRIMARY KEY): Session identifier (UUID)
+- `user_uuid` (TEXT): Associated user UUID  
+- `token_hash` (TEXT): SHA-256 hash of session token
+- `created_at` (TEXT): Session creation timestamp
+- `last_accessed_at` (TEXT): Last access timestamp
+- `expires_at` (TEXT): Session expiration (NULL = persistent)
+- `ip_address` (TEXT): Session IP address
+- `user_agent` (TEXT): Session user agent
+- `is_active` (BOOLEAN): Session active status
+- `device_info` (TEXT): Device fingerprint (JSON)
+
+**user_roles**: Role-based permissions
+
+- `id` (TEXT, PRIMARY KEY): Unique identifier
+- `user_token` (TEXT): User token (UUID)
+- `role` (TEXT): User role (admin/moderator/user/banned)
+- `granted_by` (TEXT): Who granted this role
+- `granted_at` (TEXT): When role was granted
+- `revoked_at` (TEXT): When role was revoked (NULL if active)
+- `revoked_by` (TEXT): Who revoked this role
+- `is_active` (INTEGER): Whether role is currently active
+- `notes` (TEXT): Optional notes about role assignment
+
 - `id` (TEXT, PRIMARY KEY): Session UUID
 - `user_uuid` (TEXT): Associated user UUID
 - `token_hash` (TEXT): SHA-256 hash of session token
