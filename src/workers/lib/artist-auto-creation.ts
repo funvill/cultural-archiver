@@ -12,6 +12,7 @@ import type { D1Database } from '@cloudflare/workers-types';
 import type { ArtworkArtistRecord } from '../../shared/types';
 import { createDatabaseService } from './database';
 import type { RawImportData } from '../../shared/mass-import';
+import { generateUUID } from '../../shared/constants';
 
 // ================================
 // Service Types

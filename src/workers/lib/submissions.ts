@@ -463,7 +463,7 @@ async function createArtworkFromSubmission(
     newData.country || null,
     submission.photos || newData.photos || null,
     submission.tags || newData.tags || null,
-    newData.description || submission.notes || null, // Fixed: was submission.notes, should be submission.note
+    newData.description || submission.note || null, // Fixed: was submission.notes, should be submission.note
     'approved',
     'user_submission',
     submission.id,
