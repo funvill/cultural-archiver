@@ -146,7 +146,17 @@ export class OSMImporter implements ImporterPlugin {
     } catch (error) {
       errors.push({
         field: 'sourceData',
-        message: `Failed to parse GeoJSON: ${error instanceof Error ? error.message : String(error)}`,
+        message: `Failed to parse input as JSON. The osm-artwork importer expects a GeoJSON file. Error: ${error instanceof Error ? error.message : String(error)}`,
+        severity: 'error'
+      });
+      return { isValid: false, errors, warnings };
+    }
+
+    // Check for basic data structure indicators to provide helpful error messages
+    if (!geoJsonData || typeof geoJsonData !== 'object') {
+      errors.push({
+        field: 'sourceData',
+        message: 'Input data is not a valid object. The osm-artwork importer requires a GeoJSON FeatureCollection file with geographic artwork data.',
         severity: 'error'
       });
       return { isValid: false, errors, warnings };
@@ -154,17 +164,30 @@ export class OSMImporter implements ImporterPlugin {
 
     // Validate GeoJSON structure
     if (geoJsonData.type !== 'FeatureCollection') {
+      const actualType = geoJsonData.type || 'undefined';
       errors.push({
         field: 'type',
-        message: 'GeoJSON must be a FeatureCollection',
+        message: `Expected GeoJSON FeatureCollection but found type: "${actualType}". The osm-artwork importer only accepts GeoJSON files exported from OpenStreetMap or similar sources. Please ensure your input file is a valid GeoJSON FeatureCollection.`,
         severity: 'error'
       });
     }
 
     if (!geoJsonData.features || !Array.isArray(geoJsonData.features)) {
+      const hasFeatures = 'features' in geoJsonData;
+      const featuresType = hasFeatures ? typeof geoJsonData.features : 'missing';
       errors.push({
         field: 'features',
-        message: 'GeoJSON must contain a features array',
+        message: `GeoJSON FeatureCollection must contain a "features" array (found: ${featuresType}). Your input file appears to be in a different format. The osm-artwork importer expects GeoJSON data with geographic features containing artwork, monuments, or other art objects.`,
+        severity: 'error'
+      });
+      return { isValid: false, errors, warnings };
+    }
+
+    // Check if features array is empty
+    if (geoJsonData.features.length === 0) {
+      errors.push({
+        field: 'features',
+        message: 'GeoJSON FeatureCollection contains no features. The input file appears to be valid GeoJSON but has no artwork data. Please ensure your export includes geographic features with artwork, monuments, or other art objects.',
         severity: 'error'
       });
       return { isValid: false, errors, warnings };
@@ -178,7 +201,7 @@ export class OSMImporter implements ImporterPlugin {
       if (!feature) {
         errors.push({
           field: `features[${i}]`,
-          message: `Feature ${i}: Feature is null or undefined`,
+          message: `Feature ${i}: Feature is null or undefined. This suggests corrupted GeoJSON data.`,
           severity: 'error'
         });
         continue;
@@ -187,7 +210,7 @@ export class OSMImporter implements ImporterPlugin {
       if (!feature.geometry || feature.geometry.type !== 'Point') {
         warnings.push({
           field: `features[${i}].geometry`,
-          message: `Feature ${i}: Only Point geometries are supported`,
+          message: `Feature ${i}: Only Point geometries are supported for artwork locations. LineString and Polygon features will be skipped.`,
           severity: 'warning'
         });
         continue;
@@ -196,7 +219,7 @@ export class OSMImporter implements ImporterPlugin {
       if (!feature.geometry.coordinates || !Array.isArray(feature.geometry.coordinates) || feature.geometry.coordinates.length !== 2) {
         errors.push({
           field: `features[${i}].geometry.coordinates`,
-          message: `Feature ${i}: Invalid coordinates`,
+          message: `Feature ${i}: Invalid coordinates format. Expected [longitude, latitude] array but found: ${JSON.stringify(feature.geometry.coordinates)}`,
           severity: 'error'
         });
         continue;
@@ -207,17 +230,26 @@ export class OSMImporter implements ImporterPlugin {
       if (typeof lat !== 'number' || lat < -90 || lat > 90) {
         errors.push({
           field: `features[${i}].geometry.coordinates[1]`,
-          message: `Feature ${i}: Invalid latitude ${lat}`,
+          message: `Feature ${i}: Invalid latitude ${lat}. Latitude must be a number between -90 and 90 degrees.`,
           severity: 'error'
         });
       }
       if (typeof lon !== 'number' || lon < -180 || lon > 180) {
         errors.push({
           field: `features[${i}].geometry.coordinates[0]`,
-          message: `Feature ${i}: Invalid longitude ${lon}`,
+          message: `Feature ${i}: Invalid longitude ${lon}. Longitude must be a number between -180 and 180 degrees.`,
           severity: 'error'
         });
       }
+    }
+
+    // Add helpful guidance if there were errors
+    if (errors.length > 0) {
+      errors.push({
+        field: 'help',
+        message: `The osm-artwork importer requires GeoJSON files with artwork data. Expected format: {"type": "FeatureCollection", "features": [{"type": "Feature", "geometry": {"type": "Point", "coordinates": [lon, lat]}, "properties": {...}}]}. If you have a different file format, try using a different importer plugin.`,
+        severity: 'error'
+      });
     }
 
     return {

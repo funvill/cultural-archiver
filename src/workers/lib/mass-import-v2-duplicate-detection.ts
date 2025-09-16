@@ -66,7 +66,7 @@ const DEFAULT_ARTWORK_WEIGHTS: DuplicateDetectionWeights = {
   title: 0.25,
   artist: 0.2,
   referenceIds: 0.5,
-  tagSimilarity: 0.05
+  tagSimilarity: 0.0 // Not used for artwork scoring - tags use fixed 0.05 per match
 };
 
 const DEFAULT_ARTIST_WEIGHTS: DuplicateDetectionWeights = {
@@ -77,7 +77,7 @@ const DEFAULT_ARTIST_WEIGHTS: DuplicateDetectionWeights = {
   tagSimilarity: 0.15
 };
 
-const GPS_SEARCH_RADIUS_DEGREES = 0.0045; // ~500m at mid-latitudes
+const GPS_SEARCH_RADIUS_DEGREES = 0.0009; // ~100m at mid-latitudes
 
 // ================================
 // Mass Import V2 Duplicate Detection Service
@@ -305,7 +305,7 @@ export class MassImportV2DuplicateDetectionService {
   ): DuplicationScore {
     // GPS similarity (distance-based)
     const distance = this.calculateDistance(incoming.lat, incoming.lon, candidate.lat, candidate.lon);
-    const gpsScore = Math.max(0, 1 - (distance / 500)) * weights.gps; // 500m max distance
+    const gpsScore = Math.max(0, 1 - (distance / 100)) * weights.gps; // 100m max distance
 
     // Title similarity
     const titleScore = this.calculateTextSimilarity(incoming.title, candidate.title || '') * weights.title;
@@ -318,8 +318,8 @@ export class MassImportV2DuplicateDetectionService {
     // Reference ID similarity
     const refScore = this.calculateReferenceIdSimilarity(incoming, candidate) * weights.referenceIds;
 
-    // Tag similarity
-    const tagScore = this.calculateTagSimilarity(incoming.tags || {}, candidate.tags) * weights.tagSimilarity;
+    // Tag similarity (already weighted: 0.05 per exact match)
+    const tagScore = this.calculateTagSimilarity(incoming.tags || {}, candidate.tags);
 
     const total = gpsScore + titleScore + artistScore + refScore + tagScore;
 
@@ -462,15 +462,26 @@ export class MassImportV2DuplicateDetectionService {
     try {
       const existing = JSON.parse(candidateTags);
       const incomingKeys = Object.keys(incomingTags);
-      const existingKeys = Object.keys(existing);
       
-      if (incomingKeys.length === 0 || existingKeys.length === 0) return 0;
+      if (incomingKeys.length === 0 || Object.keys(existing).length === 0) return 0;
       
-      // Calculate Jaccard similarity for tag keys
-      const intersection = incomingKeys.filter(key => existingKeys.includes(key));
-      const union = [...new Set([...incomingKeys, ...existingKeys])];
+      // Count exact matches (both key and value must match)
+      let matchingTags = 0;
       
-      return intersection.length / union.length;
+      for (const key of incomingKeys) {
+        if (existing.hasOwnProperty(key)) {
+          // Convert both values to strings for comparison to handle different types
+          const incomingValue = String(incomingTags[key]).toLowerCase().trim();
+          const existingValue = String(existing[key]).toLowerCase().trim();
+          
+          if (incomingValue === existingValue) {
+            matchingTags++;
+          }
+        }
+      }
+      
+      // Return 0.05 points per matching tag (both key and value)
+      return matchingTags * 0.05;
     } catch {
       return 0;
     }

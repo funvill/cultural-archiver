@@ -312,6 +312,11 @@ export class ApiExporter implements ExporterPlugin {
           const externalId = `batch_${batchIndex}_record_${i}`;
           
           if (response.success) {
+            // Debug: Log response data to understand the structure
+            if (this.options.verbose) {
+              console.log(`🔍 DEBUG: Response data for record ${i}:`, JSON.stringify(response.data, null, 2));
+            }
+            
             // Check if this is a duplicate detection from the API
             if (this.isDuplicateResponse(response)) {
               totalDuplicates++;
@@ -321,6 +326,10 @@ export class ApiExporter implements ExporterPlugin {
                 reason: 'duplicate',
                 recordData: record
               });
+              
+              if (this.options.verbose) {
+                console.log(`✅ Detected duplicate for record ${i}`);
+              }
             } else {
               totalSuccessful++;
               processedRecords.push({
@@ -439,9 +448,24 @@ export class ApiExporter implements ExporterPlugin {
     
     try {
       const data = response.data as Record<string, unknown>;
-      // Check for mass-import v2 API response format indicating duplicate
-      return data.successful === 0 && 
-             typeof data.message === 'string' && 
+      
+      // Handle nested response structure: response.data.data.summary
+      let summary = data.summary as Record<string, unknown>;
+      if (!summary && data.data) {
+        const nestedData = data.data as Record<string, unknown>;
+        summary = nestedData.summary as Record<string, unknown>;
+      }
+      
+      if (summary) {
+        // If this batch had duplicates and no successes, it's a duplicate response
+        const totalDuplicates = Number(summary.totalDuplicates) || 0;
+        const totalSucceeded = Number(summary.totalSucceeded) || 0;
+        
+        return totalDuplicates > 0 && totalSucceeded === 0;
+      }
+      
+      // Fallback: check for older API format with "duplicate" message
+      return typeof data.message === 'string' && 
              data.message.toLowerCase().includes('duplicate');
     } catch {
       return false;

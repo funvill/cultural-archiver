@@ -8,7 +8,7 @@
  * Features:
  * - MassImportRequestV2/ResponseV2 format matching PRD specifications
  * - Configurable duplicate detection with scoring weights
- * - Artist auto-creation and linking via artwork_artists table
+ * - Artist auto-creation and linking with artists table
  * - Intelligent tag merging that preserves original data
  * - Individual transaction processing for fault tolerance
  * - Comprehensive error handling and validation

@@ -73,7 +73,10 @@ export class DataPipeline {
       if (!validation.isValid) {
         const errorMessage = 'Input data validation failed';
         reportTracker.recordFailure('validation', 'validation_failed', validation.errors);
-        throw new Error(`${errorMessage}: ${validation.errors?.join(', ')}`);
+        
+        // Format error messages for better CLI output
+        const errorMessages = validation.errors?.map(err => `${err.field}: ${err.message}`) || ['Unknown validation error'];
+        throw new Error(`${errorMessage}: ${errorMessages.join('; ')}`);
       }
       
       console.log(`✅ Input data validation passed`);
