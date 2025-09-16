@@ -501,7 +501,7 @@ async function createArtistFromSubmission(
     newData.death_year || null,
     newData.nationality || null,
     newData.social_media || null,
-    newData.notes || submission.notes || null, // Fixed: was submission.notes, should be submission.note
+    newData.notes || submission.note || null, // Fixed: was submission.notes, should be submission.note
     '{}', // tags as empty JSON object
     'approved',
     'user_submission',
