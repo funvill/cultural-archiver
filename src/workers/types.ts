@@ -5,6 +5,9 @@
 // Cloudflare Worker types
 import type { D1Database, KVNamespace, R2Bucket } from '@cloudflare/workers-types';
 
+// Import shared types that should not be duplicated
+export * from '../shared/types';
+
 // ================================
 // Database Schema Types
 // ================================
@@ -180,30 +183,12 @@ export interface ArtworkWithPhotos extends ArtworkRecord {
   photo_count: number;
 }
 
-export interface ArtworkDetailResponse {
-  id: string;
-  lat: number;
-  lon: number;
-  created_at: string;
-  status: 'pending' | 'approved' | 'removed';
-  tags: string | null;
-  photos: string[]; // Parsed photo URLs
-  type_name: string;
-  logbook_entries: LogbookEntryWithPhotos[];
-  tags_parsed: Record<string, string>;
-  tags_categorized: Record<string, Array<{ key: string; value: string; label: string }>>;
-  artists: { id: string; name: string; role: string }[]; // Artists from the new artist system
-  title?: string | null; // Artwork title (editable field)
-  description?: string | null; // Artwork description (editable field)
-  created_by?: string | null; // Creator/artist name(s) (editable field)
-  artist_name?: string | null; // Computed artist name for display
-}
+// ArtworkDetailResponse is now imported from shared types
 
 // Removed obsolete ArtworkCreatorInfo - replaced by unified Artist system
 
-export interface LogbookEntryWithPhotos extends LogbookRecord {
-  photos_parsed: string[];
-}
+// LogbookEntryWithPhotos structure is now defined inline in ArtworkDetailResponse 
+// from shared types for backward compatibility with the submissions system
 
 // User Management Endpoints
 export interface UserSubmissionsResponse {

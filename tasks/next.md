@@ -148,13 +148,3 @@ The admin page is a super user that can give moderators permissions to other use
 - Update the "source_url" value to be clickable as a link. This means it shouldn't search that tag, that link should be clickable.
   - Tags that have urls in them, should be clickable
 
-----
-
-- All IDs across the whole system should be UUIDs. Ensure that all IDs in the database use UUIDs and they are fixed in the database to only accept UUIDs.
-- All table id should be replaced with UUID.
-- Sample data should use a UUID in this format. "00000000-0000-0000-0000-????????0000", where the "?" are fixed known numbers for each sample.
-
-
-----
-
-

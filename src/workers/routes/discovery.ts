@@ -10,7 +10,6 @@ import type {
   ArtworkRecord,
   ArtworkDetailResponse,
   ArtworkWithPhotos,
-  LogbookEntryWithPhotos,
   NearbyArtworksResponse,
 } from '../types';
 import type { StructuredTagsData } from '../../shared/types';
@@ -255,8 +254,20 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
     // Get logbook entries for timeline with pagination - UPDATED: using submissions
     const logbookEntries = await getLogbookEntriesForArtworkFromSubmissions(c.env.DB, artworkId, perPage, offset);
 
-    // Format logbook entries with parsed photos
-    const logbookEntriesWithPhotos: LogbookEntryWithPhotos[] = logbookEntries.map(entry => ({
+    // Format logbook entries with parsed photos (using inline type from ArtworkDetailResponse)
+    const logbookEntriesWithPhotos: Array<{
+      id: string;
+      artwork_id: string | null;
+      user_token: string;
+      lat: number | null;
+      lon: number | null;
+      notes: string | null;
+      photos: string | null;
+      status: 'pending' | 'approved' | 'rejected';
+      created_at: string;
+      rejection_reason?: string;
+      photos_parsed: string[];
+    }> = logbookEntries.map(entry => ({
       ...entry,
       photos_parsed: safeJsonParse<string[]>(entry.photos, []),
     }));

@@ -213,7 +213,7 @@ export const fastArtworkSubmissionSchema = z.object({
   // Title is now optional for true photo-first workflow
   title: z.string().min(1).max(500).optional(),
   tags: z.record(z.union([z.string(), z.number(), z.boolean()])).optional(),
-  note: z.string().max(500).optional(),
+  notes: z.string().max(500).optional(),
   consent_version: z.string().min(1),
   existing_artwork_id: z.string().uuid().optional(),
 });
@@ -526,8 +526,8 @@ export async function validateFastArtworkSubmission(
       }
       const title = formData.get('title');
       if (title && title.toString().trim().length > 0) build.title = title.toString().trim();
-      const note = formData.get('note');
-      if (note) build.note = note.toString();
+  const notes = formData.get('notes') ?? formData.get('note');
+  if (notes) build.notes = notes.toString();
       const consentVersion = formData.get('consent_version');
       if (!consentVersion) {
         throw new ValidationApiError([
@@ -584,8 +584,10 @@ export async function validateFastArtworkSubmission(
         lon: parseFloat((body.lon ?? body.longitude ?? '').toString()),
         consent_version: (body.consent_version ?? '').toString(),
       };
-      if (body.title) build.title = body.title.toString();
-      if (body.note) build.note = body.note.toString();
+  if (body.title) build.title = body.title.toString();
+  // Accept both 'notes' and legacy 'note'
+  if (body.notes) build.notes = body.notes.toString();
+  else if (body.note) build.notes = body.note.toString();
       if (body.existing_artwork_id) build.existing_artwork_id = body.existing_artwork_id.toString();
       if (body.tags) {
         try { build.tags = JSON.parse(body.tags.toString()); } catch { /* ignore */ }
@@ -781,8 +783,8 @@ export async function validateSubmissionFormData(
         }
       }
 
-      // Extract optional note
-      const note = formData.get('note')?.toString();
+  // Extract optional notes (accept legacy 'note')
+  const note = formData.get('notes')?.toString() ?? formData.get('note')?.toString();
 
       if (validationErrors.length > 0) {
         throw new ValidationApiError(validationErrors);
@@ -850,8 +852,8 @@ export async function validateSubmissionFormData(
         }
       }
 
-      // Extract optional note
-      const note = formData.note?.toString();
+  // Extract optional notes (accept legacy 'note')
+  const note = (formData as Record<string, unknown>).notes?.toString() ?? (formData as Record<string, unknown>).note?.toString();
 
       if (validationErrors.length > 0) {
         throw new ValidationApiError(validationErrors);

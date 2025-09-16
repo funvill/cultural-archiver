@@ -18,7 +18,7 @@ import {
   updateArtworkPhotos,
   getPhotosFromArtwork,
 } from '../lib/database';
-import { movePhotosToArtwork, cleanupRejectedPhotos } from '../lib/photos';
+import { movePhotosToArtwork, cleanupRejectedPhotos, generatePhotoUrl, extractR2KeyFromRef } from '../lib/photos';
 import { calculateDistance } from '../lib/spatial';
 import { 
   getSubmissionsByStatus,
@@ -35,7 +35,7 @@ interface SubmissionRow {
   user_token: string;
   lat: number | null;
   lon: number | null;
-  note: string | null;
+  notes: string | null;
   photos: string | null;
   created_at: string;
   status: string;
@@ -183,17 +183,69 @@ export async function getReviewQueue(
       try {
         const submissionRow = row as SubmissionRow;
         
+        // Parse the structured submission data
+        let title = 'Untitled Submission';
+        let note = 'No note provided';
+        let artworkType = 'Other';
+        
+        if (submissionRow.notes) {
+          try {
+            const submissionData = JSON.parse(submissionRow.notes);
+            if (submissionData._submission) {
+              // Extract title from tags
+              if (submissionData._submission.tags?.title) {
+                title = submissionData._submission.tags.title;
+              }
+              // Extract artwork type
+              if (submissionData._submission.tags?.artwork_type) {
+                artworkType = submissionData._submission.tags.artwork_type;
+              } else if (submissionData._submission.type_name) {
+                artworkType = submissionData._submission.type_name;
+              }
+            }
+            // Extract the actual user note
+            if (submissionData.notes) {
+              note = submissionData.notes;
+            }
+          } catch (parseError) {
+            console.warn('Failed to parse submission data:', parseError);
+            // Use the raw notes as fallback
+            note = submissionRow.notes;
+          }
+        }
+        
+        // Normalize photo references to absolute URLs where possible
+        const rawPhotos = submissionRow.photos ? JSON.parse(submissionRow.photos) : [];
+        const normalizedPhotos = (rawPhotos || []).map((p: string) => {
+          try {
+            // If already an absolute URL, leave as-is (constructor will throw if invalid)
+            new URL(p);
+            return p;
+          } catch (err) {
+            // If looks like an internal permalink or app route, skip normalization
+            if (typeof p === 'string' && (p.startsWith('/p/') || p.startsWith('/artwork/'))) {
+              return p; // leave as-is; frontend will handle or ignore
+            }
+
+            // Otherwise treat as an R2 key and generate full URL
+            const key = extractR2KeyFromRef(p);
+            return key ? generatePhotoUrl(c.env, key) : p;
+          }
+        });
+
         return {
           id: submissionRow.id,
-          type: 'Other',
+          title: title,
+          type: artworkType,
           lat: submissionRow.lat || 49.2827,
           lon: submissionRow.lon || -123.1207,
-          note: submissionRow.note || 'No note provided',
-          photos: submissionRow.photos ? JSON.parse(submissionRow.photos) : [],
+          note: note,
+          photos: normalizedPhotos,
           tags: {},
           status: submissionRow.status,
           created_at: submissionRow.created_at,
           artwork_id: submissionRow.artwork_id,
+          user_token: submissionRow.user_token, // Add missing user_token field
         };
       } catch (error) {
         console.error(`Failed to process submission ${(row as { id?: string })?.id}:`, error);
@@ -319,6 +371,22 @@ export async function getSubmissionForReview(
     // Get artwork type from tags (already available in submission.artwork_type_name)
     const artworkTypeName = submission.artwork_type_name || 'unknown';
 
+    // Normalize photo references to absolute URLs where possible
+    const rawPhotos = submission.photos ? JSON.parse(submission.photos) : [];
+    const normalizedPhotos = (rawPhotos || []).map((p: string) => {
+      try {
+        new URL(p);
+        return p;
+      } catch (err) {
+        if (typeof p === 'string' && (p.startsWith('/p/') || p.startsWith('/artwork/'))) {
+          return p;
+        }
+
+        const key = extractR2KeyFromRef(p);
+        return key ? generatePhotoUrl(c.env, key) : p;
+      }
+    });
+
     return c.json({
       submission: {
         id: submission.id,
@@ -326,7 +394,7 @@ export async function getSubmissionForReview(
         lat: submission.lat,
         lon: submission.lon,
         notes: submission.notes,
-        photos: submission.photos ? JSON.parse(submission.photos) : [],
+        photos: normalizedPhotos,
         tags: submission.tags ? JSON.parse(submission.tags) : {},
         status: submission.status,
         created_at: submission.created_at,
@@ -413,7 +481,7 @@ export async function approveSubmission(
       created_by: (typeof submissionTags.artist === 'string' ? submissionTags.artist : 
                   typeof submissionTags.artist_name === 'string' ? submissionTags.artist_name : 
                   typeof submissionTags.created_by === 'string' ? submissionTags.created_by : null),
-      photos: submission.photos || null
+      photos: submission.photos ? JSON.stringify(JSON.parse(submission.photos)) : null // Fix: ensure proper JSON format
     };      
     finalArtworkId = await insertArtwork(c.env.DB, artworkData);
     newArtworkCreated = true;

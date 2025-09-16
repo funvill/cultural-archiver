@@ -56,8 +56,15 @@ export class DataPipeline {
     });
 
     try {
-      // 2. Load importer-specific configuration (use passed config or fallback to file)
-      const importerConfig = options.importerConfig || await this.loadImporterConfig();
+      // 2. Load importer-specific configuration
+      // If an importerConfig was passed via options and it's non-empty, use it.
+      // Otherwise, try to load the importer-specific config file.
+      let importerConfig: ImporterConfig;
+      if (options.importerConfig && Object.keys(options.importerConfig).length > 0) {
+        importerConfig = options.importerConfig;
+      } else {
+        importerConfig = await this.loadImporterConfig();
+      }
       
       // 3. Validate input data with importer
       console.log(`🔍 Validating input data with ${this.importer.name} importer...`);

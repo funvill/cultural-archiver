@@ -346,8 +346,9 @@ export const apiService = {
     formData.append('lat', submission.lat.toString());
     formData.append('lon', submission.lon.toString());
 
+    // Use 'notes' field name (accept legacy 'note' elsewhere)
     if (submission.note) {
-      formData.append('note', submission.note);
+      formData.append('notes', submission.note);
     }
 
     if (submission.type) {

@@ -9,6 +9,7 @@ import type {
   ExporterPlugin,
   ExporterConfig,
   ExportResult,
+  ExportRecordResult,
 } from '../types/plugin.js';
 import type { RawImportData, ValidationResult } from '../types/index.js';
 
@@ -60,6 +61,7 @@ interface BatchApiResponse {
   duplicateRecords: number; // Track duplicate records separately
   responses: ApiResponse[];
   errors: string[];
+  processedRecords: ExportRecordResult[]; // Add detailed record results
 }
 
 // ================================
@@ -221,6 +223,15 @@ export class ApiExporter implements ExporterPlugin {
         recordsFailed: batchResult.failedRecords,
         recordsSkipped: 0,
         recordsDuplicate: batchResult.duplicateRecords,
+        details: {
+          processedRecords: batchResult.processedRecords,
+          timing: {
+            startTime: new Date(startTime),
+            endTime: new Date(),
+            duration: processingTime
+          },
+          configuration: this.config
+        },
         ...(batchResult.errors.length > 0 && {
           errors: batchResult.errors.map(error => ({ field: 'api', message: error, severity: 'error' as const }))
         }),
@@ -277,6 +288,7 @@ export class ApiExporter implements ExporterPlugin {
     let totalDuplicates = 0; // Track duplicates
     const allResponses: ApiResponse[] = [];
     const allErrors: string[] = [];
+    const processedRecords: ExportRecordResult[] = [];
     
     for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
       const startIndex = batchIndex * batchSize;
@@ -288,17 +300,43 @@ export class ApiExporter implements ExporterPlugin {
       try {
         const batchResponses = await this.processBatch(batchData);
         
-        for (const response of batchResponses) {
+        // Process responses and build detailed results
+        for (let i = 0; i < batchResponses.length; i++) {
+          const response = batchResponses[i];
+          const record = batchData[i];
+          if (!response || !record) continue;
+          
           allResponses.push(response);
+          
+          // Generate external ID for tracking
+          const externalId = `batch_${batchIndex}_record_${i}`;
+          
           if (response.success) {
             // Check if this is a duplicate detection from the API
             if (this.isDuplicateResponse(response)) {
               totalDuplicates++;
+              processedRecords.push({
+                externalId,
+                status: 'skipped',
+                reason: 'duplicate',
+                recordData: record
+              });
             } else {
               totalSuccessful++;
+              processedRecords.push({
+                externalId,
+                status: 'success',
+                recordData: record
+              });
             }
           } else {
             totalFailed++;
+            processedRecords.push({
+              externalId,
+              status: 'failed',
+              error: response.error || 'Unknown API error',
+              recordData: record
+            });
             if (response.error) {
               allErrors.push(response.error);
             }
@@ -310,12 +348,24 @@ export class ApiExporter implements ExporterPlugin {
         totalFailed += batchData.length;
         allErrors.push(`Batch ${batchIndex + 1}: ${error instanceof Error ? error.message : String(error)}`);
         
-        // Add failed responses for each record in the batch
+        // Add failed responses and records for each record in the batch
         for (let i = 0; i < batchData.length; i++) {
+          const record = batchData[i];
+          if (!record) continue;
+          
+          const externalId = `batch_${batchIndex}_record_${i}`;
+          
           allResponses.push({
             success: false,
             statusCode: 0,
             ...(error instanceof Error && { error: `Batch processing failed: ${error.message}` }),
+          });
+          
+          processedRecords.push({
+            externalId,
+            status: 'failed',
+            error: error instanceof Error ? error.message : 'Batch processing failed',
+            recordData: record
           });
         }
       }
@@ -328,6 +378,7 @@ export class ApiExporter implements ExporterPlugin {
       duplicateRecords: totalDuplicates,
       responses: allResponses,
       errors: allErrors,
+      processedRecords
     };
   }
 

@@ -495,10 +495,14 @@ export async function movePhotosToArtwork(
 
   try {
     for (const photoUrl of logbookPhotos) {
-      // Extract key from URL
-      const urlObj = new URL(photoUrl);
-      const originalKey = urlObj.pathname.substring(1); // Remove leading slash
+      // Extract key from URL or raw key string
+  const originalKey = extractR2KeyFromRef(photoUrl);
       debug('Processing photo', { photoUrl, originalKey });
+
+      if (!originalKey) {
+        console.warn('[PHOTO][MOVE] Unable to determine R2 key for photo ref', { photoUrl });
+        continue;
+      }
 
       // Generate new key for artwork
       const filename = originalKey.split('/').pop() || 'unknown.jpg';
@@ -566,9 +570,8 @@ export async function cleanupRejectedPhotos(env: WorkerEnv, photoUrls: string[])
   try {
     const deletePromises = photoUrls.map(async photoUrl => {
       try {
-        const urlObj = new URL(photoUrl);
-        const key = urlObj.pathname.substring(1); // Remove leading slash
-        await deleteFromR2(env, key);
+  const key = extractR2KeyFromRef(photoUrl);
+        if (key) await deleteFromR2(env, key);
       } catch (error) {
         console.error('Error deleting photo:', photoUrl, error);
       }
@@ -611,158 +614,190 @@ export async function getPhotoMetadata(
   }
 }
 
-/**
- * Generate photo URLs from R2 keys
- */
-export function generatePhotoUrls(env: WorkerEnv, keys: string[]): string[] {
-  return keys.map(key => generatePhotoUrl(env, key));
-}
-
-/**
- * Validate photo URL belongs to the system
- */
-export function validatePhotoUrl(env: WorkerEnv, url: string): boolean {
-  try {
-    new URL(url); // Validate URL format
-    const baseUrl = env.PHOTOS_BASE_URL || env.R2_PUBLIC_URL;
-
-    if (baseUrl) {
-      return url.startsWith(baseUrl);
-    }
-
-    // Check against R2 default pattern
-    const accountId = env.CLOUDFLARE_ACCOUNT_ID;
-    if (accountId) {
-      return url.includes(`${accountId}.r2.cloudflarestorage.com`);
-    }
-
-    return false;
-  } catch (error) {
-    return false;
-  }
-}
-
-/**
- * Generate thumbnail URL using Cloudflare Images if enabled
- */
-export function generateThumbnailUrl(
-  env: WorkerEnv,
-  originalKey: string,
-  size: number = 800
-): string {
-  const cloudflareImagesEnabled = env.CLOUDFLARE_IMAGES_ENABLED === 'true';
-
-  if (cloudflareImagesEnabled && env.CLOUDFLARE_IMAGES_HASH) {
-    // Use Cloudflare Images for dynamic resizing
-    const accountId = env.CLOUDFLARE_ACCOUNT_ID;
-    const imagesHash = env.CLOUDFLARE_IMAGES_HASH;
-    return `https://imagedelivery.net/${accountId}/${imagesHash}/w=${size}`;
+  /**
+   * Generate photo URLs from R2 keys
+   */
+  export function generatePhotoUrls(env: WorkerEnv, keys: string[]): string[] {
+    return keys.map(key => generatePhotoUrl(env, key));
   }
 
-  // Fallback to original URL for MVP
-  return generatePhotoUrl(env, originalKey);
-}
+  /**
+   * Extract R2 key from a photo reference which may be a full URL or a raw R2 key.
+   * Returns null if the key cannot be determined.
+   */
+  export function extractR2KeyFromRef(ref: string): string | null {
+      if (!ref) return null;
 
-/**
- * Upload to Cloudflare Images if enabled, otherwise use R2
- */
-export async function uploadWithThumbnail(
-  env: WorkerEnv,
-  file: File,
-  originalKey: string,
-  metadata?: Record<string, string>,
-  _options: PhotoProcessingOptions = {}
-): Promise<{ originalKey: string; thumbnailKey?: string; cloudflareImageId?: string }> {
-  const cloudflareImagesEnabled = env.CLOUDFLARE_IMAGES_ENABLED === 'true';
-  const debugEnabled = env.PHOTO_DEBUG === '1' || env.PHOTO_DEBUG === 'true';
-  const debug = (...args: unknown[]): void => {
-    if (debugEnabled) console.info('[PHOTO][STORE]', ...args);
-  };
-  debug('uploadWithThumbnail start', { originalKey, sizeBytes: file.size, mime: file.type });
+      // Helper to normalize a pathname-like string into an R2 key
+      const normalizePath = (path: string): string | null => {
+        if (!path) return null;
+        let candidate = path.replace(/^\/+/, ''); // remove leading slashes
 
-  if (cloudflareImagesEnabled && env.CLOUDFLARE_ACCOUNT_ID) {
-    try {
-      // Upload to Cloudflare Images
-      const imageId = await uploadToCloudflareImages(env, file);
-  debug('Cloudflare Images upload success', { imageId, originalKey });
+        // If the path begins with the public photos prefix, strip it.
+        // This ensures values like '/photos/originals/...' or 'photos/originals/...' map to 'originals/...'
+        if (candidate.toLowerCase().startsWith('photos/')) {
+          candidate = candidate.substring('photos/'.length);
+        }
 
-      return {
-        originalKey,
-        cloudflareImageId: imageId,
+        // If after normalization we have something that looks like a key, return it
+        return candidate.length > 0 ? candidate : null;
       };
+
+      try {
+        // If ref is an absolute URL, new URL(ref) will succeed and we can extract pathname
+        const u = new URL(ref);
+        return normalizePath(u.pathname);
+      } catch (err) {
+        // Not a full URL — treat as path or raw key
+        return normalizePath(ref);
+      }
+  }
+
+  /**
+   * Validate photo URL belongs to the system
+   */
+  export function validatePhotoUrl(env: WorkerEnv, url: string): boolean {
+    try {
+      new URL(url); // Validate URL format
+      const baseUrl = env.PHOTOS_BASE_URL || env.R2_PUBLIC_URL;
+
+      if (baseUrl) {
+        return url.startsWith(baseUrl);
+      }
+
+      // Check against R2 default pattern
+      const accountId = env.CLOUDFLARE_ACCOUNT_ID;
+      if (accountId) {
+        return url.includes(`${accountId}.r2.cloudflarestorage.com`);
+      }
+
+      return false;
     } catch (error) {
-  console.warn('[PHOTO][STORE] Cloudflare Images upload failed, falling back to R2', error);
-      // Fall through to R2 upload
+      return false;
     }
   }
 
-  // Upload to R2 (existing behavior)
-  debug('Uploading to R2 bucket', { originalKey });
-  await uploadToR2(env, file, originalKey, metadata);
-  debug('R2 upload complete', { originalKey });
+  /**
+   * Generate thumbnail URL using Cloudflare Images if enabled
+   */
+  export function generateThumbnailUrl(
+    env: WorkerEnv,
+    originalKey: string,
+    size: number = 800
+  ): string {
+    const cloudflareImagesEnabled = env.CLOUDFLARE_IMAGES_ENABLED === 'true';
 
-  // Generate thumbnail key for potential future thumbnail generation
-  const thumbnailKey = generateThumbnailKey(originalKey);
-
-  const result = {
-    originalKey,
-    thumbnailKey,
-  };
-  debug('uploadWithThumbnail done', result);
-  return result;
-}
-
-/**
- * Upload to Cloudflare Images API
- */
-async function uploadToCloudflareImages(env: WorkerEnv, file: File): Promise<string> {
-  const accountId = env.CLOUDFLARE_ACCOUNT_ID;
-
-  if (!accountId) {
-    throw new Error('Cloudflare Account ID not configured');
-  }
-
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('requireSignedURLs', 'false'); // Allow public access
-  formData.append(
-    'metadata',
-    JSON.stringify({
-      source: 'cultural-archiver',
-      uploadedAt: new Date().toISOString(),
-    })
-  );
-
-  const response = await fetch(
-    `https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1`,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${env.CLOUDFLARE_IMAGES_API_TOKEN || ''}`,
-      },
-      body: formData,
+    if (cloudflareImagesEnabled && env.CLOUDFLARE_IMAGES_HASH) {
+      // Use Cloudflare Images for dynamic resizing
+      const accountId = env.CLOUDFLARE_ACCOUNT_ID;
+      const imagesHash = env.CLOUDFLARE_IMAGES_HASH;
+      return `https://imagedelivery.net/${accountId}/${imagesHash}/w=${size}`;
     }
-  );
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Cloudflare Images upload failed: ${error}`);
+    // Fallback to original URL for MVP
+    return generatePhotoUrl(env, originalKey);
   }
 
-  const result = (await response.json()) as { result: { id: string } };
-  return result.result.id;
-}
+  /**
+   * Upload to Cloudflare Images if enabled, otherwise use R2
+   */
+  export async function uploadWithThumbnail(
+    env: WorkerEnv,
+    file: File,
+    originalKey: string,
+    metadata?: Record<string, string>,
+    _options: PhotoProcessingOptions = {}
+  ): Promise<{ originalKey: string; thumbnailKey?: string; cloudflareImageId?: string }> {
+    const cloudflareImagesEnabled = env.CLOUDFLARE_IMAGES_ENABLED === 'true';
+    const debugEnabled = env.PHOTO_DEBUG === '1' || env.PHOTO_DEBUG === 'true';
+    const debug = (...args: unknown[]): void => {
+      if (debugEnabled) console.info('[PHOTO][STORE]', ...args);
+    };
+    debug('uploadWithThumbnail start', { originalKey, sizeBytes: file.size, mime: file.type });
 
-/**
- * Generate thumbnail key based on original key
- */
-function generateThumbnailKey(originalKey: string): string {
-  const parts = originalKey.split('/');
-  const filename = parts.pop() || '';
-  const folder = parts.join('/');
+    if (cloudflareImagesEnabled && env.CLOUDFLARE_ACCOUNT_ID) {
+      try {
+        // Upload to Cloudflare Images
+        const imageId = await uploadToCloudflareImages(env, file);
+        debug('Cloudflare Images upload success', { imageId, originalKey });
 
-  // Replace 'originals' with 'thumbnails' or add thumbnails folder
-  const thumbnailFolder = folder.replace('originals', 'thumbnails') || 'thumbnails';
+        return {
+          originalKey,
+          cloudflareImageId: imageId,
+        };
+      } catch (error) {
+        console.warn('[PHOTO][STORE] Cloudflare Images upload failed, falling back to R2', error);
+        // Fall through to R2 upload
+      }
+    }
 
-  return `${thumbnailFolder}/${filename}`;
-}
+    // Upload to R2 (existing behavior)
+    debug('Uploading to R2 bucket', { originalKey });
+    await uploadToR2(env, file, originalKey, metadata);
+    debug('R2 upload complete', { originalKey });
+
+    // Generate thumbnail key for potential future thumbnail generation
+    const thumbnailKey = generateThumbnailKey(originalKey);
+
+    const result = {
+      originalKey,
+      thumbnailKey,
+    };
+    debug('uploadWithThumbnail done', result);
+    return result;
+  }
+
+  /**
+   * Upload to Cloudflare Images API
+   */
+  async function uploadToCloudflareImages(env: WorkerEnv, file: File): Promise<string> {
+    const accountId = env.CLOUDFLARE_ACCOUNT_ID;
+
+    if (!accountId) {
+      throw new Error('Cloudflare Account ID not configured');
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('requireSignedURLs', 'false'); // Allow public access
+    formData.append(
+      'metadata',
+      JSON.stringify({
+        source: 'cultural-archiver',
+        uploadedAt: new Date().toISOString(),
+      })
+    );
+
+    const response = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${env.CLOUDFLARE_IMAGES_API_TOKEN || ''}`,
+        },
+        body: formData,
+      }
+    );
+
+    if (!response.ok) {
+      const error = await response.text();
+      throw new Error(`Cloudflare Images upload failed: ${error}`);
+    }
+
+    const result = (await response.json()) as { result: { id: string } };
+    return result.result.id;
+  }
+
+  /**
+   * Generate thumbnail key based on original key
+   */
+  function generateThumbnailKey(originalKey: string): string {
+    const parts = originalKey.split('/');
+    const filename = parts.pop() || '';
+    const folder = parts.join('/');
+
+    // Replace 'originals' with 'thumbnails' or add thumbnails folder
+    const thumbnailFolder = folder.replace('originals', 'thumbnails') || 'thumbnails';
+
+    return `${thumbnailFolder}/${filename}`;
+  }

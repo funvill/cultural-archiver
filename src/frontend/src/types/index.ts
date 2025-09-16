@@ -219,35 +219,17 @@ export interface LogbookSubmission {
   photos: File[];
 }
 
-export interface ArtworkDetails {
-  id: string;
-  lat: number;
-  lon: number;
-  created_at: string;
-  status: 'pending' | 'approved' | 'removed';
-  tags: string | null;
-  photos: string[];
-  type_name: string;
-  logbook_entries: LogbookEntryWithPhotos[];
-  tags_parsed: Record<string, string>;
-  tags_categorized?: Record<string, Array<{ key: string; value: string; label: string }>>;
-  title?: string | null; // Editable field
-  description?: string | null; // Editable field
-  created_by?: string | null; // Editable field
-  artist_name?: string | null; // Artist name extracted from tags
-  artists: { id: string; name: string; role: string }[]; // Artists from the new artist system
+// Import the specific type we need to extend
+import type { ArtworkDetailResponse } from '../../../shared/types';
+
+// ArtworkDetails now extends ArtworkDetailResponse from shared types
+// which includes the backward-compatible logbook_entries structure
+export interface ArtworkDetails extends ArtworkDetailResponse {
+  // No additional frontend-specific fields needed
 }
 
-export interface LogbookEntryWithPhotos {
-  id: string;
-  artwork_id: string | null;
-  user_token: string;
-  note: string | null;
-  photos: string | null;
-  status: 'pending' | 'approved' | 'rejected';
-  created_at: string;
-  photos_parsed: string[];
-}
+// LogbookEntryWithPhotos is now defined inline in ArtworkWithLogbookEntries 
+// from shared types for backward compatibility with the submissions system
 
 export interface UserSubmission {
   id: string;

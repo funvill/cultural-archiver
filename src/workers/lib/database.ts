@@ -425,7 +425,7 @@ export class DatabaseService {
   }
 
   async getTagsForLogbook(logbookId: string): Promise<TagRecord[]> {
-    // With the new schema, tags are stored as JSON in the logbook table  
+    // With the new schema, tags are stored as JSON in the submissions table  
     const stmt = this.db.prepare('SELECT tags FROM submissions WHERE id = ? AND submission_type = \'logbook\'');
     const result = await stmt.bind(logbookId).first() as { tags?: string } | null;
     

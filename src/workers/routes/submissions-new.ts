@@ -168,8 +168,13 @@ export async function createLogbookSubmission(
       verificationStatus: 'pending'
     };
 
-    if (validatedData.note) {
-      logbookData.notes = validatedData.note;
+    // Prefer `notes` field but accept legacy `note`
+    // Prefer `notes` field but accept legacy `note`
+    const vd = validatedData as unknown as { notes?: string; note?: string };
+    if (vd.notes) {
+      logbookData.notes = vd.notes;
+    } else if (vd.note) {
+      logbookData.notes = vd.note;
     }
     if (photoUrls.length > 0) {
       logbookData.photos = photoUrls;

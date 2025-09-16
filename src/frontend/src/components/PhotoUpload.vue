@@ -291,7 +291,7 @@ async function handleSubmit() {
 
     // Add description
     if (description.value.trim()) {
-      formData.append('note', description.value.trim());
+      formData.append('notes', description.value.trim());
     }
 
     // Submit to API

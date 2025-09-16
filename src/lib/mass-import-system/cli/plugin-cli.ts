@@ -229,22 +229,54 @@ export class PluginCLI {
       const processingSpinner = ora('Processing data through pipeline...').start();
       const result = await pipeline.process(inputData, processingOptions);
 
-      if (result.importedCount > 0) {
-        processingSpinner.succeed(`Successfully processed ${result.importedCount} records`);
-        
-        if (options.verbose) {
-          console.log(chalk.green('📊 Results:'));
-          console.log(`  • Imported: ${result.importedCount}`);
-          console.log(`  • Export Success: ${result.exportResult.success}`);
-          console.log(`  • Success Rate: ${result.summary.successfulRecords}/${result.summary.totalRecords} records`);
-          console.log(`  • Processing Time: ${result.summary.processingTime}ms`);
-          
-          if (result.report && options.generateReport) {
-            console.log(chalk.cyan(`📄 Report available: ${result.report.metadata?.operation.endTime}`));
-          }
-        }
+      // Always show detailed results regardless of success/failure
+      const { exportResult, summary } = result;
+      const successful = exportResult.recordsSuccessful || 0;
+      const failed = exportResult.recordsFailed || 0;
+      const skipped = exportResult.recordsSkipped || 0;
+      const duplicates = exportResult.recordsDuplicate || 0;
+      const total = result.importedCount || 0;
+
+      if (successful > 0) {
+        processingSpinner.succeed(`Import completed: ${successful}/${total} records successful`);
+      } else if (total > 0) {
+        processingSpinner.fail(`Import failed: 0/${total} records successful`);
       } else {
         processingSpinner.warn('No records were processed');
+      }
+
+      // Always show detailed breakdown
+      console.log(chalk.blue('\n📊 Import Results:'));
+      console.log(`  ${chalk.green('✅ Successful:')} ${successful}`);
+      console.log(`  ${chalk.red('❌ Failed:')} ${failed}`);
+      console.log(`  ${chalk.yellow('⏭️  Skipped:')} ${skipped}`);
+      console.log(`  ${chalk.cyan('🔄 Duplicates:')} ${duplicates}`);
+      console.log(`  ${chalk.blue('📊 Total Processed:')} ${total}`);
+      console.log(`  ${chalk.magenta('⏱️  Processing Time:')} ${summary.processingTime}ms`);
+      
+      if (successful > 0) {
+        const successRate = ((successful / total) * 100).toFixed(1);
+        console.log(`  ${chalk.green('📈 Success Rate:')} ${successRate}%`);
+      }
+
+      if (options.verbose) {
+        console.log(chalk.gray('\n🔍 Detailed Information:'));
+        console.log(`  • Pipeline Success: ${result.exportResult.success}`);
+        console.log(`  • Average Record Time: ${summary.averageRecordTime}ms`);
+        
+        if (result.report && options.generateReport) {
+          console.log(chalk.cyan(`  • Report Generated: ${result.report.metadata?.operation.endTime}`));
+        }
+        
+        if (exportResult.errors && exportResult.errors.length > 0) {
+          console.log(chalk.red('\n❌ Export Errors:'));
+          exportResult.errors.slice(0, 5).forEach((error, index) => {
+            console.log(`  ${index + 1}. ${error.message}`);
+          });
+          if (exportResult.errors.length > 5) {
+            console.log(`  ... and ${exportResult.errors.length - 5} more errors`);
+          }
+        }
       }
 
     } catch (error) {
