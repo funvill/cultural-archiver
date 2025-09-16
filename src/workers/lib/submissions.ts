@@ -463,7 +463,8 @@ async function createArtworkFromSubmission(
     newData.country || null,
     submission.photos || newData.photos || null,
     submission.tags || newData.tags || null,
-    newData.description || submission.note || null, // Fixed: was submission.notes, should be submission.note
+  newData.description || submission.notes || null, // Fixed: was submission.note, should be submission.notes  
+    newData.description || submission.notes || null, // Fixed: was submission.note, should be submission.notes  
     'approved',
     'user_submission',
     submission.id,
@@ -501,7 +502,7 @@ async function createArtistFromSubmission(
     newData.death_year || null,
     newData.nationality || null,
     newData.social_media || null,
-    newData.notes || submission.note || null, // Fixed: was submission.notes, should be submission.note
+  newData.notes || submission.notes || null, // Fixed: was submission.note, should be submission.notes        
     '{}', // tags as empty JSON object
     'approved',
     'user_submission',

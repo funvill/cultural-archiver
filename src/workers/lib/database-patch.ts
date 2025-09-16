@@ -33,7 +33,7 @@ export async function getLogbookEntriesForArtworkFromSubmissions(
       user_token: submission.user_token,
       lat: submission.lat || null,
       lon: submission.lon || null,
-      notes: submission.note, // Fixed: Map from SubmissionRecord.note to LogbookRecord.notes
+       notes: submission.notes, // Fixed: Map from SubmissionRecord.notes to LogbookRecord.notes
       // submission.photos is already stored as a JSON string in the submissions table.
       // Avoid double-stringifying here; preserve the original JSON string for compatibility.
       photos: submission.photos ? submission.photos : null,
@@ -63,7 +63,7 @@ export async function getAllLogbookEntriesForArtworkFromSubmissions(
       user_token: submission.user_token,
       lat: submission.lat || null,
       lon: submission.lon || null,
-      notes: submission.note, // Fixed: Map from SubmissionRecord.note to LogbookRecord.notes
+  notes: submission.notes, // Fixed: Map from SubmissionRecord.notes to LogbookRecord.notes
       // Preserve the JSON string stored in submissions.photos; do not stringify again.
       photos: submission.photos ? submission.photos : null,
       status: submission.status as 'pending' | 'approved' | 'rejected',
