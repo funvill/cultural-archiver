@@ -56,6 +56,55 @@ const showOptionsPanel = ref(false);
 const clusterEnabled = ref(true);
 const debugRingsEnabled = ref(false);
 const clearingCache = ref(false);
+// Artwork type filters
+interface ArtworkTypeToggle {
+  key: string;
+  label: string;
+  enabled: boolean;
+  color: string;
+}
+const artworkTypes = ref<ArtworkTypeToggle[]>([
+  { key: 'mural', label: 'Mural', enabled: true, color: '#4f46e5' },
+  { key: 'sculpture', label: 'Sculpture', enabled: true, color: '#059669' },
+  { key: 'monument', label: 'Monument', enabled: true, color: '#e11d48' },
+  { key: 'installation', label: 'Installation', enabled: true, color: '#c026d3' },
+  { key: 'statue', label: 'Statue', enabled: true, color: '#d97706' },
+  { key: 'mosaic', label: 'Mosaic', enabled: true, color: '#0891b2' },
+  { key: 'graffiti', label: 'Graffiti', enabled: true, color: '#ca8a04' },
+  { key: 'street_art', label: 'Street Art', enabled: true, color: '#db2777' },
+  { key: 'tiny_library', label: 'Tiny Library', enabled: true, color: '#0d9488' },
+  { key: 'memorial_or_monument', label: 'Memorial', enabled: true, color: '#e11d48' },
+  { key: 'totem_pole', label: 'Totem Pole', enabled: true, color: '#d97706' },
+  { key: 'fountain_or_water_feature', label: 'Fountain', enabled: true, color: '#0891b2' },
+  { key: 'two-dimensional_artwork', label: '2D Artwork', enabled: true, color: '#4f46e5' },
+  { key: 'site-integrated_work', label: 'Site-Integrated Work', enabled: true, color: '#c026d3' },
+  { key: 'media_work', label: 'Media Work', enabled: true, color: '#db2777' },
+  { key: 'figurative', label: 'Figurative', enabled: true, color: '#059669' },
+  { key: 'bust', label: 'Bust', enabled: true, color: '#d97706' },
+  { key: 'socially_engaged_art', label: 'Social Art', enabled: true, color: '#db2777' },
+  { key: 'relief', label: 'Relief', enabled: true, color: '#0891b2' },
+  { key: 'stone', label: 'Stone', enabled: true, color: '#78716c' },
+  { key: 'gateway', label: 'Gateway', enabled: true, color: '#2563eb' },
+  { key: 'other', label: 'Other', enabled: true, color: '#6366f1' },
+  { key: 'unknown', label: 'Unknown', enabled: true, color: '#6b7280' },
+]);
+
+// Helper function to check if an artwork type is enabled
+function isArtworkTypeEnabled(artworkType: string): boolean {
+  const normalizedType = artworkType.toLowerCase();
+  const typeToggle = artworkTypes.value.find((toggle: ArtworkTypeToggle) => toggle.key === normalizedType);
+  
+  // If we find a matching filter, return its enabled state
+  if (typeToggle) {
+    return typeToggle.enabled;
+  }
+  
+  // For unknown types, treat them as "Other" category
+  // Only show unknown types if the "Other" filter is enabled
+  const otherToggle = artworkTypes.value.find((toggle: ArtworkTypeToggle) => toggle.key === 'other');
+  return otherToggle ? otherToggle.enabled : false;
+}
+
 // Debug ring layer (only immediate 100m ring)
 let debugImmediateRing: L.Circle | null = null;
 // Saved map state presence
@@ -137,6 +186,16 @@ const createArtworkStyle = (type: string) => {
     graffiti: { fillColor: '#ca8a04' }, // yellow-600
     street_art: { fillColor: '#db2777' }, // pink-600
     tiny_library: { fillColor: '#0d9488' }, // teal-600
+    memorial_or_monument: { fillColor: '#e11d48' }, // rose-600 (same as monument)
+    totem_pole: { fillColor: '#d97706' }, // amber-600 (same as statue)
+    fountain_or_water_feature: { fillColor: '#0891b2' }, // cyan-600 (same as mosaic)
+    'two-dimensional_artwork': { fillColor: '#4f46e5' }, // indigo-600 (same as mural)
+    'site-integrated_work': { fillColor: '#c026d3' }, // fuchsia-600 (same as installation)
+    media_work: { fillColor: '#db2777' }, // pink-600 (same as street_art)
+    figurative: { fillColor: '#059669' }, // emerald-600 (same as sculpture)
+    bust: { fillColor: '#d97706' }, // amber-600 (same as statue)
+    socially_engaged_art: { fillColor: '#db2777' }, // pink-600 (same as street_art)
+    relief: { fillColor: '#0891b2' }, // cyan-600 (same as mosaic)
     unknown: { fillColor: '#6b7280' }, // gray-500
     other: { fillColor: '#2563eb' }, // blue-600
   };
@@ -596,10 +655,13 @@ function updateArtworkMarkers() {
     L.latLng(bounds.getNorth() + latPad, bounds.getEast() + lngPad)
   );
 
-  // Get artworks that should be visible in current viewport
-  const artworksInViewport = artworksStore.artworks.filter((artwork: ArtworkPin) =>
-    viewportBounds.contains(L.latLng(artwork.latitude, artwork.longitude))
-  );
+  // Get artworks that should be visible in current viewport and are of enabled types
+  const artworksInViewport = artworksStore.artworks.filter((artwork: ArtworkPin) => {
+    const inBounds = viewportBounds.contains(L.latLng(artwork.latitude, artwork.longitude));
+    const typeEnabled = isArtworkTypeEnabled(artwork.type || 'other');
+    
+    return inBounds && typeEnabled;
+  });
 
   // Create a set of artwork IDs currently in viewport for efficient comparison
   const viewportArtworkIds = new Set(artworksInViewport.map((a: ArtworkPin) => a.id));
@@ -612,11 +674,21 @@ function updateArtworkMarkers() {
     }).filter(Boolean)
   );
 
-  // Remove markers that are no longer in viewport
+  // Remove markers that are no longer in viewport or are of disabled types
   artworkMarkers.value = artworkMarkers.value.filter((marker: any) => {
     const artworkId = marker._artworkId;
+    const artworkType = marker._artworkType;
+    
+    // Remove if no longer in viewport
     if (artworkId && !viewportArtworkIds.has(artworkId)) {
-      // Remove from cluster group
+      if (markerClusterGroup.value) {
+        markerClusterGroup.value.removeLayer(marker as any);
+      }
+      return false; // Remove from artworkMarkers array
+    }
+    
+    // Remove if artwork type is now disabled
+    if (artworkType && !isArtworkTypeEnabled(artworkType)) {
       if (markerClusterGroup.value) {
         markerClusterGroup.value.removeLayer(marker as any);
       }
@@ -642,8 +714,9 @@ function updateArtworkMarkers() {
     
     const marker = L.circleMarker([artwork.latitude, artwork.longitude], markerOptions);
     
-    // Store artwork ID on marker for efficient tracking
+    // Store artwork ID and type on marker for efficient tracking
     (marker as any)._artworkId = artwork.id;
+    (marker as any)._artworkType = artwork.type || 'other';
 
     // Create popup content
     const popupContent = `
@@ -841,6 +914,28 @@ async function clearMapCacheAndReload() {
   } finally {
     clearingCache.value = false;
   }
+}
+
+// Handle artwork type filter toggles
+function handleArtworkTypeToggle(_artworkType: ArtworkTypeToggle) {
+  // Immediately update markers to show/hide based on the new filter state
+  updateArtworkMarkers();
+}
+
+// Enable all artwork type filters
+function enableAllArtworkTypes() {
+  artworkTypes.value.forEach((type: ArtworkTypeToggle) => {
+    type.enabled = true;
+  });
+  updateArtworkMarkers();
+}
+
+// Disable all artwork type filters
+function disableAllArtworkTypes() {
+  artworkTypes.value.forEach((type: ArtworkTypeToggle) => {
+    type.enabled = false;
+  });
+  updateArtworkMarkers();
 }
 
 // =====================
@@ -1113,7 +1208,7 @@ watch(
         <!-- Options Panel -->
         <div
           v-show="showOptionsPanel"
-          class="absolute bottom-14 right-0 w-56 bg-white shadow-lg rounded-lg p-3 border border-gray-200"
+          class="absolute bottom-14 right-0 w-80 sm:w-96 lg:w-[32rem] bg-white shadow-xl rounded-lg p-4 border border-gray-200 max-h-[calc(100vh-8rem)] overflow-y-auto"
           role="dialog"
           aria-label="Map options"
         >
@@ -1154,6 +1249,48 @@ watch(
             </label>
           </div>
           <div class="mt-3 pt-3 border-t border-gray-100">
+            <h3 class="text-sm font-medium text-gray-900 mb-1">Artwork Types Filtering</h3>
+            <p class="text-xs text-gray-600 mb-3">
+              Select which types of artworks to display on the map. Each colored circle shows the marker color used on the map.
+            </p>
+            
+            <!-- Control buttons -->
+            <div class="flex gap-2 mb-3">
+              <button
+                @click="enableAllArtworkTypes"
+                class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
+              >
+                Enable All
+              </button>
+              <button
+                @click="disableAllArtworkTypes"
+                class="text-xs bg-gray-600 text-white px-3 py-1.5 rounded hover:bg-gray-700 focus:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 transition-colors"
+              >
+                Disable All
+              </button>
+            </div>
+            
+            <!-- Artwork types grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+              <div v-for="artworkType in artworkTypes" :key="artworkType.key" class="flex items-center">
+                <input
+                  :id="`toggle-${artworkType.key}`"
+                  type="checkbox"
+                  class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
+                  v-model="artworkType.enabled"
+                  @change="handleArtworkTypeToggle(artworkType)"
+                />
+                <label :for="`toggle-${artworkType.key}`" class="ml-2 flex items-center text-xs text-gray-700 select-none min-w-0">
+                  <span 
+                    class="inline-block w-3 h-3 rounded-full mr-1.5 border border-white shadow-sm flex-shrink-0"
+                    :style="{ backgroundColor: artworkType.color }"
+                  ></span>
+                  <span class="truncate">{{ artworkType.label }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-gray-100">
             <button
               @click="clearMapCacheAndReload"
               :disabled="clearingCache"

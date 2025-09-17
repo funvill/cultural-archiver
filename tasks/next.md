@@ -151,12 +151,4 @@ The admin page is a super user that can give moderators permissions to other use
 
 ----
 
-The problem
-There are populated areas where there are 1000s of map pointers in a small area. The map slows down and doesn't load all of the map points in this area. Then the map slows down as they move around the map.
-
-We need a solution for large amounts of map points. What are some recomentations?
-
-We should cache the map points in the browser so that these points can load quicker on reload of the map. We need an ability to cache bust.
-- Manually - Add new button to the Map options. "Clear map Cache"
-- Time based - If the point is older then 30 days remove it from the Cache.
 

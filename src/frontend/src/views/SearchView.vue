@@ -10,6 +10,8 @@ import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 import { useInfiniteScroll } from '../composables/useInfiniteScroll';
 import type { SearchResult, Coordinates } from '../types/index';
 
+
+
 const route = useRoute();
 const router = useRouter();
 const searchStore = useSearchStore();
@@ -170,7 +172,7 @@ onMounted(() => {
       const parsed = JSON.parse(sessionData);
       // Merge with Pinia store to add previews (sessionStorage intentionally omits them for size)
       const previewLookup: Record<string, string | undefined> = {};
-      fastUploadStore.photos.forEach(p => { if (p.id) previewLookup[p.id] = p.preview; });
+  fastUploadStore.photos.forEach((p: {id: string, preview?: string}) => { if (p.id) previewLookup[p.id] = p.preview; });
       fastUploadSession.value = {
         photos: (parsed.photos || []).map((p: any) => ({
           id: p.id,
@@ -194,7 +196,7 @@ onMounted(() => {
   } else if (route.query.source === 'fast-upload' && fastUploadStore.hasPhotos) {
     // Fallback if sessionStorage missing but store still populated
     fastUploadSession.value = {
-      photos: fastUploadStore.photos.map(p => {
+      photos: fastUploadStore.photos.map((p: {id: string, name: string, preview?: string}) => {
         const base = { id: p.id, name: p.name } as { id: string; name: string; preview?: string };
         if (p.preview) base.preview = p.preview;
         return base;
