@@ -3,6 +3,7 @@ import { onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import AppShell from './components/AppShell.vue';
 import ErrorBoundary from './components/ErrorBoundary.vue';
+import FirstTimeModal from './components/FirstTimeModal.vue';
 import Modal from './components/Modal.vue';
 import PromptModal from './components/PromptModal.vue';
 import { useAuth } from './composables/useAuth';
@@ -95,6 +96,9 @@ watch(
       @cancel="globalModal.handlePromptCancel"
       @close="globalModal.handlePromptCancel"
     />
+
+    <!-- First Time User Modal -->
+    <FirstTimeModal />
   </div>
 </template>
 

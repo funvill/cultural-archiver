@@ -17,6 +17,7 @@ import {
 } from '@heroicons/vue/24/outline';
 import { useAuthStore } from '../stores/auth';
 import AuthModal from './AuthModal.vue';
+import DevelopmentBanner from './DevelopmentBanner.vue';
 import LiveRegion from './LiveRegion.vue';
 import type { NavigationItem } from '../types';
 
@@ -385,6 +386,9 @@ watch(() => route.path, handleRouteChange);
         </div>
       </div>
     </header>
+
+    <!-- Development Warning Banner -->
+    <DevelopmentBanner />
 
     <!-- Navigation Drawer Overlay -->
     <div
