@@ -98,36 +98,20 @@ onMounted(() => {
         <div id="welcome-description" class="px-6 pb-6">
           <div class="space-y-4 text-gray-700">
             <p class="text-lg leading-relaxed">
-              Discover, document, and celebrate public art in your community! 
-              We're building the world's most comprehensive map of cultural works through community collaboration.
+              Public art is fragile. Murals fade, sculptures crumble, stories vanish. If no one honors them, they are lost — forever.
             </p>
 
-            <div class="bg-blue-50 rounded-lg p-4">
-              <h3 class="font-semibold text-blue-900 mb-2">How You Can Help:</h3>
-              <ul class="space-y-2 text-blue-800">
-                <li class="flex items-start">
-                  <span class="text-blue-500 mr-2 mt-1">📸</span>
-                  <span><strong>Photograph artworks</strong> you discover in your neighborhood</span>
-                </li>
-                <li class="flex items-start">
-                  <span class="text-blue-500 mr-2 mt-1">📍</span>
-                  <span><strong>Share locations</strong> to help others find these cultural treasures</span>
-                </li>
-                <li class="flex items-start">
-                  <span class="text-blue-500 mr-2 mt-1">📝</span>
-                  <span><strong>Add descriptions</strong> and details about the art and artists</span>
-                </li>
-                <li class="flex items-start">
-                  <span class="text-blue-500 mr-2 mt-1">🌍</span>
-                  <span><strong>Explore the map</strong> to discover art near you</span>
-                </li>
-              </ul>
-            </div>
+            <p class="text-lg leading-relaxed">
+              By preserving artworks and committing them to this archive, you safeguard our shared cultural story — a gift of memory and meaning for generations yet to come.
+            </p>
 
-            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p class="text-yellow-800 text-sm">
-                <strong>Note:</strong> This project is open source and community-driven. 
-                All content is shared under Creative Commons licensing to preserve cultural heritage for everyone.
+            <p class="text-lg leading-relaxed font-semibold">
+              This is your chance to protect what matters. To give the future the gift of memory.
+            </p>
+
+            <div class="bg-orange-50 border-2 border-orange-200 rounded-lg p-4 text-center">
+              <p class="text-orange-800 text-lg font-bold">
+                🔥 Be the hero. Add your first artwork now.
               </p>
             </div>
           </div>
