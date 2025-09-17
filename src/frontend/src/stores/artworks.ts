@@ -142,7 +142,7 @@ export const useArtworksStore = defineStore('artworks', () => {
         targetLocation.latitude,
         targetLocation.longitude,
         fetchRadius.value,
-        50,
+        250,
         { minimal: true }
       );
 
@@ -333,6 +333,198 @@ export const useArtworksStore = defineStore('artworks', () => {
     }
   }
 
+  // Progressive loading functionality for large datasets with adaptive batch sizing
+  async function fetchArtworksInBoundsBatched(
+    bounds: MapBounds, 
+    initialBatchSize: number = 500,
+    onProgress?: (progress: { loaded: number; total: number; batch: ArtworkPin[]; batchSize: number; avgTime: number }) => void
+  ): Promise<void> {
+    setLoading(true);
+    clearError();
+
+    // Performance tracking for adaptive batch sizing
+    const performanceMetrics: number[] = [];
+    let currentBatchSize = initialBatchSize;
+    const minBatchSize = 100;
+    const maxBatchSize = 1000;
+    const targetBatchTime = 1000; // Target 1 second per batch
+
+    try {
+      // 1) Load cached pins first for instant UI
+      try {
+        mapCache.prune();
+        const cachedPins = mapCache.getPinsInBounds(bounds);
+        if (cachedPins.length) {
+          const existingIndexById = new Map<string, number>();
+          artworks.value.forEach((a, i) => existingIndexById.set(a.id, i));
+          cachedPins.forEach(pin => {
+            const existingIdx = existingIndexById.get(pin.id);
+            if (existingIdx !== undefined) {
+              artworks.value[existingIdx] = { ...artworks.value[existingIdx], ...pin };
+            } else {
+              artworks.value.push(pin);
+            }
+          });
+        }
+      } catch {/* ignore cache errors */}
+
+      // Use center point of bounds for nearby search
+      const centerLat = (bounds.north + bounds.south) / 2;
+      const centerLon = (bounds.east + bounds.west) / 2;
+
+      // Calculate approximate radius from bounds
+      const radius = Math.min(
+        calculateDistance(
+          { latitude: bounds.north, longitude: centerLon },
+          { latitude: bounds.south, longitude: centerLon }
+        ) / 2,
+        calculateDistance(
+          { latitude: centerLat, longitude: bounds.east },
+          { latitude: centerLat, longitude: bounds.west }
+        ) / 2
+      );
+
+      const effectiveRadius = Math.max(radius, 200);
+      fetchRadius.value = Math.round(effectiveRadius);
+
+      // Progressive batch loading with adaptive sizing
+      let offset = 0;
+      let totalLoaded = 0;
+      let allArtworkPins: ArtworkPin[] = [];
+      let batchNumber = 0;
+
+      while (true) {
+        batchNumber++;
+        const batchStartTime = performance.now();
+
+        try {
+          // Fetch batch with current batch size
+          const response = await apiService.getNearbyArtworks(
+            centerLat, 
+            centerLon, 
+            effectiveRadius, 
+            currentBatchSize, 
+            { minimal: true }
+          );
+
+          const batchEndTime = performance.now();
+          const batchTime = batchEndTime - batchStartTime;
+          performanceMetrics.push(batchTime);
+
+          const apiArtworks = response.data?.artworks || [];
+          
+          // If no results or fewer than batch size, this is the last batch
+          if (apiArtworks.length === 0) {
+            break;
+          }
+
+          // Convert API response to ArtworkPin format
+          const batchPins: ArtworkPin[] = apiArtworks.map((artwork: MinimalArtworkPin | ArtworkWithPhotos): ArtworkPin => {
+            const pin: ArtworkPin = {
+              id: artwork.id,
+              latitude: artwork.lat,
+              longitude: artwork.lon,
+              type: artwork.type_name || 'unknown',
+              photos: [],
+            };
+            if (artwork.recent_photo) {
+              pin.photos = [artwork.recent_photo];
+            }
+            return pin;
+          });
+
+          allArtworkPins.push(...batchPins);
+          totalLoaded += batchPins.length;
+
+          // Merge batch into reactive store immediately for progressive UI updates
+          const existingIndexById = new Map<string, number>();
+          artworks.value.forEach((a, i) => existingIndexById.set(a.id, i));
+
+          batchPins.forEach(pin => {
+            const existingIdx = existingIndexById.get(pin.id);
+            if (existingIdx !== undefined) {
+              artworks.value[existingIdx] = {
+                ...artworks.value[existingIdx],
+                ...pin,
+              };
+            } else {
+              artworks.value.push(pin);
+            }
+          });
+
+          // Calculate average batch time for progress reporting
+          const avgTime = performanceMetrics.reduce((a, b) => a + b, 0) / performanceMetrics.length;
+
+          // Call progress callback with performance metrics
+          if (onProgress) {
+            onProgress({
+              loaded: totalLoaded,
+              total: totalLoaded + (batchPins.length === currentBatchSize ? currentBatchSize : 0), // Estimate
+              batch: batchPins,
+              batchSize: currentBatchSize,
+              avgTime
+            });
+          }
+
+          // Adaptive batch sizing based on performance
+          if (performanceMetrics.length >= 2) {
+            // If batch took too long, reduce batch size
+            if (batchTime > targetBatchTime && currentBatchSize > minBatchSize) {
+              currentBatchSize = Math.max(minBatchSize, Math.round(currentBatchSize * 0.8));
+              console.log(`[Progressive Loading] Reduced batch size to ${currentBatchSize} (${batchTime.toFixed(0)}ms batch time)`);
+            }
+            // If batch was fast and we have room to grow, increase batch size
+            else if (batchTime < targetBatchTime * 0.5 && currentBatchSize < maxBatchSize) {
+              currentBatchSize = Math.min(maxBatchSize, Math.round(currentBatchSize * 1.2));
+              console.log(`[Progressive Loading] Increased batch size to ${currentBatchSize} (${batchTime.toFixed(0)}ms batch time)`);
+            }
+          }
+
+          // Break if we got fewer results than batch size (end of data)
+          if (apiArtworks.length < currentBatchSize) {
+            break;
+          }
+
+          offset += currentBatchSize;
+
+          // Dynamic delay based on performance - faster for good performance, slower for poor performance
+          const dynamicDelay = Math.max(10, Math.min(100, batchTime / 10));
+          await new Promise(resolve => setTimeout(resolve, dynamicDelay));
+
+        } catch (batchError) {
+          console.warn(`Error loading batch ${batchNumber} at offset ${offset}:`, batchError);
+          
+          // On error, try reducing batch size for next attempt
+          if (currentBatchSize > minBatchSize) {
+            currentBatchSize = Math.max(minBatchSize, Math.round(currentBatchSize * 0.5));
+            console.log(`[Progressive Loading] Reduced batch size to ${currentBatchSize} due to error`);
+            continue; // Try again with smaller batch
+          }
+          
+          break; // Stop on error if already at minimum batch size
+        }
+      }
+
+      const avgBatchTime = performanceMetrics.length > 0 
+        ? performanceMetrics.reduce((a, b) => a + b, 0) / performanceMetrics.length 
+        : 0;
+
+      console.log(`[Progressive Loading] Complete. ${totalLoaded} artworks loaded in ${batchNumber} batches. Avg batch time: ${avgBatchTime.toFixed(0)}ms`);
+
+      // Persist all pins to cache
+      try {
+        mapCache.upsertPins(allArtworkPins);
+      } catch {/* ignore cache errors */}
+
+    } catch (err) {
+      const message = getErrorMessage(err);
+      setError(message);
+      console.error('Error in progressive artwork loading:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   // Get artworks for submission (nearby list)
   async function getArtworksForSubmission(location: Coordinates): Promise<ArtworkPin[]> {
     try {
@@ -431,6 +623,7 @@ export const useArtworksStore = defineStore('artworks', () => {
     fetchArtwork,
     refreshArtwork,
     fetchArtworksInBounds,
+    fetchArtworksInBoundsBatched,
     getArtworksForSubmission,
     calculateDistance,
     reset,

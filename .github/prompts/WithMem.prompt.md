@@ -17,8 +17,6 @@ Create and maintain a progress file while resovling this. This file acts as pers
 - After completing each major task:
   - Write a **summary** describing what has been accomplished.
   - Update the progress file with the latest task status and notes.
-- [ ] `npm run test` passes with 0 failures
-- [ ] `npm run build` completes with 0 errors
 - The document should include enugh information that this task can be "handed off" to another devloper.
 
 

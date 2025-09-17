@@ -37,10 +37,18 @@ const isLoading = ref(true);
 const isLocating = ref(false);
 const error = ref<string | null>(null);
 const showLocationNotice = ref(false);
+// Viewport loading state
+const isLoadingViewport = ref(false);
+const lastLoadedBounds = ref<{north: number; south: number; east: number; west: number} | null>(null);
+const loadingTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
+// Progressive loading state
+const isProgressiveLoading = ref(false);
+const progressiveLoadingStats = ref<{loaded: number; total: number; percentage: number; batchSize?: number; avgTime?: number} | null>(null);
+const useProgressiveLoading = ref(false); // Toggle for progressive loading mode
 // Guard navigator for SSR / non-browser test environments
 const hasGeolocation = ref(typeof navigator !== 'undefined' && !!navigator.geolocation);
 const userLocationMarker = ref<L.Marker | null>(null);
-const artworkMarkers = ref<L.Marker[]>([]);
+const artworkMarkers = ref<(L.Marker | L.CircleMarker)[]>([]);
 // Use any for cluster type to avoid type issues if markercluster types not available
 const markerClusterGroup = ref<any | null>(null);
 // Map options state
@@ -62,33 +70,50 @@ const router = useRouter();
 // Default coordinates (Vancouver - near sample data for testing)
 const DEFAULT_CENTER = { latitude: 49.265, longitude: -123.25 };
 
-// Custom icon for artworks
-const createArtworkIcon = (type: string) => {
+// Create circle marker style for artworks (replaces emoji icons for better performance)
+const createArtworkStyle = (type: string) => {
   const normalized = (type || 'other').toLowerCase();
-  const iconMap: Record<string, { emoji: string; color: string }> = {
-    statue: { emoji: '🗿', color: 'bg-amber-600' },
-    sculpture: { emoji: '🗽', color: 'bg-emerald-600' },
-    mural: { emoji: '🖼️', color: 'bg-indigo-600' },
-    installation: { emoji: '🛠️', color: 'bg-fuchsia-600' },
-    monument: { emoji: '🏛️', color: 'bg-rose-600' },
-    mosaic: { emoji: '🧩', color: 'bg-cyan-600' },
-    graffiti: { emoji: '🎨', color: 'bg-yellow-600' },
-    street_art: { emoji: '🎭', color: 'bg-pink-600' },
-    tiny_library: { emoji: '�', color: 'bg-teal-600' },
-    unknown: { emoji: '❔', color: 'bg-gray-500' },
-    other: { emoji: '📍', color: 'bg-blue-600' },
+  
+  // Calculate dynamic radius based on zoom level
+  const currentZoom = map.value?.getZoom() || 15;
+  const baseRadius = 16; // Base radius at zoom 15 (increased from 8)
+  const minRadius = 8;   // Minimum radius at low zoom (increased from 2)
+  const maxRadius = 20;  // Maximum radius at high zoom (unchanged)
+  
+  // Scale radius: larger at low zoom, same at high zoom
+  // Uses inverse exponential scaling for better visibility when zoomed out
+  const zoomFactor = Math.pow(0.7, (currentZoom - 10)); // Inverse scaling starting from zoom 10
+  const dynamicRadius = Math.max(minRadius, Math.min(maxRadius, baseRadius * zoomFactor));
+  
+  const styleMap: Record<string, { fillColor: string }> = {
+    statue: { fillColor: '#d97706' }, // amber-600
+    sculpture: { fillColor: '#059669' }, // emerald-600
+    mural: { fillColor: '#4f46e5' }, // indigo-600
+    installation: { fillColor: '#c026d3' }, // fuchsia-600
+    monument: { fillColor: '#e11d48' }, // rose-600
+    mosaic: { fillColor: '#0891b2' }, // cyan-600
+    graffiti: { fillColor: '#ca8a04' }, // yellow-600
+    street_art: { fillColor: '#db2777' }, // pink-600
+    tiny_library: { fillColor: '#0d9488' }, // teal-600
+    unknown: { fillColor: '#6b7280' }, // gray-500
+    other: { fillColor: '#2563eb' }, // blue-600
   };
-  const chosen = (iconMap[normalized] ? iconMap[normalized] : iconMap.other) as {
-    emoji: string;
-    color: string;
+  const style = styleMap[normalized] || styleMap.other;
+  const baseStyle = {
+    radius: dynamicRadius, // Use zoom-scaled radius
+    fillColor: style!.fillColor,
+    color: '#ffffff', // white border
+    weight: 1,
+    fillOpacity: 0.9,
+    opacity: 1,
+    // Ensure proper interaction settings
+    interactive: true,
+    bubblingMouseEvents: false,
+    className: 'artwork-circle-marker' // Add CSS class for styling
   };
-  return L.divIcon({
-    html: `<div class="artwork-marker ${chosen.color} text-white rounded-full w-8 h-8 flex items-center justify-center text-sm shadow-lg border-2 border-white cursor-pointer">${chosen.emoji}</div>`,
-    className: 'custom-artwork-icon',
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -16],
-  });
+  
+  // Don't add renderer - let Leaflet handle canvas rendering automatically
+  return baseStyle;
 };
 
 // Custom icon for user location
@@ -411,66 +436,188 @@ function addUserLocationMarker(location: Coordinates) {
     .bindPopup('Your current location');
 }
 
-// Load artworks on map
+// Load artworks on map with intelligent viewport-based loading
 async function loadArtworks() {
   if (!map.value) return;
 
   try {
-    // Get current map bounds
+    // Get current map bounds with generous padding for smooth experience
     const bounds = map.value.getBounds();
-    const mapBounds = {
-      north: bounds.getNorth(),
-      south: bounds.getSouth(),
-      east: bounds.getEast(),
-      west: bounds.getWest(),
+    const padding = 0.15; // 15% padding around viewport
+    const latPad = (bounds.getNorth() - bounds.getSouth()) * padding;
+    const lngPad = (bounds.getEast() - bounds.getWest()) * padding;
+    
+    const expandedBounds = {
+      north: bounds.getNorth() + latPad,
+      south: bounds.getSouth() - latPad,
+      east: bounds.getEast() + lngPad,
+      west: bounds.getWest() - lngPad,
     };
 
-    // Fetch artworks in bounds
-    await artworksStore.fetchArtworksInBounds(mapBounds);
+    // Check if we already have data for this area (smart caching)
+    if (lastLoadedBounds.value && boundsContain(lastLoadedBounds.value, expandedBounds)) {
+      // We already have data for this viewport, just update markers
+      updateArtworkMarkers();
+      return;
+    }
+
+    // Show loading indicator for viewport changes
+    isLoadingViewport.value = true;
+
+    // Use progressive loading for potentially large datasets
+    if (useProgressiveLoading.value) {
+      await loadArtworksProgressively(expandedBounds);
+    } else {
+      // Standard loading
+      await artworksStore.fetchArtworksInBounds(expandedBounds);
+    }
+    
+    // Cache the bounds we just loaded
+    lastLoadedBounds.value = expandedBounds;
 
     // Update markers
     updateArtworkMarkers();
   } catch (err) {
     console.error('Error loading artworks:', err);
+  } finally {
+    isLoadingViewport.value = false;
   }
 }
 
-// Update artwork markers
+// Progressive loading for large datasets
+async function loadArtworksProgressively(bounds: {north: number; south: number; east: number; west: number}) {
+  if (!map.value) return;
+
+  isProgressiveLoading.value = true;
+  progressiveLoadingStats.value = { loaded: 0, total: 0, percentage: 0 };
+
+  try {
+    await artworksStore.fetchArtworksInBoundsBatched(
+      bounds,
+      500, // initial batch size
+      (progress: { loaded: number; total: number; batch: ArtworkPin[]; batchSize: number; avgTime: number }) => {
+        // Update progress stats
+        progressiveLoadingStats.value = {
+          loaded: progress.loaded,
+          total: Math.max(progress.total, progress.loaded),
+          percentage: Math.round((progress.loaded / Math.max(progress.total, progress.loaded)) * 100),
+          batchSize: progress.batchSize,
+          avgTime: progress.avgTime
+        };
+
+        // Update markers incrementally for each batch
+        nextTick(() => {
+          updateArtworkMarkers();
+        });
+      }
+    );
+  } finally {
+    isProgressiveLoading.value = false;
+    progressiveLoadingStats.value = null;
+  }
+}
+
+// Helper function to check if bounds A contains bounds B
+function boundsContain(boundsA: {north: number; south: number; east: number; west: number}, 
+                      boundsB: {north: number; south: number; east: number; west: number}): boolean {
+  return boundsA.north >= boundsB.north && 
+         boundsA.south <= boundsB.south && 
+         boundsA.east >= boundsB.east && 
+         boundsA.west <= boundsB.west;
+}
+
+// Update artwork markers with efficient viewport-based rendering
 function updateArtworkMarkers() {
   if (!map.value || !markerClusterGroup.value) return;
 
-  // Determine current bounds with a small padding (10%) to avoid popping
+  // Determine current bounds with padding for smooth experience
   const bounds = map.value.getBounds();
-  const latPad = (bounds.getNorth() - bounds.getSouth()) * 0.1;
-  const lngPad = (bounds.getEast() - bounds.getWest()) * 0.1;
-  const padded = L.latLngBounds(
+  const latPad = (bounds.getNorth() - bounds.getSouth()) * 0.05; // Reduced padding for viewport
+  const lngPad = (bounds.getEast() - bounds.getWest()) * 0.05;
+  const viewportBounds = L.latLngBounds(
     L.latLng(bounds.getSouth() - latPad, bounds.getWest() - lngPad),
     L.latLng(bounds.getNorth() + latPad, bounds.getEast() + lngPad)
   );
 
-  // Clear existing markers
-  artworkMarkers.value.forEach((marker: any) => {
-    if (markerClusterGroup.value) {
-      markerClusterGroup.value.removeLayer(marker as any);
-    }
-  });
-  artworkMarkers.value = [];
-
-  // Add markers only for pins within the padded bounds
-  const pinsInView = artworksStore.artworks.filter((a: ArtworkPin) =>
-    padded.contains(L.latLng(a.latitude, a.longitude))
+  // Get artworks that should be visible in current viewport
+  const artworksInViewport = artworksStore.artworks.filter((artwork: ArtworkPin) =>
+    viewportBounds.contains(L.latLng(artwork.latitude, artwork.longitude))
   );
 
-  pinsInView.forEach((artwork: ArtworkPin) => {
-    const marker = L.marker([artwork.latitude, artwork.longitude], {
-      icon: createArtworkIcon(artwork.type || 'other'),
-    });
+  // Create a set of artwork IDs currently in viewport for efficient comparison
+  const viewportArtworkIds = new Set(artworksInViewport.map((a: ArtworkPin) => a.id));
+  
+  // Create a set of currently displayed artwork IDs
+  const currentArtworkIds = new Set(
+    artworkMarkers.value.map((marker: any) => {
+      // Get artwork ID from marker (stored when marker was created)
+      return marker._artworkId;
+    }).filter(Boolean)
+  );
 
-    marker.on('click', () => {
+  // Remove markers that are no longer in viewport
+  artworkMarkers.value = artworkMarkers.value.filter((marker: any) => {
+    const artworkId = marker._artworkId;
+    if (artworkId && !viewportArtworkIds.has(artworkId)) {
+      // Remove from cluster group
+      if (markerClusterGroup.value) {
+        markerClusterGroup.value.removeLayer(marker as any);
+      }
+      return false; // Remove from artworkMarkers array
+    }
+    return true; // Keep in artworkMarkers array
+  });
+
+  // Add new markers for artworks that entered the viewport
+  artworksInViewport.forEach((artwork: ArtworkPin) => {
+    // Skip if marker already exists
+    if (currentArtworkIds.has(artwork.id)) {
+      return;
+    }
+
+    // Create new marker with optimized options
+    const markerOptions = {
+      ...createArtworkStyle(artwork.type || 'other'),
+      interactive: true,
+      bubblingMouseEvents: false,
+      pane: 'markerPane'
+    };
+    
+    const marker = L.circleMarker([artwork.latitude, artwork.longitude], markerOptions);
+    
+    // Store artwork ID on marker for efficient tracking
+    (marker as any)._artworkId = artwork.id;
+
+    // Create popup content
+    const popupContent = `
+      <div class="artwork-popup">
+        <h3 class="font-semibold text-sm mb-1">${artwork.title || 'Untitled'}</h3>
+        <button onclick="window.viewArtworkDetails('${artwork.id}')" 
+                class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
+          View Details
+        </button>
+      </div>
+    `;
+    
+    marker.bindPopup(popupContent);
+
+    // Add event handlers
+    marker.on('click', (e: L.LeafletMouseEvent) => {
+      e.originalEvent?.stopPropagation();
       router.push(`/artwork/${artwork.id}`);
       emit('artworkClick', artwork);
     });
 
+    // Add hover effects
+    marker.on('mouseover', () => {
+      marker.setStyle({ fillOpacity: 1.0, weight: 2 });
+    });
+
+    marker.on('mouseout', () => {
+      marker.setStyle({ fillOpacity: 0.9, weight: 1 });
+    });
+
+    // Add to cluster group and tracking array
     if (markerClusterGroup.value) {
       markerClusterGroup.value.addLayer(marker as any);
     }
@@ -558,19 +705,36 @@ function handleMapMove() {
 
   // Debounced artwork loading to prevent infinite loops
   debounceLoadArtworks();
+  // Also update marker styles immediately for zoom changes (better responsiveness)
+  updateArtworkMarkers();
   // Move debug rings to new center
   updateDebugRings();
 }
 
-// Debounced artwork loading
+// Debounced artwork loading with intelligent timing
 let loadArtworksTimeout: ReturnType<typeof setTimeout> | null = null;
 function debounceLoadArtworks() {
+  // Clear existing timeout
   if (loadArtworksTimeout) {
     clearTimeout(loadArtworksTimeout);
   }
+  
+  // Clear any pending loading timeout state
+  if (loadingTimeout.value) {
+    clearTimeout(loadingTimeout.value);
+  }
+  
+  // Set a shorter delay for more responsive loading
   loadArtworksTimeout = setTimeout(() => {
     loadArtworks();
-  }, 500); // Wait 500ms after user stops moving map
+  }, 250); // Reduced from 500ms to 250ms for better responsiveness
+  
+  // Show loading state after a brief delay to avoid flicker
+  loadingTimeout.value = setTimeout(() => {
+    if (!isLoadingViewport.value) {
+      isLoadingViewport.value = true;
+    }
+  }, 100);
 }
 
 // Map control methods
@@ -795,6 +959,54 @@ watch(
       </div>
     </div>
 
+    <!-- Viewport Loading Indicator -->
+    <div
+      v-if="isLoadingViewport && !isLoading"
+      class="absolute top-4 right-4 bg-white bg-opacity-90 backdrop-blur-sm rounded-lg p-2 shadow-md z-15"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="flex items-center space-x-2">
+        <div
+          class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"
+          aria-hidden="true"
+        ></div>
+        <p class="text-xs text-gray-600">Loading artworks...</p>
+      </div>
+    </div>
+
+    <!-- Progressive Loading Indicator -->
+    <div
+      v-if="isProgressiveLoading && progressiveLoadingStats"
+      class="absolute top-4 right-4 bg-white bg-opacity-95 backdrop-blur-sm rounded-lg p-3 shadow-lg z-15"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="flex items-center space-x-2 mb-2">
+        <div
+          class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"
+          aria-hidden="true"
+        ></div>
+        <p class="text-xs text-gray-700 font-medium">Progressive Loading</p>
+      </div>
+      <div class="space-y-1">
+        <div class="flex justify-between text-xs text-gray-600">
+          <span>{{ progressiveLoadingStats.loaded }} loaded</span>
+          <span>{{ progressiveLoadingStats.percentage }}%</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-1.5">
+          <div 
+            class="bg-blue-600 h-1.5 rounded-full transition-all duration-300 ease-out"
+            :style="{ width: `${progressiveLoadingStats.percentage}%` }"
+          ></div>
+        </div>
+        <div v-if="progressiveLoadingStats.batchSize || progressiveLoadingStats.avgTime" class="flex justify-between text-xs text-gray-500 pt-1">
+          <span v-if="progressiveLoadingStats.batchSize">Batch: {{ progressiveLoadingStats.batchSize }}</span>
+          <span v-if="progressiveLoadingStats.avgTime">{{ Math.round(progressiveLoadingStats.avgTime) }}ms avg</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Location Permission Notice -->
     <div
       v-if="showLocationNotice"
@@ -868,6 +1080,20 @@ watch(
             />
             <label for="toggle-rings" class="ml-2 text-sm text-gray-700 select-none">
               Enable map rings (debug)
+            </label>
+          </div>
+          <div class="mt-2 pt-2 border-t border-gray-100 flex items-start">
+            <input
+              id="toggle-progressive"
+              type="checkbox"
+              class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              v-model="useProgressiveLoading"
+            />
+            <label for="toggle-progressive" class="ml-2 text-sm text-gray-700 select-none">
+              Progressive loading
+              <div class="text-xs text-gray-500 mt-0.5">
+                Load large datasets in batches
+              </div>
             </label>
           </div>
           <div class="mt-3 pt-3 border-t border-gray-100">
@@ -956,6 +1182,11 @@ watch(
 .custom-user-location-icon {
   background: transparent !important;
   border: none !important;
+}
+
+/* Circle marker styles for better interaction */
+.artwork-circle-marker {
+  cursor: pointer !important;
 }
 
 .artwork-marker {
