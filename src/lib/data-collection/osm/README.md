@@ -48,7 +48,7 @@ node fetch-osm-artworks.js [options]
 
 - **Custom bounding box + lower zoom (bigger tiles, fewer requests)**  
   ```bash
-  node fetch-osm-artworks.js     --minLat 49.15 --minLon -123.27     --maxLat 49.32 --maxLon -123.02     --zoom 13
+  node fetch-osm-artworks.js --minLat 49.15 --minLon -123.27 --maxLat 49.32 --maxLon -123.02 --zoom 13
   ```
 
 ---

@@ -47,6 +47,7 @@ const markerClusterGroup = ref<any | null>(null);
 const showOptionsPanel = ref(false);
 const clusterEnabled = ref(true);
 const debugRingsEnabled = ref(false);
+const clearingCache = ref(false);
 // Debug ring layer (only immediate 100m ring)
 let debugImmediateRing: L.Circle | null = null;
 // Saved map state presence
@@ -169,16 +170,11 @@ async function initializeMap() {
       });
     });
 
-    tileLayer.on('tileload', e => {
-      console.log('Tile loaded successfully:', e.coords);
-      // Apply fixes whenever a tile loads
+    tileLayer.on('tileload', () => {
+      // Apply fixes whenever a tile loads (no console log)
       nextTick(() => {
         forceMapDimensions();
       });
-    });
-
-    tileLayer.on('tileloadstart', e => {
-      console.log('Tile load started:', e.coords);
     });
 
     console.log('Tile layer added to map');
@@ -443,6 +439,15 @@ async function loadArtworks() {
 function updateArtworkMarkers() {
   if (!map.value || !markerClusterGroup.value) return;
 
+  // Determine current bounds with a small padding (10%) to avoid popping
+  const bounds = map.value.getBounds();
+  const latPad = (bounds.getNorth() - bounds.getSouth()) * 0.1;
+  const lngPad = (bounds.getEast() - bounds.getWest()) * 0.1;
+  const padded = L.latLngBounds(
+    L.latLng(bounds.getSouth() - latPad, bounds.getWest() - lngPad),
+    L.latLng(bounds.getNorth() + latPad, bounds.getEast() + lngPad)
+  );
+
   // Clear existing markers
   artworkMarkers.value.forEach((marker: any) => {
     if (markerClusterGroup.value) {
@@ -451,28 +456,17 @@ function updateArtworkMarkers() {
   });
   artworkMarkers.value = [];
 
-  // Add new markers
-  console.log('Creating markers for artworks:', artworksStore.artworks.length);
-  artworksStore.artworks.forEach((artwork: ArtworkPin) => {
-    console.log(
-      'Creating marker for artwork:',
-      artwork.id,
-      'at',
-      artwork.latitude,
-      artwork.longitude
-    );
+  // Add markers only for pins within the padded bounds
+  const pinsInView = artworksStore.artworks.filter((a: ArtworkPin) =>
+    padded.contains(L.latLng(a.latitude, a.longitude))
+  );
 
+  pinsInView.forEach((artwork: ArtworkPin) => {
     const marker = L.marker([artwork.latitude, artwork.longitude], {
       icon: createArtworkIcon(artwork.type || 'other'),
     });
 
-    // Remove popup binding - we want direct navigation instead of popups
-    // This prevents the popup pane from interfering with marker clicks
-
-    // Add click handler to marker itself for direct navigation
     marker.on('click', () => {
-      console.log('Marker clicked for artwork:', artwork.id);
-      // Navigate directly to artwork details page on marker click
       router.push(`/artwork/${artwork.id}`);
       emit('artworkClick', artwork);
     });
@@ -482,7 +476,6 @@ function updateArtworkMarkers() {
     }
     artworkMarkers.value.push(marker);
   });
-  console.log('Created', artworkMarkers.value.length, 'markers');
 }
 
 // Ensure marker cluster plugin is loaded when needed
@@ -608,6 +601,25 @@ function clearError() {
 function retryMapLoad() {
   error.value = null;
   initializeMap();
+}
+
+// Clear persistent map cache via store and reload markers
+async function clearMapCacheAndReload() {
+  if (clearingCache.value) return;
+  const confirmed = typeof window !== 'undefined'
+    ? window.confirm('Clear cached map pins? This will remove locally stored pins and reload from the network.')
+    : true;
+  if (!confirmed) return;
+  try {
+    clearingCache.value = true;
+    artworksStore.clearMapCache();
+    // Clear current in-memory pins; they will refill on next fetch
+    artworksStore.setArtworks([]);
+    updateArtworkMarkers();
+    await loadArtworks();
+  } finally {
+    clearingCache.value = false;
+  }
 }
 
 // =====================
@@ -857,6 +869,16 @@ watch(
             <label for="toggle-rings" class="ml-2 text-sm text-gray-700 select-none">
               Enable map rings (debug)
             </label>
+          </div>
+          <div class="mt-3 pt-3 border-t border-gray-100">
+            <button
+              @click="clearMapCacheAndReload"
+              :disabled="clearingCache"
+              class="w-full text-sm bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1.5 rounded transition-colors disabled:opacity-50"
+              title="Clear cached map pins"
+            >
+              {{ clearingCache ? 'Clearing…' : 'Clear map Cache' }}
+            </button>
           </div>
         </div>
       </div>

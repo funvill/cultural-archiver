@@ -151,12 +151,12 @@ The admin page is a super user that can give moderators permissions to other use
 
 ----
 
+The problem
+There are populated areas where there are 1000s of map pointers in a small area. The map slows down and doesn't load all of the map points in this area. Then the map slows down as they move around the map.
 
-In the map options, add a option to "enable map rings". This checkbox is disabled by default. When checked it enables the debug map rings.
+We need a solution for large amounts of map points. What are some recomentations?
 
-On the map show two rings around the centeral point
+We should cache the map points in the browser so that these points can load quicker on reload of the map. We need an ability to cache bust.
+- Manually - Add new button to the Map options. "Clear map Cache"
+- Time based - If the point is older then 30 days remove it from the Cache.
 
-- A 100 meter "red" ring. This repersents what is in the imidiate area
-- A "search" results area. This ring is the size of what is searched for the nearby artworks.
-
-These rings are used for debug, to help understand how the nearby artworks artwork search works

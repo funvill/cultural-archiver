@@ -16,11 +16,12 @@ import {
   ExclamationCircleIcon,
 } from '@heroicons/vue/24/outline';
 import LoadingSpinner from './LoadingSpinner.vue';
-import type { ArtworkWithPhotos } from '../types';
+import type { ArtworkWithPhotos } from '../../../shared/types';
 
 // Define local interface for similarity results since it's not exported from types
 interface SimilarityResult {
   similarity_score: number;
+  distance_km?: number;
 }
 
 // State

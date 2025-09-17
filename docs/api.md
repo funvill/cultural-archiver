@@ -328,6 +328,7 @@ GET /api/artworks/nearby
 - `lon` (required): Center longitude
 - `radius` (optional): Search radius in meters (50-10000, default: 500)
 - `limit` (optional): Maximum results (1-100, default: 20)
+- `minimal` (optional): When `true` or `1`, return a compact payload optimized for map pins. Only includes `id`, `lat`, `lon`, `type_name`, and optional `recent_photo`.
 
 **Response** (200 OK):
 
@@ -362,6 +363,41 @@ GET /api/artworks/nearby
 ```javascript
 const response = await fetch(`/api/artworks/nearby?lat=49.2827&lon=-123.1207&radius=1000&limit=20`);
 ```
+
+##### Minimal mode (map pins)
+
+Use minimal mode to reduce payload when you only need pin coordinates and basic type for rendering a dense map.
+
+```http
+GET /api/artworks/nearby?lat=49.2827&lon=-123.1207&radius=1000&limit=250&minimal=true
+```
+
+###### Response (minimal=true)
+
+```json
+{
+  "success": true,
+  "data": {
+    "artworks": [
+      {
+        "id": "artwork-uuid",
+        "lat": 49.2827,
+        "lon": -123.1207,
+        "type_name": "Public Art",
+        "recent_photo": "https://art-photos.abluestar.com/2024/01/15/photo.jpg"
+      }
+    ],
+    "search_center": { "lat": 49.2827, "lon": -123.1207 },
+    "search_radius": 1000,
+    "total": 1
+  }
+}
+```
+
+Notes:
+
+- `recent_photo` may be null or omitted if not available.
+- Minimal mode skips heavy aggregation to improve latency and throughput, ideal for map pin rendering and client-side caching.
 
 #### Advanced Search
 

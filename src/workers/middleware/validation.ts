@@ -304,6 +304,7 @@ export async function validateNearbyArtworksQuery(
   const lon = url.searchParams.get('lon');
   const radius = url.searchParams.get('radius');
   const limit = url.searchParams.get('limit');
+  const minimalParam = url.searchParams.get('minimal');
 
   const validationErrors = [];
 
@@ -360,6 +361,8 @@ export async function validateNearbyArtworksQuery(
     lon: parseFloat(lon!),
     radius: radius ? parseFloat(radius) : undefined,
     limit: limit ? parseInt(limit, 10) : undefined,
+    // Optional minimal response flag for map pin rendering
+    minimal: minimalParam ? /^(1|true)$/i.test(minimalParam) : undefined,
   });
 
   await next();

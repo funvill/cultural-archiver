@@ -378,14 +378,19 @@ export const apiService = {
     lat: number,
     lon: number,
     radius: number = 500,
-    limit: number = 250
+    limit: number = 250,
+    options?: { minimal?: boolean }
   ): Promise<ApiResponse<NearbyArtworksResponse>> {
-    return client.get('/artworks/nearby', {
+    const params: Record<string, string> = {
       lat: lat.toString(),
       lon: lon.toString(),
       radius: radius.toString(),
       limit: limit.toString(),
-    });
+    };
+    if (options?.minimal) {
+      params.minimal = 'true';
+    }
+    return client.get('/artworks/nearby', params);
   },
 
   /**

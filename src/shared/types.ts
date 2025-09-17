@@ -312,8 +312,20 @@ export interface NearbyArtworksRequest {
   limit?: number;
 }
 
+// Minimal shape for map pins
+export interface MinimalArtworkPin {
+  id: string;
+  lat: number;
+  lon: number;
+  type_name: string;
+  recent_photo?: string | null;
+}
+
 export interface NearbyArtworksResponse {
-  artworks: ArtworkWithPhotos[];
+  // For backward compatibility we keep the wider type, but API may return
+  // a minimal array when 'minimal=true' is passed. Frontend callers that need
+  // full data should not set the minimal flag.
+  artworks: Array<ArtworkWithPhotos | MinimalArtworkPin>;
   total: number;
   search_center: { lat: number; lon: number };
   search_radius: number;

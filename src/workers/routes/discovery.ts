@@ -56,6 +56,8 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
     tags?: string[]; // Array of tag values
     include_similarity?: boolean;
     similarity_dev_mode?: boolean;
+    // Minimal response for map pins
+    minimal?: boolean;
   }>(c, 'query');
 
   const db = createDatabaseService(c.env.DB);
@@ -82,6 +84,36 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
         limit,
         returned: artworks.length,
       });
+    }
+
+    // If minimal flag requested, short-circuit and return compact payload for map pins
+    if (validatedQuery.minimal) {
+      const minimal = artworks.map(artwork => ({
+        id: artwork.id,
+        lat: artwork.lat,
+        lon: artwork.lon,
+        type_name: artwork.type_name,
+        // For minimal mode, we can opportunistically include a recent photo
+        // from artwork.photos JSON array if present without scanning submissions.
+        recent_photo: (() : string | null => {
+          try {
+            if (artwork.photos) {
+              const parsed = safeJsonParse<string[]>(artwork.photos as unknown as string, []);
+              return parsed[0] ?? null;
+            }
+          } catch {/* ignore parse errors */}
+          return null;
+        })(),
+      }));
+
+      const response = {
+        artworks: minimal,
+        total: minimal.length,
+        search_center: { lat: validatedQuery.lat, lon: validatedQuery.lon },
+        search_radius: radius,
+      };
+
+      return c.json(createSuccessResponse(response));
     }
 
     // Format response with photos and additional info
