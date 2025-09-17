@@ -1024,7 +1024,17 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
           photos: allPhotos,
           tags_parsed: safeJsonParse(artwork.tags, {}),
           // Add derived fields for card display
-          recent_photo: allPhotos.length > 0 ? allPhotos[0] : null,
+          recent_photo: (() : string | null => {
+            if (allPhotos.length > 0) {
+              const photo = allPhotos[0];
+              if (photo) {
+                return (photo.startsWith('http') || photo.startsWith('/photos/'))
+                  ? photo
+                  : `/photos/${photo}`;
+              }
+            }
+            return null;
+          })(),
           photo_count: allPhotos.length,
           artist_name: artistName,
         } as import('../../shared/types').ArtworkApiResponse;

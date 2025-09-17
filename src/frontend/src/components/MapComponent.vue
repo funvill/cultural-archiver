@@ -61,6 +61,48 @@ let debugImmediateRing: L.Circle | null = null;
 // Saved map state presence
 const hadSavedMapState = ref(false);
 
+// LocalStorage keys
+const MAP_STATE_KEY = 'map:lastState';
+
+// Save map state (center/zoom) to localStorage
+function saveMapState() {
+  if (!map.value) return;
+  const center = map.value.getCenter();
+  const zoom = map.value.getZoom();
+  try {
+    localStorage.setItem(
+      MAP_STATE_KEY,
+      JSON.stringify({
+        center: { latitude: center.lat, longitude: center.lng },
+        zoom
+      })
+    );
+  } catch (e) {
+    // ignore
+  }
+}
+
+// Read map state from localStorage
+function readSavedMapState(): { center: Coordinates; zoom: number } | null {
+  try {
+    const raw = localStorage.getItem(MAP_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      parsed &&
+      parsed.center &&
+      typeof parsed.center.latitude === 'number' &&
+      typeof parsed.center.longitude === 'number' &&
+      typeof parsed.zoom === 'number'
+    ) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // Store
 const artworksStore = useArtworksStore();
 
@@ -153,16 +195,28 @@ async function initializeMap() {
 
   console.log('Creating Leaflet map...');
 
+
   // Check for saved map state first
-  const saved = null; // readSavedMapState(); // Temporarily disabled to test new coordinates
+  const saved = readSavedMapState();
   hadSavedMapState.value = !!saved;
 
+
     // Create map
+    let initialCenter: [number, number];
+    let initialZoom: number;
+    if (saved) {
+      initialCenter = [saved.center.latitude, saved.center.longitude];
+      initialZoom = saved.zoom;
+    } else if (props.center) {
+      initialCenter = [props.center.latitude, props.center.longitude];
+      initialZoom = props.zoom;
+    } else {
+      initialCenter = [DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude];
+      initialZoom = props.zoom;
+    }
     map.value = L.map(mapContainer.value, {
-      center: props.center
-        ? [props.center.latitude, props.center.longitude]
-        : [DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude],
-      zoom: props.zoom,
+      center: initialCenter,
+      zoom: initialZoom,
       zoomControl: false, // We'll use custom controls
       attributionControl: true,
     });
@@ -313,8 +367,11 @@ async function initializeMap() {
     await configureMarkerGroup();
 
     // Setup event listeners
-    map.value.on('moveend', handleMapMove);
-    map.value.on('zoomend', handleMapMove);
+  map.value.on('moveend', handleMapMove);
+  map.value.on('zoomend', handleMapMove);
+  // Save map state on move/zoom
+  map.value.on('moveend', saveMapState);
+  map.value.on('zoomend', saveMapState);
 
     // Initialize debug rings (respect saved preference)
     try {

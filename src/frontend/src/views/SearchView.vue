@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { MagnifyingGlassIcon, CameraIcon, PlusIcon } from '@heroicons/vue/24/outline';
+import { PlusIcon } from '@heroicons/vue/24/outline';
 import SearchInput from '../components/SearchInput.vue';
-import PhotoSearch from '../components/PhotoSearch.vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
 import SkeletonCard from '../components/SkeletonCard.vue';
 import { useSearchStore } from '../stores/search';
@@ -20,7 +19,7 @@ const searchInputRef = ref<InstanceType<typeof SearchInput>>();
 const searchResultsRef = ref<HTMLElement>();
 const showEmptyState = ref(false);
 const showSearchTips = ref(true);
-const searchMode = ref<'text' | 'photo'>('text'); // New search mode state
+// Removed photo search mode
 
 // Fast upload session data
 // Fast upload session (prefer in-memory Pinia store which contains previews)
@@ -75,6 +74,7 @@ function handleSearch(query: string): void {
 
 function handleSearchInput(query: string): void {
   searchStore.setQuery(query);
+  performSearch(query); // Update results live as user types
 
   // Get suggestions for non-empty queries
   if (query.trim().length > 0) {
@@ -148,18 +148,7 @@ watch(
   { immediate: true }
 );
 
-// Watch for mode query parameter
-watch(
-  () => route.query.mode,
-  (newMode: unknown) => {
-    if (newMode === 'photo') {
-      searchMode.value = 'photo';
-    } else {
-      searchMode.value = 'text';
-    }
-  },
-  { immediate: true }
-);
+// Removed photo search mode watcher
 
 // Watch for empty state after search completes
 watch([isLoading, hasResults, isSearchActive], ([loading, results, active]: [boolean, boolean, boolean]) => {
@@ -275,36 +264,11 @@ onUnmounted(() => {
       <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <!-- Search Mode Selector -->
         <div class="flex justify-center mb-4">
-          <div class="flex space-x-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
-            <button
-              @click="searchMode = 'text'"
-              :class="[
-                'px-6 py-2 rounded-md font-medium transition-all text-sm',
-                searchMode === 'text'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              ]"
-            >
-              <MagnifyingGlassIcon class="w-4 h-4 inline mr-2" />
-              Text Search
-            </button>
-            <button
-              @click="searchMode = 'photo'"
-              :class="[
-                'px-6 py-2 rounded-md font-medium transition-all text-sm',
-                searchMode === 'photo'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              ]"
-            >
-              <CameraIcon class="w-4 h-4 inline mr-2" />
-              Photo Search
-            </button>
-          </div>
+          <!-- Removed search mode selector (photo search) -->
         </div>
 
         <!-- Text Search Input -->
-        <div v-if="searchMode === 'text'" class="flex items-center space-x-4">
+  <div class="flex items-center space-x-4">
           <!-- Back Button for Mobile -->
           <button
             class="lg:hidden p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
@@ -337,27 +301,16 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Photo Search Indicator -->
-        <div v-else class="text-center">
-          <div class="inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-            <CameraIcon class="w-5 h-5 text-blue-600 mr-2" />
-            <span class="text-blue-900 font-medium text-sm">
-              Photo Search Mode - Upload an image below to find similar artworks
-            </span>
-          </div>
-        </div>
+        <!-- Photo search indicator removed -->
       </div>
     </div>
 
     <!-- Main Content -->
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <!-- Photo Search Component -->
-      <div v-if="searchMode === 'photo' && !isFromFastUpload">
-        <PhotoSearch />
-      </div>
+      <!-- Photo search removed -->
 
       <!-- Fast Upload Results (from photo upload workflow) -->
-      <div v-else-if="isFromFastUpload && fastUploadSession">
+  <div v-if="isFromFastUpload && fastUploadSession">
         <div class="mb-6">
           <!-- Uploaded Photos Summary -->
           <div class="bg-white rounded-lg shadow-md p-6 mb-6">
