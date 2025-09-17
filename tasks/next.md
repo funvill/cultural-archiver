@@ -148,3 +148,15 @@ The admin page is a super user that can give moderators permissions to other use
 - Update the "source_url" value to be clickable as a link. This means it shouldn't search that tag, that link should be clickable.
   - Tags that have urls in them, should be clickable
 
+
+----
+
+
+In the map options, add a option to "enable map rings". This checkbox is disabled by default. When checked it enables the debug map rings.
+
+On the map show two rings around the centeral point
+
+- A 100 meter "red" ring. This repersents what is in the imidiate area
+- A "search" results area. This ring is the size of what is searched for the nearby artworks.
+
+These rings are used for debug, to help understand how the nearby artworks artwork search works

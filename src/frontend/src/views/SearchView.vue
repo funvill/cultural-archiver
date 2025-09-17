@@ -231,17 +231,35 @@ function performLocationSearch(latitude: number, longitude: number): void {
 
 // Helpers
 function getArtworkTitle(artwork: SearchResult): string {
-  const tags = artwork.tags as Record<string, unknown> | null;
-  const title = tags && typeof (tags as any).title === 'string' ? (tags as any).title : null;
-  return title || 'Untitled';
+  // Prefer explicit title field when available
+  if (typeof artwork.title === 'string' && artwork.title.trim().length > 0) {
+    return artwork.title.trim();
+  }
+  const tags = (artwork.tags as Record<string, unknown> | null) || null;
+  if (tags && typeof tags === 'object') {
+    const maybeTitle = (tags as any).title;
+    const maybeName = (tags as any).name;
+    const title = [maybeTitle, maybeName].find(
+      (v) => typeof v === 'string' && v.trim().length > 0
+    ) as string | undefined;
+    if (title) return title;
+  }
+  // Fallback to a humanized type name rather than generic "Untitled"
+  return artwork.type_name
+    ? artwork.type_name.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+    : 'Untitled';
 }
 
-const firstUploadedPreview = computed(() => fastUploadSession.value?.photos?.[0]?.preview || null);
+// Note: We intentionally do not fall back to the uploaded preview for
+// artwork cards to avoid misleading thumbnails for artworks with zero photos.
 
 function getArtworkImage(artwork: SearchResult): string | null {
-  if (artwork.recent_photo) return artwork.recent_photo;
-  if (isFromFastUpload.value && firstUploadedPreview.value) return firstUploadedPreview.value;
-  return null;
+  // Only ever show the artwork's own recent photo for the card.
+  // Do NOT fall back to the user's uploaded preview, as this causes
+  // incorrect thumbnails for unrelated artworks with zero photos.
+  return artwork.recent_photo && artwork.recent_photo.trim().length > 0
+    ? artwork.recent_photo
+    : null;
 }
 
 onUnmounted(() => {
@@ -431,9 +449,12 @@ onUnmounted(() => {
                   />
                   <div v-else class="text-gray-400 text-sm">No photo</div>
                 </div>
-                <h4 class="font-semibold text-gray-900 text-sm line-clamp-1 mb-2">
+                <h4 class="font-semibold text-gray-900 text-sm line-clamp-1 mb-0.5">
                   {{ getArtworkTitle(artwork) }}
                 </h4>
+                <p v-if="artwork.artist_name" class="text-xs text-gray-600 mb-2 line-clamp-1">
+                  {{ artwork.artist_name }}
+                </p>
                 <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-2">
                   <div v-if="artwork.distance_km != null">
                     <span class="font-medium text-gray-700">Distance:</span>

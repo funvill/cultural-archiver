@@ -30,6 +30,22 @@ const artworksAsSearchResults = computed(() => {
     lat: artwork.lat,
     lon: artwork.lon,
     type_name: artwork.type_name || 'Unknown',
+    title: (typeof artwork.title === 'string' && artwork.title.trim().length > 0)
+      ? artwork.title.trim()
+      : (artwork.tags_parsed && typeof (artwork.tags_parsed as any).title === 'string' && (artwork.tags_parsed as any).title.trim().length > 0)
+        ? (artwork.tags_parsed as any).title.trim()
+        : (artwork.tags_parsed && typeof (artwork.tags_parsed as any).name === 'string' && (artwork.tags_parsed as any).name.trim().length > 0)
+          ? (artwork.tags_parsed as any).name.trim()
+          : null,
+    artist_name: (typeof artwork.artist_name === 'string' && artwork.artist_name.trim().length > 0)
+      ? artwork.artist_name.trim()
+      : (artwork.tags_parsed && typeof (artwork.tags_parsed as any).artist_name === 'string' && (artwork.tags_parsed as any).artist_name.trim().length > 0)
+        ? (artwork.tags_parsed as any).artist_name.trim()
+        : (artwork.tags_parsed && typeof (artwork.tags_parsed as any).artist === 'string' && (artwork.tags_parsed as any).artist.trim().length > 0)
+          ? (artwork.tags_parsed as any).artist.trim()
+          : (artwork.tags_parsed && typeof (artwork.tags_parsed as any).created_by === 'string' && (artwork.tags_parsed as any).created_by.trim().length > 0)
+            ? (artwork.tags_parsed as any).created_by.trim()
+            : null,
     tags: artwork.tags_parsed || null,
     recent_photo: artwork.recent_photo || null,
     photo_count: artwork.photo_count || 0,
@@ -57,7 +73,7 @@ const pageTitle = computed(() => {
 });
 
 // Update page title
-watch(pageTitle, (newTitle) => {
+watch(pageTitle, (newTitle: string) => {
   document.title = newTitle;
 }, { immediate: true });
 

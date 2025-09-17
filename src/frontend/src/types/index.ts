@@ -510,6 +510,10 @@ export interface SearchResult {
   lat: number;
   lon: number;
   type_name: string;
+  /** Optional artwork title when available (from DB or derived) */
+  title?: string | null;
+  /** Primary artist display name (from DB or derived) */
+  artist_name?: string | null;
   tags: Record<string, unknown> | null;
   recent_photo?: string | null;
   photo_count: number;
