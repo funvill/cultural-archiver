@@ -378,7 +378,7 @@ export const apiService = {
     lat: number,
     lon: number,
     radius: number = 500,
-    limit: number = 50
+    limit: number = 250
   ): Promise<ApiResponse<NearbyArtworksResponse>> {
     return client.get('/artworks/nearby', {
       lat: lat.toString(),

@@ -341,10 +341,10 @@ export async function validateNearbyArtworksQuery(
   // Validate optional limit
   if (limit) {
     const limitNum = parseInt(limit, 10);
-    if (isNaN(limitNum) || limitNum < 1 || limitNum > 100) {
+    if (isNaN(limitNum) || limitNum < 1 || limitNum > 250) {
       validationErrors.push({
         field: 'limit',
-        message: 'Limit must be between 1 and 100',
+        message: 'Limit must be between 1 and 250',
         code: 'INVALID',
       });
     }

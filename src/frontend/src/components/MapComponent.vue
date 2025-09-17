@@ -46,6 +46,9 @@ const markerClusterGroup = ref<any | null>(null);
 // Map options state
 const showOptionsPanel = ref(false);
 const clusterEnabled = ref(true);
+const debugRingsEnabled = ref(false);
+// Debug ring layer (only immediate 100m ring)
+let debugImmediateRing: L.Circle | null = null;
 // Saved map state presence
 const hadSavedMapState = ref(false);
 
@@ -291,6 +294,13 @@ async function initializeMap() {
     // Setup event listeners
     map.value.on('moveend', handleMapMove);
     map.value.on('zoomend', handleMapMove);
+
+    // Initialize debug rings (respect saved preference)
+    try {
+      const savedRings = localStorage.getItem('map:debugRingsEnabled');
+      if (savedRings !== null) debugRingsEnabled.value = savedRings === 'true';
+    } catch {/* ignore */}
+    updateDebugRings();
 
     // Request user location only when there's no saved state
     if (!hadSavedMapState.value) {
@@ -555,6 +565,8 @@ function handleMapMove() {
 
   // Debounced artwork loading to prevent infinite loops
   debounceLoadArtworks();
+  // Move debug rings to new center
+  updateDebugRings();
 }
 
 // Debounced artwork loading
@@ -596,6 +608,44 @@ function clearError() {
 function retryMapLoad() {
   error.value = null;
   initializeMap();
+}
+
+// =====================
+// Debug Rings (Overlays)
+// =====================
+function removeDebugRings() {
+  if (!map.value) return;
+  if (debugImmediateRing) {
+    try { map.value.removeLayer(debugImmediateRing); } catch {/* ignore */}
+    debugImmediateRing = null;
+  }
+}
+
+function updateDebugRings() {
+  if (!map.value) return;
+
+  // Clear when disabled
+  if (!debugRingsEnabled.value) {
+    removeDebugRings();
+    return;
+  }
+
+  const center = map.value.getCenter();
+
+  // 100m immediate area (red dashed ring)
+  if (!debugImmediateRing) {
+    debugImmediateRing = L.circle([center.lat, center.lng], {
+      radius: 100,
+      color: '#dc2626', // red-600
+      weight: 2,
+      fill: false,
+      dashArray: '6,6',
+      interactive: false,
+    }).addTo(map.value);
+  } else {
+    debugImmediateRing.setLatLng([center.lat, center.lng]);
+    debugImmediateRing.setRadius(100);
+  }
 }
 
 // Global function for popup buttons
@@ -691,6 +741,18 @@ watch(
     await configureMarkerGroup();
   }
 );
+
+// Persist and react to debug rings toggle
+watch(
+  () => debugRingsEnabled.value,
+  () => {
+    try { localStorage.setItem('map:debugRingsEnabled', String(debugRingsEnabled.value)); } catch {/* ignore */}
+    updateDebugRings();
+  }
+);
+
+// Update search ring when the effective fetch radius changes
+// Note: Blue search ring removed; no need to watch fetchRadius for ring updates
 </script>
 
 <template>
@@ -783,6 +845,17 @@ watch(
             />
             <label for="toggle-cluster" class="ml-2 text-sm text-gray-700 select-none">
               Cluster markers
+            </label>
+          </div>
+          <div class="mt-2 pt-2 border-t border-gray-100 flex items-start">
+            <input
+              id="toggle-rings"
+              type="checkbox"
+              class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              v-model="debugRingsEnabled"
+            />
+            <label for="toggle-rings" class="ml-2 text-sm text-gray-700 select-none">
+              Enable map rings (debug)
             </label>
           </div>
         </div>
