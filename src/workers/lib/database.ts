@@ -251,7 +251,7 @@ export class DatabaseService {
     const stmt = this.db.prepare(`
       SELECT * FROM submissions 
       WHERE artwork_id = ? AND status = 'approved' AND submission_type = 'logbook_entry'
-      ORDER BY submitted_at DESC
+      ORDER BY created_at DESC
       LIMIT ? OFFSET ?
     `);
     const results = await stmt.bind(artworkId, limit, offset).all();

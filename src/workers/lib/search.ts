@@ -62,16 +62,18 @@ export async function searchArtworks(
     if (parsed.text) {
       const likePattern = `%${parsed.text}%`;
       conditions.push(`(
-        at.name LIKE ? OR 
         a.title LIKE ? OR
         a.description LIKE ? OR
         a.created_by LIKE ? OR
         a.tags LIKE ? OR
-        l.note LIKE ?
+        s.notes LIKE ? OR
+        ar.name LIKE ? OR
+        ar.description LIKE ? OR
+        ar.aliases LIKE ?
       )`);
       
       // Add parameters for text search
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 8; i++) {
         params.push(likePattern);
       }
 
@@ -118,12 +120,13 @@ export async function searchArtworks(
     const searchSQL = `
       SELECT DISTINCT 
         a.*,
-        at.name as type_name,
+        COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name,
         0 as distance_km,
         (${relevanceScore}) as relevance_score
       FROM artwork a
-      JOIN artwork_types at ON a.type_id = at.id
-      LEFT JOIN logbook l ON a.id = l.artwork_id AND l.status = 'approved'
+      LEFT JOIN submissions s ON a.id = s.artwork_id AND s.status = 'approved' AND s.submission_type = 'logbook_entry'
+      LEFT JOIN artwork_artists aa ON a.id = aa.artwork_id
+      LEFT JOIN artists ar ON aa.artist_id = ar.id AND ar.status = 'approved'
       WHERE ${conditions.join(' AND ')}
       ORDER BY relevance_score DESC, a.created_at DESC
       LIMIT ? OFFSET ?
@@ -142,9 +145,17 @@ export async function searchArtworks(
     // Format results with photos
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       artworks.map(async artwork => {
-        const logbookEntries = await dbService.getLogbookEntriesForArtwork(artwork.id);
-
+        // Get photos from both artwork and submissions
         const allPhotos: string[] = [];
+        
+        // Add artwork's own photos first
+        if (artwork.photos) {
+          const artworkPhotos = safeJsonParse<string[]>(artwork.photos, []);
+          allPhotos.push(...artworkPhotos);
+        }
+        
+        // Add photos from logbook submissions
+        const logbookEntries = await dbService.getLogbookEntriesForArtwork(artwork.id);
         logbookEntries.forEach(entry => {
           if (entry.photos) {
             const photos = safeJsonParse<string[]>(entry.photos, []);
@@ -167,8 +178,9 @@ export async function searchArtworks(
     const countSQL = `
       SELECT COUNT(DISTINCT a.id) as total
       FROM artwork a
-      JOIN artwork_types at ON a.type_id = at.id
-      LEFT JOIN logbook l ON a.id = l.artwork_id AND l.status = 'approved'
+      LEFT JOIN submissions s ON a.id = s.artwork_id AND s.status = 'approved' AND s.submission_type = 'logbook_entry'
+      LEFT JOIN artwork_artists aa ON a.id = aa.artwork_id
+      LEFT JOIN artists ar ON aa.artist_id = ar.id AND ar.status = 'approved'
       WHERE ${countConditions.join(' AND ')}
     `;
 
@@ -372,9 +384,11 @@ export async function getSearchSuggestions(
       
       // Artwork type suggestions
       const typeStmt = db.prepare(`
-        SELECT name
-        FROM artwork_types
-        WHERE name LIKE ?
+        SELECT DISTINCT json_extract(tags, '$.artwork_type') as name
+        FROM artwork
+        WHERE json_extract(tags, '$.artwork_type') IS NOT NULL
+        AND json_extract(tags, '$.artwork_type') LIKE ?
+        AND status = 'approved'
         ORDER BY name
         LIMIT ?
       `);
@@ -385,7 +399,7 @@ export async function getSearchSuggestions(
         suggestions.push(row.name);
       });
       
-      // Creator suggestions
+      // Creator suggestions (from artwork.created_by field)
       if (suggestions.length < limit) {
         const creatorStmt = db.prepare(`
           SELECT DISTINCT created_by
@@ -397,10 +411,30 @@ export async function getSearchSuggestions(
           LIMIT ?
         `);
         
-        const creatorResults = await creatorStmt.bind(typePattern, Math.ceil(limit / 3)).all();
+        const creatorResults = await creatorStmt.bind(typePattern, Math.ceil(limit / 4)).all();
         creatorResults.results.forEach((row: any) => {
           if (row.created_by) {
             suggestions.push(row.created_by);
+          }
+        });
+      }
+      
+      // Artist name suggestions (from artists table)
+      if (suggestions.length < limit) {
+        const artistStmt = db.prepare(`
+          SELECT DISTINCT name
+          FROM artists
+          WHERE name IS NOT NULL 
+          AND name LIKE ?
+          AND status = 'approved'
+          ORDER BY name
+          LIMIT ?
+        `);
+        
+        const artistResults = await artistStmt.bind(typePattern, Math.ceil(limit / 4)).all();
+        artistResults.results.forEach((row: any) => {
+          if (row.name) {
+            suggestions.push(row.name);
           }
         });
       }
@@ -435,9 +469,11 @@ export async function getSearchSuggestions(
     // Fallback to basic artwork type suggestions
     try {
       const stmt = db.prepare(`
-        SELECT name
-        FROM artwork_types
-        WHERE name LIKE ?
+        SELECT DISTINCT json_extract(tags, '$.artwork_type') as name
+        FROM artwork
+        WHERE json_extract(tags, '$.artwork_type') IS NOT NULL
+        AND json_extract(tags, '$.artwork_type') LIKE ?
+        AND status = 'approved'
         ORDER BY name
         LIMIT ?
       `);
