@@ -15,6 +15,11 @@ import {
   PhotoIcon,
   UserGroupIcon,
 } from '@heroicons/vue/24/outline';
+import { useGeolocation } from '../composables/useGeolocation';
+import { extractExifData, createImagePreview } from '../utils/image';
+import type { ExifData } from '../utils/image';
+import type { Coordinates } from '../types';
+import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 import { useAuthStore } from '../stores/auth';
 import AuthModal from './AuthModal.vue';
 import DevelopmentBanner from './DevelopmentBanner.vue';
@@ -41,10 +46,11 @@ const drawerCloseButton = ref<HTMLElement>();
 // Note: firstNavLink ref is defined but not used - keeping for future drawer focus enhancement
 
 // Main navigation items (shown in desktop header)
+// NOTE: We keep a placeholder object for consistency but override click handling for fast-add
 const mainNavigationItems: NavigationItem[] = [
   {
     name: 'Add',
-    path: '/add',
+    path: '/add', // legacy path (fallback) not directly navigated to when fast-add succeeds
     icon: CameraIcon,
     primaryAction: true,
   },
@@ -132,6 +138,149 @@ const drawerNavItems = computed(() => {
   
   return items;
 });
+
+// Fast Add Implementation ---------------------------------------
+interface FastPhotoFile {
+  id: string;
+  name: string;
+  file: File;
+  preview: string;
+  exifData?: ExifData;
+}
+const fastFileInput = ref<HTMLInputElement | null>(null);
+const fastSelected = ref<FastPhotoFile[]>([]);
+const fastIsProcessing = ref(false);
+const fastHasNavigated = ref(false);
+const fastFinalLocation = ref<Coordinates | null>(null);
+const fastLocationSources = ref({
+  exif: { detected: false, error: false, coordinates: null as Coordinates | null },
+  browser: { detected: false, error: false, coordinates: null as Coordinates | null },
+});
+const { getCurrentPosition } = useGeolocation();
+
+function resetFastAddState(): void {
+  // Clear in-memory selections
+  fastSelected.value = [];
+  fastFinalLocation.value = null;
+  fastLocationSources.value = {
+    exif: { detected: false, error: false, coordinates: null },
+    browser: { detected: false, error: false, coordinates: null },
+  } as any;
+  // Clear shared Pinia store + sessionStorage
+  try {
+    const store = useFastUploadSessionStore();
+    store.clear?.();
+  } catch {}
+  try { sessionStorage.removeItem('fast-upload-session'); } catch {}
+  fastHasNavigated.value = false; // allow navigation logic to treat next add as first
+}
+
+function triggerFastAdd(): void {
+  if (fastIsProcessing.value) return;
+  // If user is already in a fast-upload flow (navigated once) and clicks Add again,
+  // they intend to start over with a new single selection. Overwrite previous session.
+  if (fastHasNavigated.value) {
+    resetFastAddState();
+  }
+  fastFileInput.value?.click();
+}
+
+async function handleFastFileChange(e: Event) {
+  const input = e.target as HTMLInputElement;
+  if (!input.files || input.files.length === 0) return;
+  await fastProcessFiles(Array.from(input.files));
+  input.value = '';
+}
+
+async function fastProcessFiles(files: File[]) {
+  fastIsProcessing.value = true;
+  const imageFiles = files.filter(f => f.type.startsWith('image/'));
+  for (const file of imageFiles) {
+    try {
+      const preview = await createImagePreview(file);
+      const exif = await extractExifData(file);
+      const entry: FastPhotoFile = {
+        id: Math.random().toString(36).slice(2, 11),
+        name: file.name,
+        file,
+        preview,
+        exifData: exif,
+      };
+      fastSelected.value.push(entry);
+      if (exif.latitude && exif.longitude && !fastLocationSources.value.exif.detected) {
+        fastLocationSources.value.exif = {
+          detected: true,
+          error: false,
+          coordinates: { latitude: exif.latitude, longitude: exif.longitude },
+        };
+        fastFinalLocation.value = fastLocationSources.value.exif.coordinates;
+      }
+    } catch (err) {
+      console.warn('[FAST ADD] Failed to process file', file.name, err);
+    }
+  }
+  fastIsProcessing.value = false;
+  if (!fastLocationSources.value.exif.detected) {
+    try {
+      const browserCoords = await getCurrentPosition();
+      fastLocationSources.value.browser = { detected: true, error: false, coordinates: browserCoords };
+      if (!fastFinalLocation.value) fastFinalLocation.value = browserCoords;
+    } catch (err) {
+      fastLocationSources.value.browser = { detected: false, error: true, coordinates: null };
+    }
+  }
+  maybeNavigateFast();
+}
+
+function maybeNavigateFast() {
+  if (fastSelected.value.length === 0) return;
+
+  // Helper to write session (shared for first navigation and subsequent updates)
+  const writeSession = () => {
+    const store = useFastUploadSessionStore();
+    const metaWithPreview: Array<{ id: string; name: string; preview: string; exifLat?: number | undefined; exifLon?: number | undefined; file: File }> = fastSelected.value.map((p: FastPhotoFile) => ({
+      id: p.id,
+      name: p.name,
+      preview: p.preview,
+      exifLat: p.exifData?.latitude ?? undefined,
+      exifLon: p.exifData?.longitude ?? undefined,
+      file: p.file,
+    }));
+    const meta: Array<{ id: string; name: string; exifLat?: number | undefined; exifLon?: number | undefined }> = metaWithPreview.map((m) => ({ id: m.id, name: m.name, exifLat: m.exifLat, exifLon: m.exifLon }));
+    const payload = {
+      photos: metaWithPreview,
+      location: fastFinalLocation.value,
+      detectedSources: fastLocationSources.value,
+    } as any;
+    store.setSession(payload);
+    try {
+      const json = JSON.stringify({ ...payload, photos: meta });
+      if (json.length < 200_000) {
+        sessionStorage.setItem('fast-upload-session', json);
+      }
+    } catch (e) {
+      /* ignore quota */
+    }
+  };
+
+  // Navigation (always treat as fresh if fastHasNavigated was reset by second Add)
+  if (!fastHasNavigated.value) {
+    if (!fastFinalLocation.value) {
+      router.push('/add');
+      fastHasNavigated.value = true;
+      return;
+    }
+    writeSession();
+    fastHasNavigated.value = true;
+    const query = new URLSearchParams({ mode: 'photo', source: 'fast-upload' });
+    if (fastFinalLocation.value) {
+      query.set('lat', fastFinalLocation.value.latitude.toString());
+      query.set('lng', fastFinalLocation.value.longitude.toString());
+    }
+    router.push(`/search?${query.toString()}`);
+  }
+}
+
 
 const userDisplayName = computed(() => {
   if (!authStore.user) return 'Anonymous';
@@ -345,28 +494,30 @@ watch(() => route.path, handleRouteChange);
         <!-- Center: Add Button -->
         <div class="flex justify-center">
           <nav role="navigation" aria-label="Main navigation">
-            <RouterLink
+            <button
               v-for="item in mainNavigationItems"
               :key="item.path"
-              :to="item.path"
-              class="nav-link rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
-              :class="[
-                $route.path === item.path ? 'bg-blue-800' : 'hover:bg-blue-700',
-                item.primaryAction
-                  ? 'px-4 py-2 text-sm relative'
-                  : 'px-3 py-2 text-sm'
-              ]"
-              :aria-current="$route.path === item.path ? 'page' : undefined"
+              type="button"
+              @click="triggerFastAdd"
+              class="nav-link rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors px-4 py-2 text-sm relative hover:bg-blue-700"
             >
-              <span v-if="item.primaryAction" class="absolute -inset-1 rounded-lg bg-white/10 pointer-events-none" />
+              <span class="absolute -inset-1 rounded-lg bg-white/10 pointer-events-none" />
               <component
                 v-if="item.icon"
                 :is="item.icon"
-                :class="item.primaryAction ? 'w-6 h-6 inline-block mr-1' : 'w-5 h-5 inline-block mr-1'"
+                class="w-6 h-6 inline-block mr-1"
                 aria-hidden="true"
               />
-              <span :class="item.primaryAction ? 'text-base font-semibold' : ''">{{ item.name }}</span>
-            </RouterLink>
+              <span class="text-base font-semibold">{{ item.name }}</span>
+            </button>
+            <input
+              ref="fastFileInput"
+              type="file"
+              accept="image/*"
+              multiple
+              class="hidden"
+              @change="handleFastFileChange"
+            />
           </nav>
         </div>
 

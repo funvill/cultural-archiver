@@ -34,6 +34,8 @@ const fastUploadSession = ref<{
 } | null>(null);
 const fastUploadStore = useFastUploadSessionStore();
 const isFromFastUpload = computed(() => !!fastUploadSession.value && route.query.source === 'fast-upload');
+// Track whether we've attempted auto redirect to new artwork to avoid loops
+const autoRedirectedToNew = ref(false);
 
 // Computed
 const currentQuery = computed(() => (route.params.query as string) || '');
@@ -229,6 +231,25 @@ onMounted(() => {
   }
 });
 
+// Watch for zero nearby results after a fast-upload location search and redirect directly to new artwork form
+watch([
+  isFromFastUpload,
+  () => fastUploadSession.value?.location,
+  hasResults,
+  isLoading
+], ([fromFast, loc, results, loading]: [boolean, Coordinates | null | undefined, boolean, boolean]) => {
+  if (!fromFast) return;
+  if (!loc) return; // need a location
+  if (loading) return; // wait until search completes
+  if (results) return; // only when zero results
+  if (autoRedirectedToNew.value) return; // prevent repeat
+  // We consider search attempted when searchStore.hasSearched or a location search set query
+  if (searchStore.query.startsWith('Near (') && searchStore.hasSearched) {
+    autoRedirectedToNew.value = true;
+    router.push('/artwork/new?from=fast-upload&reason=auto-no-nearby');
+  }
+});
+
 function performLocationSearch(latitude: number, longitude: number): void {
   // Use the search store to perform a location-based search
   // This would need to be implemented in the search store
@@ -236,6 +257,45 @@ function performLocationSearch(latitude: number, longitude: number): void {
 }
 
 // Helpers
+// Handle updates to the fast upload session when user adds more photos from the header.
+function handleFastUploadSessionUpdated(): void {
+  const sessionData = sessionStorage.getItem('fast-upload-session');
+  if (!sessionData) return;
+  try {
+    const parsed = JSON.parse(sessionData);
+    const previewLookup: Record<string, string | undefined> = {};
+    fastUploadStore.photos.forEach((p: { id: string; preview?: string }) => {
+      if (p.id) previewLookup[p.id] = p.preview;
+    });
+    fastUploadSession.value = {
+      photos: (parsed.photos || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        preview: previewLookup[p.id],
+      })),
+      location: parsed.location || fastUploadStore.location || null,
+      detectedSources: parsed.detectedSources || fastUploadStore.detectedSources || null,
+    };
+    if (fastUploadSession.value.location) {
+      const { latitude, longitude } = fastUploadSession.value.location;
+      performLocationSearch(latitude, longitude);
+    }
+  } catch (e) {
+    console.warn('[FAST UPLOAD] Failed to refresh session after update', e);
+  }
+}
+
+// Fallback: reactively watch for additional photos added to the fast upload store
+// (covers cases where the global event is missed or not dispatched due to browser quirks)
+watch(
+  () => fastUploadStore.photos.length,
+  (newLen: number, oldLen: number) => {
+    if (newLen > oldLen && route.query.source === 'fast-upload') {
+      handleFastUploadSessionUpdated();
+    }
+  }
+);
+
 function getArtworkTitle(artwork: SearchResult): string {
   // Prefer explicit title field when available
   if (typeof artwork.title === 'string' && artwork.title.trim().length > 0) {
@@ -256,6 +316,11 @@ function getArtworkTitle(artwork: SearchResult): string {
     : 'Untitled';
 }
 
+// Register global event listener (done after initial mount logic has parsed first session)
+onMounted(() => {
+  window.addEventListener('fast-upload-session-updated', handleFastUploadSessionUpdated);
+});
+
 // Note: We intentionally do not fall back to the uploaded preview for
 // artwork cards to avoid misleading thumbnails for artworks with zero photos.
 
@@ -271,6 +336,7 @@ function getArtworkImage(artwork: SearchResult): string | null {
 onUnmounted(() => {
   // Clear any pending debounced searches
   searchStore.clearSearch();
+  window.removeEventListener('fast-upload-session-updated', handleFastUploadSessionUpdated);
 });
 </script>
 

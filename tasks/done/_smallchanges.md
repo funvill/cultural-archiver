@@ -674,3 +674,15 @@ if input.status=="No longer in place" then output.condition="removed"
 if input.status=="In place" then output.condition="good"
 if input.status=="In progress" then output.condition="unknown"
 if input.status=="Deaccessioned" then output.condition="removed"
+
+
+-----
+
+
+Update the flow of the Fast-Add
+
+The "Add button" in the app nav bar, should launch a file upload for a image files, this allows us to skip the first page "Add Artwork" and go directly to the "Artwork search results page".
+
+If the search page doesn't show any results, and the photo has a GPS location, then skip the "artwork search page" and go directly to the "Add new Artwork" page.
+
+In other words, someone clicks the "add" button in the app header, and uploads a photo, they could be sent directly to the "Add new Artwork" page if the photo has GPS location, and there are no other artworks nearby.
