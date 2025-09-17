@@ -63,6 +63,18 @@ npm run build
 
 ### Basic Usage
 
+#### OSM
+
+```
+node dist/cli/cli-entry.js import --importer osm-artwork --generate-report --input C:\Users\funvill\Documents\git\cultural-archiver\src\lib\data-collection\osm\output\merged\merged-artworks.geojson --output processed-art.json --exporter api --config api-config-dev.json
+```
+
+#### Vancouver open data
+
+```
+node dist/cli/cli-entry.js import --importer vancouver-public-art --generate-report --input C:\Users\funvill\Documents\git\cultural-archiver\src\lib\mass-import-system\importers\public-art.json --output processed-art.json --exporter api --config api-config-dev.json
+```
+
 #### List Available Plugins
 
 ```bash

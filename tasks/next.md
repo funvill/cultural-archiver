@@ -1,10 +1,34 @@
 # Known things to do
 
-## MVP
+## Data
 
-- [x] Variable fields for artwork
-- [x] Optimized submit new artwork
-- [x] Mass import
+Where to get information about Public Art
+
+### Open Street Map
+
+I generated a OSM importer that finds all the artwork and downloads them into a JSON file. see `src\lib\data-collection\osm`
+
+This so far has been the best source of general information about art, but it doesn't include photos.
+
+### GVRD
+
+- Maple Ridge - https://www.mapleridge.ca/parks-recreation/arts-theatre/public-art
+- Burnaby
+  - Emailed on Sept 16, 2025
+  - https://collections.burnabyartgallery.ca/list?src_facet=Public%20Art%20Registry&p=1
+- New Westminster
+  - Emailed on Sept 16, 2025
+  - https://www.newwestcity.ca/public-art-registry
+- UBC
+  - Emailed on Sept 16, 2025 (Morris and Helen Belkin Art Gallery)
+  - https://planning.ubc.ca/planning-development/policies-and-plans/public-realm-planning/public-art-strategy
+- North Vancouver
+  - Emailed on Sept 16, 2025
+  - https://www.nvrc.ca/arts-culture/public-art/art-collection
+  - https://gisext2.cnv.org/publicart/
+- Richmond
+  - Emailed on Sept 16, 2025
+  - https://www.richmond.ca/culture/howartworks/publicart/collection/Search.aspx
 
 ## Choose a name
 
@@ -75,6 +99,14 @@ Find people that would be willing to partner with me on this project. Be specifi
 
 - Burrard Arts Foundation, Centre for Digital Media students. They spondered a simlare project in the past. https://intergalactic.com/content/muse-public-art-app?utm_source=chatgpt.com
 - Canada Council - They prefer events over resources. The event could be a mass hunt for new art.
+
+- https://www.art-bc.com/
+
+### Art walk / festivals
+
+These are groups doing "Art walks" or festvials. They might be good groups to partner with. Give them the tools that they need then they use our service.
+
+- https://vancouverartwalk.com/
 
 ## General
 
