@@ -4,10 +4,12 @@ import { useRoute, useRouter } from 'vue-router';
 import { PlusIcon } from '@heroicons/vue/24/outline';
 import SearchInput from '../components/SearchInput.vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
+import ArtworkTypeFilter from '../components/ArtworkTypeFilter.vue';
 import SkeletonCard from '../components/SkeletonCard.vue';
 import { useSearchStore } from '../stores/search';
 import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 import { useInfiniteScroll } from '../composables/useInfiniteScroll';
+import { useArtworkTypeFilters } from '../composables/useArtworkTypeFilters';
 import type { SearchResult, Coordinates } from '../types/index';
 
 
@@ -41,6 +43,19 @@ const isLoading = computed(() => searchStore.isLoading);
 const error = computed(() => searchStore.error);
 const suggestions = computed(() => searchStore.suggestions);
 const recentQueries = computed(() => searchStore.recentQueries);
+
+// Artwork type filtering
+const { filterArtworks } = useArtworkTypeFilters();
+
+// Filter search results by artwork type
+const filteredResults = computed(() => {
+  if (!hasResults.value) {
+    return [];
+  }
+  return filterArtworks(searchStore.results);
+});
+
+const filteredTotal = computed(() => filteredResults.value.length);
 
 // Enhanced search tips with structured tag examples
 const searchTips = [
@@ -599,7 +614,7 @@ onUnmounted(() => {
         <!-- Results Header -->
         <div class="flex items-center justify-between">
           <h2 class="text-lg font-medium text-gray-900">
-            {{ searchStore.total }} {{ searchStore.total === 1 ? 'artwork' : 'artworks' }} found
+            {{ filteredTotal }} of {{ searchStore.total }} {{ searchStore.total === 1 ? 'artwork' : 'artworks' }} shown
             <span v-if="searchStore.query" class="text-gray-600"
               >for "{{ searchStore.query }}"</span
             >
@@ -614,10 +629,23 @@ onUnmounted(() => {
           </button>
         </div>
 
+        <!-- Artwork Type Filters -->
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <ArtworkTypeFilter 
+            title="Filter by Artwork Type"
+            description="Select which types of artworks to show in search results"
+            :columns="3"
+            :compact="false"
+            :collapsible="true"
+            :default-collapsed="true"
+            :show-control-buttons="true"
+          />
+        </div>
+
         <!-- Results Grid -->
         <div ref="searchResultsRef" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <ArtworkCard
-            v-for="artwork in searchStore.results"
+            v-for="artwork in filteredResults"
             :key="artwork.id"
             :artwork="artwork"
             :show-distance="false"

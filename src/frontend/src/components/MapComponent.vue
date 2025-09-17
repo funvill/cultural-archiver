@@ -13,6 +13,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Coordinates, ArtworkPin, MapComponentProps } from '../types';
 import { useArtworksStore } from '../stores/artworks';
+import { useArtworkTypeFilters, type ArtworkTypeToggle } from '../composables/useArtworkTypeFilters';
 import { useRouter } from 'vue-router';
 
 // Props
@@ -56,54 +57,14 @@ const showOptionsPanel = ref(false);
 const clusterEnabled = ref(true);
 const debugRingsEnabled = ref(false);
 const clearingCache = ref(false);
-// Artwork type filters
-interface ArtworkTypeToggle {
-  key: string;
-  label: string;
-  enabled: boolean;
-  color: string;
-}
-const artworkTypes = ref<ArtworkTypeToggle[]>([
-  { key: 'mural', label: 'Mural', enabled: true, color: '#4f46e5' },
-  { key: 'sculpture', label: 'Sculpture', enabled: true, color: '#059669' },
-  { key: 'monument', label: 'Monument', enabled: true, color: '#e11d48' },
-  { key: 'installation', label: 'Installation', enabled: true, color: '#c026d3' },
-  { key: 'statue', label: 'Statue', enabled: true, color: '#d97706' },
-  { key: 'mosaic', label: 'Mosaic', enabled: true, color: '#0891b2' },
-  { key: 'graffiti', label: 'Graffiti', enabled: true, color: '#ca8a04' },
-  { key: 'street_art', label: 'Street Art', enabled: true, color: '#db2777' },
-  { key: 'tiny_library', label: 'Tiny Library', enabled: true, color: '#0d9488' },
-  { key: 'memorial_or_monument', label: 'Memorial', enabled: true, color: '#e11d48' },
-  { key: 'totem_pole', label: 'Totem Pole', enabled: true, color: '#d97706' },
-  { key: 'fountain_or_water_feature', label: 'Fountain', enabled: true, color: '#0891b2' },
-  { key: 'two-dimensional_artwork', label: '2D Artwork', enabled: true, color: '#4f46e5' },
-  { key: 'site-integrated_work', label: 'Site-Integrated Work', enabled: true, color: '#c026d3' },
-  { key: 'media_work', label: 'Media Work', enabled: true, color: '#db2777' },
-  { key: 'figurative', label: 'Figurative', enabled: true, color: '#059669' },
-  { key: 'bust', label: 'Bust', enabled: true, color: '#d97706' },
-  { key: 'socially_engaged_art', label: 'Social Art', enabled: true, color: '#db2777' },
-  { key: 'relief', label: 'Relief', enabled: true, color: '#0891b2' },
-  { key: 'stone', label: 'Stone', enabled: true, color: '#78716c' },
-  { key: 'gateway', label: 'Gateway', enabled: true, color: '#2563eb' },
-  { key: 'other', label: 'Other', enabled: true, color: '#6366f1' },
-  { key: 'unknown', label: 'Unknown', enabled: true, color: '#6b7280' },
-]);
-
-// Helper function to check if an artwork type is enabled
-function isArtworkTypeEnabled(artworkType: string): boolean {
-  const normalizedType = artworkType.toLowerCase();
-  const typeToggle = artworkTypes.value.find((toggle: ArtworkTypeToggle) => toggle.key === normalizedType);
-  
-  // If we find a matching filter, return its enabled state
-  if (typeToggle) {
-    return typeToggle.enabled;
-  }
-  
-  // For unknown types, treat them as "Other" category
-  // Only show unknown types if the "Other" filter is enabled
-  const otherToggle = artworkTypes.value.find((toggle: ArtworkTypeToggle) => toggle.key === 'other');
-  return otherToggle ? otherToggle.enabled : false;
-}
+// Artwork type filters - using shared composable
+const {
+  artworkTypes,
+  isArtworkTypeEnabled,
+  getTypeColor,
+  enableAllTypes,
+  disableAllTypes,
+} = useArtworkTypeFilters();
 
 // Debug ring layer (only immediate 100m ring)
 let debugImmediateRing: L.Circle | null = null;
@@ -176,33 +137,12 @@ const createArtworkStyle = (type: string) => {
   const zoomFactor = Math.pow(0.7, (currentZoom - 10)); // Inverse scaling starting from zoom 10
   const dynamicRadius = Math.max(minRadius, Math.min(maxRadius, baseRadius * zoomFactor));
   
-  const styleMap: Record<string, { fillColor: string }> = {
-    statue: { fillColor: '#d97706' }, // amber-600
-    sculpture: { fillColor: '#059669' }, // emerald-600
-    mural: { fillColor: '#4f46e5' }, // indigo-600
-    installation: { fillColor: '#c026d3' }, // fuchsia-600
-    monument: { fillColor: '#e11d48' }, // rose-600
-    mosaic: { fillColor: '#0891b2' }, // cyan-600
-    graffiti: { fillColor: '#ca8a04' }, // yellow-600
-    street_art: { fillColor: '#db2777' }, // pink-600
-    tiny_library: { fillColor: '#0d9488' }, // teal-600
-    memorial_or_monument: { fillColor: '#e11d48' }, // rose-600 (same as monument)
-    totem_pole: { fillColor: '#d97706' }, // amber-600 (same as statue)
-    fountain_or_water_feature: { fillColor: '#0891b2' }, // cyan-600 (same as mosaic)
-    'two-dimensional_artwork': { fillColor: '#4f46e5' }, // indigo-600 (same as mural)
-    'site-integrated_work': { fillColor: '#c026d3' }, // fuchsia-600 (same as installation)
-    media_work: { fillColor: '#db2777' }, // pink-600 (same as street_art)
-    figurative: { fillColor: '#059669' }, // emerald-600 (same as sculpture)
-    bust: { fillColor: '#d97706' }, // amber-600 (same as statue)
-    socially_engaged_art: { fillColor: '#db2777' }, // pink-600 (same as street_art)
-    relief: { fillColor: '#0891b2' }, // cyan-600 (same as mosaic)
-    unknown: { fillColor: '#6b7280' }, // gray-500
-    other: { fillColor: '#2563eb' }, // blue-600
-  };
-  const style = styleMap[normalized] || styleMap.other;
+  // Use shared color logic from composable
+  const fillColor = getTypeColor(normalized);
+  
   const baseStyle = {
     radius: dynamicRadius, // Use zoom-scaled radius
-    fillColor: style!.fillColor,
+    fillColor: fillColor,
     color: '#ffffff', // white border
     weight: 1,
     fillOpacity: 0.9,
@@ -924,17 +864,13 @@ function handleArtworkTypeToggle(_artworkType: ArtworkTypeToggle) {
 
 // Enable all artwork type filters
 function enableAllArtworkTypes() {
-  artworkTypes.value.forEach((type: ArtworkTypeToggle) => {
-    type.enabled = true;
-  });
+  enableAllTypes();
   updateArtworkMarkers();
 }
 
 // Disable all artwork type filters
 function disableAllArtworkTypes() {
-  artworkTypes.value.forEach((type: ArtworkTypeToggle) => {
-    type.enabled = false;
-  });
+  disableAllTypes();
   updateArtworkMarkers();
 }
 
