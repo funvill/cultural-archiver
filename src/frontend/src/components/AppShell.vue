@@ -140,6 +140,28 @@ const drawerNavItems = computed(() => {
 });
 
 // Fast Add Implementation ---------------------------------------
+/*
+ Fast Add UX (Overwrite Model)
+ ---------------------------------
+ 1. User clicks Add -> immediate file picker (no intermediate landing page).
+ 2. Selected photo(s) are processed (preview + EXIF). If EXIF provides coordinates, we store them.
+ 3. If no EXIF coordinates, we attempt browser geolocation once per selection batch.
+ 4. On success (have at least one photo):
+   - If we obtained a location (from EXIF or browser) we navigate directly to /search?source=fast-upload&lat=..&lng=..
+   - If no location at all we fallback to legacy /add page so user can manually set location.
+ 5. Overwrite Semantics: After the first navigation (fastHasNavigated=true), a second Add click
+   indicates the user wants to discard the previous in-progress fast upload and start over.
+   We fully reset in-memory state, Pinia fast-upload session store, and sessionStorage before
+   re-opening the picker. This replaced the earlier "append & re-search" multi-add design.
+
+ Rationale:
+   - Simplifies mental model (each Add = new flow) and avoids complex incremental refresh logic.
+   - Eliminates need for global 'fast-upload-session-updated' events and length watchers in SearchView.
+   - Reduces risk of stale preview/location data persisting across separate capture attempts.
+
+ If future requirements reintroduce multi-session accumulation, revert to history where
+ SearchView listened for 'fast-upload-session-updated' and re-ran location searches.
+*/
 interface FastPhotoFile {
   id: string;
   name: string;
@@ -228,6 +250,22 @@ async function fastProcessFiles(files: File[]) {
     } catch (err) {
       fastLocationSources.value.browser = { detected: false, error: true, coordinates: null };
     }
+  }
+  // If both EXIF and browser geolocation failed, surface a single consolidated message
+  if (
+    !fastLocationSources.value.exif.detected &&
+    fastLocationSources.value.browser.error &&
+    !fastLocationSources.value.browser.coordinates &&
+    !fastFinalLocation.value
+  ) {
+    // Avoid alert spam if multiple files; only show once per processing batch
+    try {
+      console.warn('[FAST ADD] No location detected from EXIF or browser geolocation');
+      // Non-blocking lightweight UX (could be replaced by a toast component if available)
+      // Using alert as a fallback since component-level toast system not referenced here
+  // TODO: Replace window.alert with centralized toast/notification system once available
+  alert('Could not detect photo location automatically (EXIF & browser GPS unavailable). You can still continue and set location later.');
+    } catch {}
   }
   maybeNavigateFast();
 }
@@ -462,8 +500,14 @@ onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown);
 });
 
-// Watch route changes
-watch(() => route.path, handleRouteChange);
+// Watch route changes (defensive: tests may mount without a real router)
+try {
+  if (route && typeof route === 'object') {
+    watch(() => (route as any)?.path, handleRouteChange);
+  }
+} catch (e) {
+  // In unit tests without a router instance, accessing route may fail; ignore.
+}
 </script>
 
 <template>

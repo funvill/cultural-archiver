@@ -256,45 +256,10 @@ function performLocationSearch(latitude: number, longitude: number): void {
   searchStore.performLocationSearch({ latitude, longitude });
 }
 
-// Helpers
-// Handle updates to the fast upload session when user adds more photos from the header.
-function handleFastUploadSessionUpdated(): void {
-  const sessionData = sessionStorage.getItem('fast-upload-session');
-  if (!sessionData) return;
-  try {
-    const parsed = JSON.parse(sessionData);
-    const previewLookup: Record<string, string | undefined> = {};
-    fastUploadStore.photos.forEach((p: { id: string; preview?: string }) => {
-      if (p.id) previewLookup[p.id] = p.preview;
-    });
-    fastUploadSession.value = {
-      photos: (parsed.photos || []).map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        preview: previewLookup[p.id],
-      })),
-      location: parsed.location || fastUploadStore.location || null,
-      detectedSources: parsed.detectedSources || fastUploadStore.detectedSources || null,
-    };
-    if (fastUploadSession.value.location) {
-      const { latitude, longitude } = fastUploadSession.value.location;
-      performLocationSearch(latitude, longitude);
-    }
-  } catch (e) {
-    console.warn('[FAST UPLOAD] Failed to refresh session after update', e);
-  }
-}
-
-// Fallback: reactively watch for additional photos added to the fast upload store
-// (covers cases where the global event is missed or not dispatched due to browser quirks)
-watch(
-  () => fastUploadStore.photos.length,
-  (newLen: number, oldLen: number) => {
-    if (newLen > oldLen && route.query.source === 'fast-upload') {
-      handleFastUploadSessionUpdated();
-    }
-  }
-);
+// Note: Legacy multi-add refresh logic (event + watcher) removed as fast-add now overwrites
+// prior selections when the user clicks Add again. This simplifies the UX: each Add starts
+// a new flow rather than appending and re-searching. If future requirements reintroduce
+// multi-select accumulation across separate Add clicks, restore logic from git history.
 
 function getArtworkTitle(artwork: SearchResult): string {
   // Prefer explicit title field when available
@@ -317,9 +282,7 @@ function getArtworkTitle(artwork: SearchResult): string {
 }
 
 // Register global event listener (done after initial mount logic has parsed first session)
-onMounted(() => {
-  window.addEventListener('fast-upload-session-updated', handleFastUploadSessionUpdated);
-});
+// (Removed legacy global 'fast-upload-session-updated' listener – overwrite model does not append.)
 
 // Note: We intentionally do not fall back to the uploaded preview for
 // artwork cards to avoid misleading thumbnails for artworks with zero photos.
@@ -333,10 +296,61 @@ function getArtworkImage(artwork: SearchResult): string | null {
     : null;
 }
 
+// Helper functions for location method display
+function getLocationMethodText(detectedSources: any): string {
+  if (!detectedSources) return 'Unknown';
+  
+  // Check which method was successfully used (in order of preference/accuracy)
+  if (detectedSources.exif?.detected && detectedSources.exif?.coordinates) {
+    return 'Photo EXIF data';
+  }
+  if (detectedSources.browser?.detected && detectedSources.browser?.coordinates) {
+    return 'Device GPS';
+  }
+  if (detectedSources.ip?.detected && detectedSources.ip?.coordinates) {
+    return 'IP location';
+  }
+  
+  return 'Manual entry';
+}
+
+function getLocationMethodStyle(detectedSources: any): string {
+  const method = getLocationMethodText(detectedSources);
+  
+  switch (method) {
+    case 'Photo EXIF data':
+      return 'bg-green-100 text-green-800 border border-green-200';
+    case 'Device GPS':
+      return 'bg-blue-100 text-blue-800 border border-blue-200';
+    case 'IP location':
+      return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+    case 'Manual entry':
+      return 'bg-purple-100 text-purple-800 border border-purple-200';
+    default:
+      return 'bg-gray-100 text-gray-800 border border-gray-200';
+  }
+}
+
+function getLocationMethodDescription(detectedSources: any): string {
+  const method = getLocationMethodText(detectedSources);
+  
+  switch (method) {
+    case 'Photo EXIF data':
+      return 'Location extracted from photo metadata - most accurate';
+    case 'Device GPS':
+      return 'Location from device GPS sensor - high accuracy';
+    case 'IP location':
+      return 'Location approximated from IP address - lower accuracy';
+    case 'Manual entry':
+      return 'Location entered manually by user';
+    default:
+      return 'Location detection method unknown';
+  }
+}
+
 onUnmounted(() => {
   // Clear any pending debounced searches
   searchStore.clearSearch();
-  window.removeEventListener('fast-upload-session-updated', handleFastUploadSessionUpdated);
 });
 </script>
 
@@ -416,9 +430,21 @@ onUnmounted(() => {
               </div>
             </div>
             <div v-if="fastUploadSession.location" class="mt-4 text-sm text-gray-600">
-              <strong>Location detected:</strong> 
-              {{ fastUploadSession.location.latitude.toFixed(6) }}, 
-              {{ fastUploadSession.location.longitude.toFixed(6) }}
+              <div class="flex items-center space-x-2">
+                <strong>Location detected:</strong> 
+                <span>{{ fastUploadSession.location.latitude.toFixed(6) }}, {{ fastUploadSession.location.longitude.toFixed(6) }}</span>
+              </div>
+              <div v-if="fastUploadSession.detectedSources" class="mt-2 space-y-1">
+                <div class="flex items-center space-x-2">
+                  <span class="text-xs font-medium">Method:</span>
+                  <span class="text-xs px-2 py-1 rounded-full" :class="getLocationMethodStyle(fastUploadSession.detectedSources)">
+                    {{ getLocationMethodText(fastUploadSession.detectedSources) }}
+                  </span>
+                </div>
+                <div class="text-xs text-gray-500">
+                  {{ getLocationMethodDescription(fastUploadSession.detectedSources) }}
+                </div>
+              </div>
             </div>
           </div>
           

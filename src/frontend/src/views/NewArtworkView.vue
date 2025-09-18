@@ -318,6 +318,58 @@ onMounted(async () => {
   // Ensure user token is available
   await authStore.ensureUserToken();
 });
+
+// Helper functions for location method display
+function getLocationMethodText(detectedSources: any): string {
+  if (!detectedSources) return 'Unknown';
+  
+  // Check which method was successfully used (in order of preference/accuracy)
+  if (detectedSources.exif?.detected && detectedSources.exif?.coordinates) {
+    return 'Photo EXIF data';
+  }
+  if (detectedSources.browser?.detected && detectedSources.browser?.coordinates) {
+    return 'Device GPS';
+  }
+  if (detectedSources.ip?.detected && detectedSources.ip?.coordinates) {
+    return 'IP location';
+  }
+  
+  return 'Manual entry';
+}
+
+function getLocationMethodStyle(detectedSources: any): string {
+  const method = getLocationMethodText(detectedSources);
+  
+  switch (method) {
+    case 'Photo EXIF data':
+      return 'bg-green-100 text-green-800 border border-green-200';
+    case 'Device GPS':
+      return 'bg-blue-100 text-blue-800 border border-blue-200';
+    case 'IP location':
+      return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+    case 'Manual entry':
+      return 'bg-purple-100 text-purple-800 border border-purple-200';
+    default:
+      return 'bg-gray-100 text-gray-800 border border-gray-200';
+  }
+}
+
+function getLocationMethodDescription(detectedSources: any): string {
+  const method = getLocationMethodText(detectedSources);
+  
+  switch (method) {
+    case 'Photo EXIF data':
+      return 'Location extracted from photo metadata - most accurate';
+    case 'Device GPS':
+      return 'Location from device GPS sensor - high accuracy';
+    case 'IP location':
+      return 'Location approximated from IP address - lower accuracy';
+    case 'Manual entry':
+      return 'Location entered manually by user';
+    default:
+      return 'Location detection method unknown';
+  }
+}
 </script>
 
 <template>
@@ -532,9 +584,22 @@ onMounted(async () => {
                 <CheckCircleIcon class="w-5 h-5 mr-2" />
                 <span class="text-sm font-medium">Location set</span>
               </div>
-              <div class="text-sm text-gray-600">
-                <div>Lat: {{ formData.location.latitude.toFixed(6) }}</div>
-                <div>Lng: {{ formData.location.longitude.toFixed(6) }}</div>
+              <div class="text-sm text-gray-600 space-y-2">
+                <div>
+                  <div>Lat: {{ formData.location.latitude.toFixed(6) }}</div>
+                  <div>Lng: {{ formData.location.longitude.toFixed(6) }}</div>
+                </div>
+                <div v-if="fastUploadSession?.detectedSources" class="space-y-1">
+                  <div class="flex items-center space-x-2">
+                    <span class="text-xs font-medium">Method:</span>
+                    <span class="text-xs px-2 py-1 rounded-full" :class="getLocationMethodStyle(fastUploadSession.detectedSources)">
+                      {{ getLocationMethodText(fastUploadSession.detectedSources) }}
+                    </span>
+                  </div>
+                  <div class="text-xs text-gray-500">
+                    {{ getLocationMethodDescription(fastUploadSession.detectedSources) }}
+                  </div>
+                </div>
               </div>
               <button
                 @click="openLocationPicker"

@@ -88,22 +88,50 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
 
     // If minimal flag requested, short-circuit and return compact payload for map pins
     if (validatedQuery.minimal) {
-      const minimal = artworks.map(artwork => ({
-        id: artwork.id,
-        lat: artwork.lat,
-        lon: artwork.lon,
-        type_name: artwork.type_name,
-        // For minimal mode, we can opportunistically include a recent photo
-        // from artwork.photos JSON array if present without scanning submissions.
-        recent_photo: (() : string | null => {
+      // For minimal mode, include a recent photo from artwork.photos, logbook entries, or artwork tags
+      const minimal = await Promise.all(artworks.map(async artwork => {
+        // Try artwork.photos first
+        let recentPhoto: string | null = null;
+        try {
+          if (artwork.photos) {
+            const parsed = safeJsonParse<string[]>(artwork.photos as unknown as string, []);
+            if (parsed.length > 0) recentPhoto = parsed[0] ?? null;
+          }
+        } catch {/* ignore parse errors */}
+
+        // If not found, check logbook entries (submissions)
+        if (!recentPhoto) {
           try {
-            if (artwork.photos) {
-              const parsed = safeJsonParse<string[]>(artwork.photos as unknown as string, []);
-              return parsed[0] ?? null;
+            const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
+            for (const entry of logbookEntries) {
+              if (entry.photos) {
+                const photos = safeJsonParse<string[]>(entry.photos, []);
+                if (photos.length > 0) {
+                  recentPhoto = photos[0] ?? null;
+                  break;
+                }
+              }
             }
-          } catch {/* ignore parse errors */}
-          return null;
-        })(),
+          } catch {/* ignore logbook errors */}
+        }
+
+        // If still not found, check artwork-level tags for _photos
+        if (!recentPhoto && artwork.tags) {
+          try {
+            const raw = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
+            if (raw && Array.isArray(raw._photos) && raw._photos.length > 0) {
+              if (typeof raw._photos[0] === 'string') recentPhoto = raw._photos[0];
+            }
+          } catch {/* ignore tag parse errors */}
+        }
+
+        return {
+          id: artwork.id,
+          lat: artwork.lat,
+          lon: artwork.lon,
+          type_name: artwork.type_name,
+          recent_photo: recentPhoto,
+        };
       }));
 
       const response = {
