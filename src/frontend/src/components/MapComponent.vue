@@ -42,6 +42,8 @@ const showLocationNotice = ref(false);
 const isLoadingViewport = ref(false);
 const lastLoadedBounds = ref<{north: number; south: number; east: number; west: number} | null>(null);
 const loadingTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
+// Marker update debouncing
+const markerUpdateTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 // Progressive loading state
 const isProgressiveLoading = ref(false);
 const progressiveLoadingStats = ref<{loaded: number; total: number; percentage: number; batchSize?: number; avgTime?: number} | null>(null);
@@ -402,8 +404,12 @@ async function initializeMap() {
       }, 7000);
     }
 
-    // Load initial artworks
-    await loadArtworks();
+    // Load initial artworks with a small delay to ensure DOM stability
+    setTimeout(async () => {
+      await loadArtworks();
+      // Add additional delay for marker rendering after data load
+      updateArtworkMarkersDebounced(100);
+    }, 50);
   } catch (err) {
     console.error('Map initialization error:', err);
     error.value = 'Failed to initialize map. Please check your internet connection and try again.';
@@ -494,7 +500,16 @@ function addUserLocationMarker(location: Coordinates) {
 
 // Load artworks on map with intelligent viewport-based loading
 async function loadArtworks() {
-  if (!map.value) return;
+  console.log('[MARKER DEBUG] loadArtworks() called:', {
+    mapExists: !!map.value,
+    currentPropsLength: props.artworks?.length || 0,
+    timestamp: new Date().toISOString()
+  });
+
+  if (!map.value) {
+    console.log('[MARKER DEBUG] loadArtworks() early return - no map');
+    return;
+  }
 
   try {
     // Get current map bounds with generous padding for smooth experience
@@ -525,13 +540,22 @@ async function loadArtworks() {
       await loadArtworksProgressively(expandedBounds);
     } else {
       // Standard loading
+      console.log('[MARKER DEBUG] About to fetch artworks from store');
       await artworksStore.fetchArtworksInBounds(expandedBounds);
+      console.log('[MARKER DEBUG] Finished fetching artworks, props should update next');
     }
     
     // Cache the bounds we just loaded
     lastLoadedBounds.value = expandedBounds;
 
-    // Update markers
+    console.log('[MARKER DEBUG] About to wait for nextTick, then update markers:', {
+      propsLength: props.artworks?.length || 0
+    });
+
+    // Wait for Vue reactivity to update props before updating markers
+    await nextTick();
+    
+    console.log('[MARKER DEBUG] After nextTick, props length now:', props.artworks?.length || 0);
     updateArtworkMarkers();
   } catch (err) {
     console.error('Error loading artworks:', err);
@@ -582,9 +606,59 @@ function boundsContain(boundsA: {north: number; south: number; east: number; wes
          boundsA.west <= boundsB.west;
 }
 
+// Debounced marker update to prevent excessive calls during initialization
+function updateArtworkMarkersDebounced(delay: number = 0) {
+  if (markerUpdateTimeout.value) {
+    clearTimeout(markerUpdateTimeout.value);
+  }
+  
+  markerUpdateTimeout.value = setTimeout(() => {
+    updateArtworkMarkers();
+  }, delay);
+}
+
 // Update artwork markers with efficient viewport-based rendering
 function updateArtworkMarkers() {
-  if (!map.value || !markerClusterGroup.value) return;
+  console.log('[MARKER DEBUG] updateArtworkMarkers() called:', {
+    mapExists: !!map.value,
+    clusterGroupExists: !!markerClusterGroup.value,
+    propsArtworksLength: props.artworks?.length || 0,
+    currentMarkersCount: artworkMarkers.value.length,
+    mapContainerInDOM: !!mapContainer.value?.isConnected,
+    mapSize: map.value ? { width: map.value.getSize().x, height: map.value.getSize().y } : null,
+    timestamp: new Date().toISOString()
+  });
+
+  if (!map.value || !markerClusterGroup.value) {
+    console.log('[MARKER DEBUG] Early return - missing map or cluster group');
+    return;
+  }
+
+  // Force map to be visible and properly sized
+  if (mapContainer.value && map.value) {
+    const containerRect = mapContainer.value.getBoundingClientRect();
+    console.log('[MARKER DEBUG] Map container dimensions:', {
+      width: containerRect.width,
+      height: containerRect.height,
+      isVisible: containerRect.width > 0 && containerRect.height > 0
+    });
+    
+    if (containerRect.width === 0 || containerRect.height === 0) {
+      console.log('[MARKER DEBUG] Map container has zero dimensions - triggering resize');
+      setTimeout(() => {
+        map.value?.invalidateSize();
+        updateArtworkMarkers();
+      }, 100);
+      return;
+    }
+
+    // Additional stability check - ensure map is actually rendered and interactive
+    if (map.value && !map.value.getContainer()) {
+      console.log('[MARKER DEBUG] Map container not yet attached - delaying marker update');
+      setTimeout(() => updateArtworkMarkers(), 100);
+      return;
+    }
+  }
 
   // Determine current bounds with padding for smooth experience
   const bounds = map.value.getBounds();
@@ -596,11 +670,23 @@ function updateArtworkMarkers() {
   );
 
   // Get artworks that should be visible in current viewport and are of enabled types
-  const artworksInViewport = artworksStore.artworks.filter((artwork: ArtworkPin) => {
+  const artworksInViewport = (props.artworks || []).filter((artwork: ArtworkPin) => {
     const inBounds = viewportBounds.contains(L.latLng(artwork.latitude, artwork.longitude));
     const typeEnabled = isArtworkTypeEnabled(artwork.type || 'other');
     
     return inBounds && typeEnabled;
+  });
+
+  console.log('[MARKER DEBUG] Filtered artworks in viewport:', {
+    totalPropsArtworks: props.artworks?.length || 0,
+    artworksInViewport: artworksInViewport.length,
+    viewportBounds: {
+      north: viewportBounds.getNorth(),
+      south: viewportBounds.getSouth(),
+      east: viewportBounds.getEast(),
+      west: viewportBounds.getWest()
+    },
+    firstFewInViewport: artworksInViewport.slice(0, 3).map((a: ArtworkPin) => ({ id: a.id, lat: a.latitude, lng: a.longitude }))
   });
 
   // Create a set of artwork IDs currently in viewport for efficient comparison
@@ -689,7 +775,15 @@ function updateArtworkMarkers() {
 
     // Add to cluster group and tracking array
     if (markerClusterGroup.value) {
+      console.log('[MARKER DEBUG] Adding marker to cluster group:', {
+        markerId: artwork.id,
+        clusterGroupType: markerClusterGroup.value.constructor.name,
+        isClusterGroupOnMap: map.value?.hasLayer(markerClusterGroup.value),
+        mapContainerInDOM: !!mapContainer.value?.isConnected
+      });
       markerClusterGroup.value.addLayer(marker as any);
+    } else {
+      console.log('[MARKER DEBUG] No cluster group available for marker:', artwork.id);
     }
     artworkMarkers.value.push(marker);
   });
@@ -738,6 +832,10 @@ async function configureMarkerGroup() {
 
   // Add to map and rebuild markers
   markerClusterGroup.value!.addTo(map.value);
+  
+  // Clear existing marker references since they belong to the old cluster group
+  artworkMarkers.value = [];
+  
   updateArtworkMarkers();
 
   // Persist preference
@@ -849,6 +947,7 @@ async function clearMapCacheAndReload() {
     artworksStore.clearMapCache();
     // Clear current in-memory pins; they will refill on next fetch
     artworksStore.setArtworks([]);
+    await nextTick();
     updateArtworkMarkers();
     await loadArtworks();
   } finally {
@@ -923,8 +1022,14 @@ if (typeof window !== 'undefined') {
 // Watch for props changes
 watch(
   () => props.artworks,
-  () => {
-    updateArtworkMarkers();
+  (newArtworks: ArtworkPin[] | undefined) => {
+    console.log('[MARKER DEBUG] Props artworks watcher triggered:', {
+      newArtworksLength: newArtworks?.length || 0,
+      newArtworks: newArtworks?.slice(0, 3) || [], // First 3 for debugging
+      timestamp: new Date().toISOString()
+    });
+    // Use debounced update to prevent excessive calls during initialization
+    updateArtworkMarkersDebounced(25);
   },
   { deep: true }
 );

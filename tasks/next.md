@@ -46,15 +46,16 @@ This so far has been the best source of general information about art, but it do
 
 **The perfect domains (Not avalaible)**
 
+- artmap.app, artmap.com, artmap.io, https://artmap.ca (simlare to mine)
 - iArchivist
 - ArtSeeker
 - ArtHunt
-- ArtQuest
+- ArtQuest (artquest.app is available)
+- artgame.com (artgame.app is available)
 - Seek.art
 - findart.app
 - artarchive.com
-
-- public.art
+- public.art (publicart.info is available)
 - found.art
 - collect.art
 
@@ -134,6 +135,8 @@ These are groups doing "Art walks" or festvials. They might be good groups to pa
   - Contact them and say hello, maybe we could do something together.
   - I like how the markers on the map are small and stay the same reliative size as the map scales up and down.
   - The markers are colored making it easy at a glance to see what each marker repersents.
+
+- https://artmap.ca using public data for artworks.
 
 ## Marketing and gameafication
 

@@ -102,11 +102,11 @@ onMounted(() => {
             </p>
 
             <p class="text-lg leading-relaxed">
-              By preserving artworks and committing them to this archive, you safeguard our shared cultural story — a gift of memory and meaning for generations yet to come.
+              By preserving artworks and committing them to this archive, you safeguard our shared cultural story — a legacy of memory and meaning for generations yet to come.
             </p>
 
             <p class="text-lg leading-relaxed font-semibold">
-              This is your chance to protect what matters. To give the future the gift of memory.
+              This is your chance to protect what matters. To give the future the legacy of memory.
             </p>
 
             <div class="bg-orange-50 border-2 border-orange-200 rounded-lg p-4 text-center">
