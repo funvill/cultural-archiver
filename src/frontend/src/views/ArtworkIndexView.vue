@@ -3,12 +3,14 @@ import { ref, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ArtworkCard from '../components/ArtworkCard.vue';
 import ArtworkTypeFilter from '../components/ArtworkTypeFilter.vue';
+import ArtworkFilters from '../components/ArtworkFilters.vue';
 import PaginationControls from '../components/PaginationControls.vue';
 import SortControls from '../components/SortControls.vue';
 import SkeletonCard from '../components/SkeletonCard.vue';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 import { apiService } from '../services/api';
 import { useArtworkTypeFilters } from '../composables/useArtworkTypeFilters';
+import { useArtworkFilters } from '../composables/useArtworkFilters';
 import type { ArtworkApiResponse } from '../../../shared/types';
 import type { SearchResult } from '../types';
 
@@ -68,9 +70,15 @@ const isEmptyState = computed(() => !loading.value && !hasResults.value && !erro
 // Artwork type filtering
 const { filterArtworks } = useArtworkTypeFilters();
 
-// Apply artwork type filtering to the search results
+// Additional artwork filtering (photos, condition)
+const { filterArtworks: filterByConditions } = useArtworkFilters();
+
+// Apply all filters to the search results
 const filteredArtworksAsSearchResults = computed(() => {
-  return filterArtworks(artworksAsSearchResults.value);
+  // First apply type filtering
+  const typeFilteredArtworks = filterArtworks(artworksAsSearchResults.value);
+  // Then apply additional condition filters
+  return filterByConditions(typeFilteredArtworks);
 });
 
 const filteredTotal = computed(() => filteredArtworksAsSearchResults.value.length);
@@ -292,7 +300,7 @@ onMounted(() => {
         </div>
 
         <!-- Artwork Type Filters -->
-        <div class="bg-white border border-gray-200 rounded-lg p-4 mb-8">
+        <div class="bg-white border border-gray-200 rounded-lg p-4 mb-4">
           <ArtworkTypeFilter 
             title="Filter by Artwork Type"
             description="Select which types of artworks to show"
@@ -300,6 +308,17 @@ onMounted(() => {
             :compact="false"
             :collapsible="true"
             :default-collapsed="true"
+            :show-control-buttons="true"
+          />
+        </div>
+
+        <!-- Additional Filters -->
+        <div class="mb-8">
+          <ArtworkFilters 
+            title="Additional Filters"
+            description="Filter by photos and artwork condition"
+            :collapsible="true"
+            :default-collapsed="false"
             :show-control-buttons="true"
           />
         </div>

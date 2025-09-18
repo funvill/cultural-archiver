@@ -1,99 +1,5 @@
 # Known things to do
 
-## Data
-
-Where to get information about Public Art
-
-### Open Street Map
-
-I generated a OSM importer that finds all the artwork and downloads them into a JSON file. see `src\lib\data-collection\osm`
-
-This so far has been the best source of general information about art, but it doesn't include photos.
-
-### GVRD
-
-- Maple Ridge - https://www.mapleridge.ca/parks-recreation/arts-theatre/public-art
-- Burnaby
-  - Emailed on Sept 16, 2025
-  - https://collections.burnabyartgallery.ca/list?src_facet=Public%20Art%20Registry&p=1
-- New Westminster
-  - Emailed on Sept 16, 2025
-  - https://www.newwestcity.ca/public-art-registry
-- UBC
-  - Emailed on Sept 16, 2025 (Morris and Helen Belkin Art Gallery)
-  - https://planning.ubc.ca/planning-development/policies-and-plans/public-realm-planning/public-art-strategy
-- North Vancouver
-  - Emailed on Sept 16, 2025
-  - https://www.nvrc.ca/arts-culture/public-art/art-collection
-  - https://gisext2.cnv.org/publicart/
-- Richmond
-  - Emailed on Sept 16, 2025
-  - https://www.richmond.ca/culture/howartworks/publicart/collection/Search.aspx
-
-## Choose a name
-
-- Use https://domains.cloudflare.com/ to check if the domain is avlaible
-- This is good for brain storming https://namelix.com/app/
-
-### Keywords
-
-**Project Description:** A collaborative platform where people can discover, photograph, and collect public artworks. Users contribute photos, descriptions, and locations of cultural works under Creative Commons licensing, building an open, community-driven archive. The project blends elements of art curation, exploration, and game-like discovery, encouraging people to seek, share, and connect through cultural creativity.
-
-- **Core Themes:** Art, Culture, Public Art, Artwork, Creative Commons, Curation, Art Collector
-- **Actions / Interactivity:** Seek, Find, Collect, Discover, Explore, Photograph, Archive
-- **Playful / Experiential:** Game, Quest, Hunt
-- **Other:** Open Data, Crowdsourced, giving back
-
-**The perfect domains (Not avalaible)**
-
-- artmap.app, artmap.com, artmap.io, https://artmap.ca (simlare to mine)
-- iArchivist
-- ArtSeeker
-- ArtHunt
-- ArtQuest (artquest.app is available)
-- artgame.com (artgame.app is available)
-- Seek.art
-- findart.app
-- artarchive.com
-- public.art (publicart.info is available)
-- found.art
-- collect.art
-
-### Avalaible
-
-- [1] seekart.app + seekartapp.com
-  - The problem is that this name "Seekart" is used by a AI Art generator "
-  Seekart | Create Unique AI-Generated Digital Artwork" https://seek.art/, and https://www.seaart.ai/... so the domain is plutted
-
-- seekerart.app + seekarterapp.com
-- artgame.app + artgameapp.com
-- SeekCommon.com
-- ArtMarked.com
-- ArtWorkHunt.com
-- CommonsQuest.com
-- FoundCommons.com
-- PublicPieces.com
-- ExplorePublic.com
-- PubliclyBuilt.com
-- WhatIsThisArt.com
-- komunarto.com - Esperanto for Collector
-- arscollectiva.com - Latin for Art collector
-- arscollect.io
-
-**No .Com**
-
-- [2] CulturalCommon.org + culturalcommon.com  (Note: the missing "S" at the end)
-
-- OpenArt.org (premimum aka expensive)
-- huntart.app
-- particip.art → participate + .art
-- ArtFind.net, ArtFinds.net
-- ArtSpotter.org
-- CultureCollect.org
-- artcollects.org
-- artcollect.app
-- iArchivist.org
-
 ## Find partners
 
 Find people that would be willing to partner with me on this project. Be specific and say that you are NOT looking for monetary support but are looking for in-kind support. Advertisement, recommendations, etc.
@@ -183,7 +89,12 @@ The admin page is a super user that can give moderators permissions to other use
 - Update the "source_url" value to be clickable as a link. This means it shouldn't search that tag, that link should be clickable.
   - Tags that have urls in them, should be clickable
 
+----
+
+The "Nearby Artworks" results in the FastAdd Artwork. The thumbnails for the artworks are not showing. For example this artwork https://art.abluestar.com/artwork/969b3394-e3a0-4dbb-8d62-87a42b382b1e?action=add-logbook&from=fast-upload as a photo but it the photo isn't showing up on the "Nearby Artworks" results.
 
 ----
 
+When clicking the the "Add" button in the appshell for the 2nd time. it should overwrite the existing image with this new image. As if you are starting the whole process over again.
 
+If the customer wanted to select multiple images they would have in the inital "add" event

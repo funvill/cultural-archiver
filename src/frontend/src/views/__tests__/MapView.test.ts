@@ -19,11 +19,28 @@ vi.mock('../../stores/artworks', () => ({
   useArtworksStore: vi.fn(() => ({
     isLoading: false,
     error: null,
+    artworks: [],
     nearbyArtworks: [],
+    mapCenter: { latitude: 49.2827, longitude: -123.1207 },
+    mapZoom: 15,
+    currentLocation: null,
     fetchNearbyArtworks: vi.fn(),
     clearArtworks: vi.fn(),
+    setMapCenter: vi.fn(),
+    setMapZoom: vi.fn(),
   })),
 }));
+
+// Mock localStorage
+const localStorageMock = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+};
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock,
+});
 
 const createMockRouter = (): Router => {
   return createRouter({

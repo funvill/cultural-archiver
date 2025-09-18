@@ -161,6 +161,20 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
           }
         });
 
+        // Include photos from artwork.photos field (from mass import and direct uploads)
+        try {
+          if (artwork.photos) {
+            const artworkPhotos = safeJsonParse<string[]>(artwork.photos, []);
+            artworkPhotos.forEach(photoUrl => {
+              if (typeof photoUrl === 'string' && !combinedPhotos.includes(photoUrl)) {
+                combinedPhotos.push(photoUrl);
+              }
+            });
+          }
+        } catch (e) {
+          console.warn('Failed to parse artwork.photos field for nearby listing', e);
+        }
+
         // Also include artwork-level photos stored under _photos in tags (set during approval)
         try {
           if (artwork.tags) {
