@@ -28,15 +28,23 @@ Something memorable. it will most likly be based on what ever domain name I can 
 - Seek.art
 - findart.app (simlare to mine)
 - artarchive.com
-- public.art (publicart.info is available)
+- public.art, publicart.com (publicart.info is available)
 - found.art
 - collect.art
 
 ### Not avalaible
 
+These are not avaliable, but also not perfect names. Listed here for reference.
+
 - culturalatlas.com
+- publicartmap.com
+- culturemap.org
+- thecommons.com - Domain squatting
 
 ### Avalaible
+
+- [3] commonsmap.com
+- [4] publicartregistry.com
 
 - [1] seekart.app + seekartapp.com
   - The problem is that this name "Seekart" is used by a AI Art generator "Seekart | Create Unique AI-Generated Digital Artwork" https://seek.art/, and https://www.seaart.ai/... so the domain is polluted
@@ -62,6 +70,7 @@ Something memorable. it will most likly be based on what ever domain name I can 
 
 - [2] CulturalCommon.org + culturalcommon.com  (Note: the missing "S" at the end)
 
+- findart.io
 - OpenArt.org (premimum aka expensive)
 - huntart.app
 - particip.art → participate + .art
@@ -72,6 +81,7 @@ Something memorable. it will most likly be based on what ever domain name I can 
 - artcollect.app
 - iArchivist.org
 - discoverart.app
+
 
 ### Avalaible but not what I am looking for
 
