@@ -575,7 +575,8 @@ export const apiService = {
    * Get user submissions
    */
   async getUserSubmissions(): Promise<ApiResponse<UserSubmissionsResponse>> {
-    return client.get('/user/submissions');
+    // Align with backend route defined at GET /api/me/submissions
+    return client.get('/me/submissions');
   },
 
   /**

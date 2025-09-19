@@ -735,7 +735,7 @@ export async function getReviewStats(
         status,
         COUNT(*) as count
       FROM submissions
-      WHERE submission_type = 'logbook'
+      WHERE submission_type = 'logbook_entry'
       GROUP BY status
     `);
 
@@ -752,7 +752,7 @@ export async function getReviewStats(
         status,
         COUNT(*) as count
       FROM submissions
-      WHERE created_at >= date('now', '-30 days') AND submission_type = 'logbook'
+      WHERE created_at >= date('now', '-30 days') AND submission_type = 'logbook_entry'
       GROUP BY DATE(created_at), status
       ORDER BY date DESC
     `);

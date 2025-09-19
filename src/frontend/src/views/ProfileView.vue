@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useAuthStore } from '../stores/auth';
+import { useRouter } from 'vue-router';
+import ArtworkCard from '../components/ArtworkCard.vue';
 import { apiService } from '../services/api';
 import type { SubmissionRecord } from '../../../shared/types';
-import type { UserProfile } from '../types/index';
+import type { UserProfile, SearchResult, ArtworkDetailResponse as ArtworkDetails } from '../types/index';
 
 type SubmissionWithData = SubmissionRecord & {
   data_parsed?: {
@@ -22,33 +23,110 @@ const isLoading = ref(true);
 const error = ref<string | null>(null);
 const filterStatus = ref('all');
 const sortOrder = ref<'newest' | 'oldest'>('newest');
+const router = useRouter();
+// Cache of linked artwork details by ID for better cards
+const artworksById = ref<Record<string, ArtworkDetails>>({});
+
+function toSearchResult(submission: SubmissionWithData): SearchResult {
+  // If this submission is linked to an artwork, prefer the artwork details for card display
+  const linked = submission.artwork_id ? artworksById.value[submission.artwork_id] : undefined;
+
+  // Best-effort title and artist with safe fallbacks
+  const titleFromSubmission = submission.data_parsed?.title ||
+    (submission.data_parsed?.tags?.title as string | undefined) ||
+    (submission.data_parsed?.tags?.name as string | undefined) ||
+    null;
+
+  const artistFromSubmission = (submission.data_parsed?.tags?.artist as string | undefined) || null;
+
+  const photos = submission.data_parsed?.photos || [];
+  const recentPhotoFromSubmission = photos.length > 0 && photos[0]?.url ? String(photos[0].url) : null;
+
+  // Determine card fields
+  const id = linked?.id || submission.artwork_id || submission.id;
+  const lat = linked?.lat ?? submission.lat ?? 0;
+  const lon = linked?.lon ?? submission.lon ?? 0;
+  const typeName = linked?.type_name || (submission.data_parsed?.tags?.artwork_type as string) || submission.artwork_type_name || 'artwork';
+
+  // Title: prefer artwork.title, then submission, else explicit fallback
+  const resolvedTitle = (linked?.title && linked.title.trim().length > 0)
+    ? linked.title
+    : (titleFromSubmission && titleFromSubmission.trim().length > 0)
+      ? titleFromSubmission
+      : 'Unknown Artwork Title';
+
+  // Artist: prefer artwork.artist_name/created_by, then submission tag, else fallback
+  const resolvedArtist = (linked?.artist_name && linked.artist_name.trim().length > 0)
+    ? linked.artist_name
+    : (linked?.created_by && linked.created_by.trim().length > 0)
+      ? linked.created_by
+      : (artistFromSubmission && artistFromSubmission.trim().length > 0)
+        ? artistFromSubmission
+        : 'Unknown Artist';
+
+  // Photo and counts: prefer submission photos for the thumbnail, fallback to artwork if none
+  const recentPhoto = recentPhotoFromSubmission
+    ? recentPhotoFromSubmission
+    : (Array.isArray(linked?.photos) && linked!.photos[0])
+      ? String(linked!.photos[0])
+      : null;
+  const photoCount = (photos.length || 0) > 0
+    ? photos.length
+    : (Array.isArray(linked?.photos) ? linked!.photos.length : 0);
+
+  const tags = (linked?.tags_parsed as Record<string, unknown>) || (submission.data_parsed?.tags as Record<string, unknown>) || null;
+
+  return {
+    id,
+    lat,
+    lon,
+    type_name: String(typeName),
+    title: resolvedTitle,
+    artist_name: resolvedArtist,
+    tags,
+    recent_photo: recentPhoto,
+    photo_count: photoCount,
+    distance_km: null,
+  };
+}
+
+function onCardClick(artwork: SearchResult): void {
+  // Only navigate if this submission is linked to an existing artwork
+  if (
+    artwork &&
+    artwork.id &&
+    submissions.value.some((s: SubmissionWithData) => s.artwork_id === artwork.id)
+  ) {
+    router.push(`/artwork/${artwork.id}`);
+  }
+}
 
 const filteredAndSortedSubmissions = computed(() => {
-  let processed = submissions.value.map(s => {
+  let processed = submissions.value.map((s: SubmissionWithData) => {
     const data_parsed: SubmissionWithData['data_parsed'] = {};
-    if (s.submission_type === 'new_artwork' || s.submission_type === 'artwork_edit') {
-      if (s.field_changes) {
-        try {
-          const changes = JSON.parse(s.field_changes);
-          data_parsed.title = changes.title?.new || changes.title;
-          data_parsed.tags = changes.tags?.new || changes.tags;
-        } catch (e) {
-          console.error('Error parsing field_changes', e);
-        }
+    // Parse field_changes to extract proposed title/tags when present
+    if (s.field_changes) {
+      try {
+        const changes = JSON.parse(s.field_changes);
+        data_parsed.title = changes.title?.new || changes.title;
+        data_parsed.tags = changes.tags?.new || changes.tags;
+      } catch (e) {
+        console.error('Error parsing field_changes', e);
       }
-      if (s.photos) {
-        try {
-          data_parsed.photos = JSON.parse(s.photos);
-        } catch (e) {
-          console.error('Error parsing photos', e);
-        }
+    }
+    // Always attempt to parse photos JSON if present (applies to artwork_photos/logbook entries too)
+    if (s.photos) {
+      try {
+        data_parsed.photos = JSON.parse(s.photos);
+      } catch (e) {
+        console.error('Error parsing photos', e);
       }
-      if (s.lat !== null && s.lat !== undefined) {
-        data_parsed.lat = s.lat;
-      }
-      if (s.lon !== null && s.lon !== undefined) {
-        data_parsed.lon = s.lon;
-      }
+    }
+    if (s.lat !== null && s.lat !== undefined) {
+      data_parsed.lat = s.lat;
+    }
+    if (s.lon !== null && s.lon !== undefined) {
+      data_parsed.lon = s.lon;
     }
     
     let artwork_type_name = 'Submission';
@@ -86,12 +164,6 @@ const submissionStats = computed(() => {
 });
 
 async function fetchUserProfile() {
-  const authStore = useAuthStore();
-  if (!authStore.token) {
-    error.value = 'User not authenticated.';
-    isLoading.value = false;
-    return;
-  }
   try {
     isLoading.value = true;
     const response = await apiService.getUserProfile();
@@ -112,11 +184,41 @@ async function fetchUserSubmissions() {
     const response = await apiService.getUserSubmissions();
     if (response.data) {
       submissions.value = response.data.submissions;
+      // Fetch linked artwork details for better cards (title/photo/artist)
+      await fetchLinkedArtworks();
     }
   } catch (err) {
     error.value = 'Failed to fetch user submissions.';
     console.error(err);
   }
+}
+
+async function fetchLinkedArtworks() {
+  const ids: string[] = Array.from(
+    new Set(
+      submissions.value
+        .map((s: SubmissionWithData) => s.artwork_id)
+        .filter((id: string | null): id is string => !!id)
+    )
+  );
+  const missing: string[] = ids.filter((id: string) => !artworksById.value[id]);
+  if (missing.length === 0) return;
+  const results = await Promise.all(
+    missing.map(async (id: string) => {
+      try {
+        const details = await apiService.getArtworkDetails(id);
+        return { id, details } as { id: string; details: ArtworkDetails };
+      } catch (e) {
+        console.warn('Failed to load artwork details for submission', id, e);
+        return null;
+      }
+    })
+  );
+  results.forEach((r) => {
+    if (r) {
+      artworksById.value[r.id] = r.details;
+    }
+  });
 }
 
 function getStatusClass(status: string) {
@@ -132,12 +234,11 @@ function getStatusClass(status: string) {
   }
 }
 
-function formatDate(dateString: string) {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+function formatDateSafe(primary?: string | null, fallback?: string | null) {
+  const dStr = primary || fallback || '';
+  const d = new Date(dStr);
+  if (Number.isNaN(d.getTime())) return 'Unknown date';
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
 onMounted(fetchUserProfile);
@@ -212,62 +313,39 @@ onMounted(fetchUserProfile);
           </div>
         </div>
 
-        <div class="bg-white shadow overflow-hidden rounded-md">
-          <ul role="list" class="divide-y divide-gray-200">
-            <li v-for="submission in filteredAndSortedSubmissions" :key="submission.id" class="p-4 sm:p-6">
-              <div class="flex flex-wrap items-start justify-between gap-4">
-                <div class="flex-grow">
-                  <div class="flex items-center gap-3">
-                    <span
-                      :class="getStatusClass(submission.status)"
-                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize"
-                    >
-                      {{ submission.status }}
-                    </span>
-                    <h3 class="text-lg font-semibold text-gray-800">
-                      <router-link
-                        v-if="submission.artwork_id"
-                        :to="`/artwork/${submission.artwork_id}`"
-                        class="hover:underline"
-                      >
-                        {{ submission.data_parsed?.title || submission.artwork_type_name || 'Artwork Submission' }}
-                      </router-link>
-                      <span v-else>
-                        {{ submission.data_parsed?.title || submission.artwork_type_name || 'Artwork Submission' }}
-                      </span>
-                    </h3>
-                  </div>
-                  <p class="mt-1 text-sm text-gray-500">
-                    Submitted on {{ formatDate(submission.submitted_at) }}
-                  </p>
-                </div>
+        <!-- Use the same grid sizing as search results -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div v-for="submission in filteredAndSortedSubmissions" :key="submission.id">
+            <ArtworkCard
+              :artwork="toSearchResult(submission)"
+              :clickable="!!submission.artwork_id"
+              :show-distance="false"
+              @click="onCardClick"
+            >
+              <!-- Moderation state badge on thumbnail -->
+              <template #badge>
+                <span
+                  :class="getStatusClass(submission.status)"
+                  class="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-opacity-90"
+                >
+                  {{ submission.status.charAt(0).toUpperCase() + submission.status.slice(1) }}
+                </span>
+              </template>
+            </ArtworkCard>
 
-                <div class="flex-shrink-0 w-full sm:w-auto mt-4 sm:mt-0">
-                  <div class="flex items-center justify-end gap-4">
-                    <div
-                      v-if="submission.data_parsed?.photos && submission.data_parsed?.photos.length > 0"
-                      class="w-16 h-16 bg-gray-100 rounded-md overflow-hidden"
-                    >
-                      <img
-                        v-if="submission.data_parsed?.photos[0]?.url"
-                        :src="submission.data_parsed?.photos[0]?.url"
-                        alt="Submission photo"
-                        class="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div class="text-right">
-                      <p class="text-sm font-medium text-gray-900">
-                        {{ submission.submission_type.replace(/_/g, ' ') }}
-                      </p>
-                      <p v-if="submission.lat && submission.lon" class="text-xs text-gray-500">
-                        {{ submission.lat.toFixed(4) }}, {{ submission.lon.toFixed(4) }}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </li>
-          </ul>
+            <!-- Meta below the card -->
+            <div class="mt-2 flex items-center justify-between">
+              <span class="text-xs text-gray-500">
+                {{ submission.submission_type.replace(/_/g, ' ') }}
+              </span>
+              <span class="text-xs text-gray-500">
+                {{ formatDateSafe(submission.submitted_at, submission.created_at) }}
+                <span v-if="submission.lat && submission.lon">
+                  • {{ submission.lat.toFixed(4) }}, {{ submission.lon.toFixed(4) }}
+                </span>
+              </span>
+            </div>
+          </div>
         </div>
       </section>
     </div>

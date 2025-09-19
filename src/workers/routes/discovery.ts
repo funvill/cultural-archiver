@@ -486,7 +486,7 @@ export async function getArtworkStats(db: D1Database): Promise<{
         COUNT(*) as total_submissions,
         SUM(CASE WHEN created_at > datetime('now', '-7 days') THEN 1 ELSE 0 END) as recent_submissions
       FROM submissions
-      WHERE submission_type = 'logbook'
+      WHERE submission_type = 'logbook_entry'
     `);
 
     const [artworkResult, submissionResult] = await Promise.all([
@@ -528,15 +528,15 @@ export async function searchArtworks(
     // For MVP, we'll do a simple text search on notes
     // In production, this would use a proper search index
     const stmt = db.db.prepare(`
-      SELECT DISTINCT a.*, COALESCE(type_tag.value, 'unknown') as type_name,
+      SELECT DISTINCT a.*, 
+             COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name,
              0 as distance_km -- TODO: Calculate if lat/lon provided
       FROM artwork a
-      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
-      LEFT JOIN logbook l ON a.id = l.artwork_id
+      LEFT JOIN submissions s ON a.id = s.artwork_id AND s.status = 'approved' AND s.submission_type = 'logbook_entry'
       WHERE a.status = 'approved'
         AND (
-          type_tag.value LIKE ? OR
-          l.note LIKE ?
+          COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') LIKE ? OR
+          s.notes LIKE ?
         )
       ORDER BY a.created_at DESC
       LIMIT 20
@@ -585,10 +585,11 @@ export async function getPopularArtworks(
 
   try {
     const stmt = db.db.prepare(`
-      SELECT a.*, COALESCE(type_tag.value, 'unknown') as type_name, COUNT(l.id) as submission_count
+      SELECT a.*, 
+             COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name, 
+             COUNT(s.id) as submission_count
       FROM artwork a
-      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
-      LEFT JOIN logbook l ON a.id = l.artwork_id AND l.status = 'approved'
+      LEFT JOIN submissions s ON a.id = s.artwork_id AND s.status = 'approved' AND s.submission_type = 'logbook_entry'
       WHERE a.status = 'approved'
       GROUP BY a.id
       ORDER BY submission_count DESC, a.created_at DESC
@@ -638,9 +639,8 @@ export async function getRecentArtworks(
 
   try {
     const stmt = db.db.prepare(`
-      SELECT a.*, COALESCE(type_tag.value, 'unknown') as type_name
+      SELECT a.*, COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name
       FROM artwork a
-      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
       WHERE a.status = 'approved'
       ORDER BY a.created_at DESC
       LIMIT ?
