@@ -807,3 +807,52 @@ export async function getCreatorsForArtwork(
   const service = createDatabaseService(db);
   return service.getCreatorsForArtwork(artworkId);
 }
+
+// ================================
+// Logbook Functions
+// ================================
+
+/**
+ * Check if a user is on cooldown for submitting logbook entries for a specific artwork
+ * Users can only submit one logbook entry per artwork every 30 days
+ */
+export async function getLogbookCooldownStatus(
+  db: D1Database,
+  artworkId: string,
+  userToken: string
+): Promise<{ onCooldown: boolean; cooldownUntil?: string }> {
+  try {
+    // Check for any approved or pending logbook entry from this user for this artwork in the last 30 days
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    
+    const stmt = db.prepare(`
+      SELECT created_at FROM submissions 
+      WHERE user_token = ? 
+        AND artwork_id = ? 
+        AND submission_type = 'logbook_entry'
+        AND status IN ('pending', 'approved')
+        AND created_at > ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `);
+    
+    const result = await stmt.bind(userToken, artworkId, thirtyDaysAgo).first<{ created_at: string }>();
+    
+    if (!result) {
+      return { onCooldown: false };
+    }
+    
+    // Calculate when the cooldown expires (30 days from the last submission)
+    const lastSubmission = new Date(result.created_at);
+    const cooldownUntil = new Date(lastSubmission.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
+    return {
+      onCooldown: true,
+      cooldownUntil: cooldownUntil.toISOString(),
+    };
+  } catch (error) {
+    console.error('Failed to check logbook cooldown status:', error);
+    // Return no cooldown on error to allow submission (fail open)
+    return { onCooldown: false };
+  }
+}

@@ -14,9 +14,10 @@ import type {
 } from '../types';
 import type { StructuredTagsData } from '../../shared/types';
 import { DEFAULT_ARTWORK_SEARCH_RADIUS } from '../../shared/geo';
-import { createDatabaseService } from '../lib/database';
+import { createDatabaseService, getLogbookCooldownStatus } from '../lib/database';
 import { createSuccessResponse, NotFoundError } from '../lib/errors';
 import { getValidatedData } from '../middleware/validation';
+import { getUserToken } from '../middleware/auth';
 import { safeJsonParse } from '../lib/errors';
 import { createSimilarityService } from '../lib/similarity';
 import { categorizeTagsForDisplay } from '../../shared/tag-display';
@@ -440,6 +441,18 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       }
     }
 
+    // Check logbook cooldown status for the current user (if authenticated)
+    let userLogbookStatus: { onCooldown: boolean; cooldownUntil?: string } | undefined;
+    try {
+      const userToken = getUserToken(c);
+      if (userToken) {
+        userLogbookStatus = await getLogbookCooldownStatus(c.env.DB, artworkId, userToken);
+      }
+    } catch (error) {
+      console.warn('Failed to check logbook cooldown status:', error);
+      // Continue without cooldown status if check fails
+    }
+
   const response: ArtworkDetailResponse = {
       ...artwork,
       type_name: artwork.type_name,
@@ -449,6 +462,7 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       tags_categorized: categorizedTags,
       artists: artists,
       artist_name: artistName,
+      ...(userLogbookStatus && { userLogbookStatus }),
     };
 
     return c.json(createSuccessResponse(response));
