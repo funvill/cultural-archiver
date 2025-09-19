@@ -167,6 +167,57 @@ watch(
   { immediate: true }
 );
 
+// Watch for route query parameter changes (lat/lng coordinates from new image uploads)
+watch(
+  () => ({ 
+    lat: route.query.lat, 
+    lng: route.query.lng, 
+    source: route.query.source,
+    storePhotos: fastUploadStore.photos,
+    storeLocation: fastUploadStore.location,
+    storeDetectedSources: fastUploadStore.detectedSources
+  }),
+  (newQuery: { lat: unknown; lng: unknown; source: unknown; storePhotos: any; storeLocation: any; storeDetectedSources: any }, 
+   oldQuery?: { lat: unknown; lng: unknown; source: unknown; storePhotos: any; storeLocation: any; storeDetectedSources: any }) => {
+    // Only handle fast-upload source with coordinates
+    if (newQuery.source !== 'fast-upload') return;
+    if (!newQuery.lat || !newQuery.lng) return;
+    
+    // Check if coordinates actually changed or if store data changed
+    const coordsChanged = newQuery.lat !== oldQuery?.lat || newQuery.lng !== oldQuery?.lng;
+    const storePhotosChanged = newQuery.storePhotos !== oldQuery?.storePhotos;
+    const storeLocationChanged = newQuery.storeLocation !== oldQuery?.storeLocation;
+    
+    if (!coordsChanged && !storePhotosChanged && !storeLocationChanged) return;
+
+    // Parse coordinates
+    const lat = parseFloat(newQuery.lat as string);
+    const lng = parseFloat(newQuery.lng as string);
+    
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    // Update fast upload session with new coordinates and latest store data
+    const newLocation = { latitude: lat, longitude: lng };
+    
+    // Always update session with latest store data
+    fastUploadSession.value = {
+      photos: fastUploadStore.photos.map((p: {id: string, name: string, preview?: string}) => {
+        const base = { id: p.id, name: p.name } as { id: string; name: string; preview?: string };
+        if (p.preview) base.preview = p.preview;
+        return base;
+      }),
+      location: newLocation,
+      detectedSources: fastUploadStore.detectedSources || newQuery.storeDetectedSources,
+    };
+    
+    // Trigger new location search if coordinates changed
+    if (coordsChanged) {
+      performLocationSearch(lat, lng);
+    }
+  },
+  { immediate: true, deep: true }
+);
+
 // Removed photo search mode watcher
 
 // Watch for empty state after search completes
