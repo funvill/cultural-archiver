@@ -1070,6 +1070,160 @@ export async function validateArtworkEditRequest(
 }
 
 /**
+ * Validate unified submission request
+ */
+export async function validateUnifiedSubmission(
+  c: Context<{ Bindings: WorkerEnv }>,
+  next: Next
+): Promise<void | Response> {
+  try {
+    const contentType = c.req.header('Content-Type');
+
+    // Handle multipart form data (with files)
+    if (contentType?.includes('multipart/form-data')) {
+      const formData = await c.req.formData();
+      const validationErrors = [];
+
+      // Extract submission type (required)
+      const submissionType = formData.get('submissionType') as string;
+      if (!submissionType) {
+        validationErrors.push({
+          field: 'submissionType',
+          message: 'Submission type is required',
+          code: 'REQUIRED',
+        });
+      } else if (!['logbook', 'new_artwork', 'artwork_edit'].includes(submissionType)) {
+        validationErrors.push({
+          field: 'submissionType',
+          message: 'Invalid submission type. Must be: logbook, new_artwork, or artwork_edit',
+          code: 'INVALID_TYPE',
+        });
+      }
+
+      // Extract coordinates (required)
+      const lat = parseFloat(formData.get('lat') as string);
+      const lon = parseFloat(formData.get('lon') as string);
+
+      if (isNaN(lat) || lat < -90 || lat > 90) {
+        validationErrors.push({
+          field: 'lat',
+          message: 'Valid latitude is required (-90 to 90)',
+          code: 'INVALID_COORDINATES',
+        });
+      }
+
+      if (isNaN(lon) || lon < -180 || lon > 180) {
+        validationErrors.push({
+          field: 'lon',
+          message: 'Valid longitude is required (-180 to 180)',
+          code: 'INVALID_COORDINATES',
+        });
+      }
+
+      // Logbook-specific validation
+      if (submissionType === 'logbook') {
+        const artworkId = formData.get('artworkId') as string;
+        if (!artworkId) {
+          validationErrors.push({
+            field: 'artworkId',
+            message: 'Artwork ID is required for logbook submissions',
+            code: 'REQUIRED',
+          });
+        }
+      }
+
+      // Build validated data object
+      const validatedData: Record<string, unknown> = {
+        submissionType,
+        lat,
+        lon,
+      };
+
+      // Add optional fields
+      const notes = formData.get('notes') as string;
+      if (notes) validatedData.notes = notes;
+
+      const artworkId = formData.get('artworkId') as string;
+      if (artworkId) validatedData.artworkId = artworkId;
+
+      const condition = formData.get('condition') as string;
+      if (condition) validatedData.condition = condition;
+
+      const consentVersion = formData.get('consent_version') as string;
+      if (consentVersion) validatedData.consent_version = consentVersion;
+
+      if (validationErrors.length > 0) {
+        throw new ValidationApiError(validationErrors);
+      }
+
+      // Store validated data for route handler
+      c.set('validated_body', validatedData);
+    } else {
+      // Handle JSON requests
+      const body = await c.req.json();
+      const validationErrors = [];
+
+      // Validate submission type
+      if (!body.submissionType) {
+        validationErrors.push({
+          field: 'submissionType',
+          message: 'Submission type is required',
+          code: 'REQUIRED',
+        });
+      } else if (!['logbook', 'new_artwork', 'artwork_edit'].includes(body.submissionType)) {
+        validationErrors.push({
+          field: 'submissionType',
+          message: 'Invalid submission type. Must be: logbook, new_artwork, or artwork_edit',
+          code: 'INVALID_TYPE',
+        });
+      }
+
+      // Validate coordinates
+      if (typeof body.lat !== 'number' || body.lat < -90 || body.lat > 90) {
+        validationErrors.push({
+          field: 'lat',
+          message: 'Valid latitude is required (-90 to 90)',
+          code: 'INVALID_COORDINATES',
+        });
+      }
+
+      if (typeof body.lon !== 'number' || body.lon < -180 || body.lon > 180) {
+        validationErrors.push({
+          field: 'lon',
+          message: 'Valid longitude is required (-180 to 180)',
+          code: 'INVALID_COORDINATES',
+        });
+      }
+
+      // Logbook-specific validation
+      if (body.submissionType === 'logbook' && !body.artworkId) {
+        validationErrors.push({
+          field: 'artworkId',
+          message: 'Artwork ID is required for logbook submissions',
+          code: 'REQUIRED',
+        });
+      }
+
+      if (validationErrors.length > 0) {
+        throw new ValidationApiError(validationErrors);
+      }
+
+      // Store validated data
+      c.set('validated_body', body);
+    }
+
+    await next();
+  } catch (error) {
+    if (error instanceof ValidationApiError) {
+      throw error;
+    }
+    throw new ValidationApiError([
+      { field: 'body', message: 'Unified submission validation failed', code: 'SUBMISSION_VALIDATION_ERROR' },
+    ]);
+  }
+}
+
+/**
  * Helper function to get validated tags from context
  */
 export function getValidatedTags(c: Context): StructuredTags | undefined {
