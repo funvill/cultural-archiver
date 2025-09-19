@@ -17,6 +17,7 @@ const AdminView = (): Promise<Component> => import('../views/AdminView.vue');
 const VerifyView = (): Promise<Component> => import('../views/VerifyView.vue');
 const SearchView = (): Promise<Component> => import('../views/SearchView.vue');
 const FastPhotoUploadView = (): Promise<Component> => import('../views/FastPhotoUploadView.vue');
+const LogbookSubmissionView = (): Promise<Component> => import('../views/LogbookSubmissionView.vue');
 
 const router = createRouter({
   history: createWebHistory(),
@@ -93,6 +94,15 @@ const router = createRouter({
       props: true,
       meta: {
         title: 'Artwork Details - Cultural Archiver',
+      },
+    },
+    {
+      path: '/logbook/:artworkId',
+      name: 'LogbookSubmission',
+      component: LogbookSubmissionView,
+      props: true,
+      meta: {
+        title: 'Log a Visit - Cultural Archiver',
       },
     },
     {

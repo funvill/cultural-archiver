@@ -14,8 +14,10 @@ import type {
   FastArtworkSubmissionResponse,
   NearbyArtworkInfo,
   CreateSubmissionEntryRequest,
+  UnifiedSubmissionRequest,
 } from '../types';
-import { createDatabaseService } from '../lib/database';
+import { createDatabaseService, getLogbookCooldownStatus } from '../lib/database';
+import { createSubmission as createSubmissionEntry } from '../lib/submissions';
 import { createSuccessResponse, ValidationApiError, ApiError } from '../lib/errors';
 import { validatePhotoFiles } from '../lib/photos';
 import { getUserToken } from '../middleware/auth';
@@ -679,4 +681,208 @@ function getSimilarityExplanation(result: {
   return explanations.length > 0 
     ? `${scorePercent}% similar (${explanations.join(', ')})`
     : `${scorePercent}% similar`;
+}
+
+/**
+ * POST /api/submissions - Unified Submission Handler
+ * Handles different types of submissions based on submissionType field
+ */
+export async function createUnifiedSubmission(
+  c: Context<{ Bindings: WorkerEnv }>
+): Promise<Response> {
+  const userToken = getUserToken(c);
+  const validatedData = getValidatedData<UnifiedSubmissionRequest>(c, 'body');
+  const validatedFiles = getValidatedFiles(c);
+
+  try {
+    // Route to appropriate handler based on submission type
+    switch (validatedData.submissionType) {
+      case 'logbook':
+        return await handleLogbookSubmission(c, userToken, validatedData, validatedFiles);
+      case 'new_artwork':
+        // TODO: Implement new artwork submission
+        throw new ApiError('New artwork submissions not yet implemented', 'NOT_IMPLEMENTED', 501);
+      case 'artwork_edit':
+        // TODO: Implement artwork edit submission
+        throw new ApiError('Artwork edit submissions not yet implemented', 'NOT_IMPLEMENTED', 501);
+      default:
+        throw new ValidationApiError(
+          [{ field: 'submissionType', message: 'Invalid submission type', code: 'INVALID_TYPE' }],
+          'Invalid submission type'
+        );
+    }
+  } catch (error) {
+    if (error instanceof ApiError || error instanceof ValidationApiError) {
+      throw error;
+    }
+    
+    console.error('Unified submission handler error:', error);
+    throw new ApiError(
+      'Submission processing failed',
+      'SUBMISSION_FAILED',
+      500
+    );
+  }
+}
+
+/**
+ * Handle logbook submission (user visit documentation)
+ */
+async function handleLogbookSubmission(
+  c: Context<{ Bindings: WorkerEnv }>,
+  userToken: string,
+  data: UnifiedSubmissionRequest,
+  files: File[]
+): Promise<Response> {
+  // Validation: artworkId is required for logbook submissions
+  if (!data.artworkId) {
+    throw new ValidationApiError(
+      [{ field: 'artworkId', message: 'Artwork ID is required for logbook submissions', code: 'REQUIRED' }],
+      'Missing required field: artworkId'
+    );
+  }
+
+  // Validation: at least one photo is required
+  if (!files || files.length === 0) {
+    throw new ValidationApiError(
+      [{ field: 'photos', message: 'At least one photo is required for logbook submissions', code: 'REQUIRED' }],
+      'Photo is required for logbook entries'
+    );
+  }
+
+  // Check 30-day cooldown
+  const cooldownStatus = await getLogbookCooldownStatus(c.env.DB, data.artworkId, userToken);
+  if (cooldownStatus.onCooldown) {
+    const cooldownDate = cooldownStatus.cooldownUntil ? new Date(cooldownStatus.cooldownUntil) : null;
+    const dateStr = cooldownDate ? cooldownDate.toLocaleDateString() : 'a later date';
+    
+    throw new ApiError(
+      `You can only submit one logbook entry per artwork every 30 days. Please try again after ${dateStr}.`,
+      'COOLDOWN_ACTIVE',
+      429,
+      {
+        details: {
+          cooldownUntil: cooldownStatus.cooldownUntil,
+          retryAfter: cooldownDate ? Math.ceil((cooldownDate.getTime() - Date.now()) / 1000) : 86400
+        }
+      }
+    );
+  }
+
+  // Verify artwork exists
+  const db = createDatabaseService(c.env.DB);
+  const artwork = await db.getArtworkWithDetails(data.artworkId);
+  if (!artwork) {
+    throw new ValidationApiError(
+      [{ field: 'artworkId', message: 'Artwork not found', code: 'NOT_FOUND' }],
+      'Artwork not found'
+    );
+  }
+
+  try {
+    // Generate content ID for consent and submission
+    const contentId = crypto.randomUUID();
+    const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
+    
+    // Record consent
+    const consentVersion = data.consent_version || CONSENT_VERSION;
+    const consentTextHash = await generateConsentTextHash(
+      `Cultural Archiver Consent v${consentVersion} - Logbook Submission`
+    );
+    
+    const isAuthenticated = userToken && userToken.length > 36;
+    const consentParams = {
+      ...(isAuthenticated ? { userId: userToken } : { anonymousToken: userToken }),
+      contentType: 'logbook' as const,
+      contentId,
+      consentVersion,
+      ipAddress: clientIP,
+      consentTextHash,
+      db: c.env.DB,
+    };
+
+    await recordConsent(consentParams);
+
+    // Process photos
+    const photoUrls = await processPhotos(c.env, files, contentId);
+    
+    // Check EXIF location if available and flag mismatch
+    let locationMismatch = false;
+    try {
+      // TODO: Extract EXIF location from photos and check distance
+      // For now, use provided coordinates vs artwork coordinates
+      if (data.lat && data.lon) {
+        const distance = calculateDistance(
+          data.lat, data.lon,
+          artwork.lat, artwork.lon
+        );
+        locationMismatch = distance > 1000; // > 1km
+      }
+    } catch (error) {
+      console.warn('Failed to check EXIF location:', error);
+    }
+
+    // Build notes from condition and other responses
+    const notes = [];
+    if (data.condition) {
+      notes.push(`Condition: ${data.condition}`);
+    }
+    if (data.notes) {
+      notes.push(data.notes);
+    }
+
+    // Create submission record
+    const submissionId = await createSubmissionEntry(c.env.DB, {
+      submissionType: 'logbook_entry',
+      userToken,
+      artworkId: data.artworkId,
+      lat: data.lat,
+      lon: data.lon,
+      notes: notes.join('; '),
+      photos: photoUrls,
+      ...(locationMismatch && { tags: { location_mismatch: 'true' } }),
+      verificationStatus: 'pending',
+    });
+
+    // Create response
+    const response: SubmissionResponse = {
+      id: submissionId,
+      status: 'pending',
+      message: 'Submission received for review.',
+      nearby_artworks: [], // Not applicable for logbook submissions
+    };
+
+    return c.json(createSuccessResponse(response), 201);
+
+  } catch (error) {
+    console.error('Logbook submission failed:', error);
+    
+    if (error instanceof ApiError || error instanceof ValidationApiError) {
+      throw error;
+    }
+    
+    throw new ApiError(
+      'Failed to process logbook submission',
+      'LOGBOOK_SUBMISSION_FAILED',
+      500
+    );
+  }
+}
+
+/**
+ * Calculate distance between two points in meters
+ */
+function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3; // Earth's radius in meters
+  const φ1 = lat1 * Math.PI/180;
+  const φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180;
+  const Δλ = (lon2-lon1) * Math.PI/180;
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+          Math.cos(φ1) * Math.cos(φ2) *
+          Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  return R * c;
 }

@@ -114,6 +114,32 @@ export interface SubmissionRequest {
   consent_version?: string; // Track consent version for compliance
 }
 
+// Unified submissions API for different submission types
+export interface UnifiedSubmissionRequest {
+  submissionType: 'logbook' | 'new_artwork' | 'artwork_edit';
+  lat: number;
+  lon: number;
+  notes?: string;
+  photos?: File[];
+  consent_version?: string;
+  
+  // Logbook-specific fields
+  artworkId?: string; // Required for logbook submissions
+  condition?: string; // Optional condition assessment
+  
+  // New artwork specific fields  
+  title?: string;
+  tags?: Record<string, string | number>;
+  
+  // Artwork edit specific fields
+  artwork_id?: string;
+  edits?: Array<{
+    field_name: string;
+    field_value_old: string | null;
+    field_value_new: string | null;
+  }>;
+}
+
 // Fast photo-first workflow submission types
 export interface FastArtworkSubmissionRequest {
   // Location data

@@ -30,11 +30,12 @@ import {
   validateCheckSimilarity,
   artworkListSchema,
   artistListSchema,
+  validateUnifiedSubmission,
 } from './middleware/validation';
 import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
 // Import route handlers
-import { createSubmission, createFastArtworkSubmission } from './routes/submissions';
+import { createSubmission, createFastArtworkSubmission, createUnifiedSubmission } from './routes/submissions';
 import {
   getNearbyArtworks,
   getArtworkDetails,
@@ -693,6 +694,17 @@ app.post(
   validateFastArtworkSubmission,
   addUserTokenToResponse,
   withErrorHandling(createFastArtworkSubmission)
+);
+
+// Unified submissions endpoint (PRD requirement)
+app.post(
+  '/api/submissions',
+  ensureUserToken,
+  rateLimitSubmissions,
+  validateFileUploads,
+  validateUnifiedSubmission,
+  addUserTokenToResponse,
+  withErrorHandling(createUnifiedSubmission)
 );
 
 // ================================

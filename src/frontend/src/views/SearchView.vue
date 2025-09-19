@@ -118,6 +118,11 @@ function handleArtworkClick(artwork: SearchResult): void {
   }
 }
 
+function handleAddReport(artwork: SearchResult): void {
+  // Navigate directly to logbook submission page
+  router.push(`/logbook/${artwork.id}`);
+}
+
 function handleAddNewArtwork(): void {
   // Navigate to simplified artwork details form
   router.push('/artwork/new?from=fast-upload');
@@ -792,7 +797,9 @@ onUnmounted(() => {
             :key="artwork.id"
             :artwork="artwork"
             :show-distance="false"
+            :show-add-report="isFromFastUpload"
             @click="handleArtworkClick"
+            @add-report="handleAddReport"
           />
 
           <!-- Loading More Skeleton Cards -->

@@ -230,6 +230,7 @@ POST /api/submissions
   - `artist_edit` - Edit to artist information  
   - `new_artwork` - New artwork submission
   - `new_artist` - New artist profile submission
+  - `logbook` - Log a visit to an existing artwork with photo proof
 - `lat` (required for location-based submissions): Latitude (-90 to 90)
 - `lon` (required for location-based submissions): Longitude (-180 to 180)
 - `artwork_id` (required for artwork_edit/artwork_photos): Target artwork UUID
@@ -310,6 +311,51 @@ const response = await fetch('/api/submissions', {
   },
   body: formData,
 });
+```
+
+**Example - Logbook Entry**:
+
+```javascript
+const formData = new FormData();
+formData.append('submissionType', 'logbook');
+formData.append('artworkId', 'artwork-uuid');
+formData.append('lat', '49.2827');
+formData.append('lon', '-123.1207');
+formData.append('photos', fileInput.files[0]); // Required: proof of visit
+formData.append('condition', 'Good'); // Optional condition assessment
+formData.append('notes', 'Visited on sunny day, artwork in great condition');
+// Optional improvement fields (only if missing from artwork)
+formData.append('artist', 'Artist Name');
+formData.append('material', 'Bronze');
+
+const response = await fetch('/api/submissions', {
+  method: 'POST',
+  headers: {
+    Authorization: 'Bearer your-user-token',
+  },
+  body: formData,
+});
+```
+
+**Logbook Submission Details**:
+- **Purpose**: Document visits to existing artworks with photo proof
+- **Cooldown**: 30-day cooldown period per artwork per user
+- **Photo Required**: At least one photo is mandatory as proof of visit
+- **Condition Assessment**: Optional multiple-choice question (Good/Damaged/Missing/Removed)
+- **Improvement Fields**: Only shown if artwork data is missing (type, access, artist, material)
+- **Response**: Returns 429 Too Many Requests if user is on cooldown
+
+**Error Response - Cooldown**:
+```json
+{
+  "success": false,
+  "error": "COOLDOWN_ACTIVE",
+  "message": "You can only submit one logbook entry per artwork every 30 days. Please try again after 2025-10-19.",
+  "details": {
+    "cooldownUntil": "2025-10-19T07:00:00.000Z",
+    "retryAfter": 2592000
+  }
+}
 ```
 
 ### Discovery Endpoints

@@ -9,6 +9,7 @@ interface Props {
   compact?: boolean;
   showDistance?: boolean;
   clickable?: boolean;
+  showAddReport?: boolean; // New prop for showing "Add Report" button
 }
 
 // Emits interface
@@ -16,6 +17,7 @@ interface Emits {
   (e: 'click', artwork: SearchResult): void;
   (e: 'imageLoad'): void;
   (e: 'imageError'): void;
+  (e: 'addReport', artwork: SearchResult): void; // New emit for Add Report button
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -23,6 +25,7 @@ const props = withDefaults(defineProps<Props>(), {
   compact: false,
   showDistance: false,
   clickable: true,
+  showAddReport: false,
 });
 
 const emit = defineEmits<Emits>();
@@ -88,6 +91,13 @@ const photoCount = computed(() => {
 function handleClick(): void {
   if (props.clickable && !props.loading) {
     emit('click', props.artwork);
+  }
+}
+
+function handleAddReport(event: Event): void {
+  event.stopPropagation(); // Prevent card click
+  if (!props.loading) {
+    emit('addReport', props.artwork);
   }
 }
 
@@ -267,6 +277,20 @@ function handleKeydown(event: KeyboardEvent): void {
             <span class="font-medium">Year:</span>
             <span class="ml-1">{{ artwork.tags.year || artwork.tags.year_of_installation }}</span>
           </div>
+        </div>
+
+        <!-- Add Report Button (only shown when showAddReport is true) -->
+        <div v-if="showAddReport" class="mt-4 pt-3 border-t border-gray-200">
+          <button
+            @click="handleAddReport"
+            :disabled="!!loading"
+            class="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+          >
+            <svg class="w-4 h-4 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Report
+          </button>
         </div>
       </div>
     </div>
