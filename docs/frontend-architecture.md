@@ -39,6 +39,7 @@ src/frontend/
 │   ├── ProfileView.vue # User submissions dashboard and statistics
 │   ├── ReviewView.vue  # Content moderation interface (admin/moderator only)
 │   ├── SearchView.vue  # Advanced search with filters and facets
+│   ├── LogbookSubmissionView.vue # Logbook visit submission with photo proof and condition assessment
 │   └── PhotoSearchView.vue # Reverse image search interface
 ├── composables/        # Reusable business logic (Vue 3 Composition API)
 │   ├── useApi.ts       # API integration with error handling and retries
@@ -52,6 +53,7 @@ src/frontend/
 │   ├── auth.ts         # User authentication state and session management
 │   ├── artworks.ts     # Artwork data and map state
 │   ├── submissions.ts  # User submission history and pending items
+│   ├── logbookSubmission.ts # Logbook visit submission form state and API integration
 │   └── ui.ts           # UI state (modals, loading, notifications)
 ├── services/           # External service integrations
 │   ├── api.ts          # Type-safe API client with request/response interceptors

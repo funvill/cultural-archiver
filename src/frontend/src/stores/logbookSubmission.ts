@@ -69,7 +69,7 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
   });
 
   // Actions
-  async function fetchArtworkDetails(artworkId: string) {
+  async function fetchArtworkDetails(artworkId: string): Promise<void> {
     if (!artworkId) {
       artworkError.value = 'Artwork ID is required';
       return;
@@ -89,7 +89,7 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
     }
   }
 
-  function setPhoto(file: File) {
+  function setPhoto(file: File): void {
     selectedPhoto.value = file;
     
     // Create preview
@@ -100,32 +100,32 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
     reader.readAsDataURL(file);
   }
 
-  function removePhoto() {
+  function removePhoto(): void {
     selectedPhoto.value = null;
     photoPreview.value = null;
   }
 
-  function setCondition(value: string) {
+  function setCondition(value: string): void {
     condition.value = value;
   }
 
-  function setNotes(value: string) {
+  function setNotes(value: string): void {
     notes.value = value;
   }
 
-  function setArtworkType(value: string) {
+  function setArtworkType(value: string): void {
     artworkType.value = value;
   }
 
-  function setAccess(value: string) {
+  function setAccess(value: string): void {
     access.value = value;
   }
 
-  function setArtist(value: string) {
+  function setArtist(value: string): void {
     artist.value = value;
   }
 
-  function setMaterial(value: string) {
+  function setMaterial(value: string): void {
     material.value = value;
   }
 
@@ -226,7 +226,7 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
     }
   }
 
-  function clearForm() {
+  function clearForm(): void {
     selectedPhoto.value = null;
     photoPreview.value = null;
     condition.value = '';
@@ -238,13 +238,13 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
     submitError.value = null;
   }
 
-  function clearErrors() {
+  function clearErrors(): void {
     artworkError.value = null;
     submitError.value = null;
   }
 
   // Reset store state
-  function reset() {
+  function reset(): void {
     artwork.value = null;
     isLoadingArtwork.value = false;
     artworkError.value = null;

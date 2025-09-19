@@ -193,7 +193,7 @@ describe('Logbook Submission Store', () => {
       const mockFileReader = {
         readAsDataURL: vi.fn(),
         result: 'data:image/jpeg;base64,mockdata',
-        onload: null as any,
+        onload: null as ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null,
       };
       vi.stubGlobal('FileReader', vi.fn(() => mockFileReader));
 
