@@ -11,6 +11,7 @@ import {
   CheckCircleIcon
 } from '@heroicons/vue/24/outline';
 import { useLogbookSubmissionStore } from '../stores/logbookSubmission';
+import ConsentSection from '../components/FastWorkflow/ConsentSection.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -27,8 +28,25 @@ const props = defineProps<Props>();
 const showToast = ref(false);
 const toastMessage = ref('');
 
+// Consent section ref and state
+const consentSection = ref<InstanceType<typeof ConsentSection> | null>(null);
+const consentCheckboxes = ref({
+  ageVerification: false,
+  cc0Licensing: false,
+  publicCommons: false,
+  freedomOfPanorama: false,
+});
+
 // Computed
 const artworkId = computed(() => props.artworkId || route.params.artworkId as string);
+
+const allConsentsAccepted = computed(() => {
+  return Object.values(consentCheckboxes.value).every(Boolean);
+});
+
+const canSubmit = computed(() => {
+  return store.canSubmit && allConsentsAccepted.value;
+});
 
 // Form handlers
 function handlePhotoChange(event: Event) {
@@ -41,7 +59,7 @@ function handlePhotoChange(event: Event) {
 }
 
 async function handleSubmit() {
-  if (!store.canSubmit) return;
+  if (!canSubmit.value) return;
 
   try {
     const result = await store.submitLogbookEntry(artworkId.value);
@@ -59,6 +77,10 @@ async function handleSubmit() {
     console.error('Submission failed:', error);
     // Error handling is managed by the store
   }
+}
+
+function handleConsentChanged(consents: any) {
+  consentCheckboxes.value = consents;
 }
 
 function showSuccessToast(message: string) {
@@ -308,6 +330,15 @@ onMounted(() => {
               </div>
             </div>
 
+            <!-- Consent Section -->
+            <div class="mt-8">
+              <ConsentSection
+                ref="consentSection"
+                consent-version="2025-01-01"
+                @consentChanged="handleConsentChanged"
+              />
+            </div>
+
             <!-- Submit Buttons -->
             <div class="flex space-x-4">
               <button
@@ -319,7 +350,7 @@ onMounted(() => {
               </button>
               <button
                 type="submit"
-                :disabled="!store.canSubmit"
+                :disabled="!canSubmit"
                 class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span v-if="store.isSubmitting" class="flex items-center justify-center">
