@@ -115,15 +115,15 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-50 py-8">
+  <div data-testid="logbook-submission-view" class="min-h-screen bg-gray-50 py-8">
     <div class="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
       
       <!-- Header with visual distinction -->
-      <div class="bg-green-600 text-white px-6 py-4 rounded-t-lg">
+      <div data-testid="submission-header" class="bg-green-600 text-white px-6 py-4 rounded-t-lg">
         <div class="flex items-center justify-between">
           <div>
             <h1 class="text-2xl font-bold">Log a Visit</h1>
-            <p class="text-green-100 mt-1">Document your visit to this artwork</p>
+            <p data-testid="log-visit-banner" class="text-green-100 mt-1">Document your visit to this artwork</p>
           </div>
           <button
             @click="goBack"
@@ -138,18 +138,19 @@ onMounted(() => {
 
       <div class="bg-white shadow-lg rounded-b-lg overflow-hidden">
         <!-- Loading State -->
-        <div v-if="store.isLoadingArtwork" class="p-8 text-center">
+        <div v-if="store.isLoadingArtwork" data-testid="loading-spinner" class="p-8 text-center">
           <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
           <p class="mt-4 text-gray-600">Loading artwork details...</p>
         </div>
 
         <!-- Error State -->
-        <div v-else-if="store.artworkError" class="p-8 text-center">
+        <div v-else-if="store.artworkError" data-testid="error-state" class="p-8 text-center">
           <ExclamationTriangleIcon class="h-12 w-12 text-red-500 mx-auto" />
           <h3 class="mt-4 text-lg font-medium text-gray-900">Failed to Load Artwork</h3>
           <p class="mt-2 text-gray-600">{{ store.artworkError }}</p>
           <button
             @click="store.fetchArtworkDetails(artworkId)"
+            data-testid="try-again-button"
             class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
             Try Again
@@ -157,12 +158,13 @@ onMounted(() => {
         </div>
 
         <!-- Cooldown State -->
-        <div v-else-if="store.isOnCooldown" class="p-8 text-center">
+        <div v-else-if="store.isOnCooldown" data-testid="cooldown-state" class="p-8 text-center">
           <CheckCircleIcon class="h-12 w-12 text-green-500 mx-auto" />
           <h3 class="mt-4 text-lg font-medium text-gray-900">Recent Visit Recorded</h3>
           <p class="mt-2 text-gray-600">{{ store.cooldownMessage }}</p>
           <button
             @click="goBack"
+            data-testid="cooldown-go-back"
             class="mt-4 px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
           >
             Go Back
@@ -170,9 +172,9 @@ onMounted(() => {
         </div>
 
         <!-- Main Form -->
-        <div v-else-if="store.artwork" class="p-6">
+        <div v-else-if="store.artwork" data-testid="main-form" class="p-6">
           <!-- Artwork Info -->
-          <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+          <div data-testid="artwork-info" class="mb-6 p-4 bg-gray-50 rounded-lg">
             <h2 class="text-lg font-semibold text-gray-900 mb-2">
               {{ store.artwork.title || 'Untitled Artwork' }}
             </h2>
@@ -184,7 +186,7 @@ onMounted(() => {
 
           <form @submit.prevent="handleSubmit" class="space-y-6">
             <!-- Photo Upload (Required) -->
-            <div>
+            <div data-testid="photo-upload-section">
               <label class="block text-sm font-medium text-gray-700 mb-2">
                 Photo of your visit <span class="text-red-500">*</span>
               </label>
@@ -192,7 +194,7 @@ onMounted(() => {
                 Upload a photo showing the artwork as proof of your visit
               </p>
 
-              <div v-if="!store.selectedPhoto" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+              <div v-if="!store.selectedPhoto" data-testid="photo-input" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
                 <PhotoIcon class="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p class="text-sm text-gray-600 mb-2">Click to select a photo</p>
                 <input
@@ -210,7 +212,7 @@ onMounted(() => {
                 </label>
               </div>
 
-              <div v-else class="space-y-3">
+              <div v-else data-testid="photo-preview" class="space-y-3">
                 <div class="relative">
                   <img
                     v-if="store.photoPreview"
@@ -221,6 +223,7 @@ onMounted(() => {
                   <button
                     type="button"
                     @click="store.removePhoto"
+                    data-testid="remove-photo-button"
                     class="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full hover:bg-red-700"
                   >
                     <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -233,7 +236,7 @@ onMounted(() => {
             </div>
 
             <!-- Condition Assessment -->
-            <div>
+            <div data-testid="condition-section">
               <label class="block text-sm font-medium text-gray-700 mb-2">
                 What is the current condition? (Optional)
               </label>
@@ -270,7 +273,7 @@ onMounted(() => {
             </div>
 
             <!-- Help Us Improve This Listing -->
-            <div>
+            <div data-testid="improvement-section">
               <h3 class="text-lg font-medium text-gray-900 mb-4">Help Us Improve This Listing</h3>
               <p class="text-sm text-gray-600 mb-4">
                 Fill in any missing information you know about this artwork
@@ -344,6 +347,7 @@ onMounted(() => {
               <button
                 type="button"
                 @click="goBack"
+                data-testid="cancel-button"
                 class="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
                 Cancel
@@ -351,6 +355,7 @@ onMounted(() => {
               <button
                 type="submit"
                 :disabled="!canSubmit"
+                data-testid="submit-button"
                 class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span v-if="store.isSubmitting" class="flex items-center justify-center">
@@ -368,6 +373,7 @@ onMounted(() => {
     <!-- Success Toast -->
     <div
       v-if="showToast"
+      data-testid="success-toast"
       class="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 transform transition-transform duration-300"
       :class="{ 'translate-y-0': showToast, 'translate-y-full': !showToast }"
     >

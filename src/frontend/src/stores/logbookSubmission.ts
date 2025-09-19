@@ -55,7 +55,7 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
            hasPhoto.value && 
            !isSubmitting.value && 
            !isLoadingArtwork.value &&
-           artwork.value;
+           !!artwork.value; // Convert to boolean
   });
 
   const hasFormData = computed(() => {
