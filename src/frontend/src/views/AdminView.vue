@@ -4,7 +4,6 @@ import { useAuthStore } from '../stores/auth';
 import { adminService } from '../services/admin';
 import PermissionManager from '../components/PermissionManager.vue';
 import AuditLogViewer from '../components/AuditLogViewer.vue';
-import DataDumpManager from '../components/DataDumpManager.vue';
 import type { AuditStatistics } from '../../../shared/types';
 
 /**
@@ -27,7 +26,7 @@ const activeTab = ref('permissions');
 const tabs = [
   { id: 'permissions', name: 'Permission Management' },
   { id: 'audit', name: 'Audit Logs' },
-  { id: 'data-dumps', name: 'Data Dumps' },
+  // Data Dumps feature removed
 ];
 
 // Check admin access
@@ -307,10 +306,7 @@ onMounted(async () => {
             <AuditLogViewer />
           </div>
 
-          <!-- Data Dumps Tab -->
-          <div v-if="activeTab === 'data-dumps'" class="space-y-6">
-            <DataDumpManager />
-          </div>
+          <!-- Data Dumps Tab removed -->
         </div>
       </div>
     </div>

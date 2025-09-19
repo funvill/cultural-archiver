@@ -56,6 +56,8 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
     tags?: string[]; // Array of tag values
     include_similarity?: boolean;
     similarity_dev_mode?: boolean;
+    // Minimal response for map pins
+    minimal?: boolean;
   }>(c, 'query');
 
   const db = createDatabaseService(c.env.DB);
@@ -84,6 +86,64 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
       });
     }
 
+    // If minimal flag requested, short-circuit and return compact payload for map pins
+    if (validatedQuery.minimal) {
+      // For minimal mode, include a recent photo from artwork.photos, logbook entries, or artwork tags
+      const minimal = await Promise.all(artworks.map(async artwork => {
+        // Try artwork.photos first
+        let recentPhoto: string | null = null;
+        try {
+          if (artwork.photos) {
+            const parsed = safeJsonParse<string[]>(artwork.photos as unknown as string, []);
+            if (parsed.length > 0) recentPhoto = parsed[0] ?? null;
+          }
+        } catch {/* ignore parse errors */}
+
+        // If not found, check logbook entries (submissions)
+        if (!recentPhoto) {
+          try {
+            const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
+            for (const entry of logbookEntries) {
+              if (entry.photos) {
+                const photos = safeJsonParse<string[]>(entry.photos, []);
+                if (photos.length > 0) {
+                  recentPhoto = photos[0] ?? null;
+                  break;
+                }
+              }
+            }
+          } catch {/* ignore logbook errors */}
+        }
+
+        // If still not found, check artwork-level tags for _photos
+        if (!recentPhoto && artwork.tags) {
+          try {
+            const raw = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
+            if (raw && Array.isArray(raw._photos) && raw._photos.length > 0) {
+              if (typeof raw._photos[0] === 'string') recentPhoto = raw._photos[0];
+            }
+          } catch {/* ignore tag parse errors */}
+        }
+
+        return {
+          id: artwork.id,
+          lat: artwork.lat,
+          lon: artwork.lon,
+          type_name: artwork.type_name,
+          recent_photo: recentPhoto,
+        };
+      }));
+
+      const response = {
+        artworks: minimal,
+        total: minimal.length,
+        search_center: { lat: validatedQuery.lat, lon: validatedQuery.lon },
+        search_radius: radius,
+      };
+
+      return c.json(createSuccessResponse(response));
+    }
+
     // Format response with photos and additional info
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       artworks.map(async artwork => {
@@ -100,6 +160,20 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
             }
           }
         });
+
+        // Include photos from artwork.photos field (from mass import and direct uploads)
+        try {
+          if (artwork.photos) {
+            const artworkPhotos = safeJsonParse<string[]>(artwork.photos, []);
+            artworkPhotos.forEach(photoUrl => {
+              if (typeof photoUrl === 'string' && !combinedPhotos.includes(photoUrl)) {
+                combinedPhotos.push(photoUrl);
+              }
+            });
+          }
+        } catch (e) {
+          console.warn('Failed to parse artwork.photos field for nearby listing', e);
+        }
 
         // Also include artwork-level photos stored under _photos in tags (set during approval)
         try {
@@ -412,7 +486,7 @@ export async function getArtworkStats(db: D1Database): Promise<{
         COUNT(*) as total_submissions,
         SUM(CASE WHEN created_at > datetime('now', '-7 days') THEN 1 ELSE 0 END) as recent_submissions
       FROM submissions
-      WHERE submission_type = 'logbook'
+      WHERE submission_type = 'logbook_entry'
     `);
 
     const [artworkResult, submissionResult] = await Promise.all([
@@ -454,15 +528,15 @@ export async function searchArtworks(
     // For MVP, we'll do a simple text search on notes
     // In production, this would use a proper search index
     const stmt = db.db.prepare(`
-      SELECT DISTINCT a.*, COALESCE(type_tag.value, 'unknown') as type_name,
+      SELECT DISTINCT a.*, 
+             COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name,
              0 as distance_km -- TODO: Calculate if lat/lon provided
       FROM artwork a
-      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
-      LEFT JOIN logbook l ON a.id = l.artwork_id
+      LEFT JOIN submissions s ON a.id = s.artwork_id AND s.status = 'approved' AND s.submission_type = 'logbook_entry'
       WHERE a.status = 'approved'
         AND (
-          type_tag.value LIKE ? OR
-          l.note LIKE ?
+          COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') LIKE ? OR
+          s.notes LIKE ?
         )
       ORDER BY a.created_at DESC
       LIMIT 20
@@ -511,10 +585,11 @@ export async function getPopularArtworks(
 
   try {
     const stmt = db.db.prepare(`
-      SELECT a.*, COALESCE(type_tag.value, 'unknown') as type_name, COUNT(l.id) as submission_count
+      SELECT a.*, 
+             COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name, 
+             COUNT(s.id) as submission_count
       FROM artwork a
-      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
-      LEFT JOIN logbook l ON a.id = l.artwork_id AND l.status = 'approved'
+      LEFT JOIN submissions s ON a.id = s.artwork_id AND s.status = 'approved' AND s.submission_type = 'logbook_entry'
       WHERE a.status = 'approved'
       GROUP BY a.id
       ORDER BY submission_count DESC, a.created_at DESC
@@ -564,9 +639,8 @@ export async function getRecentArtworks(
 
   try {
     const stmt = db.db.prepare(`
-      SELECT a.*, COALESCE(type_tag.value, 'unknown') as type_name
+      SELECT a.*, COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name
       FROM artwork a
-      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
       WHERE a.status = 'approved'
       ORDER BY a.created_at DESC
       LIMIT ?
@@ -992,7 +1066,17 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
           photos: allPhotos,
           tags_parsed: safeJsonParse(artwork.tags, {}),
           // Add derived fields for card display
-          recent_photo: allPhotos.length > 0 ? allPhotos[0] : null,
+          recent_photo: (() : string | null => {
+            if (allPhotos.length > 0) {
+              const photo = allPhotos[0];
+              if (photo) {
+                return (photo.startsWith('http') || photo.startsWith('/photos/'))
+                  ? photo
+                  : `/photos/${photo}`;
+              }
+            }
+            return null;
+          })(),
           photo_count: allPhotos.length,
           artist_name: artistName,
         } as import('../../shared/types').ArtworkApiResponse;

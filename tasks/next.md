@@ -1,80 +1,19 @@
 # Known things to do
 
-## MVP
-
-- [x] Variable fields for artwork
-- [x] Optimized submit new artwork
-- [x] Mass import
-
-## Choose a name
-
-- Use https://domains.cloudflare.com/ to check if the domain is avlaible
-- This is good for brain storming https://namelix.com/app/
-
-### Keywords
-
-**Project Description:** A collaborative platform where people can discover, photograph, and collect public artworks. Users contribute photos, descriptions, and locations of cultural works under Creative Commons licensing, building an open, community-driven archive. The project blends elements of art curation, exploration, and game-like discovery, encouraging people to seek, share, and connect through cultural creativity.
-
-- **Core Themes:** Art, Culture, Public Art, Artwork, Creative Commons, Curation, Art Collector
-- **Actions / Interactivity:** Seek, Find, Collect, Discover, Explore, Photograph, Archive
-- **Playful / Experiential:** Game, Quest, Hunt
-- **Other:** Open Data, Crowdsourced, giving back
-
-**The perfect domains (Not avalaible)**
-
-- iArchivist
-- ArtSeeker
-- ArtHunt
-- ArtQuest
-- Seek.art
-- findart.app
-- artarchive.com
-
-- public.art
-- found.art
-- collect.art
-
-### Avalaible
-
-- [1] seekart.app + seekartapp.com
-  - The problem is that this name "Seekart" is used by a AI Art generator "
-  Seekart | Create Unique AI-Generated Digital Artwork" https://seek.art/, and https://www.seaart.ai/... so the domain is plutted
-
-- seekerart.app + seekarterapp.com
-- artgame.app + artgameapp.com
-- SeekCommon.com
-- ArtMarked.com
-- ArtWorkHunt.com
-- CommonsQuest.com
-- FoundCommons.com
-- PublicPieces.com
-- ExplorePublic.com
-- PubliclyBuilt.com
-- WhatIsThisArt.com
-- komunarto.com - Esperanto for Collector
-- arscollectiva.com - Latin for Art collector
-- arscollect.io
-
-**No .Com**
-
-- [2] CulturalCommon.org + culturalcommon.com  (Note: the missing "S" at the end)
-
-- OpenArt.org (premimum aka expensive)
-- huntart.app
-- particip.art → participate + .art
-- ArtFind.net, ArtFinds.net
-- ArtSpotter.org
-- CultureCollect.org
-- artcollects.org
-- artcollect.app
-- iArchivist.org
-
 ## Find partners
 
 Find people that would be willing to partner with me on this project. Be specific and say that you are NOT looking for monetary support but are looking for in-kind support. Advertisement, recommendations, etc.
 
 - Burrard Arts Foundation, Centre for Digital Media students. They spondered a simlare project in the past. https://intergalactic.com/content/muse-public-art-app?utm_source=chatgpt.com
 - Canada Council - They prefer events over resources. The event could be a mass hunt for new art.
+
+- https://www.art-bc.com/
+
+### Art walk / festivals
+
+These are groups doing "Art walks" or festvials. They might be good groups to partner with. Give them the tools that they need then they use our service.
+
+- https://vancouverartwalk.com/
 
 ## General
 
@@ -102,6 +41,8 @@ Find people that would be willing to partner with me on this project. Be specifi
   - Contact them and say hello, maybe we could do something together.
   - I like how the markers on the map are small and stay the same reliative size as the map scales up and down.
   - The markers are colored making it easy at a glance to see what each marker repersents.
+
+- https://artmap.ca using public data for artworks.
 
 ## Marketing and gameafication
 
@@ -148,3 +89,59 @@ The admin page is a super user that can give moderators permissions to other use
 - Update the "source_url" value to be clickable as a link. This means it shouldn't search that tag, that link should be clickable.
   - Tags that have urls in them, should be clickable
 
+----
+
+The "Nearby Artworks" results in the FastAdd Artwork. The thumbnails for the artworks are not showing. For example this artwork https://art.abluestar.com/artwork/969b3394-e3a0-4dbb-8d62-87a42b382b1e?action=add-logbook&from=fast-upload as a photo but it the photo isn't showing up on the "Nearby Artworks" results.
+
+----
+
+When clicking the the "Add" button in the appshell for the 2nd time. it should overwrite the existing image with this new image. As if you are starting the whole process over again.
+
+If the customer wanted to select multiple images they would have in the inital "add" event
+
+
+----
+
+We are going to update the user profile page
+
+Add a username to the user table. The users can change their username on the user settings page. The username must be unique across the whole system.
+
+
+Badges
+Users can earn badges by doing tasks for the system. A user can have the same badge multiple times. 
+
+
+
+## Top row
+- Total points card. Show zero right now 
+- Cards for: Total submitted Artworks, Approved Artworks, Approved edits... Do not show rejected count
+
+## Second row
+Badges
+Show a list of badges that this user has been awarded.
+
+## Next row
+Submissions
+Show the submission cards
+
+----
+
+Add logbook submission
+
+Users need the abiltiy to indicate that they have gone and seen an artwork. This is done by taking a photo of the artwork and adding it to the system as a logbook entry. While adding the photo they can update other information about the artwork to help with the documentation. The users will be rewarded with points each time they visit an artwork.
+
+The users start the logbook submission by clicking the "Add" button in the app bar. This is the same way that users add new artworks.
+
+The "Nearby Artwork" search shows existing artworks that this photo might belong to. This gives the user the ability to select one of these artworks to add their report to.
+
+Update the "Nearby Artwork" cards to have a "Add Report" button at the bottom. When the user clicks this button they are lead to a new page called "Add logbook"
+
+This page is very simlare to the "Add New Artwork" page, but allows the users to add this new image to an existing artwork. Adding an image to the artwork is adding proof that they have been there before.
+
+While adding the logbook entry the user is asked a few questions. Each question is multiple choice and uses clicklet for the answers. The user does not have to answer any of the multiple choice questions. For example: "What is the current condition?", with "Good", "Damaged", "Missing", "Removed" as possiable answers.
+
+The following fields are only shown if the existing artwork doesn't have a value for it. Artwork type, Access, Artist, Material
+
+The "Consent & Legal Requirements" should be the same compoent as the "Add New Artwork" page.
+
+This logbook submission are submitted to the submissions table.

@@ -55,7 +55,10 @@ export class DatabaseService {
     ).run();
 
     // Create artwork_type tag if not present
-    const artworkType = (data.tags as any)?.artwork_type || 'unknown';
+    const artworkType: string =
+      data.tags && typeof (data.tags as Record<string, unknown>)['artwork_type'] === 'string'
+        ? (data.tags as Record<string, unknown>)['artwork_type'] as string
+        : 'unknown';
     await this.createTag({
       artwork_id: id,
       label: 'artwork_type',
@@ -160,15 +163,12 @@ export class DatabaseService {
   ): Promise<ArtworkWithDistance[]> {
     const stmt = this.db.prepare(`
       SELECT a.*, 
-             COALESCE(type_tag.value, 'unknown') as type_name,
-             artist_tag.value as artist_name
+             COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name,
+             json_extract(a.tags, '$.artist') as artist_name
       FROM artwork a
-      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
-      LEFT JOIN tags artist_tag ON (artist_tag.artwork_id = a.id AND artist_tag.label = 'artist')
       WHERE a.status = 'approved'
         AND a.lat BETWEEN ? AND ?
         AND a.lon BETWEEN ? AND ?
-      GROUP BY a.id  -- Handle multiple tags per artwork
       ORDER BY a.created_at DESC
       LIMIT ?
     `);
@@ -251,7 +251,7 @@ export class DatabaseService {
     const stmt = this.db.prepare(`
       SELECT * FROM submissions 
       WHERE artwork_id = ? AND status = 'approved' AND submission_type = 'logbook_entry'
-      ORDER BY submitted_at DESC
+      ORDER BY created_at DESC
       LIMIT ? OFFSET ?
     `);
     const results = await stmt.bind(artworkId, limit, offset).all();
@@ -277,12 +277,16 @@ export class DatabaseService {
 
     // Get submissions (exclude rejected)
     const query = `
-      SELECT s.*, a.lat as artwork_lat, a.lon as artwork_lon, COALESCE(type_tag.value, 'unknown') as artwork_type_name
+      SELECT s.*, 
+             a.lat as artwork_lat, 
+             a.lon as artwork_lon, 
+             COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as artwork_type_name
       FROM submissions s
       LEFT JOIN artwork a ON s.artwork_id = a.id
-      LEFT JOIN tags type_tag ON (type_tag.artwork_id = a.id AND type_tag.label = 'artwork_type')
-      WHERE s.user_token = ? AND s.status != 'rejected' AND s.submission_type = 'logbook_entry'
-      ORDER BY s.submitted_at DESC
+      WHERE s.user_token = ? 
+        AND s.status != 'rejected' 
+        AND s.submission_type = 'logbook_entry'
+      ORDER BY s.created_at DESC
       LIMIT ? OFFSET ?
     `;
     console.log(`[DB DEBUG] Executing query: ${query}`);
@@ -317,7 +321,7 @@ export class DatabaseService {
     const stmt = this.db.prepare(`
       SELECT * FROM submissions 
       WHERE status = 'pending' AND submission_type = 'logbook_entry'
-      ORDER BY submitted_at ASC
+      ORDER BY created_at ASC
     `);
     const results = await stmt.bind().all();
     return results.results as unknown as LogbookRecord[];
@@ -427,7 +431,7 @@ export class DatabaseService {
 
   async getTagsForLogbook(logbookId: string): Promise<TagRecord[]> {
     // With the new schema, tags are stored as JSON in the submissions table  
-    const stmt = this.db.prepare('SELECT tags FROM submissions WHERE id = ? AND submission_type = \'logbook\'');
+    const stmt = this.db.prepare("SELECT tags FROM submissions WHERE id = ? AND submission_type = 'logbook_entry'");
     const result = await stmt.bind(logbookId).first() as { tags?: string } | null;
     
     if (!result || !result.tags) {
@@ -486,7 +490,7 @@ export class DatabaseService {
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const stmt = this.db.prepare(`
       SELECT COUNT(*) as count FROM submissions 
-      WHERE user_token = ? AND submitted_at > ? AND submission_type = 'logbook_entry'
+      WHERE user_token = ? AND created_at > ? AND submission_type = 'logbook_entry'
     `);
     const result = await stmt.bind(userToken, twentyFourHoursAgo).first();
     return (result as { count: number } | null)?.count || 0;
@@ -592,19 +596,22 @@ export class DatabaseService {
     description?: string;
     tags?: Record<string, string>;
     source: string;
-    sourceData?: any;
+    sourceData?: unknown;
   }): Promise<string> {
     const id = generateUUID();
     const now = new Date().toISOString();
 
     // Build tags object with source metadata
-    const tags = {
-      ...data.tags,
-      import_metadata: {
-        source: data.source,
-        imported_at: now,
-        ...(data.sourceData && { source_data: data.sourceData })
-      }
+    const importMetadata: Record<string, unknown> = {
+      source: data.source,
+      imported_at: now,
+    };
+    if (data.sourceData !== undefined) {
+      (importMetadata as Record<string, unknown>).source_data = data.sourceData;
+    }
+    const tags: Record<string, unknown> = {
+      ...(data.tags ?? {}),
+      import_metadata: importMetadata,
     };
 
     const stmt = this.db.prepare(`

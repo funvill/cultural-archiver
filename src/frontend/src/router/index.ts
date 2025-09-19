@@ -5,6 +5,7 @@ import { useAuthStore } from '../stores/auth';
 // Lazy load components for better performance
 const HomeView = (): Promise<Component> => import('../views/HomeView.vue');
 const HelpView = (): Promise<Component> => import('../views/HelpView.vue');
+const StatusView = (): Promise<Component> => import('../views/StatusView.vue');
 const MapView = (): Promise<Component> => import('../views/MapView.vue');
 const SubmitView = (): Promise<Component> => import('../views/SubmitView.vue');
 const ArtworkDetailView = (): Promise<Component> => import('../views/ArtworkDetailView.vue');
@@ -159,6 +160,14 @@ const router = createRouter({
       component: HelpView,
       meta: {
         title: 'Help - Cultural Archiver',
+      },
+    },
+    {
+      path: '/status',
+      name: 'Status',
+      component: StatusView,
+      meta: {
+        title: 'System Status - Cultural Archiver',
       },
     },
     // Redirect old paths for compatibility

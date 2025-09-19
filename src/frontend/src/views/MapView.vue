@@ -11,7 +11,14 @@ const artworksStore = useArtworksStore();
 // Computed properties
 const mapCenter = computed(() => artworksStore.mapCenter);
 const mapZoom = computed(() => artworksStore.mapZoom);
-const artworks = computed(() => artworksStore.artworks);
+const artworks = computed(() => {
+  const storeArtworks = artworksStore.artworks;
+  console.log('[MARKER DEBUG] MapView artworks computed property triggered:', {
+    storeArtworksLength: storeArtworks.length,
+    timestamp: new Date().toISOString()
+  });
+  return storeArtworks;
+});
 
 // Event handlers
 function handleArtworkClick(artwork: ArtworkPin) {

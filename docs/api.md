@@ -328,6 +328,7 @@ GET /api/artworks/nearby
 - `lon` (required): Center longitude
 - `radius` (optional): Search radius in meters (50-10000, default: 500)
 - `limit` (optional): Maximum results (1-100, default: 20)
+- `minimal` (optional): When `true` or `1`, return a compact payload optimized for map pins. Only includes `id`, `lat`, `lon`, `type_name`, and optional `recent_photo`.
 
 **Response** (200 OK):
 
@@ -362,6 +363,41 @@ GET /api/artworks/nearby
 ```javascript
 const response = await fetch(`/api/artworks/nearby?lat=49.2827&lon=-123.1207&radius=1000&limit=20`);
 ```
+
+##### Minimal mode (map pins)
+
+Use minimal mode to reduce payload when you only need pin coordinates and basic type for rendering a dense map.
+
+```http
+GET /api/artworks/nearby?lat=49.2827&lon=-123.1207&radius=1000&limit=250&minimal=true
+```
+
+###### Response (minimal=true)
+
+```json
+{
+  "success": true,
+  "data": {
+    "artworks": [
+      {
+        "id": "artwork-uuid",
+        "lat": 49.2827,
+        "lon": -123.1207,
+        "type_name": "Public Art",
+        "recent_photo": "https://art-photos.abluestar.com/2024/01/15/photo.jpg"
+      }
+    ],
+    "search_center": { "lat": 49.2827, "lon": -123.1207 },
+    "search_radius": 1000,
+    "total": 1
+  }
+}
+```
+
+Notes:
+
+- `recent_photo` may be null or omitted if not available.
+- Minimal mode skips heavy aggregation to improve latency and throughput, ideal for map pin rendering and client-side caching.
 
 #### Advanced Search
 
@@ -2041,105 +2077,9 @@ for (let i = 0; i < 12; i++) {
 
 ## Admin Endpoints
 
-Administrative endpoints for platform management and data export. Requires admin authentication.
+Administrative endpoints for platform management. Requires admin authentication.
 
-### Generate Data Dump
-
-Create a public data dump containing approved artwork with CC0 licensing.
-
-**Endpoint**: `POST /api/admin/data-dump/generate`  
-**Authentication**: Admin token required
-
-```http
-POST /api/admin/data-dump/generate
-Authorization: Bearer {admin-token}
-```
-
-**Response**:
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
-    "filename": "datadump-2025-09-04.zip",
-    "size": 2048576,
-    "artwork_count": 150,
-    "creator_count": 75,
-    "tag_count": 200,
-    "photo_count": 145,
-    "download_url": "https://r2.cultural-archiver.com/datadump-2025-09-04.zip",
-    "created_at": "2025-09-04T14:30:22.000Z"
-  }
-}
-```
-
-### List Data Dumps
-
-Retrieve all generated data dumps with metadata and download links.
-
-**Endpoint**: `GET /api/admin/data-dumps`  
-**Authentication**: Admin token required
-
-```http
-GET /api/admin/data-dumps?page=1&limit=20
-Authorization: Bearer {admin-token}
-```
-
-**Query Parameters**:
-
-- `page` (optional): Page number for pagination (default: 1)
-- `limit` (optional): Results per page (max 100, default: 20)
-
-**Response**:
-
-```json
-{
-  "success": true,
-  "data": {
-    "dumps": [
-      {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "filename": "datadump-2025-09-04.zip",
-        "size": 2048576,
-        "artwork_count": 150,
-        "creator_count": 75,
-        "tag_count": 200,
-        "photo_count": 145,
-        "download_url": "https://r2.cultural-archiver.com/datadump-2025-09-04.zip",
-        "created_at": "2025-09-04T14:30:22.000Z",
-        "warnings": null
-      }
-    ],
-    "pagination": {
-      "page": 1,
-      "limit": 20,
-      "total": 1,
-      "has_more": false
-    }
-  }
-}
-```
-
-**Error Responses**:
-
-- `401 Unauthorized`: Invalid or missing admin token
-- `500 Internal Server Error`: Data dump generation failed
-
-### Data Dump Contents
-
-Each data dump contains:
-
-- **artwork.json**: Approved artwork with public metadata only
-- **creators.json**: Artist information (name, public details)
-- **tags.json**: Metadata tags and categories
-- **artwork_creators.json**: Artwork-creator relationships
-- **photos/thumbnails/**: 800px thumbnail images only
-- **LICENSE.txt**: CC0 1.0 Universal Public Domain Dedication
-- **README.md**: Usage documentation and dataset information
-- **metadata.json**: Generation timestamp and statistics
-
-**Excluded Data**: User tokens, emails, IP addresses, moderation notes, rejected submissions, and original photos.
+Note: The public data dump system was removed during pre-release hardening. Internal backups remain available via the backup commands below.
 
 ## NPM Commands
 
@@ -2175,6 +2115,6 @@ PHOTOS_BUCKET=your-r2-bucket-name
 
 ## Support and Resources
 
-- **GitHub Repository**: https://github.com/funvill/cultural-archiver
-- **Issue Tracker**: https://github.com/funvill/cultural-archiver/issues
-- **Backup Documentation**: See `/docs/backup-data-dump.md` for detailed setup and usage
+- GitHub Repository: <https://github.com/funvill/cultural-archiver>
+- Issue Tracker: <https://github.com/funvill/cultural-archiver/issues>
+- Database Schema: See `/docs/database.md` for schema details and relationships

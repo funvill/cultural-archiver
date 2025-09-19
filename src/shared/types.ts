@@ -72,9 +72,9 @@ export interface ArtistEditRecord {
   field_value_old: string | null;
   field_value_new: string | null;
   status: 'pending' | 'approved' | 'rejected';
-  moderator_notes: string | null;
+  review_notes: string | null;
   reviewed_at: string | null;
-  reviewed_by: string | null;
+  reviewer_token: string | null;
   submitted_at: string;
 }
 
@@ -243,9 +243,9 @@ export interface ArtworkEditRecord {
   field_value_old: string | null;
   field_value_new: string | null;
   status: 'pending' | 'approved' | 'rejected';
-  moderator_notes: string | null;
+  review_notes: string | null;
   reviewed_at: string | null;
-  reviewed_by: string | null;
+  reviewer_token: string | null;
   submitted_at: string;
 }
 
@@ -312,8 +312,20 @@ export interface NearbyArtworksRequest {
   limit?: number;
 }
 
+// Minimal shape for map pins
+export interface MinimalArtworkPin {
+  id: string;
+  lat: number;
+  lon: number;
+  type_name: string;
+  recent_photo?: string | null;
+}
+
 export interface NearbyArtworksResponse {
-  artworks: ArtworkWithPhotos[];
+  // For backward compatibility we keep the wider type, but API may return
+  // a minimal array when 'minimal=true' is passed. Frontend callers that need
+  // full data should not set the minimal flag.
+  artworks: Array<ArtworkWithPhotos | MinimalArtworkPin>;
   total: number;
   search_center: { lat: number; lon: number };
   search_radius: number;
@@ -1198,76 +1210,6 @@ export const ADMIN_ACTION_TYPES = [
 ] as const;
 
 // ================================
-// Backup and Data Dump System Types
-// ================================
-
-// Data dump generation request
-export interface GenerateDataDumpRequest {
-  // No body parameters needed - admin only endpoint
-}
-
-// Data dump generation response
-export interface GenerateDataDumpResponse {
-  success: boolean;
-  data?: {
-    dump_id: string;
-    filename: string;
-    size: number;
-    download_url: string;
-    generated_at: string;
-    metadata: {
-      total_artworks: number;
-      total_creators: number;
-      total_tags: number;
-      total_photos: number;
-    };
-  };
-  error?: string;
-  warnings?: string[];
-}
-
-// Data dump record for storage
-export interface DataDumpRecord {
-  id: string;
-  filename: string;
-  size: number;
-  r2_key: string;
-  download_url: string;
-  generated_at: string;
-  generated_by: string; // admin user token
-  total_artworks: number;
-  total_creators: number;
-  total_tags: number;
-  total_photos: number;
-  warnings: string | null; // JSON array of warnings
-}
-
-// List data dumps response
-export interface ListDataDumpsResponse {
-  success: boolean;
-  data?: {
-    dumps: {
-      id: string;
-      filename: string;
-      size: number;
-      download_url: string;
-      generated_at: string;
-      generated_by: string;
-      metadata: {
-        total_artworks: number;
-        total_creators: number;
-        total_tags: number;
-        total_photos: number;
-      };
-      warnings?: string[];
-    }[];
-    total: number;
-    retrieved_at: string;
-  };
-  error?: string;
-}
-
-// ================================
 // NEW UNIFIED SCHEMA TYPES
 // ================================
 
@@ -1300,9 +1242,9 @@ export interface SubmissionRecord {
   
   // Moderation workflow
   status: 'pending' | 'approved' | 'rejected';
-  moderator_notes: string | null;
+  review_notes: string | null;
   reviewed_at: string | null;
-  reviewed_by: string | null; // reviewer token/id
+  reviewer_token: string | null; // reviewer token/id
 }
 
 // User Activity Record (replaces rate_limits and auth_sessions)

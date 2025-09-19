@@ -23,12 +23,12 @@ const DEFAULTS = {
   minLon: -123.27,
   maxLat: 49.32,
   maxLon: -123.02,
-  zoom: 14,
+  zoom: 3,
   overpassUrl: "https://overpass-api.de/api/interpreter",
-  concurrency: 2,
-  sleepMs: 1000,
-  maxRetries: 5,
-  backoffBaseMs: 1000,
+  concurrency: 1,       // Be kind: only 1 concurrent request
+  sleepMs: 3000,        // Be kind: 3+ second delay between requests
+  maxRetries: 3,        // Be kind: fewer retries to avoid hammering
+  backoffBaseMs: 5000,  // Be kind: longer backoff delays
   outDir: "./output",
 
   // Resume controls
@@ -37,12 +37,37 @@ const DEFAULTS = {
 };
 
 // ---------------------- CLI arg parsing ----------------------
-const args = Object.fromEntries(
-  process.argv.slice(2).map((arg) => {
-    const [k, v] = arg.replace(/^--/, "").split("=");
-    return [k, v ?? true];
-  })
-);
+function parseArgs() {
+  const args = {};
+  const argv = process.argv.slice(2);
+  
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg.startsWith('--')) {
+      const key = arg.replace(/^--/, '');
+      
+      // Handle --key=value format
+      if (key.includes('=')) {
+        const [k, v] = key.split('=', 2);
+        args[k] = v;
+      }
+      // Handle --key value format
+      else {
+        const nextArg = argv[i + 1];
+        if (nextArg && !nextArg.startsWith('--')) {
+          args[key] = nextArg;
+          i++; // skip next arg since we consumed it
+        } else {
+          args[key] = true; // flag without value
+        }
+      }
+    }
+  }
+  
+  return args;
+}
+
+const args = parseArgs();
 
 function numArg(name, fallback) {
   if (args[name] === undefined) return fallback;

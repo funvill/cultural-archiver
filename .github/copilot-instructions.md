@@ -9,6 +9,7 @@
 - [ ] `npm run test` passes with 0 failures
 - [ ] `npm run build` completes with 0 errors
 - The project is in pre-release. We can recreate the database and lose data at this stage. In general backward compatibility is not required. I prefer database replacement over migration
+- When working with Wrangler, use `CI=true` environment variable to ensure that its set to non interactive mode. This asks me less questions
 
 ## Settings
 

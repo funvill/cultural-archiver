@@ -2,11 +2,15 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import ArtworkCard from '../components/ArtworkCard.vue';
+import ArtworkTypeFilter from '../components/ArtworkTypeFilter.vue';
+import ArtworkFilters from '../components/ArtworkFilters.vue';
 import PaginationControls from '../components/PaginationControls.vue';
 import SortControls from '../components/SortControls.vue';
 import SkeletonCard from '../components/SkeletonCard.vue';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 import { apiService } from '../services/api';
+import { useArtworkTypeFilters } from '../composables/useArtworkTypeFilters';
+import { useArtworkFilters } from '../composables/useArtworkFilters';
 import type { ArtworkApiResponse } from '../../../shared/types';
 import type { SearchResult } from '../types';
 
@@ -30,6 +34,22 @@ const artworksAsSearchResults = computed(() => {
     lat: artwork.lat,
     lon: artwork.lon,
     type_name: artwork.type_name || 'Unknown',
+    title: (typeof artwork.title === 'string' && artwork.title.trim().length > 0)
+      ? artwork.title.trim()
+      : (artwork.tags_parsed && typeof (artwork.tags_parsed as any).title === 'string' && (artwork.tags_parsed as any).title.trim().length > 0)
+        ? (artwork.tags_parsed as any).title.trim()
+        : (artwork.tags_parsed && typeof (artwork.tags_parsed as any).name === 'string' && (artwork.tags_parsed as any).name.trim().length > 0)
+          ? (artwork.tags_parsed as any).name.trim()
+          : null,
+    artist_name: (typeof artwork.artist_name === 'string' && artwork.artist_name.trim().length > 0)
+      ? artwork.artist_name.trim()
+      : (artwork.tags_parsed && typeof (artwork.tags_parsed as any).artist_name === 'string' && (artwork.tags_parsed as any).artist_name.trim().length > 0)
+        ? (artwork.tags_parsed as any).artist_name.trim()
+        : (artwork.tags_parsed && typeof (artwork.tags_parsed as any).artist === 'string' && (artwork.tags_parsed as any).artist.trim().length > 0)
+          ? (artwork.tags_parsed as any).artist.trim()
+          : (artwork.tags_parsed && typeof (artwork.tags_parsed as any).created_by === 'string' && (artwork.tags_parsed as any).created_by.trim().length > 0)
+            ? (artwork.tags_parsed as any).created_by.trim()
+            : null,
     tags: artwork.tags_parsed || null,
     recent_photo: artwork.recent_photo || null,
     photo_count: artwork.photo_count || 0,
@@ -47,6 +67,22 @@ const sortOptions = [
 const hasResults = computed(() => artworks.value.length > 0);
 const isEmptyState = computed(() => !loading.value && !hasResults.value && !error.value);
 
+// Artwork type filtering
+const { filterArtworks } = useArtworkTypeFilters();
+
+// Additional artwork filtering (photos, condition)
+const { filterArtworks: filterByConditions } = useArtworkFilters();
+
+// Apply all filters to the search results
+const filteredArtworksAsSearchResults = computed(() => {
+  // First apply type filtering
+  const typeFilteredArtworks = filterArtworks(artworksAsSearchResults.value);
+  // Then apply additional condition filters
+  return filterByConditions(typeFilteredArtworks);
+});
+
+const filteredTotal = computed(() => filteredArtworksAsSearchResults.value.length);
+
 // Page title with dynamic page number
 const pageTitle = computed(() => {
   const baseTitle = 'Artworks | Cultural Archiver';
@@ -57,7 +93,7 @@ const pageTitle = computed(() => {
 });
 
 // Update page title
-watch(pageTitle, (newTitle) => {
+watch(pageTitle, (newTitle: string) => {
   document.title = newTitle;
 }, { immediate: true });
 
@@ -257,16 +293,40 @@ onMounted(() => {
         <div class="mb-6">
           <p class="text-sm text-gray-600">
             <span v-if="!loading">
-              {{ totalItems.toLocaleString() }} artwork{{ totalItems === 1 ? '' : 's' }} found
+              {{ filteredTotal }} of {{ totalItems.toLocaleString() }} artwork{{ totalItems === 1 ? '' : 's' }} shown
             </span>
             <LoadingSpinner v-else class="inline-block w-4 h-4" />
           </p>
         </div>
 
+        <!-- Artwork Type Filters -->
+        <div class="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+          <ArtworkTypeFilter 
+            title="Filter by Artwork Type"
+            description="Select which types of artworks to show"
+            :columns="3"
+            :compact="false"
+            :collapsible="true"
+            :default-collapsed="true"
+            :show-control-buttons="true"
+          />
+        </div>
+
+        <!-- Additional Filters -->
+        <div class="mb-8">
+          <ArtworkFilters 
+            title="Additional Filters"
+            description="Filter by photos and artwork condition"
+            :collapsible="true"
+            :default-collapsed="false"
+            :show-control-buttons="true"
+          />
+        </div>
+
         <!-- Artworks Grid -->
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
           <ArtworkCard
-            v-for="artwork in artworksAsSearchResults"
+            v-for="artwork in filteredArtworksAsSearchResults"
             :key="artwork.id"
             :artwork="artwork"
             :loading="loading"

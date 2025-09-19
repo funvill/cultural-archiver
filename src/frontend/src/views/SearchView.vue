@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import { MagnifyingGlassIcon, CameraIcon, PlusIcon } from '@heroicons/vue/24/outline';
+import { PlusIcon } from '@heroicons/vue/24/outline';
 import SearchInput from '../components/SearchInput.vue';
-import PhotoSearch from '../components/PhotoSearch.vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
+import ArtworkTypeFilter from '../components/ArtworkTypeFilter.vue';
 import SkeletonCard from '../components/SkeletonCard.vue';
 import { useSearchStore } from '../stores/search';
 import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 import { useInfiniteScroll } from '../composables/useInfiniteScroll';
+import { useArtworkTypeFilters } from '../composables/useArtworkTypeFilters';
 import type { SearchResult, Coordinates } from '../types/index';
+
+
 
 const route = useRoute();
 const router = useRouter();
@@ -20,7 +23,7 @@ const searchInputRef = ref<InstanceType<typeof SearchInput>>();
 const searchResultsRef = ref<HTMLElement>();
 const showEmptyState = ref(false);
 const showSearchTips = ref(true);
-const searchMode = ref<'text' | 'photo'>('text'); // New search mode state
+// Removed photo search mode
 
 // Fast upload session data
 // Fast upload session (prefer in-memory Pinia store which contains previews)
@@ -31,6 +34,8 @@ const fastUploadSession = ref<{
 } | null>(null);
 const fastUploadStore = useFastUploadSessionStore();
 const isFromFastUpload = computed(() => !!fastUploadSession.value && route.query.source === 'fast-upload');
+// Track whether we've attempted auto redirect to new artwork to avoid loops
+const autoRedirectedToNew = ref(false);
 
 // Computed
 const currentQuery = computed(() => (route.params.query as string) || '');
@@ -40,6 +45,19 @@ const isLoading = computed(() => searchStore.isLoading);
 const error = computed(() => searchStore.error);
 const suggestions = computed(() => searchStore.suggestions);
 const recentQueries = computed(() => searchStore.recentQueries);
+
+// Artwork type filtering
+const { filterArtworks } = useArtworkTypeFilters();
+
+// Filter search results by artwork type
+const filteredResults = computed(() => {
+  if (!hasResults.value) {
+    return [];
+  }
+  return filterArtworks(searchStore.results);
+});
+
+const filteredTotal = computed(() => filteredResults.value.length);
 
 // Enhanced search tips with structured tag examples
 const searchTips = [
@@ -75,6 +93,7 @@ function handleSearch(query: string): void {
 
 function handleSearchInput(query: string): void {
   searchStore.setQuery(query);
+  performSearch(query); // Update results live as user types
 
   // Get suggestions for non-empty queries
   if (query.trim().length > 0) {
@@ -148,18 +167,58 @@ watch(
   { immediate: true }
 );
 
-// Watch for mode query parameter
+// Watch for route query parameter changes (lat/lng coordinates from new image uploads)
 watch(
-  () => route.query.mode,
-  (newMode: unknown) => {
-    if (newMode === 'photo') {
-      searchMode.value = 'photo';
-    } else {
-      searchMode.value = 'text';
+  () => ({ 
+    lat: route.query.lat, 
+    lng: route.query.lng, 
+    source: route.query.source,
+    storePhotos: fastUploadStore.photos,
+    storeLocation: fastUploadStore.location,
+    storeDetectedSources: fastUploadStore.detectedSources
+  }),
+  (newQuery: { lat: unknown; lng: unknown; source: unknown; storePhotos: any; storeLocation: any; storeDetectedSources: any }, 
+   oldQuery?: { lat: unknown; lng: unknown; source: unknown; storePhotos: any; storeLocation: any; storeDetectedSources: any }) => {
+    // Only handle fast-upload source with coordinates
+    if (newQuery.source !== 'fast-upload') return;
+    if (!newQuery.lat || !newQuery.lng) return;
+    
+    // Check if coordinates actually changed or if store data changed
+    const coordsChanged = newQuery.lat !== oldQuery?.lat || newQuery.lng !== oldQuery?.lng;
+    const storePhotosChanged = newQuery.storePhotos !== oldQuery?.storePhotos;
+    const storeLocationChanged = newQuery.storeLocation !== oldQuery?.storeLocation;
+    
+    if (!coordsChanged && !storePhotosChanged && !storeLocationChanged) return;
+
+    // Parse coordinates
+    const lat = parseFloat(newQuery.lat as string);
+    const lng = parseFloat(newQuery.lng as string);
+    
+    if (isNaN(lat) || isNaN(lng)) return;
+
+    // Update fast upload session with new coordinates and latest store data
+    const newLocation = { latitude: lat, longitude: lng };
+    
+    // Always update session with latest store data
+    fastUploadSession.value = {
+      photos: fastUploadStore.photos.map((p: {id: string, name: string, preview?: string}) => {
+        const base = { id: p.id, name: p.name } as { id: string; name: string; preview?: string };
+        if (p.preview) base.preview = p.preview;
+        return base;
+      }),
+      location: newLocation,
+      detectedSources: fastUploadStore.detectedSources || newQuery.storeDetectedSources,
+    };
+    
+    // Trigger new location search if coordinates changed
+    if (coordsChanged) {
+      performLocationSearch(lat, lng);
     }
   },
-  { immediate: true }
+  { immediate: true, deep: true }
 );
+
+// Removed photo search mode watcher
 
 // Watch for empty state after search completes
 watch([isLoading, hasResults, isSearchActive], ([loading, results, active]: [boolean, boolean, boolean]) => {
@@ -181,7 +240,7 @@ onMounted(() => {
       const parsed = JSON.parse(sessionData);
       // Merge with Pinia store to add previews (sessionStorage intentionally omits them for size)
       const previewLookup: Record<string, string | undefined> = {};
-      fastUploadStore.photos.forEach(p => { if (p.id) previewLookup[p.id] = p.preview; });
+  fastUploadStore.photos.forEach((p: {id: string, preview?: string}) => { if (p.id) previewLookup[p.id] = p.preview; });
       fastUploadSession.value = {
         photos: (parsed.photos || []).map((p: any) => ({
           id: p.id,
@@ -205,7 +264,7 @@ onMounted(() => {
   } else if (route.query.source === 'fast-upload' && fastUploadStore.hasPhotos) {
     // Fallback if sessionStorage missing but store still populated
     fastUploadSession.value = {
-      photos: fastUploadStore.photos.map(p => {
+      photos: fastUploadStore.photos.map((p: {id: string, name: string, preview?: string}) => {
         const base = { id: p.id, name: p.name } as { id: string; name: string; preview?: string };
         if (p.preview) base.preview = p.preview;
         return base;
@@ -223,25 +282,121 @@ onMounted(() => {
   }
 });
 
+// Watch for zero nearby results after a fast-upload location search and redirect directly to new artwork form
+watch([
+  isFromFastUpload,
+  () => fastUploadSession.value?.location,
+  hasResults,
+  isLoading
+], ([fromFast, loc, results, loading]: [boolean, Coordinates | null | undefined, boolean, boolean]) => {
+  if (!fromFast) return;
+  if (!loc) return; // need a location
+  if (loading) return; // wait until search completes
+  if (results) return; // only when zero results
+  if (autoRedirectedToNew.value) return; // prevent repeat
+  // We consider search attempted when searchStore.hasSearched or a location search set query
+  if (searchStore.query.startsWith('Near (') && searchStore.hasSearched) {
+    autoRedirectedToNew.value = true;
+    router.push('/artwork/new?from=fast-upload&reason=auto-no-nearby');
+  }
+});
+
 function performLocationSearch(latitude: number, longitude: number): void {
   // Use the search store to perform a location-based search
   // This would need to be implemented in the search store
   searchStore.performLocationSearch({ latitude, longitude });
 }
 
-// Helpers
+// Note: Legacy multi-add refresh logic (event + watcher) removed as fast-add now overwrites
+// prior selections when the user clicks Add again. This simplifies the UX: each Add starts
+// a new flow rather than appending and re-searching. If future requirements reintroduce
+// multi-select accumulation across separate Add clicks, restore logic from git history.
+
 function getArtworkTitle(artwork: SearchResult): string {
-  const tags = artwork.tags as Record<string, unknown> | null;
-  const title = tags && typeof (tags as any).title === 'string' ? (tags as any).title : null;
-  return title || 'Untitled';
+  // Prefer explicit title field when available
+  if (typeof artwork.title === 'string' && artwork.title.trim().length > 0) {
+    return artwork.title.trim();
+  }
+  const tags = (artwork.tags as Record<string, unknown> | null) || null;
+  if (tags && typeof tags === 'object') {
+    const maybeTitle = (tags as any).title;
+    const maybeName = (tags as any).name;
+    const title = [maybeTitle, maybeName].find(
+      (v) => typeof v === 'string' && v.trim().length > 0
+    ) as string | undefined;
+    if (title) return title;
+  }
+  // Fallback to a humanized type name rather than generic "Untitled"
+  return artwork.type_name
+    ? artwork.type_name.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
+    : 'Untitled';
 }
 
-const firstUploadedPreview = computed(() => fastUploadSession.value?.photos?.[0]?.preview || null);
+// Register global event listener (done after initial mount logic has parsed first session)
+// (Removed legacy global 'fast-upload-session-updated' listener – overwrite model does not append.)
+
+// Note: We intentionally do not fall back to the uploaded preview for
+// artwork cards to avoid misleading thumbnails for artworks with zero photos.
 
 function getArtworkImage(artwork: SearchResult): string | null {
-  if (artwork.recent_photo) return artwork.recent_photo;
-  if (isFromFastUpload.value && firstUploadedPreview.value) return firstUploadedPreview.value;
-  return null;
+  // Only ever show the artwork's own recent photo for the card.
+  // Do NOT fall back to the user's uploaded preview, as this causes
+  // incorrect thumbnails for unrelated artworks with zero photos.
+  return artwork.recent_photo && artwork.recent_photo.trim().length > 0
+    ? artwork.recent_photo
+    : null;
+}
+
+// Helper functions for location method display
+function getLocationMethodText(detectedSources: any): string {
+  if (!detectedSources) return 'Unknown';
+  
+  // Check which method was successfully used (in order of preference/accuracy)
+  if (detectedSources.exif?.detected && detectedSources.exif?.coordinates) {
+    return 'Photo EXIF data';
+  }
+  if (detectedSources.browser?.detected && detectedSources.browser?.coordinates) {
+    return 'Device GPS';
+  }
+  if (detectedSources.ip?.detected && detectedSources.ip?.coordinates) {
+    return 'IP location';
+  }
+  
+  return 'Manual entry';
+}
+
+function getLocationMethodStyle(detectedSources: any): string {
+  const method = getLocationMethodText(detectedSources);
+  
+  switch (method) {
+    case 'Photo EXIF data':
+      return 'bg-green-100 text-green-800 border border-green-200';
+    case 'Device GPS':
+      return 'bg-blue-100 text-blue-800 border border-blue-200';
+    case 'IP location':
+      return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+    case 'Manual entry':
+      return 'bg-purple-100 text-purple-800 border border-purple-200';
+    default:
+      return 'bg-gray-100 text-gray-800 border border-gray-200';
+  }
+}
+
+function getLocationMethodDescription(detectedSources: any): string {
+  const method = getLocationMethodText(detectedSources);
+  
+  switch (method) {
+    case 'Photo EXIF data':
+      return 'Location extracted from photo metadata - most accurate';
+    case 'Device GPS':
+      return 'Location from device GPS sensor - high accuracy';
+    case 'IP location':
+      return 'Location approximated from IP address - lower accuracy';
+    case 'Manual entry':
+      return 'Location entered manually by user';
+    default:
+      return 'Location detection method unknown';
+  }
 }
 
 onUnmounted(() => {
@@ -257,36 +412,11 @@ onUnmounted(() => {
       <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <!-- Search Mode Selector -->
         <div class="flex justify-center mb-4">
-          <div class="flex space-x-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
-            <button
-              @click="searchMode = 'text'"
-              :class="[
-                'px-6 py-2 rounded-md font-medium transition-all text-sm',
-                searchMode === 'text'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              ]"
-            >
-              <MagnifyingGlassIcon class="w-4 h-4 inline mr-2" />
-              Text Search
-            </button>
-            <button
-              @click="searchMode = 'photo'"
-              :class="[
-                'px-6 py-2 rounded-md font-medium transition-all text-sm',
-                searchMode === 'photo'
-                  ? 'bg-white text-blue-600 shadow-sm'
-                  : 'text-gray-600 hover:text-gray-900'
-              ]"
-            >
-              <CameraIcon class="w-4 h-4 inline mr-2" />
-              Photo Search
-            </button>
-          </div>
+          <!-- Removed search mode selector (photo search) -->
         </div>
 
         <!-- Text Search Input -->
-        <div v-if="searchMode === 'text'" class="flex items-center space-x-4">
+  <div class="flex items-center space-x-4">
           <!-- Back Button for Mobile -->
           <button
             class="lg:hidden p-2 text-gray-600 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-lg"
@@ -319,27 +449,16 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Photo Search Indicator -->
-        <div v-else class="text-center">
-          <div class="inline-flex items-center px-4 py-2 bg-blue-50 border border-blue-200 rounded-lg">
-            <CameraIcon class="w-5 h-5 text-blue-600 mr-2" />
-            <span class="text-blue-900 font-medium text-sm">
-              Photo Search Mode - Upload an image below to find similar artworks
-            </span>
-          </div>
-        </div>
+        <!-- Photo search indicator removed -->
       </div>
     </div>
 
     <!-- Main Content -->
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      <!-- Photo Search Component -->
-      <div v-if="searchMode === 'photo' && !isFromFastUpload">
-        <PhotoSearch />
-      </div>
+      <!-- Photo search removed -->
 
       <!-- Fast Upload Results (from photo upload workflow) -->
-      <div v-else-if="isFromFastUpload && fastUploadSession">
+  <div v-if="isFromFastUpload && fastUploadSession">
         <div class="mb-6">
           <!-- Uploaded Photos Summary -->
           <div class="bg-white rounded-lg shadow-md p-6 mb-6">
@@ -362,9 +481,21 @@ onUnmounted(() => {
               </div>
             </div>
             <div v-if="fastUploadSession.location" class="mt-4 text-sm text-gray-600">
-              <strong>Location detected:</strong> 
-              {{ fastUploadSession.location.latitude.toFixed(6) }}, 
-              {{ fastUploadSession.location.longitude.toFixed(6) }}
+              <div class="flex items-center space-x-2">
+                <strong>Location detected:</strong> 
+                <span>{{ fastUploadSession.location.latitude.toFixed(6) }}, {{ fastUploadSession.location.longitude.toFixed(6) }}</span>
+              </div>
+              <div v-if="fastUploadSession.detectedSources" class="mt-2 space-y-1">
+                <div class="flex items-center space-x-2">
+                  <span class="text-xs font-medium">Method:</span>
+                  <span class="text-xs px-2 py-1 rounded-full" :class="getLocationMethodStyle(fastUploadSession.detectedSources)">
+                    {{ getLocationMethodText(fastUploadSession.detectedSources) }}
+                  </span>
+                </div>
+                <div class="text-xs text-gray-500">
+                  {{ getLocationMethodDescription(fastUploadSession.detectedSources) }}
+                </div>
+              </div>
             </div>
           </div>
           
@@ -431,9 +562,12 @@ onUnmounted(() => {
                   />
                   <div v-else class="text-gray-400 text-sm">No photo</div>
                 </div>
-                <h4 class="font-semibold text-gray-900 text-sm line-clamp-1 mb-2">
+                <h4 class="font-semibold text-gray-900 text-sm line-clamp-1 mb-0.5">
                   {{ getArtworkTitle(artwork) }}
                 </h4>
+                <p v-if="artwork.artist_name" class="text-xs text-gray-600 mb-2 line-clamp-1">
+                  {{ artwork.artist_name }}
+                </p>
                 <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-2">
                   <div v-if="artwork.distance_km != null">
                     <span class="font-medium text-gray-700">Distance:</span>
@@ -623,7 +757,7 @@ onUnmounted(() => {
         <!-- Results Header -->
         <div class="flex items-center justify-between">
           <h2 class="text-lg font-medium text-gray-900">
-            {{ searchStore.total }} {{ searchStore.total === 1 ? 'artwork' : 'artworks' }} found
+            {{ filteredTotal }} of {{ searchStore.total }} {{ searchStore.total === 1 ? 'artwork' : 'artworks' }} shown
             <span v-if="searchStore.query" class="text-gray-600"
               >for "{{ searchStore.query }}"</span
             >
@@ -638,10 +772,23 @@ onUnmounted(() => {
           </button>
         </div>
 
+        <!-- Artwork Type Filters -->
+        <div class="bg-white border border-gray-200 rounded-lg p-4">
+          <ArtworkTypeFilter 
+            title="Filter by Artwork Type"
+            description="Select which types of artworks to show in search results"
+            :columns="3"
+            :compact="false"
+            :collapsible="true"
+            :default-collapsed="true"
+            :show-control-buttons="true"
+          />
+        </div>
+
         <!-- Results Grid -->
         <div ref="searchResultsRef" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <ArtworkCard
-            v-for="artwork in searchStore.results"
+            v-for="artwork in filteredResults"
             :key="artwork.id"
             :artwork="artwork"
             :show-distance="false"

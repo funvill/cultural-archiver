@@ -674,3 +674,80 @@ if input.status=="No longer in place" then output.condition="removed"
 if input.status=="In place" then output.condition="good"
 if input.status=="In progress" then output.condition="unknown"
 if input.status=="Deaccessioned" then output.condition="removed"
+
+
+-----
+
+
+Update the flow of the Fast-Add
+
+The "Add button" in the app nav bar, should launch a file upload for a image files, this allows us to skip the first page "Add Artwork" and go directly to the "Artwork search results page".
+
+If the search page doesn't show any results, and the photo has a GPS location, then skip the "artwork search page" and go directly to the "Add new Artwork" page.
+
+In other words, someone clicks the "add" button in the app header, and uploads a photo, they could be sent directly to the "Add new Artwork" page if the photo has GPS location, and there are no other artworks nearby.
+
+-----
+
+There seems to be a problem with browsing away form the map then going back to the map and the markers disapearing.
+
+Steps to reproduce
+
+1. Load the main map. There are lots of markers on the map
+2. Browse to the "Artwork" page.
+3. Press "Back" in the browser. The map is shown but there are no markers on the map at the center of the map. As I pan around, i can see other markers loading in but not where the map orginated at.
+
+Here is the browser console log
+```
+piClient.get] API Base URL: https://art-api.abluestar.com/api endpoint: /artworks/nearby params: Object
+api.ts:179 [ApiClient.request] Constructing URL: Object
+api.ts:190 [ApiClient.request] Making fetch request to: https://art-api.abluestar.com/api/artworks/nearby?lat=49.261047329553165&lon=-123.09575225127979&radius=3518.170006851188&limit=250&minimal=true
+api.ts:80 [API DEBUG] Getting user token from localStorage: Object
+api.ts:111 [API DEBUG] Creating request headers: Object
+api.ts:202 [ApiClient.request] Response received: Object
+api.ts:130 [API DEBUG] Handling response: Object
+artworks.ts:321 [DEBUG] Session artwork cache size: 629
+index.ts:205 [ROUTER DEBUG] Route guard check: Object
+api.ts:238 [ApiClient.get] API Base URL: https://art-api.abluestar.com/api endpoint: /artworks params: Object
+api.ts:179 [ApiClient.request] Constructing URL: Object
+api.ts:190 [ApiClient.request] Making fetch request to: https://art-api.abluestar.com/api/artworks?page=1&limit=30&sort=updated_desc
+api.ts:80 [API DEBUG] Getting user token from localStorage: Object
+api.ts:111 [API DEBUG] Creating request headers: Object
+api.ts:202 [ApiClient.request] Response received: Object
+api.ts:130 [API DEBUG] Handling response: Object
+index.ts:205 [ROUTER DEBUG] Route guard check: Object
+MapComponent.vue:183 Initializing map with container: <div class=​"h-full w-full relative z-0 leaflet-container" role=​"application" aria-label=​"Interactive map showing public artwork locations" aria-busy=​"false" tabindex=​"0" style=​"position:​ relative;​">​…​</div>​
+MapComponent.vue:184 Container dimensions: Object
+MapComponent.vue:195 Creating Leaflet map...
+MapComponent.vue:223 Map created successfully: Proxy(e)
+MapComponent.vue:229 Added leaflet-container class to map container
+MapComponent.vue:258 Tile layer added to map
+MapComponent.vue:295 Applied dimension fixes to Leaflet containers
+api.ts:238 [ApiClient.get] API Base URL: https://art-api.abluestar.com/api endpoint: /artworks/nearby params: Object
+api.ts:179 [ApiClient.request] Constructing URL: Object
+api.ts:190 [ApiClient.request] Making fetch request to: https://art-api.abluestar.com/api/artworks/nearby?lat=49.261049290964195&lon=-123.09575557708742&radius=3518.1698670215073&limit=250&minimal=true
+api.ts:80 [API DEBUG] Getting user token from localStorage: Object
+api.ts:111 [API DEBUG] Creating request headers: Object
+MapComponent.vue:295 Applied dimension fixes to Leaflet containers
+MapComponent.vue:339 Forcing map resize...
+MapComponent.vue:345 Map bounds after resize: H
+MapComponent.vue:348 Map center after resize: b
+MapComponent.vue:351 Map zoom after resize: 14
+MapComponent.vue:295 Applied dimension fixes to Leaflet containers
+[ApiClient.request] Response received: Object
+api.ts:130 [API DEBUG] Handling response: Object
+artworks.ts:321 [DEBUG] Session artwork cache size: 629
+MapComponent.vue:295 Applied dimension fixes to Leaflet containers
+MapComponent.vue:309 Leaflet container found: null
+MapComponent.vue:322 Tile images found: 30
+MapComponent.vue:325 First tile image: Object
+MapComponent.vue:295 Applied dimension fixes to Leaflet containers
+MapComponent.vue:961 Window resized, invalidating map size
+MapView.vue:24 Map moved to: Object zoom: 14
+```
+
+I didn't see any errors in the console log
+
+
+
+-----------

@@ -311,24 +311,23 @@ describe('Data Dump System', () => {
     it('should export tags for approved artwork only', async () => {
       const mockPrepare = mockDb.prepare as MockedFunction<any>;
 
-      mockPrepare.mockReturnValue({
+      // First call: artwork query (approved artwork with tags)
+      mockPrepare.mockReturnValueOnce({
         all: vi.fn().mockResolvedValue({
           success: true,
           results: [
             {
-              id: '1',
-              label: 'material',
-              value: 'bronze',
-              created_at: '2024-01-01T12:00:00Z',
-            },
-            {
-              id: '2',
-              label: 'style',
-              value: 'modern',
+              id: 'art-1',
+              tags: JSON.stringify({ material: 'bronze', style: 'modern', _internal: 'skip' }),
               created_at: '2024-01-01T12:00:00Z',
             },
           ],
         }),
+      });
+
+      // Second call: artists query (approved artists with tags)
+      mockPrepare.mockReturnValueOnce({
+        all: vi.fn().mockResolvedValue({ success: true, results: [] }),
       });
 
       const result = await exportTagsAsJSON(mockDb);
@@ -336,10 +335,15 @@ describe('Data Dump System', () => {
       expect(result.success).toBe(true);
       expect(result.count).toBe(2);
 
-      const parsedJson = JSON.parse(result.json_content!);
+  const parsedJson = JSON.parse(result.json_content!) as Array<{ id: string; label: string; value: string; created_at: string }>;
       expect(parsedJson).toHaveLength(2);
-      expect(parsedJson[0].label).toBe('material');
-      expect(parsedJson[0].value).toBe('bronze');
+      // Should include the two user-facing tags from artwork.tags
+  const labels = parsedJson.map((t) => t.label);
+  const values = parsedJson.map((t) => t.value);
+      expect(labels).toContain('material');
+      expect(values).toContain('bronze');
+      expect(labels).toContain('style');
+      expect(values).toContain('modern');
     });
   });
 

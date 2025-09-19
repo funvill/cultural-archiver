@@ -29,6 +29,10 @@ const emit = defineEmits<Emits>();
 
 // Computed
 const artworkTitle = computed(() => {
+  // Prefer explicit title when available
+  if (typeof props.artwork.title === 'string' && props.artwork.title.trim().length > 0) {
+    return props.artwork.title.trim();
+  }
   // Try to get title from tags
   if (props.artwork.tags && typeof props.artwork.tags === 'object') {
     const title = props.artwork.tags.title || props.artwork.tags.name;
@@ -38,11 +42,15 @@ const artworkTitle = computed(() => {
   }
 
   // Fallback to type name
-  return props.artwork.type_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  return props.artwork.type_name
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (l: string) => l.toUpperCase());
 });
 
 const artworkType = computed(() => {
-  return props.artwork.type_name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  return props.artwork.type_name
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (l: string) => l.toUpperCase());
 });
 
 const hasPhoto = computed(() => !!props.artwork.recent_photo);
@@ -142,6 +150,11 @@ function handleKeydown(event: KeyboardEvent): void {
           </svg>
         </div>
 
+        <!-- Optional overlay badge slot (e.g., moderation status) -->
+        <div class="absolute top-2 left-2 z-10">
+          <slot name="badge"></slot>
+        </div>
+
         <!-- Loading overlay -->
         <div
           v-if="loading"
@@ -198,6 +211,11 @@ function handleKeydown(event: KeyboardEvent): void {
           </svg>
         </div>
 
+        <!-- Optional overlay badge slot (e.g., moderation status) -->
+        <div class="absolute top-2 left-2 z-10">
+          <slot name="badge"></slot>
+        </div>
+
         <!-- Loading overlay -->
         <div
           v-if="loading"
@@ -220,6 +238,9 @@ function handleKeydown(event: KeyboardEvent): void {
         <h3 class="text-lg font-medium text-gray-900 mb-2 line-clamp-2">
           {{ artworkTitle }}
         </h3>
+        <p v-if="artwork.artist_name" class="text-sm text-gray-600 mb-1 line-clamp-1">
+          {{ artwork.artist_name }}
+        </p>
 
         <div class="flex items-center justify-between text-sm text-gray-600 mb-2">
           <span
@@ -234,7 +255,7 @@ function handleKeydown(event: KeyboardEvent): void {
 
         <!-- Additional artwork details if available in tags -->
         <div v-if="artwork.tags" class="text-sm text-gray-500 space-y-1">
-          <div v-if="artwork.tags.artist" class="flex items-center">
+          <div v-if="!artwork.artist_name && artwork.tags.artist" class="flex items-center">
             <span class="font-medium">Artist:</span>
             <span class="ml-1 truncate">{{ artwork.tags.artist }}</span>
           </div>

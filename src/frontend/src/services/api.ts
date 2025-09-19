@@ -17,8 +17,6 @@ import type {
   AuditLogsResponse,
   AuditStatistics,
   NearbyArtworksResponse,
-  GenerateDataDumpResponse,
-  ListDataDumpsResponse,
   ArtworkEditReviewData,
   UserSubmissionsResponse,
 } from '../../../shared/types';
@@ -378,14 +376,19 @@ export const apiService = {
     lat: number,
     lon: number,
     radius: number = 500,
-    limit: number = 50
+    limit: number = 250,
+    options?: { minimal?: boolean }
   ): Promise<ApiResponse<NearbyArtworksResponse>> {
-    return client.get('/artworks/nearby', {
+    const params: Record<string, string> = {
       lat: lat.toString(),
       lon: lon.toString(),
       radius: radius.toString(),
       limit: limit.toString(),
-    });
+    };
+    if (options?.minimal) {
+      params.minimal = 'true';
+    }
+    return client.get('/artworks/nearby', params);
   },
 
   /**
@@ -570,7 +573,8 @@ export const apiService = {
    * Get user submissions
    */
   async getUserSubmissions(): Promise<ApiResponse<UserSubmissionsResponse>> {
-    return client.get('/user/submissions');
+    // Align with backend route defined at GET /api/me/submissions
+    return client.get('/me/submissions');
   },
 
   /**
@@ -838,20 +842,6 @@ export const apiService = {
    */
   async getAdminStatistics(days: number = 30): Promise<ApiResponse<AuditStatistics>> {
     return client.get('/admin/statistics', { days: days.toString() });
-  },
-
-  /**
-   * Generate a new data dump
-   */
-  async generateDataDump(): Promise<ApiResponse<GenerateDataDumpResponse>> {
-    return client.post('/admin/data-dump/generate', {});
-  },
-
-  /**
-   * Get list of all generated data dumps
-   */
-  async getDataDumps(): Promise<ApiResponse<ListDataDumpsResponse>> {
-    return client.get('/admin/data-dumps');
   },
 };
 

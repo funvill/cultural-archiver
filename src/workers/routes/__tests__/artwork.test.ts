@@ -202,7 +202,7 @@ describe('Artwork Editing Routes', () => {
         submission_type: 'artwork_edit' as const,
         field_changes: '{"title": {"old": "Old", "new": "New"}}',
         photos: null,
-        note: null,
+        notes: null,
         lat: null,
         lon: null,
         consent_version: '1.0.0',
@@ -212,9 +212,9 @@ describe('Artwork Editing Routes', () => {
         created_at: '2023-01-01T00:00:00Z',
         submitted_at: '2023-01-01T00:00:00Z',
         status: 'pending' as const,
-        moderator_notes: null,
+        review_notes: null,
         reviewed_at: null,
-        reviewed_by: null
+        reviewer_token: null
       }]);
 
       const requestBody = {
@@ -274,7 +274,7 @@ describe('Artwork Editing Routes', () => {
           submission_type: 'artwork_edit' as const,
           field_changes: null,
           photos: null,
-          note: null,
+          notes: null,
           lat: null,
           lon: null,
           new_data: '{"title": "Updated Title"}',
@@ -286,9 +286,9 @@ describe('Artwork Editing Routes', () => {
           created_at: '2025-01-01T00:00:00.000Z',
           submitted_at: '2025-01-01T00:00:00.000Z',
           status: 'pending' as const,
-          moderator_notes: null,
+          review_notes: null,
           reviewed_at: null,
-          reviewed_by: null
+          reviewer_token: null
         },
       ];
 

@@ -105,8 +105,8 @@ Many-to-many linking table between artwork and artists. **New**: Replaces embedd
 | `new_data`          | TEXT | NULL                                                            | JSON object of proposed changes (for edits)        |
 | `verification_status` | TEXT | CHECK('pending','verified','unverified')                     | Email verification status                           |
 | `status`            | TEXT | CHECK('pending','approved','rejected')                         | Moderation status                                   |
-| `reviewed_by`       | TEXT | NULL                                                            | Reviewer who processed submission                   |
-| `review_notes`      | TEXT | NULL                                                            | Reviewer's notes                                    |
+| `reviewer_token`    | TEXT | NULL                                                            | Reviewer who processed submission                   |
+| `review_notes`      | TEXT | NULL                                                            | Moderator's notes                                   |
 | `reviewed_at`       | TEXT | NULL                                                            | Review timestamp                                    |
 | `created_at`        | TEXT | NOT NULL, DEFAULT datetime('now')                               | Creation timestamp                                  |
 | `updated_at`        | TEXT | NOT NULL, DEFAULT datetime('now')                               | Last update timestamp                               |
@@ -137,6 +137,7 @@ Many-to-many linking table between artwork and artists. **New**: Replaces embedd
 - `rejected` - Rejected (hidden from user)
 
 **Verification Status:**
+Note: The schema uses `reviewer_token` and `review_notes` for moderation tracking.
 - `pending` - Email verification not yet sent
 - `verified` - Email verified via magic link
 - `unverified` - Email verification failed or expired

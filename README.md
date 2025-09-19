@@ -55,8 +55,7 @@ This ensures that the cultural history of our cities outlives any single platfor
 **Previous Features (v1.2 - Data Export System):**
 
 - 💾 **Backup System**: Complete system snapshots for disaster recovery with database and R2 photo collection
-- 📦 **Data Dumps**: Public CC0-licensed data exports for researchers and developers
-- 🔧 **Admin Interface**: Data dump management with one-click generation and download history
+- 📦 Public data dumps and their admin UI were available in early versions but have been removed during pre-release hardening
 - 📋 **CLI Tools**: NPM commands for local and remote backup generation with progress logging
 - 🛡️ **Data Privacy**: Comprehensive filtering to exclude sensitive information from public exports
 
@@ -123,13 +122,13 @@ The Cultural Archiver API provides a comprehensive backend for crowdsourced publ
 
 #### Production
 
-- Main website: https://art.abluestar.com
-- API: https://art-api.abluestar.com/api
-- Photos: https://art-photos.abluestar.com
+- Main website: <https://art.abluestar.com>
+- API: <https://art-api.abluestar.com/api>
+- Photos: <https://art-photos.abluestar.com>
 
 #### Devlopment
 
-- Main website: http://localhost:8787
+- Main website: <http://localhost:8787>
 
 ### Authentication
 

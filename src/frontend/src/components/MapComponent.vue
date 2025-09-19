@@ -13,6 +13,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { Coordinates, ArtworkPin, MapComponentProps } from '../types';
 import { useArtworksStore } from '../stores/artworks';
+import { useArtworkTypeFilters, type ArtworkTypeToggle } from '../composables/useArtworkTypeFilters';
 import { useRouter } from 'vue-router';
 
 // Props
@@ -37,17 +38,82 @@ const isLoading = ref(true);
 const isLocating = ref(false);
 const error = ref<string | null>(null);
 const showLocationNotice = ref(false);
+// Viewport loading state
+const isLoadingViewport = ref(false);
+const lastLoadedBounds = ref<{north: number; south: number; east: number; west: number} | null>(null);
+const loadingTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
+// Marker update debouncing
+const markerUpdateTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
+// Progressive loading state
+const isProgressiveLoading = ref(false);
+const progressiveLoadingStats = ref<{loaded: number; total: number; percentage: number; batchSize?: number; avgTime?: number} | null>(null);
+const useProgressiveLoading = ref(false); // Toggle for progressive loading mode
 // Guard navigator for SSR / non-browser test environments
 const hasGeolocation = ref(typeof navigator !== 'undefined' && !!navigator.geolocation);
 const userLocationMarker = ref<L.Marker | null>(null);
-const artworkMarkers = ref<L.Marker[]>([]);
+const artworkMarkers = ref<(L.Marker | L.CircleMarker)[]>([]);
 // Use any for cluster type to avoid type issues if markercluster types not available
 const markerClusterGroup = ref<any | null>(null);
 // Map options state
 const showOptionsPanel = ref(false);
 const clusterEnabled = ref(true);
+const debugRingsEnabled = ref(false);
+const clearingCache = ref(false);
+// Artwork type filters - using shared composable
+const {
+  artworkTypes,
+  isArtworkTypeEnabled,
+  getTypeColor,
+  enableAllTypes,
+  disableAllTypes,
+} = useArtworkTypeFilters();
+
+// Debug ring layer (only immediate 100m ring)
+let debugImmediateRing: L.Circle | null = null;
 // Saved map state presence
 const hadSavedMapState = ref(false);
+
+// LocalStorage keys
+const MAP_STATE_KEY = 'map:lastState';
+
+// Save map state (center/zoom) to localStorage
+function saveMapState() {
+  if (!map.value) return;
+  const center = map.value.getCenter();
+  const zoom = map.value.getZoom();
+  try {
+    localStorage.setItem(
+      MAP_STATE_KEY,
+      JSON.stringify({
+        center: { latitude: center.lat, longitude: center.lng },
+        zoom
+      })
+    );
+  } catch (e) {
+    // ignore
+  }
+}
+
+// Read map state from localStorage
+function readSavedMapState(): { center: Coordinates; zoom: number } | null {
+  try {
+    const raw = localStorage.getItem(MAP_STATE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (
+      parsed &&
+      parsed.center &&
+      typeof parsed.center.latitude === 'number' &&
+      typeof parsed.center.longitude === 'number' &&
+      typeof parsed.zoom === 'number'
+    ) {
+      return parsed;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 // Store
 const artworksStore = useArtworksStore();
@@ -58,33 +124,39 @@ const router = useRouter();
 // Default coordinates (Vancouver - near sample data for testing)
 const DEFAULT_CENTER = { latitude: 49.265, longitude: -123.25 };
 
-// Custom icon for artworks
-const createArtworkIcon = (type: string) => {
+// Create circle marker style for artworks (replaces emoji icons for better performance)
+const createArtworkStyle = (type: string) => {
   const normalized = (type || 'other').toLowerCase();
-  const iconMap: Record<string, { emoji: string; color: string }> = {
-    statue: { emoji: '🗿', color: 'bg-amber-600' },
-    sculpture: { emoji: '🗽', color: 'bg-emerald-600' },
-    mural: { emoji: '🖼️', color: 'bg-indigo-600' },
-    installation: { emoji: '🛠️', color: 'bg-fuchsia-600' },
-    monument: { emoji: '🏛️', color: 'bg-rose-600' },
-    mosaic: { emoji: '🧩', color: 'bg-cyan-600' },
-    graffiti: { emoji: '🎨', color: 'bg-yellow-600' },
-    street_art: { emoji: '🎭', color: 'bg-pink-600' },
-    tiny_library: { emoji: '�', color: 'bg-teal-600' },
-    unknown: { emoji: '❔', color: 'bg-gray-500' },
-    other: { emoji: '📍', color: 'bg-blue-600' },
+  
+  // Calculate dynamic radius based on zoom level
+  const currentZoom = map.value?.getZoom() || 15;
+  const baseRadius = 16; // Base radius at zoom 15 (increased from 8)
+  const minRadius = 8;   // Minimum radius at low zoom (increased from 2)
+  const maxRadius = 20;  // Maximum radius at high zoom (unchanged)
+  
+  // Scale radius: larger at low zoom, same at high zoom
+  // Uses inverse exponential scaling for better visibility when zoomed out
+  const zoomFactor = Math.pow(0.7, (currentZoom - 10)); // Inverse scaling starting from zoom 10
+  const dynamicRadius = Math.max(minRadius, Math.min(maxRadius, baseRadius * zoomFactor));
+  
+  // Use shared color logic from composable
+  const fillColor = getTypeColor(normalized);
+  
+  const baseStyle = {
+    radius: dynamicRadius, // Use zoom-scaled radius
+    fillColor: fillColor,
+    color: '#ffffff', // white border
+    weight: 1,
+    fillOpacity: 0.9,
+    opacity: 1,
+    // Ensure proper interaction settings
+    interactive: true,
+    bubblingMouseEvents: false,
+    className: 'artwork-circle-marker' // Add CSS class for styling
   };
-  const chosen = (iconMap[normalized] ? iconMap[normalized] : iconMap.other) as {
-    emoji: string;
-    color: string;
-  };
-  return L.divIcon({
-    html: `<div class="artwork-marker ${chosen.color} text-white rounded-full w-8 h-8 flex items-center justify-center text-sm shadow-lg border-2 border-white cursor-pointer">${chosen.emoji}</div>`,
-    className: 'custom-artwork-icon',
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
-    popupAnchor: [0, -16],
-  });
+  
+  // Don't add renderer - let Leaflet handle canvas rendering automatically
+  return baseStyle;
 };
 
 // Custom icon for user location
@@ -124,16 +196,28 @@ async function initializeMap() {
 
   console.log('Creating Leaflet map...');
 
+
   // Check for saved map state first
-  const saved = null; // readSavedMapState(); // Temporarily disabled to test new coordinates
+  const saved = readSavedMapState();
   hadSavedMapState.value = !!saved;
 
+
     // Create map
+    let initialCenter: [number, number];
+    let initialZoom: number;
+    if (saved) {
+      initialCenter = [saved.center.latitude, saved.center.longitude];
+      initialZoom = saved.zoom;
+    } else if (props.center) {
+      initialCenter = [props.center.latitude, props.center.longitude];
+      initialZoom = props.zoom;
+    } else {
+      initialCenter = [DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude];
+      initialZoom = props.zoom;
+    }
     map.value = L.map(mapContainer.value, {
-      center: props.center
-        ? [props.center.latitude, props.center.longitude]
-        : [DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude],
-      zoom: props.zoom,
+      center: initialCenter,
+      zoom: initialZoom,
       zoomControl: false, // We'll use custom controls
       attributionControl: true,
     });
@@ -166,16 +250,11 @@ async function initializeMap() {
       });
     });
 
-    tileLayer.on('tileload', e => {
-      console.log('Tile loaded successfully:', e.coords);
-      // Apply fixes whenever a tile loads
+    tileLayer.on('tileload', () => {
+      // Apply fixes whenever a tile loads (no console log)
       nextTick(() => {
         forceMapDimensions();
       });
-    });
-
-    tileLayer.on('tileloadstart', e => {
-      console.log('Tile load started:', e.coords);
     });
 
     console.log('Tile layer added to map');
@@ -289,8 +368,18 @@ async function initializeMap() {
     await configureMarkerGroup();
 
     // Setup event listeners
-    map.value.on('moveend', handleMapMove);
-    map.value.on('zoomend', handleMapMove);
+  map.value.on('moveend', handleMapMove);
+  map.value.on('zoomend', handleMapMove);
+  // Save map state on move/zoom
+  map.value.on('moveend', saveMapState);
+  map.value.on('zoomend', saveMapState);
+
+    // Initialize debug rings (respect saved preference)
+    try {
+      const savedRings = localStorage.getItem('map:debugRingsEnabled');
+      if (savedRings !== null) debugRingsEnabled.value = savedRings === 'true';
+    } catch {/* ignore */}
+    updateDebugRings();
 
     // Request user location only when there's no saved state
     if (!hadSavedMapState.value) {
@@ -315,8 +404,12 @@ async function initializeMap() {
       }, 7000);
     }
 
-    // Load initial artworks
-    await loadArtworks();
+    // Load initial artworks with a small delay to ensure DOM stability
+    setTimeout(async () => {
+      await loadArtworks();
+      // Add additional delay for marker rendering after data load
+      updateArtworkMarkersDebounced(100);
+    }, 50);
   } catch (err) {
     console.error('Map initialization error:', err);
     error.value = 'Failed to initialize map. Please check your internet connection and try again.';
@@ -405,74 +498,295 @@ function addUserLocationMarker(location: Coordinates) {
     .bindPopup('Your current location');
 }
 
-// Load artworks on map
+// Load artworks on map with intelligent viewport-based loading
 async function loadArtworks() {
-  if (!map.value) return;
+  console.log('[MARKER DEBUG] loadArtworks() called:', {
+    mapExists: !!map.value,
+    currentPropsLength: props.artworks?.length || 0,
+    timestamp: new Date().toISOString()
+  });
+
+  if (!map.value) {
+    console.log('[MARKER DEBUG] loadArtworks() early return - no map');
+    return;
+  }
 
   try {
-    // Get current map bounds
+    // Get current map bounds with generous padding for smooth experience
     const bounds = map.value.getBounds();
-    const mapBounds = {
-      north: bounds.getNorth(),
-      south: bounds.getSouth(),
-      east: bounds.getEast(),
-      west: bounds.getWest(),
+    const padding = 0.15; // 15% padding around viewport
+    const latPad = (bounds.getNorth() - bounds.getSouth()) * padding;
+    const lngPad = (bounds.getEast() - bounds.getWest()) * padding;
+    
+    const expandedBounds = {
+      north: bounds.getNorth() + latPad,
+      south: bounds.getSouth() - latPad,
+      east: bounds.getEast() + lngPad,
+      west: bounds.getWest() - lngPad,
     };
 
-    // Fetch artworks in bounds
-    await artworksStore.fetchArtworksInBounds(mapBounds);
+    // Check if we already have data for this area (smart caching)
+    if (lastLoadedBounds.value && boundsContain(lastLoadedBounds.value, expandedBounds)) {
+      // We already have data for this viewport, just update markers
+      updateArtworkMarkers();
+      return;
+    }
 
-    // Update markers
+    // Show loading indicator for viewport changes
+    isLoadingViewport.value = true;
+
+    // Use progressive loading for potentially large datasets
+    if (useProgressiveLoading.value) {
+      await loadArtworksProgressively(expandedBounds);
+    } else {
+      // Standard loading
+      console.log('[MARKER DEBUG] About to fetch artworks from store');
+      await artworksStore.fetchArtworksInBounds(expandedBounds);
+      console.log('[MARKER DEBUG] Finished fetching artworks, props should update next');
+    }
+    
+    // Cache the bounds we just loaded
+    lastLoadedBounds.value = expandedBounds;
+
+    console.log('[MARKER DEBUG] About to wait for nextTick, then update markers:', {
+      propsLength: props.artworks?.length || 0
+    });
+
+    // Wait for Vue reactivity to update props before updating markers
+    await nextTick();
+    
+    console.log('[MARKER DEBUG] After nextTick, props length now:', props.artworks?.length || 0);
     updateArtworkMarkers();
   } catch (err) {
     console.error('Error loading artworks:', err);
+  } finally {
+    isLoadingViewport.value = false;
   }
 }
 
-// Update artwork markers
-function updateArtworkMarkers() {
-  if (!map.value || !markerClusterGroup.value) return;
+// Progressive loading for large datasets
+async function loadArtworksProgressively(bounds: {north: number; south: number; east: number; west: number}) {
+  if (!map.value) return;
 
-  // Clear existing markers
-  artworkMarkers.value.forEach((marker: any) => {
-    if (markerClusterGroup.value) {
-      markerClusterGroup.value.removeLayer(marker as any);
-    }
-  });
-  artworkMarkers.value = [];
+  isProgressiveLoading.value = true;
+  progressiveLoadingStats.value = { loaded: 0, total: 0, percentage: 0 };
 
-  // Add new markers
-  console.log('Creating markers for artworks:', artworksStore.artworks.length);
-  artworksStore.artworks.forEach((artwork: ArtworkPin) => {
-    console.log(
-      'Creating marker for artwork:',
-      artwork.id,
-      'at',
-      artwork.latitude,
-      artwork.longitude
+  try {
+    await artworksStore.fetchArtworksInBoundsBatched(
+      bounds,
+      500, // initial batch size
+      (progress: { loaded: number; total: number; batch: ArtworkPin[]; batchSize: number; avgTime: number }) => {
+        // Update progress stats
+        progressiveLoadingStats.value = {
+          loaded: progress.loaded,
+          total: Math.max(progress.total, progress.loaded),
+          percentage: Math.round((progress.loaded / Math.max(progress.total, progress.loaded)) * 100),
+          batchSize: progress.batchSize,
+          avgTime: progress.avgTime
+        };
+
+        // Update markers incrementally for each batch
+        nextTick(() => {
+          updateArtworkMarkers();
+        });
+      }
     );
+  } finally {
+    isProgressiveLoading.value = false;
+    progressiveLoadingStats.value = null;
+  }
+}
 
-    const marker = L.marker([artwork.latitude, artwork.longitude], {
-      icon: createArtworkIcon(artwork.type || 'other'),
+// Helper function to check if bounds A contains bounds B
+function boundsContain(boundsA: {north: number; south: number; east: number; west: number}, 
+                      boundsB: {north: number; south: number; east: number; west: number}): boolean {
+  return boundsA.north >= boundsB.north && 
+         boundsA.south <= boundsB.south && 
+         boundsA.east >= boundsB.east && 
+         boundsA.west <= boundsB.west;
+}
+
+// Debounced marker update to prevent excessive calls during initialization
+function updateArtworkMarkersDebounced(delay: number = 0) {
+  if (markerUpdateTimeout.value) {
+    clearTimeout(markerUpdateTimeout.value);
+  }
+  
+  markerUpdateTimeout.value = setTimeout(() => {
+    updateArtworkMarkers();
+  }, delay);
+}
+
+// Update artwork markers with efficient viewport-based rendering
+function updateArtworkMarkers() {
+  console.log('[MARKER DEBUG] updateArtworkMarkers() called:', {
+    mapExists: !!map.value,
+    clusterGroupExists: !!markerClusterGroup.value,
+    propsArtworksLength: props.artworks?.length || 0,
+    currentMarkersCount: artworkMarkers.value.length,
+    mapContainerInDOM: !!mapContainer.value?.isConnected,
+    mapSize: map.value ? { width: map.value.getSize().x, height: map.value.getSize().y } : null,
+    timestamp: new Date().toISOString()
+  });
+
+  if (!map.value || !markerClusterGroup.value) {
+    console.log('[MARKER DEBUG] Early return - missing map or cluster group');
+    return;
+  }
+
+  // Force map to be visible and properly sized
+  if (mapContainer.value && map.value) {
+    const containerRect = mapContainer.value.getBoundingClientRect();
+    console.log('[MARKER DEBUG] Map container dimensions:', {
+      width: containerRect.width,
+      height: containerRect.height,
+      isVisible: containerRect.width > 0 && containerRect.height > 0
     });
+    
+    if (containerRect.width === 0 || containerRect.height === 0) {
+      console.log('[MARKER DEBUG] Map container has zero dimensions - triggering resize');
+      setTimeout(() => {
+        map.value?.invalidateSize();
+        updateArtworkMarkers();
+      }, 100);
+      return;
+    }
 
-    // Remove popup binding - we want direct navigation instead of popups
-    // This prevents the popup pane from interfering with marker clicks
+    // Additional stability check - ensure map is actually rendered and interactive
+    if (map.value && !map.value.getContainer()) {
+      console.log('[MARKER DEBUG] Map container not yet attached - delaying marker update');
+      setTimeout(() => updateArtworkMarkers(), 100);
+      return;
+    }
+  }
 
-    // Add click handler to marker itself for direct navigation
-    marker.on('click', () => {
-      console.log('Marker clicked for artwork:', artwork.id);
-      // Navigate directly to artwork details page on marker click
+  // Determine current bounds with padding for smooth experience
+  const bounds = map.value.getBounds();
+  const latPad = (bounds.getNorth() - bounds.getSouth()) * 0.05; // Reduced padding for viewport
+  const lngPad = (bounds.getEast() - bounds.getWest()) * 0.05;
+  const viewportBounds = L.latLngBounds(
+    L.latLng(bounds.getSouth() - latPad, bounds.getWest() - lngPad),
+    L.latLng(bounds.getNorth() + latPad, bounds.getEast() + lngPad)
+  );
+
+  // Get artworks that should be visible in current viewport and are of enabled types
+  const artworksInViewport = (props.artworks || []).filter((artwork: ArtworkPin) => {
+    const inBounds = viewportBounds.contains(L.latLng(artwork.latitude, artwork.longitude));
+    const typeEnabled = isArtworkTypeEnabled(artwork.type || 'other');
+    
+    return inBounds && typeEnabled;
+  });
+
+  console.log('[MARKER DEBUG] Filtered artworks in viewport:', {
+    totalPropsArtworks: props.artworks?.length || 0,
+    artworksInViewport: artworksInViewport.length,
+    viewportBounds: {
+      north: viewportBounds.getNorth(),
+      south: viewportBounds.getSouth(),
+      east: viewportBounds.getEast(),
+      west: viewportBounds.getWest()
+    },
+    firstFewInViewport: artworksInViewport.slice(0, 3).map((a: ArtworkPin) => ({ id: a.id, lat: a.latitude, lng: a.longitude }))
+  });
+
+  // Create a set of artwork IDs currently in viewport for efficient comparison
+  const viewportArtworkIds = new Set(artworksInViewport.map((a: ArtworkPin) => a.id));
+  
+  // Create a set of currently displayed artwork IDs
+  const currentArtworkIds = new Set(
+    artworkMarkers.value.map((marker: any) => {
+      // Get artwork ID from marker (stored when marker was created)
+      return marker._artworkId;
+    }).filter(Boolean)
+  );
+
+  // Remove markers that are no longer in viewport or are of disabled types
+  artworkMarkers.value = artworkMarkers.value.filter((marker: any) => {
+    const artworkId = marker._artworkId;
+    const artworkType = marker._artworkType;
+    
+    // Remove if no longer in viewport
+    if (artworkId && !viewportArtworkIds.has(artworkId)) {
+      if (markerClusterGroup.value) {
+        markerClusterGroup.value.removeLayer(marker as any);
+      }
+      return false; // Remove from artworkMarkers array
+    }
+    
+    // Remove if artwork type is now disabled
+    if (artworkType && !isArtworkTypeEnabled(artworkType)) {
+      if (markerClusterGroup.value) {
+        markerClusterGroup.value.removeLayer(marker as any);
+      }
+      return false; // Remove from artworkMarkers array
+    }
+    return true; // Keep in artworkMarkers array
+  });
+
+  // Add new markers for artworks that entered the viewport
+  artworksInViewport.forEach((artwork: ArtworkPin) => {
+    // Skip if marker already exists
+    if (currentArtworkIds.has(artwork.id)) {
+      return;
+    }
+
+    // Create new marker with optimized options
+    const markerOptions = {
+      ...createArtworkStyle(artwork.type || 'other'),
+      interactive: true,
+      bubblingMouseEvents: false,
+      pane: 'markerPane'
+    };
+    
+    const marker = L.circleMarker([artwork.latitude, artwork.longitude], markerOptions);
+    
+    // Store artwork ID and type on marker for efficient tracking
+    (marker as any)._artworkId = artwork.id;
+    (marker as any)._artworkType = artwork.type || 'other';
+
+    // Create popup content
+    const popupContent = `
+      <div class="artwork-popup">
+        <h3 class="font-semibold text-sm mb-1">${artwork.title || 'Untitled'}</h3>
+        <button onclick="window.viewArtworkDetails('${artwork.id}')" 
+                class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
+          View Details
+        </button>
+      </div>
+    `;
+    
+    marker.bindPopup(popupContent);
+
+    // Add event handlers
+    marker.on('click', (e: L.LeafletMouseEvent) => {
+      e.originalEvent?.stopPropagation();
       router.push(`/artwork/${artwork.id}`);
       emit('artworkClick', artwork);
     });
 
+    // Add hover effects
+    marker.on('mouseover', () => {
+      marker.setStyle({ fillOpacity: 1.0, weight: 2 });
+    });
+
+    marker.on('mouseout', () => {
+      marker.setStyle({ fillOpacity: 0.9, weight: 1 });
+    });
+
+    // Add to cluster group and tracking array
     if (markerClusterGroup.value) {
+      console.log('[MARKER DEBUG] Adding marker to cluster group:', {
+        markerId: artwork.id,
+        clusterGroupType: markerClusterGroup.value.constructor.name,
+        isClusterGroupOnMap: map.value?.hasLayer(markerClusterGroup.value),
+        mapContainerInDOM: !!mapContainer.value?.isConnected
+      });
       markerClusterGroup.value.addLayer(marker as any);
+    } else {
+      console.log('[MARKER DEBUG] No cluster group available for marker:', artwork.id);
     }
     artworkMarkers.value.push(marker);
   });
-  console.log('Created', artworkMarkers.value.length, 'markers');
 }
 
 // Ensure marker cluster plugin is loaded when needed
@@ -518,6 +832,10 @@ async function configureMarkerGroup() {
 
   // Add to map and rebuild markers
   markerClusterGroup.value!.addTo(map.value);
+  
+  // Clear existing marker references since they belong to the old cluster group
+  artworkMarkers.value = [];
+  
   updateArtworkMarkers();
 
   // Persist preference
@@ -555,17 +873,36 @@ function handleMapMove() {
 
   // Debounced artwork loading to prevent infinite loops
   debounceLoadArtworks();
+  // Also update marker styles immediately for zoom changes (better responsiveness)
+  updateArtworkMarkers();
+  // Move debug rings to new center
+  updateDebugRings();
 }
 
-// Debounced artwork loading
+// Debounced artwork loading with intelligent timing
 let loadArtworksTimeout: ReturnType<typeof setTimeout> | null = null;
 function debounceLoadArtworks() {
+  // Clear existing timeout
   if (loadArtworksTimeout) {
     clearTimeout(loadArtworksTimeout);
   }
+  
+  // Clear any pending loading timeout state
+  if (loadingTimeout.value) {
+    clearTimeout(loadingTimeout.value);
+  }
+  
+  // Set a shorter delay for more responsive loading
   loadArtworksTimeout = setTimeout(() => {
     loadArtworks();
-  }, 500); // Wait 500ms after user stops moving map
+  }, 250); // Reduced from 500ms to 250ms for better responsiveness
+  
+  // Show loading state after a brief delay to avoid flicker
+  loadingTimeout.value = setTimeout(() => {
+    if (!isLoadingViewport.value) {
+      isLoadingViewport.value = true;
+    }
+  }, 100);
 }
 
 // Map control methods
@@ -598,6 +935,82 @@ function retryMapLoad() {
   initializeMap();
 }
 
+// Clear persistent map cache via store and reload markers
+async function clearMapCacheAndReload() {
+  if (clearingCache.value) return;
+  const confirmed = typeof window !== 'undefined'
+    ? window.confirm('Clear cached map pins? This will remove locally stored pins and reload from the network.')
+    : true;
+  if (!confirmed) return;
+  try {
+    clearingCache.value = true;
+    artworksStore.clearMapCache();
+    // Clear current in-memory pins; they will refill on next fetch
+    artworksStore.setArtworks([]);
+    await nextTick();
+    updateArtworkMarkers();
+    await loadArtworks();
+  } finally {
+    clearingCache.value = false;
+  }
+}
+
+// Handle artwork type filter toggles
+function handleArtworkTypeToggle(_artworkType: ArtworkTypeToggle) {
+  // Immediately update markers to show/hide based on the new filter state
+  updateArtworkMarkers();
+}
+
+// Enable all artwork type filters
+function enableAllArtworkTypes() {
+  enableAllTypes();
+  updateArtworkMarkers();
+}
+
+// Disable all artwork type filters
+function disableAllArtworkTypes() {
+  disableAllTypes();
+  updateArtworkMarkers();
+}
+
+// =====================
+// Debug Rings (Overlays)
+// =====================
+function removeDebugRings() {
+  if (!map.value) return;
+  if (debugImmediateRing) {
+    try { map.value.removeLayer(debugImmediateRing); } catch {/* ignore */}
+    debugImmediateRing = null;
+  }
+}
+
+function updateDebugRings() {
+  if (!map.value) return;
+
+  // Clear when disabled
+  if (!debugRingsEnabled.value) {
+    removeDebugRings();
+    return;
+  }
+
+  const center = map.value.getCenter();
+
+  // 100m immediate area (red dashed ring)
+  if (!debugImmediateRing) {
+    debugImmediateRing = L.circle([center.lat, center.lng], {
+      radius: 100,
+      color: '#dc2626', // red-600
+      weight: 2,
+      fill: false,
+      dashArray: '6,6',
+      interactive: false,
+    }).addTo(map.value);
+  } else {
+    debugImmediateRing.setLatLng([center.lat, center.lng]);
+    debugImmediateRing.setRadius(100);
+  }
+}
+
 // Global function for popup buttons
 // Only attach helper to window in browser environments
 if (typeof window !== 'undefined') {
@@ -609,8 +1022,14 @@ if (typeof window !== 'undefined') {
 // Watch for props changes
 watch(
   () => props.artworks,
-  () => {
-    updateArtworkMarkers();
+  (newArtworks: ArtworkPin[] | undefined) => {
+    console.log('[MARKER DEBUG] Props artworks watcher triggered:', {
+      newArtworksLength: newArtworks?.length || 0,
+      newArtworks: newArtworks?.slice(0, 3) || [], // First 3 for debugging
+      timestamp: new Date().toISOString()
+    });
+    // Use debounced update to prevent excessive calls during initialization
+    updateArtworkMarkersDebounced(25);
   },
   { deep: true }
 );
@@ -691,6 +1110,18 @@ watch(
     await configureMarkerGroup();
   }
 );
+
+// Persist and react to debug rings toggle
+watch(
+  () => debugRingsEnabled.value,
+  () => {
+    try { localStorage.setItem('map:debugRingsEnabled', String(debugRingsEnabled.value)); } catch {/* ignore */}
+    updateDebugRings();
+  }
+);
+
+// Update search ring when the effective fetch radius changes
+// Note: Blue search ring removed; no need to watch fetchRadius for ring updates
 </script>
 
 <template>
@@ -718,6 +1149,54 @@ watch(
           aria-hidden="true"
         ></div>
         <p class="text-sm text-gray-600">Loading map...</p>
+      </div>
+    </div>
+
+    <!-- Viewport Loading Indicator -->
+    <div
+      v-if="isLoadingViewport && !isLoading"
+      class="absolute top-4 right-4 bg-white bg-opacity-90 backdrop-blur-sm rounded-lg p-2 shadow-md z-15"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="flex items-center space-x-2">
+        <div
+          class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"
+          aria-hidden="true"
+        ></div>
+        <p class="text-xs text-gray-600">Loading artworks...</p>
+      </div>
+    </div>
+
+    <!-- Progressive Loading Indicator -->
+    <div
+      v-if="isProgressiveLoading && progressiveLoadingStats"
+      class="absolute top-4 right-4 bg-white bg-opacity-95 backdrop-blur-sm rounded-lg p-3 shadow-lg z-15"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="flex items-center space-x-2 mb-2">
+        <div
+          class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"
+          aria-hidden="true"
+        ></div>
+        <p class="text-xs text-gray-700 font-medium">Progressive Loading</p>
+      </div>
+      <div class="space-y-1">
+        <div class="flex justify-between text-xs text-gray-600">
+          <span>{{ progressiveLoadingStats.loaded }} loaded</span>
+          <span>{{ progressiveLoadingStats.percentage }}%</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-1.5">
+          <div 
+            class="bg-blue-600 h-1.5 rounded-full transition-all duration-300 ease-out"
+            :style="{ width: `${progressiveLoadingStats.percentage}%` }"
+          ></div>
+        </div>
+        <div v-if="progressiveLoadingStats.batchSize || progressiveLoadingStats.avgTime" class="flex justify-between text-xs text-gray-500 pt-1">
+          <span v-if="progressiveLoadingStats.batchSize">Batch: {{ progressiveLoadingStats.batchSize }}</span>
+          <span v-if="progressiveLoadingStats.avgTime">{{ Math.round(progressiveLoadingStats.avgTime) }}ms avg</span>
+        </div>
       </div>
     </div>
 
@@ -770,7 +1249,7 @@ watch(
         <!-- Options Panel -->
         <div
           v-show="showOptionsPanel"
-          class="absolute bottom-14 right-0 w-56 bg-white shadow-lg rounded-lg p-3 border border-gray-200"
+          class="absolute bottom-14 right-0 w-80 sm:w-96 lg:w-[32rem] bg-white shadow-xl rounded-lg p-4 border border-gray-200 max-h-[calc(100vh-8rem)] overflow-y-auto"
           role="dialog"
           aria-label="Map options"
         >
@@ -784,6 +1263,83 @@ watch(
             <label for="toggle-cluster" class="ml-2 text-sm text-gray-700 select-none">
               Cluster markers
             </label>
+          </div>
+          <div class="mt-2 pt-2 border-t border-gray-100 flex items-start">
+            <input
+              id="toggle-rings"
+              type="checkbox"
+              class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              v-model="debugRingsEnabled"
+            />
+            <label for="toggle-rings" class="ml-2 text-sm text-gray-700 select-none">
+              Enable map rings (debug)
+            </label>
+          </div>
+          <div class="mt-2 pt-2 border-t border-gray-100 flex items-start">
+            <input
+              id="toggle-progressive"
+              type="checkbox"
+              class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              v-model="useProgressiveLoading"
+            />
+            <label for="toggle-progressive" class="ml-2 text-sm text-gray-700 select-none">
+              Progressive loading
+              <div class="text-xs text-gray-500 mt-0.5">
+                Load large datasets in batches
+              </div>
+            </label>
+          </div>
+          <div class="mt-3 pt-3 border-t border-gray-100">
+            <h3 class="text-sm font-medium text-gray-900 mb-1">Artwork Types Filtering</h3>
+            <p class="text-xs text-gray-600 mb-3">
+              Select which types of artworks to display on the map. Each colored circle shows the marker color used on the map.
+            </p>
+            
+            <!-- Control buttons -->
+            <div class="flex gap-2 mb-3">
+              <button
+                @click="enableAllArtworkTypes"
+                class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
+              >
+                Enable All
+              </button>
+              <button
+                @click="disableAllArtworkTypes"
+                class="text-xs bg-gray-600 text-white px-3 py-1.5 rounded hover:bg-gray-700 focus:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 transition-colors"
+              >
+                Disable All
+              </button>
+            </div>
+            
+            <!-- Artwork types grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
+              <div v-for="artworkType in artworkTypes" :key="artworkType.key" class="flex items-center">
+                <input
+                  :id="`toggle-${artworkType.key}`"
+                  type="checkbox"
+                  class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
+                  v-model="artworkType.enabled"
+                  @change="handleArtworkTypeToggle(artworkType)"
+                />
+                <label :for="`toggle-${artworkType.key}`" class="ml-2 flex items-center text-xs text-gray-700 select-none min-w-0">
+                  <span 
+                    class="inline-block w-3 h-3 rounded-full mr-1.5 border border-white shadow-sm flex-shrink-0"
+                    :style="{ backgroundColor: artworkType.color }"
+                  ></span>
+                  <span class="truncate">{{ artworkType.label }}</span>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-gray-100">
+            <button
+              @click="clearMapCacheAndReload"
+              :disabled="clearingCache"
+              class="w-full text-sm bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1.5 rounded transition-colors disabled:opacity-50"
+              title="Clear cached map pins"
+            >
+              {{ clearingCache ? 'Clearing…' : 'Clear map Cache' }}
+            </button>
           </div>
         </div>
       </div>
@@ -861,6 +1417,11 @@ watch(
 .custom-user-location-icon {
   background: transparent !important;
   border: none !important;
+}
+
+/* Circle marker styles for better interaction */
+.artwork-circle-marker {
+  cursor: pointer !important;
 }
 
 .artwork-marker {

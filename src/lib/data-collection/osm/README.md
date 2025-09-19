@@ -39,17 +39,25 @@ node fetch-osm-artworks.js [options]
 - **Force refresh all tiles, even if they already exist**  
   ```bash
   node fetch-osm-artworks.js --force=true
+  # or
+  node fetch-osm-artworks.js --force true
   ```
 
 - **Refresh tiles older than 24 hours**  
   ```bash
   node fetch-osm-artworks.js --maxAgeHours=24
+  # or
+  node fetch-osm-artworks.js --maxAgeHours 24
   ```
 
 - **Custom bounding box + lower zoom (bigger tiles, fewer requests)**  
   ```bash
-  node fetch-osm-artworks.js     --minLat 49.15 --minLon -123.27     --maxLat 49.32 --maxLon -123.02     --zoom 13
+  node fetch-osm-artworks.js --minLat=49.15 --minLon=-123.27 --maxLat=49.32 --maxLon=-123.02 --zoom=13
+  # or
+  node fetch-osm-artworks.js --minLat 49.15 --minLon -123.27 --maxLat 49.32 --maxLon -123.02 --zoom 13
   ```
+
+**Note**: Arguments can be specified using either `--key=value` or `--key value` format.
 
 ---
 

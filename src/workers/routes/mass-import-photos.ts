@@ -171,11 +171,11 @@ export async function processMassImportPhotos(
           .join('\n');
       enhancedNote = enhancedNote + tagsSection;
       
-      // Update the logbook entry with enhanced note
+      // Update the logbook entry with enhanced note in submissions table
       await c.env.DB.prepare(`
-        UPDATE logbook 
-        SET note = ? 
-        WHERE id = ?
+        UPDATE submissions 
+        SET notes = ? 
+        WHERE id = ? AND submission_type = 'logbook_entry'
       `).bind(enhancedNote, newEntry.id).run();
     }
 

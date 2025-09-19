@@ -246,7 +246,18 @@ export const useSearchStore = defineStore('search', () => {
 
       if (response.data) {
         type ArtworkLike = {
-          id: string; lat: number; lon: number; type_name?: string; tags?: unknown; recent_photo?: string; photo_count?: number; photos?: unknown; distance_km?: number; similarity_score?: number | null;
+          id: string;
+          lat: number;
+          lon: number;
+          type_name?: string;
+          tags?: unknown;
+          recent_photo?: string;
+          photo_count?: number;
+          photos?: unknown;
+          distance_km?: number;
+          similarity_score?: number | null;
+          title?: string | null;
+          artist_name?: string | null;
         };
         const artworksArray = response.data.artworks as ArtworkLike[];
         const searchResults: SearchResult[] = artworksArray.map(artwork => {
@@ -258,11 +269,38 @@ export const useSearchStore = defineStore('search', () => {
               parsedTags = artwork.tags as Record<string, unknown>;
             }
           }
+          // Prefer explicit artwork.title from API (if present on ArtworkApiResponse)
+          const rawTitle = artwork.title;
+          let derivedTitle: string | null = null;
+          if (typeof rawTitle === 'string' && rawTitle.trim().length > 0) {
+            derivedTitle = rawTitle.trim();
+          } else if (parsedTags) {
+            const t = parsedTags as { title?: unknown; name?: unknown };
+            if (typeof t.title === 'string' && t.title.trim().length > 0) {
+              derivedTitle = t.title.trim();
+            } else if (typeof t.name === 'string' && t.name.trim().length > 0) {
+              derivedTitle = t.name.trim();
+            }
+          }
+          // Artist name from API or tags
+          const rawArtist = artwork.artist_name;
+          let artistName: string | null = null;
+          if (typeof rawArtist === 'string' && rawArtist.trim().length > 0) {
+            artistName = rawArtist.trim();
+          } else if (parsedTags) {
+            const t = parsedTags as { artist?: unknown; artist_name?: unknown; created_by?: unknown };
+            const candidate = [t.artist_name, t.artist, t.created_by].find(
+              (v): v is string => typeof v === 'string' && v.trim().length > 0
+            );
+            if (candidate) artistName = candidate.trim();
+          }
           return {
             id: artwork.id,
             lat: artwork.lat,
             lon: artwork.lon,
             type_name: artwork.type_name || 'unknown',
+            title: derivedTitle,
+            artist_name: artistName,
             tags: parsedTags,
             recent_photo: artwork.recent_photo ?? null,
             photo_count: artwork.photo_count ?? (Array.isArray(artwork.photos) ? (artwork.photos as unknown[]).length : 0),
@@ -396,7 +434,18 @@ export const useSearchStore = defineStore('search', () => {
       if (response.data) {
         // Map nearby artwork response into generic SearchResult shape
         type NearbyArtworkLike = {
-          id: string; lat: number; lon: number; type_name?: string; tags?: unknown; recent_photo?: string; photo_count?: number; photos?: unknown; distance_km?: number; similarity_score?: number | null;
+          id: string;
+          lat: number;
+          lon: number;
+          type_name?: string;
+          tags?: unknown;
+          recent_photo?: string;
+          photo_count?: number;
+          photos?: unknown;
+          distance_km?: number;
+          similarity_score?: number | null;
+          title?: string | null;
+          artist_name?: string | null;
         };
         const nearbyArray = response.data.artworks as NearbyArtworkLike[];
         const searchResults: SearchResult[] = nearbyArray.map(artwork => {
@@ -408,11 +457,38 @@ export const useSearchStore = defineStore('search', () => {
               parsedTags = artwork.tags as Record<string, unknown>;
             }
           }
+          // Prefer explicit artwork.title from API (if present on ArtworkWithPhotos)
+          const rawTitle = artwork.title;
+          let derivedTitle: string | null = null;
+          if (typeof rawTitle === 'string' && rawTitle.trim().length > 0) {
+            derivedTitle = rawTitle.trim();
+          } else if (parsedTags) {
+            const t = parsedTags as { title?: unknown; name?: unknown };
+            if (typeof t.title === 'string' && t.title.trim().length > 0) {
+              derivedTitle = t.title.trim();
+            } else if (typeof t.name === 'string' && t.name.trim().length > 0) {
+              derivedTitle = t.name.trim();
+            }
+          }
+          // Artist name from API or tags
+          const rawArtist = artwork.artist_name;
+          let artistName: string | null = null;
+          if (typeof rawArtist === 'string' && rawArtist.trim().length > 0) {
+            artistName = rawArtist.trim();
+          } else if (parsedTags) {
+            const t = parsedTags as { artist?: unknown; artist_name?: unknown; created_by?: unknown };
+            const candidate = [t.artist_name, t.artist, t.created_by].find(
+              (v): v is string => typeof v === 'string' && v.trim().length > 0
+            );
+            if (candidate) artistName = candidate.trim();
+          }
           return {
             id: artwork.id,
             lat: artwork.lat,
             lon: artwork.lon,
             type_name: artwork.type_name || 'unknown',
+            title: derivedTitle,
+            artist_name: artistName,
             tags: parsedTags,
             recent_photo: artwork.recent_photo ?? null,
             photo_count: artwork.photo_count ?? (Array.isArray(artwork.photos) ? (artwork.photos as unknown[]).length : 0),

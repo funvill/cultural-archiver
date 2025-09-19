@@ -170,8 +170,16 @@ export interface NearbyArtworksRequest {
   limit?: number;
 }
 
+export interface MinimalArtworkPin {
+  id: string;
+  lat: number;
+  lon: number;
+  type_name: string;
+  recent_photo?: string | null;
+}
+
 export interface NearbyArtworksResponse {
-  artworks: ArtworkWithPhotos[];
+  artworks: Array<ArtworkWithPhotos | MinimalArtworkPin>;
   total: number;
   search_center: { lat: number; lon: number };
   search_radius: number;

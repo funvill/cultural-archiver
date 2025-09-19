@@ -220,8 +220,8 @@ export async function deleteUserAccount(c: Context<{ Bindings: WorkerEnv }>): Pr
     // Update all user submissions to remove personal data
     const deleteStmt = db.db.prepare(`
       UPDATE submissions 
-      SET user_token = 'deleted-user', note = '[deleted]'
-      WHERE user_token = ? AND status != 'approved' AND submission_type = 'logbook'
+      SET user_token = 'deleted-user', notes = '[deleted]'
+      WHERE user_token = ? AND status != 'approved' AND submission_type = 'logbook_entry'
     `);
 
     await deleteStmt.bind(userToken).run();

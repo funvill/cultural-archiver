@@ -1,13 +1,9 @@
 import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
-import type {
-  ArtworkPin,
-  Coordinates,
-  MapBounds,
-  ArtworkDetails,
-  ArtworkWithPhotos,
-} from '../types';
+import type { ArtworkPin, Coordinates, MapBounds, ArtworkDetails } from '../types';
+import type { MinimalArtworkPin, ArtworkWithPhotos } from '../../../shared/types';
 import { apiService, getErrorMessage, isNetworkError } from '../services/api';
+import { mapCache } from '../utils/mapCache';
 
 /**
  * Artwork and map state management store
@@ -145,55 +141,28 @@ export const useArtworksStore = defineStore('artworks', () => {
       const response = await apiService.getNearbyArtworks(
         targetLocation.latitude,
         targetLocation.longitude,
-        fetchRadius.value
+        fetchRadius.value,
+        250,
+        { minimal: true }
       );
 
       // The API now returns a full API response with { success: true, data: { artworks: [...] } }
       const apiArtworks = response.data?.artworks || [];
 
       // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = apiArtworks.map(
-        (artwork: ArtworkWithPhotos): ArtworkPin => {
-          let derivedType = artwork.type_name || 'unknown';
-          // Parse tags to override type if artwork_type present
-          if (artwork.tags) {
-            try {
-              const parsedTags =
-                typeof artwork.tags === 'string' ? JSON.parse(artwork.tags) : artwork.tags;
-              if (parsedTags?.artwork_type) {
-                derivedType = parsedTags.artwork_type;
-              }
-            } catch {/* ignore */}
-          }
-          const pin: ArtworkPin = {
-            id: artwork.id,
-            latitude: artwork.lat,
-            longitude: artwork.lon,
-            type: derivedType,
-            photos: [],
-          };
-
-          // Handle photos from recent_photo
-          if (artwork.recent_photo) {
-            pin.photos = [artwork.recent_photo];
-          }
-
-          // Only set title if it's available in tags
-          if (artwork.tags) {
-            try {
-              const parsedTags =
-                typeof artwork.tags === 'string' ? JSON.parse(artwork.tags) : artwork.tags;
-              if (typeof parsedTags?.title === 'string') {
-                pin.title = parsedTags.title;
-              }
-            } catch (e) {
-              console.warn('Failed to parse artwork tags:', e);
-            }
-          }
-
-          return pin;
+      const artworkPins: ArtworkPin[] = apiArtworks.map((artwork: MinimalArtworkPin | ArtworkWithPhotos): ArtworkPin => {
+        const pin: ArtworkPin = {
+          id: artwork.id,
+          latitude: artwork.lat,
+          longitude: artwork.lon,
+          type: artwork.type_name || 'unknown',
+          photos: [],
+        };
+        if (artwork.recent_photo) {
+          pin.photos = [artwork.recent_photo];
         }
-      );
+        return pin;
+      });
 
       setArtworks(artworkPins);
       lastFetchLocation.value = targetLocation;
@@ -272,6 +241,24 @@ export const useArtworksStore = defineStore('artworks', () => {
     clearError();
 
     try {
+      // 1) Load cached pins first for instant UI while network fetch happens
+      try {
+        mapCache.prune(); // drop expired
+        const cachedPins = mapCache.getPinsInBounds(bounds);
+        if (cachedPins.length) {
+          const existingIndexById = new Map<string, number>();
+          artworks.value.forEach((a, i) => existingIndexById.set(a.id, i));
+          cachedPins.forEach(pin => {
+            const existingIdx = existingIndexById.get(pin.id);
+            if (existingIdx !== undefined) {
+              artworks.value[existingIdx] = { ...artworks.value[existingIdx], ...pin };
+            } else {
+              artworks.value.push(pin);
+            }
+          });
+        }
+      } catch {/* ignore cache errors */}
+
       // Use center point of bounds for nearby search
       const centerLat = (bounds.north + bounds.south) / 2;
       const centerLon = (bounds.east + bounds.west) / 2;
@@ -290,71 +277,22 @@ export const useArtworksStore = defineStore('artworks', () => {
 
   const effectiveRadius = Math.max(radius, 200); // Allow smaller than 500 for tighter view but minimum 200m
   fetchRadius.value = Math.round(effectiveRadius);
-  const response = await apiService.getNearbyArtworks(centerLat, centerLon, effectiveRadius);
+  const response = await apiService.getNearbyArtworks(centerLat, centerLon, effectiveRadius, 250, { minimal: true });
 
-      console.log('[DEBUG] API response received:', response);
-      console.log('[DEBUG] Response structure:', {
-        hasArtworks: !!response.data?.artworks,
-        artworksLength: response.data?.artworks ? response.data.artworks.length : 0,
-        responseKeys: Object.keys(response),
-        responseType: typeof response,
-      });
-
-      // The API now returns a full API response with { success: true, data: { artworks: [...] } }
-      console.log('[DEBUG] response.data.artworks type:', typeof response.data?.artworks);
-      console.log('[DEBUG] response.data.artworks value:', response.data?.artworks);
-      console.log(
-        '[DEBUG] response.data.artworks array check:',
-        Array.isArray(response.data?.artworks)
-      );
       const apiArtworks = response.data?.artworks || [];
-      console.log('[DEBUG] Extracted artworks:', apiArtworks.length, 'artworks found');
-      console.log('[DEBUG] First artwork if any:', apiArtworks[0]); // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = apiArtworks.map(
-        (artwork: ArtworkWithPhotos): ArtworkPin => {
-          console.log('[DEBUG] Converting artwork to pin:', artwork);
-          let derivedType = artwork.type_name || 'unknown';
-          if (artwork.tags) {
-            try {
-              const parsedTags =
-                typeof artwork.tags === 'string' ? JSON.parse(artwork.tags) : artwork.tags;
-              if (parsedTags?.artwork_type) {
-                derivedType = parsedTags.artwork_type;
-              }
-            } catch {/* ignore */}
-          }
-          const pin: ArtworkPin = {
-            id: artwork.id,
-            latitude: artwork.lat,
-            longitude: artwork.lon,
-            type: derivedType,
-            photos: [],
-          };
-
-          // Handle photos from recent_photo or extract from API response
-          if (artwork.recent_photo) {
-            pin.photos = [artwork.recent_photo];
-          }
-
-          // Only set title if it's available in tags
-          if (artwork.tags) {
-            try {
-              const parsedTags =
-                typeof artwork.tags === 'string' ? JSON.parse(artwork.tags) : artwork.tags;
-              if (typeof parsedTags?.title === 'string') {
-                pin.title = parsedTags.title;
-              }
-            } catch (e) {
-              console.warn('Failed to parse artwork tags:', e);
-            }
-          }
-
-          return pin;
+      const artworkPins: ArtworkPin[] = apiArtworks.map((artwork: MinimalArtworkPin | ArtworkWithPhotos): ArtworkPin => {
+        const pin: ArtworkPin = {
+          id: artwork.id,
+          latitude: artwork.lat,
+          longitude: artwork.lon,
+          type: artwork.type_name || 'unknown',
+          photos: [],
+        };
+        if (artwork.recent_photo) {
+          pin.photos = [artwork.recent_photo];
         }
-      );
-
-      console.log('[DEBUG] Converted to ArtworkPin format:', artworkPins.length, 'pins');
-      console.log('[DEBUG] Pin details:', artworkPins);
+        return pin;
+      });
 
       // ==============================================
       // Session Cache Merge Strategy
@@ -381,10 +319,207 @@ export const useArtworksStore = defineStore('artworks', () => {
       });
 
       console.log('[DEBUG] Session artwork cache size:', artworks.value.length);
+
+      // 3) Persist pins to persistent cache for future loads
+      try {
+        mapCache.upsertPins(artworkPins);
+      } catch {/* ignore cache errors */}
     } catch (err) {
       const message = getErrorMessage(err);
       setError(message);
       console.error('Error fetching artworks in bounds:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // Progressive loading functionality for large datasets with adaptive batch sizing
+  async function fetchArtworksInBoundsBatched(
+    bounds: MapBounds, 
+    initialBatchSize: number = 500,
+    onProgress?: (progress: { loaded: number; total: number; batch: ArtworkPin[]; batchSize: number; avgTime: number }) => void
+  ): Promise<void> {
+    setLoading(true);
+    clearError();
+
+    // Performance tracking for adaptive batch sizing
+    const performanceMetrics: number[] = [];
+    let currentBatchSize = initialBatchSize;
+    const minBatchSize = 100;
+    const maxBatchSize = 1000;
+    const targetBatchTime = 1000; // Target 1 second per batch
+
+    try {
+      // 1) Load cached pins first for instant UI
+      try {
+        mapCache.prune();
+        const cachedPins = mapCache.getPinsInBounds(bounds);
+        if (cachedPins.length) {
+          const existingIndexById = new Map<string, number>();
+          artworks.value.forEach((a, i) => existingIndexById.set(a.id, i));
+          cachedPins.forEach(pin => {
+            const existingIdx = existingIndexById.get(pin.id);
+            if (existingIdx !== undefined) {
+              artworks.value[existingIdx] = { ...artworks.value[existingIdx], ...pin };
+            } else {
+              artworks.value.push(pin);
+            }
+          });
+        }
+      } catch {/* ignore cache errors */}
+
+      // Use center point of bounds for nearby search
+      const centerLat = (bounds.north + bounds.south) / 2;
+      const centerLon = (bounds.east + bounds.west) / 2;
+
+      // Calculate approximate radius from bounds
+      const radius = Math.min(
+        calculateDistance(
+          { latitude: bounds.north, longitude: centerLon },
+          { latitude: bounds.south, longitude: centerLon }
+        ) / 2,
+        calculateDistance(
+          { latitude: centerLat, longitude: bounds.east },
+          { latitude: centerLat, longitude: bounds.west }
+        ) / 2
+      );
+
+      const effectiveRadius = Math.max(radius, 200);
+      fetchRadius.value = Math.round(effectiveRadius);
+
+      // Progressive batch loading with adaptive sizing
+      let offset = 0;
+      let totalLoaded = 0;
+      let allArtworkPins: ArtworkPin[] = [];
+      let batchNumber = 0;
+
+      while (true) {
+        batchNumber++;
+        const batchStartTime = performance.now();
+
+        try {
+          // Fetch batch with current batch size
+          const response = await apiService.getNearbyArtworks(
+            centerLat, 
+            centerLon, 
+            effectiveRadius, 
+            currentBatchSize, 
+            { minimal: true }
+          );
+
+          const batchEndTime = performance.now();
+          const batchTime = batchEndTime - batchStartTime;
+          performanceMetrics.push(batchTime);
+
+          const apiArtworks = response.data?.artworks || [];
+          
+          // If no results or fewer than batch size, this is the last batch
+          if (apiArtworks.length === 0) {
+            break;
+          }
+
+          // Convert API response to ArtworkPin format
+          const batchPins: ArtworkPin[] = apiArtworks.map((artwork: MinimalArtworkPin | ArtworkWithPhotos): ArtworkPin => {
+            const pin: ArtworkPin = {
+              id: artwork.id,
+              latitude: artwork.lat,
+              longitude: artwork.lon,
+              type: artwork.type_name || 'unknown',
+              photos: [],
+            };
+            if (artwork.recent_photo) {
+              pin.photos = [artwork.recent_photo];
+            }
+            return pin;
+          });
+
+          allArtworkPins.push(...batchPins);
+          totalLoaded += batchPins.length;
+
+          // Merge batch into reactive store immediately for progressive UI updates
+          const existingIndexById = new Map<string, number>();
+          artworks.value.forEach((a, i) => existingIndexById.set(a.id, i));
+
+          batchPins.forEach(pin => {
+            const existingIdx = existingIndexById.get(pin.id);
+            if (existingIdx !== undefined) {
+              artworks.value[existingIdx] = {
+                ...artworks.value[existingIdx],
+                ...pin,
+              };
+            } else {
+              artworks.value.push(pin);
+            }
+          });
+
+          // Calculate average batch time for progress reporting
+          const avgTime = performanceMetrics.reduce((a, b) => a + b, 0) / performanceMetrics.length;
+
+          // Call progress callback with performance metrics
+          if (onProgress) {
+            onProgress({
+              loaded: totalLoaded,
+              total: totalLoaded + (batchPins.length === currentBatchSize ? currentBatchSize : 0), // Estimate
+              batch: batchPins,
+              batchSize: currentBatchSize,
+              avgTime
+            });
+          }
+
+          // Adaptive batch sizing based on performance
+          if (performanceMetrics.length >= 2) {
+            // If batch took too long, reduce batch size
+            if (batchTime > targetBatchTime && currentBatchSize > minBatchSize) {
+              currentBatchSize = Math.max(minBatchSize, Math.round(currentBatchSize * 0.8));
+              console.log(`[Progressive Loading] Reduced batch size to ${currentBatchSize} (${batchTime.toFixed(0)}ms batch time)`);
+            }
+            // If batch was fast and we have room to grow, increase batch size
+            else if (batchTime < targetBatchTime * 0.5 && currentBatchSize < maxBatchSize) {
+              currentBatchSize = Math.min(maxBatchSize, Math.round(currentBatchSize * 1.2));
+              console.log(`[Progressive Loading] Increased batch size to ${currentBatchSize} (${batchTime.toFixed(0)}ms batch time)`);
+            }
+          }
+
+          // Break if we got fewer results than batch size (end of data)
+          if (apiArtworks.length < currentBatchSize) {
+            break;
+          }
+
+          offset += currentBatchSize;
+
+          // Dynamic delay based on performance - faster for good performance, slower for poor performance
+          const dynamicDelay = Math.max(10, Math.min(100, batchTime / 10));
+          await new Promise(resolve => setTimeout(resolve, dynamicDelay));
+
+        } catch (batchError) {
+          console.warn(`Error loading batch ${batchNumber} at offset ${offset}:`, batchError);
+          
+          // On error, try reducing batch size for next attempt
+          if (currentBatchSize > minBatchSize) {
+            currentBatchSize = Math.max(minBatchSize, Math.round(currentBatchSize * 0.5));
+            console.log(`[Progressive Loading] Reduced batch size to ${currentBatchSize} due to error`);
+            continue; // Try again with smaller batch
+          }
+          
+          break; // Stop on error if already at minimum batch size
+        }
+      }
+
+      const avgBatchTime = performanceMetrics.length > 0 
+        ? performanceMetrics.reduce((a, b) => a + b, 0) / performanceMetrics.length 
+        : 0;
+
+      console.log(`[Progressive Loading] Complete. ${totalLoaded} artworks loaded in ${batchNumber} batches. Avg batch time: ${avgBatchTime.toFixed(0)}ms`);
+
+      // Persist all pins to cache
+      try {
+        mapCache.upsertPins(allArtworkPins);
+      } catch {/* ignore cache errors */}
+
+    } catch (err) {
+      const message = getErrorMessage(err);
+      setError(message);
+      console.error('Error in progressive artwork loading:', err);
     } finally {
       setLoading(false);
     }
@@ -397,54 +532,27 @@ export const useArtworksStore = defineStore('artworks', () => {
         location.latitude,
         location.longitude,
         100, // Smaller radius for submission
-        10 // Limit results
+        10, // Limit results
+        { minimal: true }
       );
 
       // The API now returns a full API response with { success: true, data: { artworks: [...] } }
       const apiArtworks = response.data?.artworks || [];
 
       // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = apiArtworks.map(
-        (artwork: ArtworkWithPhotos): ArtworkPin => {
-          let derivedType = artwork.type_name || 'unknown';
-          if (artwork.tags) {
-            try {
-              const parsedTags =
-                typeof artwork.tags === 'string' ? JSON.parse(artwork.tags) : artwork.tags;
-              if (parsedTags?.artwork_type) {
-                derivedType = parsedTags.artwork_type;
-              }
-            } catch {/* ignore */}
-          }
-          const pin: ArtworkPin = {
-            id: artwork.id,
-            latitude: artwork.lat,
-            longitude: artwork.lon,
-            type: derivedType,
-            photos: [],
-          };
-
-          // Handle photos from recent_photo
-          if (artwork.recent_photo) {
-            pin.photos = [artwork.recent_photo];
-          }
-
-          // Only set title if it's available in tags
-          if (artwork.tags) {
-            try {
-              const parsedTags =
-                typeof artwork.tags === 'string' ? JSON.parse(artwork.tags) : artwork.tags;
-              if (typeof parsedTags?.title === 'string') {
-                pin.title = parsedTags.title;
-              }
-            } catch (e) {
-              console.warn('Failed to parse artwork tags:', e);
-            }
-          }
-
-          return pin;
+      const artworkPins: ArtworkPin[] = apiArtworks.map((artwork: MinimalArtworkPin | ArtworkWithPhotos): ArtworkPin => {
+        const pin: ArtworkPin = {
+          id: artwork.id,
+          latitude: artwork.lat,
+          longitude: artwork.lon,
+          type: artwork.type_name || 'unknown',
+          photos: [],
+        };
+        if (artwork.recent_photo) {
+          pin.photos = [artwork.recent_photo];
         }
-      );
+        return pin;
+      });
 
       return artworkPins;
     } catch (err) {
@@ -476,6 +584,11 @@ export const useArtworksStore = defineStore('artworks', () => {
     lastFetchLocation.value = null;
     error.value = null;
     isLoading.value = false;
+  }
+
+  // Cache management (for UI button)
+  function clearMapCache(): void {
+    try { mapCache.clear(); } catch {/* ignore */}
   }
 
   return {
@@ -510,8 +623,10 @@ export const useArtworksStore = defineStore('artworks', () => {
     fetchArtwork,
     refreshArtwork,
     fetchArtworksInBounds,
+    fetchArtworksInBoundsBatched,
     getArtworksForSubmission,
     calculateDistance,
     reset,
+    clearMapCache,
   };
 });

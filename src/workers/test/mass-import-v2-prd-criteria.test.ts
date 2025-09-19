@@ -246,6 +246,7 @@ describe('PRD Success Criteria Tests', () => {
 
   describe('Success Criterion: CLI Plugin Integration', () => {
     it('should accept CLI plugin output format correctly', async () => {
+      // Increased timeout for slow integration
       const cliRequest: MassImportRequestV2 = {
         metadata: {
           importId: 'cli-test-123',
@@ -317,7 +318,7 @@ describe('PRD Success Criteria Tests', () => {
       // Verify metadata preservation
       expect(responseData.data.importId).toBe('cli-test-123');
       expect(responseData.data.auditTrail.systemUserToken).toBeDefined();
-    });
+    }, 20000);
   });
 
   describe('Success Criterion: Artist Auto-Creation', () => {

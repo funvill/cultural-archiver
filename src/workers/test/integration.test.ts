@@ -306,7 +306,7 @@ describe('Cultural Archiver API Integration Tests', (): void => {
     });
   });
 
-  describe('Backup and Data Dump Workflows', (): void => {
+  describe('Backup Workflows', (): void => {
     describe('Backup System Integration', (): void => {
       it('should generate complete backup archive structure', (): void => {
         const expectedBackupStructure = {
@@ -319,8 +319,8 @@ describe('Cultural Archiver API Integration Tests', (): void => {
         };
 
         // Validate expected backup contents
-        Object.keys(expectedBackupStructure).forEach(path => {
-          expect(expectedBackupStructure[path]).toBe(true);
+        (Object.keys(expectedBackupStructure) as Array<keyof typeof expectedBackupStructure>).forEach(key => {
+          expect(expectedBackupStructure[key]).toBe(true);
         });
       });
 
@@ -380,154 +380,9 @@ describe('Cultural Archiver API Integration Tests', (): void => {
       });
     });
 
-    describe('Data Dump System Integration', (): void => {
-      it('should generate public data dump archive structure', (): void => {
-        const expectedDataDumpStructure = {
-          'LICENSE.txt': true,
-          'README.md': true,
-          'artwork.json': true,
-          'creators.json': true,
-          'tags.json': true,
-          'artwork_creators.json': true,
-          'photos/thumbnails/': true,
-          'metadata.json': true,
-        };
+    // Data dump integration tests removed as feature was decommissioned.
 
-        // Validate expected data dump contents
-        Object.keys(expectedDataDumpStructure).forEach(path => {
-          expect(expectedDataDumpStructure[path]).toBe(true);
-        });
-      });
-
-      it('should validate data dump filename format', (): void => {
-        const today = new Date().toISOString().slice(0, 10);
-        const expectedFilename = `datadump-${today}.zip`;
-        const filenameRegex = /^datadump-\d{4}-\d{2}-\d{2}\.zip$/;
-
-        expect(expectedFilename).toMatch(filenameRegex);
-      });
-
-      it('should filter approved artwork only', (): void => {
-        const artworkStatuses = ['pending', 'approved', 'rejected'];
-        const publicStatus = 'approved';
-
-        expect(artworkStatuses).toContain(publicStatus);
-        expect(publicStatus).toBe('approved');
-      });
-
-      it('should exclude sensitive data fields', (): void => {
-        const sensitiveFields = [
-          'user_token',
-          'email',
-          'ip_address',
-          'session_id',
-          'moderation_notes',
-          'admin_comments',
-        ];
-
-        const publicFields = ['id', 'lat', 'lon', 'status', 'created_at', 'tags'];
-
-        // Ensure sensitive fields are not in public fields
-        sensitiveFields.forEach(field => {
-          expect(publicFields).not.toContain(field);
-        });
-
-        // Ensure public fields are safe
-        publicFields.forEach(field => {
-          expect(sensitiveFields).not.toContain(field);
-        });
-      });
-
-      it('should include CC0 license', (): void => {
-        const expectedLicense = 'CC0 1.0 Universal Public Domain Dedication';
-        const cc0Keywords = ['CC0', 'Public Domain', 'Universal'];
-
-        cc0Keywords.forEach(keyword => {
-          expect(expectedLicense).toContain(keyword);
-        });
-      });
-
-      it('should generate data dump metadata with statistics', (): void => {
-        const dataDumpMetadata = {
-          generated_at: new Date().toISOString(),
-          license: 'CC0 1.0 Universal',
-          artwork_count: 150,
-          creator_count: 75,
-          tag_count: 200,
-          photo_count: 145,
-          data_format: 'JSON',
-        };
-
-        expect(dataDumpMetadata).toHaveProperty('generated_at');
-        expect(dataDumpMetadata).toHaveProperty('license');
-        expect(dataDumpMetadata).toHaveProperty('artwork_count');
-        expect(dataDumpMetadata).toHaveProperty('creator_count');
-        expect(dataDumpMetadata).toHaveProperty('tag_count');
-        expect(dataDumpMetadata).toHaveProperty('photo_count');
-        expect(dataDumpMetadata).toHaveProperty('data_format');
-      });
-    });
-
-    describe('Admin API Integration', (): void => {
-      it('should validate admin data dump generation endpoint', (): void => {
-        const expectedEndpoints = {
-          generate: 'POST /api/admin/data-dump/generate',
-          list: 'GET /api/admin/data-dumps',
-        };
-
-        expect(expectedEndpoints.generate).toContain('POST');
-        expect(expectedEndpoints.generate).toContain('/api/admin/data-dump/generate');
-        expect(expectedEndpoints.list).toContain('GET');
-        expect(expectedEndpoints.list).toContain('/api/admin/data-dumps');
-      });
-
-      it('should require admin authentication', (): void => {
-        const adminRoles = ['admin', 'super_admin'];
-        const userRole = 'user';
-
-        expect(adminRoles).not.toContain(userRole);
-        expect(adminRoles).toContain('admin');
-      });
-
-      it('should validate data dump API response structure', (): void => {
-        const expectedResponse = {
-          success: true,
-          data: {
-            id: crypto.randomUUID(),
-            filename: 'datadump-2025-09-04.zip',
-            size: 2048576,
-            artwork_count: 150,
-            creator_count: 75,
-            tag_count: 200,
-            photo_count: 145,
-            download_url: 'https://r2.example.com/datadump-2025-09-04.zip',
-            created_at: new Date().toISOString(),
-          },
-        };
-
-        expect(expectedResponse).toHaveProperty('success');
-        expect(expectedResponse).toHaveProperty('data');
-        expect(expectedResponse.data).toHaveProperty('id');
-        expect(expectedResponse.data).toHaveProperty('filename');
-        expect(expectedResponse.data).toHaveProperty('size');
-        expect(expectedResponse.data).toHaveProperty('download_url');
-        expect(expectedResponse.data).toHaveProperty('created_at');
-      });
-
-      it('should handle pagination for data dump listings', (): void => {
-        const paginationParams = {
-          page: 1,
-          limit: 20,
-          total: 5,
-          has_more: false,
-        };
-
-        expect(paginationParams.page).toBeGreaterThan(0);
-        expect(paginationParams.limit).toBeGreaterThan(0);
-        expect(paginationParams.limit).toBeLessThanOrEqual(100);
-        expect(typeof paginationParams.has_more).toBe('boolean');
-      });
-    });
+    // Admin API integration related to data-dump removed.
 
     describe('NPM Command Integration', (): void => {
       it('should validate backup command arguments', (): void => {
