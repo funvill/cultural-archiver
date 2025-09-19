@@ -8,6 +8,27 @@ The logbook submission feature allows users to document their visits to existing
 
 **Goal:** Enable users to document their visits to existing artworks, contribute to data quality, and be rewarded for their engagement, with a clear and intuitive user experience that leverages existing UI patterns.
 
+
+Add logbook submission
+
+Users need the abiltiy to indicate that they have gone and seen an artwork. This is done by taking a photo of the artwork and adding it to the system as a logbook entry. While adding the photo they can update other information about the artwork to help with the documentation. The users will be rewarded with points each time they visit an artwork.
+
+The users start the logbook submission by clicking the "Add" button in the app bar. This is the same way that users add new artworks.
+
+The "Nearby Artwork" search shows existing artworks that this photo might belong to. This gives the user the ability to select one of these artworks to add their report to.
+
+Update the "Nearby Artwork" cards to have a "Add Report" button at the bottom. When the user clicks this button they are lead to a new page called "Add logbook"
+
+This page is very similar to the "Add New Artwork" page, but allows the users to add this new image to an existing artwork. Adding an image to the artwork is adding proof that they have been there before.
+
+While adding the logbook entry the user is asked a few questions. Each question is multiple choice and uses clicklet for the answers. The user does not have to answer any of the multiple choice questions. For example: "What is the current condition?", with "Good", "Damaged", "Missing", "Removed" as possible answers.
+
+The following fields are only shown if the existing artwork doesn't have a value for it. Artwork type, Access, Artist, Material
+
+The "Consent & Legal Requirements" should be the same component as the "Add New Artwork" page.
+
+This logbook submission are submitted to the submissions table.
+
 ## 2. Goals
 
 - **Allow users to document visits** to existing artworks through a simple photo submission process.
