@@ -463,7 +463,6 @@ function generateBackupReadme(metadata: BackupMetadata): string {
 ## Support
 
 If you encounter issues during restoration, refer to:
-- Cultural Archiver documentation: \`docs/backup-data-dump.md\`
 - Database schema documentation: \`docs/database.md\`
 - API documentation: \`docs/api.md\`
 

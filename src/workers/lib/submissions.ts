@@ -331,8 +331,8 @@ export async function approveSubmission(
   // Update submission status
   const updateSuccess = await updateSubmission(db, submissionId, {
     status: 'approved',
-    reviewed_by: reviewerToken || null, // Fixed: was reviewer_token, should be reviewed_by
-    moderator_notes: reviewNotes || null, // Fixed: was review_notes, should be moderator_notes
+    reviewer_token: reviewerToken || null,
+    review_notes: reviewNotes || null,
     reviewed_at: new Date().toISOString()
   });
 
@@ -350,8 +350,8 @@ export async function rejectSubmission(
 ): Promise<boolean> {
   return updateSubmission(db, submissionId, {
     status: 'rejected',
-    reviewed_by: reviewerToken || null, // Fixed: was reviewer_token, should be reviewed_by
-    moderator_notes: reviewNotes || null, // Fixed: was review_notes, should be moderator_notes
+    reviewer_token: reviewerToken || null,
+    review_notes: reviewNotes || null,
     reviewed_at: new Date().toISOString()
   });
 }

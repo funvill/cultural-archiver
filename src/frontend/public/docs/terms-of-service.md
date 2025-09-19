@@ -61,7 +61,7 @@ All content you submit becomes part of the public domain through CC0 licensing. 
 - OpenStreetMap
 - Wikimedia Commons
 - Wikidata
-- Public APIs and data dumps
+- Public APIs
 - Educational and research databases
 - Municipal and governmental cultural databases
 

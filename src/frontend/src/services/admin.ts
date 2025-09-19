@@ -15,8 +15,6 @@ import type {
   AuditLogsResponse,
   AuditLogEntry,
   AuditStatistics,
-  GenerateDataDumpResponse,
-  ListDataDumpsResponse,
 } from '../../../shared/types';
 import { apiService } from './api';
 
@@ -269,28 +267,6 @@ export class AdminService {
     };
 
     return flattened;
-  }
-
-  /**
-   * Generate a new data dump
-   */
-  async generateDataDump(): Promise<GenerateDataDumpResponse> {
-    const result = await apiService.generateDataDump();
-    if (!result.success || !result.data) {
-      throw new Error(result.error || 'Failed to generate data dump');
-    }
-    return result.data as GenerateDataDumpResponse;
-  }
-
-  /**
-   * Get list of all generated data dumps
-   */
-  async getDataDumps(): Promise<ListDataDumpsResponse> {
-    const result = await apiService.getDataDumps();
-    if (!result.success || !result.data) {
-      throw new Error(result.error || 'Failed to get data dumps');
-    }
-    return result.data as ListDataDumpsResponse;
   }
 }
 

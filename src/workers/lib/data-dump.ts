@@ -27,12 +27,14 @@ const SENSITIVE_FIELDS = {
   magic_tokens: true,
 
   // Private admin data
+  review_notes: true,
   moderation_notes: true,
   admin_comments: true,
   internal_flags: true,
 
   // System internals
   created_by_admin: true,
+  reviewer_token: true,
   reviewed_by: true,
   rejection_reason: true,
 } as const;
@@ -367,8 +369,9 @@ export async function exportTagsAsJSON(db: D1Database): Promise<{
   try {
     console.log('[DATA_DUMP] Exporting tags as JSON...');
 
-    // Aggregate tag key/value pairs from artwork.tags JSON for approved artworks
-    const artworksWithTags = await db
+    // Aggregate tag key/value pairs from artwork.tags and artist.tags JSON for approved records
+    // 1) Load approved artwork with tags
+    const artworkWithTags = await db
       .prepare(
         `
       SELECT id, tags, created_at
@@ -377,36 +380,49 @@ export async function exportTagsAsJSON(db: D1Database): Promise<{
     `
       )
       .all();
+    if (!artworkWithTags.success) throw new Error('Failed to query artwork tags');
 
-    if (!artworksWithTags.success) {
-      throw new Error('Failed to query artwork tags');
-    }
+    // 2) Load approved artists with tags
+    const artistsWithTags = await db
+      .prepare(
+        `
+      SELECT id, tags, created_at
+      FROM artists
+      WHERE status = 'approved' AND tags IS NOT NULL
+    `
+      )
+      .all();
+    if (!artistsWithTags.success) throw new Error('Failed to query artist tags');
+
+    type Row = { id: string; tags: string | null; created_at: string };
 
     const tagSet = new Map<string, ExportTagData>();
-    (artworksWithTags.results as Array<{ id: string; tags: string; created_at: string }>).forEach(
-      (row) => {
-        try {
-          const parsed = JSON.parse(row.tags || '{}') as Record<string, unknown>;
-          for (const [label, value] of Object.entries(parsed)) {
-            if (value === undefined || value === null) continue;
-            // Skip internal keys
-            if (label.startsWith('_')) continue;
-            const valStr = Array.isArray(value) ? JSON.stringify(value) : String(value);
-            const key = `${label}::${valStr}`;
-            if (!tagSet.has(key)) {
-              tagSet.set(key, {
-                id: `${row.id}-${label}`,
-                label,
-                value: valStr,
-                created_at: row.created_at,
-              });
-            }
+    const addFromRow = (row: Row, source: 'artwork' | 'artist'): void => {
+      if (!row.tags) return;
+      try {
+        const parsed = JSON.parse(row.tags || '{}') as Record<string, unknown>;
+        for (const [label, value] of Object.entries(parsed)) {
+          if (value === undefined || value === null) continue;
+          // Skip internal keys
+          if (label.startsWith('_')) continue;
+          const valStr = Array.isArray(value) || typeof value === 'object' ? JSON.stringify(value) : String(value);
+          const key = `${label}::${valStr}`;
+          if (!tagSet.has(key)) {
+            tagSet.set(key, {
+              id: `${source}:${row.id}:${label}`,
+              label,
+              value: valStr,
+              created_at: row.created_at,
+            });
           }
-        } catch (e) {
-          console.warn(`[DATA_DUMP] Failed to parse artwork.tags for ${row.id}:`, e);
         }
+      } catch (e) {
+        console.warn(`[DATA_DUMP] Failed to parse ${source}.tags for ${row.id}:`, e);
       }
-    );
+    };
+
+    (artworkWithTags.results as Row[]).forEach((row) => addFromRow(row, 'artwork'));
+    (artistsWithTags.results as Row[]).forEach((row) => addFromRow(row, 'artist'));
 
     const tags: ExportTagData[] = Array.from(tagSet.values()).sort((a, b) => {
       if (a.label === b.label) return a.value.localeCompare(b.value);
@@ -414,10 +430,10 @@ export async function exportTagsAsJSON(db: D1Database): Promise<{
     });
 
     // Sanitize tag data
-  const sanitizedTags = tags.map(tag => sanitizeUserData(tag as unknown as Record<string, unknown>));
+    const sanitizedTags = tags.map((tag) => sanitizeUserData(tag as unknown as Record<string, unknown>));
 
     const jsonContent = JSON.stringify(sanitizedTags, null, 2);
-    console.log(`[DATA_DUMP] Exported ${tags.length} tags as JSON (from artwork JSON)`);
+    console.log(`[DATA_DUMP] Exported ${tags.length} tags as JSON (from JSON fields)`);
 
     return {
       success: true,

@@ -17,8 +17,6 @@ import type {
   AuditLogsResponse,
   AuditStatistics,
   NearbyArtworksResponse,
-  GenerateDataDumpResponse,
-  ListDataDumpsResponse,
   ArtworkEditReviewData,
   UserSubmissionsResponse,
 } from '../../../shared/types';
@@ -844,20 +842,6 @@ export const apiService = {
    */
   async getAdminStatistics(days: number = 30): Promise<ApiResponse<AuditStatistics>> {
     return client.get('/admin/statistics', { days: days.toString() });
-  },
-
-  /**
-   * Generate a new data dump
-   */
-  async generateDataDump(): Promise<ApiResponse<GenerateDataDumpResponse>> {
-    return client.post('/admin/data-dump/generate', {});
-  },
-
-  /**
-   * Get list of all generated data dumps
-   */
-  async getDataDumps(): Promise<ApiResponse<ListDataDumpsResponse>> {
-    return client.get('/admin/data-dumps');
   },
 };
 
