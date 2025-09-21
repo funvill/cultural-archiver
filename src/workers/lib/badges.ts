@@ -8,14 +8,12 @@
 import { generateUUID } from '../../shared/constants.js';
 import type {
   BadgeRecord,
-  UserBadgeRecord,
   UserRecord,
 } from '../../shared/types.js';
-import { ValidationApiError } from './errors.js';
 
 export interface BadgeCalculationContext {
   user_uuid: string;
-  user_record?: UserRecord;
+  user_record: UserRecord | undefined;
   submission_count?: number;
   photo_count?: number;
   account_age_days?: number;
@@ -301,6 +299,7 @@ export class BadgeService {
   async checkEmailVerificationBadge(user_uuid: string): Promise<BadgeAwardResult[]> {
     const context: BadgeCalculationContext = {
       user_uuid,
+      user_record: undefined,
       is_email_verified: true,
     };
     

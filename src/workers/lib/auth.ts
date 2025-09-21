@@ -125,6 +125,7 @@ export async function createUserWithUUIDClaim(
       last_login: null,
       email_verified_at: null,
       status: 'active',
+      profile_name: null, // Added for badge system
     };
 
     console.info(`User created with UUID claim: ${email} -> ${anonymousUUID}`);

@@ -13,7 +13,6 @@ import { getRateLimitStatus } from '../middleware/rateLimit';
 import { safeJsonParse } from '../lib/errors';
 import { BadgeService } from '../lib/badges';
 import { isValidProfileName, getProfileNameValidationError } from '../../shared/constants';
-import { requireEmailVerification } from '../middleware/auth';
 
 // Interfaces for database results
 interface UserStatsResult {
@@ -326,7 +325,7 @@ export async function updateProfileName(c: Context<{ Bindings: WorkerEnv }>): Pr
   // Validate profile name
   if (!isValidProfileName(profile_name)) {
     const errorMessage = getProfileNameValidationError(profile_name);
-    throw new ValidationApiError([{ field: 'profile_name', message: errorMessage }]);
+    throw new ValidationApiError([{ field: 'profile_name', message: errorMessage, code: 'INVALID_PROFILE_NAME' }]);
   }
 
   const badgeService = new BadgeService(c.env.DB);
@@ -346,7 +345,7 @@ export async function updateProfileName(c: Context<{ Bindings: WorkerEnv }>): Pr
     
     // Check if it's a profile name taken error
     if (error instanceof Error && error.message === 'Profile name is already taken') {
-      throw new ValidationApiError([{ field: 'profile_name', message: error.message }]);
+      throw new ValidationApiError([{ field: 'profile_name', message: error.message, code: 'PROFILE_NAME_TAKEN' }]);
     }
     
     throw error;

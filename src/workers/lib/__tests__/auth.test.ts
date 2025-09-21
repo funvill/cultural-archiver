@@ -162,6 +162,7 @@ describe('Authentication Core Logic', () => {
         last_login: null,
         email_verified_at: null,
         status: 'active',
+        profile_name: null,
       });
 
       expect(insertStatement.bind).toHaveBeenCalledWith(
