@@ -1700,8 +1700,8 @@ POST /api/review/approve/{submission_id}
 
 ```json
 {
-  "action": "approve",
-  "reviewer_notes": "Verified location and content",
+  "action": "create_new",
+  "approval_notes": "Verified location and content",
   "overrides": {
     "tags": {
       "material": "bronze",
@@ -1709,6 +1709,18 @@ POST /api/review/approve/{submission_id}
     }
   }
 }
+```
+
+**Action Types**:
+- `create_new`: Create a new artwork from the submission (default for new artworks)
+- `link_existing`: Link the submission to an existing artwork (used for logbook entries and photo aggregation)
+  - Requires `artwork_id` field to specify target artwork
+  - Automatically used for logbook entries with existing `artwork_id`
+  - Aggregates photos to the existing artwork instead of creating duplicates
+
+**Photo Aggregation**: When using `link_existing`, photos from the submission are automatically aggregated to the target artwork. This enables multiple contributors to add photos to the same artwork over time.
+
+**Logbook Entry Handling**: Submissions with `type: "logbook_entry"` and an existing `artwork_id` are automatically processed with `link_existing` action to aggregate photos and updates to the original artwork.
 ```
 
 **Response** (200 OK):

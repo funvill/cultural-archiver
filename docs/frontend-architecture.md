@@ -37,7 +37,7 @@ src/frontend/
 │   ├── ArtworkDetailView.vue # Artwork details with photo gallery and timeline
 │   ├── ArtworkIndexView.vue # Browsable list of artworks with sorting
 │   ├── ProfileView.vue # User submissions dashboard and statistics
-│   ├── ReviewView.vue  # Content moderation interface (admin/moderator only)
+│   ├── ReviewView.vue  # Content moderation interface with photo aggregation support (admin/moderator only)
 │   ├── SearchView.vue  # Advanced search with filters and facets
 │   ├── LogbookSubmissionView.vue # Logbook visit submission with photo proof and condition assessment
 │   └── PhotoSearchView.vue # Reverse image search interface

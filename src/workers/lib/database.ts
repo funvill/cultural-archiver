@@ -764,21 +764,13 @@ export async function updateArtworkPhotos(
 ): Promise<void> {
   // Store photos in the dedicated photos field (not in tags._photos)
   const photosJson = JSON.stringify(photoUrls);
-  // Lightweight debug toggle – relies on PHOTO_DEBUG env read elsewhere; here we just emit.
-  try {
-    // eslint-disable-next-line no-console
-    console.info('[PHOTO][DB] updateArtworkPhotos begin', { artworkId: id, count: photoUrls.length });
-  } catch {}
+  
   const stmt = db.prepare(`
     UPDATE artwork
     SET photos = ?
     WHERE id = ?
   `);
   await stmt.bind(photosJson, id).run();
-  try {
-    // eslint-disable-next-line no-console
-    console.info('[PHOTO][DB] updateArtworkPhotos success', { artworkId: id });
-  } catch {}
 }
 
 export function getPhotosFromArtwork(artwork: ArtworkRecord): string[] {

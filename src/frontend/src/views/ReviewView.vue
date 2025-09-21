@@ -386,7 +386,6 @@ async function approveSubmission(submission: ReviewSubmission) {
 
     // For logbook entries with an existing artwork_id, automatically link to that artwork
     if (submission.type === 'logbook_entry' && submission.artwork_id) {
-      console.log('[ReviewView] Logbook entry detected, linking to existing artwork:', submission.artwork_id);
       approvalAction = 'link_existing';
       artworkId = submission.artwork_id;
     } else if (submission.nearby_artworks && submission.nearby_artworks.length > 0) {
