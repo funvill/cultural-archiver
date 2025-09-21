@@ -1402,6 +1402,255 @@ GET /api/me/profile
   - `can_review`: Can access review interface (role: moderator or admin)
 - `legacy_flags`: Backward compatibility flags (deprecated)
 
+## Badge System
+
+The badge system provides gamification and recognition for user achievements. Users can earn badges for various activities like submissions, photo uploads, email verification, and account milestones.
+
+### Get All Badges
+
+Retrieve all available badge definitions. This endpoint is public and does not require authentication.
+
+```http
+GET /api/badges
+```
+
+**Authentication**: None required
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "badges": [
+      {
+        "id": "badge-uuid",
+        "badge_key": "submission_1", 
+        "title": "First Discovery",
+        "description": "Made your first artwork submission",
+        "icon_emoji": "🎯",
+        "category": "activity",
+        "threshold_type": "submission_count",
+        "threshold_value": 1,
+        "level": 1,
+        "is_active": 1,
+        "created_at": "2025-01-15T10:30:00Z",
+        "updated_at": "2025-01-15T10:30:00Z"
+      }
+    ]
+  }
+}
+```
+
+**Badge Categories**:
+- `activity`: Submission count, photo uploads, email verification
+- `community`: Login streaks, account milestones  
+- `seasonal`: Special time-based achievements
+- `geographic`: Location-based achievements
+
+### Get User Badges
+
+Retrieve badges earned by the authenticated user. Requires email verification.
+
+```http
+GET /api/me/badges
+```
+
+**Authentication**: Required (verified email)
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "badges": [
+      {
+        "badge": {
+          "id": "badge-uuid",
+          "badge_key": "email_verified",
+          "title": "Email Verified", 
+          "description": "Completed email verification",
+          "icon_emoji": "✅",
+          "category": "activity",
+          "threshold_type": "email_verified",
+          "threshold_value": null,
+          "level": 1
+        },
+        "awarded_at": "2025-01-15T14:22:00Z",
+        "award_reason": "Email verification completed",
+        "metadata": {
+          "verification_date": "2025-01-15T14:22:00Z"
+        }
+      }
+    ]
+  }
+}
+```
+
+**Error Response** (401 Unauthorized):
+
+```json
+{
+  "success": false,
+  "error": "UNAUTHORIZED",
+  "message": "Email verification required for badge system"
+}
+```
+
+## Profile System
+
+The profile system allows verified users to set unique profile names and create public profiles showcasing their achievements.
+
+### Update Profile Name
+
+Set or change user profile name. Requires email verification.
+
+```http
+PATCH /api/me/profile
+```
+
+**Authentication**: Required (verified email)
+
+**Content-Type**: `application/json`
+
+**Body**:
+
+```json
+{
+  "profile_name": "artlover123"
+}
+```
+
+**Profile Name Requirements**:
+- 3-20 characters long
+- Alphanumeric characters and dashes only
+- Cannot start or end with dash
+- Must be unique across all users
+- Cannot be banned name (admin, moderator, etc.)
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "message": "Profile name updated successfully",
+    "profile_name": "artlover123"
+  }
+}
+```
+
+**Error Response** (400 Bad Request):
+
+```json
+{
+  "success": false,
+  "error": "VALIDATION_ERROR", 
+  "message": "Validation failed",
+  "errors": [
+    {
+      "field": "profile_name",
+      "message": "Profile name is already taken"
+    }
+  ]
+}
+```
+
+### Check Profile Name Availability
+
+Check if a profile name is available before submitting. Requires email verification.
+
+```http
+GET /api/me/profile-check?profile_name=artlover123
+```
+
+**Authentication**: Required (verified email)
+
+**Query Parameters**:
+- `profile_name` (required): Profile name to check
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "available": true,
+    "message": "Profile name is available"
+  }
+}
+```
+
+**Response** (200 OK - Name Taken):
+
+```json
+{
+  "success": true,
+  "data": {
+    "available": false,
+    "message": "Profile name is already taken"
+  }
+}
+```
+
+### Get Public User Profile
+
+View public profile information for any user. Does not require authentication.
+
+```http
+GET /api/users/{uuid}
+```
+
+**Authentication**: None required
+
+**Path Parameters**:
+- `uuid` (required): User UUID
+
+**Response** (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "uuid": "user-uuid",
+      "profile_name": "artlover123",
+      "created_at": "2025-01-01T00:00:00Z",
+      "member_since": "January 2025"
+    },
+    "badges": [
+      {
+        "badge": {
+          "id": "badge-uuid",
+          "title": "Email Verified",
+          "description": "Completed email verification", 
+          "icon_emoji": "✅",
+          "category": "activity",
+          "level": 1
+        },
+        "awarded_at": "2025-01-15T14:22:00Z"
+      }
+    ],
+    "statistics": {
+      "total_badges": 3,
+      "member_since": "January 2025"
+    }
+  }
+}
+```
+
+**Error Response** (404 Not Found):
+
+```json
+{
+  "success": false,
+  "error": "NOT_FOUND",
+  "message": "User not found or profile not public"
+}
+```
+
 ### Authentication Endpoints
 
 ### Authentication Endpoints
