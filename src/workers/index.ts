@@ -31,6 +31,9 @@ import {
   artworkListSchema,
   artistListSchema,
   validateUnifiedSubmission,
+  profileNameUpdateSchema,
+  profileNameCheckSchema,
+  userUuidSchema,
 } from './middleware/validation';
 import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
@@ -53,7 +56,7 @@ import {
   getUserPendingArtistEdits 
 } from './routes/artists';
 import { bulkExportToOSM, getExportStats } from './routes/export';
-import { getUserSubmissions, getUserProfile, sendTestEmail } from './routes/user';
+import { getUserSubmissions, getUserProfile, sendTestEmail, getAllBadges, getUserBadges, updateProfileName, checkProfileNameAvailability, getPublicUserProfile } from './routes/user';
 import { handleSearchRequest, handleSearchSuggestions } from './routes/search';
 import { processMassImportPhotos } from './routes/mass-import-photos';
 import { processMassImport } from './routes/mass-import';
@@ -849,6 +852,41 @@ app.get(
   addRateLimitStatus,
   addUserTokenToResponse,
   withErrorHandling(getUserProfile)
+);
+
+// Badge System Endpoints
+// ================================
+
+// Public badge definitions endpoint
+app.get('/api/badges', withErrorHandling(getAllBadges));
+
+// User badge endpoints (require email verification)
+app.get(
+  '/api/me/badges',
+  addUserTokenToResponse,
+  withErrorHandling(getUserBadges)
+);
+
+// Profile management endpoints (require email verification)
+app.patch(
+  '/api/me/profile',
+  validateSchema(profileNameUpdateSchema),
+  addUserTokenToResponse,
+  withErrorHandling(updateProfileName)
+);
+
+app.get(
+  '/api/me/profile-check',
+  validateSchema(profileNameCheckSchema, 'query'),
+  addUserTokenToResponse,
+  withErrorHandling(checkProfileNameAvailability)
+);
+
+// Public profile viewing endpoint
+app.get(
+  '/api/users/:uuid',
+  validateSchema(userUuidSchema, 'params'),
+  withErrorHandling(getPublicUserProfile)
 );
 
 // Development/testing endpoint for email configuration

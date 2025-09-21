@@ -27,6 +27,7 @@ import {
 } from '../lib/auth';
 import { requestMagicLink as createMagicLinkForRequest, consumeMagicLink } from '../lib/email-auth';
 import { ApiError } from '../lib/errors';
+import { BadgeService } from '../lib/badges';
 
 /**
  * POST /api/auth/request-magic-link
@@ -214,6 +215,20 @@ export async function verifyMagicLink(
       sessionToken: sessionInfo.token?.substring(0, 8) + '...',
       cookiesSet: ['session_token', 'user_token'],
     });
+
+    // Check and award email verification badge
+    try {
+      const badgeService = new BadgeService(c.env.DB);
+      const awardedBadges = await badgeService.checkEmailVerificationBadge(userUUID);
+      
+      if (awardedBadges.length > 0) {
+        console.log(`User ${userUUID} earned ${awardedBadges.length} badges from email verification:`, 
+          awardedBadges.map(b => b.badge_key));
+      }
+    } catch (badgeError) {
+      // Log badge errors but don't fail the verification
+      console.warn('Badge checking failed during email verification:', badgeError);
+    }
 
     return response;
   } catch (error) {

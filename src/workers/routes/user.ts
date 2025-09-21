@@ -4,13 +4,16 @@
  */
 
 import type { Context } from 'hono';
-import type { WorkerEnv, UserSubmissionsResponse, UserSubmissionInfo } from '../types';
+import type { WorkerEnv, UserSubmissionsResponse, UserSubmissionInfo, BadgeListResponse, UserBadgeResponse, ProfileUpdateRequest, ProfileUpdateResponse, ProfileNameCheckResponse } from '../types';
 import { createDatabaseService } from '../lib/database';
-import { createSuccessResponse, UnauthorizedError } from '../lib/errors';
+import { createSuccessResponse, UnauthorizedError, ValidationApiError, NotFoundError } from '../lib/errors';
 import { getUserToken, getAuthContext } from '../middleware/auth';
 import { getValidatedData } from '../middleware/validation';
 import { getRateLimitStatus } from '../middleware/rateLimit';
 import { safeJsonParse } from '../lib/errors';
+import { BadgeService } from '../lib/badges';
+import { isValidProfileName, getProfileNameValidationError } from '../../shared/constants';
+import { requireEmailVerification } from '../middleware/auth';
 
 // Interfaces for database results
 interface UserStatsResult {
@@ -242,6 +245,197 @@ export async function deleteUserAccount(c: Context<{ Bindings: WorkerEnv }>): Pr
     );
   } catch (error) {
     console.error('Failed to delete user account:', error);
+    throw error;
+  }
+}
+
+/**
+ * GET /api/badges - Get all available badge definitions
+ * Public endpoint for viewing available badges
+ */
+export async function getAllBadges(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  const badgeService = new BadgeService(c.env.DB);
+
+  try {
+    const badges = await badgeService.getAllBadges();
+    
+    const response: BadgeListResponse = {
+      badges,
+    };
+
+    return c.json(createSuccessResponse(response));
+  } catch (error) {
+    console.error('Failed to get badges:', error);
+    throw error;
+  }
+}
+
+/**
+ * GET /api/me/badges - Get current user's badges
+ * Returns user's earned badges with award details
+ */
+export async function getUserBadges(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  const userToken = getUserToken(c);
+  const authContext = getAuthContext(c);
+
+  if (!userToken) {
+    throw new UnauthorizedError('User token required');
+  }
+
+  // Require email verification for badge system access
+  if (!authContext?.isVerifiedEmail) {
+    throw new UnauthorizedError('Email verification required for badge system');
+  }
+
+  const badgeService = new BadgeService(c.env.DB);
+
+  try {
+    const userBadges = await badgeService.getUserBadges(userToken);
+    
+    const response: UserBadgeResponse = {
+      user_badges: userBadges,
+    };
+
+    return c.json(createSuccessResponse(response));
+  } catch (error) {
+    console.error('Failed to get user badges:', error);
+    throw error;
+  }
+}
+
+/**
+ * PATCH /api/me/profile - Update user profile name
+ * Allows verified users to set or change their profile name
+ */
+export async function updateProfileName(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  const userToken = getUserToken(c);
+  const authContext = getAuthContext(c);
+
+  if (!userToken) {
+    throw new UnauthorizedError('User token required');
+  }
+
+  // Require email verification for profile system access
+  if (!authContext?.isVerifiedEmail) {
+    throw new UnauthorizedError('Email verification required for profile system');
+  }
+
+  const validatedBody = getValidatedData<ProfileUpdateRequest>(c, 'body');
+  const { profile_name } = validatedBody;
+
+  // Validate profile name
+  if (!isValidProfileName(profile_name)) {
+    const errorMessage = getProfileNameValidationError(profile_name);
+    throw new ValidationApiError([{ field: 'profile_name', message: errorMessage }]);
+  }
+
+  const badgeService = new BadgeService(c.env.DB);
+
+  try {
+    await badgeService.updateProfileName(userToken, profile_name);
+    
+    const response: ProfileUpdateResponse = {
+      success: true,
+      message: 'Profile name updated successfully',
+      profile_name,
+    };
+
+    return c.json(createSuccessResponse(response));
+  } catch (error) {
+    console.error('Failed to update profile name:', error);
+    
+    // Check if it's a profile name taken error
+    if (error instanceof Error && error.message === 'Profile name is already taken') {
+      throw new ValidationApiError([{ field: 'profile_name', message: error.message }]);
+    }
+    
+    throw error;
+  }
+}
+
+/**
+ * GET /api/me/profile-check - Check profile name availability
+ * Allows checking if a profile name is available before submitting
+ */
+export async function checkProfileNameAvailability(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  const userToken = getUserToken(c);
+  const authContext = getAuthContext(c);
+
+  if (!userToken) {
+    throw new UnauthorizedError('User token required');
+  }
+
+  // Require email verification for profile system access
+  if (!authContext?.isVerifiedEmail) {
+    throw new UnauthorizedError('Email verification required for profile system');
+  }
+
+  const validatedQuery = getValidatedData<{ profile_name: string }>(c, 'query');
+  const { profile_name } = validatedQuery;
+
+  // Basic validation first
+  if (!isValidProfileName(profile_name)) {
+    const errorMessage = getProfileNameValidationError(profile_name);
+    const response: ProfileNameCheckResponse = {
+      available: false,
+      message: errorMessage,
+    };
+    return c.json(createSuccessResponse(response));
+  }
+
+  const badgeService = new BadgeService(c.env.DB);
+
+  try {
+    const isAvailable = await badgeService.isProfileNameAvailable(profile_name, userToken);
+    
+    const response: ProfileNameCheckResponse = {
+      available: isAvailable,
+      message: isAvailable ? 'Profile name is available' : 'Profile name is already taken',
+    };
+
+    return c.json(createSuccessResponse(response));
+  } catch (error) {
+    console.error('Failed to check profile name availability:', error);
+    throw error;
+  }
+}
+
+/**
+ * GET /api/users/:uuid - Get public user profile
+ * Public endpoint for viewing user profiles by UUID
+ */
+export async function getPublicUserProfile(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  const validatedParams = getValidatedData<{ uuid: string }>(c, 'params');
+  const { uuid } = validatedParams;
+
+  const badgeService = new BadgeService(c.env.DB);
+
+  try {
+    const user = await badgeService.getUserByUuid(uuid);
+    
+    if (!user) {
+      throw new NotFoundError('User not found');
+    }
+
+    // Only return profile if user has a profile name (indicating they've opted into public profiles)
+    if (!user.profile_name) {
+      throw new NotFoundError('User profile not available');
+    }
+
+    // Get user's badges
+    const userBadges = await badgeService.getUserBadges(uuid);
+
+    // Return public profile information
+    const publicProfile = {
+      uuid: user.uuid,
+      profile_name: user.profile_name,
+      badges: userBadges,
+      member_since: user.created_at,
+    };
+
+    return c.json(createSuccessResponse(publicProfile));
+  } catch (error) {
+    console.error('Failed to get public user profile:', error);
     throw error;
   }
 }
