@@ -907,6 +907,52 @@ export const apiService = {
   async getAdminStatistics(days: number = 30): Promise<ApiResponse<AuditStatistics>> {
     return client.get('/admin/statistics', { days: days.toString() });
   },
+
+  /**
+   * Get all badges with statistics (admin only)
+   */
+  async getAdminBadges(): Promise<ApiResponse<{ badges: Array<BadgeRecord & { award_count: number }>; total: number; retrieved_at: string }>> {
+    return client.get('/admin/badges');
+  },
+
+  /**
+   * Create a new badge (admin only)
+   */
+  async createAdminBadge(badge: {
+    badge_key: string;
+    title: string;
+    description: string;
+    icon_emoji: string;
+    category: string;
+    level: number;
+    threshold_type: string;
+    threshold_value: number | null;
+  }): Promise<ApiResponse<BadgeRecord>> {
+    return client.post('/admin/badges', badge);
+  },
+
+  /**
+   * Update an existing badge (admin only)
+   */
+  async updateAdminBadge(badgeId: string, updates: {
+    title?: string;
+    description?: string;
+    icon_emoji?: string;
+    category?: string;
+    level?: number;
+    threshold_type?: string;
+    threshold_value?: number | null;
+    is_active?: boolean;
+  }): Promise<ApiResponse<BadgeRecord>> {
+    return client.put(`/admin/badges/${badgeId}`, updates);
+  },
+
+  /**
+   * Deactivate a badge (admin only)
+   */
+  async deactivateAdminBadge(badgeId: string): Promise<ApiResponse<{ badge_id: string; deactivated_at: string }>> {
+    return client.delete(`/admin/badges/${badgeId}`);
+  },
 };
 
 // Utility functions for error handling

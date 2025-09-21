@@ -93,6 +93,10 @@ import {
   revokeUserPermission,
   getAuditLogsEndpoint,
   getAdminStatistics,
+  getAdminBadges,
+  createAdminBadge,
+  updateAdminBadge,
+  deactivateAdminBadge,
 } from './routes/admin';
 import { debugStevenPermissions } from './routes/debug-permissions';
 import { fixPermissionsSchema } from './routes/fix-schema';
@@ -1018,6 +1022,19 @@ app.get('/api/admin/audit', withErrorHandling(getAuditLogsEndpoint));
 // GET /api/admin/statistics - Get system and audit statistics
 app.get('/api/admin/statistics', withErrorHandling(getAdminStatistics));
 
+// Badge management endpoints for administrators
+// GET /api/admin/badges - List all badges with statistics
+app.get('/api/admin/badges', withErrorHandling(getAdminBadges));
+
+// POST /api/admin/badges - Create a new badge
+app.post('/api/admin/badges', withErrorHandling(createAdminBadge));
+
+// PUT /api/admin/badges/:id - Update an existing badge
+app.put('/api/admin/badges/:id', withErrorHandling(updateAdminBadge));
+
+// DELETE /api/admin/badges/:id - Deactivate a badge
+app.delete('/api/admin/badges/:id', withErrorHandling(deactivateAdminBadge));
+
 // Temporarily commented out - missing admin-update route file
 // app.post('/api/dev/update-steven-permissions', ensureUserToken, withErrorHandling(updateStevenPermissions));
 
@@ -1121,6 +1138,10 @@ app.notFound(c => {
         'POST /api/admin/permissions/revoke',
         'GET /api/admin/audit',
         'GET /api/admin/statistics',
+        'GET /api/admin/badges',
+        'POST /api/admin/badges',
+        'PUT /api/admin/badges/:id',
+        'DELETE /api/admin/badges/:id',
       ],
     },
     404

@@ -364,4 +364,114 @@ export class BadgeService {
     const result = await stmt.bind(profile_name).first<UserRecord>();
     return result || null;
   }
+
+  /**
+   * ADMIN: Get badge statistics including award counts
+   */
+  async getBadgeStatistics(): Promise<Array<BadgeRecord & { award_count: number }>> {
+    const stmt = this.db.prepare(`
+      SELECT 
+        b.*,
+        COUNT(ub.id) as award_count
+      FROM badges b
+      LEFT JOIN user_badges ub ON b.id = ub.badge_id
+      GROUP BY b.id
+      ORDER BY b.category, b.level, b.threshold_value ASC
+    `);
+    
+    const result = await stmt.all<BadgeRecord & { award_count: number }>();
+    return result.results;
+  }
+
+  /**
+   * ADMIN: Create a new badge
+   */
+  async createBadge(badge: {
+    badge_key: string;
+    title: string;
+    description: string;
+    icon_emoji: string;
+    category: string;
+    level: number;
+    threshold_type: string;
+    threshold_value: number | null;
+  }): Promise<string> {
+    const id = generateUUID();
+    const created_at = new Date().toISOString();
+    
+    const stmt = this.db.prepare(`
+      INSERT INTO badges (
+        id, badge_key, title, description, icon_emoji, 
+        category, level, threshold_type, threshold_value, 
+        is_active, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE, ?)
+    `);
+    
+    await stmt.bind(
+      id, badge.badge_key, badge.title, badge.description, badge.icon_emoji,
+      badge.category, badge.level, badge.threshold_type, badge.threshold_value,
+      created_at
+    ).run();
+    
+    return id;
+  }
+
+  /**
+   * ADMIN: Update an existing badge
+   */
+  async updateBadge(badge_id: string, updates: {
+    title?: string;
+    description?: string;
+    icon_emoji?: string;
+    category?: string;
+    level?: number;
+    threshold_type?: string;
+    threshold_value?: number | null;
+    is_active?: boolean;
+  }): Promise<void> {
+    const fields: string[] = [];
+    const values: any[] = [];
+    
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value !== undefined) {
+        fields.push(`${key} = ?`);
+        values.push(value);
+      }
+    });
+    
+    if (fields.length === 0) {
+      return; // Nothing to update
+    }
+    
+    values.push(badge_id); // For WHERE clause
+    
+    const stmt = this.db.prepare(`
+      UPDATE badges SET ${fields.join(', ')} WHERE id = ?
+    `);
+    
+    await stmt.bind(...values).run();
+  }
+
+  /**
+   * ADMIN: Deactivate a badge (soft delete)
+   */
+  async deactivateBadge(badge_id: string): Promise<void> {
+    const stmt = this.db.prepare(`
+      UPDATE badges SET is_active = FALSE WHERE id = ?
+    `);
+    
+    await stmt.bind(badge_id).run();
+  }
+
+  /**
+   * ADMIN: Get badge by ID
+   */
+  async getBadgeById(badge_id: string): Promise<BadgeRecord | null> {
+    const stmt = this.db.prepare(`
+      SELECT * FROM badges WHERE id = ?
+    `);
+    
+    const result = await stmt.bind(badge_id).first<BadgeRecord>();
+    return result || null;
+  }
 }

@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/auth';
 import { adminService } from '../services/admin';
 import PermissionManager from '../components/PermissionManager.vue';
 import AuditLogViewer from '../components/AuditLogViewer.vue';
+import BadgeManager from '../components/BadgeManager.vue';
 import type { AuditStatistics } from '../../../shared/types';
 
 /**
@@ -26,6 +27,7 @@ const activeTab = ref('permissions');
 const tabs = [
   { id: 'permissions', name: 'Permission Management' },
   { id: 'audit', name: 'Audit Logs' },
+  { id: 'badges', name: 'Badge Management' },
   // Data Dumps feature removed
 ];
 
@@ -304,6 +306,11 @@ onMounted(async () => {
           <!-- Audit Logs Tab -->
           <div v-if="activeTab === 'audit'" class="space-y-6">
             <AuditLogViewer />
+          </div>
+
+          <!-- Badge Management Tab -->
+          <div v-if="activeTab === 'badges'" class="space-y-6">
+            <BadgeManager />
           </div>
 
           <!-- Data Dumps Tab removed -->
