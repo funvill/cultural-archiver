@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { marked } from 'marked';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useArtworksStore } from '../stores/artworks';
 import { useAuthStore } from '../stores/auth';
 import PhotoCarousel from '../components/PhotoCarousel.vue';
@@ -23,9 +23,14 @@ const props = defineProps<Props>();
 const artworksStore = useArtworksStore();
 const authStore = useAuthStore();
 const router = useRouter();
+const route = useRoute();
 
 // Announcer for screen reader feedback
 const { announceError, announceSuccess } = useAnnouncer();
+
+// Toast state for submission success
+const showToast = ref(false);
+const toastMessage = ref('');
 
 // State
 const loading = ref(true);
@@ -375,10 +380,25 @@ onMounted(async () => {
     announceError('Failed to load artwork details');
   } finally {
     loading.value = false;
+    
+    // Check for submission success parameter
+    if (route.query.submitted === 'true') {
+      showSuccessToast('Logbook entry submitted for review!');
+      // Clean up the URL parameter
+      router.replace({ path: route.path });
+    }
   }
 });
 
 // Methods
+function showSuccessToast(message: string) {
+  toastMessage.value = message;
+  showToast.value = true;
+  setTimeout(() => {
+    showToast.value = false;
+  }, 5000);
+}
+
 function handlePhotoFullscreen(photoUrl: string): void {
   fullscreenPhotoUrl.value = photoUrl;
   showFullscreenPhoto.value = true;
@@ -1239,6 +1259,21 @@ async function checkPendingEdits(): Promise<void> {
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Success Toast -->
+  <div
+    v-if="showToast"
+    data-testid="success-toast"
+    class="fixed bottom-4 left-1/2 transform -translate-x-1/2 transition-transform duration-300 ease-in-out z-50"
+    :class="{ 'translate-y-0': showToast, 'translate-y-full': !showToast }"
+  >
+    <div class="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center">
+      <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+      </svg>
+      <span>{{ toastMessage }}</span>
     </div>
   </div>
 </template>

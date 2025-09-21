@@ -114,6 +114,32 @@ export interface SubmissionRequest {
   consent_version?: string; // Track consent version for compliance
 }
 
+// Unified submissions API for different submission types
+export interface UnifiedSubmissionRequest {
+  submissionType: 'logbook' | 'new_artwork' | 'artwork_edit';
+  lat: number;
+  lon: number;
+  notes?: string;
+  photos?: File[];
+  consent_version?: string;
+  
+  // Logbook-specific fields
+  artworkId?: string; // Required for logbook submissions
+  condition?: string; // Optional condition assessment
+  
+  // New artwork specific fields  
+  title?: string;
+  tags?: Record<string, string | number>;
+  
+  // Artwork edit specific fields
+  artwork_id?: string;
+  edits?: Array<{
+    field_name: string;
+    field_value_old: string | null;
+    field_value_new: string | null;
+  }>;
+}
+
 // Fast photo-first workflow submission types
 export interface FastArtworkSubmissionRequest {
   // Location data
@@ -378,6 +404,8 @@ interface BaseWorkerEnv {
   EMAIL_FROM_NAME: string; // Display name for from field
   EMAIL_REPLY_TO?: string; // Reply-to address
   EMAIL_ENABLED?: string; // Feature flag for email
+  RATE_LIMITING_ENABLED?: string; // Feature flag for rate limiting (default: off)
+  LOGBOOK_COOLDOWN_ENABLED?: string; // Feature flag for logbook submission cooldown (default: on)
   PHOTOS_BASE_URL?: string;
   R2_PUBLIC_URL?: string;
   CLOUDFLARE_ACCOUNT_ID?: string;
@@ -491,6 +519,16 @@ export const isValidArtworkType = (type: string): type is ArtworkTypeRecord['nam
 
 export const isValidSortDirection = (direction: string): direction is SortDirection => {
   return ['asc', 'desc'].includes(direction);
+};
+
+/**
+ * Check if rate limiting is enabled
+ * Rate limiting is disabled by default and must be explicitly enabled
+ */
+export const isRateLimitingEnabled = (env: WorkerEnv): boolean => {
+  // Rate limiting is off by default
+  const rateLimitingFlag = env.RATE_LIMITING_ENABLED?.toLowerCase();
+  return rateLimitingFlag === 'true' || rateLimitingFlag === '1';
 };
 
 // ================================

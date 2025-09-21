@@ -366,6 +366,10 @@ export interface ArtworkDetailResponse {
   description?: string | null; // Artwork description (editable field)
   created_by?: string | null; // Creator/artist name(s) (editable field)
   artist_name?: string | null; // Computed artist name for display
+  userLogbookStatus?: {
+    onCooldown: boolean;
+    cooldownUntil?: string;
+  };
 }
 
 // Removed obsolete LogbookEntryWithPhotos - replaced by SubmissionRecord

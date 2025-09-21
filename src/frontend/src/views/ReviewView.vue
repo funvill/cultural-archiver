@@ -384,8 +384,12 @@ async function approveSubmission(submission: ReviewSubmission) {
     let approvalAction = 'create_new';
     let artworkId: string | undefined = undefined;
 
-    // If there are nearby artworks, let the reviewer choose
-    if (submission.nearby_artworks && submission.nearby_artworks.length > 0) {
+    // For logbook entries with an existing artwork_id, automatically link to that artwork
+    if (submission.type === 'logbook_entry' && submission.artwork_id) {
+      approvalAction = 'link_existing';
+      artworkId = submission.artwork_id;
+    } else if (submission.nearby_artworks && submission.nearby_artworks.length > 0) {
+      // If there are nearby artworks, let the reviewer choose
       const choice = await globalModal.showConfirmModal({
         title: 'Approval Decision',
         message: `This submission has ${submission.nearby_artworks.length} nearby artwork(s). Do you want to create a new artwork or link to an existing one?`,
@@ -522,9 +526,50 @@ function getArtworkTypeEmoji(type: string): string {
     street_art: '🎭',
     monument: '🗿',
     sculpture: '⚱️',
+    logbook_entry: '📖', // Add emoji for logbook entries
     other: '🏛️',
   };
   return typeMap[type] || '🏛️';
+}
+
+function getSubmissionTypeLabel(type: string): string {
+  const labelMap: Record<string, string> = {
+    logbook_entry: 'Logbook Entry',
+    public_art: 'Public Art',
+    street_art: 'Street Art', 
+    monument: 'Monument',
+    sculpture: 'Sculpture',
+    other: 'Other',
+  };
+  return labelMap[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function parseLogbookNotes(notes: string): { condition?: string; userNotes?: string; rawNotes: string } {
+  if (!notes) return { rawNotes: '' };
+  
+  // Try to extract condition assessment from notes
+  const conditionMatch = notes.match(/Condition:\s*([^;]+)/i);
+  const condition = conditionMatch?.[1]?.trim();
+  
+  // Extract user notes (everything that's not a structured answer)
+  let userNotes = notes;
+  if (conditionMatch) {
+    userNotes = userNotes.replace(/Condition:\s*[^;]+;?\s*/i, '').trim();
+  }
+  
+  const result: { condition?: string; userNotes?: string; rawNotes: string } = {
+    rawNotes: notes
+  };
+  
+  if (condition) {
+    result.condition = condition;
+  }
+  
+  if (userNotes) {
+    result.userNotes = userNotes;
+  }
+  
+  return result;
 }
 
 function formatDate(dateString: string): string {
@@ -949,7 +994,16 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
               <div class="flex items-start justify-between mb-4">
                 <div>
                   <h3 class="text-lg font-semibold text-gray-900">
-                    {{ submission.title || 'Untitled Submission' }}
+                    <span v-if="submission.type === 'logbook_entry'" class="inline-flex items-center">
+                      <span class="mr-2">📖</span>
+                      {{ getSubmissionTypeLabel(submission.type) }}
+                      <span v-if="submission.title && submission.title !== 'Untitled Submission'" class="ml-2 text-gray-600">
+                        - {{ submission.title }}
+                      </span>
+                    </span>
+                    <span v-else>
+                      {{ submission.title || 'Untitled Submission' }}
+                    </span>
                   </h3>
                   <p class="text-sm text-gray-600">
                     Submitted {{ formatDate(submission.created_at) }}
@@ -960,7 +1014,31 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
 
               <!-- Description -->
               <div v-if="submission.note" class="mb-4">
-                <p class="text-sm text-gray-700 line-clamp-3">{{ submission.note }}</p>
+                <!-- Logbook Entry: Show structured answers -->
+                <div v-if="submission.type === 'logbook_entry'" class="space-y-3">
+                  <template v-if="parseLogbookNotes(submission.note).condition || parseLogbookNotes(submission.note).userNotes">
+                    <!-- Condition Assessment -->
+                    <div v-if="parseLogbookNotes(submission.note).condition" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                      <h4 class="text-sm font-semibold text-blue-900 mb-1">Condition Assessment</h4>
+                      <p class="text-sm text-blue-800">{{ parseLogbookNotes(submission.note).condition }}</p>
+                    </div>
+                    
+                    <!-- User Notes -->
+                    <div v-if="parseLogbookNotes(submission.note).userNotes" class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      <h4 class="text-sm font-semibold text-gray-900 mb-1">Additional Notes</h4>
+                      <p class="text-sm text-gray-700">{{ parseLogbookNotes(submission.note).userNotes }}</p>
+                    </div>
+                  </template>
+                  
+                  <!-- Fallback to raw notes if parsing fails -->
+                  <div v-else class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-1">Notes</h4>
+                    <p class="text-sm text-gray-700">{{ submission.note }}</p>
+                  </div>
+                </div>
+                
+                <!-- Regular Submission: Show notes as before -->
+                <p v-else class="text-sm text-gray-700 line-clamp-3">{{ submission.note }}</p>
               </div>
 
               <!-- Metadata -->

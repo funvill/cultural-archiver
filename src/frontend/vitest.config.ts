@@ -9,6 +9,13 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
+    exclude: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/cypress/**',
+      '**/.{idea,git,cache,output,temp}/**',
+      '**/tests/e2e/**', // Exclude Playwright E2E tests
+    ],
   },
   resolve: {
     alias: {

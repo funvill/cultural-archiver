@@ -33,7 +33,9 @@ const fastUploadSession = ref<{
   detectedSources: unknown;
 } | null>(null);
 const fastUploadStore = useFastUploadSessionStore();
-const isFromFastUpload = computed(() => !!fastUploadSession.value && route.query.source === 'fast-upload');
+const isFromFastUpload = computed(() => {
+  return !!fastUploadSession.value && route.query.source === 'fast-upload';
+});
 // Track whether we've attempted auto redirect to new artwork to avoid loops
 const autoRedirectedToNew = ref(false);
 
@@ -116,6 +118,16 @@ function handleArtworkClick(artwork: SearchResult): void {
     // Normal artwork detail view
     router.push(`/artwork/${artwork.id}`);
   }
+}
+
+function handleAddReport(artwork: SearchResult): void {
+  // Navigate directly to logbook submission page
+  // Include source=fast-upload parameter if we're in fast upload mode
+  const query = isFromFastUpload.value ? { source: 'fast-upload' } : {};
+  router.push({ 
+    path: `/logbook/${artwork.id}`,
+    query 
+  });
 }
 
 function handleAddNewArtwork(): void {
@@ -236,6 +248,7 @@ onMounted(() => {
   // Check for fast upload session data
   const sessionData = sessionStorage.getItem('fast-upload-session');
   if (sessionData && route.query.source === 'fast-upload') {
+    console.log('[DEBUG] Using sessionStorage data for fast upload session');
     try {
       const parsed = JSON.parse(sessionData);
       // Merge with Pinia store to add previews (sessionStorage intentionally omits them for size)
@@ -262,6 +275,7 @@ onMounted(() => {
       sessionStorage.removeItem('fast-upload-session');
     }
   } else if (route.query.source === 'fast-upload' && fastUploadStore.hasPhotos) {
+    console.log('[DEBUG] Using fallback store data for fast upload session');
     // Fallback if sessionStorage missing but store still populated
     fastUploadSession.value = {
       photos: fastUploadStore.photos.map((p: {id: string, name: string, preview?: string}) => {
@@ -311,41 +325,6 @@ function performLocationSearch(latitude: number, longitude: number): void {
 // prior selections when the user clicks Add again. This simplifies the UX: each Add starts
 // a new flow rather than appending and re-searching. If future requirements reintroduce
 // multi-select accumulation across separate Add clicks, restore logic from git history.
-
-function getArtworkTitle(artwork: SearchResult): string {
-  // Prefer explicit title field when available
-  if (typeof artwork.title === 'string' && artwork.title.trim().length > 0) {
-    return artwork.title.trim();
-  }
-  const tags = (artwork.tags as Record<string, unknown> | null) || null;
-  if (tags && typeof tags === 'object') {
-    const maybeTitle = (tags as any).title;
-    const maybeName = (tags as any).name;
-    const title = [maybeTitle, maybeName].find(
-      (v) => typeof v === 'string' && v.trim().length > 0
-    ) as string | undefined;
-    if (title) return title;
-  }
-  // Fallback to a humanized type name rather than generic "Untitled"
-  return artwork.type_name
-    ? artwork.type_name.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
-    : 'Untitled';
-}
-
-// Register global event listener (done after initial mount logic has parsed first session)
-// (Removed legacy global 'fast-upload-session-updated' listener – overwrite model does not append.)
-
-// Note: We intentionally do not fall back to the uploaded preview for
-// artwork cards to avoid misleading thumbnails for artworks with zero photos.
-
-function getArtworkImage(artwork: SearchResult): string | null {
-  // Only ever show the artwork's own recent photo for the card.
-  // Do NOT fall back to the user's uploaded preview, as this causes
-  // incorrect thumbnails for unrelated artworks with zero photos.
-  return artwork.recent_photo && artwork.recent_photo.trim().length > 0
-    ? artwork.recent_photo
-    : null;
-}
 
 // Helper functions for location method display
 function getLocationMethodText(detectedSources: any): string {
@@ -547,49 +526,15 @@ onUnmounted(() => {
               Nearby Artworks ({{ searchStore.totalResults }} found)
             </h3>
             <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              <div
+              <ArtworkCard
                 v-for="artwork in searchStore.results"
                 :key="artwork.id"
-                class="bg-white rounded-lg shadow hover:shadow-md transition cursor-pointer border border-gray-200 p-4 flex flex-col"
-                @click="handleArtworkClick(artwork)"
-              >
-                <div class="aspect-video w-full mb-3 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
-                  <img
-                    v-if="getArtworkImage(artwork)"
-                    :src="getArtworkImage(artwork) || ''"
-                    :alt="getArtworkTitle(artwork)"
-                    class="object-cover w-full h-full"
-                  />
-                  <div v-else class="text-gray-400 text-sm">No photo</div>
-                </div>
-                <h4 class="font-semibold text-gray-900 text-sm line-clamp-1 mb-0.5">
-                  {{ getArtworkTitle(artwork) }}
-                </h4>
-                <p v-if="artwork.artist_name" class="text-xs text-gray-600 mb-2 line-clamp-1">
-                  {{ artwork.artist_name }}
-                </p>
-                <div class="grid grid-cols-2 gap-2 text-xs text-gray-600 mb-2">
-                  <div v-if="artwork.distance_km != null">
-                    <span class="font-medium text-gray-700">Distance:</span>
-                    {{ artwork.distance_km.toFixed(2) }} km
-                  </div>
-                  <div v-if="artwork.similarity_score != null">
-                    <span class="font-medium text-gray-700">Similarity:</span>
-                    {{ (artwork.similarity_score * 100).toFixed(0) }}%
-                  </div>
-                  <div>
-                    <span class="font-medium text-gray-700">Photos:</span>
-                    {{ artwork.photo_count }}
-                  </div>
-                  <div>
-                    <span class="font-medium text-gray-700">Type:</span>
-                    {{ artwork.type_name }}
-                  </div>
-                </div>
-                <div class="mt-auto flex justify-end">
-                  <span class="inline-flex items-center text-blue-600 text-xs font-medium">Select ➜</span>
-                </div>
-              </div>
+                :artwork="artwork"
+                :show-distance="true"
+                :show-add-report="isFromFastUpload"
+                @click="handleArtworkClick"
+                @add-report="handleAddReport"
+              />
             </div>
           </div>
           
@@ -792,7 +737,9 @@ onUnmounted(() => {
             :key="artwork.id"
             :artwork="artwork"
             :show-distance="false"
+            :show-add-report="isFromFastUpload"
             @click="handleArtworkClick"
+            @add-report="handleAddReport"
           />
 
           <!-- Loading More Skeleton Cards -->

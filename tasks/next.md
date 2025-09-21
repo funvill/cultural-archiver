@@ -145,3 +145,13 @@ The following fields are only shown if the existing artwork doesn't have a value
 The "Consent & Legal Requirements" should be the same compoent as the "Add New Artwork" page.
 
 This logbook submission are submitted to the submissions table.
+
+
+----
+
+User profile page
+
+Update the user table to have a "Profile Name" field.
+The user can edit their profile name on their profile page. Their profile name must be unique across the system. Only Allow a-Z0-9 and "-", must not start or end with "-". Also have banned names that sound like system admins, etc.. For Example: Admin, moderator, boss, mod, etc...
+
+Users should be able to earn "Badges" for compleating tasks. There are lots of different badges. These badges are given out when the user achives a certin goal. For example, If a user submits 10 'mural' logbook entries, they get a "Mural Explorer Level 1" badge. The user gets another badge for level 2 at 25 mural logbook entries, etc...

@@ -236,7 +236,8 @@ export async function getReviewQueue(
         return {
           id: submissionRow.id,
           title: title,
-          type: artworkType,
+          type: 'logbook_entry', // Label logbook submissions as "Logbook Entry" for moderation UI
+          artwork_type: artworkType, // Keep the actual artwork type in a separate field
           lat: submissionRow.lat || 49.2827,
           lon: submissionRow.lon || -123.1207,
           note: note,

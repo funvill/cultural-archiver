@@ -62,6 +62,8 @@ const mockDb = {
 
 const mockEnv: WorkerEnv = {
   DB: mockDb,
+  RATE_LIMITING_ENABLED: 'true', // Enable rate limiting for tests
+  LOGBOOK_COOLDOWN_ENABLED: 'false', // Disable logbook cooldown for tests
 } as any;
 
 // Create mock Hono context
@@ -374,6 +376,7 @@ describe('Artwork Editing Routes', () => {
             edits_remaining: 490,
             rate_limit: 500,
             window_hours: 24,
+            enabled: true,
           },
         },
       });
@@ -414,6 +417,55 @@ describe('Artwork Editing Routes', () => {
             edits_remaining: 0,
             rate_limit: 500,
             window_hours: 24,
+            enabled: true,
+          },
+        },
+      });
+    });
+
+    test('should show rate limiting disabled when RATE_LIMITING_ENABLED is false', async () => {
+      // Override mock env to disable rate limiting
+      const mockEnvDisabled = { ...mockEnv, RATE_LIMITING_ENABLED: 'false' };
+      
+      const { getUserSubmissionCount } = await import('../../lib/submissions');
+      vi.mocked(getUserSubmissionCount).mockResolvedValue(10);
+
+      const mockDbStmt = {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue({
+          id: 'artwork-123',
+          title: 'Test Artwork',
+          status: 'approved',
+        }),
+      };
+      mockDb.prepare.mockReturnValue(mockDbStmt);
+
+      const requestBody = {
+        edits: [
+          {
+            field_name: 'title',
+            field_value_old: 'Old Title',
+            field_value_new: 'New Title',
+          },
+        ],
+      };
+
+      const c = createMockContext({ id: 'artwork-123' }, requestBody);
+      c.env = mockEnvDisabled;
+
+      await validateArtworkEdit(c);
+
+      expect(c.json).toHaveBeenCalledWith({
+        success: true,
+        data: {
+          valid: true,
+          message: 'Edit request is valid',
+          rate_limit_info: {
+            edits_used: 0,
+            edits_remaining: 500,
+            rate_limit: 500,
+            window_hours: 24,
+            enabled: false,
           },
         },
       });

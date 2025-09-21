@@ -5,7 +5,7 @@
 
 import type { Context, Next } from 'hono';
 import type { WorkerEnv } from '../types';
-import { RATE_LIMIT_SUBMISSIONS_PER_HOUR, RATE_LIMIT_QUERIES_PER_HOUR } from '../types';
+import { RATE_LIMIT_SUBMISSIONS_PER_HOUR, RATE_LIMIT_QUERIES_PER_HOUR, isRateLimitingEnabled } from '../types';
 import { RateLimitError } from '../lib/errors';
 
 export interface RateLimitData {
@@ -147,6 +147,13 @@ export async function rateLimitSubmissions(
     return;
   }
 
+  // Skip rate limiting if disabled via configuration (default: off)
+  if (!isRateLimitingEnabled(c.env)) {
+    console.debug('Rate limiting disabled via RATE_LIMITING_ENABLED configuration');
+    await next();
+    return;
+  }
+
   // Skip rate limiting in development if KV namespace is not available
   if (!c.env.RATE_LIMITS || c.env.ENVIRONMENT === 'development') {
     console.warn('Rate limiting disabled: KV namespace not available or development mode');
@@ -206,6 +213,13 @@ export async function rateLimitQueries(
   const userToken = c.get('userToken');
 
   if (!userToken) {
+    await next();
+    return;
+  }
+
+  // Skip rate limiting if disabled via configuration (default: off)
+  if (!isRateLimitingEnabled(c.env)) {
+    console.debug('Rate limiting disabled via RATE_LIMITING_ENABLED configuration');
     await next();
     return;
   }

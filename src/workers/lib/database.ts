@@ -762,38 +762,39 @@ export async function updateArtworkPhotos(
   id: string,
   photoUrls: string[]
 ): Promise<void> {
-  // Store photos in the root tags JSON under _photos key.
-  // BUGFIX: Previous implementation discarded photoUrls when tags was NULL, always writing an empty array.
-  // We now always persist the provided photoUrls.
+  // Store photos in the dedicated photos field (not in tags._photos)
   const photosJson = JSON.stringify(photoUrls);
-  // Lightweight debug toggle – relies on PHOTO_DEBUG env read elsewhere; here we just emit.
-  try {
-    // eslint-disable-next-line no-console
-    console.info('[PHOTO][DB] updateArtworkPhotos begin', { artworkId: id, count: photoUrls.length });
-  } catch {}
+  
   const stmt = db.prepare(`
     UPDATE artwork
-    SET tags = CASE
-      WHEN tags IS NULL THEN json_set(json('{}'), '$._photos', json(?))
-      ELSE json_set(tags, '$._photos', json(?))
-    END
+    SET photos = ?
     WHERE id = ?
   `);
-  await stmt.bind(photosJson, photosJson, id).run();
-  try {
-    // eslint-disable-next-line no-console
-    console.info('[PHOTO][DB] updateArtworkPhotos success', { artworkId: id });
-  } catch {}
+  await stmt.bind(photosJson, id).run();
 }
 
 export function getPhotosFromArtwork(artwork: ArtworkRecord): string[] {
-  if (!artwork.tags) return [];
-  try {
-    const tags = JSON.parse(artwork.tags);
-    return Array.isArray(tags._photos) ? tags._photos : [];
-  } catch {
-    return [];
+  // First try the dedicated photos field
+  if (artwork.photos) {
+    try {
+      const photos = JSON.parse(artwork.photos);
+      if (Array.isArray(photos)) return photos;
+    } catch {
+      // Fall through to legacy check
+    }
   }
+  
+  // Legacy fallback: check tags._photos for existing data
+  if (artwork.tags) {
+    try {
+      const tags = JSON.parse(artwork.tags);
+      if (Array.isArray(tags._photos)) return tags._photos;
+    } catch {
+      // Ignore parse errors
+    }
+  }
+  
+  return [];
 }
 
 // ================================
@@ -806,4 +807,53 @@ export async function getCreatorsForArtwork(
 ): Promise<{ id: string; name: string; role: string }[]> {
   const service = createDatabaseService(db);
   return service.getCreatorsForArtwork(artworkId);
+}
+
+// ================================
+// Logbook Functions
+// ================================
+
+/**
+ * Check if a user is on cooldown for submitting logbook entries for a specific artwork
+ * Users can only submit one logbook entry per artwork every 30 days
+ */
+export async function getLogbookCooldownStatus(
+  db: D1Database,
+  artworkId: string,
+  userToken: string
+): Promise<{ onCooldown: boolean; cooldownUntil?: string }> {
+  try {
+    // Check for any approved or pending logbook entry from this user for this artwork in the last 30 days
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    
+    const stmt = db.prepare(`
+      SELECT created_at FROM submissions 
+      WHERE user_token = ? 
+        AND artwork_id = ? 
+        AND submission_type = 'logbook_entry'
+        AND status IN ('pending', 'approved')
+        AND created_at > ?
+      ORDER BY created_at DESC
+      LIMIT 1
+    `);
+    
+    const result = await stmt.bind(userToken, artworkId, thirtyDaysAgo).first<{ created_at: string }>();
+    
+    if (!result) {
+      return { onCooldown: false };
+    }
+    
+    // Calculate when the cooldown expires (30 days from the last submission)
+    const lastSubmission = new Date(result.created_at);
+    const cooldownUntil = new Date(lastSubmission.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
+    return {
+      onCooldown: true,
+      cooldownUntil: cooldownUntil.toISOString(),
+    };
+  } catch (error) {
+    console.error('Failed to check logbook cooldown status:', error);
+    // Return no cooldown on error to allow submission (fail open)
+    return { onCooldown: false };
+  }
 }

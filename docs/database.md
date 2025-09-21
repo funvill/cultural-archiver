@@ -136,6 +136,14 @@ Many-to-many linking table between artwork and artists. **New**: Replaces embedd
 - `approved` - Accepted (creates/updates target entity)
 - `rejected` - Rejected (hidden from user)
 
+**Photo Aggregation System:**
+Logbook entries with `artwork_id` automatically aggregate photos to existing artworks during approval:
+
+- Photos stored in dedicated `artwork.photos` field (JSON array)
+- Multiple submissions can contribute photos to the same artwork
+- Migration 0022 moved legacy photos from `tags._photos` to `photos` field
+- Approval process uses `link_existing` action for logbook entries to prevent duplicate artworks
+
 **Verification Status:**
 Note: The schema uses `reviewer_token` and `review_notes` for moderation tracking.
 - `pending` - Email verification not yet sent
