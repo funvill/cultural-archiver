@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
 import type { ArtworkDetailResponse } from '../../../shared/types';
-import { apiService, getErrorMessage, isNetworkError } from '../services/api';
+import { apiService, getErrorMessage, isNetworkError, isRateLimited } from '../services/api';
 
 /**
  * Logbook submission state management store
@@ -209,7 +209,11 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
       if (isNetworkError(error)) {
         // Network error - preserve form data and show retryable error
         submitError.value = 'Submission Failed. Please check your connection and try again.';
-      } else if (errorMessage.includes('cooldown') || errorMessage.includes('429')) {
+      } else if (isRateLimited(error)) {
+        // Rate limit error - provide user-friendly message
+        submitError.value = 'Too many submissions. Please wait a moment before trying again.';
+        await fetchArtworkDetails(artworkId); // Refresh cooldown status
+      } else if (errorMessage.includes('cooldown')) {
         // Cooldown error - this should trigger a re-fetch of artwork details
         submitError.value = errorMessage;
         await fetchArtworkDetails(artworkId); // Refresh cooldown status

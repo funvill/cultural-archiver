@@ -762,9 +762,7 @@ export async function updateArtworkPhotos(
   id: string,
   photoUrls: string[]
 ): Promise<void> {
-  // Store photos in the root tags JSON under _photos key.
-  // BUGFIX: Previous implementation discarded photoUrls when tags was NULL, always writing an empty array.
-  // We now always persist the provided photoUrls.
+  // Store photos in the dedicated photos field (not in tags._photos)
   const photosJson = JSON.stringify(photoUrls);
   // Lightweight debug toggle – relies on PHOTO_DEBUG env read elsewhere; here we just emit.
   try {
@@ -773,13 +771,10 @@ export async function updateArtworkPhotos(
   } catch {}
   const stmt = db.prepare(`
     UPDATE artwork
-    SET tags = CASE
-      WHEN tags IS NULL THEN json_set(json('{}'), '$._photos', json(?))
-      ELSE json_set(tags, '$._photos', json(?))
-    END
+    SET photos = ?
     WHERE id = ?
   `);
-  await stmt.bind(photosJson, photosJson, id).run();
+  await stmt.bind(photosJson, id).run();
   try {
     // eslint-disable-next-line no-console
     console.info('[PHOTO][DB] updateArtworkPhotos success', { artworkId: id });
@@ -787,13 +782,27 @@ export async function updateArtworkPhotos(
 }
 
 export function getPhotosFromArtwork(artwork: ArtworkRecord): string[] {
-  if (!artwork.tags) return [];
-  try {
-    const tags = JSON.parse(artwork.tags);
-    return Array.isArray(tags._photos) ? tags._photos : [];
-  } catch {
-    return [];
+  // First try the dedicated photos field
+  if (artwork.photos) {
+    try {
+      const photos = JSON.parse(artwork.photos);
+      if (Array.isArray(photos)) return photos;
+    } catch {
+      // Fall through to legacy check
+    }
   }
+  
+  // Legacy fallback: check tags._photos for existing data
+  if (artwork.tags) {
+    try {
+      const tags = JSON.parse(artwork.tags);
+      if (Array.isArray(tags._photos)) return tags._photos;
+    } catch {
+      // Ignore parse errors
+    }
+  }
+  
+  return [];
 }
 
 // ================================

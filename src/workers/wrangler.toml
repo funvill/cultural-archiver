@@ -85,6 +85,8 @@ CLOUDFLARE_ACCOUNT_ID = "development"
 CLOUDFLARE_IMAGES_ENABLED = "false"
 CLOUDFLARE_IMAGES_HASH = ""
 PHOTO_DEBUG = "true"
+# Development-only: Disable logbook submission cooldown for testing
+LOGBOOK_COOLDOWN_ENABLED = "false"
 
 [env.production.vars]
 ENVIRONMENT = "production"

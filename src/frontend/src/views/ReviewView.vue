@@ -384,8 +384,13 @@ async function approveSubmission(submission: ReviewSubmission) {
     let approvalAction = 'create_new';
     let artworkId: string | undefined = undefined;
 
-    // If there are nearby artworks, let the reviewer choose
-    if (submission.nearby_artworks && submission.nearby_artworks.length > 0) {
+    // For logbook entries with an existing artwork_id, automatically link to that artwork
+    if (submission.type === 'logbook_entry' && submission.artwork_id) {
+      console.log('[ReviewView] Logbook entry detected, linking to existing artwork:', submission.artwork_id);
+      approvalAction = 'link_existing';
+      artworkId = submission.artwork_id;
+    } else if (submission.nearby_artworks && submission.nearby_artworks.length > 0) {
+      // If there are nearby artworks, let the reviewer choose
       const choice = await globalModal.showConfirmModal({
         title: 'Approval Decision',
         message: `This submission has ${submission.nearby_artworks.length} nearby artwork(s). Do you want to create a new artwork or link to an existing one?`,

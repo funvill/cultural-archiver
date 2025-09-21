@@ -13,6 +13,7 @@ import type {
   PendingEditsResponse,
 } from '../../shared/types';
 import type { ArtworkRecord, WorkerEnv } from '../types'; // Use local workers type
+import { isRateLimitingEnabled } from '../types';
 import { 
   getUserPendingArtworkEdits,
   getUserSubmissionCount,
@@ -109,16 +110,18 @@ export async function submitArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): Pr
   }
 
   try {
-    // Check rate limiting - 500 edits per 24 hours
-    const recentEditCount = await getUserSubmissionCount(c.env.DB, userToken, 'artwork_edit', 24);
-    if (recentEditCount >= 500) {
-      throw new ValidationApiError([
-        {
-          field: 'rate_limit',
-          message: 'Rate limit exceeded. You can submit up to 500 edits per 24-hour period.',
-          code: 'RATE_LIMIT_EXCEEDED',
-        },
-      ]);
+    // Check rate limiting - 500 edits per 24 hours (only if rate limiting is enabled)
+    if (isRateLimitingEnabled(c.env)) {
+      const recentEditCount = await getUserSubmissionCount(c.env.DB, userToken, 'artwork_edit', 24);
+      if (recentEditCount >= 500) {
+        throw new ValidationApiError([
+          {
+            field: 'rate_limit',
+            message: 'Rate limit exceeded. You can submit up to 500 edits per 24-hour period.',
+            code: 'RATE_LIMIT_EXCEEDED',
+          },
+        ]);
+      }
     }
 
     // Check if user already has pending edits for this artwork
@@ -299,8 +302,11 @@ export async function validateArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): 
     throw new NotFoundError(`Artwork not found: ${artworkId}`);
   }
 
-  // Check rate limiting using submissions system
-  const recentEditCount = await getUserSubmissionCount(c.env.DB, userToken, 'artwork_edit', 24);
+  // Check rate limiting using submissions system (only if rate limiting is enabled)
+  let recentEditCount = 0;
+  if (isRateLimitingEnabled(c.env)) {
+    recentEditCount = await getUserSubmissionCount(c.env.DB, userToken, 'artwork_edit', 24);
+  }
 
   const response = {
     valid: true,
@@ -310,10 +316,11 @@ export async function validateArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): 
       edits_remaining: Math.max(0, 500 - recentEditCount),
       rate_limit: 500,
       window_hours: 24,
+      enabled: isRateLimitingEnabled(c.env),
     },
   };
 
-  if (recentEditCount >= 500) {
+  if (isRateLimitingEnabled(c.env) && recentEditCount >= 500) {
     return c.json(
       createSuccessResponse({
         ...response,

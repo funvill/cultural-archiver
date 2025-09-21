@@ -15,6 +15,7 @@ vi.mock('../../services/api', () => ({
   },
   getErrorMessage: vi.fn(error => error.message || 'Unknown error'),
   isNetworkError: vi.fn(() => false),
+  isRateLimited: vi.fn(() => false),
 }));
 
 // Mock file for testing
@@ -189,20 +190,37 @@ describe('Logbook Submission Store', () => {
       const store = useLogbookSubmissionStore();
       const mockFile = createMockFile();
 
-      // Mock FileReader
+      // Mock FileReader with more complete interface
       const mockFileReader = {
         readAsDataURL: vi.fn(),
         result: 'data:image/jpeg;base64,mockdata',
-        onload: null as ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null,
-      };
+        onload: null as ((this: FileReader, ev: ProgressEvent<FileReader>) => void) | null,
+        onerror: null,
+        onabort: null,
+        onloadstart: null,
+        onloadend: null,
+        onprogress: null,
+        error: null,
+        readyState: 0,
+        abort: vi.fn(),
+        readAsArrayBuffer: vi.fn(),
+        readAsBinaryString: vi.fn(),
+        readAsText: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      } as Partial<FileReader> as FileReader;
+      
       vi.stubGlobal('FileReader', vi.fn(() => mockFileReader));
 
       store.setPhoto(mockFile);
 
       expect(store.selectedPhoto).toBe(mockFile);
 
-      // Simulate FileReader onload
-      mockFileReader.onload({ target: mockFileReader });
+      // Simulate FileReader onload - check for null before calling
+      if (mockFileReader.onload) {
+        mockFileReader.onload.call(mockFileReader, { target: mockFileReader } as ProgressEvent<FileReader>);
+      }
       expect(store.photoPreview).toBe('data:image/jpeg;base64,mockdata');
     });
 

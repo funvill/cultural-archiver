@@ -750,23 +750,26 @@ async function handleLogbookSubmission(
     );
   }
 
-  // Check 30-day cooldown
-  const cooldownStatus = await getLogbookCooldownStatus(c.env.DB, data.artworkId, userToken);
-  if (cooldownStatus.onCooldown) {
-    const cooldownDate = cooldownStatus.cooldownUntil ? new Date(cooldownStatus.cooldownUntil) : null;
-    const dateStr = cooldownDate ? cooldownDate.toLocaleDateString() : 'a later date';
-    
-    throw new ApiError(
-      `You can only submit one logbook entry per artwork every 30 days. Please try again after ${dateStr}.`,
-      'COOLDOWN_ACTIVE',
-      429,
-      {
-        details: {
-          cooldownUntil: cooldownStatus.cooldownUntil,
-          retryAfter: cooldownDate ? Math.ceil((cooldownDate.getTime() - Date.now()) / 1000) : 86400
+  // Check 30-day cooldown (skip in development if disabled)
+  const cooldownEnabled = c.env.LOGBOOK_COOLDOWN_ENABLED !== 'false';
+  if (cooldownEnabled) {
+    const cooldownStatus = await getLogbookCooldownStatus(c.env.DB, data.artworkId, userToken);
+    if (cooldownStatus.onCooldown) {
+      const cooldownDate = cooldownStatus.cooldownUntil ? new Date(cooldownStatus.cooldownUntil) : null;
+      const dateStr = cooldownDate ? cooldownDate.toLocaleDateString() : 'a later date';
+      
+      throw new ApiError(
+        `You can only submit one logbook entry per artwork every 30 days. Please try again after ${dateStr}.`,
+        'COOLDOWN_ACTIVE',
+        429,
+        {
+          details: {
+            cooldownUntil: cooldownStatus.cooldownUntil,
+            retryAfter: cooldownDate ? Math.ceil((cooldownDate.getTime() - Date.now()) / 1000) : 86400
+          }
         }
-      }
-    );
+      );
+    }
   }
 
   // Verify artwork exists

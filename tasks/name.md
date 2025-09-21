@@ -31,6 +31,7 @@ Something memorable. it will most likly be based on what ever domain name I can 
 - public.art, publicart.com (publicart.info is available)
 - found.art
 - collect.art
+- ArtRegistry.com
 
 ### Not avalaible
 
@@ -43,8 +44,8 @@ These are not avaliable, but also not perfect names. Listed here for reference.
 
 ### Avalaible
 
-- [3] commonsmap.com
-- [4] publicartregistry.com
+- [3] PublicArtRegistry.com
+- [4] commonsmap.com
 
 - [1] seekart.app + seekartapp.com
   - The problem is that this name "Seekart" is used by a AI Art generator "Seekart | Create Unique AI-Generated Digital Artwork" https://seek.art/, and https://www.seaart.ai/... so the domain is polluted
@@ -61,10 +62,11 @@ These are not avaliable, but also not perfect names. Listed here for reference.
 - ExplorePublic.com
 - PubliclyBuilt.com
 - WhatIsThisArt.com
-- komunarto.com - Esperanto for Collector
+- komunarto.com - Esperanto for "communal art" or "shared art"
 - arscollectiva.com - Latin for Art collector
 - arscollect.io
 - artseen.app
+- artregistrymap.com
 
 **No .Com**
 

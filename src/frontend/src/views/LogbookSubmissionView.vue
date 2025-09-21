@@ -11,11 +11,13 @@ import {
   CheckCircleIcon
 } from '@heroicons/vue/24/outline';
 import { useLogbookSubmissionStore } from '../stores/logbookSubmission';
+import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 import ConsentSection from '../components/FastWorkflow/ConsentSection.vue';
 
 const route = useRoute();
 const router = useRouter();
 const store = useLogbookSubmissionStore();
+const fastUploadStore = useFastUploadSessionStore();
 
 // Props
 interface Props {
@@ -24,17 +26,12 @@ interface Props {
 
 const props = defineProps<Props>();
 
-// UI state
-const showToast = ref(false);
-const toastMessage = ref('');
-
 // Consent section ref and state
 const consentSection = ref<InstanceType<typeof ConsentSection> | null>(null);
 const consentCheckboxes = ref({
-  ageVerification: false,
   cc0Licensing: false,
-  publicCommons: false,
-  freedomOfPanorama: false,
+  termsAndGuidelines: false,
+  photoRights: false,
 });
 
 // Computed
@@ -45,8 +42,75 @@ const allConsentsAccepted = computed(() => {
 });
 
 const canSubmit = computed(() => {
-  return store.canSubmit && allConsentsAccepted.value;
+  // Allow submission if either store has photo OR we have fast upload photo
+  const hasValidPhoto = store.hasPhoto || hasExistingPhoto.value;
+  return !store.isOnCooldown && 
+         hasValidPhoto && 
+         !store.isSubmitting && 
+         !store.isLoadingArtwork &&
+         !!store.artwork &&
+         allConsentsAccepted.value;
 });
+
+// Fast upload session detection
+const isFromFastUpload = computed(() => {
+  return route.query.source === 'fast-upload'
+})
+
+// Local session data (loaded from sessionStorage)
+const fastUploadSessionData = ref<{
+  photos: any[];
+  location: any;
+  detectedSources: any;
+} | null>(null)
+
+const hasExistingPhoto = computed(() => {
+  return isFromFastUpload.value && (
+    // Check Pinia store first (has File objects)
+    (fastUploadStore.hasPhotos && fastUploadStore.photos.length > 0) ||
+    // Fallback to sessionStorage data
+    (fastUploadSessionData.value?.photos && fastUploadSessionData.value.photos.length > 0)
+  )
+})
+
+const fastUploadPhotoName = computed(() => {
+  if (!hasExistingPhoto.value) return null
+  
+  // Check Pinia store first
+  if (fastUploadStore.hasPhotos && fastUploadStore.photos.length > 0) {
+    return fastUploadStore.photos[0]?.name || 'Unknown filename'
+  }
+  
+  // Fallback to sessionStorage data
+  if (fastUploadSessionData.value?.photos && fastUploadSessionData.value.photos.length > 0) {
+    return fastUploadSessionData.value.photos[0]?.name || 'Unknown filename'
+  }
+  
+  return null
+})
+
+const fastUploadPhotoPreview = computed(() => {
+  if (!hasExistingPhoto.value) return null
+  
+  // Check Pinia store first (has preview URLs)
+  if (fastUploadStore.hasPhotos && fastUploadStore.photos.length > 0) {
+    return fastUploadStore.photos[0]?.preview || null
+  }
+  
+  // sessionStorage doesn't have previews (intentionally omitted for size)
+  return null
+})
+
+const fastUploadPhotoFile = computed(() => {
+  if (!hasExistingPhoto.value) return null
+  
+  // Only Pinia store has File objects (not persisted to sessionStorage)
+  if (fastUploadStore.hasPhotos && fastUploadStore.photos.length > 0) {
+    return fastUploadStore.photos[0]?.file || null
+  }
+  
+  return null
+})
 
 // Form handlers
 function handlePhotoChange(event: Event) {
@@ -62,16 +126,19 @@ async function handleSubmit() {
   if (!canSubmit.value) return;
 
   try {
+    // If we have fast upload photo but no photo in store, set the fast upload photo
+    if (hasExistingPhoto.value && !store.hasPhoto && fastUploadPhotoFile.value) {
+      store.setPhoto(fastUploadPhotoFile.value);
+    }
+    
     const result = await store.submitLogbookEntry(artworkId.value);
     
     if (result.success) {
-      // Show success toast
-      showSuccessToast('Logbook entry submitted for review!');
-      
-      // Navigate back to artwork detail after short delay
-      setTimeout(() => {
-        router.push(`/artwork/${artworkId.value}`);
-      }, 2000);
+      // Redirect to artwork page with success parameter to show toast there
+      router.push({
+        path: `/artwork/${artworkId.value}`,
+        query: { submitted: 'true' }
+      });
     }
   } catch (error) {
     console.error('Submission failed:', error);
@@ -83,20 +150,12 @@ function handleConsentChanged(consents: any) {
   consentCheckboxes.value = consents;
 }
 
-function showSuccessToast(message: string) {
-  toastMessage.value = message;
-  showToast.value = true;
-  setTimeout(() => {
-    showToast.value = false;
-  }, 5000);
-}
-
 function goBack() {
   router.back();
 }
 
 // Watch for artwork ID changes
-watch(artworkId, (newId) => {
+watch(artworkId, (newId: string) => {
   if (newId) {
     store.fetchArtworkDetails(newId);
   }
@@ -104,9 +163,47 @@ watch(artworkId, (newId) => {
 
 // Lifecycle
 onMounted(() => {
+  // Load fast upload session data from sessionStorage if available
+  if (isFromFastUpload.value) {
+    const sessionData = sessionStorage.getItem('fast-upload-session');
+    if (sessionData) {
+      try {
+        fastUploadSessionData.value = JSON.parse(sessionData);
+        console.log('[LOGBOOK DEBUG] Loaded session data from sessionStorage:', {
+          photosCount: fastUploadSessionData.value?.photos?.length || 0,
+          firstPhotoName: fastUploadSessionData.value?.photos?.[0]?.name
+        });
+      } catch (error) {
+        console.error('[LOGBOOK] Failed to parse fast upload session data:', error);
+        fastUploadSessionData.value = null;
+      }
+    }
+    
+    // Auto-set the fast upload photo in the store if available from Pinia store
+    if (fastUploadPhotoFile.value && !store.hasPhoto) {
+      console.log('[LOGBOOK DEBUG] Auto-setting fast upload photo in store from Pinia');
+      store.setPhoto(fastUploadPhotoFile.value);
+    }
+  }
+  
+  console.log('[LOGBOOK DEBUG] Component mounted:', {
+    isFromFastUpload: isFromFastUpload.value,
+    hasExistingPhoto: hasExistingPhoto.value,
+    fastUploadPhotoName: fastUploadPhotoName.value,
+    source: route.query.source,
+    sessionDataLoaded: !!fastUploadSessionData.value
+  })
+  
   // Clear any previous form data
   store.clearForm();
   store.clearErrors();
+  
+  // Note: Fast upload photos are already uploaded to backend during fast upload
+  // We don't try to set File objects since they don't persist across navigation
+  if (hasExistingPhoto.value) {
+    console.log('[LOGBOOK] Fast upload photo detected:', fastUploadPhotoName.value)
+    console.log('[LOGBOOK] Photo was already uploaded during fast upload process')
+  }
   
   if (artworkId.value) {
     store.fetchArtworkDetails(artworkId.value);
@@ -191,10 +288,57 @@ onMounted(() => {
                 Photo of your visit <span class="text-red-500">*</span>
               </label>
               <p class="text-sm text-gray-600 mb-3">
-                Upload a photo showing the artwork as proof of your visit
+                <span v-if="!isFromFastUpload">Upload a photo showing the artwork as proof of your visit</span>
+                <span v-else>Photo from your fast upload session has been automatically selected</span>
               </p>
 
-              <div v-if="!store.selectedPhoto" data-testid="photo-input" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+              <!-- Fast Upload Photo Preview and Notice -->
+              <div v-if="hasExistingPhoto" class="space-y-4">
+                <!-- Preview Image -->
+                <div v-if="fastUploadPhotoPreview" class="relative">
+                  <img
+                    :src="fastUploadPhotoPreview"
+                    alt="Fast upload photo preview"
+                    class="w-full h-64 object-cover rounded-lg"
+                  />
+                  <div class="absolute top-2 left-2 bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium">
+                    Fast Upload Photo
+                  </div>
+                </div>
+                
+                <!-- Notice Banner -->
+                <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <div class="flex items-start">
+                    <CheckCircleIcon class="h-5 w-5 text-green-600 mt-0.5 mr-3 flex-shrink-0" />
+                    <div>
+                      <h4 class="text-sm font-medium text-green-900">Photo Selected</h4>
+                      <p class="text-sm text-green-700 mt-1">
+                        Photo "{{ fastUploadPhotoName }}" from your fast upload session is ready for submission.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Option to change photo -->
+                <div class="text-center">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    @change="handlePhotoChange"
+                    class="hidden"
+                    id="photo-upload-change"
+                  />
+                  <label
+                    for="photo-upload-change"
+                    class="cursor-pointer inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
+                  >
+                    Use Different Photo
+                  </label>
+                </div>
+              </div>
+
+              <!-- Normal Photo Upload (when not from fast upload and no photo selected) -->
+              <div v-else-if="!store.selectedPhoto" data-testid="photo-input" class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
                 <PhotoIcon class="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <p class="text-sm text-gray-600 mb-2">Click to select a photo</p>
                 <input
@@ -212,6 +356,7 @@ onMounted(() => {
                 </label>
               </div>
 
+              <!-- Photo Preview (when photo is selected) -->
               <div v-else data-testid="photo-preview" class="space-y-3">
                 <div class="relative">
                   <img
@@ -231,7 +376,7 @@ onMounted(() => {
                     </svg>
                   </button>
                 </div>
-                <p class="text-sm text-gray-600">{{ store.selectedPhoto.name }}</p>
+                <p class="text-sm text-gray-600">{{ store.selectedPhoto?.name }}</p>
               </div>
             </div>
 
@@ -367,19 +512,6 @@ onMounted(() => {
             </div>
           </form>
         </div>
-      </div>
-    </div>
-
-    <!-- Success Toast -->
-    <div
-      v-if="showToast"
-      data-testid="success-toast"
-      class="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 transform transition-transform duration-300"
-      :class="{ 'translate-y-0': showToast, 'translate-y-full': !showToast }"
-    >
-      <div class="flex items-center">
-        <CheckCircleIcon class="h-5 w-5 mr-2" />
-        <span>{{ toastMessage }}</span>
       </div>
     </div>
   </div>
