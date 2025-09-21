@@ -104,3 +104,5 @@ PHOTOS_BASE_URL = "https://art-photos.abluestar.com"
 CLOUDFLARE_IMAGES_ENABLED = "false"
 # CLOUDFLARE_IMAGES_HASH set via `wrangler secret put CLOUDFLARE_IMAGES_HASH`
 PHOTO_DEBUG = "true"
+# Disable logbook submission cooldown for production testing
+LOGBOOK_COOLDOWN_ENABLED = "false"

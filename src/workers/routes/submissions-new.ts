@@ -8,6 +8,7 @@
 import type { Context } from 'hono';
 import type { WorkerEnv } from '../types';
 import { createSuccessResponse, ApiError } from '../lib/errors';
+import { isRateLimitingEnabled } from '../types';
 import { getUserToken } from '../middleware/auth';
 import { getValidatedData, getValidatedFiles } from '../middleware/validation';
 import { processAndUploadPhotos } from '../lib/photos';
@@ -100,27 +101,29 @@ export async function createLogbookSubmission(
   const validatedFiles = getValidatedFiles(c);
 
   try {
-    // Rate limiting check
-    await recordUserActivity(
-      c.env.DB, 
-      userToken, 
-      'user_token', 
-      'submission'
-    );
-
-    // Check daily submission limit (10 per day)
-    const dailySubmissions = await c.env.DB.prepare(`
-      SELECT COUNT(*) as count FROM user_activity 
-      WHERE identifier = ? AND activity_type = 'submission' 
-      AND window_start = date('now', 'start of day')
-    `).bind(userToken).first<{count: number}>();
-
-    if (dailySubmissions && dailySubmissions.count >= 10) {
-      throw new ApiError(
-        'Daily submission limit reached (10 submissions per day)',
-        'RATE_LIMIT_EXCEEDED',
-        429
+    // Rate limiting check - only if enabled
+    if (isRateLimitingEnabled(c.env)) {
+      await recordUserActivity(
+        c.env.DB, 
+        userToken, 
+        'user_token', 
+        'submission'
       );
+
+      // Check daily submission limit (10 per day)
+      const dailySubmissions = await c.env.DB.prepare(`
+        SELECT COUNT(*) as count FROM user_activity 
+        WHERE identifier = ? AND activity_type = 'submission' 
+        AND window_start = date('now', 'start of day')
+      `).bind(userToken).first<{count: number}>();
+
+      if (dailySubmissions && dailySubmissions.count >= 10) {
+        throw new ApiError(
+          'Too many submissions. Please wait a moment before trying again.',
+          'RATE_LIMIT_EXCEEDED',
+          429
+        );
+      }
     }
 
     // Record consent
@@ -347,8 +350,25 @@ export async function createNewArtworkSubmissionHandler(
   const validatedFiles = getValidatedFiles(c);
 
   try {
-    // Rate limiting check
-    await recordUserActivity(c.env.DB, userToken, 'user_token', 'submission');
+    // Rate limiting check - only if enabled
+    if (isRateLimitingEnabled(c.env)) {
+      await recordUserActivity(c.env.DB, userToken, 'user_token', 'submission');
+
+      // Check daily submission limit (10 per day)
+      const dailySubmissions = await c.env.DB.prepare(`
+        SELECT COUNT(*) as count FROM user_activity 
+        WHERE identifier = ? AND activity_type = 'submission' 
+        AND window_start = date('now', 'start of day')
+      `).bind(userToken).first<{count: number}>();
+
+      if (dailySubmissions && dailySubmissions.count >= 10) {
+        throw new ApiError(
+          'Too many submissions. Please wait a moment before trying again.',
+          'RATE_LIMIT_EXCEEDED',
+          429
+        );
+      }
+    }
 
     // Record consent
     const contentId = generateUUID();
