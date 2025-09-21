@@ -2,8 +2,10 @@
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import ArtworkCard from '../components/ArtworkCard.vue';
+import BadgeGrid from '../components/BadgeGrid.vue';
+import ProfileNameEditor from '../components/ProfileNameEditor.vue';
 import { apiService } from '../services/api';
-import type { SubmissionRecord } from '../../../shared/types';
+import type { SubmissionRecord, UserBadgeResponse } from '../../../shared/types';
 import type { UserProfile, SearchResult, ArtworkDetailResponse as ArtworkDetails } from '../types/index';
 
 type SubmissionWithData = SubmissionRecord & {
@@ -26,6 +28,11 @@ const sortOrder = ref<'newest' | 'oldest'>('newest');
 const router = useRouter();
 // Cache of linked artwork details by ID for better cards
 const artworksById = ref<Record<string, ArtworkDetails>>({});
+
+// Badge system state
+const userBadges = ref<UserBadgeResponse['user_badges']>([]);
+const badgesLoading = ref(false);
+const currentProfileName = ref<string | null>(null);
 
 function toSearchResult(submission: SubmissionWithData): SearchResult {
   // If this submission is linked to an artwork, prefer the artwork details for card display
@@ -169,8 +176,14 @@ async function fetchUserProfile() {
     const response = await apiService.getUserProfile();
     if (response.data) {
       profile.value = response.data;
+      // Extract profile name from the response (may not be available in current UserProfile type)
+      // TODO: Update UserProfile type to include profile_name when backend is updated
+      currentProfileName.value = null;
     }
-    await fetchUserSubmissions();
+    await Promise.all([
+      fetchUserSubmissions(),
+      fetchUserBadges()
+    ]);
   } catch (err) {
     error.value = 'Failed to fetch user profile.';
     console.error(err);
@@ -241,6 +254,28 @@ function formatDateSafe(primary?: string | null, fallback?: string | null) {
   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
+// Badge system methods
+async function fetchUserBadges() {
+  try {
+    badgesLoading.value = true;
+    const response = await apiService.getUserBadges();
+    if (response.success && response.data) {
+      userBadges.value = response.data.user_badges;
+    }
+  } catch (err) {
+    console.error('Failed to fetch user badges:', err);
+    // Don't show error for badges, just fail silently
+  } finally {
+    badgesLoading.value = false;
+  }
+}
+
+function onProfileUpdated(newProfileName: string) {
+  currentProfileName.value = newProfileName;
+  // Optionally refetch profile data
+  // fetchUserProfile();
+}
+
 onMounted(fetchUserProfile);
 </script>
 
@@ -278,6 +313,24 @@ onMounted(fetchUserProfile);
         <div class="bg-white p-6 rounded-lg shadow">
           <h3 class="text-sm font-medium text-gray-500">Rejected</h3>
           <p class="mt-2 text-3xl font-bold text-red-600">{{ submissionStats.rejected }}</p>
+        </div>
+      </section>
+
+      <!-- Profile Name Section -->
+      <section class="mb-8">
+        <div class="bg-white p-6 rounded-lg shadow">
+          <h2 class="text-xl font-semibold text-gray-900 mb-4">Profile Settings</h2>
+          <ProfileNameEditor 
+            :currentProfileName="currentProfileName"
+            @profile-updated="onProfileUpdated"
+          />
+        </div>
+      </section>
+
+      <!-- Badges Section -->
+      <section class="mb-8">
+        <div class="bg-white p-6 rounded-lg shadow">
+          <BadgeGrid :badges="userBadges" :loading="badgesLoading" />
         </div>
       </section>
 

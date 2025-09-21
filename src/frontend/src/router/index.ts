@@ -18,6 +18,7 @@ const VerifyView = (): Promise<Component> => import('../views/VerifyView.vue');
 const SearchView = (): Promise<Component> => import('../views/SearchView.vue');
 const FastPhotoUploadView = (): Promise<Component> => import('../views/FastPhotoUploadView.vue');
 const LogbookSubmissionView = (): Promise<Component> => import('../views/LogbookSubmissionView.vue');
+const PublicProfileView = (): Promise<Component> => import('../views/PublicProfileView.vue');
 
 const router = createRouter({
   history: createWebHistory(),
@@ -120,6 +121,14 @@ const router = createRouter({
       component: ProfileView,
       meta: {
         title: 'My Submissions - Cultural Archiver',
+      },
+    },
+    {
+      path: '/users/:uuid',
+      name: 'PublicProfile',
+      component: PublicProfileView,
+      meta: {
+        title: 'User Profile - Cultural Archiver',
       },
     },
     {

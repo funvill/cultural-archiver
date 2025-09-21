@@ -19,6 +19,11 @@ import type {
   NearbyArtworksResponse,
   ArtworkEditReviewData,
   UserSubmissionsResponse,
+  BadgeListResponse,
+  UserBadgeResponse,
+  ProfileUpdateRequest,
+  ProfileUpdateResponse,
+  ProfileNameCheckResponse,
 } from '../../../shared/types';
 import type { UserProfile, ReviewQueueItem, ReviewStats, ArtworkDetails } from '../types';
 import { getApiBaseUrl } from '../utils/api-config';
@@ -277,6 +282,16 @@ class ApiClient {
   async put<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * PATCH request
+   */
+  async patch<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   }
@@ -582,6 +597,55 @@ export const apiService = {
    */
   async getUserProfile(): Promise<ApiResponse<UserProfile>> {
     return client.get('/me/profile');
+  },
+
+  // ================================
+  // Badge System Endpoints
+  // ================================
+
+  /**
+   * Get all available badge definitions (public endpoint)
+   */
+  async getAllBadges(): Promise<ApiResponse<BadgeListResponse>> {
+    return client.get('/badges');
+  },
+
+  /**
+   * Get current user's earned badges
+   */
+  async getUserBadges(): Promise<ApiResponse<UserBadgeResponse>> {
+    return client.get('/me/badges');
+  },
+
+  /**
+   * Update user's profile name
+   */
+  async updateProfileName(request: ProfileUpdateRequest): Promise<ApiResponse<ProfileUpdateResponse>> {
+    return client.patch('/me/profile', request);
+  },
+
+  /**
+   * Check if a profile name is available
+   */
+  async checkProfileNameAvailability(profileName: string): Promise<ApiResponse<ProfileNameCheckResponse>> {
+    return client.get('/me/profile-check', { profile_name: profileName });
+  },
+
+  /**
+   * Get public user profile by UUID
+   */
+  async getPublicUserProfile(uuid: string): Promise<ApiResponse<{
+    uuid: string;
+    profile_name: string;
+    badges: Array<{
+      badge: any;
+      awarded_at: string;
+      award_reason: string;
+      metadata?: Record<string, unknown>;
+    }>;
+    member_since: string;
+  }>> {
+    return client.get(`/users/${uuid}`);
   },
 
   // ================================
