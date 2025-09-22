@@ -14,6 +14,7 @@ import type {
 } from '../../shared/types';
 import { isValidUUID, isValidEmail } from '../../shared/types';
 import { generateUUID as generateUUIDFromConstants } from '../../shared/constants.js';
+import { BadgeService } from './badges';
 
 // ================================
 // UUID Generation and Validation
@@ -221,6 +222,25 @@ export async function updateUserEmailVerified(env: WorkerEnv, uuid: string): Pro
   const now = new Date().toISOString();
   const stmt = env.DB.prepare('UPDATE users SET email_verified_at = ? WHERE uuid = ?');
   await stmt.bind(now, uuid).run();
+  
+  // Check for email verification badges (non-blocking)
+  try {
+    const badgeService = new BadgeService(env.DB);
+    const badgeAwards = await badgeService.checkEmailVerificationBadge(uuid);
+    
+    if (badgeAwards.length > 0) {
+      console.info('Badges awarded for email verification:', {
+        userUuid: uuid,
+        badges: badgeAwards.map(b => ({ key: b.badge_key, title: b.title })),
+      });
+    }
+  } catch (badgeError) {
+    // Badge calculation errors should not block email verification
+    console.error('Failed to calculate email verification badges:', {
+      userUuid: uuid,
+      error: badgeError,
+    });
+  }
 }
 
 // ================================

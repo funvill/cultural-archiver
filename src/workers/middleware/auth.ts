@@ -6,14 +6,15 @@
 import type { Context, Next } from 'hono';
 import type { WorkerEnv } from '../types';
 import { UnauthorizedError, ForbiddenError } from '../lib/errors';
+import { getUserPermissions } from '../lib/permissions';
 
 
 
 export interface AuthContext {
   userToken: string;
-  /** True if user has moderator permission (or higher). */
+  /** True if user has moderator role (or admin role which inherits moderator privileges). */
   isModerator: boolean;
-  /** User can perform review actions (alias of isModerator or admin). */
+  /** Derived permission: true if user can review submissions (moderator or admin role). */
   canReview: boolean;
   isVerifiedEmail: boolean;
   isAdmin?: boolean;
@@ -78,19 +79,41 @@ export async function ensureUserToken(
   // Store in context for use by route handlers
   c.set('userToken', userToken);
   c.set('isNewToken', isNewToken); // Track if this is a new token
-  c.set('authContext', {
-    userToken,
-    isModerator: false,
-    canReview: false,
-    isVerifiedEmail: false,
-  });
+
+  // Get user permissions from database
+  try {
+    const permissions = await getUserPermissions(c.env.DB, userToken);
+    const isAdmin = permissions.includes('admin');
+    const isModerator = permissions.includes('moderator');
+    
+    // canReview is derived from roles: admins and moderators can review
+    const canReview = isAdmin || isModerator;
+    
+    c.set('authContext', {
+      userToken,
+      isModerator: isModerator || isAdmin, // Admins have moderator privileges
+      canReview,
+      isVerifiedEmail: false, // Will be set by checkEmailVerification middleware
+      isAdmin,
+    });
+  } catch (error) {
+    console.warn('Failed to check user permissions:', error);
+    // Fallback to no permissions on error
+    c.set('authContext', {
+      userToken,
+      isModerator: false,
+      canReview: false,
+      isVerifiedEmail: false,
+      isAdmin: false,
+    });
+  }
 
   await next();
 }
 
 /**
- * Middleware to check if user has reviewer permissions
- * Uses database-backed permission system with fallback to legacy logic
+ * Middleware to check if user has review permissions
+ * Requires either moderator or admin role
  */
 export async function requireReviewer(
   c: Context<{ Bindings: WorkerEnv }>,
@@ -103,18 +126,19 @@ export async function requireReviewer(
   }
 
   try {
-    // Check database-backed permissions only - no legacy fallbacks
-    const { isModerator } = await import('../lib/permissions');
-    const hasModerator = await isModerator(c.env.DB, userToken);
+    // Check if user has moderator OR admin role (both can review)
+    const permissions = await getUserPermissions(c.env.DB, userToken);
+    const hasReviewPermission = permissions.includes('moderator') || permissions.includes('admin');
 
-    if (!hasModerator) {
-      throw new ForbiddenError('Moderator permissions required');
+    if (!hasReviewPermission) {
+      throw new ForbiddenError('Moderator or admin permissions required');
     }
 
     // Update auth context (set all related flags)
     const authContext = c.get('authContext');
-    authContext.isModerator = true;
+    authContext.isModerator = permissions.includes('moderator') || permissions.includes('admin');
     authContext.canReview = true;
+    authContext.isAdmin = permissions.includes('admin');
     c.set('authContext', authContext);
 
     await next();
@@ -122,7 +146,7 @@ export async function requireReviewer(
     if (error instanceof ForbiddenError) {
       throw error;
     }
-    throw new UnauthorizedError('Failed to verify reviewer permissions');
+    throw new UnauthorizedError('Failed to verify review permissions');
   }
 }
 
@@ -167,7 +191,7 @@ export async function requireAdmin(
 
 /**
  * Middleware to check if user has verified email
- * Optional - enhances user experience but not required for MVP
+ * Checks both KV store (session-based) and database (permanent user record)
  */
 export async function checkEmailVerification(
   c: Context<{ Bindings: WorkerEnv }>,
@@ -177,18 +201,40 @@ export async function checkEmailVerification(
 
   if (userToken) {
     try {
-      // Skip email verification check in development if KV namespace is not available
-      if (!c.env.SESSIONS) {
-        console.warn('Email verification disabled: SESSIONS KV namespace not available');
-      } else {
-        // Check if user has verified email stored in KV
-        const emailData = await c.env.SESSIONS.get(`email:${userToken}`);
+      let isEmailVerified = false;
 
-        if (emailData) {
-          const authContext = c.get('authContext');
-          authContext.isVerifiedEmail = true;
-          c.set('authContext', authContext);
+      // First, check database for permanent user record with email verification
+      try {
+        const stmt = c.env.DB.prepare(`
+          SELECT email_verified_at 
+          FROM users 
+          WHERE uuid = ? AND email_verified_at IS NOT NULL
+          LIMIT 1
+        `);
+        const result = await stmt.bind(userToken).first();
+        
+        if (result && result.email_verified_at) {
+          isEmailVerified = true;
         }
+      } catch (dbError) {
+        console.warn('Database email verification check failed:', dbError);
+      }
+
+      // If not verified via database, check KV store for session-based verification
+      if (!isEmailVerified && c.env.SESSIONS) {
+        const emailData = await c.env.SESSIONS.get(`email:${userToken}`);
+        if (emailData) {
+          isEmailVerified = true;
+        }
+      } else if (!c.env.SESSIONS) {
+        console.warn('Email verification fallback: SESSIONS KV namespace not available');
+      }
+
+      // Update auth context if email is verified
+      if (isEmailVerified) {
+        const authContext = c.get('authContext');
+        authContext.isVerifiedEmail = true;
+        c.set('authContext', authContext);
       }
     } catch (error) {
       // Email verification check failed - continue without verification

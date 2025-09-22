@@ -392,6 +392,7 @@ export async function getAuthStatus(
         is_moderator: authContext.isModerator || authContext.isReviewer || false,
         can_review: authContext.canReview || authContext.isModerator || authContext.isReviewer || false,
         is_admin: !!authContext.isAdmin,
+        is_email_verified: !!authContext.isVerifiedEmail,
       }),
       user: user
         ? {

@@ -38,10 +38,11 @@ config({ path: resolve(__dirname, '..', '.env') });
 
 interface GrantAdminOptions {
   env: string;
-  email: string;
+  email?: string;
   force?: boolean;
   help?: boolean;
   dryRun?: boolean;
+  fixOrphaned?: boolean;
 }
 
 interface DatabaseConfig {
@@ -86,6 +87,9 @@ function parseArguments(): GrantAdminOptions {
         break;
       case '--dry-run':
         options.dryRun = true;
+        break;
+      case '--fix-orphaned':
+        options.fixOrphaned = true;
         break;
       case '--help':
         options.help = true;
@@ -147,16 +151,23 @@ function validateArguments(options: GrantAdminOptions): void {
     process.exit(1);
   }
 
-  if (!options.email) {
-    console.error('❌ Email is required. Use --email <email>');
+  if (!options.email && !options.fixOrphaned) {
+    console.error('❌ Email is required unless using --fix-orphaned. Use --email <email>');
     process.exit(1);
   }
 
-  // Basic email validation
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!emailRegex.test(options.email)) {
-    console.error('❌ Invalid email format');
+  if (options.fixOrphaned && options.email) {
+    console.error('❌ Cannot use both --email and --fix-orphaned options together');
     process.exit(1);
+  }
+
+  // Validate email format only if email is provided
+  if (options.email) {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(options.email)) {
+      console.error('❌ Invalid email format');
+      process.exit(1);
+    }
   }
 }
 
@@ -236,6 +247,62 @@ async function findUserByEmail(config: DatabaseConfig, email: string): Promise<U
 }
 
 /**
+ * Find existing admin roles without user records
+ */
+async function findOrphanedAdminRoles(config: DatabaseConfig): Promise<UserRole[]> {
+  const query = `
+    SELECT ur.id, ur.user_token, ur.role, ur.is_active, ur.granted_at
+    FROM user_roles ur
+    LEFT JOIN users u ON ur.user_token = u.uuid
+    WHERE ur.role = 'admin' AND ur.is_active = 1 AND u.uuid IS NULL
+  `;
+  
+  try {
+    const result = await executeQuery(config, query);
+    return result.results as UserRole[];
+  } catch (error) {
+    console.error(`❌ Failed to find orphaned admin roles: ${error}`);
+    throw error;
+  }
+}
+
+/**
+ * Create user record for existing admin token
+ */
+async function createUserForAdminToken(config: DatabaseConfig, userToken: string, dryRun: boolean = false): Promise<void> {
+  const now = new Date().toISOString();
+  
+  // Generate email and profile based on the known admin token
+  let email = 'admin@art.abluestar.com';
+  let profileName = 'admin';
+  
+  if (userToken === '3db6be1e-0adb-44f5-862c-028987727018') {
+    email = 'steven@abluestar.com';
+    profileName = 'steven';
+  }
+  
+  if (dryRun) {
+    console.log(`  🔍 [DRY RUN] Would create user record for admin token: ${userToken}`);
+    console.log(`  📧 Email: ${email}, Profile: ${profileName}`);
+    return;
+  }
+  
+  const query = `
+    INSERT INTO users (uuid, email, created_at, last_login, email_verified_at, status, profile_name)
+    VALUES ('${userToken}', '${email}', '${now}', '${now}', '${now}', 'active', '${profileName}')
+  `;
+  
+  try {
+    await executeQuery(config, query);
+    console.log(`  ✅ User record created for admin token: ${userToken}`);
+    console.log(`  📧 Email: ${email}, Profile: ${profileName}`);
+  } catch (error) {
+    console.error(`❌ Failed to create user record for admin token: ${error}`);
+    throw error;
+  }
+}
+
+/**
  * Check if user has admin role
  */
 async function checkUserAdminRole(config: DatabaseConfig, userToken: string): Promise<UserRole | null> {
@@ -267,19 +334,40 @@ async function createUser(config: DatabaseConfig, email: string, dryRun: boolean
   const userUuid = email === 'steven@abluestar.com' ? '3db6be1e-0adb-44f5-862c-028987727018' : randomUUID();
   const now = new Date().toISOString();
   
+  // Set profile name based on email
+  let profileName = null;
+  if (email === 'steven@abluestar.com') {
+    profileName = 'steven';
+  } else if (email.includes('@')) {
+    // Use the part before @ as profile name, but ensure it's valid
+    const username = email.split('@')[0];
+    // Clean username to match profile name requirements (3-20 chars, alphanumeric + dash, no start/end dash)
+    profileName = username.replace(/[^a-zA-Z0-9-]/g, '').substring(0, 20);
+    if (profileName.length < 3) {
+      profileName = null; // Will be set later by user
+    }
+    if (profileName && (profileName.startsWith('-') || profileName.endsWith('-'))) {
+      profileName = profileName.replace(/^-+|-+$/g, '');
+    }
+    if (profileName && profileName.length < 3) {
+      profileName = null;
+    }
+  }
+  
   if (dryRun) {
-    console.log(`  🔍 [DRY RUN] Would create user: ${email} with UUID: ${userUuid}`);
+    console.log(`  🔍 [DRY RUN] Would create user: ${email} with UUID: ${userUuid}${profileName ? ` and profile: ${profileName}` : ''}`);
     return userUuid;
   }
   
   const query = `
-    INSERT INTO users (uuid, email, created_at, last_login, email_verified_at, status)
-    VALUES ('${userUuid}', '${email}', '${now}', '${now}', '${now}', 'active')
+    INSERT INTO users (uuid, email, created_at, last_login, email_verified_at, status, profile_name)
+    VALUES ('${userUuid}', '${email}', '${now}', '${now}', '${now}', 'active', ${profileName ? `'${profileName}'` : 'NULL'})
   `;
   
   try {
     await executeQuery(config, query);
-    console.log(`  ✅ User created: ${email}`);
+    console.log(`  ✅ User created: ${email}${profileName ? ` with profile: ${profileName}` : ''}`);
+    console.log(`  🔑 User UUID: ${userUuid}`);
     return userUuid;
   } catch (error) {
     console.error(`❌ Failed to create user: ${error}`);
@@ -334,6 +422,10 @@ async function promptConfirmation(message: string): Promise<boolean> {
  * Main function to grant admin privileges
  */
 async function grantAdminPrivileges(options: GrantAdminOptions): Promise<void> {
+  if (!options.email) {
+    throw new Error('Email is required for granting admin privileges');
+  }
+  
   console.log(`\n🔐 Cultural Archiver Admin Privileges Script`);
   console.log(`📧 Email: ${options.email}`);
   console.log(`🌍 Environment: ${options.env}`);
@@ -416,13 +508,55 @@ async function grantAdminPrivileges(options: GrantAdminOptions): Promise<void> {
 }
 
 /**
+ * Fix orphaned admin roles (admin roles without user records)
+ */
+async function fixOrphanedAdminRoles(config: DatabaseConfig, dryRun: boolean = false): Promise<void> {
+  console.log('\n🔍 Checking for admin roles without user records...');
+  
+  const orphanedRoles = await findOrphanedAdminRoles(config);
+  
+  if (orphanedRoles.length === 0) {
+    console.log('✅ No orphaned admin roles found');
+    return;
+  }
+  
+  console.log(`\n⚠️  Found ${orphanedRoles.length} admin role(s) without user records:`);
+  for (const role of orphanedRoles) {
+    console.log(`  📝 User Token: ${role.user_token} (granted: ${role.granted_at})`);
+  }
+  
+  if (dryRun) {
+    console.log('\n🔍 [DRY RUN] Would create user records for these admin tokens');
+    for (const role of orphanedRoles) {
+      await createUserForAdminToken(config, role.user_token, true);
+    }
+    return;
+  }
+  
+  console.log('\n🔧 Creating user records for orphaned admin tokens...');
+  for (const role of orphanedRoles) {
+    await createUserForAdminToken(config, role.user_token, false);
+  }
+  
+  console.log('✅ All orphaned admin roles have been fixed');
+}
+
+/**
  * Main execution
  */
 async function main(): Promise<void> {
   try {
     const options = parseArguments();
     validateArguments(options);
-    await grantAdminPrivileges(options);
+    
+    if (options.fixOrphaned) {
+      // Fix orphaned admin roles
+      const config = getDatabaseConfig(options.env);
+      await fixOrphanedAdminRoles(config, options.dryRun);
+    } else {
+      // Grant admin privileges to specific email
+      await grantAdminPrivileges(options);
+    }
   } catch (error) {
     console.error(`❌ Script failed: ${error}`);
     process.exit(1);
