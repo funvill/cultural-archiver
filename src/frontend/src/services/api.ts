@@ -24,6 +24,9 @@ import type {
   ProfileUpdateRequest,
   ProfileUpdateResponse,
   ProfileNameCheckResponse,
+  NotificationListResponse,
+  NotificationUnreadCountResponse,
+  NotificationActionResponse,
 } from '../../../shared/types';
 import type { BadgeRecord } from '../types';
 import type { UserProfile, ReviewQueueItem, ReviewStats, ArtworkDetails } from '../types';
@@ -953,6 +956,57 @@ export const apiService = {
    */
   async deactivateAdminBadge(badgeId: string): Promise<ApiResponse<{ badge_id: string; deactivated_at: string }>> {
     return client.delete(`/admin/badges/${badgeId}`);
+  },
+
+  // ================================
+  // NOTIFICATION SYSTEM ENDPOINTS
+  // ================================
+
+  /**
+   * Get user notifications with pagination
+   */
+  async getUserNotifications(options: {
+    limit?: number;
+    offset?: number;
+    unread_only?: boolean;
+  } = {}): Promise<ApiResponse<NotificationListResponse>> {
+    const params = new URLSearchParams();
+    
+    if (options.limit !== undefined) {
+      params.append('limit', options.limit.toString());
+    }
+    if (options.offset !== undefined) {
+      params.append('offset', options.offset.toString());
+    }
+    if (options.unread_only !== undefined) {
+      params.append('unread_only', options.unread_only.toString());
+    }
+
+    const queryString = params.toString();
+    const url = `/me/notifications${queryString ? `?${queryString}` : ''}`;
+    
+    return client.get(url);
+  },
+
+  /**
+   * Get unread notification count
+   */
+  async getNotificationUnreadCount(): Promise<ApiResponse<NotificationUnreadCountResponse>> {
+    return client.get('/me/notifications/unread-count');
+  },
+
+  /**
+   * Dismiss/mark notification as read
+   */
+  async dismissNotification(notificationId: string): Promise<ApiResponse<NotificationActionResponse>> {
+    return client.post(`/me/notifications/${notificationId}/dismiss`);
+  },
+
+  /**
+   * Mark notification as read (alias for dismiss)
+   */
+  async markNotificationRead(notificationId: string): Promise<ApiResponse<NotificationActionResponse>> {
+    return client.post(`/me/notifications/${notificationId}/read`);
   },
 };
 
