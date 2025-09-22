@@ -24,6 +24,27 @@ This PRD defines the overal architecture, minimal viable product (MVP) scope, AP
 
 ---
 
+## Guiding Principles & Vision
+
+This section clarifies the high-level goals and vision for the notification system based on stakeholder feedback.
+
+**1. What is the single most important business goal for the MVP of the notification system?**
+> **A. Increase user engagement and retention by making achievements (like earning badges) more visible and rewarding.** This focuses on making the user feel valued and encouraging them to contribute more.
+
+**2. What should be the core principle guiding the user experience design for notifications?**
+> **A. Notifications should be helpful and celebratory, not intrusive or distracting.** The system should prioritize positive reinforcement and provide clear, actionable information without overwhelming the user.
+
+**3. How does a notification system directly support the Cultural Archiver's mission of preserving and sharing cultural artifacts?**
+> **A. By encouraging and recognizing user contributions (submissions, reviews), the system directly incentivizes the core activities that build the archive's content and data quality.**
+
+**4. Which element is most critical to get right for the MVP to be considered a success?**
+> **A. The "badge awarded" notification flow, including the toast and confetti celebration.** This is the primary user-facing feature that delivers on the engagement goal.
+
+**5. What is the primary "feeling" we want users to associate with receiving a notification?**
+> **A. A sense of accomplishment and recognition.** Notifications should feel like a small reward or a helpful tip, making users feel valued.
+
+---
+
 ## Relationship to existing Badge PRD
 
 This notification system must fully support the badge system described in `tasks/user-profile-badges.md`:
@@ -40,6 +61,7 @@ Include the badge-related constraints from the badge PRD: MVP is for verified us
 ## MVP Scope
 
 Backend
+
 - Persistent `notifications` table to store notifications of various types.
 - Notification creation API used by server-side services (BadgeService, Admin scripts, Review workflows).
 - User-facing endpoints:
@@ -50,16 +72,19 @@ Backend
 - Optional: POST `/api/test/notification/confetti` (dev-only) or expose a button on `/status` that triggers the confetti animation on the frontend (no backend side-effect required). For security, test endpoints should be dev-only or behind admin flag.
 
 Frontend
+
 - A notification icon visible in the top navigation that shows unread count badge.
 - A dropdown or panel showing recent notifications with actions (mark read, go to related content).
 - Toast component for ephemeral notifications (fast path) — with confetti animation for badge awards.
 - Confetti test button on `/status` page to demonstrate the animation.
 
 Integration
+
 - BadgeService will create a notification row when a badge is awarded.
 - The submission flow may optionally return awarded badge details in the immediate response to render toasts immediately (fast path), and server will also persist a notification row (authoritative record).
 
 Tests
+
 - Unit tests for notification creation logic and BadgeService integration.
 - API endpoint tests for list, unread count, mark read/dismiss.
 - Frontend component tests for notification icon, panel, toast, and confetti animation toggle.
@@ -71,6 +96,7 @@ Tests
 Table: `notifications`
 
 Columns (recommended):
+
 - `id` TEXT PRIMARY KEY (UUID)
 - `user_token` TEXT NOT NULL — recipient's user_token (uuid)
 - `type` TEXT NOT NULL — e.g., `badge`, `admin_message`, `review`, `system`
@@ -84,9 +110,11 @@ Columns (recommended):
 - `related_id` TEXT NULL — optional foreign key (badge id, submission id)
 
 Indexes:
+
 - `idx_notifications_user_token` on (`user_token`, `is_read`, `created_at`) to fetch recent and unread quickly
 
 Notes:
+
 - Notifications are per-user; do not leak other users' notifications.
 - Keep notification payload small; use `metadata` for structured data when needed.
 
@@ -99,30 +127,32 @@ Authentication: All `/api/me/*` endpoints require a valid `user_token` and follo
 Endpoints:
 
 1) GET /api/me/notifications
-- Query params: `limit=20` (default), `offset=0`, `unread_only=false`
-- Response: { notifications: [{ id, type, type_key, title, message, metadata, created_at, is_read }], pagination }
+   - Query params: `limit=20` (default), `offset=0`, `unread_only=false`
+   - Response: { notifications: [{ id, type, type_key, title, message, metadata, created_at, is_read }], pagination }
 
 2) GET /api/me/notifications/unread-count
-- Response: { unread_count: N }
+   - Response: { unread_count: N }
 
 3) POST /api/me/notifications/:id/read
-- Marks notification as read; idempotent.
-- Response: { success: true }
+   - Marks notification as read; idempotent.
+   - Response: { success: true }
 
 4) POST /api/me/notifications/:id/dismiss
-- Mark dismissed (optional alias of read + is_dismissed flag); if the notification type is `badge` and unread, trigger confetti on dismissal on the frontend.
+   - Mark dismissed (optional alias of read + is_dismissed flag); if the notification type is `badge` and unread, trigger confetti on dismissal on the frontend.
 
 5) POST /api/admin/notifications (admin only) — create a system/admin notification (Phase 1 limited to admin scripts)
 
 Dev-only: Frontend confetti test button (no persistent backend change). Prefer to put the button on `/status` page and simply trigger the local animation.
 
 Security & Rate-limiting:
+
 - Limit GET list to safe values (max limit 100).
 - Only the owning `user_token` may access their notifications.
 
 ---
 
 ## Backend Behavior & Contracts
+
 
 - Notification creation is a simple insert; caller is responsible for deduplication if needed.
 - BadgeService: when awarding a badge, call NotificationService.create({ user_token, type: 'badge', type_key, title, message, metadata: { badge_id, badge_key, award_reason } }).
@@ -139,30 +169,63 @@ Delivery model
 
 ---
 
+## Functional Requirements
+
+This section captures clarified functional choices for the notification system (questions 6-10).
+
+### 6) Presentation of multiple notifications in a short period
+
+> **A.** The system will not rely on ephemeral toasts. Instead, the notification icon in the global nav is the entry point; when the user presses it they are navigated to their own public profile page and the "Notifications" tab (notification center) is opened. All notifications are listed in that center. Each notification can be dismissed from the center; dismissing a notification triggers its celebration animation (if applicable) and marks it read on the backend.
+
+### 7) Offline handling
+
+> **A.** Notifications generated while a user is offline are stored on the server and delivered the next time they log in or become active. The unread count reflects these stored notifications.
+
+### 8) Unread count behavior
+
+> **A.** The notification icon's badge shows the number of unread notifications and disappears when the count is zero. The count updates in near-real-time as notifications are received or marked read.
+
+### 9) Dismissing a new badge notification
+
+> **A.** When the user dismisses a new badge notification in the notification center, the notification is removed from the visible list (or marked read), a confetti animation is triggered client-side, and the backend marks the notification as read. This provides immediate celebratory feedback while preserving the authoritative record on the server.
+
+### 10) Future notification types to support
+
+> **A.** Design the system to support submission status changes (e.g., "Approved", "Needs more info"), admin messages, and system-wide announcements in future phases.
+
+
+---
+
 ## Frontend UX (MVP)
 
 Global nav
+
 - Add a notification icon (bell) to the top nav:
-  - Show a small red unread count badge when `unread_count > 0` (capped at 99+)
-  - Clicking opens a dropdown/panel with recent notifications (paginated link to full panel)
+   - Show a small red unread count badge when `unread_count > 0` (capped at 99+)
+   - Clicking opens a dropdown/panel with recent notifications (paginated link to full panel)
 
 Notification Panel
+
 - Show recent notifications grouped by time (new/unread at top)
 - Each entry: icon (based on `type`), title, short message, timeago, action link (if `metadata.url` or related resource)
 - Actions: mark as read (checkbox on hover), dismiss (x), go-to (click on body)
 
 Toasts
+
 - Ephemeral toasts (top-right) for newly received notifications. Badge awards produce a toast with badge icon/title and small CTA (view profile)
 - When a user dismisses a notification that represents a NEW badge award (i.e., unread badge notification), trigger confetti animation. The confetti should be optional and accessible (prefers-reduced-motion respected).
 
 Confetti Test Button
+
 - Add a small `Test Celebration` button to `/status` that triggers the confetti animation locally. This button does not create notifications; it only demonstrates the UI. Keep the button behind a dev/testing flag in production.
 
 Accessibility
+
 - All interactive controls must be keyboard focusable with descriptive ARIA labels.
 - Respect `prefers-reduced-motion` and provide a non-animated fallback.
 
 Design tokens
+
 - Use existing Tailwind / CSS tokens from the frontend for colors, spacing, and icons.
 
 ---
@@ -170,17 +233,151 @@ Design tokens
 ## Tests & QA
 
 Backend
+
 - Unit tests for NotificationService: create, list, mark read, delete/dismiss.
 - Integration tests for BadgeService -> notification creation.
 - API tests for authentication/authorization (ensure only owning user can list/mark notifications).
 
+---
+
+## User Stories
+
+This section records the prioritized user stories and choices (questions 11-15).
+
+
+### 11) Highest-priority user story for the MVP notification flow
+
+> **A.** As a verified user, when I earn a badge, I want to see a clear notification in my notification center and be able to dismiss it, so I feel recognized.
+
+### 12) Notification ordering when viewing the center
+
+> **A.** Newest-first, with unread items pinned to the top.
+
+### 13) Actions available on each notification (MVP)
+
+> **A.** Mark as read/dismiss and go-to related content (if applicable).
+
+### 14) Accessibility of notifications from the user's profile
+
+> **A.** Yes — the notification icon should navigate to the user's profile and open the notification tab (private to that user).
+
+### 15) Backend contract for marking read/dismiss
+
+> **A.** The notification's `is_read` flag is set atomically and the unread-count API reflects the change immediately.
+
+
+## Design Considerations
+
+This section captures UI and privacy decisions for the notification system (questions 16-20).
+
+### 16) Accessibility for confetti/celebration animations
+
+> **B.** Always show full confetti for maximum delight.
+
+### 17) Treatment of long messages or rich metadata
+
+> **A.** Show a short summary (title + 1–2 line snippet) with a "view more" or "go to" action that navigates to the related content; keep the center compact.
+
+### 18) Freshness requirement for unread-count
+
+> **D.** Only update on full page reloads.
+
+### 19) Confetti placement when a badge is dismissed
+
+> **B.** Full-screen center so it's obvious to all users.
+
+### 20) Privacy constraints for notification payloads
+
+> **A.** Avoid embedding PII (emails, phone numbers) or any sensitive user data; include only minimal identifiers and links for context.
+
 Frontend
+
 - Unit tests for `NotificationIcon`, `NotificationPanel`, `BadgeToast` components.
 - Integration tests (Vitest + Playwright) to simulate awarding a badge and showing toast + confetti.
 - Accessibility tests to ensure keyboard navigation and reduced-motion behavior.
 
 End-to-end
+
 - Simulate full flow: create submission that triggers badge award -> backend persists notification -> frontend receives awarded-badge in response and shows toast -> panel shows notification and unread count increments -> user dismisses toast/panel item -> confetti animates and backend marks read.
+
+---
+
+## Technical Considerations
+
+This section records technical choices and constraints for the notification system (questions 21-25).
+
+
+### 21) Storage for MVP
+
+> **A.** Store notifications in Cloudflare D1 in a new `notifications` table (persistent, queryable, SQLite-compatible).
+
+### 22) Authorization model
+
+> **A.** Require the owning `user_token` and existing auth middleware (same as other `/api/me/*` endpoints). Server-side enforcement only.
+
+### 23) Deduplication strategy
+
+> **A.** Keep notifications simple; BadgeService should be idempotent and only create notifications when an award is new. Deduping handled at the service level for MVP.
+
+### 24) Retention and cleanup
+
+> **A.** Store indefinitely in D1, but surface only recent items (last 90 days) in the UI; provide admin tools to prune if needed.
+
+### 25) Real-time delivery approach
+
+> **A.** Polling every 30–60 seconds for MVP; plan for SSE/WebSocket in Phase 2. (User indicated: "No real time" — MVP will use polling.)
+
+---
+
+## Scope Reduction
+
+Use this section to lock down decisions that shrink the MVP surface.
+
+
+### 26) Which user segment should the MVP target?
+
+> **A.** Verified, authenticated users only (keeps scope small and consistent with badge system).
+
+### 27) Which notification types should MVP include?
+
+> **C.** All types (badges, admin messages, review updates, system notices).
+
+### 28) Which delivery channels should the MVP support?
+
+> **A.** In-app notification center + unread-count polling only.
+
+### 29) Which admin features should be in MVP?
+
+> **B.** Full admin UI for broadcasting messages.
+
+### 30) For initial rollout, what's the retention/visibility policy?
+
+> **A.** Persist notifications indefinitely in DB but show only last 90 days in UI (admin tools to adjust later).
+
+---
+
+
+## Implementation Decisions (further scope reduction)
+
+### 31) Which UI component should we implement first for the frontend MVP?
+
+> **A.** Notification icon + unread-count badge and the Notification center tab on the user's profile page.
+
+### 32) Which platforms should the frontend MVP support?
+
+> **A.** Desktop and mobile web (responsive SPA behavior).
+
+### 33) What level of testing should be required before rolling out to dev environment?
+
+> **A.** Unit tests + a small integration test covering badge->notification flow (happy path). Additionally: add an end-to-end suite with Playwright.
+
+### 34) Should localization be included in MVP?
+
+> **A.** No — English-only for MVP, add localization in Phase 2.
+
+### 35) Rollout strategy for enabling notifications for users
+
+> **All at once.** Enable for all verified users in dev/staging first, then production rollout for all verified users after monitoring.
 
 ---
 
@@ -192,7 +389,11 @@ End-to-end
 - At least 90% of users see the animation when awarded a badge (subject to reduced-motion preferences).
 
 Qualitative success:
+
 - Users report increased discoverability of awards and minimal friction in viewing notifications.
+
+
+
 
 ---
 
@@ -233,16 +434,19 @@ Qualitative success:
 ## Next Steps (if approved)
 
 Backend-first plan (recommended):
+
 1. Create migration and `src/workers/lib/notifications.ts` (NotificationService) + tests.
 2. Add endpoints in `src/workers/routes/user.ts` and wire middleware (`ensureUserToken`, `checkEmailVerification`).
 3. Integrate NotificationService into `src/workers/lib/badges.ts` so badges persist notifications on award.
 
 Frontend plan:
+
 1. Add UI components (`NotificationIcon`, `NotificationPanel`, `BadgeToast`).
 2. Add Pinia store slice for notifications and wire APIs.
 3. Add `/status` confetti test button behind a dev flag.
 
 Testing plan:
+
 1. Unit tests for backend and frontend components.
 2. Integration tests to confirm BadgeService->NotificationService flow.
 3. End-to-end tests that exercise the confetti flow (respect reduce-motion).
