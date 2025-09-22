@@ -57,10 +57,10 @@ const activeBadges = computed(() => {
 const badgesByCategory = computed(() => {
   const grouped: Record<string, Array<BadgeRecord & { award_count: number }>> = {};
   badges.value.forEach(badge => {
-    if (!grouped[badge.category]) {
-      grouped[badge.category] = [];
-    }
-    grouped[badge.category].push(badge);
+    const key = String(badge.category || 'uncategorized');
+    // Ensure an array exists for this category then push in a local const
+    const arr = grouped[key] ?? (grouped[key] = []);
+    arr.push(badge);
   });
   return grouped;
 });

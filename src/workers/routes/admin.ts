@@ -7,9 +7,7 @@
 
 import type { Context } from 'hono';
 import type { WorkerEnv, AuthContext } from '../types';
-import type {
-  BadgeRecord,
-} from '../../shared/types';
+import type {} from '../../shared/types';
 import { ApiError } from '../lib/errors';
 import { BadgeService } from '../lib/badges';
 import {

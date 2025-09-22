@@ -25,6 +25,7 @@ import type {
   ProfileUpdateResponse,
   ProfileNameCheckResponse,
 } from '../../../shared/types';
+import type { BadgeRecord } from '../types';
 import type { UserProfile, ReviewQueueItem, ReviewStats, ArtworkDetails } from '../types';
 import { getApiBaseUrl } from '../utils/api-config';
 

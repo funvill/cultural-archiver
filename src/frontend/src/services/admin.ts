@@ -16,6 +16,7 @@ import type {
   AuditLogEntry,
   AuditStatistics,
 } from '../../../shared/types';
+import type { BadgeRecord } from '../../../shared/types';
 import { apiService } from './api';
 
 /**
