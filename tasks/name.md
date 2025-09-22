@@ -67,6 +67,13 @@ These are not avaliable, but also not perfect names. Listed here for reference.
 - arscollect.io
 - artseen.app
 - artregistrymap.com
+- artattrition.com
+- artbluebird.com
+- artwalkmap.com
+- artwildcat.com
+- artpecker.com
+- scatterhorde.com
+- artarmyant.com
 
 **No .Com**
 
