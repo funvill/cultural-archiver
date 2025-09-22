@@ -2,9 +2,7 @@
 
 ## Executive Summary
 
-Add a generic, extensible in-app notification system for the Cultural Archiver. The system will deliver notifications for many event types (badges, review actions, admin messages, system notices, moderation updates) and provide both ephemeral toasts (celebrations) and a persistent notification center. The initial launch will focus on badge notifications (as described in the existing User Profile & Badges PRD) while designing the system to support additional notification types in Phase 2.
-
-This PRD defines the overal architecture, minimal viable product (MVP) scope, API and DB contracts, frontend UX (including a notification icon and confetti celebration), testing strategy, rollout plan, and acceptance criteria. Implementation will include backend + frontend + tests, but this document is design-only: do not begin implementation without separate approval.
+This document outlines the requirements for a new in-app notification system. The Minimum Viable Product (MVP) will focus on delivering notifications to users within the application. The primary entry point will be a notification icon in the global navigation, which leads to a notification center on the user's profile page. The system will be built with a polling mechanism for the MVP, with plans for real-time updates in the future. The initial implementation will support all notification types, including badge awards, administrative messages, and review updates.
 
 ---
 
@@ -19,8 +17,8 @@ This PRD defines the overal architecture, minimal viable product (MVP) scope, AP
 ## Non-goals (MVP)
 
 - Push/email/SMS notifications (no external delivery in MVP).
-- Complex user-configurable notification preferences (defer to Phase 2).
-- Social or sharing features (deferred).
+- Complex user-configurable notification preferences
+- Social or sharing features
 
 ---
 
@@ -67,9 +65,7 @@ Backend
 - User-facing endpoints:
   - GET `/api/me/notifications` — list notifications (paginated, recent-first).
   - POST `/api/me/notifications/:id/read` — mark one notification as read.
-  - POST `/api/me/notifications/:id/dismiss` — mark dismissed (optional alias of read).
   - GET `/api/me/notifications/unread-count` — quick unread count.
-- Optional: POST `/api/test/notification/confetti` (dev-only) or expose a button on `/status` that triggers the confetti animation on the frontend (no backend side-effect required). For security, test endpoints should be dev-only or behind admin flag.
 
 Frontend
 
@@ -105,13 +101,12 @@ Columns (recommended):
 - `message` TEXT NULL
 - `metadata` TEXT NULL — JSON string for structured payload (badge id, artwork id, url)
 - `created_at` TEXT NOT NULL DEFAULT datetime('now')
-- `is_read` INTEGER NOT NULL DEFAULT 0
 - `is_dismissed` INTEGER NOT NULL DEFAULT 0
 - `related_id` TEXT NULL — optional foreign key (badge id, submission id)
 
 Indexes:
 
-- `idx_notifications_user_token` on (`user_token`, `is_read`, `created_at`) to fetch recent and unread quickly
+`idx_notifications_user_token` on (`user_token`, `is_dismissed`, `created_at`) to fetch recent and new (not-dismissed) quickly
 
 Notes:
 
@@ -126,21 +121,24 @@ Authentication: All `/api/me/*` endpoints require a valid `user_token` and follo
 
 Endpoints:
 
-1) GET /api/me/notifications
-   - Query params: `limit=20` (default), `offset=0`, `unread_only=false`
-   - Response: { notifications: [{ id, type, type_key, title, message, metadata, created_at, is_read }], pagination }
 
-2) GET /api/me/notifications/unread-count
-   - Response: { unread_count: N }
+### GET /api/me/notifications
 
-3) POST /api/me/notifications/:id/read
-   - Marks notification as read; idempotent.
-   - Response: { success: true }
+- Query params: `limit=20` (default), `offset=0`, `not_dismissed_only=false`
+- Response: { notifications: [{ id, type, type_key, title, message, metadata, created_at, is_dismissed }], pagination }
 
-4) POST /api/me/notifications/:id/dismiss
-   - Mark dismissed (optional alias of read + is_dismissed flag); if the notification type is `badge` and unread, trigger confetti on dismissal on the frontend.
+### GET /api/me/notifications/unread-count
 
-5) POST /api/admin/notifications (admin only) — create a system/admin notification (Phase 1 limited to admin scripts)
+- Response: { unread_count: N }  # number of notifications where `is_dismissed = 0`
+
+### POST /api/me/notifications/:id/dismiss
+
+- Mark dismissed; idempotent. If the notification type is `badge` and it was not dismissed before, the frontend may trigger confetti on dismissal.
+- Response: { success: true }
+
+### POST /api/admin/notifications (admin only)
+
+- Create a system/admin notification (Phase 1 limited to admin scripts)
 
 Dev-only: Frontend confetti test button (no persistent backend change). Prefer to put the button on `/status` page and simply trigger the local animation.
 
@@ -157,12 +155,16 @@ Security & Rate-limiting:
 - Notification creation is a simple insert; caller is responsible for deduplication if needed.
 - BadgeService: when awarding a badge, call NotificationService.create({ user_token, type: 'badge', type_key, title, message, metadata: { badge_id, badge_key, award_reason } }).
 - API responses must not leak other users' data.
-- Mark-read/dismiss operations should return 204 No Content or success JSON.
+
+Mark-dismiss operations should return 204 No Content or success JSON.
+
 
 Idempotency and deduping
+
 - For badge awards the BadgeService should be the source of truth and be idempotent; notification creation may be conditional on whether the badge award was newly created (BadgeService returns `created: true|false`).
 
 Delivery model
+
 - Fast path (recommended): When the action that awards a badge returns to the client (e.g., submission creation), include the awarded badge(s) in the response so the frontend can show immediate toasts and confetti. Backend still persists notifications.
 - Polling: Frontend should poll `/api/me/notifications/unread-count` periodically (e.g., every 30–60 seconds) for minimal real-time feel in MVP.
 - Future: add Server-Sent Events (SSE) or WebSocket for push delivery.
@@ -201,8 +203,8 @@ This section captures clarified functional choices for the notification system (
 Global nav
 
 - Add a notification icon (bell) to the top nav:
-   - Show a small red unread count badge when `unread_count > 0` (capped at 99+)
-   - Clicking opens a dropdown/panel with recent notifications (paginated link to full panel)
+  - Show a small red unread count badge when `unread_count > 0` (capped at 99+)
+  - Clicking opens a dropdown/panel with recent notifications (paginated link to full panel)
 
 Notification Panel
 
@@ -263,7 +265,7 @@ This section records the prioritized user stories and choices (questions 11-15).
 
 ### 15) Backend contract for marking read/dismiss
 
-> **A.** The notification's `is_read` flag is set atomically and the unread-count API reflects the change immediately.
+> **A.** Notifications do not have a separate "read" state. A notification is either new or dismissed; the unread-count reflects notifications where `is_dismissed = 0`.
 
 
 ## Design Considerations
@@ -409,7 +411,7 @@ Qualitative success:
 
 ## Migration
 
-- Add migrations file `xxxx_add_notifications_table.sql` (include down/rollback comment). Use `TEXT` for metadata JSON to keep D1 compatibility.
+- Add migrations file `0026_add_notifications_table.sql` (include down/rollback comment). Use `TEXT` for metadata JSON to keep D1 compatibility.
 
 ---
 
@@ -423,15 +425,11 @@ Qualitative success:
 
 ## Future / Phase 2 Ideas
 
-- Notification preferences (email, push, in-app toggles)
-- Server-Sent Events (SSE) or WebSockets for true push delivery
-- Notification categories and filters
-- Aggregate summaries (weekly digest)
 - Admin dashboard to broadcast system notifications
 
 ---
 
-## Next Steps (if approved)
+## Next Steps 
 
 Backend-first plan (recommended):
 
@@ -465,3 +463,79 @@ Testing plan:
 ---
 
 Document author: (auto-generated PRD) — update with product owner and date when approved.
+
+---
+
+## Developer Task List
+
+This developer-facing task list translates the PRD into an ordered set of implementation tasks. The list is intentionally prescriptive and broken down into parent tasks and concrete sub-tasks so a junior developer can follow it.
+
+### Relevant Files
+
+- `src/workers/migrations/0026_add_notifications_table.sql` - DB migration to add the `notifications` table.
+- `src/workers/lib/notifications.ts` - NotificationService implementation (create, list, unread-count, mark-read/dismiss).
+- `src/workers/routes/notifications.ts` or `src/workers/routes/user.ts` - API endpoints for `/api/me/notifications` and `/api/me/notifications/unread-count`.
+- `src/workers/lib/badges.ts` - Integration point: call NotificationService when badges are awarded.
+- `src/shared/types.ts` - Add Notification types/interfaces used by backend and frontend.
+- `src/frontend/src/components/NotificationIcon.vue` - Top-nav icon + unread-count badge component.
+- `src/frontend/src/components/NotificationPanel.vue` - Panel / dropdown listing recent notifications.
+- `src/frontend/src/components/BadgeToast.vue` - Ephemeral toast used for fast-path badge awards.
+- `src/frontend/src/stores/notifications.ts` - Pinia store slice to manage notifications and polling.
+- `src/frontend/src/views/ProfileNotificationsView.vue` - Profile page Notifications tab / full center view.
+- `src/frontend/src/pages/Status.vue` or `/status` view - Add confetti test button (dev-only behind flag).
+- `src/frontend/test/e2e/notifications.spec.ts` - Playwright end-to-end tests for badge->notification flow.
+- `src/workers/test/notifications.test.ts` - Unit tests for NotificationService.
+- `src/frontend/test/unit/NotificationIcon.test.ts` - Unit tests for components.
+
+### Tasks
+
+- [ ] 1.0 Backend: Schema & Migration
+  - [ ] 1.1 Create migration `0026_add_notifications_table.sql` using the PRD data model (UUID id, user_token, type, type_key, title, message, metadata TEXT, created_at, is_dismissed, related_id).
+  - [ ] 1.2 Add index `idx_notifications_user_token` on (`user_token`, `is_dismissed`, `created_at`).
+  - [ ] 1.3 Add rollback/down comments and validate migration by running against the local development database.
+
+- [ ] 2.0 Backend: NotificationService
+  - [ ] 2.1 Implement `src/workers/lib/notifications.ts` exposing: create(notification), listForUser(user_token, { limit, offset, unread_only }), unreadCount(user_token), markRead(id, user_token), dismiss(id, user_token).
+  - [ ] 2.2 Add Zod input validation and TypeScript types in `src/shared/types.ts`.
+  - [ ] 2.3 Add unit tests covering happy path, invalid input, and authorization checks.
+
+- [ ] 3.0 Backend: API Endpoints & Auth
+  - [ ] 3.1 Add routes for `/api/me/notifications` (GET list), `/api/me/notifications/unread-count` (GET), `/api/me/notifications/:id/read` (POST), `/api/me/notifications/:id/dismiss` (POST). Place under `src/workers/routes/notifications.ts` or extend `user.ts` with clear route grouping.
+  - [ ] 3.2 Apply `ensureUserToken` and `checkEmailVerification` middleware to protect endpoints.
+  - [ ] 3.3 Add rate-limiting for list endpoints and input validation (limit bounds, offset, id format).
+
+- [ ] 4.0 Integration: BadgeService
+  - [ ] 4.1 In `src/workers/lib/badges.ts`, call NotificationService.create when a badge is awarded. Only create a notification if the badge award is newly created (BadgeService returns created: true).
+  - [ ] 4.2 Ensure the call is idempotent and add integration tests covering award -> notification creation.
+
+- [ ] 5.0 Frontend: Components & Store
+  - [ ] 5.1 Implement `NotificationIcon.vue` with unread-count badge (capped at 99+) wired to the notifications Pinia store.
+  - [ ] 5.2 Implement `NotificationPanel.vue` (dropdown or panel) showing recent notifications and actions (mark read, dismiss, go-to). Include pagination link to the full center view.
+  - [ ] 5.3 Implement `BadgeToast.vue` for ephemeral fast-path toasts. When dismissed for an unread badge, trigger confetti and call `/api/me/notifications/:id/dismiss`.
+  - [ ] 5.4 Create `src/frontend/src/stores/notifications.ts` Pinia slice to call APIs, manage polling for unread-count (30–60s), and cache/paginate notification lists.
+  - [ ] 5.5 Add `ProfileNotificationsView.vue` (notifications tab) to show full history (default: last 90 days) and actions.
+
+- [ ] 6.0 Frontend: Confetti & Accessibility
+  - [ ] 6.1 Implement confetti animation component; respect `prefers-reduced-motion` and expose a feature flag to enable/disable full-screen confetti.
+  - [ ] 6.2 Add a dev-only `Test Celebration` button on `/status` to trigger the confetti locally (no server changes). Guard behind an env flag.
+  - [ ] 6.3 Add keyboard/ARIA support and unit tests for accessibility on all interactive controls.
+
+- [ ] 7.0 Testing: Integration & End-to-End
+  - [ ] 7.1 Add integration tests (BadgeService -> NotificationService -> DB) in `src/workers/test/`.
+  - [ ] 7.2 Add Playwright E2E test (`src/frontend/test/e2e/notifications.spec.ts`) covering: award badge -> show toast -> panel list contains notification -> dismiss -> confetti triggered -> server marks read.
+  - [ ] 7.3 Run full test suite: `npm run test` and ensure new tests pass.
+
+- [ ] 8.0 Admin: System Notifications & Tools
+  - [ ] 8.1 Add admin API `POST /api/admin/notifications` (admin-only) to broadcast system messages (Phase 1: minimal create-only endpoint).
+  - [ ] 8.2 Create a minimal admin UI or a script for broadcasting messages; ensure messages are auditable.
+
+- [ ] 9.0 Documentation & Rollout
+  - [ ] 9.1 Add `README.md` under `src/workers/migrations/` describing how to apply the migration locally and in CI (include `npm run database:migration:dev` guidance).
+  - [ ] 9.2 Add developer notes in `tasks/notification-system.md` (link to PRD) describing the feature flag, rollout plan, and verification steps for staging/production.
+  - [ ] 9.3 Plan staged rollout: enable in dev/staging first, monitor unread-count and API latency, then enable for production for all verified users.
+
+### Notes
+
+- Tests: prefer Vitest for unit tests (backend and frontend) and Playwright for E2E.
+- Keep migrations idempotent and include a rollback comment for reviewers; we prefer replacing the dev DB if necessary during early development instead of complex migrations.
+- Feature flag: gate the confetti animation and any user-visible toggles behind a frontend feature flag and an env variable so rollout can be controlled.
