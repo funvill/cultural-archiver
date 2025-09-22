@@ -56,7 +56,7 @@ import {
   getUserPendingArtistEdits 
 } from './routes/artists';
 import { bulkExportToOSM, getExportStats } from './routes/export';
-import { getUserSubmissions, getUserProfile, sendTestEmail, getAllBadges, getUserBadges, updateProfileName, checkProfileNameAvailability, getPublicUserProfile } from './routes/user';
+import { getUserSubmissions, getUserProfile, sendTestEmail, getAllBadges, getUserBadges, updateProfileName, checkProfileNameAvailability, getPublicUserProfile, getUserNotifications, getUserNotificationUnreadCount, dismissUserNotification, markUserNotificationRead } from './routes/user';
 import { handleSearchRequest, handleSearchSuggestions } from './routes/search';
 import { processMassImportPhotos } from './routes/mass-import-photos';
 import { processMassImport } from './routes/mass-import';
@@ -891,6 +891,40 @@ app.get(
   '/api/users/:uuid',
   validateSchema(userUuidSchema, 'params'),
   withErrorHandling(getPublicUserProfile)
+);
+
+// ================================
+// NOTIFICATION SYSTEM ENDPOINTS
+// ================================
+
+// Get user notifications (requires email verification)
+app.get(
+  '/api/me/notifications',
+  addUserTokenToResponse,
+  withErrorHandling(getUserNotifications)
+);
+
+// Get unread notification count (requires email verification)
+app.get(
+  '/api/me/notifications/unread-count',
+  addUserTokenToResponse,
+  withErrorHandling(getUserNotificationUnreadCount)
+);
+
+// Dismiss notification (requires email verification)
+app.post(
+  '/api/me/notifications/:id/dismiss',
+  validateUUID('params'),
+  addUserTokenToResponse,
+  withErrorHandling(dismissUserNotification)
+);
+
+// Mark notification as read (alias for dismiss)
+app.post(
+  '/api/me/notifications/:id/read',
+  validateUUID('params'),
+  addUserTokenToResponse,
+  withErrorHandling(markUserNotificationRead)
 );
 
 // Development/testing endpoint for email configuration

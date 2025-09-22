@@ -12,6 +12,7 @@ import { getValidatedData } from '../middleware/validation';
 import { getRateLimitStatus } from '../middleware/rateLimit';
 import { safeJsonParse } from '../lib/errors';
 import { BadgeService } from '../lib/badges';
+import { NotificationService } from '../lib/notifications';
 import { isValidProfileName, getProfileNameValidationError } from '../../shared/constants';
 
 // Interfaces for database results
@@ -808,4 +809,100 @@ async function getUserPermissionsInfo(
     console.error('Error getting user permissions info:', error);
     return [];
   }
+}
+
+// ================================
+// NOTIFICATION SYSTEM ENDPOINTS
+// ================================
+
+/**
+ * GET /api/me/notifications - List user notifications
+ * Returns paginated list of user notifications, newest first
+ */
+export async function getUserNotifications(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  const userToken = getUserToken(c);
+
+  if (!userToken) {
+    throw new UnauthorizedError('User token required');
+  }
+
+  const validatedQuery = getValidatedData<{
+    limit?: number;
+    offset?: number;
+    unread_only?: boolean;
+  }>(c, 'query');
+
+  const notificationService = new NotificationService(c.env.DB);
+
+  try {
+    const options = {
+      limit: Math.min(validatedQuery.limit || 20, 100), // Cap at 100
+      offset: validatedQuery.offset || 0,
+      unread_only: validatedQuery.unread_only || false,
+    };
+
+    const result = await notificationService.listForUser(userToken, options);
+    
+    return c.json(createSuccessResponse(result));
+  } catch (error) {
+    console.error('Failed to get user notifications:', error);
+    throw error;
+  }
+}
+
+/**
+ * GET /api/me/notifications/unread-count - Get unread notification count
+ * Returns count of unread notifications for user
+ */
+export async function getUserNotificationUnreadCount(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  const userToken = getUserToken(c);
+
+  if (!userToken) {
+    throw new UnauthorizedError('User token required');
+  }
+
+  const notificationService = new NotificationService(c.env.DB);
+
+  try {
+    const result = await notificationService.unreadCount(userToken);
+    
+    return c.json(createSuccessResponse(result));
+  } catch (error) {
+    console.error('Failed to get notification unread count:', error);
+    throw error;
+  }
+}
+
+/**
+ * POST /api/me/notifications/:id/dismiss - Dismiss/mark notification as read
+ * Marks a notification as dismissed/read for the authenticated user
+ */
+export async function dismissUserNotification(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  const userToken = getUserToken(c);
+
+  if (!userToken) {
+    throw new UnauthorizedError('User token required');
+  }
+
+  const validatedParams = getValidatedData<{ id: string }>(c, 'params');
+  const { id: notificationId } = validatedParams;
+
+  const notificationService = new NotificationService(c.env.DB);
+
+  try {
+    const result = await notificationService.dismiss(notificationId, userToken);
+    
+    return c.json(createSuccessResponse(result));
+  } catch (error) {
+    console.error('Failed to dismiss notification:', error);
+    throw error;
+  }
+}
+
+/**
+ * POST /api/me/notifications/:id/read - Alias for dismiss (API compatibility)
+ * Marks a notification as read for the authenticated user
+ */
+export async function markUserNotificationRead(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  return dismissUserNotification(c);
 }
