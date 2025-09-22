@@ -126,6 +126,22 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
   }
 
+  /**
+   * Mark all notifications in memory as read (calls backend per-notification).
+   * This is a best-effort implementation since backend doesn't expose a bulk endpoint.
+   */
+  async function markAllRead() {
+    const unread = notifications.value.filter(n => !n.is_dismissed).map(n => n.id);
+    if (unread.length === 0) return { success: true };
+
+    const promises = unread.map(id => markNotificationRead(id).catch(err => {
+      console.error('Failed to mark notification read in bulk operation for id', id, err);
+    }));
+
+    await Promise.all(promises);
+    return { success: true };
+  }
+
   function addNotification(notification: NotificationResponse) {
     // Add new notification to the beginning of the list
     notifications.value.unshift(notification);
@@ -202,6 +218,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
     fetchUnreadCount,
     dismissNotification,
     markNotificationRead,
+  markAllRead,
     addNotification,
     startPolling,
     stopPolling,

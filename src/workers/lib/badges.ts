@@ -7,10 +7,10 @@
 
 import { generateUUID } from '../../shared/constants.js';
 import { NotificationService } from './notifications.js';
+import type { D1Database } from '@cloudflare/workers-types';
 import type {
   BadgeRecord,
   UserRecord,
-  BadgeNotificationMetadata,
 } from '../../shared/types.js';
 
 export interface BadgeCalculationContext {
@@ -31,13 +31,17 @@ export interface BadgeAwardResult {
   award_reason: string;
   awarded_at: string;
   created: boolean; // Indicates if this is a newly awarded badge
-  notification_id?: string; // ID of created notification
+  // Allow undefined explicitly to satisfy exactOptionalPropertyTypes in strict tsconfigs
+  notification_id?: string | undefined; // ID of created notification
 }
 
 export class BadgeService {
   private notificationService: NotificationService;
 
   constructor(public db: D1Database) {
+    // Keep D1Database typed consistently; NotificationService expects D1Database as well.
+    // If there are minor cross-package differences in the build environment, the NotificationService
+    // constructor should accept D1Database from @cloudflare/workers-types which we're importing here.
     this.notificationService = new NotificationService(db);
   }
 
@@ -137,7 +141,8 @@ export class BadgeService {
         // Create notification for newly awarded badge
         if (awardResult.created) {
           try {
-            const badgeMetadata: BadgeNotificationMetadata = {
+            // Build metadata as a plain Record so it matches the CreateNotificationInput metadata type
+            const badgeMetadataRec: Record<string, unknown> = {
               badge_id: badge.id,
               badge_key: badge.badge_key,
               award_reason: reason,
@@ -145,13 +150,14 @@ export class BadgeService {
               badge_icon_emoji: badge.icon_emoji,
             };
 
+            // Create notification
             const notification = await this.notificationService.create({
               user_token: context.user_uuid,
               type: 'badge',
               type_key: badge.badge_key,
               title: `New Badge: ${badge.title}`,
               message: `Congratulations! You've earned the "${badge.title}" badge. ${badge.description}`,
-              metadata: badgeMetadata,
+              metadata: badgeMetadataRec,
               related_id: badge.id,
             });
             
@@ -163,7 +169,7 @@ export class BadgeService {
           }
         }
         
-        awardedBadges.push({
+        const awardObj: BadgeAwardResult = {
           badge_id: badge.id,
           badge_key: badge.badge_key,
           title: badge.title,
@@ -172,8 +178,14 @@ export class BadgeService {
           award_reason: reason,
           awarded_at: awardResult.awarded_at,
           created: awardResult.created,
-          notification_id: notificationId,
-        });
+        } as BadgeAwardResult;
+
+        // Only set notification_id if we have one. The property is optional and may be undefined.
+        if (notificationId !== undefined) {
+          awardObj.notification_id = notificationId;
+        }
+
+        awardedBadges.push(awardObj);
       } catch (error) {
         // Log error but continue with other badges
         console.error(`Failed to award badge ${badge.badge_key} to user ${context.user_uuid}:`, error);

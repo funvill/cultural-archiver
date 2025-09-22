@@ -12,6 +12,15 @@
         >
           {{ unreadCount }} unread
         </span>
+        <!-- New: Mark all as read in header for quick access -->
+        <button
+          v-if="unreadCount > 0"
+          @click="markAllAsRead"
+          class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium mr-2"
+          aria-label="Mark all notifications as read"
+        >
+          Mark all as read
+        </button>
         <button
           @click="$emit('close')"
           class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
@@ -199,7 +208,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useNotificationsStore } from '../stores/notifications';
-import type { NotificationResponse, BadgeNotificationMetadata } from '../../../shared/types';
+import type { NotificationResponse } from '../../../shared/types';
+import { isBadgeNotificationMetadata } from '../../../shared/types';
 
 // Emits
 const emit = defineEmits<{
@@ -216,8 +226,18 @@ const unreadCount = computed(() => notificationsStore.unreadCount);
 const isLoading = computed(() => notificationsStore.isLoading);
 const error = computed(() => notificationsStore.error);
 
-// Show up to 10 notifications in the panel
-const displayedNotifications = computed(() => notifications.value.slice(0, 10));
+// Show up to 10 notifications in the panel, sort unread first then newest
+const displayedNotifications = computed(() => {
+  const sorted = [...notifications.value].sort((a, b) => {
+    // Unread (not dismissed) first
+    if ((a.is_dismissed ? 1 : 0) !== (b.is_dismissed ? 1 : 0)) {
+      return (a.is_dismissed ? 1 : 0) - (b.is_dismissed ? 1 : 0);
+    }
+    // Then by created_at desc (newest first)
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
+  return sorted.slice(0, 10);
+});
 
 // Methods
 function handleNotificationClick(notification: NotificationResponse) {
@@ -238,15 +258,8 @@ async function dismissNotification(notificationId: string) {
 }
 
 async function markAllAsRead() {
-  const unreadNotifications = notifications.value.filter(n => !n.is_dismissed);
-  
-  // Mark all visible unread notifications as read
-  const promises = unreadNotifications.map(n => 
-    notificationsStore.markNotificationRead(n.id)
-  );
-  
   try {
-    await Promise.all(promises);
+    await notificationsStore.markAllRead();
   } catch (error) {
     console.error('Failed to mark all notifications as read:', error);
   }
@@ -258,9 +271,8 @@ function retryFetch() {
 }
 
 function getBadgeEmoji(notification: NotificationResponse): string {
-  if (notification.type === 'badge' && notification.metadata) {
-    const badgeMetadata = notification.metadata as BadgeNotificationMetadata;
-    return badgeMetadata.badge_icon_emoji || '🏆';
+  if (notification.type === 'badge' && notification.metadata && isBadgeNotificationMetadata(notification.metadata)) {
+    return notification.metadata.badge_icon_emoji || '🏆';
   }
   return '🏆';
 }

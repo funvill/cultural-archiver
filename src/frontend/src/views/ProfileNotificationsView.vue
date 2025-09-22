@@ -259,9 +259,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { useNotificationsStore } from '../stores/notifications';
-import type { NotificationResponse, BadgeNotificationMetadata } from '../../../shared/types';
+import type { NotificationResponse } from '../../../shared/types';
+import { isBadgeNotificationMetadata } from '../../../shared/types';
 
 // Store
 const notificationsStore = useNotificationsStore();
@@ -279,14 +280,14 @@ const isLoading = computed(() => notificationsStore.isLoading);
 const error = computed(() => notificationsStore.error);
 
 const filteredNotifications = computed(() => {
-  let filtered = notifications.value;
+  let filtered = notifications.value as NotificationResponse[];
   
   switch (filterType.value) {
     case 'unread':
-      filtered = filtered.filter(n => !n.is_dismissed);
+      filtered = filtered.filter((n: NotificationResponse) => !n.is_dismissed);
       break;
     case 'badge':
-      filtered = filtered.filter(n => n.type === 'badge');
+      filtered = filtered.filter((n: NotificationResponse) => n.type === 'badge');
       break;
     default:
       // 'all' - no filtering
@@ -319,8 +320,8 @@ async function markAllAsRead() {
   isMarkingAllRead.value = true;
   
   try {
-    const unreadNotifications = filteredNotifications.value.filter(n => !n.is_dismissed);
-    const promises = unreadNotifications.map(n => 
+    const unreadNotifications = filteredNotifications.value.filter((n: NotificationResponse) => !n.is_dismissed);
+    const promises = unreadNotifications.map((n: NotificationResponse) => 
       notificationsStore.markNotificationRead(n.id)
     );
     
@@ -354,9 +355,8 @@ function handleNotificationClick(notification: NotificationResponse) {
 }
 
 function getBadgeEmoji(notification: NotificationResponse): string {
-  if (notification.type === 'badge' && notification.metadata) {
-    const badgeMetadata = notification.metadata as BadgeNotificationMetadata;
-    return badgeMetadata.badge_icon_emoji || '🏆';
+  if (notification.type === 'badge' && notification.metadata && isBadgeNotificationMetadata(notification.metadata)) {
+    return notification.metadata.badge_icon_emoji || '🏆';
   }
   return '🏆';
 }
@@ -405,12 +405,9 @@ function resetPagination() {
   currentPage.value = 1;
 }
 
-// Watch filter changes
-const unwatchFilter = () => {
-  // Add watcher when needed
-  filterType.value; // Access to make reactive
-  resetPagination();
-};
+// Watch filter changes (reset pagination when filter changes)
+// We don't need an unused watcher reference here; simply react to the value where it's used
+watch(filterType, () => resetPagination());
 </script>
 
 <style scoped>

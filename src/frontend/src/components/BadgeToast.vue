@@ -100,11 +100,20 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import type { BadgeAwardResult } from '../../../shared/types';
+
+// Local badge prop type (subset of server-side award result)
+interface BadgeInfo {
+  badge_id: string;
+  badge_key?: string;
+  title?: string;
+  description?: string;
+  icon_emoji?: string;
+  award_reason?: string;
+}
 
 // Props
 interface Props {
-  badge: BadgeAwardResult;
+  badge: BadgeInfo;
   autoHide?: boolean;
   autoHideDelay?: number;
   notificationId?: string;
@@ -199,7 +208,7 @@ function startConfetti() {
       vy: Math.random() * 2 + 2,
       rotation: Math.random() * 360,
       rotationSpeed: (Math.random() - 0.5) * 10,
-      color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
+  color: confettiColors[Math.floor(Math.random() * confettiColors.length)] || '#FFD700',
       size: Math.random() * 5 + 5,
       gravity: 0.1,
     });

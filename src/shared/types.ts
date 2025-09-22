@@ -1413,6 +1413,17 @@ export interface BadgeNotificationMetadata {
   badge_icon_emoji?: string;
 }
 
+// Type guard to safely detect BadgeNotificationMetadata at runtime
+export function isBadgeNotificationMetadata(obj: unknown): obj is BadgeNotificationMetadata {
+  if (!obj || typeof obj !== 'object') return false;
+  const asRec = obj as Record<string, unknown>;
+  return (
+    typeof asRec['badge_id'] === 'string' &&
+    typeof asRec['badge_key'] === 'string' &&
+    typeof asRec['award_reason'] === 'string'
+  );
+}
+
 // ================================
 // LEGACY TYPES (Maintaining for compatibility)
 // ================================

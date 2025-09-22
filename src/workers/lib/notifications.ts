@@ -76,12 +76,12 @@ export class NotificationService {
       id,
       validated.user_token,
       validated.type,
-      validated.type_key || null,
+      validated.type_key ?? null,
       validated.title,
-      validated.message || null,
+      validated.message ?? null,
       metadata_json,
       created_at,
-      validated.related_id || null
+      validated.related_id ?? null
     ).run();
 
     // Return the created notification
@@ -112,9 +112,9 @@ export class NotificationService {
     // Validate and set defaults for options
     const validated = ListNotificationsOptionsSchema.parse(options);
 
-    // Build query with optional unread filter
-    let whereClause = 'WHERE user_token = ?';
-    const queryParams: any[] = [user_token];
+  // Build query with optional unread filter
+  let whereClause = 'WHERE user_token = ?';
+  const queryParams: Array<string | number | null> = [user_token];
     
     if (validated.unread_only) {
       whereClause += ' AND is_dismissed = 0';
@@ -207,9 +207,13 @@ export class NotificationService {
       WHERE id = ? AND user_token = ? AND is_dismissed = 0
     `);
 
-    const result = await stmt.bind(notification_id, user_token).run();
+     const result = await stmt.bind(notification_id, user_token).run();
+   
+     // Access run() result changes safely — different D1 typings expose this differently
+     const runResult = result as unknown as { changes?: number; meta?: { changes?: number } };
+     const changes = runResult.changes ?? runResult.meta?.changes;
 
-    if (result.changes === 0) {
+  if ((changes ?? 0) === 0) {
       // Either notification doesn't exist, doesn't belong to user, or already dismissed
       const checkStmt = this.db.prepare(`
         SELECT id, is_dismissed FROM notifications 
@@ -281,14 +285,22 @@ export class NotificationService {
     const results: NotificationResponse[] = [];
 
     for (const user_token of input.user_tokens) {
-      const notification = await this.create({
-        user_token,
-        type: 'system',
-        type_key: 'admin_broadcast',
-        title: input.title,
-        message: input.message,
-        metadata: input.metadata,
-      });
+      // Build the CreateNotificationInput object and only add optional props when defined
+        const createInputPartial: Partial<CreateNotificationInput> = {
+          user_token,
+          type: 'system',
+          type_key: 'admin_broadcast',
+          title: input.title,
+        };
+
+      if (input.message !== undefined) {
+          createInputPartial.message = input.message;
+      }
+      if (input.metadata !== undefined) {
+          createInputPartial.metadata = input.metadata;
+      }
+
+        const notification = await this.create(createInputPartial as CreateNotificationInput);
       results.push(notification);
     }
 

@@ -34,6 +34,7 @@ import {
   profileNameUpdateSchema,
   profileNameCheckSchema,
   userUuidSchema,
+  notificationListSchema,
 } from './middleware/validation';
 import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
@@ -900,6 +901,7 @@ app.get(
 // Get user notifications (requires email verification)
 app.get(
   '/api/me/notifications',
+  validateSchema(notificationListSchema, 'query'),
   addUserTokenToResponse,
   withErrorHandling(getUserNotifications)
 );
@@ -914,7 +916,7 @@ app.get(
 // Dismiss notification (requires email verification)
 app.post(
   '/api/me/notifications/:id/dismiss',
-  validateUUID('params'),
+  validateUUID('id'),
   addUserTokenToResponse,
   withErrorHandling(dismissUserNotification)
 );
@@ -922,7 +924,7 @@ app.post(
 // Mark notification as read (alias for dismiss)
 app.post(
   '/api/me/notifications/:id/read',
-  validateUUID('params'),
+  validateUUID('id'),
   addUserTokenToResponse,
   withErrorHandling(markUserNotificationRead)
 );

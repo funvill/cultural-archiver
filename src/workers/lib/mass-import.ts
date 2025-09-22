@@ -562,15 +562,17 @@ export class MassImportLibrary implements MassImportLibraryInterface {
 
     // Update detailed validation info
     for (const tagKey of Object.keys(tags)) {
-      if (!summary.validation_details[tagKey]) {
-        summary.validation_details[tagKey] = {
+      let detail = summary.validation_details[tagKey];
+      if (!detail) {
+        detail = {
           applied_count: 0,
           warning_count: 0,
           error_count: 0,
           messages: []
         };
+        summary.validation_details[tagKey] = detail;
       }
-      summary.validation_details[tagKey].applied_count++;
+      detail.applied_count++;
     }
   }
 

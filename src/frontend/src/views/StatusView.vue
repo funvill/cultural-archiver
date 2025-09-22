@@ -124,8 +124,25 @@ function triggerConfetti() {
 
 function triggerTestNotification() {
   // Create a mock badge notification for testing
+  // Use a UUID for the id so it matches backend validation expectations.
+  const makeUuid = () => {
+    if (typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function') {
+      try {
+        return (crypto as any).randomUUID();
+      } catch (e) {
+        // fallthrough to polyfill
+      }
+    }
+    // Minimal UUID v4 polyfill (not cryptographically strong but good enough for dev/test IDs)
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  };
+
   const mockBadgeNotification = {
-    id: `test-${Date.now()}`,
+    id: makeUuid(),
     user_token: 'test-user',
     type: 'badge' as const,
     type_key: 'test_badge',
@@ -177,6 +194,8 @@ function startConfetti() {
   // Create confetti particles
   confettiParticles.value = [];
   for (let i = 0; i < 150; i++) {
+  const idx = Math.floor(Math.random() * confettiColors.length);
+  const color = (confettiColors[idx] || confettiColors[0]) as string;
     confettiParticles.value.push({
       x: Math.random() * canvas.width,
       y: -10,
@@ -184,7 +203,7 @@ function startConfetti() {
       vy: Math.random() * 3 + 2,
       rotation: Math.random() * 360,
       rotationSpeed: (Math.random() - 0.5) * 15,
-      color: confettiColors[Math.floor(Math.random() * confettiColors.length)],
+      color,
       size: Math.random() * 8 + 4,
       gravity: 0.15,
     });
@@ -204,7 +223,7 @@ function animateConfetti(ctx: CanvasRenderingContext2D) {
   
   ctx.clearRect(0, 0, confettiCanvas.value.width, confettiCanvas.value.height);
   
-  confettiParticles.value.forEach((particle, index) => {
+  confettiParticles.value.forEach((particle: ConfettiParticle, index: number) => {
     // Update position
     particle.x += particle.vx;
     particle.y += particle.vy;

@@ -7,7 +7,6 @@ import type {
   NotificationListResponse,
   NotificationUnreadCountResponse,
   NotificationActionResponse,
-  ApiResponse,
 } from '../../../shared/types';
 import { apiService } from './api';
 
