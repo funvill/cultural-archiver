@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { apiService, getErrorMessage } from '../services/api';
 import { getApiBaseUrl } from '../utils/api-config';
+import { useNotificationsStore } from '../stores/notifications';
 
 const isLoading = ref(true);
 const status = ref<string>('');
@@ -9,11 +10,40 @@ const stats = ref<any>(null);
 const healthData = ref<any>(null);
 const error = ref<string>('');
 
+// Confetti state
+const isConfettiActive = ref(false);
+const confettiCanvas = ref<HTMLCanvasElement | null>(null);
+
 // Expose API base URL and build date for debug
 const apiBaseUrl = getApiBaseUrl();
 // Use the build timestamp injected at build time, fallback to current date if not set
 const buildDate = import.meta.env.VITE_BUILD_DATE || new Date().toISOString();
 const environment = import.meta.env.MODE;
+
+// Stores
+const notificationsStore = useNotificationsStore();
+
+// Check for reduced motion preference
+const prefersReducedMotion = computed(() => {
+  if (typeof window === 'undefined') return true;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+});
+
+// Confetti configuration
+interface ConfettiParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  rotation: number;
+  rotationSpeed: number;
+  color: string;
+  size: number;
+  gravity: number;
+}
+
+const confettiParticles = ref<ConfettiParticle[]>([]);
+const confettiColors = ['#FFD700', '#FFA500', '#FF6347', '#32CD32', '#4169E1', '#DA70D6'];
 
 const checkSystemHealth = async (): Promise<void> => {
   try {
@@ -80,8 +110,171 @@ const clearLocalSettings = (): void => {
   }
 };
 
+// Development tools
+function triggerConfetti() {
+  if (prefersReducedMotion.value) {
+    alert('Confetti animation is disabled due to reduced motion preference.');
+    return;
+  }
+  
+  if (!isConfettiActive.value) {
+    startConfetti();
+  }
+}
+
+function triggerTestNotification() {
+  // Create a mock badge notification for testing
+  // Use a UUID for the id so it matches backend validation expectations.
+  const makeUuid = () => {
+    if (typeof crypto !== 'undefined' && typeof (crypto as any).randomUUID === 'function') {
+      try {
+        return (crypto as any).randomUUID();
+      } catch (e) {
+        // fallthrough to polyfill
+      }
+    }
+    // Minimal UUID v4 polyfill (not cryptographically strong but good enough for dev/test IDs)
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  };
+
+  const mockBadgeNotification = {
+    id: makeUuid(),
+    user_token: 'test-user',
+    type: 'badge' as const,
+    type_key: 'test_badge',
+    title: 'Test Badge',
+    message: 'This is a test notification for development purposes.',
+    metadata: {
+      badge_id: 'test-badge-123',
+      badge_key: 'test_badge',
+      award_reason: 'Testing the notification system',
+      badge_title: 'Test Badge',
+      badge_icon_emoji: '🧪',
+    },
+    created_at: new Date().toISOString(),
+    is_dismissed: false,
+    related_id: 'test-badge-123',
+  };
+  
+  // Add to notification store
+  notificationsStore.addNotification(mockBadgeNotification);
+  alert('Test notification added! Check the notification icon in the header.');
+}
+
+function startConfetti() {
+  if (isConfettiActive.value) return;
+  
+  isConfettiActive.value = true;
+  
+  // Create canvas element if it doesn't exist
+  if (!confettiCanvas.value) {
+    const canvas = document.createElement('canvas');
+    canvas.style.position = 'fixed';
+    canvas.style.top = '0';
+    canvas.style.left = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.pointerEvents = 'none';
+    canvas.style.zIndex = '9999';
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    
+    document.body.appendChild(canvas);
+    confettiCanvas.value = canvas;
+  }
+  
+  const canvas = confettiCanvas.value;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+  
+  // Create confetti particles
+  confettiParticles.value = [];
+  for (let i = 0; i < 150; i++) {
+  const idx = Math.floor(Math.random() * confettiColors.length);
+  const color = (confettiColors[idx] || confettiColors[0]) as string;
+    confettiParticles.value.push({
+      x: Math.random() * canvas.width,
+      y: -10,
+      vx: (Math.random() - 0.5) * 6,
+      vy: Math.random() * 3 + 2,
+      rotation: Math.random() * 360,
+      rotationSpeed: (Math.random() - 0.5) * 15,
+      color,
+      size: Math.random() * 8 + 4,
+      gravity: 0.15,
+    });
+  }
+  
+  // Animate confetti
+  animateConfetti(ctx);
+  
+  // Stop confetti after 4 seconds
+  setTimeout(() => {
+    stopConfetti();
+  }, 4000);
+}
+
+function animateConfetti(ctx: CanvasRenderingContext2D) {
+  if (!isConfettiActive.value || !confettiCanvas.value) return;
+  
+  ctx.clearRect(0, 0, confettiCanvas.value.width, confettiCanvas.value.height);
+  
+  confettiParticles.value.forEach((particle: ConfettiParticle, index: number) => {
+    // Update position
+    particle.x += particle.vx;
+    particle.y += particle.vy;
+    particle.vy += particle.gravity;
+    particle.rotation += particle.rotationSpeed;
+    
+    // Remove particles that are off screen
+    if (particle.y > confettiCanvas.value!.height + 10) {
+      confettiParticles.value.splice(index, 1);
+      return;
+    }
+    
+    // Draw particle
+    ctx.save();
+    ctx.translate(particle.x, particle.y);
+    ctx.rotate((particle.rotation * Math.PI) / 180);
+    ctx.fillStyle = particle.color;
+    ctx.fillRect(-particle.size / 2, -particle.size / 2, particle.size, particle.size);
+    ctx.restore();
+  });
+  
+  if (confettiParticles.value.length > 0) {
+    requestAnimationFrame(() => animateConfetti(ctx));
+  }
+}
+
+function stopConfetti() {
+  isConfettiActive.value = false;
+  confettiParticles.value = [];
+  
+  if (confettiCanvas.value) {
+    document.body.removeChild(confettiCanvas.value);
+    confettiCanvas.value = null;
+  }
+}
+
+function handleResize() {
+  if (confettiCanvas.value) {
+    confettiCanvas.value.width = window.innerWidth;
+    confettiCanvas.value.height = window.innerHeight;
+  }
+}
+
 onMounted(() => {
   checkSystemHealth();
+  window.addEventListener('resize', handleResize);
+});
+
+onUnmounted(() => {
+  stopConfetti();
+  window.removeEventListener('resize', handleResize);
 });
 </script>
 
@@ -209,6 +402,49 @@ onMounted(() => {
             <div class="text-center p-4 bg-yellow-50 rounded-lg">
               <div class="text-2xl font-bold text-yellow-600">{{ stats.pendingSubmissions || 0 }}</div>
               <div class="text-sm text-gray-600">Pending Review</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Development Tools (only in dev/staging) -->
+      <div 
+        v-if="environment === 'development' || environment === 'staging'"
+        class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6"
+      >
+        <div class="p-6">
+          <h2 class="text-lg font-semibold mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z" />
+            </svg>
+            Development Tools
+          </h2>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
+              <div>
+                <h3 class="font-medium text-gray-900">Confetti Animation Test</h3>
+                <p class="text-sm text-gray-600">Test the badge celebration confetti animation</p>
+              </div>
+              <button
+                @click="triggerConfetti"
+                :disabled="isConfettiActive"
+                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                🎉 Test Confetti
+              </button>
+            </div>
+            
+            <div class="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">
+              <div>
+                <h3 class="font-medium text-gray-900">Notification Test</h3>
+                <p class="text-sm text-gray-600">Test notification display (requires login)</p>
+              </div>
+              <button
+                @click="triggerTestNotification"
+                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+              >
+                🔔 Test Notification
+              </button>
             </div>
           </div>
         </div>

@@ -24,6 +24,7 @@ import { useAuthStore } from '../stores/auth';
 import AuthModal from './AuthModal.vue';
 import DevelopmentBanner from './DevelopmentBanner.vue';
 import LiveRegion from './LiveRegion.vue';
+import NotificationIcon from './NotificationIcon.vue';
 import type { NavigationItem } from '../types';
 
 // Props
@@ -369,6 +370,19 @@ function handleAuthSuccess(payload: { isNewAccount: boolean; email: string }): v
   console.log('Authentication successful:', payload);
 }
 
+// Notification handlers
+function handleNotificationClick(notificationId: string): void {
+  // For now, just log - could navigate to notification details or related content
+  console.log('Notification clicked:', notificationId);
+}
+
+function handleNotificationPanelToggle(isOpen: boolean): void {
+  // Close drawer if notification panel is opened to avoid UI conflicts
+  if (isOpen && showDrawer.value) {
+    showDrawer.value = false;
+  }
+}
+
 async function handleLogout(): Promise<void> {
   // Show logout confirmation as per PRD requirements
   const confirmed = confirm('Are you sure you want to sign out?');
@@ -565,8 +579,16 @@ try {
           </nav>
         </div>
 
-        <!-- Right side: Navigation Drawer Button -->
-        <div class="flex justify-end">
+        <!-- Right side: Notifications and Navigation -->
+        <div class="flex items-center justify-end space-x-2">
+          <!-- Notification Icon (only for authenticated users) -->
+          <NotificationIcon 
+            v-if="authStore.isAuthenticated"
+            @notification-click="handleNotificationClick"
+            @panel-toggle="handleNotificationPanelToggle"
+          />
+          
+          <!-- Navigation Drawer Button -->
           <button
             class="p-2 rounded-md hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
             @click="toggleDrawer"

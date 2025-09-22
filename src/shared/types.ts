@@ -1338,6 +1338,93 @@ export interface UserRoleRecord {
 }
 
 // ================================
+// NOTIFICATION SYSTEM TYPES
+// ================================
+
+// Notification Record (database table representation)
+export interface NotificationRecord {
+  id: string;
+  user_token: string;
+  type: 'badge' | 'admin_message' | 'review' | 'system';
+  type_key: string | null; // Optional subtype or canonical key
+  title: string;
+  message: string | null;
+  metadata: string | null; // JSON string for structured payload
+  created_at: string;
+  is_dismissed: number; // SQLite boolean (0/1)
+  related_id: string | null; // Optional foreign key reference
+}
+
+// Notification API Response (parsed for frontend consumption)
+export interface NotificationResponse {
+  id: string;
+  user_token: string;
+  type: 'badge' | 'admin_message' | 'review' | 'system';
+  type_key: string | null;
+  title: string;
+  message: string | null;
+  metadata: Record<string, unknown> | null; // Parsed JSON metadata
+  created_at: string;
+  is_dismissed: boolean; // Converted to boolean
+  related_id: string | null;
+}
+
+// Notification Creation Input
+export interface CreateNotificationInput {
+  user_token: string;
+  type: 'badge' | 'admin_message' | 'review' | 'system';
+  type_key?: string;
+  title: string;
+  message?: string;
+  metadata?: Record<string, unknown>;
+  related_id?: string;
+}
+
+// Notification List API Response
+export interface NotificationListResponse {
+  notifications: NotificationResponse[];
+  pagination: {
+    total: number;
+    current_page: number;
+    per_page: number;
+    total_pages: number;
+    has_next: boolean;
+    has_prev: boolean;
+  };
+}
+
+// Notification Unread Count API Response
+export interface NotificationUnreadCountResponse {
+  unread_count: number;
+}
+
+// Notification Action Response
+export interface NotificationActionResponse {
+  success: boolean;
+  message?: string;
+}
+
+// Badge Notification Metadata (specific to badge type notifications)
+export interface BadgeNotificationMetadata {
+  badge_id: string;
+  badge_key: string;
+  award_reason: string;
+  badge_title?: string;
+  badge_icon_emoji?: string;
+}
+
+// Type guard to safely detect BadgeNotificationMetadata at runtime
+export function isBadgeNotificationMetadata(obj: unknown): obj is BadgeNotificationMetadata {
+  if (!obj || typeof obj !== 'object') return false;
+  const asRec = obj as Record<string, unknown>;
+  return (
+    typeof asRec['badge_id'] === 'string' &&
+    typeof asRec['badge_key'] === 'string' &&
+    typeof asRec['award_reason'] === 'string'
+  );
+}
+
+// ================================
 // LEGACY TYPES (Maintaining for compatibility)
 // ================================
 

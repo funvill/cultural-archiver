@@ -175,6 +175,22 @@ export const userUuidSchema = z.object({
   uuid: z.string().uuid('User UUID must be a valid UUID'),
 });
 
+// Notification list query schema (limit, offset, unread_only)
+export const notificationListSchema = z.object({
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional(),
+  offset: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .optional(),
+  unread_only: z.coerce.boolean().optional(),
+});
+
 // ================================
 // Authentication Validation Schemas
 // ================================
@@ -948,6 +964,18 @@ export function validateUUID(paramName: string = 'id') {
           code: 'INVALID_ID',
         },
       ]);
+    }
+
+    // Populate validated params in the context so downstream handlers
+    // using getValidatedData(c, 'params') will receive the parsed value.
+    // We store it as an object keyed by the parameter name for consistency
+    // with validateSchema and other validation middlewares.
+    try {
+      c.set('validated_params', { [paramName]: value });
+    } catch (err) {
+      // In the unlikely event c.set is not available, continue without failing
+      // - handlers expecting validated_params will still throw a ValidationApiError
+      console.warn('Failed to set validated_params in context for validateUUID:', err);
     }
 
     await next();

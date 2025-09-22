@@ -12,6 +12,7 @@ const ArtworkDetailView = (): Promise<Component> => import('../views/ArtworkDeta
 const ArtworkIndexView = (): Promise<Component> => import('../views/ArtworkIndexView.vue');
 const ArtistIndexView = (): Promise<Component> => import('../views/ArtistIndexView.vue');
 const ProfileView = (): Promise<Component> => import('../views/ProfileView.vue');
+const ProfileNotificationsView = (): Promise<Component> => import('../views/ProfileNotificationsView.vue');
 const ReviewView = (): Promise<Component> => import('../views/ReviewView.vue');
 const AdminView = (): Promise<Component> => import('../views/AdminView.vue');
 const VerifyView = (): Promise<Component> => import('../views/VerifyView.vue');
@@ -121,6 +122,14 @@ const router = createRouter({
       component: ProfileView,
       meta: {
         title: 'My Submissions - Cultural Archiver',
+      },
+    },
+    {
+      path: '/profile/notifications',
+      name: 'ProfileNotifications',
+      component: ProfileNotificationsView,
+      meta: {
+        title: 'Notifications - Cultural Archiver',
       },
     },
     {
