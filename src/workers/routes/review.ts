@@ -27,6 +27,7 @@ import {
   rejectSubmission as rejectSubmissionInDb
 } from '../lib/submissions';
 import type { ArtworkEditReviewData, SubmissionRecord, ArtworkEditDiff } from '../../shared/types';
+import { BadgeService } from '../lib/badges';
 
 // Interfaces for database results
 interface SubmissionRow {
@@ -617,6 +618,20 @@ export async function approveSubmission(
       console.warn('Failed to log moderation decision:', auditResult.error);
     }
 
+    // Check and award badges for the user after successful approval
+    try {
+      const badgeService = new BadgeService(c.env.DB);
+      const awardedBadges = await badgeService.checkSubmissionBadges(submission.user_token);
+      
+      if (awardedBadges.length > 0) {
+        console.log(`User ${submission.user_token} earned ${awardedBadges.length} badges:`, 
+          awardedBadges.map(b => b.badge_key));
+      }
+    } catch (badgeError) {
+      // Log badge errors but don't fail the approval
+      console.warn('Badge checking failed during submission approval:', badgeError);
+    }
+
     return c.json({
       message: 'Submission approved successfully',
       submission_id: submissionId,
@@ -874,6 +889,20 @@ export async function processBatchReview(
             const artworkId = await insertArtwork(c.env.DB, artworkData);
             await updateLogbookStatus(c.env.DB, id, 'approved', artworkId);
             results.approved++;
+
+            // Check and award badges for the user after successful approval
+            try {
+              const badgeService = new BadgeService(c.env.DB);
+              const awardedBadges = await badgeService.checkSubmissionBadges(submission.user_token);
+              
+              if (awardedBadges.length > 0) {
+                console.log(`User ${submission.user_token} earned ${awardedBadges.length} badges in batch approval:`, 
+                  awardedBadges.map(b => b.badge_key));
+              }
+            } catch (badgeError) {
+              // Log badge errors but don't fail the batch approval
+              console.warn('Badge checking failed during batch approval:', badgeError);
+            }
           }
         } else if (action === 'reject') {
           const rawSubmission = await findLogbookById(c.env.DB, id);

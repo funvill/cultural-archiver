@@ -141,6 +141,40 @@ export const userSubmissionsQuerySchema = z.object({
   per_page: z.string().regex(/^\d+$/, 'Per page must be a valid integer').optional(),
 });
 
+// Profile name validation schema
+export const profileNameUpdateSchema = z.object({
+  profile_name: z
+    .string()
+    .min(3, 'Profile name must be at least 3 characters long')
+    .max(20, 'Profile name cannot exceed 20 characters')
+    .regex(
+      /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/,
+      'Profile name can only contain letters, numbers, and dashes, and cannot start or end with a dash'
+    )
+    .refine(
+      (name) => {
+        // Import the banned names check
+        const bannedNames = [
+          'admin', 'administrator', 'moderator', 'mod', 'owner', 'root', 'system',
+          'support', 'help', 'staff', 'team', 'manager', 'boss', 'supervisor',
+          'director', 'officer', 'agent', 'cultural-archiver', 'culturalarchiver',
+          'archiver', 'official', 'verified', 'api', 'bot', 'service', 'account',
+          'user', 'guest', 'anonymous', 'null', 'undefined', 'none', 'empty'
+        ];
+        return !bannedNames.includes(name.toLowerCase());
+      },
+      'This profile name is not available'
+    ),
+});
+
+export const profileNameCheckSchema = z.object({
+  profile_name: z.string().min(1, 'Profile name is required'),
+});
+
+export const userUuidSchema = z.object({
+  uuid: z.string().uuid('User UUID must be a valid UUID'),
+});
+
 // ================================
 // Authentication Validation Schemas
 // ================================

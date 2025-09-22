@@ -30,13 +30,17 @@ src/frontend/
 │   ├── MiniMap.vue     # Compact map for detail views
 │   ├── Modal.vue       # Accessible modal dialogs with focus management
 │   ├── LoadingSpinner.vue # Loading states and skeleton screens
-│   └── LiveRegion.vue  # Screen reader announcements
+│   ├── LiveRegion.vue  # Screen reader announcements
+│   ├── BadgeGrid.vue   # Badge collection display with responsive grid layout
+│   ├── BadgeCard.vue   # Individual badge component with hover effects and detailed modal
+│   └── ProfileNameEditor.vue # Profile name editing with real-time validation
 ├── views/              # Page-level components (route components)
 │   ├── MapView.vue     # Home page with interactive map and search
 │   ├── SubmitView.vue  # Photo submission workflow with consent management
 │   ├── ArtworkDetailView.vue # Artwork details with photo gallery and timeline
 │   ├── ArtworkIndexView.vue # Browsable list of artworks with sorting
-│   ├── ProfileView.vue # User submissions dashboard and statistics
+│   ├── ProfileView.vue # User submissions dashboard, badge collection, and profile settings
+│   ├── PublicProfileView.vue # Public profile pages showcasing user badges and achievements
 │   ├── ReviewView.vue  # Content moderation interface with photo aggregation support (admin/moderator only)
 │   ├── SearchView.vue  # Advanced search with filters and facets
 │   ├── LogbookSubmissionView.vue # Logbook visit submission with photo proof and condition assessment
@@ -73,6 +77,129 @@ src/frontend/
     ├── coordinates.ts  # GPS coordinate utilities
     └── accessibility.ts # A11y helper functions
 ```
+
+## Badge System Components
+
+The badge system provides gamification and profile management through a set of Vue components that integrate seamlessly with the existing design system.
+
+### BadgeGrid.vue
+
+**Purpose**: Displays user's earned badges in a responsive grid layout with empty states.
+
+**Props**:
+- `badges: UserBadgeWithDetails[]` - Array of user's earned badges
+- `loading: boolean` - Loading state for API requests
+
+**Features**:
+- Responsive grid layout (1-4 columns based on screen size)
+- Empty state with encouraging messaging for new users
+- Loading skeleton with shimmer effects
+- Accessibility labels and keyboard navigation
+- Mobile-optimized touch targets
+
+**Usage**:
+```vue
+<BadgeGrid :badges="userBadges" :loading="badgesLoading" />
+```
+
+### BadgeCard.vue
+
+**Purpose**: Individual badge component with hover effects and detailed modal popup.
+
+**Props**:
+- `badge: BadgeRecord` - Badge definition with title, description, icon
+- `awardedAt: string` - ISO timestamp when badge was earned
+- `awardReason: string` - Reason the badge was awarded
+- `metadata?: Record<string, unknown>` - Optional achievement metadata
+
+**Features**:
+- Hover effects with subtle animations
+- Modal popup with detailed achievement information
+- Emoji icon display with fallback text
+- Award date formatting with relative time
+- Mobile-responsive design with touch interactions
+- Focus management and keyboard accessibility
+
+**Usage**:
+```vue
+<BadgeCard
+  :badge="userBadge.badge"
+  :awarded-at="userBadge.awarded_at"
+  :award-reason="userBadge.award_reason"
+  :metadata="userBadge.metadata"
+/>
+```
+
+### ProfileNameEditor.vue
+
+**Purpose**: Profile name editing interface with real-time validation and availability checking.
+
+**Props**:
+- `currentProfileName: string | null` - User's current profile name
+
+**Events**:
+- `@profile-updated: (profileName: string) => void` - Emitted when profile name is successfully updated
+
+**Features**:
+- Real-time validation with immediate feedback
+- Debounced availability checking (300ms delay)
+- Visual indicators for validation states (valid, invalid, checking, taken)
+- Comprehensive error messaging with specific guidance
+- Progressive enhancement for users without verified emails
+- Accessible form design with proper labeling and aria attributes
+
+**Validation Rules**:
+- 3-20 characters long
+- Alphanumeric characters and dashes only
+- Cannot start or end with dash
+- Cannot use banned names (admin, moderator, etc.)
+- Must be unique across all users
+
+**Usage**:
+```vue
+<ProfileNameEditor 
+  :currentProfileName="currentProfileName"
+  @profile-updated="onProfileUpdated"
+/>
+```
+
+### PublicProfileView.vue
+
+**Purpose**: Public profile page component showcasing user achievements and badges.
+
+**Route**: `/users/:uuid`
+
+**Features**:
+- Public profile information display (profile name, member since date)
+- Badge collection with earned badges only
+- Member statistics and achievements
+- Responsive layout with mobile optimization
+- SEO-friendly meta tags and structured data
+- Error handling for non-existent or private profiles
+
+**API Integration**:
+- `GET /api/users/:uuid` - Fetch public profile data
+- Handles 404 errors gracefully for invalid user UUIDs
+- No authentication required for public viewing
+
+## Integration with ProfileView.vue
+
+The existing ProfileView.vue has been enhanced with badge system integration:
+
+**New Sections Added**:
+1. **Profile Settings Section**: Profile name editor with setup encouragement
+2. **Badges Section**: Badge grid showing earned achievements with empty state
+3. **Enhanced Navigation**: Updated to support public profile sharing
+
+**Authentication Requirements**:
+- Badge system requires email verification
+- Profile name editing requires verified email address
+- Anonymous users see encouraging messaging to complete verification
+
+**State Management**:
+- Badge data fetched via `getUserBadges()` API method
+- Profile name state managed through reactive refs
+- Error handling for unauthorized badge access
 
 ## Accessibility Features
 

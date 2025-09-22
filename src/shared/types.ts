@@ -777,6 +777,7 @@ export interface UserRecord {
   last_login: string | null;
   email_verified_at: string | null;
   status: 'active' | 'suspended';
+  profile_name: string | null; // Added for badge system
 }
 
 export interface MagicLinkRecord {
@@ -890,6 +891,63 @@ export interface UUIDClaimInfo {
   can_claim: boolean;
   existing_submissions_count: number;
   claim_window_expires_at?: string;
+}
+
+// ================================
+// Badge System Types 
+// ================================
+
+export interface BadgeRecord {
+  id: string;
+  badge_key: string;
+  title: string;
+  description: string;
+  icon_emoji: string;
+  category: 'activity' | 'community' | 'seasonal' | 'geographic';
+  threshold_type: 'submission_count' | 'photo_count' | 'account_age' | 'email_verified';
+  threshold_value: number | null;
+  level: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserBadgeRecord {
+  id: string;
+  user_uuid: string;
+  badge_id: string;
+  awarded_at: string;
+  award_reason: string;
+  metadata: string | null; // JSON for additional badge-specific data
+}
+
+// Badge API Types
+export interface BadgeListResponse {
+  badges: BadgeRecord[];
+}
+
+export interface UserBadgeResponse {
+  user_badges: Array<{
+    badge: BadgeRecord;
+    awarded_at: string;
+    award_reason: string;
+    metadata?: Record<string, unknown>;
+  }>;
+}
+
+export interface ProfileUpdateRequest {
+  profile_name: string;
+}
+
+export interface ProfileUpdateResponse {
+  success: boolean;
+  message: string;
+  profile_name?: string;
+}
+
+export interface ProfileNameCheckResponse {
+  available: boolean;
+  message: string;
 }
 
 // Cloudflare Workers Environment (generic interface)

@@ -167,3 +167,135 @@ export const UUID_CHECK_CONSTRAINT = `CHECK (id GLOB '[0-9a-fA-F][0-9a-fA-F][0-9
 
 /** SQL constraint for UUID fields that allow NULL */
 export const UUID_CHECK_CONSTRAINT_NULLABLE = `CHECK (id IS NULL OR id GLOB '[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]-[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]-[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]-[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]-[0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F][0-9a-fA-F]')`;
+
+// ================================
+// Badge System Constants
+// ================================
+
+/** Banned profile names to prevent impersonation */
+export const BANNED_PROFILE_NAMES = [
+  // System roles
+  'admin',
+  'administrator', 
+  'moderator',
+  'mod',
+  'owner',
+  'root',
+  'system',
+  'support',
+  'help',
+  'staff',
+  'team',
+  'manager',
+  'boss',
+  'supervisor',
+  'director',
+  'officer',
+  'agent',
+  
+  // Organization terms
+  'cultural-archiver',
+  'culturalarchiver',
+  'archiver',
+  'official',
+  'verified',
+  'api',
+  'bot',
+  'service',
+  'account',
+  'user',
+  'guest',
+  'anonymous',
+  'null',
+  'undefined',
+  'none',
+  'empty',
+  
+  // Technical terms
+  'www',
+  'ftp',
+  'mail',
+  'email',
+  'smtp',
+  'http',
+  'https',
+  'ssl',
+  'tls',
+  'cdn',
+  'dns',
+  'backup',
+  'test',
+  'staging',
+  'production',
+  'dev',
+  'development',
+  'debug',
+  'console',
+  'log',
+  'error',
+  'warning',
+  'info',
+  'config',
+  'settings',
+  'options',
+  'preferences',
+] as const;
+
+/** Profile name validation regex: 3-20 chars, alphanumeric + dash, no start/end dash */
+export const PROFILE_NAME_REGEX = /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/;
+
+/** Profile name minimum length */
+export const PROFILE_NAME_MIN_LENGTH = 3;
+
+/** Profile name maximum length */
+export const PROFILE_NAME_MAX_LENGTH = 20;
+
+/**
+ * Validates if a profile name meets all requirements
+ */
+export function isValidProfileName(name: string): boolean {
+  if (!name || 
+      name.length < PROFILE_NAME_MIN_LENGTH || 
+      name.length > PROFILE_NAME_MAX_LENGTH) {
+    return false;
+  }
+  
+  if (!PROFILE_NAME_REGEX.test(name)) {
+    return false;
+  }
+  
+  // Check against banned names (case-insensitive)
+  const lowerName = name.toLowerCase();
+  return !BANNED_PROFILE_NAMES.some(banned => banned === lowerName);
+}
+
+/**
+ * Gets a descriptive error message for an invalid profile name
+ */
+export function getProfileNameValidationError(name: string): string {
+  if (!name) {
+    return 'Profile name is required';
+  }
+  
+  if (name.length < PROFILE_NAME_MIN_LENGTH) {
+    return `Profile name must be at least ${PROFILE_NAME_MIN_LENGTH} characters long`;
+  }
+  
+  if (name.length > PROFILE_NAME_MAX_LENGTH) {
+    return `Profile name cannot exceed ${PROFILE_NAME_MAX_LENGTH} characters`;
+  }
+  
+  if (!PROFILE_NAME_REGEX.test(name)) {
+    if (name.startsWith('-') || name.endsWith('-')) {
+      return 'Profile name cannot start or end with a dash';
+    }
+    return 'Profile name can only contain letters, numbers, and dashes';
+  }
+  
+  const lowerName = name.toLowerCase();
+  if (BANNED_PROFILE_NAMES.some(banned => banned === lowerName)) {
+    return 'This profile name is not available';
+  }
+  
+  return 'Profile name is valid';
+}

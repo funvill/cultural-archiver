@@ -31,6 +31,9 @@ import {
   artworkListSchema,
   artistListSchema,
   validateUnifiedSubmission,
+  profileNameUpdateSchema,
+  profileNameCheckSchema,
+  userUuidSchema,
 } from './middleware/validation';
 import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
@@ -53,7 +56,7 @@ import {
   getUserPendingArtistEdits 
 } from './routes/artists';
 import { bulkExportToOSM, getExportStats } from './routes/export';
-import { getUserSubmissions, getUserProfile, sendTestEmail } from './routes/user';
+import { getUserSubmissions, getUserProfile, sendTestEmail, getAllBadges, getUserBadges, updateProfileName, checkProfileNameAvailability, getPublicUserProfile } from './routes/user';
 import { handleSearchRequest, handleSearchSuggestions } from './routes/search';
 import { processMassImportPhotos } from './routes/mass-import-photos';
 import { processMassImport } from './routes/mass-import';
@@ -90,6 +93,10 @@ import {
   revokeUserPermission,
   getAuditLogsEndpoint,
   getAdminStatistics,
+  getAdminBadges,
+  createAdminBadge,
+  updateAdminBadge,
+  deactivateAdminBadge,
 } from './routes/admin';
 import { debugStevenPermissions } from './routes/debug-permissions';
 import { fixPermissionsSchema } from './routes/fix-schema';
@@ -851,6 +858,41 @@ app.get(
   withErrorHandling(getUserProfile)
 );
 
+// Badge System Endpoints
+// ================================
+
+// Public badge definitions endpoint
+app.get('/api/badges', withErrorHandling(getAllBadges));
+
+// User badge endpoints (require email verification)
+app.get(
+  '/api/me/badges',
+  addUserTokenToResponse,
+  withErrorHandling(getUserBadges)
+);
+
+// Profile management endpoints (require email verification)
+app.patch(
+  '/api/me/profile',
+  validateSchema(profileNameUpdateSchema),
+  addUserTokenToResponse,
+  withErrorHandling(updateProfileName)
+);
+
+app.get(
+  '/api/me/profile-check',
+  validateSchema(profileNameCheckSchema, 'query'),
+  addUserTokenToResponse,
+  withErrorHandling(checkProfileNameAvailability)
+);
+
+// Public profile viewing endpoint
+app.get(
+  '/api/users/:uuid',
+  validateSchema(userUuidSchema, 'params'),
+  withErrorHandling(getPublicUserProfile)
+);
+
 // Development/testing endpoint for email configuration
 app.post('/api/test-email', withErrorHandling(sendTestEmail));
 
@@ -980,6 +1022,19 @@ app.get('/api/admin/audit', withErrorHandling(getAuditLogsEndpoint));
 // GET /api/admin/statistics - Get system and audit statistics
 app.get('/api/admin/statistics', withErrorHandling(getAdminStatistics));
 
+// Badge management endpoints for administrators
+// GET /api/admin/badges - List all badges with statistics
+app.get('/api/admin/badges', withErrorHandling(getAdminBadges));
+
+// POST /api/admin/badges - Create a new badge
+app.post('/api/admin/badges', withErrorHandling(createAdminBadge));
+
+// PUT /api/admin/badges/:id - Update an existing badge
+app.put('/api/admin/badges/:id', withErrorHandling(updateAdminBadge));
+
+// DELETE /api/admin/badges/:id - Deactivate a badge
+app.delete('/api/admin/badges/:id', withErrorHandling(deactivateAdminBadge));
+
 // Temporarily commented out - missing admin-update route file
 // app.post('/api/dev/update-steven-permissions', ensureUserToken, withErrorHandling(updateStevenPermissions));
 
@@ -1083,6 +1138,10 @@ app.notFound(c => {
         'POST /api/admin/permissions/revoke',
         'GET /api/admin/audit',
         'GET /api/admin/statistics',
+        'GET /api/admin/badges',
+        'POST /api/admin/badges',
+        'PUT /api/admin/badges/:id',
+        'DELETE /api/admin/badges/:id',
       ],
     },
     404

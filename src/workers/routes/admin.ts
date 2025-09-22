@@ -7,9 +7,9 @@
 
 import type { Context } from 'hono';
 import type { WorkerEnv, AuthContext } from '../types';
-import type {
-} from '../../shared/types';
+import type {} from '../../shared/types';
 import { ApiError } from '../lib/errors';
+import { BadgeService } from '../lib/badges';
 import {
   listUsersWithPermissions,
   grantPermission,
@@ -516,3 +516,303 @@ export async function getAdminStatistics(
 
 // Note: Data dump generation and listing endpoints were removed as part of decommissioning
 // the public data dump system.
+
+// ================================
+// Badge Management Endpoints (Admin Only)
+// ================================
+
+/**
+ * GET /api/admin/badges
+ * Get all badges with statistics (admin only)
+ */
+export async function getAdminBadges(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+    const db = c.env.DB;
+
+    // Check admin permissions
+    const adminCheck = await hasPermission(db, authContext.userToken, 'admin');
+    if (!adminCheck.hasPermission) {
+      throw new ApiError('Administrator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    const badgeService = new BadgeService(db);
+    const badgesWithStats = await badgeService.getBadgeStatistics();
+
+    return c.json({
+      success: true,
+      data: {
+        badges: badgesWithStats,
+        total: badgesWithStats.length,
+        retrieved_at: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error('Get admin badges error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to retrieve badge statistics', 'BADGE_STATS_ERROR', 500);
+  }
+}
+
+/**
+ * POST /api/admin/badges
+ * Create a new badge (admin only)
+ */
+export async function createAdminBadge(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+    const db = c.env.DB;
+
+    // Check admin permissions
+    const adminCheck = await hasPermission(db, authContext.userToken, 'admin');
+    if (!adminCheck.hasPermission) {
+      throw new ApiError('Administrator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    // Parse and validate request body
+    const body = await c.req.json();
+    const {
+      badge_key,
+      title,
+      description,
+      icon_emoji,
+      category,
+      level,
+      threshold_type,
+      threshold_value,
+    } = body;
+
+    // Validate required fields
+    if (!badge_key || typeof badge_key !== 'string' || badge_key.length < 2) {
+      throw new ApiError('Valid badge_key is required (minimum 2 characters)', 'INVALID_BADGE_KEY', 400);
+    }
+
+    if (!title || typeof title !== 'string' || title.length < 2) {
+      throw new ApiError('Valid title is required (minimum 2 characters)', 'INVALID_TITLE', 400);
+    }
+
+    if (!description || typeof description !== 'string' || description.length < 10) {
+      throw new ApiError('Valid description is required (minimum 10 characters)', 'INVALID_DESCRIPTION', 400);
+    }
+
+    if (!icon_emoji || typeof icon_emoji !== 'string' || icon_emoji.length < 1) {
+      throw new ApiError('Valid icon_emoji is required', 'INVALID_ICON', 400);
+    }
+
+    if (!category || typeof category !== 'string') {
+      throw new ApiError('Valid category is required', 'INVALID_CATEGORY', 400);
+    }
+
+    if (typeof level !== 'number' || level < 1) {
+      throw new ApiError('Valid level is required (minimum 1)', 'INVALID_LEVEL', 400);
+    }
+
+    if (!threshold_type || typeof threshold_type !== 'string') {
+      throw new ApiError('Valid threshold_type is required', 'INVALID_THRESHOLD_TYPE', 400);
+    }
+
+    // Validate threshold_type values
+    const validThresholdTypes = ['email_verified', 'submission_count', 'photo_count', 'account_age'];
+    if (!validThresholdTypes.includes(threshold_type)) {
+      throw new ApiError(
+        `Invalid threshold_type. Must be one of: ${validThresholdTypes.join(', ')}`,
+        'INVALID_THRESHOLD_TYPE',
+        400
+      );
+    }
+
+    // threshold_value validation depends on threshold_type
+    if (threshold_type === 'email_verified') {
+      // For email_verified, threshold_value should be null
+      if (threshold_value !== null && threshold_value !== undefined) {
+        throw new ApiError('threshold_value must be null for email_verified badges', 'INVALID_THRESHOLD_VALUE', 400);
+      }
+    } else {
+      // For other types, threshold_value must be a positive number
+      if (typeof threshold_value !== 'number' || threshold_value < 1) {
+        throw new ApiError('threshold_value must be a positive number for non-verification badges', 'INVALID_THRESHOLD_VALUE', 400);
+      }
+    }
+
+    const badgeService = new BadgeService(db);
+
+    // Check if badge_key already exists
+    const existingBadges = await badgeService.getAllBadges();
+    const keyExists = existingBadges.some(b => b.badge_key === badge_key);
+    if (keyExists) {
+      throw new ApiError('Badge key already exists', 'DUPLICATE_BADGE_KEY', 400);
+    }
+
+    // Create the badge
+    const badgeId = await badgeService.createBadge({
+      badge_key,
+      title,
+      description,
+      icon_emoji,
+      category,
+      level,
+      threshold_type,
+      threshold_value: threshold_type === 'email_verified' ? null : threshold_value,
+    });
+
+    return c.json({
+      success: true,
+      data: {
+        badge_id: badgeId,
+        badge_key,
+        title,
+        description,
+        icon_emoji,
+        category,
+        level,
+        threshold_type,
+        threshold_value: threshold_type === 'email_verified' ? null : threshold_value,
+        created_at: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error('Create badge error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to create badge', 'BADGE_CREATE_ERROR', 500);
+  }
+}
+
+/**
+ * PUT /api/admin/badges/:id
+ * Update an existing badge (admin only)
+ */
+export async function updateAdminBadge(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+    const db = c.env.DB;
+
+    // Check admin permissions
+    const adminCheck = await hasPermission(db, authContext.userToken, 'admin');
+    if (!adminCheck.hasPermission) {
+      throw new ApiError('Administrator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    const badgeId = c.req.param('id');
+    if (!badgeId) {
+      throw new ApiError('Badge ID is required', 'MISSING_BADGE_ID', 400);
+    }
+
+    // Parse request body
+    const body = await c.req.json();
+    const updates = body;
+
+    // Validate that the badge exists
+    const badgeService = new BadgeService(db);
+    const existingBadge = await badgeService.getBadgeById(badgeId);
+    if (!existingBadge) {
+      throw new ApiError('Badge not found', 'BADGE_NOT_FOUND', 404);
+    }
+
+    // Validate updates
+    if (updates.title !== undefined && (typeof updates.title !== 'string' || updates.title.length < 2)) {
+      throw new ApiError('Title must be at least 2 characters', 'INVALID_TITLE', 400);
+    }
+
+    if (updates.description !== undefined && (typeof updates.description !== 'string' || updates.description.length < 10)) {
+      throw new ApiError('Description must be at least 10 characters', 'INVALID_DESCRIPTION', 400);
+    }
+
+    if (updates.level !== undefined && (typeof updates.level !== 'number' || updates.level < 1)) {
+      throw new ApiError('Level must be a positive number', 'INVALID_LEVEL', 400);
+    }
+
+    if (updates.threshold_type !== undefined) {
+      const validThresholdTypes = ['email_verified', 'submission_count', 'photo_count', 'account_age'];
+      if (!validThresholdTypes.includes(updates.threshold_type)) {
+        throw new ApiError(
+          `Invalid threshold_type. Must be one of: ${validThresholdTypes.join(', ')}`,
+          'INVALID_THRESHOLD_TYPE',
+          400
+        );
+      }
+    }
+
+    // Update the badge
+    await badgeService.updateBadge(badgeId, updates);
+
+    // Get updated badge for response
+    const updatedBadge = await badgeService.getBadgeById(badgeId);
+
+    return c.json({
+      success: true,
+      data: updatedBadge,
+    });
+  } catch (error) {
+    console.error('Update badge error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to update badge', 'BADGE_UPDATE_ERROR', 500);
+  }
+}
+
+/**
+ * DELETE /api/admin/badges/:id
+ * Deactivate a badge (admin only)
+ */
+export async function deactivateAdminBadge(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+    const db = c.env.DB;
+
+    // Check admin permissions
+    const adminCheck = await hasPermission(db, authContext.userToken, 'admin');
+    if (!adminCheck.hasPermission) {
+      throw new ApiError('Administrator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    const badgeId = c.req.param('id');
+    if (!badgeId) {
+      throw new ApiError('Badge ID is required', 'MISSING_BADGE_ID', 400);
+    }
+
+    // Validate that the badge exists
+    const badgeService = new BadgeService(db);
+    const existingBadge = await badgeService.getBadgeById(badgeId);
+    if (!existingBadge) {
+      throw new ApiError('Badge not found', 'BADGE_NOT_FOUND', 404);
+    }
+
+    // Deactivate the badge
+    await badgeService.deactivateBadge(badgeId);
+
+    return c.json({
+      success: true,
+      data: {
+        badge_id: badgeId,
+        deactivated_at: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    console.error('Deactivate badge error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to deactivate badge', 'BADGE_DEACTIVATE_ERROR', 500);
+  }
+}

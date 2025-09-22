@@ -28,6 +28,7 @@ import { CONSENT_VERSION } from '../../shared/consent';
 import { createSimilarityService } from '../lib/similarity';
 import { DEFAULT_ARTWORK_SEARCH_RADIUS } from '../../shared/geo';
 import type { SimilarityQuery } from '../../shared/similarity';
+import { BadgeService } from '../lib/badges';
 
 // Import the new consent system
 import { recordConsent, generateConsentTextHash } from '../lib/consent-new';
@@ -179,7 +180,31 @@ export async function createSubmission(
       await db.updateLogbookPhotos(newEntry.id, photoUrls);
     }
 
-    // STEP 5: Create response 
+    // STEP 5: Check for badge awards (after successful submission)
+    try {
+      const badgeService = new BadgeService(c.env.DB);
+      const badgeAwards = await badgeService.checkSubmissionBadges(userToken);
+      
+      if (badgeAwards.length > 0) {
+        console.info('Badges awarded for submission:', {
+          submissionId: newEntry.id,
+          userToken,
+          badges: badgeAwards.map(b => ({ key: b.badge_key, title: b.title })),
+        });
+        
+        // Note: Badge notifications would be handled by the frontend
+        // when it detects new badges in the user's profile
+      }
+    } catch (badgeError) {
+      // Badge calculation errors should not block the submission
+      console.error('Failed to calculate badges for submission:', {
+        submissionId: newEntry.id,
+        userToken,
+        error: badgeError,
+      });
+    }
+
+    // STEP 6: Create response 
     const response: SubmissionResponse = {
       id: newEntry.id,
       status: 'pending',
@@ -633,6 +658,29 @@ export async function createFastArtworkSubmission(
       dbg('No photos uploaded with submission');
     }
 
+    // Check for badge awards (after successful submission)
+    try {
+      const badgeService = new BadgeService(c.env.DB);
+      const badgeAwards = await badgeService.checkSubmissionBadges(userToken);
+      
+      if (badgeAwards.length > 0) {
+        console.info('Badges awarded for fast submission:', {
+          submissionId,
+          userToken,
+          submissionType,
+          badges: badgeAwards.map(b => ({ key: b.badge_key, title: b.title })),
+        });
+      }
+    } catch (badgeError) {
+      // Badge calculation errors should not block the submission
+      console.error('Failed to calculate badges for fast submission:', {
+        submissionId,
+        userToken,
+        submissionType,
+        error: badgeError,
+      });
+    }
+
     // Create response
     const response: FastArtworkSubmissionResponse = {
       id: submissionId,
@@ -846,6 +894,29 @@ async function handleLogbookSubmission(
       ...(locationMismatch && { tags: { location_mismatch: 'true' } }),
       verificationStatus: 'pending',
     });
+
+    // Check for badge awards (after successful submission)
+    try {
+      const badgeService = new BadgeService(c.env.DB);
+      const badgeAwards = await badgeService.checkSubmissionBadges(userToken);
+      
+      if (badgeAwards.length > 0) {
+        console.info('Badges awarded for unified submission:', {
+          submissionId,
+          userToken,
+          artworkId: data.artworkId,
+          badges: badgeAwards.map(b => ({ key: b.badge_key, title: b.title })),
+        });
+      }
+    } catch (badgeError) {
+      // Badge calculation errors should not block the submission
+      console.error('Failed to calculate badges for unified submission:', {
+        submissionId,
+        userToken,
+        artworkId: data.artworkId,
+        error: badgeError,
+      });
+    }
 
     // Create response
     const response: SubmissionResponse = {

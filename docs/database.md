@@ -485,6 +485,121 @@ artists ──┐               ┌── artwork ──┐
 - Role-based permissions control who can approve submissions
 - Many-to-many relationships between artworks and artists via `artwork_artists` table
 
+### Badge & Profile System Tables
+
+The badge system provides gamification and profile management for authenticated users with verified emails.
+
+#### users.profile_name (Column Addition)
+
+**Added in Migration 0025** - Profile name column for unique user identification.
+
+| Field           | Type | Constraints                           | Description                        |
+| --------------- | ---- | ------------------------------------- | ---------------------------------- |
+| `profile_name`  | TEXT | NULL, UNIQUE, 3-20 chars, CHECK(...)  | Unique profile name for public identification |
+
+**Profile Name Constraints:**
+- Length: 3-20 characters
+- Characters: Alphanumeric and dashes only (`[a-zA-Z0-9-]`)
+- Cannot start or end with dash
+- Must be unique across all users
+- Case-insensitive uniqueness check
+
+**Banned Names:**
+Profile names cannot use reserved words like `admin`, `moderator`, `support`, `help`, `api`, `www`, `mail`, `ftp`, `root`, `test`.
+
+#### badges
+
+**Badge definitions table** - defines all available badges that users can earn through platform activities.
+
+| Field            | Type    | Constraints                                       | Description                        |
+| ---------------- | ------- | ------------------------------------------------- | ---------------------------------- |
+| `id`             | TEXT    | PRIMARY KEY, UUID format                          | Unique badge identifier            |
+| `badge_key`      | TEXT    | NOT NULL, UNIQUE                                  | Machine-readable badge identifier  |
+| `title`          | TEXT    | NOT NULL                                          | Human-readable badge title         |
+| `description`    | TEXT    | NOT NULL                                          | Badge description                  |
+| `icon_emoji`     | TEXT    | NOT NULL                                          | Emoji icon for badge display       |
+| `category`       | TEXT    | NOT NULL, CHECK(activity\|community\|seasonal\|geographic) | Badge category                    |
+| `threshold_type` | TEXT    | NOT NULL, CHECK(submission_count\|photo_count\|account_age\|email_verified) | Achievement type                 |
+| `threshold_value`| INTEGER | NULL                                              | Numeric threshold (NULL for boolean types) |
+| `level`          | INTEGER | DEFAULT 1                                         | Badge difficulty level             |
+| `is_active`      | BOOLEAN | NOT NULL, DEFAULT TRUE                            | Whether badge can be earned        |
+| `created_at`     | TEXT    | NOT NULL, DEFAULT datetime('now')                 | Creation timestamp                 |
+| `updated_at`     | TEXT    | NOT NULL, DEFAULT datetime('now')                 | Last update timestamp              |
+
+**Indexes:**
+- `idx_badges_category` on `category` for filtering by category
+- `idx_badges_threshold_type` on `threshold_type` for achievement checking
+- `idx_badges_is_active` on `is_active` for active badge queries
+
+**Badge Categories:**
+- `activity`: Submission count, photo uploads, email verification
+- `community`: Login streaks, account milestones  
+- `seasonal`: Special time-based achievements
+- `geographic`: Location-based achievements
+
+**Initial Badge Definitions (Migration 0025):**
+
+| Badge Key       | Title              | Description                    | Icon | Threshold Type    | Threshold Value |
+| --------------- | ------------------ | ------------------------------ | ---- | ----------------- | --------------- |
+| `email_verified`| Email Verified     | Completed email verification   | ✅   | email_verified    | NULL            |
+| `submission_1`  | First Discovery    | Made your first submission     | 🎯   | submission_count  | 1               |
+| `submission_5`  | Explorer           | Made 5 submissions             | 🗺️   | submission_count  | 5               |
+| `submission_15` | Discoverer         | Made 15 submissions            | 🔍   | submission_count  | 15              |
+| `submission_50` | Master Explorer    | Made 50 submissions            | 🏆   | submission_count  | 50              |
+| `photo_1`       | First Photo        | Uploaded your first photo      | 📸   | photo_count       | 1               |
+| `photo_10`      | Photographer       | Uploaded 10 photos             | 📷   | photo_count       | 10              |
+| `photo_25`      | Photo Chronicler   | Uploaded 25 photos             | 🎨   | photo_count       | 25              |
+| `photo_100`     | Visual Archivist   | Uploaded 100 photos            | 🌟   | photo_count       | 100             |
+| `early_adopter` | Early Adopter      | Member for 30 days             | 🌱   | account_age       | 30              |
+
+#### user_badges
+
+**Badge awards table** - tracks which badges have been earned by users and when.
+
+| Field         | Type | Constraints                           | Description                        |
+| ------------- | ---- | ------------------------------------- | ---------------------------------- |
+| `id`          | TEXT | PRIMARY KEY, UUID format              | Unique award record identifier     |
+| `user_uuid`   | TEXT | NOT NULL, FK→users.uuid               | User who earned the badge          |
+| `badge_id`    | TEXT | NOT NULL, FK→badges.id                | Badge that was earned              |
+| `awarded_at`  | TEXT | NOT NULL, DEFAULT datetime('now')     | When badge was earned              |
+| `award_reason`| TEXT | NOT NULL                              | Reason badge was awarded           |
+| `metadata`    | TEXT | NULL                                  | JSON metadata about the award      |
+
+**Primary Key**: `(user_uuid, badge_id)` - prevents duplicate badge awards
+
+**Indexes:**
+- `idx_user_badges_user_uuid` on `user_uuid` for user badge queries
+- `idx_user_badges_badge_id` on `badge_id` for badge popularity stats
+- `idx_user_badges_awarded_at` on `awarded_at` for temporal queries
+
+**Foreign Keys:**
+- `user_uuid` → `users.uuid` ON DELETE CASCADE
+- `badge_id` → `badges.id` ON DELETE CASCADE
+
+**Award Metadata Examples:**
+
+```json
+{
+  "submission_count": 5,
+  "achievement_date": "2025-01-15T14:22:00Z",
+  "trigger_event": "submission_approval"
+}
+```
+
+```json
+{
+  "verification_method": "magic_link",
+  "email_domain": "example.com",
+  "verification_date": "2025-01-15T14:22:00Z"
+}
+```
+
+**Badge Award Triggers:**
+- **Real-time**: Badges awarded immediately when thresholds are met
+- **Submission Approval**: Submission and photo count badges awarded during review process
+- **Email Verification**: Email verified badge awarded during magic link verification
+- **Daily Batch**: Account age badges checked daily for eligible users
+
 ## Common Queries
 
 ### Find artworks near a location

@@ -19,7 +19,13 @@ import type {
   NearbyArtworksResponse,
   ArtworkEditReviewData,
   UserSubmissionsResponse,
+  BadgeListResponse,
+  UserBadgeResponse,
+  ProfileUpdateRequest,
+  ProfileUpdateResponse,
+  ProfileNameCheckResponse,
 } from '../../../shared/types';
+import type { BadgeRecord } from '../types';
 import type { UserProfile, ReviewQueueItem, ReviewStats, ArtworkDetails } from '../types';
 import { getApiBaseUrl } from '../utils/api-config';
 
@@ -277,6 +283,16 @@ class ApiClient {
   async put<T>(endpoint: string, data?: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /**
+   * PATCH request
+   */
+  async patch<T>(endpoint: string, data?: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   }
@@ -585,6 +601,55 @@ export const apiService = {
   },
 
   // ================================
+  // Badge System Endpoints
+  // ================================
+
+  /**
+   * Get all available badge definitions (public endpoint)
+   */
+  async getAllBadges(): Promise<ApiResponse<BadgeListResponse>> {
+    return client.get('/badges');
+  },
+
+  /**
+   * Get current user's earned badges
+   */
+  async getUserBadges(): Promise<ApiResponse<UserBadgeResponse>> {
+    return client.get('/me/badges');
+  },
+
+  /**
+   * Update user's profile name
+   */
+  async updateProfileName(request: ProfileUpdateRequest): Promise<ApiResponse<ProfileUpdateResponse>> {
+    return client.patch('/me/profile', request);
+  },
+
+  /**
+   * Check if a profile name is available
+   */
+  async checkProfileNameAvailability(profileName: string): Promise<ApiResponse<ProfileNameCheckResponse>> {
+    return client.get('/me/profile-check', { profile_name: profileName });
+  },
+
+  /**
+   * Get public user profile by UUID
+   */
+  async getPublicUserProfile(uuid: string): Promise<ApiResponse<{
+    uuid: string;
+    profile_name: string;
+    badges: Array<{
+      badge: any;
+      awarded_at: string;
+      award_reason: string;
+      metadata?: Record<string, unknown>;
+    }>;
+    member_since: string;
+  }>> {
+    return client.get(`/users/${uuid}`);
+  },
+
+  // ================================
   // Authentication Endpoints (Updated for new backend API)
   // ================================
 
@@ -842,6 +907,52 @@ export const apiService = {
    */
   async getAdminStatistics(days: number = 30): Promise<ApiResponse<AuditStatistics>> {
     return client.get('/admin/statistics', { days: days.toString() });
+  },
+
+  /**
+   * Get all badges with statistics (admin only)
+   */
+  async getAdminBadges(): Promise<ApiResponse<{ badges: Array<BadgeRecord & { award_count: number }>; total: number; retrieved_at: string }>> {
+    return client.get('/admin/badges');
+  },
+
+  /**
+   * Create a new badge (admin only)
+   */
+  async createAdminBadge(badge: {
+    badge_key: string;
+    title: string;
+    description: string;
+    icon_emoji: string;
+    category: string;
+    level: number;
+    threshold_type: string;
+    threshold_value: number | null;
+  }): Promise<ApiResponse<BadgeRecord>> {
+    return client.post('/admin/badges', badge);
+  },
+
+  /**
+   * Update an existing badge (admin only)
+   */
+  async updateAdminBadge(badgeId: string, updates: {
+    title?: string;
+    description?: string;
+    icon_emoji?: string;
+    category?: string;
+    level?: number;
+    threshold_type?: string;
+    threshold_value?: number | null;
+    is_active?: boolean;
+  }): Promise<ApiResponse<BadgeRecord>> {
+    return client.put(`/admin/badges/${badgeId}`, updates);
+  },
+
+  /**
+   * Deactivate a badge (admin only)
+   */
+  async deactivateAdminBadge(badgeId: string): Promise<ApiResponse<{ badge_id: string; deactivated_at: string }>> {
+    return client.delete(`/admin/badges/${badgeId}`);
   },
 };
 

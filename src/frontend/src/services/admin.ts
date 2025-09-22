@@ -16,6 +16,7 @@ import type {
   AuditLogEntry,
   AuditStatistics,
 } from '../../../shared/types';
+import type { BadgeRecord } from '../../../shared/types';
 import { apiService } from './api';
 
 /**
@@ -267,6 +268,67 @@ export class AdminService {
     };
 
     return flattened;
+  }
+
+  /**
+   * Get all badges with award statistics
+   */
+  async getBadges(): Promise<Array<BadgeRecord & { award_count: number }>> {
+    const result = await apiService.getAdminBadges();
+    if (!result.success || !result.data) {
+      throw new Error(result.error || 'Failed to get badges');
+    }
+    return result.data.badges;
+  }
+
+  /**
+   * Create a new badge
+   */
+  async createBadge(badge: {
+    badge_key: string;
+    title: string;
+    description: string;
+    icon_emoji: string;
+    category: string;
+    level: number;
+    threshold_type: string;
+    threshold_value: number | null;
+  }): Promise<BadgeRecord> {
+    const result = await apiService.createAdminBadge(badge);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create badge');
+    }
+    return result.data as BadgeRecord;
+  }
+
+  /**
+   * Update an existing badge
+   */
+  async updateBadge(badgeId: string, updates: {
+    title?: string;
+    description?: string;
+    icon_emoji?: string;
+    category?: string;
+    level?: number;
+    threshold_type?: string;
+    threshold_value?: number | null;
+    is_active?: boolean;
+  }): Promise<BadgeRecord> {
+    const result = await apiService.updateAdminBadge(badgeId, updates);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to update badge');
+    }
+    return result.data as BadgeRecord;
+  }
+
+  /**
+   * Deactivate a badge
+   */
+  async deactivateBadge(badgeId: string): Promise<void> {
+    const result = await apiService.deactivateAdminBadge(badgeId);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to deactivate badge');
+    }
   }
 }
 
