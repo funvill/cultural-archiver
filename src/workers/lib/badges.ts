@@ -6,9 +6,11 @@
  */
 
 import { generateUUID } from '../../shared/constants.js';
+import { NotificationService } from './notifications.js';
 import type {
   BadgeRecord,
   UserRecord,
+  BadgeNotificationMetadata,
 } from '../../shared/types.js';
 
 export interface BadgeCalculationContext {
@@ -28,10 +30,16 @@ export interface BadgeAwardResult {
   icon_emoji: string;
   award_reason: string;
   awarded_at: string;
+  created: boolean; // Indicates if this is a newly awarded badge
+  notification_id?: string; // ID of created notification
 }
 
 export class BadgeService {
-  constructor(public db: D1Database) {}
+  private notificationService: NotificationService;
+
+  constructor(public db: D1Database) {
+    this.notificationService = new NotificationService(db);
+  }
 
   /**
    * Get all active badge definitions
@@ -122,7 +130,39 @@ export class BadgeService {
     const awardedBadges: BadgeAwardResult[] = [];
     for (const { badge, reason } of eligibleBadges) {
       try {
-        const awardResult = await this.awardBadge(context.user_uuid, badge.id, reason);
+        const awardResult = await this.awardBadge(context.user_uuid, badge, reason);
+        
+        let notificationId: string | undefined;
+        
+        // Create notification for newly awarded badge
+        if (awardResult.created) {
+          try {
+            const badgeMetadata: BadgeNotificationMetadata = {
+              badge_id: badge.id,
+              badge_key: badge.badge_key,
+              award_reason: reason,
+              badge_title: badge.title,
+              badge_icon_emoji: badge.icon_emoji,
+            };
+
+            const notification = await this.notificationService.create({
+              user_token: context.user_uuid,
+              type: 'badge',
+              type_key: badge.badge_key,
+              title: `New Badge: ${badge.title}`,
+              message: `Congratulations! You've earned the "${badge.title}" badge. ${badge.description}`,
+              metadata: badgeMetadata,
+              related_id: badge.id,
+            });
+            
+            notificationId = notification.id;
+            console.log(`Created notification ${notification.id} for badge ${badge.badge_key} awarded to user ${context.user_uuid}`);
+          } catch (notificationError) {
+            // Log error but don't fail badge award
+            console.error(`Failed to create notification for badge ${badge.badge_key}:`, notificationError);
+          }
+        }
+        
         awardedBadges.push({
           badge_id: badge.id,
           badge_key: badge.badge_key,
@@ -131,6 +171,8 @@ export class BadgeService {
           icon_emoji: badge.icon_emoji,
           award_reason: reason,
           awarded_at: awardResult.awarded_at,
+          created: awardResult.created,
+          notification_id: notificationId,
         });
       } catch (error) {
         // Log error but continue with other badges
@@ -173,9 +215,26 @@ export class BadgeService {
   }
 
   /**
-   * Award a badge to a user
+   * Award a badge to a user (idempotent)
    */
-  private async awardBadge(user_uuid: string, badge_id: string, reason: string): Promise<{ awarded_at: string }> {
+  private async awardBadge(user_uuid: string, badge: BadgeRecord, reason: string): Promise<{ awarded_at: string; created: boolean }> {
+    // Check if user already has this badge
+    const existingStmt = this.db.prepare(`
+      SELECT awarded_at FROM user_badges 
+      WHERE user_uuid = ? AND badge_id = ?
+    `);
+    
+    const existing = await existingStmt.bind(user_uuid, badge.id).first<{ awarded_at: string }>();
+    
+    if (existing) {
+      // Badge already exists - return existing info
+      return { 
+        awarded_at: existing.awarded_at, 
+        created: false 
+      };
+    }
+    
+    // Award new badge
     const id = generateUUID();
     const awarded_at = new Date().toISOString();
     
@@ -184,9 +243,12 @@ export class BadgeService {
       VALUES (?, ?, ?, ?, ?)
     `);
     
-    await stmt.bind(id, user_uuid, badge_id, awarded_at, reason).run();
+    await stmt.bind(id, user_uuid, badge.id, awarded_at, reason).run();
     
-    return { awarded_at };
+    return { 
+      awarded_at, 
+      created: true 
+    };
   }
 
   /**
