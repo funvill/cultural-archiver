@@ -7,14 +7,13 @@ Author: Steven Smethurst
 
 # Purpose
 
-The goal is to understand the **"what"** and **"why"** of the feature, not the **"how"**.
-Implementation details (the "how") will be handled later by developers.
+The goal is to understand the **"what"** and **"why"** of the feature, not the **"how"**. Implementation details (the "how") will be handled later by developers.
 
 # Instructions
 
 - Ask me **numbered questions**, continuing from the previous set.
-- Provide **multiple-choice answers (A, B, C, D)**.  
-  - `A` should always be the **recommended choice**.  
+- Provide **multiple-choice answers (A, B, C, D)**.
+  - `A` should always be the **recommended choice**.
 - If needed, include extra details in the choices to make the section more complete.
 - Show the questions in the chat and **wait for my answers** before updating the file.
 - After each set of answers, **update the output file** with the new information.
@@ -40,7 +39,7 @@ For each cycle:
 
 # Output
 
-- After each set of answered questions, update the output file.  
-- **Format:** Markdown (`.md`)  
-- **Location:** `${workspaceFolder}/tasks/`  
-- **Filename:** `questions-[feature-name].md`  
+- After each set of answered questions, update the output file.
+- **Format:** Markdown (`.md`)
+- **Location:** `${workspaceFolder}/tasks/`
+- **Filename:** `questions-[feature-name].md`

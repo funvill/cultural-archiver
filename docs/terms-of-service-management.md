@@ -33,24 +33,28 @@ This guide outlines the process for managing and updating the Cultural Archiver 
 ## Key Legal Protections Implemented
 
 ### Liability Protection
+
 - **Limitation of Liability**: Maximum CAD $100 liability cap
 - **Service Disclaimer**: "As is" service provision
 - **User Indemnification**: Users responsible for their submissions
 - **Content Accuracy**: No warranty on user-submitted content
 
 ### Content Rights Management
+
 - **CC0 Licensing**: All content released to public domain
 - **Third-Party Distribution**: Explicit permission for redistribution
 - **Irrevocable License**: Cannot withdraw content once submitted
 - **Copyright Compliance**: DMCA procedures and Freedom of Panorama acknowledgment
 
 ### User Obligations
+
 - **Age Verification**: 18+ requirement
 - **Accuracy Requirements**: Users must submit truthful information
 - **Personal Data Restrictions**: Prohibited personal information submission
 - **Geographic Compliance**: Users responsible for local law compliance
 
 ### AI & Automated Content
+
 - **Human Oversight**: AI-assisted content must have human review
 - **Quality Standards**: All content subject to accuracy requirements
 - **Disclosure Encouraged**: Optional AI assistance disclosure
@@ -60,12 +64,15 @@ This guide outlines the process for managing and updating the Cultural Archiver 
 ## Version Control System
 
 ### Version Numbering
+
 - **Terms of Service**: Major.Minor format (2.0, 2.1, etc.)
 - **Privacy Policy**: Major.Minor format (1.0, 1.1, etc.)
 - **Consent Version**: Date.Version format (2025-09-09.v2)
 
 ### Update Triggers
+
 Update legal documents when:
+
 - New features affect user rights or obligations
 - Legal requirements change
 - Privacy practices are modified
@@ -73,6 +80,7 @@ Update legal documents when:
 - Consent requirements are updated
 
 ### Implementation Process
+
 1. **Legal Review**: Have legal counsel review changes
 2. **Version Update**: Increment version numbers appropriately
 3. **Code Update**: Update `src/shared/consent.ts` if needed
@@ -85,13 +93,16 @@ Update legal documents when:
 ## Frontend Integration
 
 ### Consent Collection
+
 The frontend collects user consent through:
+
 - Age verification checkbox
 - CC0 licensing agreement
 - Public commons contribution consent
 - Freedom of panorama acknowledgment
 
 ### Technical Implementation
+
 - Consent version stored with each submission
 - Version compatibility checking in validation
 - Links to full Terms of Service and Privacy Policy
@@ -102,11 +113,13 @@ The frontend collects user consent through:
 ## Compliance Considerations
 
 ### Canadian Law Requirements
+
 - **PIPEDA Compliance**: Personal Information Protection and Electronic Documents Act
 - **Provincial Privacy Laws**: Additional requirements in specific provinces
 - **Non-Profit Regulations**: Canadian non-profit compliance requirements
 
 ### International Considerations
+
 - **GDPR Compliance**: For European users accessing the service
 - **Freedom of Panorama Variations**: Different laws in different countries
 - **Data Transfer Requirements**: Cross-border data sharing compliance
@@ -116,12 +129,14 @@ The frontend collects user consent through:
 ## Monitoring & Review
 
 ### Regular Reviews
+
 - **Annual Review**: Complete review of all legal documents
 - **Quarterly Check**: Review for new legal developments
 - **Feature-Based Review**: Review when adding new features
 - **Incident-Based Review**: Review after any legal issues
 
 ### Key Metrics to Monitor
+
 - User consent completion rates
 - Support inquiries about terms
 - Legal challenges or complaints
@@ -133,12 +148,14 @@ The frontend collects user consent through:
 ## Emergency Updates
 
 ### Immediate Update Scenarios
+
 - Legal order requiring changes
 - Discovery of significant liability exposure
 - Compliance violation identified
 - Security breach affecting user privacy
 
 ### Emergency Process
+
 1. **Immediate Assessment**: Evaluate scope and urgency
 2. **Legal Consultation**: Rapid legal review if needed
 3. **Minimal Viable Update**: Make minimum necessary changes
@@ -150,11 +167,13 @@ The frontend collects user consent through:
 ## Contact Information
 
 ### Internal Responsibilities
+
 - **Project Lead**: Overall legal document responsibility
 - **Technical Lead**: Implementation of consent systems
 - **Legal Counsel**: Professional legal review and advice
 
 ### External Resources
+
 - **Legal Counsel**: For significant changes or questions
 - **Privacy Consultant**: For privacy-specific matters
 - **Open Source Legal Experts**: For licensing and open data questions
@@ -164,29 +183,34 @@ The frontend collects user consent through:
 ## Document Templates
 
 ### Change Log Template
+
 ```markdown
 ## Version X.X (Date)
 
 ### Changes
+
 - [Summary of changes]
 - [Impact on users]
 - [Technical implementation notes]
 
 ### Legal Review
+
 - Reviewer: [Name]
 - Date: [Date]
 - Status: [Approved/Pending/Revision Required]
 ```
 
 ### User Communication Template
+
 ```markdown
 Subject: Important Update to Cultural Archiver Terms of Service
 
 Dear Cultural Archiver Community,
 
-We are updating our Terms of Service effective [Date]. 
+We are updating our Terms of Service effective [Date].
 
 Key changes include:
+
 - [Summary of changes]
 - [Impact on users]
 

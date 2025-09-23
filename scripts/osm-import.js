@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * OSM Mass Import CLI Tool
- * 
+ *
  * Command-line interface for importing OpenStreetMap GeoJSON artwork data
  * into the Cultural Archiver platform via the mass-import API.
  */
@@ -19,22 +19,22 @@ const DEFAULT_CONFIG = {
   batchSize: 50,
   dryRun: false,
   preset: 'default',
-  verbose: false
+  verbose: false,
 };
 
 // CLI argument parsing
 function parseArgs() {
   const args = process.argv.slice(2);
   const config = { ...DEFAULT_CONFIG };
-  
+
   let inputFile = null;
-  
+
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    
+
     if (arg.startsWith('--')) {
       const [key, value] = arg.slice(2).split('=');
-      
+
       switch (key) {
         case 'input':
         case 'file':
@@ -72,7 +72,7 @@ function parseArgs() {
       inputFile = arg;
     }
   }
-  
+
   return { config, inputFile };
 }
 
@@ -120,25 +120,25 @@ function loadGeoJSON(filePath) {
   if (!fs.existsSync(filePath)) {
     throw new Error(`File not found: ${filePath}`);
   }
-  
+
   console.log(`Loading GeoJSON from: ${filePath}`);
   const raw = fs.readFileSync(filePath, 'utf-8');
-  
+
   let geoJSON;
   try {
     geoJSON = JSON.parse(raw);
   } catch (error) {
     throw new Error(`Invalid JSON in file: ${error.message}`);
   }
-  
+
   if (geoJSON.type !== 'FeatureCollection') {
     throw new Error('GeoJSON must be a FeatureCollection');
   }
-  
+
   if (!Array.isArray(geoJSON.features)) {
     throw new Error('GeoJSON features must be an array');
   }
-  
+
   console.log(`Loaded ${geoJSON.features.length} features from GeoJSON`);
   return geoJSON;
 }
@@ -146,13 +146,13 @@ function loadGeoJSON(filePath) {
 // Load configuration
 function loadConfig(configFile, preset) {
   const configPath = path.resolve(__dirname, configFile);
-  
+
   if (!fs.existsSync(configPath)) {
     throw new Error(`Configuration file not found: ${configPath}`);
   }
-  
+
   const configData = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-  
+
   let config;
   if (preset === 'default') {
     config = configData.defaultConfig;
@@ -161,29 +161,29 @@ function loadConfig(configFile, preset) {
   } else {
     throw new Error(`Configuration preset not found: ${preset}`);
   }
-  
+
   console.log(`Using configuration preset: ${preset}`);
   return config;
 }
 
-// Progress tracking  
+// Progress tracking
 // function createProgressTracker(total) {
 //   let processed = 0;
 //   let succeeded = 0;
 //   let failed = 0;
-//   
+//
 //   return {
 //     update(current) {
 //       processed = current;
 //       const percent = Math.round((processed / total) * 100);
 //       console.log(`Progress: ${processed}/${total} (${percent}%) - ✓ ${succeeded} ✗ ${failed}`);
 //     },
-//     
+//
 //     success() {
 //       succeeded++;
 //       this.update(processed + 1);
 //     },
-//     
+//
 //     error() {
 //       failed++;
 //       this.update(processed + 1);
@@ -195,15 +195,15 @@ async function performImport(geoJSON, importConfig, apiConfig) {
     geoJSON,
     config: importConfig,
     batchSize: apiConfig.batchSize,
-    dryRun: apiConfig.dryRun
+    dryRun: apiConfig.dryRun,
   };
-  
-  const endpoint = apiConfig.dryRun 
+
+  const endpoint = apiConfig.dryRun
     ? `${apiConfig.apiUrl}/api/mass-import/osm/validate`
     : `${apiConfig.apiUrl}/api/mass-import/osm`;
-  
+
   console.log(`${apiConfig.dryRun ? 'Validating' : 'Importing'} to: ${endpoint}`);
-  
+
   if (apiConfig.verbose) {
     console.log('Request payload summary:');
     console.log(`- Features: ${geoJSON.features.length}`);
@@ -211,33 +211,32 @@ async function performImport(geoJSON, importConfig, apiConfig) {
     console.log(`- Duplicate threshold: ${importConfig.duplicateThreshold}`);
     console.log(`- User UUID: ${importConfig.user_uuid}`);
   }
-  
+
   try {
     const response = await fetch(endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
-    
+
     if (!response.ok) {
       const errorText = await response.text();
       throw new Error(`API request failed (${response.status}): ${errorText}`);
     }
-    
+
     const result = await response.json();
-    
+
     if (apiConfig.verbose) {
       console.log('API Response:', JSON.stringify(result, null, 2));
     }
-    
+
     if (!result.data || !result.data.success) {
       throw new Error(`Import failed: ${result.message || 'Unknown error'}`);
     }
-    
+
     return result.data;
-    
   } catch (error) {
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
       throw new Error(`Could not connect to API at ${apiConfig.apiUrl}. Is the server running?`);
@@ -249,28 +248,28 @@ async function performImport(geoJSON, importConfig, apiConfig) {
 // Format and display results
 function displayResults(result, verbose) {
   console.log('\n' + '='.repeat(50));
-  
+
   if (result.dry_run) {
     console.log('VALIDATION RESULTS');
   } else {
     console.log('IMPORT RESULTS');
   }
-  
+
   console.log('='.repeat(50));
-  
+
   const { summary } = result;
   console.log(`Total features: ${summary.total_features}`);
   console.log(`Valid imports: ${summary.valid_imports}`);
   console.log(`Skipped records: ${summary.skipped_records}`);
   console.log(`Errors: ${summary.error_count}`);
   console.log(`Success rate: ${summary.success_rate}`);
-  
+
   if (result.batch_info) {
     console.log(`Batch size: ${result.batch_info.batch_size}`);
     console.log(`Batch count: ${result.batch_info.batch_count}`);
     console.log(`Processing mode: ${result.batch_info.processing_mode}`);
   }
-  
+
   if (result.errors && result.errors.length > 0) {
     console.log(`\nErrors (${result.errors.length}):`);
     result.errors.slice(0, verbose ? undefined : 10).forEach(error => {
@@ -280,14 +279,14 @@ function displayResults(result, verbose) {
       console.log(`  ... and ${result.errors.length - 10} more errors (use --verbose to see all)`);
     }
   }
-  
+
   if (result.import_results && verbose) {
     console.log('\nBatch Results:');
     result.import_results.forEach(batch => {
       console.log(`  Batch ${batch.batch_id}: ${batch.succeeded}/${batch.processed} successful`);
     });
   }
-  
+
   console.log('='.repeat(50));
 }
 
@@ -295,48 +294,49 @@ function displayResults(result, verbose) {
 async function main() {
   try {
     const { config, inputFile } = parseArgs();
-    
+
     if (!inputFile) {
       console.error('Error: No input file specified');
       showHelp();
       process.exit(1);
     }
-    
+
     // Load input data and configuration
     const geoJSON = loadGeoJSON(inputFile);
     const importConfig = loadConfig(config.configFile, config.preset);
-    
+
     // Perform the import
-    console.log(`Starting ${config.dryRun ? 'validation' : 'import'} with ${geoJSON.features.length} features...`);
+    console.log(
+      `Starting ${config.dryRun ? 'validation' : 'import'} with ${geoJSON.features.length} features...`
+    );
     const startTime = Date.now();
-    
+
     const result = await performImport(geoJSON, importConfig, config);
-    
+
     const endTime = Date.now();
     const duration = ((endTime - startTime) / 1000).toFixed(1);
-    
+
     // Display results
     displayResults(result, config.verbose);
     console.log(`\nCompleted in ${duration} seconds`);
-    
+
     // Exit with appropriate code
     const hasErrors = result.summary.error_count > 0;
     const successRate = parseFloat(result.summary.success_rate);
-    
+
     if (config.dryRun) {
       process.exit(hasErrors ? 1 : 0);
     } else {
       process.exit(successRate < 80 ? 1 : 0); // Fail if success rate < 80%
     }
-    
   } catch (error) {
     console.error(`Error: ${error.message}`);
-    
+
     if (error.stack && process.env.DEBUG) {
       console.error('\nStack trace:');
       console.error(error.stack);
     }
-    
+
     process.exit(1);
   }
 }

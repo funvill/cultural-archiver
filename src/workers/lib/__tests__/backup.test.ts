@@ -375,7 +375,7 @@ describe('Backup System', () => {
       expect(archiveBuffer).toBeInstanceOf(ArrayBuffer);
 
       // The createZipArchive mock should have been called with proper files
-  const { createZipArchive } = await import('../archive');
+      const { createZipArchive } = await import('../archive');
       expect(createZipArchive).toHaveBeenCalled();
 
       const callArgs = (createZipArchive as any).mock.calls[0];
@@ -693,7 +693,7 @@ describe('Backup System', () => {
 
     it('should handle archive creation failures', async () => {
       // Mock createZipArchive to fail
-  const { createZipArchive } = await import('../archive');
+      const { createZipArchive } = await import('../archive');
       (createZipArchive as any).mockRejectedValueOnce(new Error('Archive creation failed'));
 
       await expect(createBackupArchive('sql', [], {} as BackupMetadata)).rejects.toThrow(

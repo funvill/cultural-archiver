@@ -1,6 +1,6 @@
 /**
  * Mass Import API Endpoint Tests
- * 
+ *
  * Comprehensive test suite for the mass import functionality,
  * testing the main /api/mass-import endpoint that matches the documentation.
  */
@@ -42,11 +42,21 @@ vi.mock('crypto', () => ({
 function createMockEnv(): WorkerEnv {
   const mockPrepare = vi.fn(() => ({
     bind: vi.fn(() => ({
-      run: vi.fn(() => Promise.resolve({
-        success: true,
-        results: [],
-        meta: { changes: 1, duration: 0, size_after: 0, rows_read: 0, rows_written: 0, last_row_id: 0, changed_db: false }
-      })),
+      run: vi.fn(() =>
+        Promise.resolve({
+          success: true,
+          results: [],
+          meta: {
+            changes: 1,
+            duration: 0,
+            size_after: 0,
+            rows_read: 0,
+            rows_written: 0,
+            last_row_id: 0,
+            changed_db: false,
+          },
+        })
+      ),
       all: vi.fn(() => Promise.resolve({ results: [] })),
       first: vi.fn(() => Promise.resolve(null)),
     })),
@@ -89,10 +99,10 @@ describe('Mass Import API Endpoint', () => {
   beforeEach(() => {
     mockEnv = createMockEnv();
     mockContext = createMockContext(mockEnv);
-    
+
     // Reset all mocks
     vi.clearAllMocks();
-    
+
     // Setup default fetch mock for successful image download
     mockFetch.mockResolvedValue({
       ok: true,
@@ -157,7 +167,9 @@ describe('Mass Import API Endpoint', () => {
 
       mockContext.req = { json: () => Promise.resolve(payload) };
 
-      await expect(processMassImport(mockContext)).rejects.toThrow('Missing required artwork title');
+      await expect(processMassImport(mockContext)).rejects.toThrow(
+        'Missing required artwork title'
+      );
     });
 
     it('should reject request with invalid coordinates', async () => {
@@ -187,7 +199,9 @@ describe('Mass Import API Endpoint', () => {
 
       mockContext.req = { json: () => Promise.resolve(payload) };
 
-      await expect(processMassImport(mockContext)).rejects.toThrow('Coordinates out of valid range');
+      await expect(processMassImport(mockContext)).rejects.toThrow(
+        'Coordinates out of valid range'
+      );
     });
   });
 
@@ -209,7 +223,7 @@ describe('Mass Import API Endpoint', () => {
 
       // Verify successful response
       expect(response.status).toBe(200);
-      
+
       // Verify response data structure
       expect(mockContext.json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -242,7 +256,7 @@ describe('Mass Import API Endpoint', () => {
 
       // Verify successful response
       expect(response.status).toBe(200);
-      
+
       // Verify response includes the description in artwork data
       expect(mockContext.json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -284,7 +298,7 @@ describe('Mass Import API Endpoint', () => {
 
       // Verify successful response
       expect(response.status).toBe(200);
-      
+
       // Verify response includes logbook entries and tags
       expect(mockContext.json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -327,7 +341,7 @@ describe('Mass Import API Endpoint', () => {
 
       // Verify successful response
       expect(response.status).toBe(200);
-      
+
       // Verify response includes multiple logbook entries
       expect(mockContext.json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -454,9 +468,7 @@ describe('Mass Import API Endpoint', () => {
           title: 'Test Artwork',
           lat: 49.2827,
           lon: -123.1207,
-          photos: [
-            { url: 'https://example.com/large-photo.jpg' },
-          ],
+          photos: [{ url: 'https://example.com/large-photo.jpg' }],
         },
       };
 
@@ -489,9 +501,7 @@ describe('Mass Import API Endpoint', () => {
           title: 'Test Artwork',
           lat: 49.2827,
           lon: -123.1207,
-          photos: [
-            { url: 'https://example.com/photo1.jpg' },
-          ],
+          photos: [{ url: 'https://example.com/photo1.jpg' }],
         },
         // No logbook provided
       };
@@ -503,7 +513,7 @@ describe('Mass Import API Endpoint', () => {
 
       // Verify successful response
       expect(response.status).toBe(200);
-      
+
       // Response should show the artwork was created (logbook entry only created if photos were processed)
       expect(mockContext.json).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -530,7 +540,9 @@ describe('Mass Import API Endpoint', () => {
     it('should handle malformed JSON payload', async () => {
       mockContext.req = { json: (): Promise<never> => Promise.reject(new Error('Invalid JSON')) };
 
-      await expect(processMassImport(mockContext)).rejects.toThrow('Failed to process mass import submission');
+      await expect(processMassImport(mockContext)).rejects.toThrow(
+        'Failed to process mass import submission'
+      );
     });
   });
 });

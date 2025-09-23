@@ -182,7 +182,7 @@ describe('TagDiffDisplay', () => {
       });
 
       const html = wrapper.html();
-      
+
       // Should contain change icons
       expect(html).toContain('✏️'); // Modified
       expect(html).toContain('➕'); // Added

@@ -1,14 +1,12 @@
 /api/artists
-/api/artists/{id}
+/api.artists/{id}
 /api/artwork/{id}/edit
 /api/artwork/{id}/edit/validate
 /api/artwork/{id}/export/osm
 /api/artwork/{id}/pending-edits
 /api/artworks
 /api/artworks/{id}
-/api/artworks/{id}/tags
 /api/artworks/nearby
-/api/auth/consume` and `GET /api/auth/verify-status` have been removed in favor of the unified magic-link flow. Use `POST /api/auth/verify-magic-link` to exchange and verify magic-link tokens (see the "Verify Magic Link" section above).
 /api/auth/logout
 /api/auth/magic-link
 /api/auth/request-magic-link

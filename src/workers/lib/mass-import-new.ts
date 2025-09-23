@@ -4,10 +4,7 @@
 // Updated mass-import functionality for the new 6-table schema
 
 import type { D1Database } from '@cloudflare/workers-types';
-import type { 
-  NewArtworkRecord, 
-  NewArtistRecord
-} from '../../shared/types.js';
+import type { NewArtworkRecord, NewArtistRecord } from '../../shared/types.js';
 import { createSubmission, approveSubmission } from './submissions.js';
 import { recordUserActivity } from './user-activity.js';
 import { createAuditLog } from './audit-log.js';
@@ -88,7 +85,7 @@ export async function importArtworkBatch(
     createdSubmissions: [],
     errors: [],
     warnings: [],
-    processingTimeMs: 0
+    processingTimeMs: 0,
   };
 
   // Log the import session
@@ -96,7 +93,7 @@ export async function importArtworkBatch(
     importType: 'mass_import',
     sourceName: config.sourceName,
     recordCount: records.length,
-    dryRun: config.dryRun
+    dryRun: config.dryRun,
   });
 
   for (const record of records) {
@@ -106,7 +103,9 @@ export async function importArtworkBatch(
         const duplicateCheck = await checkForDuplicates(db, record, config.duplicateCheckRadius);
         if (duplicateCheck.isDuplicate) {
           result.duplicatesSkipped++;
-          result.warnings.push(`Skipped duplicate: ${record.title} near ${duplicateCheck.duplicateId}`);
+          result.warnings.push(
+            `Skipped duplicate: ${record.title} near ${duplicateCheck.duplicateId}`
+          );
           continue;
         }
       }
@@ -131,7 +130,12 @@ export async function importArtworkBatch(
 
       // Auto-approve if configured
       if (config.autoApprove) {
-        const approved = await approveSubmission(db, submissionId, config.importerToken, 'Auto-approved mass import');
+        const approved = await approveSubmission(
+          db,
+          submissionId,
+          config.importerToken,
+          'Auto-approved mass import'
+        );
         if (approved) {
           // Get the created artwork ID from the submission
           const artworkId = await getArtworkIdFromSubmission(db, submissionId);
@@ -142,7 +146,6 @@ export async function importArtworkBatch(
       }
 
       result.successfulImports++;
-
     } catch (error) {
       result.failedImports++;
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -164,9 +167,9 @@ export async function importArtworkBatch(
         sourceName: config.sourceName,
         batchSize: config.batchSize,
         autoApprove: config.autoApprove,
-        dryRun: config.dryRun
-      }
-    }
+        dryRun: config.dryRun,
+      },
+    },
   });
 
   return result;
@@ -194,8 +197,11 @@ async function createArtworkSubmission(
     photos: record.photos ? JSON.stringify(record.photos) : null,
     tags: record.tags ? JSON.stringify(record.tags) : null,
     description: record.description || null,
-    source_type: record.source_type === 'api_import' ? 'manual_entry' : record.source_type as 'user_submission' | 'osm_import' | 'manual_entry',
-    source_id: record.source_id
+    source_type:
+      record.source_type === 'api_import'
+        ? 'manual_entry'
+        : (record.source_type as 'user_submission' | 'osm_import' | 'manual_entry'),
+    source_id: record.source_id,
   };
 
   return createSubmission(db, {
@@ -208,7 +214,7 @@ async function createArtworkSubmission(
     ...(record.tags && { tags: record.tags }),
     newData: newArtworkData,
     verificationStatus: config.autoApprove ? 'verified' : 'pending',
-    ...(artistId && { artistId })
+    ...(artistId && { artistId }),
   });
 }
 
@@ -234,8 +240,11 @@ async function createArtistFromImport(
     nationality: null,
     social_media: null,
     notes: `Created during mass import from ${config.sourceName}`,
-    source_type: record.source_type === 'api_import' || record.source_type === 'osm_import' ? 'manual_entry' : record.source_type as 'user_submission' | 'manual_entry',
-    source_id: record.source_id
+    source_type:
+      record.source_type === 'api_import' || record.source_type === 'osm_import'
+        ? 'manual_entry'
+        : (record.source_type as 'user_submission' | 'manual_entry'),
+    source_id: record.source_id,
   };
 
   const submissionId = await createSubmission(db, {
@@ -243,12 +252,17 @@ async function createArtistFromImport(
     userToken: config.importerToken,
     notes: `Artist created during mass import from ${config.sourceName}`,
     newData: newArtistData,
-    verificationStatus: config.autoApprove ? 'verified' : 'pending'
+    verificationStatus: config.autoApprove ? 'verified' : 'pending',
   });
 
   // Auto-approve if configured
   if (config.autoApprove) {
-    const approved = await approveSubmission(db, submissionId, config.importerToken, 'Auto-approved mass import artist');
+    const approved = await approveSubmission(
+      db,
+      submissionId,
+      config.importerToken,
+      'Auto-approved mass import artist'
+    );
     if (approved) {
       const artistId = await getArtistIdFromSubmission(db, submissionId);
       return artistId || undefined;
@@ -269,9 +283,11 @@ export async function checkForDuplicates(
 ): Promise<DuplicateCheckResult> {
   // Use spatial bounding box for initial filtering
   const latDelta = radiusMeters / 111320; // Approximate meters to degrees
-  const lonDelta = radiusMeters / (111320 * Math.cos(record.lat * Math.PI / 180));
+  const lonDelta = radiusMeters / (111320 * Math.cos((record.lat * Math.PI) / 180));
 
-  const nearbyArtworks = await db.prepare(`
+  const nearbyArtworks = await db
+    .prepare(
+      `
     SELECT a.id, a.title, a.lat, a.lon, art.name as primary_artist_name
     FROM artwork a
     LEFT JOIN artwork_artists aa ON a.id = aa.artwork_id AND aa.role = 'primary'
@@ -279,36 +295,48 @@ export async function checkForDuplicates(
     WHERE a.lat BETWEEN ? AND ? 
     AND a.lon BETWEEN ? AND ?
     AND a.status = 'approved'
-  `).bind(
-    record.lat - latDelta,
-    record.lat + latDelta,
-    record.lon - lonDelta,
-    record.lon + lonDelta
-  ).all<{id: string, title: string, lat: number, lon: number, primary_artist_name: string | null}>();
+  `
+    )
+    .bind(
+      record.lat - latDelta,
+      record.lat + latDelta,
+      record.lon - lonDelta,
+      record.lon + lonDelta
+    )
+    .all<{
+      id: string;
+      title: string;
+      lat: number;
+      lon: number;
+      primary_artist_name: string | null;
+    }>();
 
   for (const artwork of nearbyArtworks.results || []) {
     const distance = calculateDistance(record.lat, record.lon, artwork.lat, artwork.lon);
-    
+
     if (distance <= radiusMeters) {
       // Check title similarity
       const titleSimilarity = calculateStringSimilarity(record.title, artwork.title);
-      
+
       // Check artist similarity if both have artists
       let artistSimilarity = 0;
       if (record.artist_name && artwork.primary_artist_name) {
-        artistSimilarity = calculateStringSimilarity(record.artist_name, artwork.primary_artist_name);
+        artistSimilarity = calculateStringSimilarity(
+          record.artist_name,
+          artwork.primary_artist_name
+        );
       }
 
       // Calculate overall confidence
       const confidence = Math.max(titleSimilarity, artistSimilarity);
-      
+
       // Consider it a duplicate if high similarity and close distance
       if (confidence > 0.8 && distance < 50) {
         return {
           isDuplicate: true,
           duplicateId: artwork.id,
           distance,
-          confidence
+          confidence,
         };
       }
     }
@@ -319,47 +347,51 @@ export async function checkForDuplicates(
 
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000; // Earth's radius in meters
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 }
 
 function calculateStringSimilarity(str1: string, str2: string): number {
   const s1 = str1.toLowerCase().trim();
   const s2 = str2.toLowerCase().trim();
-  
+
   if (s1 === s2) return 1.0;
-  
+
   // Simple Levenshtein distance-based similarity
   const maxLength = Math.max(s1.length, s2.length);
   if (maxLength === 0) return 1.0;
-  
+
   const distance = levenshteinDistance(s1, s2);
-  return 1 - (distance / maxLength);
+  return 1 - distance / maxLength;
 }
 
 function levenshteinDistance(str1: string, str2: string): number {
-  const matrix: number[][] = Array(str2.length + 1).fill(null).map(() => Array(str1.length + 1).fill(0));
-  
+  const matrix: number[][] = Array(str2.length + 1)
+    .fill(null)
+    .map(() => Array(str1.length + 1).fill(0));
+
   for (let i = 0; i <= str1.length; i++) matrix[0]![i] = i;
   for (let j = 0; j <= str2.length; j++) matrix[j]![0] = j;
-  
+
   for (let j = 1; j <= str2.length; j++) {
     for (let i = 1; i <= str1.length; i++) {
       const indicator = str1[i - 1] === str2[j - 1] ? 0 : 1;
       matrix[j]![i] = Math.min(
-        matrix[j]![i - 1]! + 1,     // deletion
-        matrix[j - 1]![i]! + 1,     // insertion
+        matrix[j]![i - 1]! + 1, // deletion
+        matrix[j - 1]![i]! + 1, // insertion
         matrix[j - 1]![i - 1]! + indicator // substitution
       );
     }
   }
-  
+
   return matrix[str2.length]![str1.length]!;
 }
 
@@ -368,15 +400,20 @@ function levenshteinDistance(str1: string, str2: string): number {
 // ================================
 
 async function findExistingArtist(
-  db: D1Database, 
+  db: D1Database,
   artistName: string
-): Promise<{id: string} | null> {
-  const result = await db.prepare(`
+): Promise<{ id: string } | null> {
+  const result = await db
+    .prepare(
+      `
     SELECT id FROM artists 
     WHERE LOWER(name) = LOWER(?) 
     AND status = 'active'
     LIMIT 1
-  `).bind(artistName.trim()).first<{id: string}>();
+  `
+    )
+    .bind(artistName.trim())
+    .first<{ id: string }>();
 
   return result || null;
 }
@@ -385,10 +422,15 @@ async function getArtworkIdFromSubmission(
   db: D1Database,
   submissionId: string
 ): Promise<string | null> {
-  const result = await db.prepare(`
+  const result = await db
+    .prepare(
+      `
     SELECT artwork_id FROM submissions 
     WHERE id = ? AND artwork_id IS NOT NULL
-  `).bind(submissionId).first<{artwork_id: string}>();
+  `
+    )
+    .bind(submissionId)
+    .first<{ artwork_id: string }>();
 
   return result?.artwork_id || null;
 }
@@ -397,10 +439,15 @@ async function getArtistIdFromSubmission(
   db: D1Database,
   submissionId: string
 ): Promise<string | null> {
-  const result = await db.prepare(`
+  const result = await db
+    .prepare(
+      `
     SELECT artist_id FROM submissions 
     WHERE id = ? AND artist_id IS NOT NULL
-  `).bind(submissionId).first<{artist_id: string}>();
+  `
+    )
+    .bind(submissionId)
+    .first<{ artist_id: string }>();
 
   return result?.artist_id || null;
 }
@@ -453,7 +500,7 @@ export function validateImportRecord(record: MassImportRecord): {
   return {
     valid: errors.length === 0,
     errors,
-    warnings
+    warnings,
   };
 }
 
@@ -495,12 +542,12 @@ export async function processImportFile(
     createdSubmissions: [],
     errors: invalidRecords,
     warnings: [],
-    processingTimeMs: 0
+    processingTimeMs: 0,
   };
 
   for (const batch of batches) {
     const batchResult = await importArtworkBatch(db, batch, config);
-    
+
     // Aggregate results
     aggregatedResult.successfulImports += batchResult.successfulImports;
     aggregatedResult.duplicatesSkipped += batchResult.duplicatesSkipped;

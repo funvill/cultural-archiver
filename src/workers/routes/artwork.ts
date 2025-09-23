@@ -8,16 +8,13 @@
  */
 
 import type { Context } from 'hono';
-import type {
-  ArtworkEditSubmissionResponse,
-  PendingEditsResponse,
-} from '../../shared/types';
+import type { ArtworkEditSubmissionResponse, PendingEditsResponse } from '../../shared/types';
 import type { ArtworkRecord, WorkerEnv } from '../types'; // Use local workers type
 import { isRateLimitingEnabled } from '../types';
-import { 
+import {
   getUserPendingArtworkEdits,
   getUserSubmissionCount,
-  createArtworkEditFromFields
+  createArtworkEditFromFields,
 } from '../lib/submissions';
 import { createSuccessResponse, ValidationApiError, NotFoundError } from '../lib/errors';
 import { getUserToken } from '../middleware/auth';
@@ -125,11 +122,7 @@ export async function submitArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): Pr
     }
 
     // Check if user already has pending edits for this artwork
-    const existingPendingEdits = await getUserPendingArtworkEdits(
-      c.env.DB,
-      userToken,
-      artworkId
-    );
+    const existingPendingEdits = await getUserPendingArtworkEdits(c.env.DB, userToken, artworkId);
     if (existingPendingEdits.length > 0) {
       throw new ValidationApiError([
         {
@@ -365,9 +358,7 @@ export async function exportArtworkToOSM(c: Context<{ Bindings: WorkerEnv }>): P
   }
 
   // Get artwork data
-  const artworkResult = await c.env.DB.prepare(
-    'SELECT * FROM artwork WHERE id = ? AND status = ?'
-  )
+  const artworkResult = await c.env.DB.prepare('SELECT * FROM artwork WHERE id = ? AND status = ?')
     .bind(artworkId, 'approved')
     .first();
 
@@ -381,12 +372,14 @@ export async function exportArtworkToOSM(c: Context<{ Bindings: WorkerEnv }>): P
   if (format === 'validation') {
     // Return validation results only
     const validation = validateOSMExportData(artwork);
-    return c.json(createSuccessResponse({
-      artwork_id: artworkId,
-      valid: validation.valid,
-      errors: validation.errors,
-      warnings: validation.warnings,
-    }));
+    return c.json(
+      createSuccessResponse({
+        artwork_id: artworkId,
+        valid: validation.valid,
+        errors: validation.errors,
+        warnings: validation.warnings,
+      })
+    );
   }
 
   if (format === 'xml') {
@@ -417,6 +410,6 @@ export async function exportArtworkToOSM(c: Context<{ Bindings: WorkerEnv }>): P
   };
 
   const response = createExportResponse([artwork], exportRequest);
-  
+
   return c.json(createSuccessResponse(response));
 }

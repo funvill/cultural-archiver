@@ -39,15 +39,24 @@ onMounted(() => {
             mapping initiative to preserve cultural heritage for future generations.
           </p>
           <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-            <button @click="$router.push('/add')" class="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold">
+            <button
+              @click="$router.push('/add')"
+              class="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold"
+            >
               📸 Submit Artwork
             </button>
 
-            <button @click="$router.push('/search?mode=photo')" class="px-6 py-3 bg-green-500 text-white rounded-lg font-semibold">
+            <button
+              @click="$router.push('/search?mode=photo')"
+              class="px-6 py-3 bg-green-500 text-white rounded-lg font-semibold"
+            >
               🔍 Search by Photo
             </button>
 
-            <button @click="$router.push('/')" class="px-6 py-3 bg-transparent border-2 border-white text-white rounded-lg font-semibold">
+            <button
+              @click="$router.push('/')"
+              class="px-6 py-3 bg-transparent border-2 border-white text-white rounded-lg font-semibold"
+            >
               🗺️ Explore Map
             </button>
           </div>

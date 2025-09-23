@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
  * Cultural Archiver Mass Import CLI Tool
- * 
+ *
  * Command-line interface for importing artwork data from external sources
  * with duplicate detection, structured tagging, and bulk approval workflows.
- * 
+ *
  * Usage:
  *   ca-import --source vancouver-public-art --config ./config.json --dry-run
  *   ca-import --source vancouver-public-art --config ./config.json
@@ -20,14 +20,14 @@ import * as ora from 'ora';
 import * as inquirer from 'inquirer';
 
 // import { MassImportProcessor } from '../src/lib/mass-import/dist/index.js';
-import { 
-  MassImportConfig, 
-  ImportContext, 
+import {
+  MassImportConfig,
+  ImportContext,
   ImportProgress,
   ImportError,
   MassImportResults,
   BulkApprovalConfig,
-  MASS_IMPORT_CONSTANTS 
+  MASS_IMPORT_CONSTANTS,
 } from '../src/shared/mass-import';
 
 // CLI-specific interfaces
@@ -50,7 +50,7 @@ class MassImportCLI {
 
   constructor() {
     this.library = new MassImportLibrary({
-      apiBaseUrl: process.env.API_BASE_URL || 'https://art-api.abluestar.com'
+      apiBaseUrl: process.env.API_BASE_URL || 'https://art-api.abluestar.com',
     });
   }
 
@@ -58,10 +58,7 @@ class MassImportCLI {
    * Main CLI entry point
    */
   async run(): Promise<void> {
-    program
-      .name('ca-import')
-      .description('Cultural Archiver Mass Import Tool')
-      .version('1.0.0');
+    program.name('ca-import').description('Cultural Archiver Mass Import Tool').version('1.0.0');
 
     // Main import command
     program
@@ -82,7 +79,7 @@ class MassImportCLI {
       .option('--batch-size <size>', 'Batch size for approval', '100')
       .action(this.executeBulkApproval.bind(this));
 
-    // Photo retry subcommand  
+    // Photo retry subcommand
     program
       .command('retry-photos')
       .description('Retry failed photo downloads from previous import')
@@ -137,10 +134,14 @@ class MassImportCLI {
         import_id: this.generateImportId(options.source),
         dry_run: !!options.dryRun,
         onProgress: this.handleProgress.bind(this),
-        onError: this.handleError.bind(this)
+        onError: this.handleError.bind(this),
       };
 
-      this.log(chalk.blue(`Starting ${options.dryRun ? 'dry run' : 'import'} for source: ${options.source}`));
+      this.log(
+        chalk.blue(
+          `Starting ${options.dryRun ? 'dry run' : 'import'} for source: ${options.source}`
+        )
+      );
       this.log(chalk.gray(`Records to process: ${data.length}`));
       this.log(chalk.gray(`Import ID: ${context.import_id}`));
 
@@ -157,8 +158,8 @@ class MassImportCLI {
             type: 'confirm',
             name: 'proceed',
             message: `Proceed with importing ${data.length} records?`,
-            default: false
-          }
+            default: false,
+          },
         ]);
 
         if (!confirmImport.proceed) {
@@ -174,10 +175,9 @@ class MassImportCLI {
 
       // Display results
       await this.displayResults(results, options.output);
-      
+
       // Save detailed reports
       await this.saveReports(results, options.output);
-
     } catch (error) {
       if (this.spinner) {
         this.spinner.fail('Import failed');
@@ -206,8 +206,8 @@ class MassImportCLI {
             type: 'confirm',
             name: 'proceed',
             message: `Are you sure you want to bulk approve all records from source '${options.source}'? This action cannot be easily undone.`,
-            default: false
-          }
+            default: false,
+          },
         ]);
 
         if (!confirmApproval.proceed) {
@@ -219,7 +219,7 @@ class MassImportCLI {
       const bulkConfig: BulkApprovalConfig = {
         source: options.source,
         batch_size: parseInt(options.batchSize) || 100,
-        confirm: true
+        confirm: true,
       };
 
       const context: ImportContext = {
@@ -227,23 +227,22 @@ class MassImportCLI {
         api_token: apiToken,
         api_base_url: process.env.API_BASE_URL || 'https://art-api.abluestar.com',
         import_id: '',
-        dry_run: false
+        dry_run: false,
       };
 
       this.spinner = ora(`Bulk approving records from source: ${options.source}`).start();
-      
+
       const results = await this.library.bulkApprove(bulkConfig, context);
-      
+
       this.spinner.succeed('Bulk approval completed');
-      
+
       this.log(chalk.green(`Approved: ${results.approved_count} records`));
       if (results.failed_count > 0) {
         this.log(chalk.red(`Failed: ${results.failed_count} records`));
       }
-      
+
       this.log(chalk.gray(`Rollback ID: ${results.rollback_info.rollback_id}`));
       this.log(chalk.gray(`Rollback expires: ${results.rollback_info.expires_at}`));
-
     } catch (error) {
       if (this.spinner) {
         this.spinner.fail('Bulk approval failed');
@@ -286,16 +285,25 @@ class MassImportCLI {
 
       // Display configuration summary
       this.log(chalk.blue('\nConfiguration Summary:'));
-      this.log(chalk.gray(`Required fields mapped: ${validation.summary.required_fields_mapped ? '✓' : '✗'}`));
-      this.log(chalk.gray(`Tag mappings valid: ${validation.summary.tag_mappings_valid ? '✓' : '✗'}`));
-      this.log(chalk.gray(`Photo config valid: ${validation.summary.photo_config_valid ? '✓' : '✗'}`));
+      this.log(
+        chalk.gray(
+          `Required fields mapped: ${validation.summary.required_fields_mapped ? '✓' : '✗'}`
+        )
+      );
+      this.log(
+        chalk.gray(`Tag mappings valid: ${validation.summary.tag_mappings_valid ? '✓' : '✗'}`)
+      );
+      this.log(
+        chalk.gray(`Photo config valid: ${validation.summary.photo_config_valid ? '✓' : '✗'}`)
+      );
 
       if (!validation.valid) {
         process.exit(1);
       }
-
     } catch (error) {
-      this.error(`Configuration validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      this.error(
+        `Configuration validation failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
       process.exit(1);
     }
   }
@@ -313,21 +321,23 @@ class MassImportCLI {
       const config = JSON.parse(configData) as MassImportConfig;
 
       // Apply defaults
-      config.duplicate_radius_meters = config.duplicate_radius_meters || MASS_IMPORT_CONSTANTS.DEFAULT_DUPLICATE_RADIUS_METERS;
+      config.duplicate_radius_meters =
+        config.duplicate_radius_meters || MASS_IMPORT_CONSTANTS.DEFAULT_DUPLICATE_RADIUS_METERS;
       config.processing_mode = config.processing_mode || 'sequential';
 
       if (!config.batch_config) {
         config.batch_config = {
           batch_size: MASS_IMPORT_CONSTANTS.DEFAULT_BATCH_SIZE,
           batch_delay_ms: 1000,
-          max_concurrent: MASS_IMPORT_CONSTANTS.DEFAULT_MAX_CONCURRENT
+          max_concurrent: MASS_IMPORT_CONSTANTS.DEFAULT_MAX_CONCURRENT,
         };
       }
 
       return config;
-
     } catch (error) {
-      throw new Error(`Failed to load configuration: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to load configuration: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -348,9 +358,10 @@ class MassImportCLI {
       }
 
       return data;
-
     } catch (error) {
-      throw new Error(`Failed to load data file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to load data file: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -358,14 +369,19 @@ class MassImportCLI {
    * Handle progress updates
    */
   private handleProgress(progress: ImportProgress): void {
-    const percentage = progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
-    
+    const percentage =
+      progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
+
     if (this.spinner) {
       this.spinner.text = `${progress.message} (${progress.processed}/${progress.total} - ${percentage}%)`;
     }
 
     if (this.verbose && progress.current_record) {
-      this.log(chalk.gray(`Processing: ${progress.current_record.title} [${progress.current_record.external_id}]`));
+      this.log(
+        chalk.gray(
+          `Processing: ${progress.current_record.title} [${progress.current_record.external_id}]`
+        )
+      );
     }
   }
 
@@ -389,24 +405,26 @@ class MassImportCLI {
     this.log(chalk.gray(`Import ID: ${results.import_id}`));
     this.log(chalk.gray(`Source: ${results.source}`));
     this.log(chalk.gray(`Mode: ${results.dry_run ? 'Dry Run' : 'Live Import'}`));
-    this.log(chalk.gray(`Processing Time: ${(results.statistics.processing_time_ms / 1000).toFixed(2)}s`));
+    this.log(
+      chalk.gray(`Processing Time: ${(results.statistics.processing_time_ms / 1000).toFixed(2)}s`)
+    );
 
     this.log(chalk.blue('\n--- Statistics ---'));
     this.log(chalk.gray(`Total Records: ${results.statistics.total_records}`));
     this.log(chalk.green(`Successful: ${results.statistics.successful}`));
-    
+
     if (results.statistics.failed > 0) {
       this.log(chalk.red(`Failed: ${results.statistics.failed}`));
     }
-    
+
     if (results.statistics.skipped_duplicates > 0) {
       this.log(chalk.yellow(`Skipped Duplicates: ${results.statistics.skipped_duplicates}`));
     }
-    
+
     if (results.statistics.photo_failures > 0) {
       this.log(chalk.yellow(`Photo Failures: ${results.statistics.photo_failures}`));
     }
-    
+
     if (results.statistics.tag_warnings > 0) {
       this.log(chalk.yellow(`Tag Warnings: ${results.statistics.tag_warnings}`));
     }
@@ -415,11 +433,11 @@ class MassImportCLI {
       this.log(chalk.blue('\n--- Tag Validation ---'));
       this.log(chalk.gray(`Total Tags: ${results.tag_validation_summary.total_tags}`));
       this.log(chalk.green(`Valid: ${results.tag_validation_summary.valid_tags}`));
-      
+
       if (results.tag_validation_summary.warning_tags > 0) {
         this.log(chalk.yellow(`Warnings: ${results.tag_validation_summary.warning_tags}`));
       }
-      
+
       if (results.tag_validation_summary.invalid_tags > 0) {
         this.log(chalk.red(`Invalid: ${results.tag_validation_summary.invalid_tags}`));
       }
@@ -428,10 +446,14 @@ class MassImportCLI {
     if (results.duplicate_matches.length > 0) {
       this.log(chalk.blue('\n--- Duplicate Detection ---'));
       this.log(chalk.gray(`Potential Duplicates Found: ${results.duplicate_matches.length}`));
-      
+
       if (this.verbose) {
         results.duplicate_matches.forEach(match => {
-          this.log(chalk.yellow(`  ${match.external_id}: ${(match.similarity_score * 100).toFixed(1)}% similar to ${match.existing_artwork_id}`));
+          this.log(
+            chalk.yellow(
+              `  ${match.external_id}: ${(match.similarity_score * 100).toFixed(1)}% similar to ${match.existing_artwork_id}`
+            )
+          );
         });
       }
     }
@@ -452,27 +474,43 @@ class MassImportCLI {
     const reportType = results.dry_run ? 'dry-run' : 'import';
 
     // Summary report
-    const summaryPath = path.join(outputDir, `${results.source}-${reportType}-summary-${timestamp}.json`);
-    fs.writeFileSync(summaryPath, JSON.stringify({
-      import_id: results.import_id,
-      source: results.source,
-      dry_run: results.dry_run,
-      started_at: results.started_at,
-      completed_at: results.completed_at,
-      statistics: results.statistics,
-      tag_validation_summary: results.tag_validation_summary,
-      duplicate_matches: results.duplicate_matches
-    }, null, 2));
+    const summaryPath = path.join(
+      outputDir,
+      `${results.source}-${reportType}-summary-${timestamp}.json`
+    );
+    fs.writeFileSync(
+      summaryPath,
+      JSON.stringify(
+        {
+          import_id: results.import_id,
+          source: results.source,
+          dry_run: results.dry_run,
+          started_at: results.started_at,
+          completed_at: results.completed_at,
+          statistics: results.statistics,
+          tag_validation_summary: results.tag_validation_summary,
+          duplicate_matches: results.duplicate_matches,
+        },
+        null,
+        2
+      )
+    );
 
     // Error details report
     if (results.failed_records.length > 0) {
-      const errorsPath = path.join(outputDir, `${results.source}-${reportType}-errors-${timestamp}.json`);
+      const errorsPath = path.join(
+        outputDir,
+        `${results.source}-${reportType}-errors-${timestamp}.json`
+      );
       fs.writeFileSync(errorsPath, JSON.stringify(results.failed_records, null, 2));
     }
 
     // Successful records report
     if (results.successful_records.length > 0) {
-      const successPath = path.join(outputDir, `${results.source}-${reportType}-success-${timestamp}.json`);
+      const successPath = path.join(
+        outputDir,
+        `${results.source}-${reportType}-success-${timestamp}.json`
+      );
       fs.writeFileSync(successPath, JSON.stringify(results.successful_records, null, 2));
     }
   }

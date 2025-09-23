@@ -64,14 +64,14 @@ describe('Similarity Service', () => {
       const query = createTestQuery();
       const candidates = [
         createTestCandidate({ id: 'exact-match' }),
-        createTestCandidate({ 
+        createTestCandidate({
           id: 'similar-match',
-          coordinates: { lat: 49.2830, lon: -123.1210 },
+          coordinates: { lat: 49.283, lon: -123.121 },
           title: 'Bronze Statue',
         }),
         createTestCandidate({
           id: 'distant-match',
-          coordinates: { lat: 49.2900, lon: -123.1300 },
+          coordinates: { lat: 49.29, lon: -123.13 },
           title: 'Abstract Art',
           tags: JSON.stringify(['art']),
         }),
@@ -96,7 +96,7 @@ describe('Similarity Service', () => {
       const query = createTestQuery();
       const candidates = [
         createTestCandidate({ id: 'good-candidate' }),
-        createTestCandidate({ 
+        createTestCandidate({
           id: 'bad-candidate',
           coordinates: { lat: NaN, lon: NaN }, // Invalid coordinates
         }),
@@ -108,11 +108,11 @@ describe('Similarity Service', () => {
       // The similarity engine is resilient and continues with all candidates
       // but NaN coordinates should result in 0 distance score
       expect(results.length).toBe(3);
-      
+
       // The bad candidate should have lower similarity due to NaN distance
       const badResult = results.find(r => r.artworkId === 'bad-candidate');
       const goodResult = results.find(r => r.artworkId === 'good-candidate');
-      
+
       expect(badResult).toBeDefined();
       expect(goodResult).toBeDefined();
       expect(badResult!.overallScore).toBeLessThan(goodResult!.overallScore);
@@ -124,8 +124,8 @@ describe('Similarity Service', () => {
       const query = createTestQuery();
       const nearbyArtworks = [
         createTestArtwork({ id: 'nearby-1', distance_km: 0.05 }),
-        createTestArtwork({ 
-          id: 'nearby-2', 
+        createTestArtwork({
+          id: 'nearby-2',
           distance_km: 0.1,
           title: 'Steel Sculpture',
           tags: JSON.stringify(['sculpture', 'steel']),
@@ -135,12 +135,12 @@ describe('Similarity Service', () => {
       const enhanced = service.enhanceNearbyResults(query, nearbyArtworks);
 
       expect(enhanced).toHaveLength(2);
-      
+
       // Should have similarity scores
       expect(enhanced[0].similarity_score).toBeDefined();
       expect(enhanced[0].similarity_threshold).toBeDefined();
       expect(enhanced[0].distance_meters).toBe(50); // 0.05km = 50m
-      
+
       // Should be sorted by relevance
       expect(enhanced[0].similarity_score).toBeGreaterThanOrEqual(enhanced[1].similarity_score!);
     });
@@ -148,16 +148,16 @@ describe('Similarity Service', () => {
     it('should gracefully degrade when similarity service fails', () => {
       // Create a service that will fail by passing completely invalid query
       const failingService = createSimilarityService();
-      
+
       // Force an error by passing null query that will cause JSON parsing to fail
       const nearbyArtworks = [createTestArtwork()];
-      
+
       // Mock the similarity calculation to throw an error
       // const _originalCalculate = failingService.calculateSimilarityScores; // Commented out as unused
       failingService.calculateSimilarityScores = (): SimilarityResult[] => {
         throw new Error('Simulated similarity service failure');
       };
-      
+
       const query = createTestQuery();
       const enhanced = failingService.enhanceNearbyResults(query, nearbyArtworks);
 
@@ -181,13 +181,13 @@ describe('Similarity Service', () => {
     it('should sort by similarity score then distance', () => {
       const query = createTestQuery({ coordinates: { lat: 49.2827, lon: -123.1207 } });
       const nearbyArtworks = [
-        createTestArtwork({ 
+        createTestArtwork({
           id: 'close-dissimilar',
           distance_km: 0.05, // Very close
           title: 'Random Art',
           tags: JSON.stringify(['random']),
         }),
-        createTestArtwork({ 
+        createTestArtwork({
           id: 'far-similar',
           distance_km: 0.5, // Farther away
           title: 'Bronze Sculpture', // Exact match
@@ -208,7 +208,7 @@ describe('Similarity Service', () => {
       const query = createTestQuery();
       const candidates = [
         createTestCandidate({ id: 'exact-duplicate' }), // Perfect match
-        createTestCandidate({ 
+        createTestCandidate({
           id: 'similar',
           title: 'Bronze Statue',
         }),
@@ -247,9 +247,9 @@ describe('Similarity Service', () => {
       const query = createTestQuery();
       const candidates = [
         createTestCandidate({ id: 'perfect-match' }), // Should be high similarity
-        createTestCandidate({ 
+        createTestCandidate({
           id: 'medium-match',
-          coordinates: { lat: 49.2900, lon: -123.1300 },
+          coordinates: { lat: 49.29, lon: -123.13 },
           title: 'Different Art',
         }),
       ];
@@ -266,7 +266,7 @@ describe('Similarity Service', () => {
       const query = createTestQuery();
       const candidates = [
         createTestCandidate({ id: 'perfect-match' }),
-        createTestCandidate({ 
+        createTestCandidate({
           id: 'good-match',
           title: 'Bronze Statue', // Similar title
         }),
@@ -302,18 +302,21 @@ describe('Similarity Service', () => {
     it('should parse tags in different formats', () => {
       // Array format
       expect(parseTagsForSimilarity('["sculpture", "bronze"]')).toEqual(['sculpture', 'bronze']);
-      
+
       // Flat object format
-      expect(parseTagsForSimilarity('{"material": "bronze", "type": "sculpture"}'))
-        .toEqual(['bronze', 'sculpture']);
-      
+      expect(parseTagsForSimilarity('{"material": "bronze", "type": "sculpture"}')).toEqual([
+        'bronze',
+        'sculpture',
+      ]);
+
       // Structured format
-      expect(parseTagsForSimilarity('{"tags": {"material": "bronze", "type": "sculpture"}}'))
-        .toEqual(['bronze', 'sculpture']);
-      
+      expect(
+        parseTagsForSimilarity('{"tags": {"material": "bronze", "type": "sculpture"}}')
+      ).toEqual(['bronze', 'sculpture']);
+
       // Invalid JSON
       expect(parseTagsForSimilarity('invalid json')).toEqual([]);
-      
+
       // Null/empty
       expect(parseTagsForSimilarity(null)).toEqual([]);
       expect(parseTagsForSimilarity('')).toEqual([]);
@@ -322,7 +325,7 @@ describe('Similarity Service', () => {
     it('should filter non-string values from tag parsing', () => {
       const tagsWithNumbers = '{"material": "bronze", "height": 5, "public": true}';
       const parsed = parseTagsForSimilarity(tagsWithNumbers);
-      
+
       expect(parsed).toEqual(['bronze']);
       expect(parsed).not.toContain(5);
       expect(parsed).not.toContain(true);

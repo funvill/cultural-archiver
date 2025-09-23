@@ -40,29 +40,31 @@ export class DatabaseService {
 
     const tagsJson = data.tags ? JSON.stringify(data.tags) : null;
     const status = data.status || 'pending'; // Default to 'pending' if not specified
-    await stmt.bind(
-      id, 
-      data.lat, 
-      data.lon, 
-      now, 
-      now, // updated_at
-      status, 
-      tagsJson,
-      data.photos || null,
-      data.title || null,
-      data.description || null, 
-      data.created_by || null
-    ).run();
+    await stmt
+      .bind(
+        id,
+        data.lat,
+        data.lon,
+        now,
+        now, // updated_at
+        status,
+        tagsJson,
+        data.photos || null,
+        data.title || null,
+        data.description || null,
+        data.created_by || null
+      )
+      .run();
 
     // Create artwork_type tag if not present
     const artworkType: string =
       data.tags && typeof (data.tags as Record<string, unknown>)['artwork_type'] === 'string'
-        ? (data.tags as Record<string, unknown>)['artwork_type'] as string
+        ? ((data.tags as Record<string, unknown>)['artwork_type'] as string)
         : 'unknown';
     await this.createTag({
       artwork_id: id,
       label: 'artwork_type',
-      value: artworkType
+      value: artworkType,
     });
 
     return id;
@@ -74,7 +76,9 @@ export class DatabaseService {
     return result ? (result as unknown as ArtworkRecord) : null;
   }
 
-  async getArtworkWithDetails(id: string): Promise<(ArtworkRecord & { type_name: string; artist_name?: string }) | null> {
+  async getArtworkWithDetails(
+    id: string
+  ): Promise<(ArtworkRecord & { type_name: string; artist_name?: string }) | null> {
     try {
       // Query artwork table with artist information - join with artwork_artists and artists tables
       const stmt = this.db.prepare(`
@@ -184,12 +188,15 @@ export class DatabaseService {
       .all();
 
     // For bounds queries, we don't calculate distance, so set to 0
-    return (results.results as unknown as (ArtworkRecord & { type_name: string; artist_name?: string })[]).map(
-      artwork => ({
-        ...artwork,
-        distance_km: 0,
-        distance_sq: 0,
-      }) as ArtworkWithDistance
+    return (
+      results.results as unknown as (ArtworkRecord & { type_name: string; artist_name?: string })[]
+    ).map(
+      artwork =>
+        ({
+          ...artwork,
+          distance_km: 0,
+          distance_sq: 0,
+        }) as ArtworkWithDistance
     );
   }
 
@@ -213,16 +220,18 @@ export class DatabaseService {
     `);
 
     const photosJson = data.photos ? JSON.stringify(data.photos) : null;
-    await stmt.bind(
-      id,
-      data.artwork_id || null,
-      data.user_token,
-      data.lat || null,
-      data.lon || null,
-      data.notes || null,
-      photosJson,
-      now
-    ).run();
+    await stmt
+      .bind(
+        id,
+        data.artwork_id || null,
+        data.user_token,
+        data.lat || null,
+        data.lon || null,
+        data.notes || null,
+        photosJson,
+        now
+      )
+      .run();
 
     return {
       id,
@@ -238,7 +247,9 @@ export class DatabaseService {
   }
 
   async getLogbookById(id: string): Promise<LogbookRecord | null> {
-    const stmt = this.db.prepare('SELECT * FROM submissions WHERE id = ? AND submission_type = "logbook_entry"');
+    const stmt = this.db.prepare(
+      'SELECT * FROM submissions WHERE id = ? AND submission_type = "logbook_entry"'
+    );
     const result = await stmt.bind(id).first();
     return result ? (result as unknown as LogbookRecord) : null;
   }
@@ -328,17 +339,23 @@ export class DatabaseService {
   }
 
   async updateLogbookStatus(id: string, status: LogbookRecord['status']): Promise<void> {
-    const stmt = this.db.prepare('UPDATE submissions SET status = ? WHERE id = ? AND submission_type = ?');
+    const stmt = this.db.prepare(
+      'UPDATE submissions SET status = ? WHERE id = ? AND submission_type = ?'
+    );
     await stmt.bind(status, id, 'logbook_entry').run();
   }
 
   async updateLogbookPhotos(id: string, photoUrls: string[]): Promise<void> {
-    const stmt = this.db.prepare('UPDATE submissions SET photos = ? WHERE id = ? AND submission_type = ?');
+    const stmt = this.db.prepare(
+      'UPDATE submissions SET photos = ? WHERE id = ? AND submission_type = ?'
+    );
     await stmt.bind(JSON.stringify(photoUrls), id, 'logbook_entry').run();
   }
 
   async linkLogbookToArtwork(logbookId: string, artworkId: string): Promise<void> {
-    const stmt = this.db.prepare('UPDATE submissions SET artwork_id = ? WHERE id = ? AND submission_type = ?');
+    const stmt = this.db.prepare(
+      'UPDATE submissions SET artwork_id = ? WHERE id = ? AND submission_type = ?'
+    );
     await stmt.bind(artworkId, logbookId, 'logbook_entry').run();
   }
 
@@ -353,8 +370,8 @@ export class DatabaseService {
     if (data.artwork_id) {
       // Get current tags from artwork
       const artworkStmt = this.db.prepare('SELECT tags FROM artwork WHERE id = ?');
-      const artwork = await artworkStmt.bind(data.artwork_id).first() as { tags?: string } | null;
-      
+      const artwork = (await artworkStmt.bind(data.artwork_id).first()) as { tags?: string } | null;
+
       let currentTags: Record<string, string | number | boolean> = {};
       if (artwork?.tags) {
         try {
@@ -363,19 +380,18 @@ export class DatabaseService {
           console.warn('Failed to parse existing artwork tags', e);
         }
       }
-      
+
       // Add new tag
       currentTags[data.label] = data.value;
-      
+
       // Update artwork with new tags (artwork table doesn't have updated_at column)
       const updateStmt = this.db.prepare('UPDATE artwork SET tags = ? WHERE id = ?');
       await updateStmt.bind(JSON.stringify(currentTags), data.artwork_id).run();
-      
     } else if (data.logbook_id) {
       // Get current tags from submission/logbook
       const logbookStmt = this.db.prepare('SELECT tags FROM submissions WHERE id = ?');
-      const logbook = await logbookStmt.bind(data.logbook_id).first() as { tags?: string } | null;
-      
+      const logbook = (await logbookStmt.bind(data.logbook_id).first()) as { tags?: string } | null;
+
       let currentTags: Record<string, string | number | boolean> = {};
       if (logbook?.tags) {
         try {
@@ -384,12 +400,14 @@ export class DatabaseService {
           console.warn('Failed to parse existing logbook tags', e);
         }
       }
-      
+
       // Add new tag
       currentTags[data.label] = data.value;
-      
+
       // Update submission with new tags (submissions table has updated_at column)
-      const updateSubmissionStmt = this.db.prepare('UPDATE submissions SET tags = ?, updated_at = datetime("now") WHERE id = ?');
+      const updateSubmissionStmt = this.db.prepare(
+        'UPDATE submissions SET tags = ?, updated_at = datetime("now") WHERE id = ?'
+      );
       await updateSubmissionStmt.bind(JSON.stringify(currentTags), data.logbook_id).run();
     }
 
@@ -406,12 +424,12 @@ export class DatabaseService {
   async getTagsForArtwork(artworkId: string): Promise<TagRecord[]> {
     // With the new schema, tags are stored as JSON in the artwork table
     const stmt = this.db.prepare('SELECT tags FROM artwork WHERE id = ?');
-    const result = await stmt.bind(artworkId).first() as { tags?: string } | null;
-    
+    const result = (await stmt.bind(artworkId).first()) as { tags?: string } | null;
+
     if (!result || !result.tags) {
       return [];
     }
-    
+
     try {
       const tags = JSON.parse(result.tags);
       // Convert JSON object to TagRecord array format
@@ -421,7 +439,7 @@ export class DatabaseService {
         logbook_id: null,
         label,
         value: String(value),
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       }));
     } catch (e) {
       console.warn('Failed to parse artwork tags JSON', e);
@@ -430,14 +448,16 @@ export class DatabaseService {
   }
 
   async getTagsForLogbook(logbookId: string): Promise<TagRecord[]> {
-    // With the new schema, tags are stored as JSON in the submissions table  
-    const stmt = this.db.prepare("SELECT tags FROM submissions WHERE id = ? AND submission_type = 'logbook_entry'");
-    const result = await stmt.bind(logbookId).first() as { tags?: string } | null;
-    
+    // With the new schema, tags are stored as JSON in the submissions table
+    const stmt = this.db.prepare(
+      "SELECT tags FROM submissions WHERE id = ? AND submission_type = 'logbook_entry'"
+    );
+    const result = (await stmt.bind(logbookId).first()) as { tags?: string } | null;
+
     if (!result || !result.tags) {
       return [];
     }
-    
+
     try {
       const tags = JSON.parse(result.tags);
       // Convert JSON object to TagRecord array format
@@ -447,7 +467,7 @@ export class DatabaseService {
         logbook_id: logbookId,
         label,
         value: String(value),
-        created_at: new Date().toISOString()
+        created_at: new Date().toISOString(),
       }));
     } catch (e) {
       console.warn('Failed to parse logbook tags JSON', e);
@@ -496,7 +516,9 @@ export class DatabaseService {
     return (result as { count: number } | null)?.count || 0;
   }
 
-  async getCreatorsForArtwork(artworkId: string): Promise<{ id: string; name: string; role: string }[]> {
+  async getCreatorsForArtwork(
+    artworkId: string
+  ): Promise<{ id: string; name: string; role: string }[]> {
     try {
       const stmt = this.db.prepare(`
         SELECT a.id, a.name, aa.role
@@ -516,7 +538,9 @@ export class DatabaseService {
   }
 
   // Get artists from the new artist system
-  async getArtistsForArtwork(artworkId: string): Promise<{ id: string; name: string; role: string }[]> {
+  async getArtistsForArtwork(
+    artworkId: string
+  ): Promise<{ id: string; name: string; role: string }[]> {
     try {
       const stmt = this.db.prepare(`
         SELECT a.id, a.name, aa.role
@@ -539,7 +563,9 @@ export class DatabaseService {
   // Artist Operations for Mass Import
   // ================================
 
-  async searchArtistsByNormalizedName(normalizedName: string): Promise<{ id: string; name: string }[]> {
+  async searchArtistsByNormalizedName(
+    normalizedName: string
+  ): Promise<{ id: string; name: string }[]> {
     try {
       const stmt = this.db.prepare(`
         SELECT id, name 
@@ -556,7 +582,9 @@ export class DatabaseService {
     }
   }
 
-  async searchArtistsByTokens(tokens: string[]): Promise<{ id: string; name: string; score: number }[]> {
+  async searchArtistsByTokens(
+    tokens: string[]
+  ): Promise<{ id: string; name: string; score: number }[]> {
     if (tokens.length === 0) return [];
 
     try {
@@ -571,11 +599,11 @@ export class DatabaseService {
 
       const tokenParams = tokens.map(token => `%${token}%`);
       const results = await stmt.bind(...tokenParams).all();
-      
+
       // Add simple scoring based on how many tokens match
       return (results.results as unknown as { id: string; name: string }[]).map(artist => ({
         ...artist,
-        score: this.calculateTokenMatchScore(artist.name, tokens)
+        score: this.calculateTokenMatchScore(artist.name, tokens),
       }));
     } catch (error) {
       console.warn('Error searching artists by tokens:', error);
@@ -584,9 +612,13 @@ export class DatabaseService {
   }
 
   private calculateTokenMatchScore(artistName: string, searchTokens: string[]): number {
-    const artistTokens = this.normalizeArtistName(artistName).split(' ').filter(t => t);
-    const matchingTokens = searchTokens.filter(searchToken => 
-      artistTokens.some(artistToken => artistToken.includes(searchToken) || searchToken.includes(artistToken))
+    const artistTokens = this.normalizeArtistName(artistName)
+      .split(' ')
+      .filter(t => t);
+    const matchingTokens = searchTokens.filter(searchToken =>
+      artistTokens.some(
+        artistToken => artistToken.includes(searchToken) || searchToken.includes(artistToken)
+      )
     );
     return matchingTokens.length / searchTokens.length;
   }
@@ -619,20 +651,17 @@ export class DatabaseService {
       VALUES (?, ?, ?, ?, ?, ?, 'active')
     `);
 
-    await stmt.bind(
-      id,
-      data.name,
-      data.description || null,
-      JSON.stringify(tags),
-      now,
-      now
-    ).run();
+    await stmt.bind(id, data.name, data.description || null, JSON.stringify(tags), now, now).run();
 
     console.log(`[DB] Created artist for mass import: ${id} - ${data.name}`);
     return id;
   }
 
-  async linkArtworkToArtist(artworkId: string, artistId: string, role: string = 'artist'): Promise<string> {
+  async linkArtworkToArtist(
+    artworkId: string,
+    artistId: string,
+    role: string = 'artist'
+  ): Promise<string> {
     const id = generateUUID();
     const now = new Date().toISOString();
 
@@ -764,7 +793,7 @@ export async function updateArtworkPhotos(
 ): Promise<void> {
   // Store photos in the dedicated photos field (not in tags._photos)
   const photosJson = JSON.stringify(photoUrls);
-  
+
   const stmt = db.prepare(`
     UPDATE artwork
     SET photos = ?
@@ -783,7 +812,7 @@ export function getPhotosFromArtwork(artwork: ArtworkRecord): string[] {
       // Fall through to legacy check
     }
   }
-  
+
   // Legacy fallback: check tags._photos for existing data
   if (artwork.tags) {
     try {
@@ -793,7 +822,7 @@ export function getPhotosFromArtwork(artwork: ArtworkRecord): string[] {
       // Ignore parse errors
     }
   }
-  
+
   return [];
 }
 
@@ -825,7 +854,7 @@ export async function getLogbookCooldownStatus(
   try {
     // Check for any approved or pending logbook entry from this user for this artwork in the last 30 days
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-    
+
     const stmt = db.prepare(`
       SELECT created_at FROM submissions 
       WHERE user_token = ? 
@@ -836,17 +865,19 @@ export async function getLogbookCooldownStatus(
       ORDER BY created_at DESC
       LIMIT 1
     `);
-    
-    const result = await stmt.bind(userToken, artworkId, thirtyDaysAgo).first<{ created_at: string }>();
-    
+
+    const result = await stmt
+      .bind(userToken, artworkId, thirtyDaysAgo)
+      .first<{ created_at: string }>();
+
     if (!result) {
       return { onCooldown: false };
     }
-    
+
     // Calculate when the cooldown expires (30 days from the last submission)
     const lastSubmission = new Date(result.created_at);
     const cooldownUntil = new Date(lastSubmission.getTime() + 30 * 24 * 60 * 60 * 1000);
-    
+
     return {
       onCooldown: true,
       cooldownUntil: cooldownUntil.toISOString(),

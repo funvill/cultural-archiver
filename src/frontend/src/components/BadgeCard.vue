@@ -1,15 +1,20 @@
 <template>
-  <div 
+  <div
     class="badge-card group cursor-help"
     :title="tooltipText"
     @click="showDetails = !showDetails"
   >
     <!-- Badge Display -->
-    <div class="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition-shadow duration-200">
+    <div
+      class="bg-white rounded-lg border border-gray-200 p-3 hover:shadow-md transition-shadow duration-200"
+    >
       <!-- Badge Icon and Level -->
       <div class="flex items-center justify-between mb-2">
         <div class="text-2xl">{{ badge.icon_emoji }}</div>
-        <div v-if="badge.level > 1" class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+        <div
+          v-if="badge.level > 1"
+          class="text-xs font-medium text-gray-500 bg-gray-100 px-2 py-1 rounded-full"
+        >
           Level {{ badge.level }}
         </div>
       </div>
@@ -31,15 +36,12 @@
     </div>
 
     <!-- Detailed Modal/Popover (Optional Enhancement) -->
-    <div 
-      v-if="showDetails" 
+    <div
+      v-if="showDetails"
       class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
       @click="showDetails = false"
     >
-      <div 
-        class="bg-white rounded-lg p-6 max-w-sm mx-4"
-        @click.stop
-      >
+      <div class="bg-white rounded-lg p-6 max-w-sm mx-4" @click.stop>
         <div class="flex items-center mb-4">
           <div class="text-4xl mr-3">{{ badge.icon_emoji }}</div>
           <div>
@@ -47,9 +49,9 @@
             <p class="text-sm text-gray-600">{{ badge.category }} badge</p>
           </div>
         </div>
-        
+
         <p class="text-gray-700 mb-4">{{ badge.description }}</p>
-        
+
         <div class="space-y-2 text-sm">
           <div class="flex justify-between">
             <span class="text-gray-600">Earned:</span>
@@ -65,7 +67,7 @@
           </div>
         </div>
 
-        <button 
+        <button
           @click="showDetails = false"
           class="mt-4 w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg transition-colors"
         >
@@ -100,7 +102,7 @@ const formatDate = (dateString: string): string => {
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
-      day: 'numeric'
+      day: 'numeric',
     });
   } catch (error) {
     return 'Unknown date';

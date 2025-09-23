@@ -18,7 +18,7 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
   const photoPreview = ref<string | null>(null);
   const condition = ref<string>('');
   const notes = ref<string>('');
-  
+
   // Optional artwork improvement fields
   const artworkType = ref<string>('');
   const access = ref<string>('');
@@ -40,32 +40,36 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
 
   const cooldownMessage = computed(() => {
     if (!isOnCooldown.value || !cooldownUntil.value) return '';
-    
+
     const formatter = new Intl.DateTimeFormat('en-US', {
       year: 'numeric',
-      month: 'long', 
-      day: 'numeric'
+      month: 'long',
+      day: 'numeric',
     });
-    
+
     return `Looks like you've been here recently! Come back after ${formatter.format(cooldownUntil.value)} to log another visit.`;
   });
 
   const canSubmit = computed(() => {
-    return !isOnCooldown.value && 
-           hasPhoto.value && 
-           !isSubmitting.value && 
-           !isLoadingArtwork.value &&
-           !!artwork.value; // Convert to boolean
+    return (
+      !isOnCooldown.value &&
+      hasPhoto.value &&
+      !isSubmitting.value &&
+      !isLoadingArtwork.value &&
+      !!artwork.value
+    ); // Convert to boolean
   });
 
   const hasFormData = computed(() => {
-    return hasPhoto.value || 
-           condition.value.length > 0 || 
-           notes.value.length > 0 ||
-           artworkType.value.length > 0 ||
-           access.value.length > 0 ||
-           artist.value.length > 0 ||
-           material.value.length > 0;
+    return (
+      hasPhoto.value ||
+      condition.value.length > 0 ||
+      notes.value.length > 0 ||
+      artworkType.value.length > 0 ||
+      access.value.length > 0 ||
+      artist.value.length > 0 ||
+      material.value.length > 0
+    );
   });
 
   // Actions
@@ -91,10 +95,10 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
 
   function setPhoto(file: File): void {
     selectedPhoto.value = file;
-    
+
     // Create preview
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = e => {
       photoPreview.value = e.target?.result as string;
     };
     reader.readAsDataURL(file);
@@ -129,7 +133,9 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
     material.value = value;
   }
 
-  async function submitLogbookEntry(artworkId: string): Promise<{ success: boolean; submissionId?: string }> {
+  async function submitLogbookEntry(
+    artworkId: string
+  ): Promise<{ success: boolean; submissionId?: string }> {
     if (!canSubmit.value) {
       throw new Error('Cannot submit: form is not ready or user is on cooldown');
     }
@@ -146,7 +152,7 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
       const formData = new FormData();
       formData.append('submissionType', 'logbook');
       formData.append('artworkId', artworkId);
-      
+
       if (artwork.value) {
         formData.append('lat', artwork.value.lat.toString());
         formData.append('lon', artwork.value.lon.toString());
@@ -191,7 +197,7 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
       }>('/submissions', formData);
 
       lastSubmissionId.value = response.id;
-      
+
       // Clear form on success (except photo for user confirmation)
       condition.value = '';
       notes.value = '';
@@ -201,10 +207,9 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
       material.value = '';
 
       return { success: true, submissionId: response.id };
-
     } catch (error) {
       const errorMessage = getErrorMessage(error);
-      
+
       // Handle different error types according to PRD
       if (isNetworkError(error)) {
         // Network error - preserve form data and show retryable error

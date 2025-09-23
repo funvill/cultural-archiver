@@ -1,4 +1,8 @@
-import type { LocationResult, LocationLookupOptions, NominatimResponse } from '../../shared/types.js';
+import type {
+  LocationResult,
+  LocationLookupOptions,
+  NominatimResponse,
+} from '../../shared/types.js';
 import { LocationCacheService } from './cache-service.js';
 import { NominatimApiClient } from './nominatim-client.js';
 
@@ -14,7 +18,11 @@ export class LocationService {
   /**
    * Get location with cache-first strategy
    */
-  async getLocation(lat: number, lon: number, options: LocationLookupOptions = {}): Promise<LocationResult> {
+  async getLocation(
+    lat: number,
+    lon: number,
+    options: LocationLookupOptions = {}
+  ): Promise<LocationResult> {
     const useCache = options.useCache !== false; // Default to true
 
     // Try cache first if enabled
@@ -28,7 +36,7 @@ export class LocationService {
     // Fetch from API if not in cache
     try {
       const result = await this.apiClient.reverseGeocode(lat, lon, options);
-      
+
       // Store in cache for future use (if cache is enabled)
       if (useCache) {
         // We need the raw response to store, but the current API doesn't return it
@@ -55,9 +63,9 @@ export class LocationService {
             ...(result.suburb && { suburb: result.suburb }),
             ...(result.neighbourhood && { neighbourhood: result.neighbourhood }),
             ...(result.road && { road: result.road }),
-            ...(result.postcode && { postcode: result.postcode })
+            ...(result.postcode && { postcode: result.postcode }),
           },
-          boundingbox: ['', '', '', '']
+          boundingbox: ['', '', '', ''],
         };
 
         const cacheRecord = NominatimApiClient.toLocationCacheRecord(result, rawResponse);
@@ -66,7 +74,9 @@ export class LocationService {
 
       return result;
     } catch (error) {
-      throw new Error(`Failed to get location for coordinates ${lat}, ${lon}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to get location for coordinates ${lat}, ${lon}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -80,7 +90,11 @@ export class LocationService {
   /**
    * Get cache statistics
    */
-  getCacheStats(): { totalEntries: number; oldestEntry: string | null; newestEntry: string | null } {
+  getCacheStats(): {
+    totalEntries: number;
+    oldestEntry: string | null;
+    newestEntry: string | null;
+  } {
     return this.cacheService.getStats();
   }
 

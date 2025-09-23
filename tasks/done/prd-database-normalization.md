@@ -2,7 +2,7 @@
 
 **Date:** September 14, 2025  
 **Status:** In Discussion  
-**Priority:** Medium  
+**Priority:** Medium
 
 ## Executive Summary
 
@@ -11,17 +11,20 @@ This PRD outlines a comprehensive database normalization effort to reduce comple
 ### Phase Overview
 
 **Phase 1: Remove `artwork.artist_names` Field** (22 tasks)
+
 - **Goal:** Eliminate redundant artist names field in favor of normalized artist relationships
 - **Impact:** Removes data duplication between `artwork.artist_names` and `artists` table
 - **Effort:** ~20 hours (complex due to mass import system updates)
 
-**Phase 2: Remove `artwork.address` Field** (16 tasks)  
+**Phase 2: Remove `artwork.address` Field** (16 tasks)
+
 - **Goal:** Remove redundant address field, rely on tag system for location metadata
 - **Impact:** Simplifies location data storage using existing tag infrastructure
 - **Effort:** ~12 hours (moderate complexity, well-defined scope)
 
 **Phase 3: Normalize Artist Table** (19 tasks)
-- **Goal:** Remove redundant website field and fix bio/description naming inconsistency  
+
+- **Goal:** Remove redundant website field and fix bio/description naming inconsistency
 - **Impact:** Eliminates SQL aliases and consolidates artist metadata in tag system
 - **Effort:** ~14 hours (moderate complexity, clear migration path)
 
@@ -35,6 +38,7 @@ This PRD outlines a comprehensive database normalization effort to reduce comple
 ### Risk Assessment
 
 **Low Risk Implementation:**
+
 - ✅ Prerelease status allows clean break approach with no backward compatibility needed
 - ✅ Each phase is independent and can be implemented/tested separately
 - ✅ Comprehensive test coverage ensures regression detection
@@ -89,6 +93,7 @@ This PRD outlines a comprehensive database normalization effort to reduce comple
 This normalization will be implemented in **phases**, each focusing on a single database schema change. Each phase includes complete database migration, source code updates, and validation to ensure the system remains functional.
 
 **Testing Requirements for Each Phase:**
+
 - [ ] `npm run test` passes with 0 failures
 - [ ] `npm run build` completes with 0 errors
 - [ ] Manual verification of affected functionality
@@ -100,18 +105,21 @@ This normalization will be implemented in **phases**, each focusing on a single 
 **Goal:** Eliminate redundant artist names field in favor of normalized artist relationships
 
 ### Database Changes
+
 - [ ] **1.1** Create database migration to remove `artist_names` column from `artwork` table
 - [ ] **1.2** Create "Unknown Artist" record with `UNKNOWN_ARTIST_UUID`
 - [ ] **1.3** Add `aliases` field to `artists` table for "also known as" functionality
 - [ ] **1.4** Apply migration to development database
 
 ### Type Definition Updates
+
 - [ ] **1.5** Remove `artist_names` field from `ArtworkRecord` interface
 - [ ] **1.6** Remove `artist_names` field from `NewArtworkRecord` interface
 - [ ] **1.7** Remove `artist_names` field from `ArtworkApiResponse` interface
 - [ ] **1.8** Update any other types that reference artist_names
 
 ### API Endpoint Updates
+
 - [ ] **1.9** Update discovery endpoints to use JOIN queries instead of artist_names
   - [ ] `src/workers/routes/discovery.ts` - Remove artist_names processing
   - [ ] `src/workers/routes/discovery-new.ts` - Remove artist_names processing
@@ -121,17 +129,20 @@ This normalization will be implemented in **phases**, each focusing on a single 
   - [ ] `src/workers/routes/mass-import-v2.ts` - Remove artist_names from queries
 
 ### Mass Import System Updates
+
 - [ ] **1.12** Implement fuzzy artist name matching algorithm
 - [ ] **1.13** Update mass import to create or link to existing artist records
 - [ ] **1.14** Handle "Unknown Artist" cases automatically
 - [ ] **1.15** Support minimal artist record creation
 
 ### Frontend Updates
+
 - [ ] **1.16** Update components to expect artist objects instead of name strings
 - [ ] **1.17** Modify artwork display to show linked artist information
 - [ ] **1.18** Update search functionality to query artist relationships
 
 ### Testing & Validation
+
 - [ ] **1.19** Run `npm run test` and fix any failures
 - [ ] **1.20** Run `npm run build` and fix any build errors
 - [ ] **1.21** Verify artwork display shows correct artist information
@@ -144,14 +155,17 @@ This normalization will be implemented in **phases**, each focusing on a single 
 **Goal:** Remove redundant address field, rely on tag system for location metadata
 
 ### Database Changes
+
 - [ ] **2.1** Create database migration to remove `address` column from `artwork` table
 - [ ] **2.2** Apply migration to development database
 
 ### Type Definition Updates
+
 - [ ] **2.3** Remove `address` field from `NewArtworkRecord` interface
 - [ ] **2.4** Remove `address` field from artwork-related request interfaces
 
 ### API Endpoint Updates
+
 - [ ] **2.5** Remove address field handling from submissions endpoints
   - [ ] `src/workers/routes/submissions-new.ts` - Remove address field assignment
 - [ ] **2.6** Remove address mapping in OSM export
@@ -160,6 +174,7 @@ This normalization will be implemented in **phases**, each focusing on a single 
   - [ ] `src/workers/lib/submissions.ts` - Remove address handling
 
 ### Mass Import System Updates
+
 - [ ] **2.8** Update validation to not process address field
   - [ ] `src/lib/mass-import-system/lib/validation.ts` - Remove address processing
 - [ ] **2.9** Modify vancouver importer to not build address strings
@@ -168,12 +183,14 @@ This normalization will be implemented in **phases**, each focusing on a single 
   - [ ] `src/workers/lib/mass-import-migration.ts` - Remove address mapping
 
 ### Test Updates
+
 - [ ] **2.11** Remove address fields from test data
   - [ ] `src/workers/test/mass-import-v2-prd-criteria.test.ts`
   - [ ] `src/workers/test/mass-import-v2-integration.test.ts`
 - [ ] **2.12** Update integration tests to not expect address field
 
 ### Testing & Validation
+
 - [ ] **2.13** Run `npm run test` and fix any failures
 - [ ] **2.14** Run `npm run build` and fix any build errors
 - [ ] **2.15** Verify artwork submissions work without address field
@@ -186,12 +203,14 @@ This normalization will be implemented in **phases**, each focusing on a single 
 **Goal:** Remove redundant website field and fix bio/description naming inconsistency
 
 ### Database Changes
+
 - [ ] **3.1** Create database migration to:
   - [ ] Remove `website` column from `artists` table
   - [ ] Rename `bio` column to `description` in `artists` table
 - [ ] **3.2** Apply migration to development database
 
 ### SQL Query Updates
+
 - [ ] **3.3** Remove `bio as description` aliases in all query files
   - [ ] `src/workers/routes/discovery-new.ts` - Update artist queries
   - [ ] `src/workers/routes/artists.ts` - Update artist queries
@@ -200,17 +219,20 @@ This normalization will be implemented in **phases**, each focusing on a single 
   - [ ] `src/workers/routes/mass-import-v2.ts` - Update artist processing
 
 ### Type Definition Updates
+
 - [ ] **3.6** Remove `website` field from `NewArtistRecord` interface
 - [ ] **3.7** Rename `biography` to `description` in `NewArtistRecord` interface
 - [ ] **3.8** Update API response types to reflect schema changes
 
 ### Mass Import System Updates
+
 - [ ] **3.9** Update mass import to use tags for website data
 - [ ] **3.10** Modify artist processing to use description field
   - [ ] `src/workers/routes/mass-import.ts` - Update field references
 - [ ] **3.11** Update artist creation logic to handle websites via tags
 
 ### Test Updates
+
 - [ ] **3.12** Remove website fields from artist test data
   - [ ] `src/workers/test/mass-import-artist-core.test.ts`
   - [ ] `src/workers/routes/__tests__/artists.test.ts`
@@ -218,6 +240,7 @@ This normalization will be implemented in **phases**, each focusing on a single 
 - [ ] **3.14** Verify tag-based website functionality works correctly
 
 ### Testing & Validation
+
 - [ ] **3.15** Run `npm run test` and fix any failures
 - [ ] **3.16** Run `npm run build` and fix any build errors
 - [ ] **3.17** Verify artist profiles display correctly
@@ -257,6 +280,7 @@ All phases are **independent** and can be worked on simultaneously or in any ord
 ## Rollback Strategy
 
 Since this is **prerelease** with **data loss acceptable**:
+
 - Database can be reset and recreated if issues arise
 - No backward compatibility or data migration required
 - Clean break approach for all changes
@@ -284,10 +308,12 @@ Since this is **prerelease** with **data loss acceptable**:
 **Code References Found:**
 
 **Database Schema:**
+
 - `src/workers/migrations/0013_initialize_complete_schema.sql:13` - address TEXT column definition
 - `src/workers/migrations/0016_enforce_uuid_constraints.sql:35` - address TEXT column definition
 
 **API Usage:**
+
 - `src/workers/routes/submissions-new.ts:391` - Sets address field in new artwork submissions
 - `src/workers/routes/artwork-new.ts:472` - Maps address to OSM 'addr:full' tag
 - `src/workers/lib/submissions.ts:461` - Uses address in submission processing
@@ -295,37 +321,45 @@ Since this is **prerelease** with **data loss acceptable**:
 - `src/workers/lib/mass-import-migration.ts` - Multiple address mappings (lines 61, 168, 169, 247, 249)
 
 **Type Definitions:**
+
 - `src/shared/types.ts:100` - Optional address field in NewArtworkRecord interface
 
 **Test Files:**
+
 - `src/workers/test/mass-import-v2-prd-criteria.test.ts:282` - Test data with address
 - `src/workers/test/mass-import-v2-integration.test.ts:46,89` - Integration tests with addresses
 
 **Mass Import System:**
+
 - `src/lib/mass-import-system/lib/validation.ts:245,412` - Address validation and processing
 - `src/lib/mass-import-system/importers/vancouver.ts:398` - Address building function
 
 **Implementation Requirements:**
 
 **Database Changes:**
+
 - [ ] Remove `address` column from `artwork` table in new migration
 - [ ] Update any existing data (not needed - prerelease allows data loss)
 
 **API Updates:**
+
 - [ ] Remove address field from `NewArtworkSubmissionRequest` interface
 - [ ] Update `submissions-new.ts` to not set address field
 - [ ] Remove address mapping in `artwork-new.ts` OSM export
 - [ ] Update `submissions.ts` to handle address removal
 
 **Type Definition Updates:**
+
 - [ ] Remove address field from `NewArtworkRecord` interface in `types.ts`
 
 **Mass Import System Updates:**
+
 - [ ] Update validation.ts to not process address field
 - [ ] Modify vancouver importer to not build address strings
 - [ ] Update mass-import-migration.ts to skip address mapping
 
 **Test Updates:**
+
 - [ ] Remove address fields from test data
 - [ ] Update integration tests to not expect address field
 
@@ -357,7 +391,7 @@ Since this is **prerelease** with **data loss acceptable**:
 **Current Structure:**
 
 - Database: `artists.bio` TEXT field
-- TypeScript: `ArtistRecord.description` field  
+- TypeScript: `ArtistRecord.description` field
 - SQL queries: `SELECT bio as description` for compatibility
 - API responses: Uses `description` field name
 
@@ -371,47 +405,57 @@ Since this is **prerelease** with **data loss acceptable**:
 **Code References Found:**
 
 **Database Schema:**
+
 - `src/workers/migrations/0013_initialize_complete_schema.sql:25,26` - bio and website columns
 - `src/workers/migrations/0016_enforce_uuid_constraints.sql:52,53` - bio and website columns
 
 **SQL Queries with Aliases:**
+
 - `src/workers/routes/discovery-new.ts:406,417` - `bio as description`
 - `src/workers/routes/artists.ts:65,76,154` - `bio as description`
 
 **Mass Import System:**
+
 - `src/workers/routes/mass-import-v2.ts:544,603` - Uses bio field
 - `src/workers/routes/mass-import.ts:278` - References biography field
 - `src/workers/test/mass-import-artist-core.test.ts` - Mixed bio/description usage
 
 **Type Definitions:**
+
 - `src/shared/types.ts` - ArtistRecord uses description, NewArtistRecord has biography and website fields
 
 **Tag System:**
+
 - `src/shared/tag-schema.ts:290-301` - Website tag already defined with URL validation
 
 **Implementation Requirements:**
 
 **Database Changes:**
+
 - [ ] Remove `website` column from `artists` table
 - [ ] Rename `bio` column to `description` in `artists` table
 - [ ] Update migration to handle schema changes
 
 **SQL Query Updates:**
+
 - [ ] Remove `bio as description` aliases in all query files
 - [ ] Update INSERT/UPDATE queries to use `description` field
 - [ ] Update mass import queries to use new field names
 
 **Type Definition Updates:**
+
 - [ ] Remove website field from `NewArtistRecord` interface
 - [ ] Rename biography to description in `NewArtistRecord` interface
 - [ ] Update API response types to reflect schema changes
 
 **Mass Import System Updates:**
+
 - [ ] Update mass import to use tags for website data
 - [ ] Modify artist processing to use description field
 - [ ] Update test data to remove website fields and use description
 
 **Test Updates:**
+
 - [ ] Remove website fields from artist test data
 - [ ] Update tests to use description instead of bio
 - [ ] Verify tag-based website functionality works correctly

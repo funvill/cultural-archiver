@@ -1,22 +1,22 @@
 #!/usr/bin/env tsx
 /**
  * Cultural Archiver Admin Privileges Script
- * 
+ *
  * Grants admin privileges to a user by email address.
  * This script is designed for the common use case of granting admin access to steven@abluestar.com
  * and can be used for other users as well.
- * 
+ *
  * Usage:
  *   tsx scripts/grant-admin.ts --env dev --email steven@abluestar.com
  *   tsx scripts/grant-admin.ts --env staging --email user@example.com
  *   tsx scripts/grant-admin.ts --env prod --email steven@abluestar.com
- * 
+ *
  * What it does:
  * 1. Finds the user by email address in the users table
  * 2. Checks if the user already has admin privileges
  * 3. Grants admin role if not already present
  * 4. Creates user record if email doesn't exist
- * 
+ *
  * Safety features:
  * - Environment validation
  * - User confirmation prompts
@@ -195,14 +195,17 @@ function getDatabaseConfig(env: string): DatabaseConfig {
 /**
  * Execute a database query
  */
-async function executeQuery(config: DatabaseConfig, sql: string): Promise<{ results: unknown[]; meta: { duration: number } }> {
+async function executeQuery(
+  config: DatabaseConfig,
+  sql: string
+): Promise<{ results: unknown[]; meta: { duration: number } }> {
   const url = `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/d1/database/${config.databaseId}/query`;
-  
+
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${config.apiToken}`,
+        Authorization: `Bearer ${config.apiToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ sql }),
@@ -214,7 +217,7 @@ async function executeQuery(config: DatabaseConfig, sql: string): Promise<{ resu
     }
 
     const result = await response.json();
-    
+
     if (!result.success) {
       throw new Error(`Database query failed: ${JSON.stringify(result.errors)}`);
     }
@@ -231,14 +234,14 @@ async function executeQuery(config: DatabaseConfig, sql: string): Promise<{ resu
  */
 async function findUserByEmail(config: DatabaseConfig, email: string): Promise<User | null> {
   const query = `SELECT uuid, email, status, created_at FROM users WHERE email = '${email}' LIMIT 1`;
-  
+
   try {
     const result = await executeQuery(config, query);
-    
+
     if (result.results && result.results.length > 0) {
       return result.results[0] as User;
     }
-    
+
     return null;
   } catch (error) {
     console.error(`❌ Failed to find user by email: ${error}`);
@@ -256,7 +259,7 @@ async function findOrphanedAdminRoles(config: DatabaseConfig): Promise<UserRole[
     LEFT JOIN users u ON ur.user_token = u.uuid
     WHERE ur.role = 'admin' AND ur.is_active = 1 AND u.uuid IS NULL
   `;
-  
+
   try {
     const result = await executeQuery(config, query);
     return result.results as UserRole[];
@@ -269,29 +272,33 @@ async function findOrphanedAdminRoles(config: DatabaseConfig): Promise<UserRole[
 /**
  * Create user record for existing admin token
  */
-async function createUserForAdminToken(config: DatabaseConfig, userToken: string, dryRun: boolean = false): Promise<void> {
+async function createUserForAdminToken(
+  config: DatabaseConfig,
+  userToken: string,
+  dryRun: boolean = false
+): Promise<void> {
   const now = new Date().toISOString();
-  
+
   // Generate email and profile based on the known admin token
   let email = 'admin@art.abluestar.com';
   let profileName = 'admin';
-  
+
   if (userToken === '3db6be1e-0adb-44f5-862c-028987727018') {
     email = 'steven@abluestar.com';
     profileName = 'steven';
   }
-  
+
   if (dryRun) {
     console.log(`  🔍 [DRY RUN] Would create user record for admin token: ${userToken}`);
     console.log(`  📧 Email: ${email}, Profile: ${profileName}`);
     return;
   }
-  
+
   const query = `
     INSERT INTO users (uuid, email, created_at, last_login, email_verified_at, status, profile_name)
     VALUES ('${userToken}', '${email}', '${now}', '${now}', '${now}', 'active', '${profileName}')
   `;
-  
+
   try {
     await executeQuery(config, query);
     console.log(`  ✅ User record created for admin token: ${userToken}`);
@@ -305,21 +312,24 @@ async function createUserForAdminToken(config: DatabaseConfig, userToken: string
 /**
  * Check if user has admin role
  */
-async function checkUserAdminRole(config: DatabaseConfig, userToken: string): Promise<UserRole | null> {
+async function checkUserAdminRole(
+  config: DatabaseConfig,
+  userToken: string
+): Promise<UserRole | null> {
   const query = `
     SELECT id, user_token, role, is_active, granted_at 
     FROM user_roles 
     WHERE user_token = '${userToken}' AND role = 'admin' AND is_active = 1 
     LIMIT 1
   `;
-  
+
   try {
     const result = await executeQuery(config, query);
-    
+
     if (result.results && result.results.length > 0) {
       return result.results[0] as UserRole;
     }
-    
+
     return null;
   } catch (error) {
     console.error(`❌ Failed to check admin role: ${error}`);
@@ -330,10 +340,15 @@ async function checkUserAdminRole(config: DatabaseConfig, userToken: string): Pr
 /**
  * Create user record
  */
-async function createUser(config: DatabaseConfig, email: string, dryRun: boolean = false): Promise<string> {
-  const userUuid = email === 'steven@abluestar.com' ? '3db6be1e-0adb-44f5-862c-028987727018' : randomUUID();
+async function createUser(
+  config: DatabaseConfig,
+  email: string,
+  dryRun: boolean = false
+): Promise<string> {
+  const userUuid =
+    email === 'steven@abluestar.com' ? '3db6be1e-0adb-44f5-862c-028987727018' : randomUUID();
   const now = new Date().toISOString();
-  
+
   // Set profile name based on email
   let profileName = null;
   if (email === 'steven@abluestar.com') {
@@ -353,17 +368,19 @@ async function createUser(config: DatabaseConfig, email: string, dryRun: boolean
       profileName = null;
     }
   }
-  
+
   if (dryRun) {
-    console.log(`  🔍 [DRY RUN] Would create user: ${email} with UUID: ${userUuid}${profileName ? ` and profile: ${profileName}` : ''}`);
+    console.log(
+      `  🔍 [DRY RUN] Would create user: ${email} with UUID: ${userUuid}${profileName ? ` and profile: ${profileName}` : ''}`
+    );
     return userUuid;
   }
-  
+
   const query = `
     INSERT INTO users (uuid, email, created_at, last_login, email_verified_at, status, profile_name)
     VALUES ('${userUuid}', '${email}', '${now}', '${now}', '${now}', 'active', ${profileName ? `'${profileName}'` : 'NULL'})
   `;
-  
+
   try {
     await executeQuery(config, query);
     console.log(`  ✅ User created: ${email}${profileName ? ` with profile: ${profileName}` : ''}`);
@@ -378,20 +395,25 @@ async function createUser(config: DatabaseConfig, email: string, dryRun: boolean
 /**
  * Grant admin role to user
  */
-async function grantAdminRole(config: DatabaseConfig, userToken: string, email: string, dryRun: boolean = false): Promise<void> {
+async function grantAdminRole(
+  config: DatabaseConfig,
+  userToken: string,
+  email: string,
+  dryRun: boolean = false
+): Promise<void> {
   const roleId = randomUUID();
   const now = new Date().toISOString();
-  
+
   if (dryRun) {
     console.log(`  🔍 [DRY RUN] Would grant admin role to user: ${email}`);
     return;
   }
-  
+
   const query = `
     INSERT INTO user_roles (id, user_token, role, granted_by, granted_at, is_active, notes)
     VALUES ('${roleId}', '${userToken}', 'admin', 'system', '${now}', 1, 'Admin privileges granted by grant-admin script')
   `;
-  
+
   try {
     await executeQuery(config, query);
     console.log(`  ✅ Admin role granted to: ${email}`);
@@ -407,11 +429,11 @@ async function grantAdminRole(config: DatabaseConfig, userToken: string, email: 
 async function promptConfirmation(message: string): Promise<boolean> {
   const rl: Interface = createInterface({
     input: process.stdin,
-    output: process.stdout
+    output: process.stdout,
   });
 
-  return new Promise((resolve) => {
-    rl.question(`${message} (y/N): `, (answer) => {
+  return new Promise(resolve => {
+    rl.question(`${message} (y/N): `, answer => {
       rl.close();
       resolve(answer.toLowerCase().trim() === 'y' || answer.toLowerCase().trim() === 'yes');
     });
@@ -425,7 +447,7 @@ async function grantAdminPrivileges(options: GrantAdminOptions): Promise<void> {
   if (!options.email) {
     throw new Error('Email is required for granting admin privileges');
   }
-  
+
   console.log(`\n🔐 Cultural Archiver Admin Privileges Script`);
   console.log(`📧 Email: ${options.email}`);
   console.log(`🌍 Environment: ${options.env}`);
@@ -440,7 +462,7 @@ async function grantAdminPrivileges(options: GrantAdminOptions): Promise<void> {
     const confirmed = await promptConfirmation(
       '⚠️  You are about to modify the PRODUCTION database. Are you sure?'
     );
-    
+
     if (!confirmed) {
       console.log('❌ Operation cancelled by user');
       process.exit(0);
@@ -451,19 +473,19 @@ async function grantAdminPrivileges(options: GrantAdminOptions): Promise<void> {
     // Find user by email
     console.log(`🔍 Looking for user with email: ${options.email}`);
     const existingUser = await findUserByEmail(config, options.email);
-    
+
     let userToken: string;
-    
+
     if (existingUser) {
       console.log(`  ✅ User found: ${existingUser.uuid}`);
       console.log(`  📅 Created: ${existingUser.created_at}`);
       console.log(`  📊 Status: ${existingUser.status}`);
       userToken = existingUser.uuid;
-      
+
       // Check if user already has admin role
       console.log(`\n🔍 Checking admin privileges...`);
       const adminRole = await checkUserAdminRole(config, userToken);
-      
+
       if (adminRole) {
         console.log(`  ✅ User already has admin privileges`);
         console.log(`  📅 Granted: ${adminRole.granted_at}`);
@@ -474,33 +496,30 @@ async function grantAdminPrivileges(options: GrantAdminOptions): Promise<void> {
       }
     } else {
       console.log(`  ❌ User not found - will create new user`);
-      
+
       if (!options.force && !options.dryRun) {
-        const confirmed = await promptConfirmation(
-          `Create new user account for ${options.email}?`
-        );
-        
+        const confirmed = await promptConfirmation(`Create new user account for ${options.email}?`);
+
         if (!confirmed) {
           console.log('❌ Operation cancelled by user');
           process.exit(0);
         }
       }
-      
+
       console.log(`\n👤 Creating user account...`);
       userToken = await createUser(config, options.email, options.dryRun);
     }
-    
+
     // Grant admin role
     console.log(`\n🔐 Granting admin privileges...`);
     await grantAdminRole(config, userToken, options.email, options.dryRun);
-    
+
     if (options.dryRun) {
       console.log(`\n🔍 DRY RUN COMPLETE - No actual changes were made`);
     } else {
       console.log(`\n🎉 Admin privileges successfully granted to: ${options.email}`);
       console.log(`🔑 User token: ${userToken}`);
     }
-    
   } catch (error) {
     console.error(`\n❌ Failed to grant admin privileges: ${error}`);
     process.exit(1);
@@ -510,21 +529,24 @@ async function grantAdminPrivileges(options: GrantAdminOptions): Promise<void> {
 /**
  * Fix orphaned admin roles (admin roles without user records)
  */
-async function fixOrphanedAdminRoles(config: DatabaseConfig, dryRun: boolean = false): Promise<void> {
+async function fixOrphanedAdminRoles(
+  config: DatabaseConfig,
+  dryRun: boolean = false
+): Promise<void> {
   console.log('\n🔍 Checking for admin roles without user records...');
-  
+
   const orphanedRoles = await findOrphanedAdminRoles(config);
-  
+
   if (orphanedRoles.length === 0) {
     console.log('✅ No orphaned admin roles found');
     return;
   }
-  
+
   console.log(`\n⚠️  Found ${orphanedRoles.length} admin role(s) without user records:`);
   for (const role of orphanedRoles) {
     console.log(`  📝 User Token: ${role.user_token} (granted: ${role.granted_at})`);
   }
-  
+
   if (dryRun) {
     console.log('\n🔍 [DRY RUN] Would create user records for these admin tokens');
     for (const role of orphanedRoles) {
@@ -532,12 +554,12 @@ async function fixOrphanedAdminRoles(config: DatabaseConfig, dryRun: boolean = f
     }
     return;
   }
-  
+
   console.log('\n🔧 Creating user records for orphaned admin tokens...');
   for (const role of orphanedRoles) {
     await createUserForAdminToken(config, role.user_token, false);
   }
-  
+
   console.log('✅ All orphaned admin roles have been fixed');
 }
 
@@ -548,7 +570,7 @@ async function main(): Promise<void> {
   try {
     const options = parseArguments();
     validateArguments(options);
-    
+
     if (options.fixOrphaned) {
       // Fix orphaned admin roles
       const config = getDatabaseConfig(options.env);

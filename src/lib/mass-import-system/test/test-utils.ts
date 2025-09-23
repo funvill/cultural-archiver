@@ -1,11 +1,18 @@
 /**
  * Test Utilities for Mass Import Plugin System
- * 
+ *
  * Provides utilities for mocking plugins, creating test data,
  * and validating plugin behavior across the system.
  */
 
-import type { ImporterPlugin, ExporterPlugin, ImporterConfig, ExporterConfig, ExportResult, PluginMetadata } from '../types/plugin.js';
+import type {
+  ImporterPlugin,
+  ExporterPlugin,
+  ImporterConfig,
+  ExporterConfig,
+  ExportResult,
+  PluginMetadata,
+} from '../types/plugin.js';
 import type { RawImportData, ValidationResult } from '../types/index.js';
 
 // ================================
@@ -42,7 +49,7 @@ export class MockImporterPlugin implements ImporterPlugin {
     this.requiredFields = ['lat', 'lon', 'title', 'source'];
     this.optionalFields = ['description', 'artist', 'photos'];
     this.configSchema = {};
-    
+
     this.metadata = {
       name: this.name,
       description: this.description,
@@ -50,7 +57,7 @@ export class MockImporterPlugin implements ImporterPlugin {
       author: 'Test Framework',
       supportedFormats: this.supportedFormats,
       requiredFields: this.requiredFields,
-      optionalFields: this.optionalFields
+      optionalFields: this.optionalFields,
     };
 
     this.mockData = options.mockData || this.getDefaultMockData();
@@ -69,19 +76,17 @@ export class MockImporterPlugin implements ImporterPlugin {
     if (this.shouldFailValidation) {
       return {
         isValid: false,
-        errors: [
-          { field: 'test', message: 'Mock validation error', severity: 'error' as const }
-        ],
+        errors: [{ field: 'test', message: 'Mock validation error', severity: 'error' as const }],
         warnings: [
-          { field: 'test', message: 'Mock validation warning', severity: 'warning' as const }
-        ]
+          { field: 'test', message: 'Mock validation warning', severity: 'warning' as const },
+        ],
       };
     }
 
     return {
       isValid: true,
       errors: [],
-      warnings: []
+      warnings: [],
     };
   }
 
@@ -103,7 +108,7 @@ export class MockImporterPlugin implements ImporterPlugin {
         description: 'First mock artwork',
         source: 'test-source',
         artist: 'Test Artist',
-        tags: { category: 'test', type: 'mock' }
+        tags: { category: 'test', type: 'mock' },
       },
       {
         lat: 49.2845,
@@ -112,8 +117,8 @@ export class MockImporterPlugin implements ImporterPlugin {
         description: 'Second mock artwork',
         source: 'test-source',
         artist: 'Test Artist 2',
-        tags: { category: 'test', type: 'sculpture' }
-      }
+        tags: { category: 'test', type: 'sculpture' },
+      },
     ];
   }
 }
@@ -147,7 +152,7 @@ export class MockExporterPlugin implements ExporterPlugin {
     this.requiresNetwork = options.requiresNetwork || false;
     this.outputType = options.outputType || 'file';
     this.shouldThrowError = options.shouldThrowError || false;
-    
+
     this.metadata = {
       name: this.name,
       description: this.description,
@@ -155,7 +160,7 @@ export class MockExporterPlugin implements ExporterPlugin {
       author: 'Test Framework',
       supportedFormats: this.supportedFormats,
       requiredFields: [],
-      optionalFields: []
+      optionalFields: [],
     };
   }
 
@@ -163,7 +168,7 @@ export class MockExporterPlugin implements ExporterPlugin {
     if (this.shouldThrowError) {
       throw new Error('Mock exporter error');
     }
-    
+
     this.exportedData = [...data];
     this.exportConfig = config;
 
@@ -178,15 +183,15 @@ export class MockExporterPlugin implements ExporterPlugin {
         processedRecords: data.map(record => ({
           externalId: record.externalId || 'unknown',
           status: 'success' as const,
-          recordData: record
+          recordData: record,
         })),
         timing: {
           startTime: new Date(),
           endTime: new Date(),
-          duration: 100
+          duration: 100,
         },
-        configuration: config
-      }
+        configuration: config,
+      },
     };
   }
 
@@ -202,16 +207,20 @@ export class MockExporterPlugin implements ExporterPlugin {
       return {
         isValid: false,
         errors: [
-          { field: 'config', message: 'Mock exporter validation error', severity: 'error' as const }
+          {
+            field: 'config',
+            message: 'Mock exporter validation error',
+            severity: 'error' as const,
+          },
         ],
-        warnings: []
+        warnings: [],
       };
     }
 
     return {
       isValid: true,
       errors: [],
-      warnings: []
+      warnings: [],
     };
   }
 
@@ -235,7 +244,7 @@ export class MockExporterPlugin implements ExporterPlugin {
 
 export function generateTestRawData(count: number = 5): RawImportData[] {
   const rawData: RawImportData[] = [];
-  
+
   for (let i = 1; i <= count; i++) {
     rawData.push({
       lat: 49.2827 + (Math.random() - 0.5) * 0.01,
@@ -245,11 +254,11 @@ export function generateTestRawData(count: number = 5): RawImportData[] {
       source: 'test-source',
       externalId: `test-${i}`,
       artist: `Test Artist ${i}`,
-      tags: { 
-        category: 'test', 
+      tags: {
+        category: 'test',
         type: `artwork-${i}`,
-        generated: true 
-      }
+        generated: true,
+      },
     });
   }
 
@@ -259,7 +268,7 @@ export function generateTestRawData(count: number = 5): RawImportData[] {
 export function generateTestImporterConfig(): ImporterConfig {
   return {
     dataFile: './test-data.json',
-    processingMode: 'sequential'
+    processingMode: 'sequential',
   };
 }
 
@@ -267,7 +276,7 @@ export function generateTestExporterConfig(): ExporterConfig {
   return {
     outputPath: './test-output.json',
     batchSize: 10,
-    dryRun: false
+    dryRun: false,
   };
 }
 
@@ -279,31 +288,31 @@ export function assertValidRawImportData(data: RawImportData): void {
   if (typeof data.lat !== 'number' || typeof data.lon !== 'number') {
     throw new Error('Invalid coordinates format');
   }
-  
+
   if (data.lat < -90 || data.lat > 90) {
     throw new Error('Invalid latitude value');
   }
-  
+
   if (data.lon < -180 || data.lon > 180) {
     throw new Error('Invalid longitude value');
   }
-  
+
   if (!data.title || typeof data.title !== 'string') {
     throw new Error('Title is required and must be a string');
   }
-  
+
   if (!data.source || typeof data.source !== 'string') {
     throw new Error('Source is required and must be a string');
   }
-  
+
   if (data.description && typeof data.description !== 'string') {
     throw new Error('Description must be a string');
   }
-  
+
   if (data.tags && typeof data.tags !== 'object') {
     throw new Error('Tags must be an object');
   }
-  
+
   if (data.photos && !Array.isArray(data.photos)) {
     throw new Error('Photos must be an array');
   }
@@ -313,15 +322,15 @@ export function assertValidationResult(result: ValidationResult): void {
   if (typeof result.isValid !== 'boolean') {
     throw new Error('ValidationResult.isValid must be boolean');
   }
-  
+
   if (!Array.isArray(result.errors)) {
     throw new Error('ValidationResult.errors must be array');
   }
-  
+
   if (!Array.isArray(result.warnings)) {
     throw new Error('ValidationResult.warnings must be array');
   }
-  
+
   // Validate error structure
   result.errors.forEach((error, index) => {
     if (!error.field || typeof error.field !== 'string') {
@@ -340,64 +349,64 @@ export function assertPluginInterface(plugin: ImporterPlugin | ExporterPlugin): 
   if (!plugin.name || typeof plugin.name !== 'string') {
     throw new Error('Plugin must have a string name');
   }
-  
+
   if (!plugin.description || typeof plugin.description !== 'string') {
     throw new Error('Plugin must have a string description');
   }
-  
+
   if (!plugin.metadata || typeof plugin.metadata !== 'object') {
     throw new Error('Plugin must have metadata object');
   }
-  
+
   if (!Array.isArray(plugin.supportedFormats)) {
     throw new Error('Plugin must have supportedFormats array');
   }
-  
+
   // Check importer-specific interface
   if ('mapData' in plugin) {
     const importerPlugin = plugin as ImporterPlugin;
-    
+
     if (typeof importerPlugin.mapData !== 'function') {
       throw new Error('Importer must have mapData method');
     }
-    
+
     if (typeof importerPlugin.validateData !== 'function') {
       throw new Error('Importer must have validateData method');
     }
-    
+
     if (typeof importerPlugin.generateImportId !== 'function') {
       throw new Error('Importer must have generateImportId method');
     }
-    
+
     if (!Array.isArray(importerPlugin.requiredFields)) {
       throw new Error('Importer must have requiredFields array');
     }
-    
+
     if (!Array.isArray(importerPlugin.optionalFields)) {
       throw new Error('Importer must have optionalFields array');
     }
   }
-  
+
   // Check exporter-specific interface
   if ('export' in plugin) {
     const exporterPlugin = plugin as ExporterPlugin;
-    
+
     if (typeof exporterPlugin.export !== 'function') {
       throw new Error('Exporter must have export method');
     }
-    
+
     if (typeof exporterPlugin.configure !== 'function') {
       throw new Error('Exporter must have configure method');
     }
-    
+
     if (typeof exporterPlugin.validate !== 'function') {
       throw new Error('Exporter must have validate method');
     }
-    
+
     if (typeof exporterPlugin.requiresNetwork !== 'boolean') {
       throw new Error('Exporter must have requiresNetwork boolean');
     }
-    
+
     if (!['file', 'api', 'stream', 'console'].includes(exporterPlugin.outputType)) {
       throw new Error('Exporter must have valid outputType');
     }
@@ -412,27 +421,33 @@ export class TestEnvironment {
   private mockImporters: Map<string, MockImporterPlugin> = new Map();
   private mockExporters: Map<string, MockExporterPlugin> = new Map();
 
-  createMockImporter(name: string, options?: {
-    mockData?: RawImportData[];
-    shouldFailValidation?: boolean;
-    shouldThrowError?: boolean;
-    version?: string;
-    description?: string;
-    supportedFormats?: string[];
-  }): MockImporterPlugin {
+  createMockImporter(
+    name: string,
+    options?: {
+      mockData?: RawImportData[];
+      shouldFailValidation?: boolean;
+      shouldThrowError?: boolean;
+      version?: string;
+      description?: string;
+      supportedFormats?: string[];
+    }
+  ): MockImporterPlugin {
     const importer = new MockImporterPlugin(name, options);
     this.mockImporters.set(name, importer);
     return importer;
   }
 
-  createMockExporter(name: string, options?: {
-    shouldThrowError?: boolean;
-    version?: string;
-    description?: string;
-    supportedFormats?: string[];
-    requiresNetwork?: boolean;
-    outputType?: 'file' | 'api' | 'stream' | 'console';
-  }): MockExporterPlugin {
+  createMockExporter(
+    name: string,
+    options?: {
+      shouldThrowError?: boolean;
+      version?: string;
+      description?: string;
+      supportedFormats?: string[];
+      requiresNetwork?: boolean;
+      outputType?: 'file' | 'api' | 'stream' | 'console';
+    }
+  ): MockExporterPlugin {
     const exporter = new MockExporterPlugin(name, options);
     this.mockExporters.set(name, exporter);
     return exporter;

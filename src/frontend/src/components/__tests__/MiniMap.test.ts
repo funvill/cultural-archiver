@@ -109,7 +109,7 @@ describe('MiniMap', () => {
       expect(mapElement.attributes('aria-label')).toContain('Interactive map');
       expect(mapElement.attributes('aria-label')).toContain('Test Artwork');
       expect(mapElement.attributes('tabindex')).toBe('0');
-    });    
+    });
   });
 
   describe('Directions', () => {

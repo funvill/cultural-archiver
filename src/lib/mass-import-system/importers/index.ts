@@ -1,6 +1,6 @@
 /**
  * Mass Import System - Importer Plugins Index
- * 
+ *
  * Central registration point for all importer plugins.
  * This file exports all available importers and provides a registration function.
  */
@@ -26,13 +26,13 @@ export { osmImporter } from './osm-artwork.js';
 export function registerCoreImporters(registry: PluginRegistry): void {
   // Register Vancouver Public Art importer
   registry.registerImporter(vancouverPublicArtImporter);
-  
+
   // Register OSM importer
   registry.registerImporter(osmImporter);
-  
+
   console.log('Registered core importer plugins:', [
     vancouverPublicArtImporter.name,
-    osmImporter.name
+    osmImporter.name,
   ]);
 }
 
@@ -40,7 +40,4 @@ export function registerCoreImporters(registry: PluginRegistry): void {
 // Plugin List
 // ================================
 
-export const coreImporters = [
-  vancouverPublicArtImporter,
-  osmImporter
-] as const;
+export const coreImporters = [vancouverPublicArtImporter, osmImporter] as const;

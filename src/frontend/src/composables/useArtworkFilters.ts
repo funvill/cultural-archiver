@@ -9,17 +9,17 @@ export interface ArtworkFilter {
 
 // Default additional artwork filters
 const DEFAULT_ARTWORK_FILTERS: ArtworkFilter[] = [
-  { 
-    key: 'hasPhotos', 
-    label: 'Has Photos', 
+  {
+    key: 'hasPhotos',
+    label: 'Has Photos',
     description: 'Show only artworks with photos',
-    enabled: false 
+    enabled: false,
   },
-  { 
-    key: 'isActive', 
-    label: 'Active Artworks', 
+  {
+    key: 'isActive',
+    label: 'Active Artworks',
     description: 'Hide removed artworks (tag:condition:removed)',
-    enabled: true 
+    enabled: true,
   },
 ];
 
@@ -33,11 +33,15 @@ export function useArtworkFilters(): {
   allFiltersEnabled: ComputedRef<boolean>;
   anyFilterEnabled: ComputedRef<boolean>;
   isFilterEnabled: (filterKey: string) => boolean;
-  filterArtworks: <T extends { 
-    photo_count?: number; 
-    tags?: Record<string, unknown> | null; 
-    tags_parsed?: Record<string, unknown> | null; 
-  }>(artworks: T[]) => T[];
+  filterArtworks: <
+    T extends {
+      photo_count?: number;
+      tags?: Record<string, unknown> | null;
+      tags_parsed?: Record<string, unknown> | null;
+    },
+  >(
+    artworks: T[]
+  ) => T[];
   toggleFilter: (key: string) => void;
   enableAllFilters: () => void;
   disableAllFilters: () => void;
@@ -47,17 +51,13 @@ export function useArtworkFilters(): {
   const artworkFilters = ref<ArtworkFilter[]>([...DEFAULT_ARTWORK_FILTERS]);
 
   // Computed properties
-  const enabledFilters = computed(() => 
+  const enabledFilters = computed(() =>
     artworkFilters.value.filter(filter => filter.enabled).map(filter => filter.key)
   );
 
-  const allFiltersEnabled = computed(() => 
-    artworkFilters.value.every(filter => filter.enabled)
-  );
+  const allFiltersEnabled = computed(() => artworkFilters.value.every(filter => filter.enabled));
 
-  const anyFilterEnabled = computed(() => 
-    artworkFilters.value.some(filter => filter.enabled)
-  );
+  const anyFilterEnabled = computed(() => artworkFilters.value.some(filter => filter.enabled));
 
   // Core filter logic
   function isFilterEnabled(filterKey: string): boolean {
@@ -68,27 +68,33 @@ export function useArtworkFilters(): {
   // Check if artwork has condition:removed tag
   function hasRemovedCondition(tags_parsed: Record<string, unknown> | null | undefined): boolean {
     if (!tags_parsed) return false;
-    
+
     // Check for condition tag with value "removed"
     if (tags_parsed.condition === 'removed') {
       return true;
     }
-    
+
     // Check for nested condition object
-    if (tags_parsed.condition && typeof tags_parsed.condition === 'object' && 
-        tags_parsed.condition !== null && 'removed' in tags_parsed.condition) {
+    if (
+      tags_parsed.condition &&
+      typeof tags_parsed.condition === 'object' &&
+      tags_parsed.condition !== null &&
+      'removed' in tags_parsed.condition
+    ) {
       return true;
     }
-    
+
     return false;
   }
 
   // Filter function for artwork arrays
-  function filterArtworks<T extends { 
-    photo_count?: number; 
-    tags?: Record<string, unknown> | null; 
-    tags_parsed?: Record<string, unknown> | null; 
-  }>(artworks: T[]): T[] {
+  function filterArtworks<
+    T extends {
+      photo_count?: number;
+      tags?: Record<string, unknown> | null;
+      tags_parsed?: Record<string, unknown> | null;
+    },
+  >(artworks: T[]): T[] {
     return artworks.filter(artwork => {
       // Apply "Has Photos" filter
       if (isFilterEnabled('hasPhotos')) {
@@ -97,7 +103,7 @@ export function useArtworkFilters(): {
           return false;
         }
       }
-      
+
       // Apply "Active Artworks" filter (exclude removed)
       if (isFilterEnabled('isActive')) {
         const tagsToCheck = artwork.tags_parsed || artwork.tags;
@@ -105,7 +111,7 @@ export function useArtworkFilters(): {
           return false;
         }
       }
-      
+
       return true;
     });
   }
@@ -137,12 +143,12 @@ export function useArtworkFilters(): {
   return {
     // State
     artworkFilters,
-    
+
     // Computed
     enabledFilters,
     allFiltersEnabled,
     anyFilterEnabled,
-    
+
     // Methods
     isFilterEnabled,
     filterArtworks,

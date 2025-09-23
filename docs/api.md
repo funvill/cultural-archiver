@@ -5,7 +5,7 @@ The Cultural Archiver Worker API provides a **production-ready** comprehensive b
 ## 🚀 Current Status: Production Ready
 
 - **✅ Complete Fast Photo Workflow**: 3-screen submission process with intelligent duplicate detection
-- **✅ Database Infrastructure**: Full migration system with spatial indexing operational  
+- **✅ Database Infrastructure**: Full migration system with spatial indexing operational
 - **✅ Real Photo Processing**: EXIF extraction, R2 storage, and thumbnail generation
 - **✅ Similarity Engine**: Multi-signal matching (location + title + tags) reduces duplicates by ≥30%
 - **✅ 539 Passing Tests**: Comprehensive test coverage across all endpoints and functionality
@@ -13,16 +13,8 @@ The Cultural Archiver Worker API provides a **production-ready** comprehensive b
 
 ## Base URL
 
-```
-https://art-api.abluestar.com
-```
-
-## Authentication
-
-The API uses Bearer token authentication with anonymous user tokens. Users receive a UUID token that identifies their submissions without requiring registration.
-
 ```http
-Authorization: Bearer {user-token-uuid}
+https://art-api.abluestar.com
 ```
 
 ## Rate Limiting
@@ -66,7 +58,6 @@ All responses follow a consistent JSON format:
 }
 ```
 
-
 ## Mass-Import API
 
 For trusted, high-volume imports of artworks, the Cultural Archiver provides two mass-import endpoints:
@@ -83,6 +74,7 @@ POST /api/mass-import/v2
 **Content-Type**: `application/json`
 
 **Request Body**:
+
 ```json
 {
   "items": [
@@ -118,8 +110,9 @@ POST /api/mass-import/v2
 ```
 
 **Features**:
+
 - ✅ Unified schema validation
-- ✅ CLI plugin integration support  
+- ✅ CLI plugin integration support
 - ✅ Enhanced duplicate detection
 - ✅ Batch processing with atomic transactions
 - ✅ Comprehensive audit logging
@@ -280,7 +273,7 @@ POST /api/submissions
 - `submission_type` (required): Type of submission
   - `artwork_photos` - Photo submission for existing or new artwork
   - `artwork_edit` - Edit to artwork metadata
-  - `artist_edit` - Edit to artist information  
+  - `artist_edit` - Edit to artist information
   - `new_artwork` - New artwork submission
   - `new_artist` - New artist profile submission
   - `logbook` - Log a visit to an existing artwork with photo proof
@@ -328,10 +321,13 @@ formData.append('lat', '49.2827');
 formData.append('lon', '-123.1207');
 formData.append('notes', 'Beautiful mural on building wall');
 formData.append('photos', fileInput.files[0]);
-formData.append('tags', JSON.stringify({
-  "artwork_type": "mural",
-  "material": "paint"
-}));
+formData.append(
+  'tags',
+  JSON.stringify({
+    artwork_type: 'mural',
+    material: 'paint',
+  })
+);
 
 const response = await fetch('/api/submissions', {
   method: 'POST',
@@ -348,14 +344,20 @@ const response = await fetch('/api/submissions', {
 const formData = new FormData();
 formData.append('submission_type', 'artwork_edit');
 formData.append('artwork_id', 'artwork-uuid');
-formData.append('old_data', JSON.stringify({
-  title: "Old Title",
-  description: "Old description"
-}));
-formData.append('new_data', JSON.stringify({
-  title: "Corrected Title",
-  description: "Updated description with more details"
-}));
+formData.append(
+  'old_data',
+  JSON.stringify({
+    title: 'Old Title',
+    description: 'Old description',
+  })
+);
+formData.append(
+  'new_data',
+  JSON.stringify({
+    title: 'Corrected Title',
+    description: 'Updated description with more details',
+  })
+);
 
 const response = await fetch('/api/submissions', {
   method: 'POST',
@@ -391,14 +393,21 @@ const response = await fetch('/api/submissions', {
 ```
 
 **Logbook Submission Details**:
+
 - **Purpose**: Document visits to existing artworks with photo proof
+
 - **Cooldown**: 30-day cooldown period per artwork per user
+
 - **Photo Required**: At least one photo is mandatory as proof of visit
+
 - **Condition Assessment**: Optional multiple-choice question (Good/Damaged/Missing/Removed)
+
 - **Improvement Fields**: Only shown if artwork data is missing (type, access, artist, material)
+
 - **Response**: Returns 429 Too Many Requests if user is on cooldown
 
 **Error Response - Cooldown**:
+
 ```json
 {
   "success": false,
@@ -514,7 +523,7 @@ GET /api/search
   - Tag keys: `"tag:artist_name"`
   - Combined: `"banksy tag:year:2020"`
 - `lat` (optional): Center latitude for geographic relevance
-- `lon` (optional): Center longitude for geographic relevance 
+- `lon` (optional): Center longitude for geographic relevance
 - `radius` (optional): Geographic search radius in meters (default: 10000)
 - `limit` (optional): Maximum results (1-100, default: 20)
 - `offset` (optional): Result offset for pagination (default: 0)
@@ -546,18 +555,12 @@ GET /api/search
     ],
     "query": {
       "text": "banksy tag:year:2020",
-      "parsed_tags": [
-        { "key": "year", "value": "2020" }
-      ],
+      "parsed_tags": [{ "key": "year", "value": "2020" }],
       "center": { "lat": 49.2827, "lon": -123.1207 },
       "radius_km": 10,
       "total_found": 1
     },
-    "suggestions": [
-      "tag:artwork_type:mural",
-      "tag:material:paint", 
-      "tag:artist_name:banksy"
-    ]
+    "suggestions": ["tag:artwork_type:mural", "tag:material:paint", "tag:artist_name:banksy"]
   }
 }
 ```
@@ -606,13 +609,11 @@ GET /api/artworks/{id}
         "country": "canada"
       },
       "tags_categorized": {
-        "physical_properties": [
-          {"key": "material", "value": "bronze", "label": "Material"}
-        ],
+        "physical_properties": [{ "key": "material", "value": "bronze", "label": "Material" }],
         "location_details": [
-          {"key": "city", "value": "vancouver", "label": "City"},
-          {"key": "province", "value": "british_columbia", "label": "Province/State"},
-          {"key": "country", "value": "canada", "label": "Country"}
+          { "key": "city", "value": "vancouver", "label": "City" },
+          { "key": "province", "value": "british_columbia", "label": "Province/State" },
+          { "key": "country", "value": "canada", "label": "Country" }
         ]
       },
       "created_at": "2024-01-15T10:30:00Z"
@@ -724,37 +725,15 @@ GET /api/artists
 
 ### Tag and Metadata Endpoints
 
-#### Edit Artwork Tags
-
-Edit structured tags for an approved artwork. Supports validation against the predefined tag schema.
+Structured tag metadata for an artwork is returned as part of the artwork detail payload. Use the artwork detail endpoint to view and edit tags (if you have permissions):
 
 ```http
-PUT /api/artworks/{id}/tags
+GET /api/artworks/{id}
 ```
 
-**Authentication**: Required (Reviewer or artwork creator)
+Editing tags is performed via the artwork edit/submission workflow (see `POST /api/submissions` with `submission_type=artwork_edit`) rather than a dedicated `/api/artworks/{id}/tags` endpoint.
 
-**Content-Type**: `application/json`
-
-**Body**:
-
-```json
-{
-  "tags": {
-    "artwork_type": "statue",
-    "name": "Victory Angel",
-    "artist_name": "Jane Doe",
-    "material": "bronze",
-    "height": 5.5,
-    "condition": "excellent",
-    "access": "yes",
-    "year": "1995",
-    "wikidata_id": "Q12345678"
-  }
-}
-```
-
-**Response** (200 OK):
+Example: the `tags` object appears in the `GET /api/artworks/{id}` response under `data.tags`.
 
 ```json
 {
@@ -809,7 +788,7 @@ The API validates tags against a predefined schema with 15 essential tags across
         "code": "INVALID_NUMBER"
       },
       {
-        "field": "year", 
+        "field": "year",
         "message": "Must be a valid year (1000-2025)",
         "code": "INVALID_YEAR"
       }
@@ -845,7 +824,7 @@ GET /api/artwork/{id}/export/osm
       "osm_tags": {
         "tourism": "artwork",
         "artwork_type": "statue",
-        "name": "Victory Angel", 
+        "name": "Victory Angel",
         "artist_name": "Jane Doe",
         "material": "bronze",
         "height": "5.5",
@@ -1002,6 +981,7 @@ POST /api/consent
 **Content-Type**: `application/json`
 
 **Body**:
+
 ```json
 {
   "content_type": "artwork",
@@ -1011,6 +991,7 @@ POST /api/consent
 ```
 
 **Response** (201 Created):
+
 ```json
 {
   "success": true,
@@ -1032,6 +1013,7 @@ GET /api/consent
 **Authentication**: Required
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -1058,6 +1040,7 @@ GET /api/consent/form-data
 ```
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -1083,6 +1066,7 @@ DELETE /api/consent
 **Authentication**: Required
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -1194,6 +1178,7 @@ POST /api/artists
 **Content-Type**: `application/json`
 
 **Body**:
+
 ```json
 {
   "name": "Artist Name",
@@ -1207,6 +1192,7 @@ POST /api/artists
 ```
 
 **Response** (201 Created):
+
 ```json
 {
   "success": true,
@@ -1231,6 +1217,7 @@ POST /api/artwork/{id}/edit
 **Content-Type**: `application/json`
 
 **Body**:
+
 ```json
 {
   "field_name": "title",
@@ -1240,6 +1227,7 @@ POST /api/artwork/{id}/edit
 ```
 
 **Response** (201 Created):
+
 ```json
 {
   "success": true,
@@ -1261,6 +1249,7 @@ GET /api/artwork/{id}/pending-edits
 **Authentication**: Required
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -1291,6 +1280,7 @@ POST /api/artwork/{id}/edit/validate
 **Content-Type**: `application/json`
 
 **Body**:
+
 ```json
 {
   "field_name": "title",
@@ -1299,6 +1289,7 @@ POST /api/artwork/{id}/edit/validate
 ```
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -1448,6 +1439,7 @@ GET /api/me/profile
 ```
 
 **Role System**:
+
 - `roles`: Array of active user roles (`admin`, `moderator`, `user`, `banned`)
 - `permissions`: Computed permissions based on roles
   - `can_admin`: Full system access (role: admin)
@@ -1478,7 +1470,7 @@ GET /api/badges
     "badges": [
       {
         "id": "badge-uuid",
-        "badge_key": "submission_1", 
+        "badge_key": "submission_1",
         "title": "First Discovery",
         "description": "Made your first artwork submission",
         "icon_emoji": "🎯",
@@ -1496,8 +1488,9 @@ GET /api/badges
 ```
 
 **Badge Categories**:
+
 - `activity`: Submission count, photo uploads, email verification
-- `community`: Login streaks, account milestones  
+- `community`: Login streaks, account milestones
 - `seasonal`: Special time-based achievements
 - `geographic`: Location-based achievements
 
@@ -1522,7 +1515,7 @@ GET /api/me/badges
         "badge": {
           "id": "badge-uuid",
           "badge_key": "email_verified",
-          "title": "Email Verified", 
+          "title": "Email Verified",
           "description": "Completed email verification",
           "icon_emoji": "✅",
           "category": "activity",
@@ -1576,6 +1569,7 @@ PATCH /api/me/profile
 ```
 
 **Profile Name Requirements**:
+
 - 3-20 characters long
 - Alphanumeric characters and dashes only
 - Cannot start or end with dash
@@ -1600,7 +1594,7 @@ PATCH /api/me/profile
 ```json
 {
   "success": false,
-  "error": "VALIDATION_ERROR", 
+  "error": "VALIDATION_ERROR",
   "message": "Validation failed",
   "errors": [
     {
@@ -1622,6 +1616,7 @@ GET /api/me/profile-check?profile_name=artlover123
 **Authentication**: Required (verified email)
 
 **Query Parameters**:
+
 - `profile_name` (required): Profile name to check
 
 **Response** (200 OK):
@@ -1659,6 +1654,7 @@ GET /api/users/{uuid}
 **Authentication**: None required
 
 **Path Parameters**:
+
 - `uuid` (required): User UUID
 
 **Response** (200 OK):
@@ -1678,7 +1674,7 @@ GET /api/users/{uuid}
         "badge": {
           "id": "badge-uuid",
           "title": "Email Verified",
-          "description": "Completed email verification", 
+          "description": "Completed email verification",
           "icon_emoji": "✅",
           "category": "activity",
           "level": 1
@@ -1846,11 +1842,392 @@ POST /api/auth/magic-link
 }
 ```
 
-Note: The legacy endpoints `POST /api/auth/consume` and `GET /api/auth/verify-status` have been removed in favor of the unified magic-link flow. Use `POST /api/auth/verify-magic-link` to exchange and verify magic-link tokens (see the "Verify Magic Link" section above).
+Note: Legacy endpoints `POST /api/auth/consume` and `GET /api/auth/verify-status` were removed. Use `POST /api/auth/verify-magic-link` for magic-link verification.
+
+---
+
+## Additional implemented endpoints (not previously documented)
+
+### Health Check
+
+GET /health
+
+Returns a detailed health report used by monitoring systems. Response (200 OK when healthy):
+
+```json
+{
+  "status": "healthy",
+  "environment": { "environment": "production", "version": "1.0.0", "timestamp": "2025-09-23T12:00:00Z" },
+  "summary": { "healthy_checks": 10, "total_checks": 10 },
+  "checks": { "database": { "status": "healthy" }, "r2_storage": { "status": "healthy" } }
+}
+```
+
+### API Status
+
+GET /api/status
+
+Lightweight API status endpoint that returns API version and environment. Response (200 OK):
+
+```json
+{
+  "message": "Cultural Archiver API is running",
+  "environment": "production",
+  "timestamp": "2025-09-23T12:00:00Z",
+  "version": "1.0.0"
+}
+```
+
+### Photo Serving (R2)
+
+GET /photos/\*
+
+Serves images stored in R2. Example URL: `/photos/originals/2025/09/14/file.jpg`. Returns the raw image bytes with appropriate Content-Type (image/jpeg, image/png, etc.) or 404 when missing.
+
+### Public Artwork Pages
+
+`/p/artwork/{id}` is a public-facing path handled by the frontend worker that renders an artwork detail page for web browsers. This is not an API JSON endpoint but an HTML page route.
+
+### Search Suggestions
+
+GET /api/search/suggestions
+
+Query: q=search-term
+
+Returns short suggestion objects for autocompletion. Response (200 OK):
+
+```json
+{
+  "success": true,
+  "data": [
+    { "suggestion": "mural", "type": "tag" },
+    { "suggestion": "Mural by Unknown", "type": "artwork" }
+  ]
+}
+```
+
+### Test Email (dev/test endpoint)
+
+POST /api/test-email
+
+Used by developers to validate email configuration. Accepts JSON body with `email` and returns a success response when the email was queued/sent.
+
+```json
+{
+  "success": true,
+  "data": { "message": "Test email queued", "email": "dev@example.com" }
+}
+```
+
+### Admin / Internal Endpoints
+
+The worker exposes several admin and debug endpoints used for maintenance and auditing. These are intended for operator use and require appropriate credentials (admin role + verified email). Below are concise, actionable docs and examples for the key admin endpoints implemented in the worker.
+
+Note: these endpoints are for operator tooling and the admin UI only. They require an admin user token and verified email.
+
+#### GET /api/admin/permissions
+
+Description: List users who currently hold elevated permissions (admin or moderator). Supports optional `permission` and `search` query parameters.
+
+Permissions: admin
+
+Query parameters:
+
+- `permission` (optional): `moderator` or `admin`
+- `search` (optional): substring to filter users by email or profile name
+
+Response (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "users": [
+      {
+        "user_uuid": "user-uuid-1",
+        "email": "admin@example.com",
+        "permissions": [{ "permission": "admin", "granted_at": "2025-01-01T12:00:00Z" }]
+      }
+    ],
+    "total": 1,
+    "filter": null,
+    "search": null,
+    "retrieved_at": "2025-09-23T12:00:00Z"
+  }
+}
+```
+
+#### POST /api/admin/permissions/grant
+
+Description: Grant a permission to a user.
+
+Permissions: admin
+
+Body (application/json):
+
+```json
+{
+  "userUuid": "target-user-uuid",
+  "permission": "moderator",
+  "reason": "Optional short reason (max 500 chars)"
+}
+```
+
+Response (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "permission_id": "perm-uuid",
+    "user_uuid": "target-user-uuid",
+    "permission": "moderator",
+    "granted_by": "admin-user-uuid",
+    "granted_at": "2025-09-23T12:00:00Z",
+    "reason": null
+  }
+}
+```
+
+Errors: 400 for validation errors, 403 if caller lacks admin permission.
+
+#### POST /api/admin/permissions/revoke
+
+Description: Revoke a permission from a user.
+
+Permissions: admin
+
+Body (application/json):
+
+```json
+{
+  "userUuid": "target-user-uuid",
+  "permission": "moderator",
+  "reason": "Optional short reason (max 500 chars)"
+}
+```
+
+Response (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "user_uuid": "target-user-uuid",
+    "permission": "moderator",
+    "revoked_by": "admin-user-uuid",
+    "revoked_at": "2025-09-23T12:05:00Z",
+    "reason": "Optional reason"
+  }
+}
+```
+
+#### GET /api/admin/audit
+
+Description: Retrieve audit logs with filtering and pagination. Use for investigating admin/moderation actions and system events.
+
+Permissions: admin
+
+Query parameters (examples):
+
+- `type` (optional): `moderation` or `admin`
+- `userUuid` (optional): filter by actor UUID
+- `targetUuid` (optional): filter by target entity UUID
+- `decision` (optional): `approved`, `rejected`, `skipped`
+- `actionType` (optional): `grant_permission`, `revoke_permission`, `view_audit_logs`
+- `startDate`, `endDate` (optional ISO 8601)
+- `page` (optional), `limit` (optional, max 100)
+
+Response (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "records": [
+      {
+        "id": "audit-1",
+        "actor": "admin-user-uuid",
+        "action": "grant_permission",
+        "target": "target-user-uuid",
+        "meta": { "permissionType": "moderator" },
+        "timestamp": "2025-09-23T11:00:00Z"
+      }
+    ],
+    "pagination": { "page": 1, "limit": 20, "total": 1 },
+    "filters": { "type": null },
+    "retrieved_at": "2025-09-23T12:00:00Z"
+  }
+}
+```
+
+#### GET /api/admin/statistics
+
+Description: Retrieve system and audit statistics (permission counts, recent audit metrics).
+
+Permissions: admin
+
+Query parameters:
+
+- `days` (optional): number of days to include in audit analytics (default: 30)
+
+Response (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "period_days": 30,
+    "permissions": {
+      "totalUsers": 12,
+      "moderators": 3,
+      "admins": 2,
+      "activePermissions": 15
+    },
+    "audit": { "totalEvents": 250, "recentErrors": 0 },
+    "generated_at": "2025-09-23T12:00:00Z"
+  }
+}
+```
+
+#### GET /api/admin/badges
+
+Description: List badges with administrative statistics.
+
+Permissions: admin
+
+Response (200 OK):
+
+```json
+{
+  "success": true,
+  "data": {
+    "badges": [{ "id": "badge-uuid", "badge_key": "submission_1", "title": "First Discovery", "active": true }],
+    "total": 1,
+    "retrieved_at": "2025-09-23T12:00:00Z"
+  }
+}
+```
+
+#### POST /api/admin/badges
+
+Description: Create a new badge. Body parameters validate badge_key, title, description, icon_emoji, category, level, threshold_type and threshold_value. See server-side validation rules.
+
+Permissions: admin
+
+Request body (example):
+
+```json
+{
+  "badge_key": "contributor_10",
+  "title": "Top Contributor",
+  "description": "Awarded for 10 approved submissions",
+  "icon_emoji": "\\u2b50",
+  "category": "activity",
+  "level": 1,
+  "threshold_type": "submission_count",
+  "threshold_value": 10
+}
+```
+
+Response (201 Created):
+
+```json
+{
+  "success": true,
+  "data": {
+    "badge_id": "badge-uuid",
+    "badge_key": "contributor_10",
+    "created_at": "2025-09-23T12:00:00Z"
+  }
+}
+```
+
+#### PUT /api/admin/badges/{id}
+
+Description: Update an existing badge. Send partial updates in JSON.
+
+Permissions: admin
+
+Request body (example):
+
+```json
+{
+  "title": "Top Contributor (updated)",
+  "description": "Updated description"
+}
+```
+
+Response (200 OK): returns the updated badge object.
+
+#### DELETE /api/admin/badges/{id}
+
+Description: Deactivate a badge (soft-delete / deactivate). Returns the `badge_id` and `deactivated_at` timestamp on success.
+
+Permissions: admin
+
+Response (200 OK):
+
+```json
+{
+  "success": true,
+  "data": { "badge_id": "badge-uuid", "deactivated_at": "2025-09-23T12:10:00Z" }
+}
+```
+
+#### Additional Operational Endpoints (implemented but not expanded)
+
+The worker also exposes several operational and developer endpoints. They are implemented and used by the system; most require admin or developer-level credentials. Quick inventory:
+
+- GET /api/admin/audit
+- GET /api/admin/badges
+- GET /api/admin/badges/{id}
+- GET /api/admin/permissions
+- POST /api/admin/permissions/grant
+- POST /api/admin/permissions/revoke
+- GET /api/admin/statistics
+- Various `/api/dev/*` debug endpoints (fix-permissions-schema, update-steven-permissions)
+- Mass-import operational subpaths: `/api/mass-import/osm`, `/api/mass-import/osm/validate`, `/api/mass-import/photos`, `/api/mass-import/submit`
+- User operational endpoints: `/api/me/notifications` (list), `/api/me/notifications/{id}/read`, `/api/me/notifications/{id}/dismiss`, `/api/me/notifications/unread-count`
+- Search helper: `/api/search/suggestions`
+- Health & status: `/api/status`, `/health`
+- Misc: `/api/test-email`, `/photos/*`, `/p/artwork/{id}`
+
+Note: If you want any of these expanded into full public docs with examples, I can add them — otherwise they remain listed here as operational/internal endpoints.
+
+##### Notifications (user-facing)
+
+The notifications endpoints return simple user notifications for authenticated users. Example response (GET `/api/me/notifications`):
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "notif-uuid-1",
+      "type": "submission_approved",
+      "message": "Your submission was approved",
+      "read": false,
+      "created_at": "2025-09-22T13:00:00Z"
+    },
+    {
+      "id": "notif-uuid-2",
+      "type": "comment",
+      "message": "A reviewer commented on your submission",
+      "read": true,
+      "created_at": "2025-09-20T09:30:00Z"
+    }
+  ]
+}
+```
+
+### Deprecated: /api/artworks/{id}/tags
+
+The endpoint `/api/artworks/{id}/tags` is not implemented in the current worker and has been removed from the canonical endpoint list. Tag metadata is available as part of the artwork detail payload (`GET /api/artworks/{id}`).
 
 ### Moderation Endpoints
 
-_Note: These endpoints require moderator or admin role_
+Note: These endpoints require moderator or admin role.
 
 #### Get Review Queue
 
@@ -1909,7 +2286,7 @@ GET /api/review/queue
           "description": "Basic description"
         },
         "new_data": {
-          "title": "Corrected Title", 
+          "title": "Corrected Title",
           "description": "Detailed description with historical context"
         },
         "user_token": "user-uuid",
@@ -1964,6 +2341,7 @@ POST /api/review/approve/{submission_id}
 ```
 
 **Action Types**:
+
 - `create_new`: Create a new artwork from the submission (default for new artworks)
 - `link_existing`: Link the submission to an existing artwork (used for logbook entries and photo aggregation)
   - Requires `artwork_id` field to specify target artwork
@@ -1973,7 +2351,6 @@ POST /api/review/approve/{submission_id}
 **Photo Aggregation**: When using `link_existing`, photos from the submission are automatically aggregated to the target artwork. This enables multiple contributors to add photos to the same artwork over time.
 
 **Logbook Entry Handling**: Submissions with `type: "logbook_entry"` and an existing `artwork_id` are automatically processed with `link_existing` action to aggregate photos and updates to the original artwork.
-```
 
 **Response** (200 OK):
 
@@ -1992,12 +2369,6 @@ POST /api/review/approve/{submission_id}
   }
 }
 ```
-    "artwork_id": "artwork-uuid",
-    "action_taken": "created_new_artwork",
-    "photos_migrated": 2
-  }
-}
-```
 
 #### Batch Review Operations
 
@@ -2011,6 +2382,7 @@ POST /api/review/batch
 **Content-Type**: `application/json`
 
 **Body**:
+
 ```json
 {
   "operations": [
@@ -2020,7 +2392,7 @@ POST /api/review/batch
       "reviewer_notes": "Verified"
     },
     {
-      "submission_id": "submission-uuid-2", 
+      "submission_id": "submission-uuid-2",
       "action": "reject",
       "rejection_reason": "Duplicate"
     }
@@ -2029,6 +2401,7 @@ POST /api/review/batch
 ```
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -2061,10 +2434,12 @@ GET /api/review/artwork-edits
 **Authentication**: Required (Moderator or Admin)
 
 **Parameters**:
+
 - `page` (optional): Page number (default: 1)
 - `per_page` (optional): Items per page (default: 20)
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -2102,6 +2477,7 @@ GET /api/review/artwork-edits/{editId}
 **Authentication**: Required (Moderator or Admin)
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -2138,6 +2514,7 @@ POST /api/review/artwork-edits/{editId}/approve
 **Content-Type**: `application/json`
 
 **Body**:
+
 ```json
 {
   "reviewer_notes": "Edit verified and approved"
@@ -2145,6 +2522,7 @@ POST /api/review/artwork-edits/{editId}/approve
 ```
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -2168,6 +2546,7 @@ POST /api/review/artwork-edits/{editId}/reject
 **Content-Type**: `application/json`
 
 **Body**:
+
 ```json
 {
   "rejection_reason": "Insufficient information provided"
@@ -2175,6 +2554,7 @@ POST /api/review/artwork-edits/{editId}/reject
 ```
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -2196,6 +2576,7 @@ GET /api/review/submission/{id}
 **Authentication**: Required (Moderator or Admin)
 
 **Response** (200 OK):
+
 ```json
 {
   "success": true,
@@ -2332,7 +2713,7 @@ The API uses efficient spatial indexing for location-based searches:
 
 ### Environment Variables
 
-```bash
+````bash
 # Required
 DATABASE_URL=your-d1-database
 KV_NAMESPACE_SESSIONS=your-kv-namespace
@@ -2342,11 +2723,100 @@ R2_BUCKET_PHOTOS=your-r2-bucket
 
 # Optional
 ENVIRONMENT=development
-FRONTEND_URL=http://localhost:3000
-LOG_LEVEL=debug
+
+## Appendix: Example responses
+
+This appendix provides compact, representative example responses for commonly used endpoints so developers can see expected output shapes.
+
+### GET /api/artists
+
+```json
+{
+  "success": true,
+  "data": {
+    "page": 1,
+    "per_page": 30,
+    "total": 124,
+    "items": [
+      { "id": "artist-uuid-1", "name": "Artist One", "artwork_count": 12 },
+      { "id": "artist-uuid-2", "name": "Artist Two", "artwork_count": 3 }
+    ]
+  }
+}
+````
+
+### GET /api/artists/{id}
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "artist-uuid-1",
+    "name": "Artist One",
+    "bio": "Short biography...",
+    "artworks": [{ "id": "artwork-uuid-1", "title": "Sculpture" }]
+  }
+}
 ```
 
-### Testing with cURL
+### POST /api/submissions
+
+Response (201 Created):
+
+```json
+{
+  "success": true,
+  "data": {
+    "submission_id": "submission-uuid-123",
+    "submission_type": "new_artwork",
+    "status": "pending",
+    "created_at": "2025-09-23T12:10:00Z"
+  }
+}
+```
+
+### GET /api/users/{uuid}
+
+```json
+{
+  "success": true,
+  "data": {
+    "uuid": "user-uuid-1",
+    "profile_name": "artlover",
+    "badges": [],
+    "member_since": "2024-06-01T08:00:00Z"
+  }
+}
+```
+
+### GET /api/review/artwork-edits
+
+```json
+{
+  "success": true,
+  "data": [{ "editId": "edit-uuid-1", "artwork_id": "artwork-uuid-1", "changes": { "title": "New Title" } }]
+}
+```
+
+### Admin endpoint example — GET /api/admin/audit
+
+```json
+{
+  "success": true,
+  "data": {
+    "total": 12,
+    "entries": [{ "id": "audit-1", "action": "mass_import", "timestamp": "2025-09-22T11:00:00Z" }]
+  }
+}
+```
+
+### Environment (example)
+
+```bash
+FRONTEND_URL=http://localhost:3000 LOG_LEVEL=debug
+```
+
+## Testing with cURL
 
 ```bash
 # Submit artwork

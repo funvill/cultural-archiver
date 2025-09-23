@@ -11,7 +11,10 @@
     </div>
 
     <!-- Badge Grid -->
-    <div v-if="badges.length > 0" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+    <div
+      v-if="badges.length > 0"
+      class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
+    >
       <BadgeCard
         v-for="userBadge in badges"
         :key="userBadge.badge.id"
@@ -26,23 +29,21 @@
     <div v-else class="text-center py-8">
       <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
         <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"
+          />
         </svg>
       </div>
       <h4 class="text-sm font-medium text-gray-900 mb-1">No badges yet</h4>
-      <p class="text-sm text-gray-500">
-        Complete activities to earn your first badge!
-      </p>
+      <p class="text-sm text-gray-500">Complete activities to earn your first badge!</p>
     </div>
 
     <!-- Loading State -->
     <div v-if="loading" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-      <div
-        v-for="i in 6"
-        :key="i"
-        class="animate-pulse"
-      >
+      <div v-for="i in 6" :key="i" class="animate-pulse">
         <div class="bg-gray-200 rounded-lg h-24 w-full"></div>
       </div>
     </div>

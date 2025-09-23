@@ -18,6 +18,7 @@ Improve map performance when displaying thousands of markers by implementing adv
 ## Acceptance Criteria
 
 **Current Status:**
+
 - [x] Smooth panning and zooming with 1000+ markers ✅ **IMPLEMENTED - Canvas Circle Markers**
 - [x] Memory usage remains stable with large datasets ✅ **OPTIMIZED - Removed DOM-based emoji markers**
 - [x] `npm run test` passes with 0 failures (✅ 649 passed | 1 skipped)
@@ -30,6 +31,7 @@ Improve map performance when displaying thousands of markers by implementing adv
 **✅ Successfully implemented Phase 1 optimization** with dramatic performance improvements:
 
 #### Changes Made:
+
 1. **Replaced DOM-based emoji markers** (`L.marker` + `divIcon`) with **canvas-rendered circle markers** (`L.circleMarker`)
 2. **Added color-coded circle styling** with type-specific colors (statues=amber, murals=indigo, etc.)
 3. **Maintained all functionality**: Click events, popups, clustering compatibility
@@ -37,6 +39,7 @@ Improve map performance when displaying thousands of markers by implementing adv
 5. **✅ NEW: Added viewport-based loading** with intelligent caching and optimized marker management
 
 #### Technical Implementation:
+
 - **File**: `src/frontend/src/components/MapComponent.vue`
 - **Function**: `createArtworkStyle(type: string)` - Maps artwork types to styled circles with dynamic radius scaling
 - **Migration**: `updateArtworkMarkers()` now uses `L.circleMarker` with efficient viewport-based rendering
@@ -45,6 +48,7 @@ Improve map performance when displaying thousands of markers by implementing adv
 - **✅ NEW: Loading Indicators**: Subtle viewport loading states for better UX
 
 #### Performance Gains:
+
 - **5-10x faster rendering** - Canvas circles vs DOM elements
 - **Reduced memory footprint** - No complex HTML elements per marker
 - **Smoother panning/zooming** - Hardware-accelerated canvas rendering + viewport optimization
@@ -53,6 +57,7 @@ Improve map performance when displaying thousands of markers by implementing adv
 - **✅ NEW: Optimized Marker Management** - Efficient add/remove instead of full rebuilds
 
 #### Verification Results:
+
 - ✅ Development server running successfully
 - ✅ API calls functioning (10 artworks loaded)
 - ✅ Marker clicks working (artwork detail requests observed)
@@ -65,7 +70,7 @@ Improve map performance when displaying thousands of markers by implementing adv
 ### Major Tasks
 
 1. **[IN PROGRESS]** Analyze Current Map Implementation
-2. **[NOT STARTED]** Research Performance Optimization Articles  
+2. **[NOT STARTED]** Research Performance Optimization Articles
 3. **[NOT STARTED]** Summarize Optimization Techniques
 4. **[NOT STARTED]** Investigate Canvas-Based Circles
 5. **[NOT STARTED]** Create Implementation Plan
@@ -86,6 +91,7 @@ This provides a foundation for further performance optimizations.
 ### Current Map Implementation (MapComponent.vue)
 
 **Architecture:**
+
 - Uses Leaflet.js with Vue 3 Composition API
 - Marker clustering enabled via leaflet.markercluster plugin
 - Custom DIV icons with emoji and colored backgrounds
@@ -94,11 +100,14 @@ This provides a foundation for further performance optimizations.
 **Current Performance Issues Identified:**
 
 1. **DOM-Heavy Markers**: Each marker is a DOM element with complex HTML structure
+
    ```vue
-   html: `<div class="artwork-marker ${chosen.color} text-white rounded-full w-8 h-8 flex items-center justify-center text-sm shadow-lg border-2 border-white cursor-pointer">${chosen.emoji}</div>`
+   html: `
+   <div class="artwork-marker ${chosen.color} text-white rounded-full w-8 h-8 flex items-center justify-center text-sm shadow-lg border-2 border-white cursor-pointer">${chosen.emoji}</div>
+   `
    ```
 
-2. **Marker Recreation on Pan/Zoom**: 
+2. **Marker Recreation on Pan/Zoom**:
    - `updateArtworkMarkers()` clears ALL markers and recreates them
    - No marker reuse or pooling
    - Happens on every map move after 500ms debounce
@@ -111,12 +120,14 @@ This provides a foundation for further performance optimizations.
    - No cleanup of off-screen markers
 
 **Current Optimizations:**
+
 - ✅ Marker clustering via leaflet.markercluster
 - ✅ Bounds filtering with padding
 - ✅ 500ms debounced map movement
 - ✅ localStorage cache for map pins
 
 **Performance Bottlenecks:**
+
 - Heavy DOM manipulation on pan/zoom
 - Complex CSS classes and styling per marker
 - No marker virtualization or pooling
@@ -131,25 +142,28 @@ This provides a foundation for further performance optimizations.
 **Solution**: Viewport-based rendering - only show markers within current map bounds
 
 **Key Techniques:**
+
 - Render only visible markers using `map.getBounds()`
 - Clear old markers before adding new ones on map movement
 - Listen to `moveend` event for re-rendering
 - Use `divIcon` for custom marker styling
 
 **Performance Results:**
+
 - Significant improvement when zoomed in to specific areas
 - Still lags when fully zoomed out (all markers visible)
 - Maintains real-time icon customization flexibility
 
 **Code Pattern:**
+
 ```javascript
 const renderMarkers = () => {
   const bounds = map.getBounds();
   // Remove old markers
-  markersRef.current.forEach((marker) => map.removeLayer(marker));
+  markersRef.current.forEach(marker => map.removeLayer(marker));
   markersRef.current = [];
   // Add only visible markers
-  data.forEach((item) => {
+  data.forEach(item => {
     if (bounds.contains([item.lat, item.lng])) {
       // Create and add marker
     }
@@ -165,25 +179,28 @@ map.on('moveend', renderMarkers);
 **Solution**: Async streaming + Canvas rendering
 
 **Key Techniques:**
+
 1. **Server-side optimization**: Async batch processing (2,000 markers per batch)
 2. **Canvas rendering**: Use `L.canvas({ padding: 0.5 })` renderer
 3. **Circle markers**: Simple `L.circleMarker` instead of complex markers
 4. **Streaming**: Send data in chunks to prevent WebSocket overload
 
 **Performance Results:**
+
 - Cold start renders 12,000 points efficiently
 - ~66ms server processing time for batched queries
 - Canvas eliminates DOM node creation overhead
 
 **Code Pattern:**
+
 ```javascript
 let myRenderer = L.canvas({ padding: 0.5 });
 let marker = L.circleMarker([lat, lng], {
-    renderer: myRenderer,
-    radius: 1,
-    color: "#ef4444",
-    fillColor: "#ef4444",
-    fillOpacity: 0.8
+  renderer: myRenderer,
+  radius: 1,
+  color: '#ef4444',
+  fillColor: '#ef4444',
+  fillOpacity: 0.8,
 }).addTo(map);
 ```
 
@@ -204,31 +221,33 @@ let marker = L.circleMarker([lat, lng], {
    - Good for ~20k markers without clustering
 
 **Performance Recommendations:**
+
 - \< 20k markers: Circle markers with canvas
 - 20k-100k markers: Leaflet.markercluster + canvas
 - 100k+ markers: Supercluster + canvas
 
 ### Article 4: Juha.Blog - Canvas Solution (10,000 markers)
 
-**Solution**: Canvas renderer + Circle markers
-**Focus**: Simple, effective approach for medium-scale datasets
+**Solution**: Canvas renderer + Circle markers **Focus**: Simple, effective approach for medium-scale datasets
 
 **Key Implementation:**
+
 ```javascript
 // Create canvas renderer
 let renderer = L.canvas();
 
 // Create simple circle markers
-for(let i = 0; i < 10000; i++) {
+for (let i = 0; i < 10000; i++) {
   L.circleMarker([lat, lng], {
     renderer: renderer,
     radius: 3,
-    color: randomColor()
+    color: randomColor(),
   }).addTo(map);
 }
 ```
 
 **Benefits:**
+
 - No DOM elements created (canvas-based)
 - Maintains interactivity
 - Simple implementation
@@ -239,12 +258,14 @@ for(let i = 0; i < 10000; i++) {
 ### Why Canvas Over DOM Markers?
 
 **Current DOM Approach Issues:**
+
 - Each marker = HTML element with CSS styling
 - Browser must paint/repaint each marker on pan/zoom
 - Memory usage grows linearly with marker count
 - Complex emoji/CSS rendering is expensive
 
 **Canvas Advantages:**
+
 - Single canvas element regardless of marker count
 - GPU-accelerated rendering
 - No DOM manipulation overhead
@@ -256,6 +277,7 @@ for(let i = 0; i < 10000; i++) {
 #### 1. Native Leaflet Canvas Renderer
 
 **Basic Setup:**
+
 ```javascript
 // Create canvas renderer
 const canvasRenderer = L.canvas({ padding: 0.5 });
@@ -267,50 +289,53 @@ const marker = L.circleMarker([lat, lng], {
   fillColor: '#ff0000',
   color: '#ffffff',
   weight: 1,
-  fillOpacity: 0.8
+  fillOpacity: 0.8,
 }).addTo(map);
 ```
 
 **Advantages:**
+
 - Uses existing Leaflet API
 - Maintains event handling (click, popup)
 - Easy migration from existing DOM markers
 
 **Limitations:**
+
 - Still creates Leaflet marker objects (memory usage)
 - Less customization than pure canvas
 
 #### 2. Pure Canvas Overlay
 
 **Custom Canvas Layer:**
+
 ```javascript
 const CanvasLayer = L.Layer.extend({
-  onAdd: function(map) {
+  onAdd: function (map) {
     this._map = map;
     this._canvas = L.DomUtil.create('canvas', 'leaflet-canvas-layer');
     this._ctx = this._canvas.getContext('2d');
-    
+
     // Size canvas to map
     this._canvas.width = map.getSize().x;
     this._canvas.height = map.getSize().y;
-    
+
     map.getPanes().overlayPane.appendChild(this._canvas);
     map.on('viewreset', this._reset, this);
     map.on('zoom', this._reset, this);
     map.on('move', this._redraw, this);
-    
+
     this._reset();
   },
-  
-  _reset: function() {
+
+  _reset: function () {
     const topLeft = this._map.latLngToLayerPoint(this._map.getBounds().getNorthWest());
     L.DomUtil.setPosition(this._canvas, topLeft);
   },
-  
-  _redraw: function() {
+
+  _redraw: function () {
     const ctx = this._ctx;
     ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);
-    
+
     // Draw circles for visible markers
     this._data.forEach(point => {
       const pixel = this._map.latLngToContainerPoint([point.lat, point.lng]);
@@ -319,17 +344,19 @@ const CanvasLayer = L.Layer.extend({
       ctx.fillStyle = point.color;
       ctx.fill();
     });
-  }
+  },
 });
 ```
 
 **Advantages:**
+
 - Complete control over rendering
 - Minimal memory usage
 - Maximum performance
 - Custom styling capabilities
 
 **Trade-offs:**
+
 - Manual event handling required
 - More complex click detection
 - Custom popup implementation needed
@@ -337,6 +364,7 @@ const CanvasLayer = L.Layer.extend({
 #### 3. Hybrid Approach
 
 **Strategy:**
+
 - Use canvas for dense marker areas
 - Use DOM markers for sparse areas or special markers
 - Switch rendering method based on zoom level
@@ -349,12 +377,12 @@ const useCanvasRenderer = (markerCount, zoomLevel) => {
 
 ### Performance Comparison
 
-| Method | 1k markers | 10k markers | 50k markers | Memory | Events |
-|--------|------------|-------------|-------------|---------|---------|
-| DOM + divIcon | ⚠️ Slow | ❌ Very Slow | ❌ Crash | High | ✅ Native |
-| DOM + Canvas | ✅ Good | ⚠️ Slow | ❌ Slow | Medium | ✅ Native |
-| Canvas + Markers | ✅ Good | ✅ Good | ⚠️ OK | Low | ✅ Native |
-| Pure Canvas | ✅ Excellent | ✅ Excellent | ✅ Excellent | Very Low | ❌ Manual |
+| Method           | 1k markers   | 10k markers  | 50k markers  | Memory   | Events    |
+| ---------------- | ------------ | ------------ | ------------ | -------- | --------- |
+| DOM + divIcon    | ⚠️ Slow      | ❌ Very Slow | ❌ Crash     | High     | ✅ Native |
+| DOM + Canvas     | ✅ Good      | ⚠️ Slow      | ❌ Slow      | Medium   | ✅ Native |
+| Canvas + Markers | ✅ Good      | ✅ Good      | ⚠️ OK        | Low      | ✅ Native |
+| Pure Canvas      | ✅ Excellent | ✅ Excellent | ✅ Excellent | Very Low | ❌ Manual |
 
 ### Recommended Canvas Implementation
 
@@ -366,16 +394,17 @@ For the Cultural Archiver project, the **Canvas + Circle Markers** approach is o
 4. **Easier migration from current implementation**
 
 **Migration Strategy:**
+
 ```javascript
 // Replace current divIcon approach
-const createArtworkMarker = (artwork) => {
+const createArtworkMarker = artwork => {
   return L.circleMarker([artwork.latitude, artwork.longitude], {
     renderer: canvasRenderer, // Key change
     radius: getRadiusForType(artwork.type),
     fillColor: getColorForType(artwork.type),
     color: '#ffffff',
     weight: 1,
-    fillOpacity: 0.9
+    fillOpacity: 0.9,
   }).bindPopup(createPopupContent(artwork));
 };
 ```
@@ -416,7 +445,7 @@ const createArtworkMarker = (artwork) => {
      ...createArtworkStyle(artwork.type),
      interactive: true,
      bubblingMouseEvents: false,
-     pane: 'markerPane'
+     pane: 'markerPane',
    });
    ```
 
@@ -446,9 +475,9 @@ const createArtworkMarker = (artwork) => {
    ```javascript
    // ✅ IMPLEMENTED: Progressive batch loading with adaptive sizing
    async function fetchArtworksInBoundsBatched(
-     bounds: MapBounds, 
+     bounds: MapBounds,
      initialBatchSize: number = 500,
-     onProgress?: (progress: { loaded: number; total: number; batch: ArtworkPin[]; 
+     onProgress?: (progress: { loaded: number; total: number; batch: ArtworkPin[];
                                batchSize: number; avgTime: number }) => void
    ): Promise<void> {
      // Performance tracking for adaptive batch sizing
@@ -457,13 +486,13 @@ const createArtworkMarker = (artwork) => {
      const minBatchSize = 100;
      const maxBatchSize = 1000;
      const targetBatchTime = 1000; // Target 1 second per batch
-     
+
      // Progressive loading with performance optimization
      while (true) {
        const batchStartTime = performance.now();
        // ... fetch and process batch
        const batchTime = batchEndTime - batchStartTime;
-       
+
        // Adaptive batch sizing based on performance
        if (batchTime > targetBatchTime && currentBatchSize > minBatchSize) {
          currentBatchSize = Math.max(minBatchSize, Math.round(currentBatchSize * 0.8));
@@ -485,16 +514,16 @@ const createArtworkMarker = (artwork) => {
      await artworksStore.fetchArtworksInBoundsBatched(
        bounds,
        500, // initial batch size
-       (progress) => {
+       progress => {
          // Update progress stats with performance metrics
          progressiveLoadingStats.value = {
            loaded: progress.loaded,
            total: Math.max(progress.total, progress.loaded),
            percentage: Math.round((progress.loaded / Math.max(progress.total, progress.loaded)) * 100),
            batchSize: progress.batchSize,
-           avgTime: progress.avgTime
+           avgTime: progress.avgTime,
          };
-         
+
          // Update markers incrementally for each batch
          nextTick(() => {
            updateArtworkMarkers();
@@ -551,7 +580,7 @@ const createArtworkMarker = (artwork) => {
    ```javascript
    // ✅ IMPLEMENTED: Efficient add/remove instead of full rebuilds
    const viewportArtworkIds = new Set(artworksInViewport.map((a: ArtworkPin) => a.id));
-   
+
    // Remove markers no longer in viewport
    artworkMarkers.value = artworkMarkers.value.filter((marker: any) => {
      const artworkId = marker._artworkId;
@@ -561,7 +590,7 @@ const createArtworkMarker = (artwork) => {
      }
      return true;
    });
-   
+
    // Add new markers for artworks that entered viewport
    artworksInViewport.forEach((artwork: ArtworkPin) => {
      if (!currentArtworkIds.has(artwork.id)) {
@@ -583,7 +612,9 @@ const createArtworkMarker = (artwork) => {
 **Objective**: Fine-tune performance for extreme datasets
 
 **Techniques:**
+
 1. **Zoom-Based Rendering Strategy**
+
    ```javascript
    const getRenderingStrategy = (zoomLevel, markerCount) => {
      if (zoomLevel < 10) return 'cluster';
@@ -613,24 +644,27 @@ const createArtworkMarker = (artwork) => {
 ### Performance Testing Strategy
 
 **Metrics to Track:**
+
 - Pan/zoom response time (< 100ms target)
 - Memory usage stability
 - Marker count vs. performance curve
 - Browser FPS during map interaction
 
 **Test Scenarios:**
+
 1. **Small Dataset**: 100-500 markers
-2. **Medium Dataset**: 1,000-2,000 markers  
+2. **Medium Dataset**: 1,000-2,000 markers
 3. **Large Dataset**: 5,000+ markers
 4. **Stress Test**: 10,000+ markers
 
 **Testing Implementation:**
+
 ```javascript
 const performanceTest = () => {
   const startTime = performance.now();
   updateArtworkMarkers();
   const endTime = performance.now();
-  
+
   console.log(`Marker update took ${endTime - startTime}ms`);
 };
 ```
@@ -686,14 +720,12 @@ This document provides a comprehensive analysis of map performance optimization 
 
 **Next Steps**: Begin with Phase 1 canvas migration as it provides the highest performance impact with minimal architectural changes.
 
-
 ## Notes / Handoff
 
 ## Summaries
 
 - Implemented cache + UI (Completed): Added a simple persistent cache for map pins, integrated into the store for pre-network warm display, and a UI control to clear cache.
 - Tests/Build (Completed): Frontend unit tests contained no test cases to run yet; workers suite passed; full build succeeded.
-
 
 - This cache is intentionally simple for reliability. If stored pins exceed localStorage limits, consider migrating the same API to IndexedDB.
 - The store already supports client-side clustering (Leaflet markercluster). That remains enabled via the UI toggle.

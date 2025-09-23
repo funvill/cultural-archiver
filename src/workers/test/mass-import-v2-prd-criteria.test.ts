@@ -1,6 +1,6 @@
 /**
  * Mass Import V2 PRD Success Criteria Tests
- * 
+ *
  * These tests validate the endpoint against the specific success criteria
  * defined in the PRD document.
  */
@@ -17,8 +17,8 @@ const mockDuplicateArtworks = [
     lat: 49.2827,
     lon: -123.1207,
     created_by: 'Jane Doe',
-    tags: '{"material": "bronze", "type": "statue"}'
-  }
+    tags: '{"material": "bronze", "type": "statue"}',
+  },
 ];
 
 // Mock services with realistic behavior
@@ -51,45 +51,61 @@ vi.mock('../lib/mass-import-v2-duplicate-detection', () => ({
             artist: 0.2,
             referenceIds: 0.0,
             tagSimilarity: 0.05,
-            total: 0.92
+            total: 0.92,
           },
-          candidatesChecked: 1
+          candidatesChecked: 1,
         });
       }
       return Promise.resolve({
         isDuplicate: false,
-        candidatesChecked: 0
+        candidatesChecked: 0,
       });
     }),
-    checkArtistDuplicates: vi.fn(() => Promise.resolve({
-      isDuplicate: false,
-      candidatesChecked: 0
-    })),
-    mergeTagsIntoExisting: vi.fn(() => Promise.resolve({
-      newTagsAdded: 2,
-      tagsOverwritten: 0,
-      totalTags: 4,
-      mergedTags: { material: 'bronze', type: 'statue', source: 'test', import_batch: 'test-123' }
-    })),
+    checkArtistDuplicates: vi.fn(() =>
+      Promise.resolve({
+        isDuplicate: false,
+        candidatesChecked: 0,
+      })
+    ),
+    mergeTagsIntoExisting: vi.fn(() =>
+      Promise.resolve({
+        newTagsAdded: 2,
+        tagsOverwritten: 0,
+        totalTags: 4,
+        mergedTags: {
+          material: 'bronze',
+          type: 'statue',
+          source: 'test',
+          import_batch: 'test-123',
+        },
+      })
+    ),
   })),
 }));
 
 vi.mock('../lib/artist-auto-creation', () => ({
   createArtistAutoCreationService: vi.fn(() => ({
-    processArtworkArtists: vi.fn(() => Promise.resolve({
-      artworkId: 'test-artwork-id',
-      linkedArtistIds: ['new-artist-1'],
-      newArtistsCreated: 1,
-      existingArtistsLinked: 0,
-      errors: []
-    })),
+    processArtworkArtists: vi.fn(() =>
+      Promise.resolve({
+        artworkId: 'test-artwork-id',
+        linkedArtistIds: ['new-artist-1'],
+        newArtistsCreated: 1,
+        existingArtistsLinked: 0,
+        errors: [],
+      })
+    ),
   })),
 }));
 
 vi.mock('../lib/photos', () => ({
-  processAndUploadPhotos: vi.fn(() => Promise.resolve([
-    { originalUrl: 'https://r2.example.com/photo1.jpg', thumbnailUrl: 'https://r2.example.com/thumb1.jpg' }
-  ])),
+  processAndUploadPhotos: vi.fn(() =>
+    Promise.resolve([
+      {
+        originalUrl: 'https://r2.example.com/photo1.jpg',
+        thumbnailUrl: 'https://r2.example.com/thumb1.jpg',
+      },
+    ])
+  ),
 }));
 
 vi.mock('crypto', () => ({
@@ -99,11 +115,12 @@ vi.mock('crypto', () => ({
 function createMockContext(body: any) {
   return {
     req: { json: vi.fn(() => Promise.resolve(body)) },
-    json: vi.fn((data: any, status?: number) => 
-      new Response(JSON.stringify(data), { 
-        status: status || 200,
-        headers: { 'Content-Type': 'application/json' }
-      })
+    json: vi.fn(
+      (data: any, status?: number) =>
+        new Response(JSON.stringify(data), {
+          status: status || 200,
+          headers: { 'Content-Type': 'application/json' },
+        })
     ),
     env: { DB: {} as any, BUCKET: {} as any, KV: {} as any, ENVIRONMENT: 'test' },
   } as any;
@@ -121,15 +138,15 @@ describe('PRD Success Criteria Tests', () => {
           importId: 'duplicate-test-123',
           source: {
             pluginName: 'test-plugin',
-            originalDataSource: 'test-data'
+            originalDataSource: 'test-data',
           },
-          timestamp: '2025-01-14T08:00:00.000Z'
+          timestamp: '2025-01-14T08:00:00.000Z',
         },
         config: {
           duplicateThreshold: 0.7,
           enableTagMerging: true,
           createMissingArtists: true,
-          batchSize: 5
+          batchSize: 5,
         },
         data: {
           artworks: [
@@ -139,10 +156,10 @@ describe('PRD Success Criteria Tests', () => {
               title: 'Victory Angel Statue',
               artist: 'Jane Doe',
               source: 'test-source',
-              tags: { source: 'test', import_batch: 'test-123' }
-            }
-          ]
-        }
+              tags: { source: 'test', import_batch: 'test-123' },
+            },
+          ],
+        },
       };
 
       const context = createMockContext(requestWithDuplicate);
@@ -167,24 +184,26 @@ describe('PRD Success Criteria Tests', () => {
         metadata: {
           importId: 'merge-test-123',
           source: { pluginName: 'test-plugin', originalDataSource: 'test-data' },
-          timestamp: '2025-01-14T08:00:00.000Z'
+          timestamp: '2025-01-14T08:00:00.000Z',
         },
         config: {
           duplicateThreshold: 0.7,
           enableTagMerging: true,
           createMissingArtists: true,
-          batchSize: 5
+          batchSize: 5,
         },
         data: {
-          artworks: [{
-            lat: 49.2827,
-            lon: -123.1207,
-            title: 'Victory Angel Statue',
-            artist: 'Jane Doe',
-            source: 'test-source',
-            tags: { source: 'test', import_batch: 'test-123' }
-          }]
-        }
+          artworks: [
+            {
+              lat: 49.2827,
+              lon: -123.1207,
+              title: 'Victory Angel Statue',
+              artist: 'Jane Doe',
+              source: 'test-source',
+              tags: { source: 'test', import_batch: 'test-123' },
+            },
+          ],
+        },
       };
 
       const context = createMockContext(requestWithDuplicate);
@@ -200,27 +219,27 @@ describe('PRD Success Criteria Tests', () => {
     it('should handle large dataset efficiently', async () => {
       // Generate 100 unique artworks (testing subset for performance)
       const artworks = Array.from({ length: 100 }, (_, i) => ({
-        lat: 49.2827 + (i * 0.001), // Spread them out to avoid duplicates
-        lon: -123.1207 + (i * 0.001),
+        lat: 49.2827 + i * 0.001, // Spread them out to avoid duplicates
+        lon: -123.1207 + i * 0.001,
         title: `Test Artwork ${i}`,
         description: `Test artwork number ${i}`,
         source: 'performance-test',
-        tags: { index: i.toString(), batch: 'performance-test' }
+        tags: { index: i.toString(), batch: 'performance-test' },
       }));
 
       const largeRequest: MassImportRequestV2 = {
         metadata: {
           importId: 'performance-test-123',
           source: { pluginName: 'performance-test', originalDataSource: 'test-data' },
-          timestamp: '2025-01-14T08:00:00.000Z'
+          timestamp: '2025-01-14T08:00:00.000Z',
         },
         config: {
           duplicateThreshold: 0.7,
           enableTagMerging: true,
           createMissingArtists: true,
-          batchSize: 10 // Process in batches of 10
+          batchSize: 10, // Process in batches of 10
         },
-        data: { artworks }
+        data: { artworks },
       };
 
       const startTime = Date.now();
@@ -253,9 +272,9 @@ describe('PRD Success Criteria Tests', () => {
           source: {
             pluginName: 'vancouver-public-art-importer',
             pluginVersion: '1.2.0',
-            originalDataSource: 'vancouver-open-data'
+            originalDataSource: 'vancouver-open-data',
           },
-          timestamp: '2025-01-14T08:00:00.000Z'
+          timestamp: '2025-01-14T08:00:00.000Z',
         },
         config: {
           duplicateThreshold: 0.7,
@@ -267,8 +286,8 @@ describe('PRD Success Criteria Tests', () => {
             title: 0.25,
             artist: 0.2,
             referenceIds: 0.5,
-            tagSimilarity: 0.05
-          }
+            tagSimilarity: 0.05,
+          },
         },
         data: {
           artworks: [
@@ -286,8 +305,8 @@ describe('PRD Success Criteria Tests', () => {
                 {
                   url: 'https://example.com/photo1.jpg',
                   caption: 'Front view',
-                  credit: 'City Photographer'
-                }
+                  credit: 'City Photographer',
+                },
               ],
               source: 'vancouver-open-data',
               sourceUrl: 'https://opendata.vancouver.ca',
@@ -298,12 +317,12 @@ describe('PRD Success Criteria Tests', () => {
                 artwork_type: 'statue',
                 height: 5.5,
                 start_date: '1995-06',
-                access: 'yes'
+                access: 'yes',
               },
-              status: 'active'
-            }
-          ]
-        }
+              status: 'active',
+            },
+          ],
+        },
       };
 
       const context = createMockContext(cliRequest);
@@ -327,13 +346,13 @@ describe('PRD Success Criteria Tests', () => {
         metadata: {
           importId: 'artist-test-123',
           source: { pluginName: 'test-plugin', originalDataSource: 'test-data' },
-          timestamp: '2025-01-14T08:00:00.000Z'
+          timestamp: '2025-01-14T08:00:00.000Z',
         },
         config: {
           duplicateThreshold: 0.7,
           enableTagMerging: true,
           createMissingArtists: true,
-          batchSize: 5
+          batchSize: 5,
         },
         data: {
           artworks: [
@@ -342,10 +361,10 @@ describe('PRD Success Criteria Tests', () => {
               lon: -123.2207,
               title: 'New Artwork by Unknown Artist',
               artist: 'John Smith Artist',
-              source: 'test-source'
-            }
-          ]
-        }
+              source: 'test-source',
+            },
+          ],
+        },
       };
 
       const context = createMockContext(requestWithNewArtist);
@@ -369,13 +388,13 @@ describe('PRD Success Criteria Tests', () => {
         metadata: {
           importId: 'audit-test-123',
           source: { pluginName: 'test-plugin', originalDataSource: 'test-data' },
-          timestamp: '2025-01-14T08:00:00.000Z'
+          timestamp: '2025-01-14T08:00:00.000Z',
         },
         config: {
           duplicateThreshold: 0.7,
           enableTagMerging: true,
           createMissingArtists: true,
-          batchSize: 5
+          batchSize: 5,
         },
         data: {
           artworks: [
@@ -383,10 +402,10 @@ describe('PRD Success Criteria Tests', () => {
               lat: 49.4827,
               lon: -123.3207,
               title: 'Test Audit Artwork',
-              source: 'test-source'
-            }
-          ]
-        }
+              source: 'test-source',
+            },
+          ],
+        },
       };
 
       const context = createMockContext(testRequest);
@@ -397,7 +416,9 @@ describe('PRD Success Criteria Tests', () => {
       expect(responseData.data.auditTrail).toBeDefined();
       expect(responseData.data.auditTrail.importStarted).toBeDefined();
       expect(responseData.data.auditTrail.importCompleted).toBeDefined();
-      expect(responseData.data.auditTrail.systemUserToken).toBe('a0000000-1000-4000-8000-000000000001');
+      expect(responseData.data.auditTrail.systemUserToken).toBe(
+        'a0000000-1000-4000-8000-000000000001'
+      );
       expect(responseData.data.auditTrail.batchesProcessed).toBeGreaterThan(0);
 
       // Verify traceability back to source
@@ -412,15 +433,15 @@ describe('PRD Success Criteria Tests', () => {
           source: {
             pluginName: 'vancouver-importer',
             pluginVersion: '2.1.0',
-            originalDataSource: 'vancouver-open-data-portal'
+            originalDataSource: 'vancouver-open-data-portal',
           },
-          timestamp: '2025-01-14T08:00:00.000Z'
+          timestamp: '2025-01-14T08:00:00.000Z',
         },
         config: {
           duplicateThreshold: 0.7,
           enableTagMerging: true,
           createMissingArtists: true,
-          batchSize: 5
+          batchSize: 5,
         },
         data: {
           artworks: [
@@ -430,10 +451,10 @@ describe('PRD Success Criteria Tests', () => {
               title: 'Traceable Artwork',
               source: 'vancouver-open-data',
               externalId: 'VOD-98765',
-              sourceUrl: 'https://opendata.vancouver.ca/dataset/98765'
-            }
-          ]
-        }
+              sourceUrl: 'https://opendata.vancouver.ca/dataset/98765',
+            },
+          ],
+        },
       };
 
       const context = createMockContext(testRequest);
@@ -456,13 +477,13 @@ describe('PRD Success Criteria Tests', () => {
         metadata: {
           importId: 'error-test-123',
           source: { pluginName: 'test-plugin', originalDataSource: 'test-data' },
-          timestamp: '2025-01-14T08:00:00.000Z'
+          timestamp: '2025-01-14T08:00:00.000Z',
         },
         config: {
           duplicateThreshold: 0.7,
           enableTagMerging: true,
           createMissingArtists: true,
-          batchSize: 5
+          batchSize: 5,
         },
         data: {
           artworks: [
@@ -471,17 +492,17 @@ describe('PRD Success Criteria Tests', () => {
               lat: 49.6827,
               lon: -123.5207,
               title: 'Valid Artwork',
-              source: 'test-source'
+              source: 'test-source',
             },
             // Invalid artwork (will be caught by validation)
             {
               lat: 200, // Invalid latitude
               lon: -123.5207,
               title: 'Invalid Artwork',
-              source: 'test-source'
-            }
-          ]
-        }
+              source: 'test-source',
+            },
+          ],
+        },
       };
 
       const context = createMockContext(mixedRequest);

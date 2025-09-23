@@ -83,8 +83,9 @@ const checkSystemHealth = async (): Promise<void> => {
 
 // Clear local settings (except user token) to allow first-time popup to show again
 const clearLocalSettings = (): void => {
-  const confirmMessage = 'This will clear all local settings (map preferences, search history, etc.) except your user account. The welcome popup will show again on next page load. Are you sure?';
-  
+  const confirmMessage =
+    'This will clear all local settings (map preferences, search history, etc.) except your user account. The welcome popup will show again on next page load. Are you sure?';
+
   if (!confirm(confirmMessage)) {
     return;
   }
@@ -92,17 +93,17 @@ const clearLocalSettings = (): void => {
   try {
     // Get all localStorage keys
     const keys = Object.keys(localStorage);
-    
+
     // Keys to preserve (do not clear)
     const preserveKeys = ['user-token'];
-    
+
     // Clear all keys except preserved ones
     keys.forEach(key => {
       if (!preserveKeys.includes(key)) {
         localStorage.removeItem(key);
       }
     });
-    
+
     alert('Local settings cleared successfully! Refresh the page to see the welcome popup again.');
   } catch (err) {
     console.error('Failed to clear local settings:', err);
@@ -116,7 +117,7 @@ function triggerConfetti() {
     alert('Confetti animation is disabled due to reduced motion preference.');
     return;
   }
-  
+
   if (!isConfettiActive.value) {
     startConfetti();
   }
@@ -159,7 +160,7 @@ function triggerTestNotification() {
     is_dismissed: false,
     related_id: 'test-badge-123',
   };
-  
+
   // Add to notification store
   notificationsStore.addNotification(mockBadgeNotification);
   alert('Test notification added! Check the notification icon in the header.');
@@ -167,9 +168,9 @@ function triggerTestNotification() {
 
 function startConfetti() {
   if (isConfettiActive.value) return;
-  
+
   isConfettiActive.value = true;
-  
+
   // Create canvas element if it doesn't exist
   if (!confettiCanvas.value) {
     const canvas = document.createElement('canvas');
@@ -182,20 +183,20 @@ function startConfetti() {
     canvas.style.zIndex = '9999';
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
-    
+
     document.body.appendChild(canvas);
     confettiCanvas.value = canvas;
   }
-  
+
   const canvas = confettiCanvas.value;
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  
+
   // Create confetti particles
   confettiParticles.value = [];
   for (let i = 0; i < 150; i++) {
-  const idx = Math.floor(Math.random() * confettiColors.length);
-  const color = (confettiColors[idx] || confettiColors[0]) as string;
+    const idx = Math.floor(Math.random() * confettiColors.length);
+    const color = (confettiColors[idx] || confettiColors[0]) as string;
     confettiParticles.value.push({
       x: Math.random() * canvas.width,
       y: -10,
@@ -208,10 +209,10 @@ function startConfetti() {
       gravity: 0.15,
     });
   }
-  
+
   // Animate confetti
   animateConfetti(ctx);
-  
+
   // Stop confetti after 4 seconds
   setTimeout(() => {
     stopConfetti();
@@ -220,22 +221,22 @@ function startConfetti() {
 
 function animateConfetti(ctx: CanvasRenderingContext2D) {
   if (!isConfettiActive.value || !confettiCanvas.value) return;
-  
+
   ctx.clearRect(0, 0, confettiCanvas.value.width, confettiCanvas.value.height);
-  
+
   confettiParticles.value.forEach((particle: ConfettiParticle, index: number) => {
     // Update position
     particle.x += particle.vx;
     particle.y += particle.vy;
     particle.vy += particle.gravity;
     particle.rotation += particle.rotationSpeed;
-    
+
     // Remove particles that are off screen
     if (particle.y > confettiCanvas.value!.height + 10) {
       confettiParticles.value.splice(index, 1);
       return;
     }
-    
+
     // Draw particle
     ctx.save();
     ctx.translate(particle.x, particle.y);
@@ -244,7 +245,7 @@ function animateConfetti(ctx: CanvasRenderingContext2D) {
     ctx.fillRect(-particle.size / 2, -particle.size / 2, particle.size, particle.size);
     ctx.restore();
   });
-  
+
   if (confettiParticles.value.length > 0) {
     requestAnimationFrame(() => animateConfetti(ctx));
   }
@@ -253,7 +254,7 @@ function animateConfetti(ctx: CanvasRenderingContext2D) {
 function stopConfetti() {
   isConfettiActive.value = false;
   confettiParticles.value = [];
-  
+
   if (confettiCanvas.value) {
     document.body.removeChild(confettiCanvas.value);
     confettiCanvas.value = null;
@@ -304,11 +305,11 @@ function startGeoWatch() {
 
   try {
     geoWatchId = navigator.geolocation.watchPosition(
-      (pos) => {
+      pos => {
         position.value = pos;
         geoLoading.value = false;
       },
-      (err) => {
+      err => {
         geoError.value = `Geolocation error: ${err.message}`;
         geoLoading.value = false;
       },
@@ -334,11 +335,11 @@ function requestSinglePosition() {
   geoLoading.value = true;
 
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
+    pos => {
       position.value = pos;
       geoLoading.value = false;
     },
-    (err) => {
+    err => {
       geoError.value = `Geolocation error: ${err.message}`;
       geoLoading.value = false;
     },
@@ -376,9 +377,9 @@ onUnmounted(() => {
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
         <div class="p-6">
           <h2 class="text-lg font-semibold mb-4 flex items-center">
-            <svg 
-              :class="['w-5 h-5 mr-2', error ? 'text-red-600' : 'text-green-600']" 
-              fill="currentColor" 
+            <svg
+              :class="['w-5 h-5 mr-2', error ? 'text-red-600' : 'text-green-600']"
+              fill="currentColor"
               viewBox="0 0 20 20"
             >
               <path
@@ -396,7 +397,7 @@ onUnmounted(() => {
             </svg>
             API Status
           </h2>
-          
+
           <div v-if="isLoading" class="text-gray-600 flex items-center">
             <svg
               class="animate-spin -ml-1 mr-2 h-4 w-4"
@@ -420,12 +421,12 @@ onUnmounted(() => {
             </svg>
             Checking system health...
           </div>
-          
+
           <div v-else>
             <p :class="['text-lg mb-4', error ? 'text-red-700' : 'text-green-700']">
               {{ status }}
             </p>
-            
+
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div class="space-y-2">
                 <div class="flex justify-between">
@@ -443,11 +444,13 @@ onUnmounted(() => {
                   <span class="text-gray-900">{{ new Date(buildDate).toLocaleString() }}</span>
                 </div>
               </div>
-              
+
               <div class="space-y-2">
                 <div class="flex justify-between">
                   <span class="font-medium text-gray-600">Last Check:</span>
-                  <span class="text-gray-900">{{ healthData?.timestamp ? new Date(healthData.timestamp).toLocaleString() : 'N/A' }}</span>
+                  <span class="text-gray-900">{{
+                    healthData?.timestamp ? new Date(healthData.timestamp).toLocaleString() : 'N/A'
+                  }}</span>
                 </div>
                 <div class="flex justify-between">
                   <span class="font-medium text-gray-600">Environment:</span>
@@ -464,22 +467,28 @@ onUnmounted(() => {
         <div class="p-6">
           <h2 class="text-lg font-semibold mb-4 flex items-center">
             <svg class="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"/>
+              <path
+                d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"
+              />
             </svg>
             System Statistics
           </h2>
-          
+
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="text-center p-4 bg-blue-50 rounded-lg">
               <div class="text-2xl font-bold text-blue-600">{{ stats.totalSubmissions || 0 }}</div>
               <div class="text-sm text-gray-600">Total Submissions</div>
             </div>
             <div class="text-center p-4 bg-green-50 rounded-lg">
-              <div class="text-2xl font-bold text-green-600">{{ stats.approvedSubmissions || 0 }}</div>
+              <div class="text-2xl font-bold text-green-600">
+                {{ stats.approvedSubmissions || 0 }}
+              </div>
               <div class="text-sm text-gray-600">Approved Submissions</div>
             </div>
             <div class="text-center p-4 bg-yellow-50 rounded-lg">
-              <div class="text-2xl font-bold text-yellow-600">{{ stats.pendingSubmissions || 0 }}</div>
+              <div class="text-2xl font-bold text-yellow-600">
+                {{ stats.pendingSubmissions || 0 }}
+              </div>
               <div class="text-sm text-gray-600">Pending Review</div>
             </div>
           </div>
@@ -487,14 +496,16 @@ onUnmounted(() => {
       </div>
 
       <!-- Development Tools (only in dev/staging) -->
-      <div 
+      <div
         v-if="environment === 'development' || environment === 'staging'"
         class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6"
       >
         <div class="p-6">
           <h2 class="text-lg font-semibold mb-4 flex items-center">
             <svg class="w-5 h-5 mr-2 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z" />
+              <path
+                d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"
+              />
             </svg>
             Development Tools
           </h2>
@@ -512,7 +523,7 @@ onUnmounted(() => {
                 🎉 Test Confetti
               </button>
             </div>
-            
+
             <div class="flex items-center justify-between p-4 bg-yellow-50 rounded-lg">
               <div>
                 <h3 class="font-medium text-gray-900">Notification Test</h3>
@@ -531,22 +542,42 @@ onUnmounted(() => {
               <div class="flex items-start justify-between">
                 <div>
                   <h3 class="font-medium text-gray-900">Device GPS Location</h3>
-                  <p class="text-sm text-gray-600">Show current device GPS coordinates and accuracy (for debugging).</p>
+                  <p class="text-sm text-gray-600">
+                    Show current device GPS coordinates and accuracy (for debugging).
+                  </p>
                 </div>
               </div>
 
               <div class="mt-3 space-y-2">
-                <div v-if="!geoSupported" class="text-sm text-gray-600">Geolocation is not supported by this browser.</div>
+                <div v-if="!geoSupported" class="text-sm text-gray-600">
+                  Geolocation is not supported by this browser.
+                </div>
 
                 <div v-else>
                   <div v-if="geoLoading" class="text-sm text-gray-600">Acquiring location…</div>
                   <div v-if="geoError" class="text-sm text-red-600">{{ geoError }}</div>
 
                   <div v-if="position" class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                    <div class="flex justify-between"><span class="font-medium text-gray-600">Latitude:</span><span class="text-gray-900 font-mono">{{ formatCoords(position)?.lat }}</span></div>
-                    <div class="flex justify-between"><span class="font-medium text-gray-600">Longitude:</span><span class="text-gray-900 font-mono">{{ formatCoords(position)?.lon }}</span></div>
-                    <div class="flex justify-between"><span class="font-medium text-gray-600">Accuracy:</span><span class="text-gray-900">{{ formatCoords(position)?.accuracy }}</span></div>
-                    <div class="flex justify-between"><span class="font-medium text-gray-600">Timestamp:</span><span class="text-gray-900">{{ formatCoords(position)?.timestamp }}</span></div>
+                    <div class="flex justify-between">
+                      <span class="font-medium text-gray-600">Latitude:</span
+                      ><span class="text-gray-900 font-mono">{{
+                        formatCoords(position)?.lat
+                      }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="font-medium text-gray-600">Longitude:</span
+                      ><span class="text-gray-900 font-mono">{{
+                        formatCoords(position)?.lon
+                      }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="font-medium text-gray-600">Accuracy:</span
+                      ><span class="text-gray-900">{{ formatCoords(position)?.accuracy }}</span>
+                    </div>
+                    <div class="flex justify-between">
+                      <span class="font-medium text-gray-600">Timestamp:</span
+                      ><span class="text-gray-900">{{ formatCoords(position)?.timestamp }}</span>
+                    </div>
                   </div>
 
                   <div class="flex items-center space-x-2 mt-3">
@@ -592,11 +623,16 @@ onUnmounted(() => {
             viewBox="0 0 24 24"
             stroke="currentColor"
           >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+            />
           </svg>
           {{ isLoading ? 'Checking...' : 'Refresh Status' }}
         </button>
-        
+
         <!-- Clear Local Settings Button -->
         <button
           @click="clearLocalSettings"
@@ -609,14 +645,19 @@ onUnmounted(() => {
             viewBox="0 0 24 24"
             stroke="currentColor"
           >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H8a1 1 0 00-1 1v3M4 7h16" />
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1-1H8a1 1 0 00-1 1v3M4 7h16"
+            />
           </svg>
           Clear Local Settings
         </button>
       </div>
     </div>
 
-      <!-- Device GPS controls moved into Development Tools card (below) -->
+    <!-- Device GPS controls moved into Development Tools card (below) -->
   </div>
 </template>
 

@@ -150,19 +150,21 @@ export const useArtworksStore = defineStore('artworks', () => {
       const apiArtworks = response.data?.artworks || [];
 
       // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = apiArtworks.map((artwork: MinimalArtworkPin | ArtworkWithPhotos): ArtworkPin => {
-        const pin: ArtworkPin = {
-          id: artwork.id,
-          latitude: artwork.lat,
-          longitude: artwork.lon,
-          type: artwork.type_name || 'unknown',
-          photos: [],
-        };
-        if (artwork.recent_photo) {
-          pin.photos = [artwork.recent_photo];
+      const artworkPins: ArtworkPin[] = apiArtworks.map(
+        (artwork: MinimalArtworkPin | ArtworkWithPhotos): ArtworkPin => {
+          const pin: ArtworkPin = {
+            id: artwork.id,
+            latitude: artwork.lat,
+            longitude: artwork.lon,
+            type: artwork.type_name || 'unknown',
+            photos: [],
+          };
+          if (artwork.recent_photo) {
+            pin.photos = [artwork.recent_photo];
+          }
+          return pin;
         }
-        return pin;
-      });
+      );
 
       setArtworks(artworkPins);
       lastFetchLocation.value = targetLocation;
@@ -257,7 +259,9 @@ export const useArtworksStore = defineStore('artworks', () => {
             }
           });
         }
-      } catch {/* ignore cache errors */}
+      } catch {
+        /* ignore cache errors */
+      }
 
       // Use center point of bounds for nearby search
       const centerLat = (bounds.north + bounds.south) / 2;
@@ -275,24 +279,32 @@ export const useArtworksStore = defineStore('artworks', () => {
         ) / 2
       );
 
-  const effectiveRadius = Math.max(radius, 200); // Allow smaller than 500 for tighter view but minimum 200m
-  fetchRadius.value = Math.round(effectiveRadius);
-  const response = await apiService.getNearbyArtworks(centerLat, centerLon, effectiveRadius, 250, { minimal: true });
+      const effectiveRadius = Math.max(radius, 200); // Allow smaller than 500 for tighter view but minimum 200m
+      fetchRadius.value = Math.round(effectiveRadius);
+      const response = await apiService.getNearbyArtworks(
+        centerLat,
+        centerLon,
+        effectiveRadius,
+        250,
+        { minimal: true }
+      );
 
       const apiArtworks = response.data?.artworks || [];
-      const artworkPins: ArtworkPin[] = apiArtworks.map((artwork: MinimalArtworkPin | ArtworkWithPhotos): ArtworkPin => {
-        const pin: ArtworkPin = {
-          id: artwork.id,
-          latitude: artwork.lat,
-          longitude: artwork.lon,
-          type: artwork.type_name || 'unknown',
-          photos: [],
-        };
-        if (artwork.recent_photo) {
-          pin.photos = [artwork.recent_photo];
+      const artworkPins: ArtworkPin[] = apiArtworks.map(
+        (artwork: MinimalArtworkPin | ArtworkWithPhotos): ArtworkPin => {
+          const pin: ArtworkPin = {
+            id: artwork.id,
+            latitude: artwork.lat,
+            longitude: artwork.lon,
+            type: artwork.type_name || 'unknown',
+            photos: [],
+          };
+          if (artwork.recent_photo) {
+            pin.photos = [artwork.recent_photo];
+          }
+          return pin;
         }
-        return pin;
-      });
+      );
 
       // ==============================================
       // Session Cache Merge Strategy
@@ -309,7 +321,7 @@ export const useArtworksStore = defineStore('artworks', () => {
         const existingIdx = existingIndexById.get(pin.id);
         if (existingIdx !== undefined) {
           // Merge (keep any existing fields like title/photos if already populated)
-            artworks.value[existingIdx] = {
+          artworks.value[existingIdx] = {
             ...artworks.value[existingIdx],
             ...pin,
           };
@@ -323,7 +335,9 @@ export const useArtworksStore = defineStore('artworks', () => {
       // 3) Persist pins to persistent cache for future loads
       try {
         mapCache.upsertPins(artworkPins);
-      } catch {/* ignore cache errors */}
+      } catch {
+        /* ignore cache errors */
+      }
     } catch (err) {
       const message = getErrorMessage(err);
       setError(message);
@@ -335,9 +349,15 @@ export const useArtworksStore = defineStore('artworks', () => {
 
   // Progressive loading functionality for large datasets with adaptive batch sizing
   async function fetchArtworksInBoundsBatched(
-    bounds: MapBounds, 
+    bounds: MapBounds,
     initialBatchSize: number = 500,
-    onProgress?: (progress: { loaded: number; total: number; batch: ArtworkPin[]; batchSize: number; avgTime: number }) => void
+    onProgress?: (progress: {
+      loaded: number;
+      total: number;
+      batch: ArtworkPin[];
+      batchSize: number;
+      avgTime: number;
+    }) => void
   ): Promise<void> {
     setLoading(true);
     clearError();
@@ -366,7 +386,9 @@ export const useArtworksStore = defineStore('artworks', () => {
             }
           });
         }
-      } catch {/* ignore cache errors */}
+      } catch {
+        /* ignore cache errors */
+      }
 
       // Use center point of bounds for nearby search
       const centerLat = (bounds.north + bounds.south) / 2;
@@ -400,10 +422,10 @@ export const useArtworksStore = defineStore('artworks', () => {
         try {
           // Fetch batch with current batch size
           const response = await apiService.getNearbyArtworks(
-            centerLat, 
-            centerLon, 
-            effectiveRadius, 
-            currentBatchSize, 
+            centerLat,
+            centerLon,
+            effectiveRadius,
+            currentBatchSize,
             { minimal: true }
           );
 
@@ -412,26 +434,28 @@ export const useArtworksStore = defineStore('artworks', () => {
           performanceMetrics.push(batchTime);
 
           const apiArtworks = response.data?.artworks || [];
-          
+
           // If no results or fewer than batch size, this is the last batch
           if (apiArtworks.length === 0) {
             break;
           }
 
           // Convert API response to ArtworkPin format
-          const batchPins: ArtworkPin[] = apiArtworks.map((artwork: MinimalArtworkPin | ArtworkWithPhotos): ArtworkPin => {
-            const pin: ArtworkPin = {
-              id: artwork.id,
-              latitude: artwork.lat,
-              longitude: artwork.lon,
-              type: artwork.type_name || 'unknown',
-              photos: [],
-            };
-            if (artwork.recent_photo) {
-              pin.photos = [artwork.recent_photo];
+          const batchPins: ArtworkPin[] = apiArtworks.map(
+            (artwork: MinimalArtworkPin | ArtworkWithPhotos): ArtworkPin => {
+              const pin: ArtworkPin = {
+                id: artwork.id,
+                latitude: artwork.lat,
+                longitude: artwork.lon,
+                type: artwork.type_name || 'unknown',
+                photos: [],
+              };
+              if (artwork.recent_photo) {
+                pin.photos = [artwork.recent_photo];
+              }
+              return pin;
             }
-            return pin;
-          });
+          );
 
           allArtworkPins.push(...batchPins);
           totalLoaded += batchPins.length;
@@ -462,7 +486,7 @@ export const useArtworksStore = defineStore('artworks', () => {
               total: totalLoaded + (batchPins.length === currentBatchSize ? currentBatchSize : 0), // Estimate
               batch: batchPins,
               batchSize: currentBatchSize,
-              avgTime
+              avgTime,
             });
           }
 
@@ -471,12 +495,16 @@ export const useArtworksStore = defineStore('artworks', () => {
             // If batch took too long, reduce batch size
             if (batchTime > targetBatchTime && currentBatchSize > minBatchSize) {
               currentBatchSize = Math.max(minBatchSize, Math.round(currentBatchSize * 0.8));
-              console.log(`[Progressive Loading] Reduced batch size to ${currentBatchSize} (${batchTime.toFixed(0)}ms batch time)`);
+              console.log(
+                `[Progressive Loading] Reduced batch size to ${currentBatchSize} (${batchTime.toFixed(0)}ms batch time)`
+              );
             }
             // If batch was fast and we have room to grow, increase batch size
             else if (batchTime < targetBatchTime * 0.5 && currentBatchSize < maxBatchSize) {
               currentBatchSize = Math.min(maxBatchSize, Math.round(currentBatchSize * 1.2));
-              console.log(`[Progressive Loading] Increased batch size to ${currentBatchSize} (${batchTime.toFixed(0)}ms batch time)`);
+              console.log(
+                `[Progressive Loading] Increased batch size to ${currentBatchSize} (${batchTime.toFixed(0)}ms batch time)`
+              );
             }
           }
 
@@ -490,32 +518,37 @@ export const useArtworksStore = defineStore('artworks', () => {
           // Dynamic delay based on performance - faster for good performance, slower for poor performance
           const dynamicDelay = Math.max(10, Math.min(100, batchTime / 10));
           await new Promise(resolve => setTimeout(resolve, dynamicDelay));
-
         } catch (batchError) {
           console.warn(`Error loading batch ${batchNumber} at offset ${offset}:`, batchError);
-          
+
           // On error, try reducing batch size for next attempt
           if (currentBatchSize > minBatchSize) {
             currentBatchSize = Math.max(minBatchSize, Math.round(currentBatchSize * 0.5));
-            console.log(`[Progressive Loading] Reduced batch size to ${currentBatchSize} due to error`);
+            console.log(
+              `[Progressive Loading] Reduced batch size to ${currentBatchSize} due to error`
+            );
             continue; // Try again with smaller batch
           }
-          
+
           break; // Stop on error if already at minimum batch size
         }
       }
 
-      const avgBatchTime = performanceMetrics.length > 0 
-        ? performanceMetrics.reduce((a, b) => a + b, 0) / performanceMetrics.length 
-        : 0;
+      const avgBatchTime =
+        performanceMetrics.length > 0
+          ? performanceMetrics.reduce((a, b) => a + b, 0) / performanceMetrics.length
+          : 0;
 
-      console.log(`[Progressive Loading] Complete. ${totalLoaded} artworks loaded in ${batchNumber} batches. Avg batch time: ${avgBatchTime.toFixed(0)}ms`);
+      console.log(
+        `[Progressive Loading] Complete. ${totalLoaded} artworks loaded in ${batchNumber} batches. Avg batch time: ${avgBatchTime.toFixed(0)}ms`
+      );
 
       // Persist all pins to cache
       try {
         mapCache.upsertPins(allArtworkPins);
-      } catch {/* ignore cache errors */}
-
+      } catch {
+        /* ignore cache errors */
+      }
     } catch (err) {
       const message = getErrorMessage(err);
       setError(message);
@@ -540,19 +573,21 @@ export const useArtworksStore = defineStore('artworks', () => {
       const apiArtworks = response.data?.artworks || [];
 
       // Convert the API response to ArtworkPin format
-      const artworkPins: ArtworkPin[] = apiArtworks.map((artwork: MinimalArtworkPin | ArtworkWithPhotos): ArtworkPin => {
-        const pin: ArtworkPin = {
-          id: artwork.id,
-          latitude: artwork.lat,
-          longitude: artwork.lon,
-          type: artwork.type_name || 'unknown',
-          photos: [],
-        };
-        if (artwork.recent_photo) {
-          pin.photos = [artwork.recent_photo];
+      const artworkPins: ArtworkPin[] = apiArtworks.map(
+        (artwork: MinimalArtworkPin | ArtworkWithPhotos): ArtworkPin => {
+          const pin: ArtworkPin = {
+            id: artwork.id,
+            latitude: artwork.lat,
+            longitude: artwork.lon,
+            type: artwork.type_name || 'unknown',
+            photos: [],
+          };
+          if (artwork.recent_photo) {
+            pin.photos = [artwork.recent_photo];
+          }
+          return pin;
         }
-        return pin;
-      });
+      );
 
       return artworkPins;
     } catch (err) {
@@ -588,7 +623,11 @@ export const useArtworksStore = defineStore('artworks', () => {
 
   // Cache management (for UI button)
   function clearMapCache(): void {
-    try { mapCache.clear(); } catch {/* ignore */}
+    try {
+      mapCache.clear();
+    } catch {
+      /* ignore */
+    }
   }
 
   return {

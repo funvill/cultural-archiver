@@ -13,7 +13,9 @@ export class ArtworkImporter {
       this.logger.info(`Found ${artworks.length} artworks to import.`);
       return artworks;
     } catch (error) {
-      this.logger.error(`Error importing artworks: ${error instanceof Error ? error.message : error}`);
+      this.logger.error(
+        `Error importing artworks: ${error instanceof Error ? error.message : error}`
+      );
       throw error;
     }
   }
@@ -24,7 +26,9 @@ export class ArtworkImporter {
       this.logger.info(`Successfully imported artwork ${artworkData.title}`);
       return createdArtwork;
     } catch (error) {
-      this.logger.error(`Error importing artwork ${artworkData.title}: ${error instanceof Error ? error.message : error}`);
+      this.logger.error(
+        `Error importing artwork ${artworkData.title}: ${error instanceof Error ? error.message : error}`
+      );
       throw error;
     }
   }

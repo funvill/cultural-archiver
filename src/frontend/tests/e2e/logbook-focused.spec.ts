@@ -18,15 +18,15 @@ test.describe('Logbook Submission Tests', () => {
           url: 'https://example.com/photo1.jpg',
           alt: 'Test photo',
           width: 800,
-          height: 600
-        }
+          height: 600,
+        },
       ],
       tags: ['test', 'artwork'],
       cooldownMinutes: 0,
       cooldownRemaining: 0,
       canSubmit: true,
-      submissionCooldownEnd: null
-    }
+      submissionCooldownEnd: null,
+    },
   };
 
   const mockArtworkWithCooldown = {
@@ -43,15 +43,15 @@ test.describe('Logbook Submission Tests', () => {
           url: 'https://example.com/photo1.jpg',
           alt: 'Test photo',
           width: 800,
-          height: 600
-        }
+          height: 600,
+        },
       ],
       tags: ['test', 'artwork'],
       cooldownMinutes: 30,
       cooldownRemaining: 25,
       canSubmit: false,
-      submissionCooldownEnd: new Date(Date.now() + 25 * 60 * 1000).toISOString()
-    }
+      submissionCooldownEnd: new Date(Date.now() + 25 * 60 * 1000).toISOString(),
+    },
   };
 
   test.beforeEach(async ({ page }) => {
@@ -59,7 +59,7 @@ test.describe('Logbook Submission Tests', () => {
     await page.addInitScript(() => {
       localStorage.setItem('cultural-archiver-visited', 'true');
     });
-    
+
     await page.goto(`/logbook/${mockArtworkId}`);
     await page.waitForLoadState('networkidle');
   });
@@ -70,7 +70,7 @@ test.describe('Logbook Submission Tests', () => {
       await page.route('**/api/artworks/**', async route => {
         await route.fulfill({
           contentType: 'application/json',
-          body: JSON.stringify(mockArtworkWithoutCooldown)
+          body: JSON.stringify(mockArtworkWithoutCooldown),
         });
       });
     });
@@ -80,7 +80,7 @@ test.describe('Logbook Submission Tests', () => {
       await page.route('**/api/artworks/**', async route => {
         await route.fulfill({
           contentType: 'application/json',
-          body: JSON.stringify(mockArtworkWithCooldown)
+          body: JSON.stringify(mockArtworkWithCooldown),
         });
       });
 
@@ -90,7 +90,7 @@ test.describe('Logbook Submission Tests', () => {
       // Check cooldown state is displayed
       await expect(page.locator('[data-testid="cooldown-state"]')).toBeVisible();
       await expect(page.locator('text=25 minutes')).toBeVisible();
-      
+
       // Ensure form is not visible
       await expect(page.locator('[data-testid="main-form"]')).not.toBeVisible();
     });
@@ -101,13 +101,13 @@ test.describe('Logbook Submission Tests', () => {
 
       // Check form is displayed
       await expect(page.locator('[data-testid="main-form"]')).toBeVisible();
-      
+
       // Check form elements are present
       await expect(page.locator('input#photo-upload')).toBeVisible();
       await expect(page.locator('#consent-cc0')).toBeVisible();
       await expect(page.locator('#consent-terms')).toBeVisible();
       await expect(page.locator('#consent-photo-rights')).toBeVisible();
-      
+
       // Ensure cooldown state is not visible
       await expect(page.locator('[data-testid="cooldown-state"]')).not.toBeVisible();
     });
@@ -119,7 +119,7 @@ test.describe('Logbook Submission Tests', () => {
       await page.route('**/api/artworks/**', async route => {
         await route.fulfill({
           contentType: 'application/json',
-          body: JSON.stringify(mockArtworkWithoutCooldown)
+          body: JSON.stringify(mockArtworkWithoutCooldown),
         });
       });
 
@@ -137,7 +137,7 @@ test.describe('Logbook Submission Tests', () => {
       await fileInput.setInputFiles({
         name: 'test.jpg',
         mimeType: 'image/jpeg',
-        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0])
+        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
       });
 
       // Submit should still be disabled without consents
@@ -155,13 +155,13 @@ test.describe('Logbook Submission Tests', () => {
     test('should handle condition selection correctly', async ({ page }) => {
       // Select excellent condition
       await page.click('label[for="condition-excellent"]');
-      
+
       // Verify selection
       await expect(page.locator('#condition-excellent')).toBeChecked();
-      
+
       // Change to poor condition
       await page.click('label[for="condition-poor"]');
-      
+
       // Verify new selection
       await expect(page.locator('#condition-poor')).toBeChecked();
       await expect(page.locator('#condition-excellent')).not.toBeChecked();
@@ -174,7 +174,7 @@ test.describe('Logbook Submission Tests', () => {
       await page.route('**/api/artworks/**', async route => {
         await route.fulfill({
           contentType: 'application/json',
-          body: JSON.stringify(mockArtworkWithoutCooldown)
+          body: JSON.stringify(mockArtworkWithoutCooldown),
         });
       });
 
@@ -184,16 +184,18 @@ test.describe('Logbook Submission Tests', () => {
 
     test('should accept photo upload and show preview', async ({ page }) => {
       const fileInput = page.locator('input#photo-upload');
-      
+
       // Upload a file
       await fileInput.setInputFiles({
         name: 'test.jpg',
         mimeType: 'image/jpeg',
-        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0])
+        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
       });
 
       // Should show file name or preview indication
-      await expect(page.locator('text=test.jpg').or(page.locator('[data-testid="photo-preview"]'))).toBeVisible();
+      await expect(
+        page.locator('text=test.jpg').or(page.locator('[data-testid="photo-preview"]'))
+      ).toBeVisible();
     });
   });
 
@@ -203,7 +205,7 @@ test.describe('Logbook Submission Tests', () => {
       await page.route('**/api/artworks/**', async route => {
         await route.fulfill({
           contentType: 'application/json',
-          body: JSON.stringify(mockArtworkWithoutCooldown)
+          body: JSON.stringify(mockArtworkWithoutCooldown),
         });
       });
 
@@ -218,8 +220,8 @@ test.describe('Logbook Submission Tests', () => {
           contentType: 'application/json',
           body: JSON.stringify({
             success: true,
-            data: { id: 'submission-123' }
-          })
+            data: { id: 'submission-123' },
+          }),
         });
       });
 
@@ -228,7 +230,7 @@ test.describe('Logbook Submission Tests', () => {
       await fileInput.setInputFiles({
         name: 'test.jpg',
         mimeType: 'image/jpeg',
-        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0])
+        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
       });
 
       await page.click('label[for="condition-good"]');
@@ -242,7 +244,9 @@ test.describe('Logbook Submission Tests', () => {
       await page.click('button[data-testid="submit-button"]');
 
       // Should show success state
-      await expect(page.locator('text=Successfully submitted').or(page.locator('.bg-green-50'))).toBeVisible();
+      await expect(
+        page.locator('text=Successfully submitted').or(page.locator('.bg-green-50'))
+      ).toBeVisible();
     });
   });
 
@@ -252,7 +256,7 @@ test.describe('Logbook Submission Tests', () => {
       await page.route('**/api/artworks/**', async route => {
         await route.fulfill({
           contentType: 'application/json',
-          body: JSON.stringify(mockArtworkWithoutCooldown)
+          body: JSON.stringify(mockArtworkWithoutCooldown),
         });
       });
 
@@ -271,7 +275,7 @@ test.describe('Logbook Submission Tests', () => {
       await fileInput.setInputFiles({
         name: 'test.jpg',
         mimeType: 'image/jpeg',
-        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0])
+        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
       });
 
       await page.click('label[for="condition-good"]');
@@ -294,8 +298,8 @@ test.describe('Logbook Submission Tests', () => {
           body: JSON.stringify({
             success: false,
             error: 'Cooldown active. Please wait 25 minutes before submitting again.',
-            cooldownMinutes: 25
-          })
+            cooldownMinutes: 25,
+          }),
         });
       });
 
@@ -304,7 +308,7 @@ test.describe('Logbook Submission Tests', () => {
       await fileInput.setInputFiles({
         name: 'test.jpg',
         mimeType: 'image/jpeg',
-        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0])
+        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
       });
 
       await page.click('label[for="condition-good"]');
@@ -327,8 +331,8 @@ test.describe('Logbook Submission Tests', () => {
           contentType: 'application/json',
           body: JSON.stringify({
             success: false,
-            error: 'Internal server error occurred'
-          })
+            error: 'Internal server error occurred',
+          }),
         });
       });
 
@@ -337,7 +341,7 @@ test.describe('Logbook Submission Tests', () => {
       await fileInput.setInputFiles({
         name: 'test.jpg',
         mimeType: 'image/jpeg',
-        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0])
+        buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
       });
 
       await page.click('label[for="condition-good"]');

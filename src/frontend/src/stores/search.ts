@@ -264,7 +264,11 @@ export const useSearchStore = defineStore('search', () => {
           let parsedTags: Record<string, unknown> | null = null;
           if (artwork.tags) {
             if (typeof artwork.tags === 'string') {
-              try { parsedTags = JSON.parse(artwork.tags); } catch { parsedTags = null; }
+              try {
+                parsedTags = JSON.parse(artwork.tags);
+              } catch {
+                parsedTags = null;
+              }
             } else if (typeof artwork.tags === 'object') {
               parsedTags = artwork.tags as Record<string, unknown>;
             }
@@ -288,7 +292,11 @@ export const useSearchStore = defineStore('search', () => {
           if (typeof rawArtist === 'string' && rawArtist.trim().length > 0) {
             artistName = rawArtist.trim();
           } else if (parsedTags) {
-            const t = parsedTags as { artist?: unknown; artist_name?: unknown; created_by?: unknown };
+            const t = parsedTags as {
+              artist?: unknown;
+              artist_name?: unknown;
+              created_by?: unknown;
+            };
             const candidate = [t.artist_name, t.artist, t.created_by].find(
               (v): v is string => typeof v === 'string' && v.trim().length > 0
             );
@@ -303,7 +311,9 @@ export const useSearchStore = defineStore('search', () => {
             artist_name: artistName,
             tags: parsedTags,
             recent_photo: artwork.recent_photo ?? null,
-            photo_count: artwork.photo_count ?? (Array.isArray(artwork.photos) ? (artwork.photos as unknown[]).length : 0),
+            photo_count:
+              artwork.photo_count ??
+              (Array.isArray(artwork.photos) ? (artwork.photos as unknown[]).length : 0),
             distance_km: artwork.distance_km ?? null,
             similarity_score: artwork.similarity_score ?? null,
           };
@@ -452,7 +462,11 @@ export const useSearchStore = defineStore('search', () => {
           let parsedTags: Record<string, unknown> | null = null;
           if (artwork.tags) {
             if (typeof artwork.tags === 'string') {
-              try { parsedTags = JSON.parse(artwork.tags); } catch { parsedTags = null; }
+              try {
+                parsedTags = JSON.parse(artwork.tags);
+              } catch {
+                parsedTags = null;
+              }
             } else if (typeof artwork.tags === 'object') {
               parsedTags = artwork.tags as Record<string, unknown>;
             }
@@ -476,7 +490,11 @@ export const useSearchStore = defineStore('search', () => {
           if (typeof rawArtist === 'string' && rawArtist.trim().length > 0) {
             artistName = rawArtist.trim();
           } else if (parsedTags) {
-            const t = parsedTags as { artist?: unknown; artist_name?: unknown; created_by?: unknown };
+            const t = parsedTags as {
+              artist?: unknown;
+              artist_name?: unknown;
+              created_by?: unknown;
+            };
             const candidate = [t.artist_name, t.artist, t.created_by].find(
               (v): v is string => typeof v === 'string' && v.trim().length > 0
             );
@@ -491,7 +509,9 @@ export const useSearchStore = defineStore('search', () => {
             artist_name: artistName,
             tags: parsedTags,
             recent_photo: artwork.recent_photo ?? null,
-            photo_count: artwork.photo_count ?? (Array.isArray(artwork.photos) ? (artwork.photos as unknown[]).length : 0),
+            photo_count:
+              artwork.photo_count ??
+              (Array.isArray(artwork.photos) ? (artwork.photos as unknown[]).length : 0),
             distance_km: artwork.distance_km ?? null,
             similarity_score: artwork.similarity_score ?? null,
           };

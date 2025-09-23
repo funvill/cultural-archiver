@@ -373,19 +373,25 @@
           </a>
         </div>
       </div>
-      
-        <!-- Legal Links -->
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div class="bg-white rounded-lg p-6 shadow-sm text-center">
-            <h3 class="text-lg font-semibold mb-3">Legal</h3>
-            <p class="text-sm text-gray-600 mb-4">Access our legal documents for full details on usage, licensing and privacy.</p>
-            <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <a href="/terms" class="text-blue-600 hover:text-blue-800 underline">Terms of Service</a>
-              <span class="text-gray-400">|</span>
-              <a href="/privacy" class="text-blue-600 hover:text-blue-800 underline">Privacy Policy</a>
-            </div>
+
+      <!-- Legal Links -->
+      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="bg-white rounded-lg p-6 shadow-sm text-center">
+          <h3 class="text-lg font-semibold mb-3">Legal</h3>
+          <p class="text-sm text-gray-600 mb-4">
+            Access our legal documents for full details on usage, licensing and privacy.
+          </p>
+          <div class="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <a href="/terms" class="text-blue-600 hover:text-blue-800 underline"
+              >Terms of Service</a
+            >
+            <span class="text-gray-400">|</span>
+            <a href="/privacy" class="text-blue-600 hover:text-blue-800 underline"
+              >Privacy Policy</a
+            >
           </div>
         </div>
+      </div>
     </div>
   </div>
 </template>

@@ -46,8 +46,6 @@ interface MagicLinkConsumeRequest {
   token: string;
 }
 
-
-
 // Configuration
 const API_BASE_URL = getApiBaseUrl();
 const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT) || 30000;
@@ -522,7 +520,7 @@ export const apiService = {
       limit: limit.toString(),
       sort,
     };
-    
+
     if (search && search.trim()) {
       params.search = search.trim();
     }
@@ -544,7 +542,7 @@ export const apiService = {
     status: 'approved' | 'pending' | 'removed' = 'approved'
   ): Promise<
     ApiResponse<{
-  artworks: unknown[];
+      artworks: unknown[];
       pagination: {
         page: number;
         per_page: number;
@@ -624,31 +622,37 @@ export const apiService = {
   /**
    * Update user's profile name
    */
-  async updateProfileName(request: ProfileUpdateRequest): Promise<ApiResponse<ProfileUpdateResponse>> {
+  async updateProfileName(
+    request: ProfileUpdateRequest
+  ): Promise<ApiResponse<ProfileUpdateResponse>> {
     return client.patch('/me/profile', request);
   },
 
   /**
    * Check if a profile name is available
    */
-  async checkProfileNameAvailability(profileName: string): Promise<ApiResponse<ProfileNameCheckResponse>> {
+  async checkProfileNameAvailability(
+    profileName: string
+  ): Promise<ApiResponse<ProfileNameCheckResponse>> {
     return client.get('/me/profile-check', { profile_name: profileName });
   },
 
   /**
    * Get public user profile by UUID
    */
-  async getPublicUserProfile(uuid: string): Promise<ApiResponse<{
-    uuid: string;
-    profile_name: string;
-    badges: Array<{
-      badge: any;
-      awarded_at: string;
-      award_reason: string;
-      metadata?: Record<string, unknown>;
-    }>;
-    member_since: string;
-  }>> {
+  async getPublicUserProfile(uuid: string): Promise<
+    ApiResponse<{
+      uuid: string;
+      profile_name: string;
+      badges: Array<{
+        badge: any;
+        awarded_at: string;
+        award_reason: string;
+        metadata?: Record<string, unknown>;
+      }>;
+      member_since: string;
+    }>
+  > {
     return client.get(`/users/${uuid}`);
   },
 
@@ -733,8 +737,6 @@ export const apiService = {
   > {
     return client.post('/auth/logout');
   },
-
-
 
   // ================================
   // Review/Moderation Endpoints
@@ -915,7 +917,13 @@ export const apiService = {
   /**
    * Get all badges with statistics (admin only)
    */
-  async getAdminBadges(): Promise<ApiResponse<{ badges: Array<BadgeRecord & { award_count: number }>; total: number; retrieved_at: string }>> {
+  async getAdminBadges(): Promise<
+    ApiResponse<{
+      badges: Array<BadgeRecord & { award_count: number }>;
+      total: number;
+      retrieved_at: string;
+    }>
+  > {
     return client.get('/admin/badges');
   },
 
@@ -938,23 +946,28 @@ export const apiService = {
   /**
    * Update an existing badge (admin only)
    */
-  async updateAdminBadge(badgeId: string, updates: {
-    title?: string;
-    description?: string;
-    icon_emoji?: string;
-    category?: string;
-    level?: number;
-    threshold_type?: string;
-    threshold_value?: number | null;
-    is_active?: boolean;
-  }): Promise<ApiResponse<BadgeRecord>> {
+  async updateAdminBadge(
+    badgeId: string,
+    updates: {
+      title?: string;
+      description?: string;
+      icon_emoji?: string;
+      category?: string;
+      level?: number;
+      threshold_type?: string;
+      threshold_value?: number | null;
+      is_active?: boolean;
+    }
+  ): Promise<ApiResponse<BadgeRecord>> {
     return client.put(`/admin/badges/${badgeId}`, updates);
   },
 
   /**
    * Deactivate a badge (admin only)
    */
-  async deactivateAdminBadge(badgeId: string): Promise<ApiResponse<{ badge_id: string; deactivated_at: string }>> {
+  async deactivateAdminBadge(
+    badgeId: string
+  ): Promise<ApiResponse<{ badge_id: string; deactivated_at: string }>> {
     return client.delete(`/admin/badges/${badgeId}`);
   },
 
@@ -965,13 +978,15 @@ export const apiService = {
   /**
    * Get user notifications with pagination
    */
-  async getUserNotifications(options: {
-    limit?: number;
-    offset?: number;
-    unread_only?: boolean;
-  } = {}): Promise<ApiResponse<NotificationListResponse>> {
+  async getUserNotifications(
+    options: {
+      limit?: number;
+      offset?: number;
+      unread_only?: boolean;
+    } = {}
+  ): Promise<ApiResponse<NotificationListResponse>> {
     const params = new URLSearchParams();
-    
+
     if (options.limit !== undefined) {
       params.append('limit', options.limit.toString());
     }
@@ -984,7 +999,7 @@ export const apiService = {
 
     const queryString = params.toString();
     const url = `/me/notifications${queryString ? `?${queryString}` : ''}`;
-    
+
     return client.get(url);
   },
 
@@ -998,14 +1013,18 @@ export const apiService = {
   /**
    * Dismiss/mark notification as read
    */
-  async dismissNotification(notificationId: string): Promise<ApiResponse<NotificationActionResponse>> {
+  async dismissNotification(
+    notificationId: string
+  ): Promise<ApiResponse<NotificationActionResponse>> {
     return client.post(`/me/notifications/${notificationId}/dismiss`);
   },
 
   /**
    * Mark notification as read (alias for dismiss)
    */
-  async markNotificationRead(notificationId: string): Promise<ApiResponse<NotificationActionResponse>> {
+  async markNotificationRead(
+    notificationId: string
+  ): Promise<ApiResponse<NotificationActionResponse>> {
     return client.post(`/me/notifications/${notificationId}/read`);
   },
 };

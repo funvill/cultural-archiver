@@ -22,7 +22,7 @@ vi.mock('../api', () => ({
     revokeAdminPermission: vi.fn(),
     getAdminAuditLogs: vi.fn(),
     getAdminStatistics: vi.fn(),
-  // data dump feature removed
+    // data dump feature removed
   },
 }));
 
@@ -59,8 +59,8 @@ describe('AdminService', () => {
 
       const result = await adminService.getUserPermissions();
 
-  // Updated expectation: method now takes (permission, search)
-  expect(apiService.getAdminPermissions).toHaveBeenCalledWith(undefined, undefined);
+      // Updated expectation: method now takes (permission, search)
+      expect(apiService.getAdminPermissions).toHaveBeenCalledWith(undefined, undefined);
       expect(result).toEqual(mockResponse.data);
     });
 
@@ -87,8 +87,8 @@ describe('AdminService', () => {
 
       await adminService.getUserPermissions(filters);
 
-  // Updated expectation: includes search term as second argument
-  expect(apiService.getAdminPermissions).toHaveBeenCalledWith('admin', 'test@example.com');
+      // Updated expectation: includes search term as second argument
+      expect(apiService.getAdminPermissions).toHaveBeenCalledWith('admin', 'test@example.com');
     });
 
     it('should handle API errors when fetching permissions', async () => {
@@ -338,5 +338,4 @@ describe('AdminService', () => {
       await expect(adminService.getStatistics()).rejects.toThrow('Statistics unavailable');
     });
   });
-
 });

@@ -15,14 +15,6 @@
       "@cultural-archiver/shared/*": ["../../shared/*"]
     }
   },
-  "include": [
-    "./**/*"
-  ],
-  "exclude": [
-    "dist",
-    "node_modules",
-    "**/*.test.ts",
-    "templates/**/*",
-    "test/**/*"
-  ]
+  "include": ["./**/*"],
+  "exclude": ["dist", "node_modules", "**/*.test.ts", "templates/**/*", "test/**/*"]
 }

@@ -92,7 +92,7 @@ export async function generateDatabaseDump(db: D1Database): Promise<DatabaseDump
       throw new Error('Failed to retrieve database tables');
     }
 
-  const tables = tablesResult.results.map(row => (row as { name: string }).name);
+    const tables = tablesResult.results.map(row => (row as { name: string }).name);
     console.log(`[BACKUP] Found ${tables.length} tables:`, tables);
 
     let sqlDump = '';

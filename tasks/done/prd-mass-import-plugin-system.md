@@ -13,7 +13,7 @@ Replace the existing mass-import CLI tool's hardcoded importer logic with a modu
 Currently, adding new data source importers to the mass-import CLI tool requires modifying core CLI logic and creating separate command structures. The output destinations are also hardcoded into the system. Each new data source (Vancouver, OSM, etc.) and output method requires:
 
 1. **Hardcoded CLI commands** - Each importer needs its own command (`vancouver`, `osm`)
-2. **Scattered importer logic** - Importers exist in different locations with inconsistent interfaces  
+2. **Scattered importer logic** - Importers exist in different locations with inconsistent interfaces
 3. **Hardcoded output methods** - API and file output logic is embedded in core system
 4. **Complex development workflow** - Adding new importers or exporters requires understanding core CLI architecture
 5. **Limited debugging capabilities** - No unified way to output data for debugging without API submission
@@ -152,7 +152,7 @@ src/lib/mass-import/
 │   ├── importers/
 │   │   ├── vancouver.ts          # Migrated Vancouver importer plugin
 │   │   ├── vancouver-config.json # Vancouver-specific configuration
-│   │   ├── osm.ts               # Migrated OSM importer plugin  
+│   │   ├── osm.ts               # Migrated OSM importer plugin
 │   │   ├── osm-config.json      # OSM-specific configuration
 
 │   │   └── template.ts          # Importer template generator
@@ -179,12 +179,12 @@ interface ImporterPlugin {
   name: string;
   description: string;
   configSchema: object;
-  
+
   mapData(sourceData: unknown, config: ImporterConfig): Promise<UnifiedImportData[]>;
   validateData(sourceData: unknown): Promise<ValidationResult>;
   generateImportId(record: unknown): string;
   getDefaultDataPath?(): string;
-  
+
   // Plugin metadata
   supportedFormats: string[];
   requiredFields: string[];
@@ -194,11 +194,11 @@ interface ImporterPlugin {
 interface ExporterPlugin {
   name: string;
   description: string;
-  
+
   export(data: UnifiedImportData[], config: ExporterConfig): Promise<ExportResult>;
   configure(options: ExporterOptions): Promise<void>;
   validate(config: ExporterConfig): Promise<ValidationResult>;
-  
+
   // Plugin metadata
   supportedFormats: string[];
   requiresNetwork: boolean;
@@ -238,7 +238,7 @@ interface UnifiedImportData {
 ```bash
 # Modular import with specific importer and exporter
 mass-import import --importer vancouver --exporter api data.json
-mass-import import --importer osm --exporter json merged-artworks.geojson  
+mass-import import --importer osm --exporter json merged-artworks.geojson
 mass-import import --importer vancouver --exporter json data.json
 
 # Default exporter (api) when not specified
@@ -257,7 +257,7 @@ mass-import create-exporter --name "custom-output" --template file
 mass-import validate-plugin --importer new-source
 mass-import validate-plugin --exporter custom-output
 # Lists the importers and exporters
-mass-import list 
+mass-import list
 ```
 
 ### Plugin Registry System
@@ -267,20 +267,20 @@ mass-import list
 class PluginRegistry {
   private importers = new Map<string, ImporterPlugin>();
   private exporters = new Map<string, ExporterPlugin>();
-  
+
   static async initialize(): Promise<PluginRegistry> {
     const registry = new PluginRegistry();
     await registry.discoverPlugins();
     return registry;
   }
-  
+
   private async discoverPlugins(): Promise<void> {
     // Scan importers directory for .ts files
     // Scan exporters directory for .ts files
     // Dynamically import and validate each plugin
     // Register plugins that pass validation
   }
-  
+
   getImporter(name: string): ImporterPlugin | undefined;
   getExporter(name: string): ExporterPlugin | undefined;
   listImporters(): string[];
@@ -299,58 +299,54 @@ class DataPipeline {
     private importer: ImporterPlugin,
     private exporter: ExporterPlugin
   ) {}
-  
+
   async process(inputData: unknown, options: ProcessingOptions): Promise<PipelineResult> {
     // 1. Load importer-specific configuration
     const importerConfig = await this.loadImporterConfig();
-    
+
     // 2. Initialize report tracker
     const reportTracker = new ReportTracker(options.generateReport);
     reportTracker.startOperation({
       importer: this.importer.name,
       exporter: this.exporter.name,
       inputFile: options.inputFile,
-      parameters: options
+      parameters: options,
     });
-    
+
     // 3. Validate input data with importer
     const validation = await this.importer.validateData(inputData);
     if (!validation.isValid) {
       reportTracker.recordFailure('validation', 'Input data validation failed', validation.errors);
       throw new Error('Invalid input data');
     }
-    
+
     // 4. Transform data using importer
     const unifiedData = await this.importer.mapData(inputData, importerConfig);
     reportTracker.recordProcessedRecords(unifiedData.length);
-    
+
     // 5. Configure exporter
     await this.exporter.configure(options.exporterOptions);
-    
+
     // 6. Export processed data with detailed tracking
     const result = await this.exportWithTracking(unifiedData, options.exporterConfig, reportTracker);
-    
+
     // 7. Generate final report if requested
     if (options.generateReport) {
       const report = await reportTracker.generateReport();
       await this.saveReport(report, options.reportPath);
     }
-    
+
     return {
       importedCount: unifiedData.length,
       exportResult: result,
       summary: this.generateSummary(unifiedData, result),
-      report: reportTracker.getReport()
+      report: reportTracker.getReport(),
     };
   }
-  
-  private async exportWithTracking(
-    data: UnifiedImportData[], 
-    config: ExporterConfig, 
-    tracker: ReportTracker
-  ): Promise<ExportResult> {
+
+  private async exportWithTracking(data: UnifiedImportData[], config: ExporterConfig, tracker: ReportTracker): Promise<ExportResult> {
     const results: ExportResult[] = [];
-    
+
     for (const record of data) {
       try {
         const result = await this.exporter.export([record], config);
@@ -364,7 +360,7 @@ class DataPipeline {
         tracker.recordFailure(record.externalId, 'export_error', error, record);
       }
     }
-    
+
     return this.aggregateResults(results);
   }
 }
@@ -486,15 +482,15 @@ class ReportTracker {
   private records: ReportRecord[] = [];
   private metadata: ReportMetadata;
   private startTime: Date;
-  
+
   constructor(private enabled: boolean) {
     this.startTime = new Date();
   }
-  
+
   startOperation(params: OperationParams): void {
     this.metadata = this.buildMetadata(params);
   }
-  
+
   recordSuccess(externalId: string, reason: string, data?: UnifiedImportData): void {
     if (!this.enabled) return;
     this.records.push({
@@ -504,10 +500,10 @@ class ReportTracker {
       reason,
       data,
       timestamp: new Date().toISOString(),
-      processingTime: this.calculateRecordTime()
+      processingTime: this.calculateRecordTime(),
     });
   }
-  
+
   recordFailure(externalId: string, reason: string, error?: unknown, data?: UnifiedImportData): void {
     if (!this.enabled) return;
     this.records.push({
@@ -518,10 +514,10 @@ class ReportTracker {
       error,
       data,
       timestamp: new Date().toISOString(),
-      processingTime: this.calculateRecordTime()
+      processingTime: this.calculateRecordTime(),
     });
   }
-  
+
   recordSkipped(externalId: string, reason: string, data?: UnifiedImportData): void {
     if (!this.enabled) return;
     this.records.push({
@@ -530,27 +526,27 @@ class ReportTracker {
       status: 'skipped',
       reason,
       data,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   }
-  
+
   async generateReport(): Promise<MassImportReport> {
     const summary = this.calculateSummary();
     return {
       metadata: this.metadata,
       summary,
       records: this.records,
-      errors: this.extractErrors()
+      errors: this.extractErrors(),
     };
   }
-  
+
   private calculateSummary(): ReportSummary {
     const total = this.records.length;
     const successful = this.records.filter(r => r.status === 'successful').length;
     const failed = this.records.filter(r => r.status === 'failed').length;
     const skipped = this.records.filter(r => r.status === 'skipped').length;
     const other = this.records.filter(r => r.status === 'other').length;
-    
+
     return {
       totalRecords: total,
       successful,
@@ -559,7 +555,7 @@ class ReportTracker {
       other,
       successRate: total > 0 ? (successful / total) * 100 : 0,
       processingTime: Date.now() - this.startTime.getTime(),
-      averageRecordTime: this.calculateAverageProcessingTime()
+      averageRecordTime: this.calculateAverageProcessingTime(),
     };
   }
 }
@@ -607,7 +603,7 @@ class ReportTracker {
       "processingTime": 250
     },
     {
-      "id": "rec_002", 
+      "id": "rec_002",
       "externalId": "vancouver_12346",
       "status": "failed",
       "reason": "duplicate_detected",
@@ -678,7 +674,7 @@ class ReportTracker {
 
 **Console Exporter (`src/lib/mass-import/src/exporters/console.ts`)**
 
-- Create new module for stdout/console output  
+- Create new module for stdout/console output
 - Support structured logging for unit test verification
 - Include summary statistics and record counts
 - Useful for automated testing and CI/CD pipelines
@@ -732,7 +728,7 @@ class ReportTracker {
 ### Technical Success
 
 - ✅ Modular CLI interface with separate importer and exporter plugins replaces hardcoded commands
-- ✅ Plugin system supports both API submission and JSON file debugging output  
+- ✅ Plugin system supports both API submission and JSON file debugging output
 - ✅ New importer creation time reduced by 80%
 - ✅ New exporter creation time under 15 minutes
 - ✅ Zero performance degradation from existing system
@@ -755,7 +751,7 @@ class ReportTracker {
 ### Technical Risks
 
 - **Plugin validation complexity** - Mitigation: Comprehensive schema validation and error reporting
-- **Performance impact of plugin discovery** - Mitigation: Caching and lazy loading strategies  
+- **Performance impact of plugin discovery** - Mitigation: Caching and lazy loading strategies
 - **Configuration management complexity** - Mitigation: JSON schema validation and clear documentation for importers
 - **Importer-exporter interface complexity** - Mitigation: Standardized data pipeline with comprehensive testing
 
@@ -771,7 +767,7 @@ class ReportTracker {
 
 - Dynamic plugin loading from external packages
 - Visual plugin configuration editor for importers
-- Plugin marketplace or sharing system  
+- Plugin marketplace or sharing system
 - Auto-discovery of data source formats
 - Plugin performance monitoring and analytics
 - Additional exporter types (database, webhook, structured logging)
@@ -789,6 +785,6 @@ class ReportTracker {
 **Next Steps:**
 
 1. Review and refine requirements with development team
-2. Validate technical approach with existing codebase constraints  
+2. Validate technical approach with existing codebase constraints
 3. Confirm scope and timeline alignment with project priorities
 4. Begin Phase 1 implementation upon approval

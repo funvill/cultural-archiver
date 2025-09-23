@@ -77,13 +77,13 @@ This migration system overhaul will establish a reliable foundation for ongoing 
 - Automatic migration application during development setup
 - Fast reset capabilities for clean development environments
 
-2.2. **Production Environment**:
+  2.2. **Production Environment**:
 
 - Protected production database with confirmation prompts
 - Audit logging of all production migration activities
 - Rollback capabilities for emergency recovery
 
-2.3. **Environment Isolation**:
+  2.3. **Environment Isolation**:
 
 - Separate migration state tracking per environment
 - Clear environment indicators in all commands

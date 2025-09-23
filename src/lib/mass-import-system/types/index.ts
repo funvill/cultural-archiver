@@ -1,6 +1,6 @@
 /**
  * Mass Import System - Core Types and Interfaces
- * 
+ *
  * This module defines the types and interfaces used throughout the mass import system.
  */
 
@@ -53,30 +53,30 @@ export const RawImportDataSchema = z.object({
   lon: z.number().min(-180).max(180),
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
-  
+
   // Artist and creation info
   artist: z.string().max(500).optional(),
   created_by: z.string().max(500).optional(),
   yearOfInstallation: z.string().optional(),
-  
+
   // Physical properties
   material: z.string().max(200).optional(),
   type: z.string().max(100).optional(),
-  
+
   // Location details (no address field - use tags instead)
   neighborhood: z.string().max(200).optional(),
   siteName: z.string().max(300).optional(),
-  
+
   // Photos
   photos: z.array(PhotoInfoSchema).optional(),
   primaryPhotoUrl: z.string().url().optional(),
-  
+
   // Attribution and tracking
   source: z.string().max(100), // Required: data source identifier
   sourceUrl: z.string().url().optional(),
   externalId: z.string().max(200).optional(),
   license: z.string().max(200).optional(),
-  
+
   // Additional metadata
   tags: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
   status: z.enum(['active', 'inactive', 'removed', 'unknown']).optional(),
@@ -109,13 +109,13 @@ export interface ProcessedImportData {
   lon: number;
   title: string;
   note?: string;
-  
+
   // Structured tags (mapped from raw data)
   tags: Record<string, string | number | boolean>;
-  
+
   // Photos for processing
   photos: PhotoInfo[];
-  
+
   // Attribution and metadata
   source: string;
   sourceUrl?: string;

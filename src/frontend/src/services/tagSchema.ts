@@ -1,6 +1,6 @@
 /**
  * Frontend tag schema service - provides client-side access to structured tag definitions
- * 
+ *
  * This mirrors the backend tag schema but provides it in a format optimized for frontend use.
  * Tag schema is maintained in application code and updated with releases.
  */
@@ -70,13 +70,24 @@ export const TAG_DEFINITIONS: TagDefinition[] = [
     description: 'Primary type or form of the artwork',
     category: 'classification',
     dataType: 'enum',
-    enumValues: ['statue', 'mural', 'sculpture', 'installation', 'monument', 'mosaic', 'graffiti', 'street_art', 'tiny_library'],
+    enumValues: [
+      'statue',
+      'mural',
+      'sculpture',
+      'installation',
+      'monument',
+      'mosaic',
+      'graffiti',
+      'street_art',
+      'tiny_library',
+    ],
     helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:artwork_type',
   },
   {
     key: 'keywords',
     label: 'Keywords',
-    description: 'Comma separated list of descriptive keywords (max 500 chars). Each becomes searchable.',
+    description:
+      'Comma separated list of descriptive keywords (max 500 chars). Each becomes searchable.',
     category: 'classification',
     dataType: 'text',
     maxLength: 500,
@@ -231,7 +242,10 @@ export function getAllTagKeysAlphabetically(): TagDefinition[] {
 /**
  * Validate a tag value against its definition
  */
-export function validateTagValue(key: string, rawValue: unknown): { valid: boolean; error?: string } {
+export function validateTagValue(
+  key: string,
+  rawValue: unknown
+): { valid: boolean; error?: string } {
   const definition = getTagDefinition(key);
   if (!definition) {
     return { valid: false, error: 'Unknown tag key' };
@@ -325,7 +339,7 @@ export function formatTagValueForDisplay(key: string, value: string): string {
   switch (definition.dataType) {
     case 'yes_no':
       return value.toLowerCase() === 'yes' ? 'Yes' : 'No';
-    
+
     case 'date':
       // Format dates nicely
       if (value.length === 4) {
@@ -357,17 +371,28 @@ export function formatTagValueForDisplay(key: string, value: string): string {
  */
 export function exportToOpenStreetMapFormat(tags: Record<string, string>): Record<string, string> {
   const osmTags: Record<string, string> = {};
-  
+
   for (const [key, value] of Object.entries(tags)) {
     // Core OSM tags don't get prefixed
-    if (['artwork_type', 'material', 'height', 'start_date', 'access', 'fee', 'website', 'wikipedia'].includes(key)) {
+    if (
+      [
+        'artwork_type',
+        'material',
+        'height',
+        'start_date',
+        'access',
+        'fee',
+        'website',
+        'wikipedia',
+      ].includes(key)
+    ) {
       osmTags[key] = value;
     } else {
       // Custom tags get "ca:" prefix
       osmTags[`ca:${key}`] = value;
     }
   }
-  
+
   return osmTags;
 }
 

@@ -5,10 +5,7 @@
 
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue';
-import {
-  CheckIcon,
-  ExclamationTriangleIcon,
-} from '@heroicons/vue/24/outline';
+import { CheckIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
 
 interface Props {
   consentVersion: string;
@@ -24,7 +21,7 @@ interface ConsentCheckboxes {
 defineProps<Props>();
 const emit = defineEmits<{
   'consent-updated': [version: string];
-  'consentChanged': [consents: ConsentCheckboxes];
+  consentChanged: [consents: ConsentCheckboxes];
 }>();
 
 // Local state
@@ -44,9 +41,13 @@ const incompleteCount = computed(() => {
 });
 
 // Watch for consent changes and emit to parent
-watch(consentCheckboxes, (newConsents) => {
-  emit('consentChanged', newConsents);
-}, { deep: true });
+watch(
+  consentCheckboxes,
+  newConsents => {
+    emit('consentChanged', newConsents);
+  },
+  { deep: true }
+);
 
 // Method to check all consent checkboxes
 function checkAllConsents() {
@@ -68,7 +69,7 @@ function resetConsents() {
 
 // Expose reset method to parent
 defineExpose({
-  resetConsents
+  resetConsents,
 });
 </script>
 
@@ -87,7 +88,9 @@ defineExpose({
     <div class="mb-6">
       <div class="space-y-4">
         <!-- CC0 Public Domain Dedication -->
-        <div class="flex items-start space-x-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+        <div
+          class="flex items-start space-x-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+        >
           <input
             id="consent-cc0"
             v-model="consentCheckboxes.cc0Licensing"
@@ -101,14 +104,20 @@ defineExpose({
               <div>• I own copyright or have permission for all submitted content</div>
               <div>• Anyone can use this content for any purpose without attribution</div>
             </div>
-            <a href="https://creativecommons.org/publicdomain/zero/1.0/" target="_blank" class="inline-block mt-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-xs">
+            <a
+              href="https://creativecommons.org/publicdomain/zero/1.0/"
+              target="_blank"
+              class="inline-block mt-2 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 text-xs"
+            >
               Learn more about CC0 →
             </a>
           </label>
         </div>
 
         <!-- Terms of Service and Community Guidelines -->
-        <div class="flex items-start space-x-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+        <div
+          class="flex items-start space-x-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+        >
           <input
             id="consent-terms"
             v-model="consentCheckboxes.termsAndGuidelines"
@@ -124,10 +133,18 @@ defineExpose({
               <div>• I confirm accuracy of submissions and accept moderation</div>
             </div>
             <div class="mt-2 flex flex-wrap gap-2 text-xs">
-              <a href="/terms" target="_blank" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+              <a
+                href="/terms"
+                target="_blank"
+                class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+              >
                 Read full Terms of Service →
               </a>
-              <a href="/privacy" target="_blank" class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+              <a
+                href="/privacy"
+                target="_blank"
+                class="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+              >
                 Privacy Policy →
               </a>
             </div>
@@ -135,7 +152,9 @@ defineExpose({
         </div>
 
         <!-- Photo Rights Checklist -->
-        <div class="flex items-start space-x-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+        <div
+          class="flex items-start space-x-3 p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
+        >
           <input
             id="consent-photo-rights"
             v-model="consentCheckboxes.photoRights"
@@ -167,7 +186,10 @@ defineExpose({
     </div>
 
     <!-- Submission Ready Status -->
-    <div v-if="allConsentCheckboxesChecked" class="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+    <div
+      v-if="allConsentCheckboxesChecked"
+      class="p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg"
+    >
       <div class="flex items-center">
         <CheckIcon class="w-5 h-5 text-green-500 mr-3" />
         <div class="text-sm text-green-800 dark:text-green-200">
@@ -176,14 +198,21 @@ defineExpose({
       </div>
     </div>
 
-    <div v-else class="p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
+    <div
+      v-else
+      class="p-4 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg"
+    >
       <div class="flex items-center">
         <ExclamationTriangleIcon class="w-5 h-5 text-gray-500 mr-3" />
         <div class="text-sm text-gray-600 dark:text-gray-400">
-          <div>Please complete {{ incompleteCount }} remaining consent requirement{{ incompleteCount !== 1 ? 's' : '' }} to enable submission.</div>
+          <div>
+            Please complete {{ incompleteCount }} remaining consent requirement{{
+              incompleteCount !== 1 ? 's' : ''
+            }}
+            to enable submission.
+          </div>
         </div>
       </div>
     </div>
   </div>
 </template>
-

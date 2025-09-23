@@ -113,9 +113,10 @@ const filteredArtworkEdits = computed(() => {
 
   if (searchId.value.trim()) {
     const term = searchId.value.trim().toLowerCase();
-    filtered = filtered.filter((e: any) =>
-      (e.id && e.id.toLowerCase().includes(term)) ||
-      (e.artwork_id && e.artwork_id.toLowerCase().includes(term))
+    filtered = filtered.filter(
+      (e: any) =>
+        (e.id && e.id.toLowerCase().includes(term)) ||
+        (e.artwork_id && e.artwork_id.toLowerCase().includes(term))
     );
   }
 
@@ -158,7 +159,8 @@ onMounted(() => {
 // Sync searchId changes into the route query (replace to avoid history spam)
 watch(searchId, (val: string) => {
   const q = { ...route.query } as Record<string, any>;
-  if (val) q.searchId = val; else delete q.searchId;
+  if (val) q.searchId = val;
+  else delete q.searchId;
   router.replace({ query: q });
   currentPage.value = 1; // reset pagination when searching
   // Attempt on-demand fetch of a specific submission if not already present
@@ -207,7 +209,10 @@ async function loadData() {
  */
 async function ensureSubmissionLoaded(id: string) {
   const lower = id.toLowerCase();
-  const exists = submissions.value.some((s: ReviewSubmission) => s.id.toLowerCase() === lower || (s.artwork_id && s.artwork_id.toLowerCase() === lower));
+  const exists = submissions.value.some(
+    (s: ReviewSubmission) =>
+      s.id.toLowerCase() === lower || (s.artwork_id && s.artwork_id.toLowerCase() === lower)
+  );
   if (exists) return;
   // Basic UUID format check to avoid unnecessary requests
   if (!/^[0-9a-fA-F-]{32,36}$/.test(id)) return;
@@ -319,7 +324,8 @@ async function loadSubmissions() {
         // Calculate today's counts from recent activity
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
         const todayActivity =
-          statsResponse.data.recent_activity?.filter((activity: any) => activity.date === today) || [];
+          statsResponse.data.recent_activity?.filter((activity: any) => activity.date === today) ||
+          [];
 
         const approvedToday =
           todayActivity.find((activity: any) => activity.status === 'approved')?.count || 0;
@@ -536,7 +542,7 @@ function getSubmissionTypeLabel(type: string): string {
   const labelMap: Record<string, string> = {
     logbook_entry: 'Logbook Entry',
     public_art: 'Public Art',
-    street_art: 'Street Art', 
+    street_art: 'Street Art',
     monument: 'Monument',
     sculpture: 'Sculpture',
     other: 'Other',
@@ -544,31 +550,35 @@ function getSubmissionTypeLabel(type: string): string {
   return labelMap[type] || type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
 }
 
-function parseLogbookNotes(notes: string): { condition?: string; userNotes?: string; rawNotes: string } {
+function parseLogbookNotes(notes: string): {
+  condition?: string;
+  userNotes?: string;
+  rawNotes: string;
+} {
   if (!notes) return { rawNotes: '' };
-  
+
   // Try to extract condition assessment from notes
   const conditionMatch = notes.match(/Condition:\s*([^;]+)/i);
   const condition = conditionMatch?.[1]?.trim();
-  
+
   // Extract user notes (everything that's not a structured answer)
   let userNotes = notes;
   if (conditionMatch) {
     userNotes = userNotes.replace(/Condition:\s*[^;]+;?\s*/i, '').trim();
   }
-  
+
   const result: { condition?: string; userNotes?: string; rawNotes: string } = {
-    rawNotes: notes
+    rawNotes: notes,
   };
-  
+
   if (condition) {
     result.condition = condition;
   }
-  
+
   if (userNotes) {
     result.userNotes = userNotes;
   }
-  
+
   return result;
 }
 
@@ -677,20 +687,23 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
   const fields = edit.diffs.map(diff => {
     // Provide more descriptive field names
     switch (diff.field_name) {
-      case 'tags': return 'structured tags';
-      case 'created_by': return 'artist/creator';
-      default: return diff.field_name;
+      case 'tags':
+        return 'structured tags';
+      case 'created_by':
+        return 'artist/creator';
+      default:
+        return diff.field_name;
     }
   });
-  
+
   // Check if this is primarily a tag edit
   const hasTagEdit = edit.diffs.some(diff => diff.field_name === 'tags');
   const tagOnlyEdit = fieldCount === 1 && hasTagEdit;
-  
+
   if (tagOnlyEdit) {
     return 'Structured tag updates';
   }
-  
+
   return `${fieldCount} field${fieldCount > 1 ? 's' : ''}: ${fields.join(', ')}`;
 }
 </script>
@@ -994,10 +1007,16 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
               <div class="flex items-start justify-between mb-4">
                 <div>
                   <h3 class="text-lg font-semibold text-gray-900">
-                    <span v-if="submission.type === 'logbook_entry'" class="inline-flex items-center">
+                    <span
+                      v-if="submission.type === 'logbook_entry'"
+                      class="inline-flex items-center"
+                    >
                       <span class="mr-2">📖</span>
                       {{ getSubmissionTypeLabel(submission.type) }}
-                      <span v-if="submission.title && submission.title !== 'Untitled Submission'" class="ml-2 text-gray-600">
+                      <span
+                        v-if="submission.title && submission.title !== 'Untitled Submission'"
+                        class="ml-2 text-gray-600"
+                      >
                         - {{ submission.title }}
                       </span>
                     </span>
@@ -1016,27 +1035,42 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
               <div v-if="submission.note" class="mb-4">
                 <!-- Logbook Entry: Show structured answers -->
                 <div v-if="submission.type === 'logbook_entry'" class="space-y-3">
-                  <template v-if="parseLogbookNotes(submission.note).condition || parseLogbookNotes(submission.note).userNotes">
+                  <template
+                    v-if="
+                      parseLogbookNotes(submission.note).condition ||
+                      parseLogbookNotes(submission.note).userNotes
+                    "
+                  >
                     <!-- Condition Assessment -->
-                    <div v-if="parseLogbookNotes(submission.note).condition" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div
+                      v-if="parseLogbookNotes(submission.note).condition"
+                      class="bg-blue-50 border border-blue-200 rounded-lg p-3"
+                    >
                       <h4 class="text-sm font-semibold text-blue-900 mb-1">Condition Assessment</h4>
-                      <p class="text-sm text-blue-800">{{ parseLogbookNotes(submission.note).condition }}</p>
+                      <p class="text-sm text-blue-800">
+                        {{ parseLogbookNotes(submission.note).condition }}
+                      </p>
                     </div>
-                    
+
                     <!-- User Notes -->
-                    <div v-if="parseLogbookNotes(submission.note).userNotes" class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                    <div
+                      v-if="parseLogbookNotes(submission.note).userNotes"
+                      class="bg-gray-50 border border-gray-200 rounded-lg p-3"
+                    >
                       <h4 class="text-sm font-semibold text-gray-900 mb-1">Additional Notes</h4>
-                      <p class="text-sm text-gray-700">{{ parseLogbookNotes(submission.note).userNotes }}</p>
+                      <p class="text-sm text-gray-700">
+                        {{ parseLogbookNotes(submission.note).userNotes }}
+                      </p>
                     </div>
                   </template>
-                  
+
                   <!-- Fallback to raw notes if parsing fails -->
                   <div v-else class="bg-gray-50 border border-gray-200 rounded-lg p-3">
                     <h4 class="text-sm font-semibold text-gray-900 mb-1">Notes</h4>
                     <p class="text-sm text-gray-700">{{ submission.note }}</p>
                   </div>
                 </div>
-                
+
                 <!-- Regular Submission: Show notes as before -->
                 <p v-else class="text-sm text-gray-700 line-clamp-3">{{ submission.note }}</p>
               </div>
@@ -1206,7 +1240,7 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
                   <h3 class="text-lg font-medium text-gray-900">
                     {{ extractArtworkTitle(edit.artwork_id) }}
                   </h3>
-                  
+
                   <!-- Change type indicators -->
                   <div class="flex items-center space-x-1">
                     <span

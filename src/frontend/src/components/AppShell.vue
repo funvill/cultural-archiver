@@ -107,8 +107,8 @@ const drawerNavItems = computed(() => {
       return false;
     }
 
-  // Hide moderator-only items if user cannot review
-  if ((item as any).requiresModerator && !authStore.canReview) {
+    // Hide moderator-only items if user cannot review
+    if ((item as any).requiresModerator && !authStore.canReview) {
       return false;
     }
 
@@ -119,7 +119,7 @@ const drawerNavItems = computed(() => {
 
     return true;
   });
-  
+
   console.log('*** DRAWER DEBUG START ***');
   console.log('menuNavigationItems:', menuNavigationItems);
   console.log('authStore.isAuthenticated:', authStore.isAuthenticated);
@@ -127,7 +127,7 @@ const drawerNavItems = computed(() => {
   console.log('authStore.isAdmin:', authStore.isAdmin);
   console.log('filtered items:', items);
   console.log('*** DRAWER DEBUG END ***');
-  
+
   return items;
 });
 
@@ -185,7 +185,9 @@ function resetFastAddState(): void {
     const store = useFastUploadSessionStore();
     store.clear?.();
   } catch {}
-  try { sessionStorage.removeItem('fast-upload-session'); } catch {}
+  try {
+    sessionStorage.removeItem('fast-upload-session');
+  } catch {}
   fastHasNavigated.value = false; // allow navigation logic to treat next add as first
 }
 
@@ -237,7 +239,11 @@ async function fastProcessFiles(files: File[]) {
   if (!fastLocationSources.value.exif.detected) {
     try {
       const browserCoords = await getCurrentPosition();
-      fastLocationSources.value.browser = { detected: true, error: false, coordinates: browserCoords };
+      fastLocationSources.value.browser = {
+        detected: true,
+        error: false,
+        coordinates: browserCoords,
+      };
       if (!fastFinalLocation.value) fastFinalLocation.value = browserCoords;
     } catch (err) {
       fastLocationSources.value.browser = { detected: false, error: true, coordinates: null };
@@ -255,8 +261,10 @@ async function fastProcessFiles(files: File[]) {
       console.warn('[FAST ADD] No location detected from EXIF or browser geolocation');
       // Non-blocking lightweight UX (could be replaced by a toast component if available)
       // Using alert as a fallback since component-level toast system not referenced here
-  // TODO: Replace window.alert with centralized toast/notification system once available
-  alert('Could not detect photo location automatically (EXIF & browser GPS unavailable). You can still continue and set location later.');
+      // TODO: Replace window.alert with centralized toast/notification system once available
+      alert(
+        'Could not detect photo location automatically (EXIF & browser GPS unavailable). You can still continue and set location later.'
+      );
     } catch {}
   }
   maybeNavigateFast();
@@ -268,7 +276,14 @@ function maybeNavigateFast() {
   // Helper to write session (shared for first navigation and subsequent updates)
   const writeSession = () => {
     const store = useFastUploadSessionStore();
-    const metaWithPreview: Array<{ id: string; name: string; preview: string; exifLat?: number | undefined; exifLon?: number | undefined; file: File }> = fastSelected.value.map((p: FastPhotoFile) => ({
+    const metaWithPreview: Array<{
+      id: string;
+      name: string;
+      preview: string;
+      exifLat?: number | undefined;
+      exifLon?: number | undefined;
+      file: File;
+    }> = fastSelected.value.map((p: FastPhotoFile) => ({
       id: p.id,
       name: p.name,
       preview: p.preview,
@@ -276,7 +291,17 @@ function maybeNavigateFast() {
       exifLon: p.exifData?.longitude ?? undefined,
       file: p.file,
     }));
-    const meta: Array<{ id: string; name: string; exifLat?: number | undefined; exifLon?: number | undefined }> = metaWithPreview.map((m) => ({ id: m.id, name: m.name, exifLat: m.exifLat, exifLon: m.exifLon }));
+    const meta: Array<{
+      id: string;
+      name: string;
+      exifLat?: number | undefined;
+      exifLon?: number | undefined;
+    }> = metaWithPreview.map(m => ({
+      id: m.id,
+      name: m.name,
+      exifLat: m.exifLat,
+      exifLon: m.exifLon,
+    }));
     const payload = {
       photos: metaWithPreview,
       location: fastFinalLocation.value,
@@ -310,7 +335,6 @@ function maybeNavigateFast() {
     router.push(`/search?${query.toString()}`);
   }
 }
-
 
 const userDisplayName = computed(() => {
   if (!authStore.user) return 'Anonymous';
@@ -543,12 +567,7 @@ try {
         <!-- Center: Floating Add FAB (Material-style) -->
         <div class="flex justify-center">
           <!-- Hidden textual Add button to preserve legacy selectors/tests -->
-          <button
-            type="button"
-            @click="triggerFastAdd"
-            class="sr-only"
-            aria-label="Add"
-          >
+          <button type="button" @click="triggerFastAdd" class="sr-only" aria-label="Add">
             Add
           </button>
 
@@ -576,14 +595,18 @@ try {
           <!-- Search Icon -->
           <button
             class="p-2 rounded-md hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
-            @click="() => { router.push('/search'); }"
+            @click="
+              () => {
+                router.push('/search');
+              }
+            "
             aria-label="Search"
           >
             <MagnifyingGlassIcon class="w-6 h-6" aria-hidden="true" />
           </button>
 
           <!-- Notification Icon (only for authenticated users) -->
-          <NotificationIcon 
+          <NotificationIcon
             v-if="authStore.isAuthenticated"
             @notification-click="handleNotificationClick"
             @panel-toggle="handleNotificationPanelToggle"
@@ -593,7 +616,11 @@ try {
           <button
             v-if="authStore.isAuthenticated"
             class="p-2 rounded-md hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
-            @click="() => { router.push('/profile'); }"
+            @click="
+              () => {
+                router.push('/profile');
+              }
+            "
             aria-label="Profile"
           >
             <UserIcon class="w-6 h-6" aria-hidden="true" />
@@ -619,12 +646,7 @@ try {
     <DevelopmentBanner />
 
     <!-- Navigation Drawer Overlay -->
-    <div
-      v-if="showDrawer"
-      class="fixed inset-0 z-40"
-      @click="closeDrawer"
-      aria-hidden="true"
-    >
+    <div v-if="showDrawer" class="fixed inset-0 z-40" @click="closeDrawer" aria-hidden="true">
       <div class="fixed inset-0 bg-black bg-opacity-50" />
     </div>
 
@@ -665,19 +687,27 @@ try {
           class="drawer-link flex items-center px-6 py-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 focus:bg-blue-50 focus:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
           :class="[
             $route.path === item.path ? 'bg-blue-100 text-blue-600 border-r-4 border-blue-600' : '',
-            item.primaryAction ? 'relative z-0' : ''
+            item.primaryAction ? 'relative z-0' : '',
           ]"
           :aria-current="$route.path === item.path ? 'page' : undefined"
           @click="closeDrawer"
         >
-          <span v-if="item.primaryAction" class="absolute -inset-1 rounded bg-blue-50 border border-blue-200 pointer-events-none -z-10" />
+          <span
+            v-if="item.primaryAction"
+            class="absolute -inset-1 rounded bg-blue-50 border border-blue-200 pointer-events-none -z-10"
+          />
           <component
             v-if="item.icon"
             :is="item.icon"
             :class="item.primaryAction ? 'relative z-10 w-6 h-6 mr-4' : 'w-5 h-5 mr-4'"
             aria-hidden="true"
           />
-          <span :class="item.primaryAction ? 'relative z-10 font-semibold text-base' : 'font-medium text-base'">{{ item.name }}</span>
+          <span
+            :class="
+              item.primaryAction ? 'relative z-10 font-semibold text-base' : 'font-medium text-base'
+            "
+            >{{ item.name }}</span
+          >
         </RouterLink>
 
         <!-- Authentication Section -->
@@ -696,7 +726,9 @@ try {
               <UserIcon class="w-5 h-5 text-gray-600" aria-hidden="true" />
               <span>{{ userDisplayName }}</span>
             </button>
-            <div v-else class="text-base font-medium text-gray-900 px-3 py-3">{{ userDisplayName }}</div>
+            <div v-else class="text-base font-medium text-gray-900 px-3 py-3">
+              {{ userDisplayName }}
+            </div>
           </div>
 
           <!-- Auth Actions -->

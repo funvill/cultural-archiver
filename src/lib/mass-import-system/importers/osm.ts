@@ -1,15 +1,11 @@
 /**
  * Mass Import System - OpenStreetMap GeoJSON Mapper
- * 
+ *
  * This module handles mapping OpenStreetMap GeoJSON artwork data to the internal format,
  * including field transformation, coordinate validation, and structured tag application.
  */
 
-import type {
-  RawImportData,
-  ValidationResult,
-  DataSourceMapper,
-} from '../types';
+import type { RawImportData, ValidationResult, DataSourceMapper } from '../types';
 import { validateImportData } from '../lib/validation.js';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -125,11 +121,17 @@ function extractCoordinates(geometry: OSMFeature['geometry']): { lat: number; lo
       }
       break;
     }
-    
+
     case 'Polygon': {
       // Use first coordinate of outer ring
       const polygon = geometry.coordinates as number[][][];
-      if (polygon.length > 0 && polygon[0] && polygon[0].length > 0 && polygon[0][0] && polygon[0][0].length >= 2) {
+      if (
+        polygon.length > 0 &&
+        polygon[0] &&
+        polygon[0].length > 0 &&
+        polygon[0][0] &&
+        polygon[0][0].length >= 2
+      ) {
         const [lon, lat] = polygon[0][0];
         if (typeof lon === 'number' && typeof lat === 'number') {
           return { lat, lon };
@@ -137,7 +139,7 @@ function extractCoordinates(geometry: OSMFeature['geometry']): { lat: number; lo
       }
       break;
     }
-    
+
     case 'LineString': {
       // Use first coordinate
       const lineString = geometry.coordinates as number[][];
@@ -149,7 +151,7 @@ function extractCoordinates(geometry: OSMFeature['geometry']): { lat: number; lo
       }
       break;
     }
-    
+
     case 'MultiPoint': {
       // Use first point
       const multiPoint = geometry.coordinates as number[][];
@@ -161,12 +163,12 @@ function extractCoordinates(geometry: OSMFeature['geometry']): { lat: number; lo
       }
       break;
     }
-    
+
     default:
       console.warn(`Unsupported geometry type: ${geometry.type}`);
       return null;
   }
-  
+
   return null;
 }
 
@@ -186,12 +188,12 @@ function generateTitle(properties: OSMFeature['properties']): string {
   // Try artwork type + location info
   if (properties.artwork_type && typeof properties.artwork_type === 'string') {
     let title = properties.artwork_type;
-    
+
     // Add material if available
     if (properties.material && typeof properties.material === 'string') {
       title += ` (${properties.material})`;
     }
-    
+
     return title;
   }
 
@@ -212,7 +214,7 @@ function generateTitle(properties: OSMFeature['properties']): string {
  * Convert OSM properties to structured tags
  */
 function processOSMTags(
-  feature: OSMFeature, 
+  feature: OSMFeature,
   config: OSMConfig
 ): Record<string, string | number | boolean> {
   const tags: Record<string, string | number | boolean> = {};
@@ -241,7 +243,7 @@ function processOSMTags(
     year: 'Year',
     website: 'Website',
     wikipedia: 'Wikipedia',
-    wikidata: 'Wikidata'
+    wikidata: 'Wikidata',
   };
 
   for (const [osmKey, tagLabel] of Object.entries(tagMappings)) {
@@ -253,8 +255,12 @@ function processOSMTags(
 
   // Add all other non-mapped properties as tags with OSM prefix
   const mappedKeys = new Set([
-    'name', 'artist_name', 'description', 'osm_type', 'osm_id',
-    ...Object.keys(tagMappings)
+    'name',
+    'artist_name',
+    'description',
+    'osm_type',
+    'osm_id',
+    ...Object.keys(tagMappings),
   ]);
 
   for (const [key, value] of Object.entries(properties)) {
@@ -296,26 +302,30 @@ function mapOSMData(data: OSMFeature): RawImportData {
     lon: coords.lon,
     title: title,
     description: typeof properties.description === 'string' ? properties.description : undefined,
-    
+
     // Artist and creation info
     artist: typeof properties.artist_name === 'string' ? properties.artist_name : undefined,
     created_by: typeof properties.artist_name === 'string' ? properties.artist_name : undefined,
     yearOfInstallation: typeof properties.year === 'string' ? properties.year : undefined,
-    
+
     // Physical properties
     material: typeof properties.material === 'string' ? properties.material : undefined,
-    type: typeof properties.artwork_type === 'string' ? properties.artwork_type : 
-          typeof properties.tourism === 'string' ? properties.tourism : undefined,
-    
+    type:
+      typeof properties.artwork_type === 'string'
+        ? properties.artwork_type
+        : typeof properties.tourism === 'string'
+          ? properties.tourism
+          : undefined,
+
     // Attribution and tracking
     source: 'openstreetmap',
     sourceUrl: typeof properties.website === 'string' ? properties.website : undefined,
     externalId: data.id,
     license: config.defaultConfig.attribution.license,
-    
+
     // Additional metadata
     tags: tags,
-    status: 'active'
+    status: 'active',
   };
 
   return mapped;
@@ -327,7 +337,7 @@ function mapOSMData(data: OSMFeature): RawImportData {
 export const OSMMapper: DataSourceMapper = {
   name: 'osm',
   version: '1.0.0',
-  
+
   /**
    * Map OSM GeoJSON feature to internal format and validate
    */
@@ -337,7 +347,7 @@ export const OSMMapper: DataSourceMapper = {
       // Load OSM config for validation settings
       const osmConfig = loadOSMConfig();
       const configRadius = osmConfig.defaultConfig.duplicateDetectionRadius || 10000; // 10km default for OSM
-      
+
       // Create config for validation
       const config = {
         apiEndpoint: 'https://art-api.abluestar.com',
@@ -353,12 +363,14 @@ export const OSMMapper: DataSourceMapper = {
     } catch (error) {
       return {
         isValid: false,
-        errors: [{
-          field: 'general',
-          message: error instanceof Error ? error.message : 'Unknown validation error',
-          severity: 'error'
-        }],
-        warnings: []
+        errors: [
+          {
+            field: 'general',
+            message: error instanceof Error ? error.message : 'Unknown validation error',
+            severity: 'error',
+          },
+        ],
+        warnings: [],
       };
     }
   },
@@ -368,7 +380,7 @@ export const OSMMapper: DataSourceMapper = {
    */
   generateImportId: (data: OSMFeature): string => {
     return `osm-${data.id.replace('/', '-')}`;
-  }
+  },
 };
 
 // ================================
@@ -385,7 +397,7 @@ export function loadOSMData(filePath: string): OSMFeature[] {
 
   const content = fs.readFileSync(filePath, 'utf-8');
   const geoJSON = JSON.parse(content) as OSMGeoJSON;
-  
+
   if (geoJSON.type !== 'FeatureCollection') {
     throw new Error('OSM file must be a GeoJSON FeatureCollection');
   }
@@ -395,18 +407,15 @@ export function loadOSMData(filePath: string): OSMFeature[] {
   }
 
   console.log(`📍 Loaded ${geoJSON.features.length} OSM features from ${filePath}`);
-  
+
   // Filter features for artwork-related items
   const artworkFeatures = geoJSON.features.filter(feature => {
     const props = feature.properties;
-    return props.tourism === 'artwork' || 
-           props.artwork_type || 
-           props.artist_name ||
-           props.name; // Include named features that might be art
+    return props.tourism === 'artwork' || props.artwork_type || props.artist_name || props.name; // Include named features that might be art
   });
 
   console.log(`🎨 Found ${artworkFeatures.length} potential artwork features`);
-  
+
   return artworkFeatures;
 }
 
@@ -419,15 +428,15 @@ export function getOSMProcessingStats(data: OSMFeature[]): Record<string, number
     'With Names': 0,
     'With Artists': 0,
     'With Websites': 0,
-    'Points': 0,
-    'Polygons': 0,
-    'Other Geometries': 0
+    Points: 0,
+    Polygons: 0,
+    'Other Geometries': 0,
   };
 
   for (const feature of data) {
     const props = feature.properties;
     const geom = feature.geometry;
-    
+
     if (props?.name) {
       stats['With Names'] = (stats['With Names'] || 0) + 1;
     }
@@ -437,7 +446,7 @@ export function getOSMProcessingStats(data: OSMFeature[]): Record<string, number
     if (props?.website) {
       stats['With Websites'] = (stats['With Websites'] || 0) + 1;
     }
-    
+
     if (geom?.type) {
       switch (geom.type) {
         case 'Point':

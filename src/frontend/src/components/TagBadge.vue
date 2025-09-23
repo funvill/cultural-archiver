@@ -90,7 +90,7 @@ const tagsByCategory = computed(() => {
   categories.forEach(category => {
     result[category.key] = [];
   });
-  
+
   // Add 'other' category for unrecognized tags
   result.other = [];
 
@@ -162,7 +162,7 @@ function formatTagDisplay(tag: StructuredTag): string {
     const formattedValue = formatTagValueForDisplay(tag.key, tag.value);
     return `${tag.definition.label}: ${formattedValue}`;
   }
-  
+
   // Fallback for unknown tags
   const formattedLabel = tag.key.charAt(0).toUpperCase() + tag.key.slice(1);
   return `${formattedLabel}: ${tag.value}`;
@@ -225,10 +225,7 @@ if (props.collapsible) {
           </svg>
         </div>
 
-        <div
-          v-else
-          class="px-4 py-2 bg-gray-50 border-b border-gray-200"
-        >
+        <div v-else class="px-4 py-2 bg-gray-50 border-b border-gray-200">
           <h4 class="text-sm font-medium text-gray-900">
             {{ getCategoryLabel(categoryKey) }}
             <span class="text-xs text-gray-500 ml-1">({{ categoryTags.length }})</span>
@@ -236,10 +233,7 @@ if (props.collapsible) {
         </div>
 
         <!-- Category tags -->
-        <div
-          v-show="isCategoryExpanded(categoryKey)"
-          class="p-3"
-        >
+        <div v-show="isCategoryExpanded(categoryKey)" class="p-3">
           <div class="space-y-1">
             <div
               v-for="(tag, index) in categoryTags"
@@ -312,9 +306,7 @@ if (props.collapsible) {
               : `Showing ${visibleTags.length} of ${normalizedTags.length} tags.`
           }}
         </span>
-        <span v-else>
-          Organized by {{ Object.keys(tagsByCategory).length }} categories.
-        </span>
+        <span v-else> Organized by {{ Object.keys(tagsByCategory).length }} categories. </span>
       </span>
     </div>
   </div>

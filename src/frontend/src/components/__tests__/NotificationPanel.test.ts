@@ -45,29 +45,29 @@ describe('NotificationPanel', () => {
 
   it('calls store.markAllRead when header button is clicked', async () => {
     // Use the real Pinia store and populate it with test data, then spy on markAllRead
-  const store = useNotificationsStore();
-  // replace internal arrays/values via $patch (function overload) so typings are preserved
-  store.$patch(state => {
-    state.notifications = mockNotifications;
-    state.unreadCount = 1;
-  });
-  const spy = vi.spyOn(store, 'markAllRead').mockResolvedValue({ success: true });
+    const store = useNotificationsStore();
+    // replace internal arrays/values via $patch (function overload) so typings are preserved
+    store.$patch(state => {
+      state.notifications = mockNotifications;
+      state.unreadCount = 1;
+    });
+    const spy = vi.spyOn(store, 'markAllRead').mockResolvedValue({ success: true });
 
-  const wrapper = mount(NotificationPanel, { global: { plugins: [pinia] } });
+    const wrapper = mount(NotificationPanel, { global: { plugins: [pinia] } });
 
-  // Wait for reactivity to propagate
-  await nextTick();
+    // Wait for reactivity to propagate
+    await nextTick();
 
-  // Debug output to help diagnose test rendering
-  // eslint-disable-next-line no-console
-  console.log('NotificationPanel HTML:\n', wrapper.html());
+    // Debug output to help diagnose test rendering
+    // eslint-disable-next-line no-console
+    console.log('NotificationPanel HTML:\n', wrapper.html());
 
-  // Header button should exist (since unreadCount > 0)
-  const headerButton = wrapper.find('button[aria-label="Mark all notifications as read"]');
-  expect(headerButton.exists()).toBe(true);
+    // Header button should exist (since unreadCount > 0)
+    const headerButton = wrapper.find('button[aria-label="Mark all notifications as read"]');
+    expect(headerButton.exists()).toBe(true);
 
-  await headerButton.trigger('click');
+    await headerButton.trigger('click');
 
-  expect(spy).toHaveBeenCalled();
+    expect(spy).toHaveBeenCalled();
   });
 });

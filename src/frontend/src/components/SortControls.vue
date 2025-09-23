@@ -30,10 +30,8 @@ function changeSort(newSort: string): void {
 
 <template>
   <div class="flex items-center gap-3">
-    <label for="sort-select" class="text-sm font-medium text-gray-700">
-      Sort by:
-    </label>
-    
+    <label for="sort-select" class="text-sm font-medium text-gray-700"> Sort by: </label>
+
     <!-- Desktop: Button Group -->
     <div class="hidden sm:flex items-center gap-1">
       <button

@@ -67,16 +67,20 @@ function handleArtworkSelected(artworkId: string) {
     </div>
 
     <!-- High Similarity Warning -->
-    <div v-if="similarityWarnings.length > 0" class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+    <div
+      v-if="similarityWarnings.length > 0"
+      class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"
+    >
       <div class="flex items-start">
         <ExclamationTriangleIcon class="w-6 h-6 text-red-500 mt-0.5 mr-3 flex-shrink-0" />
         <div class="flex-1">
-          <h5 class="font-medium text-red-900 dark:text-red-100 mb-2">
-            High Similarity Detected
-          </h5>
+          <h5 class="font-medium text-red-900 dark:text-red-100 mb-2">High Similarity Detected</h5>
           <p class="text-sm text-red-800 dark:text-red-200 mb-4">
-            We found {{ similarityWarnings.length }} existing artwork{{ similarityWarnings.length !== 1 ? 's' : '' }} 
-            that appear very similar to what you're submitting. Please review carefully to avoid duplicates.
+            We found {{ similarityWarnings.length }} existing artwork{{
+              similarityWarnings.length !== 1 ? 's' : ''
+            }}
+            that appear very similar to what you're submitting. Please review carefully to avoid
+            duplicates.
           </p>
           <div class="space-y-3">
             <div
@@ -92,7 +96,10 @@ function handleArtworkSelected(artworkId: string) {
                     :alt="artwork.type_name"
                     class="w-12 h-12 object-cover rounded-lg"
                   />
-                  <div v-else class="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                  <div
+                    v-else
+                    class="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center"
+                  >
                     <PhotoIcon class="w-6 h-6 text-gray-400" />
                   </div>
                   <div>
@@ -131,28 +138,34 @@ function handleArtworkSelected(artworkId: string) {
       <!-- Create New Artwork -->
       <div
         class="selection-option p-6 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer transition-all"
-        :class="isNewArtwork ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'hover:border-gray-300 dark:hover:border-gray-600'"
+        :class="
+          isNewArtwork
+            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+            : 'hover:border-gray-300 dark:hover:border-gray-600'
+        "
         @click="selectNewArtwork"
       >
         <div class="flex items-start">
           <div class="flex-shrink-0">
-            <div 
+            <div
               class="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
-              :class="isNewArtwork ? 'bg-blue-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'"
+              :class="
+                isNewArtwork
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+              "
             >
               <PlusIcon class="w-6 h-6" />
             </div>
           </div>
-          
+
           <div class="ml-4 flex-1">
-            <h5 class="font-medium text-gray-900 dark:text-white mb-2">
-              Create New Artwork
-            </h5>
+            <h5 class="font-medium text-gray-900 dark:text-white mb-2">Create New Artwork</h5>
             <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">
-              This is a new cultural artwork that hasn't been documented before. 
-              You'll need to provide a title and basic details.
+              This is a new cultural artwork that hasn't been documented before. You'll need to
+              provide a title and basic details.
             </p>
-            
+
             <div class="flex items-center">
               <input
                 type="radio"
@@ -172,28 +185,34 @@ function handleArtworkSelected(artworkId: string) {
       <!-- Add to Existing Artwork -->
       <div
         class="selection-option p-6 border-2 border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer transition-all"
-        :class="!isNewArtwork ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'hover:border-gray-300 dark:hover:border-gray-600'"
+        :class="
+          !isNewArtwork
+            ? 'border-green-500 bg-green-50 dark:bg-green-900/20'
+            : 'hover:border-gray-300 dark:hover:border-gray-600'
+        "
         @click="showArtworkSelector = true"
       >
         <div class="flex items-start">
           <div class="flex-shrink-0">
-            <div 
+            <div
               class="w-12 h-12 rounded-full flex items-center justify-center transition-colors"
-              :class="!isNewArtwork ? 'bg-green-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'"
+              :class="
+                !isNewArtwork
+                  ? 'bg-green-500 text-white'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
+              "
             >
               <PhotoIcon class="w-6 h-6" />
             </div>
           </div>
-          
+
           <div class="ml-4 flex-1">
-            <h5 class="font-medium text-gray-900 dark:text-white mb-2">
-              Add to Existing Artwork
-            </h5>
+            <h5 class="font-medium text-gray-900 dark:text-white mb-2">Add to Existing Artwork</h5>
             <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">
-              Add your photos to an artwork that's already been documented. 
-              This creates a new logbook entry.
+              Add your photos to an artwork that's already been documented. This creates a new
+              logbook entry.
             </p>
-            
+
             <div class="flex items-center">
               <input
                 type="radio"
@@ -208,7 +227,10 @@ function handleArtworkSelected(artworkId: string) {
             </div>
 
             <!-- Selected Artwork Display -->
-            <div v-if="selectedArtwork && selectedArtworkData" class="mt-3 p-3 bg-white dark:bg-gray-800 border border-green-200 dark:border-green-700 rounded-lg">
+            <div
+              v-if="selectedArtwork && selectedArtworkData"
+              class="mt-3 p-3 bg-white dark:bg-gray-800 border border-green-200 dark:border-green-700 rounded-lg"
+            >
               <div class="flex items-center space-x-3">
                 <img
                   v-if="selectedArtworkData.photos?.[0]"
@@ -216,7 +238,10 @@ function handleArtworkSelected(artworkId: string) {
                   :alt="selectedArtworkData.type_name"
                   class="w-10 h-10 object-cover rounded-lg"
                 />
-                <div v-else class="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+                <div
+                  v-else
+                  class="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center"
+                >
                   <PhotoIcon class="w-5 h-5 text-gray-400" />
                 </div>
                 <div class="flex-1">
@@ -259,10 +284,13 @@ function handleArtworkSelected(artworkId: string) {
               :alt="artwork.type_name"
               class="w-16 h-16 object-cover rounded-lg"
             />
-            <div v-else class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+            <div
+              v-else
+              class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center"
+            >
               <PhotoIcon class="w-8 h-8 text-gray-400" />
             </div>
-            
+
             <div class="flex-1">
               <h6 class="font-medium text-gray-900 dark:text-white mb-1">
                 {{ artwork.type_name }}
@@ -280,7 +308,10 @@ function handleArtworkSelected(artworkId: string) {
             </div>
 
             <div class="flex items-center">
-              <SimilarityBadge v-if="artwork.similarity_threshold" :threshold="artwork.similarity_threshold" />
+              <SimilarityBadge
+                v-if="artwork.similarity_threshold"
+                :threshold="artwork.similarity_threshold"
+              />
               <ChevronRightIcon class="w-5 h-5 text-gray-400 ml-2" />
             </div>
           </div>
@@ -289,8 +320,8 @@ function handleArtworkSelected(artworkId: string) {
     </div>
 
     <!-- Artwork Selector Modal -->
-    <Modal 
-      v-if="showArtworkSelector" 
+    <Modal
+      v-if="showArtworkSelector"
       :isOpen="showArtworkSelector"
       @close="showArtworkSelector = false"
     >
@@ -310,6 +341,8 @@ function handleArtworkSelected(artworkId: string) {
 }
 
 .selection-option:hover {
-  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  box-shadow:
+    0 4px 6px -1px rgb(0 0 0 / 0.1),
+    0 2px 4px -2px rgb(0 0 0 / 0.1);
 }
 </style>

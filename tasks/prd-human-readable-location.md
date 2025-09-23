@@ -1,4 +1,4 @@
-Example: 
+Example:
 
 https://nominatim.openstreetmap.org/reverse?lat=49.266235&lon=-123.005677
 
@@ -25,51 +25,41 @@ https://nominatim.openstreetmap.org/reverse?lat=49.266235&lon=-123.005677
 
 ## Executive Summary
 
-We need an **internal HTTP endpoint** that converts raw GPS coordinates
-into **human-readable place descriptions**, adapted to the map zoom
-level. This will improve usability by showing users meaningful location
-names (e.g., *"Mount Pleasant, Vancouver"* instead of raw lat/lon).
+We need an **internal HTTP endpoint** that converts raw GPS coordinates into **human-readable place descriptions**, adapted to the map zoom level. This will improve usability by showing users meaningful location names (e.g., _"Mount Pleasant, Vancouver"_ instead of raw lat/lon).
 
-The service will use **Nominatim (OSM reverse geocoding)** as a backend,
-with results cached in **Cloudflare D1 (SQLite-based DB)** to minimize
-API calls and respect rate limits.
+The service will use **Nominatim (OSM reverse geocoding)** as a backend, with results cached in **Cloudflare D1 (SQLite-based DB)** to minimize API calls and respect rate limits.
 
-------------------------------------------------------------------------
+---
 
 ## Problem Statement
 
-GPS coordinates are not human-readable. We need to resolve them into
-names, consistent with zoom-level context, so artworks and locations can
-be displayed in a way that matches how people understand places.
+GPS coordinates are not human-readable. We need to resolve them into names, consistent with zoom-level context, so artworks and locations can be displayed in a way that matches how people understand places.
 
-------------------------------------------------------------------------
+---
 
 ## Goals & Non-Goals
 
 ### Goals
 
--   Provide a **single-coordinate reverse geocoding endpoint**.\
--   Return **structured JSON** with normalized fields.\
--   Cache results in **Cloudflare D1**.\
--   Always return results in **English**.\
--   Generate our own **"pretty display string"** instead of using raw
-    Nominatim `display_name`.\
--   Fallback to **region** when district/suburb is unavailable, and then
-    fallback further as needed.\
--   Handle missing data gracefully with fallbacks.\
--   Implement **schema versioning** for stability.\
--   Support **cache warmup jobs** for known artwork locations.\
--   Hardcode simple zoom → place mappings, with **configurable display
-    string rules per zoom**.
+- Provide a **single-coordinate reverse geocoding endpoint**.\
+- Return **structured JSON** with normalized fields.\
+- Cache results in **Cloudflare D1**.\
+- Always return results in **English**.\
+- Generate our own **"pretty display string"** instead of using raw Nominatim `display_name`.\
+- Fallback to **region** when district/suburb is unavailable, and then fallback further as needed.\
+- Handle missing data gracefully with fallbacks.\
+- Implement **schema versioning** for stability.\
+- Support **cache warmup jobs** for known artwork locations.\
+- Hardcode simple zoom → place mappings, with **configurable display string rules per zoom**.
 
 ### Non-Goals
 
--   Batch lookups.\
--   Self-hosting Nominatim.\
--   Configurable zoom-to-place mappings beyond display string rules.\
--   Street-level handling (`zoom 18+`) --- not needed for MVP.
+- Batch lookups.\
+- Self-hosting Nominatim.\
+- Configurable zoom-to-place mappings beyond display string rules.\
+- Street-level handling (`zoom 18+`) --- not needed for MVP.
 
-------------------------------------------------------------------------
+---
 
 ## API Design
 
@@ -79,22 +69,21 @@ be displayed in a way that matches how people understand places.
 
 ### Parameters
 
--   **lat** (required, float) -- Latitude of the point.\
--   **lon** (required, float) -- Longitude of the point.\
--   **zoom** (optional, int, default = 5).
+- **lat** (required, float) -- Latitude of the point.\
+- **lon** (required, float) -- Longitude of the point.\
+- **zoom** (optional, int, default = 5).
 
 ### Zoom → Place Mapping
 
--   `zoom 3–5` → Country\
--   `zoom 6–9` → State / Province\
--   `zoom 10–13` → City / Town\
--   `zoom 14–17` → Suburb / District (fallback to Region if not
-    available)\
--   `zoom 18+` → Not supported (future option)
+- `zoom 3–5` → Country\
+- `zoom 6–9` → State / Province\
+- `zoom 10–13` → City / Town\
+- `zoom 14–17` → Suburb / District (fallback to Region if not available)\
+- `zoom 18+` → Not supported (future option)
 
 ### Response Format
 
-``` json
+```json
 {
   "version": "1.0",
   "country_code": "CA",
@@ -110,52 +99,48 @@ be displayed in a way that matches how people understand places.
 }
 ```
 
-------------------------------------------------------------------------
+---
 
 ## Data & Storage
 
--   **Database**: Cloudflare D1 (SQLite).\
--   **Cache Key**: `lat:lon:zoom` rounded to 6 decimals.\
--   **Eviction**: Permanent storage, no TTL.\
--   **Warmup Jobs**: Batch import script pre-populates cache for known
-    artworks.\
--   **Schema Versioning**: Store schema version in DB alongside results
-    to protect against API changes.
+- **Database**: Cloudflare D1 (SQLite).\
+- **Cache Key**: `lat:lon:zoom` rounded to 6 decimals.\
+- **Eviction**: Permanent storage, no TTL.\
+- **Warmup Jobs**: Batch import script pre-populates cache for known artworks.\
+- **Schema Versioning**: Store schema version in DB alongside results to protect against API changes.
 
-------------------------------------------------------------------------
+---
 
 ## External Dependencies
 
--   **Nominatim Public API**
-    -   Respect rate limit: **1 request/sec**.\
-    -   Always request in English (`accept-language=en`).\
-    -   Include proper `User-Agent`.\
-    -   Aggressively cache results to minimize load.
+- **Nominatim Public API**
+  - Respect rate limit: **1 request/sec**.\
+  - Always request in English (`accept-language=en`).\
+  - Include proper `User-Agent`.\
+  - Aggressively cache results to minimize load.
 
-------------------------------------------------------------------------
+---
 
 ## Attribution
 
--   Must display: *"Geocoding © OpenStreetMap contributors"* in any UI
-    that shows resolved names.
+- Must display: _"Geocoding © OpenStreetMap contributors"_ in any UI that shows resolved names.
 
-------------------------------------------------------------------------
+---
 
 ## Security
 
--   Internal-only endpoint (no external auth needed).\
--   Trusted services only.
+- Internal-only endpoint (no external auth needed).\
+- Trusted services only.
 
-------------------------------------------------------------------------
+---
 
 ## Decisions on Open Questions
 
-1.  **Fallback Depth** → Yes, always fallback further (e.g., from
-    district → region → city → state → country).\
+1.  **Fallback Depth** → Yes, always fallback further (e.g., from district → region → city → state → country).\
 2.  **Cache Invalidation** → Not required for MVP.\
 3.  **Pretty Display String Rules** → Configurable per zoom level.\
 4.  **Street-level Handling** → Excluded from MVP.
 
-------------------------------------------------------------------------
+---
 
 ✅ This PRD is now **finalized for MVP**.

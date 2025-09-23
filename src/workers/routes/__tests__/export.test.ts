@@ -15,7 +15,7 @@ describe('Export Integration Tests', () => {
 
   beforeEach(() => {
     // _app = new Hono(); // Commented out as unused
-    
+
     // Create persistent mock methods to avoid recreation issues
     const mockFirst = vi.fn();
     const mockAll = vi.fn();
@@ -23,13 +23,13 @@ describe('Export Integration Tests', () => {
       first: mockFirst,
       all: mockAll,
     });
-    
+
     const mockStatement = {
       bind: mockBind,
       first: mockFirst,
       all: mockAll,
     };
-    
+
     // Mock database
     mockDB = {
       prepare: vi.fn().mockReturnValue(mockStatement),
@@ -74,7 +74,7 @@ describe('Export Integration Tests', () => {
           query: vi.fn().mockReturnValue({}),
         },
         env: mockEnv,
-        json: vi.fn((data) => Response.json(data)),
+        json: vi.fn(data => Response.json(data)),
       };
 
       const response = await exportArtworkToOSM(mockContext as any);
@@ -125,7 +125,7 @@ describe('Export Integration Tests', () => {
           query: vi.fn().mockReturnValue({ format: 'xml' }),
         },
         env: mockEnv,
-        json: vi.fn((data) => Response.json(data)),
+        json: vi.fn(data => Response.json(data)),
       };
 
       const response = await exportArtworkToOSM(mockContext as any);
@@ -170,7 +170,7 @@ describe('Export Integration Tests', () => {
           query: vi.fn().mockReturnValue({ format: 'validation' }),
         },
         env: mockEnv,
-        json: vi.fn((data) => Response.json(data)),
+        json: vi.fn(data => Response.json(data)),
       };
 
       const response = await exportArtworkToOSM(mockContext as any);
@@ -245,14 +245,14 @@ describe('Export Integration Tests', () => {
           query: vi.fn().mockReturnValue({}),
         },
         env: mockEnv,
-        json: vi.fn((data) => Response.json(data)),
-        json: vi.fn((data) => Response.json(data)),
-        json: vi.fn((data) => Response.json(data)),
-        json: vi.fn((data) => Response.json(data)),
-        json: vi.fn((data) => Response.json(data)),
-        json: vi.fn((data) => Response.json(data)),
-        json: vi.fn((data) => Response.json(data)),
-        json: vi.fn((data) => Response.json(data)),
+        json: vi.fn(data => Response.json(data)),
+        json: vi.fn(data => Response.json(data)),
+        json: vi.fn(data => Response.json(data)),
+        json: vi.fn(data => Response.json(data)),
+        json: vi.fn(data => Response.json(data)),
+        json: vi.fn(data => Response.json(data)),
+        json: vi.fn(data => Response.json(data)),
+        json: vi.fn(data => Response.json(data)),
       };
 
       const response = await bulkExportToOSM(mockContext as any);
@@ -272,13 +272,13 @@ describe('Export Integration Tests', () => {
 
       const mockContext = {
         req: {
-          query: vi.fn().mockReturnValue({ 
+          query: vi.fn().mockReturnValue({
             artwork_ids: 'artwork-1',
             format: 'json',
           }),
         },
         env: mockEnv,
-        json: vi.fn((data) => {
+        json: vi.fn(data => {
           const response = new Response(JSON.stringify(data), {
             headers: { 'Content-Type': 'application/json' },
             status: 200,
@@ -304,13 +304,13 @@ describe('Export Integration Tests', () => {
 
       const mockContext = {
         req: {
-          query: vi.fn().mockReturnValue({ 
+          query: vi.fn().mockReturnValue({
             bounds: '49.29,-123.11,49.28,-123.12',
             format: 'json',
           }),
         },
         env: mockEnv,
-        json: vi.fn((data) => {
+        json: vi.fn(data => {
           const response = new Response(JSON.stringify(data), {
             headers: { 'Content-Type': 'application/json' },
             status: 200,
@@ -338,7 +338,7 @@ describe('Export Integration Tests', () => {
           query: vi.fn().mockReturnValue({ format: 'xml' }),
         },
         env: mockEnv,
-        json: vi.fn((data) => {
+        json: vi.fn(data => {
           const response = new Response(JSON.stringify(data), {
             headers: { 'Content-Type': 'application/json' },
             status: 200,
@@ -362,7 +362,7 @@ describe('Export Integration Tests', () => {
     it('should validate bounds parameters', async () => {
       const mockContext = {
         req: {
-          query: vi.fn().mockReturnValue({ 
+          query: vi.fn().mockReturnValue({
             bounds: 'invalid-bounds',
           }),
         },
@@ -375,7 +375,7 @@ describe('Export Integration Tests', () => {
     it('should enforce limits', async () => {
       const mockContext = {
         req: {
-          query: vi.fn().mockReturnValue({ 
+          query: vi.fn().mockReturnValue({
             limit: '15000', // Over the 10,000 limit
           }),
         },
@@ -389,23 +389,25 @@ describe('Export Integration Tests', () => {
   describe('Export Statistics', () => {
     it('should return export statistics', async () => {
       const mockCountResult = { total: 100 };
-      const mockSampleResult = { 
-        results: Array(10).fill(null).map((_, i) => ({
-          id: `artwork-${i}`,
-          lat: 49.28,
-          lon: -123.12,
-          status: 'approved',
-          tags: JSON.stringify({
-            tags: { tourism: 'artwork', name: `Art ${i}` },
-            version: '1.0.0',
-          }),
-          created_at: '2024-01-01T00:00:00.000Z',
-          type_id: 1,
-          notes: 'Test',
-          title: null,
-          description: null,
-          created_by: null,
-        })),
+      const mockSampleResult = {
+        results: Array(10)
+          .fill(null)
+          .map((_, i) => ({
+            id: `artwork-${i}`,
+            lat: 49.28,
+            lon: -123.12,
+            status: 'approved',
+            tags: JSON.stringify({
+              tags: { tourism: 'artwork', name: `Art ${i}` },
+              version: '1.0.0',
+            }),
+            created_at: '2024-01-01T00:00:00.000Z',
+            type_id: 1,
+            notes: 'Test',
+            title: null,
+            description: null,
+            created_by: null,
+          })),
       };
 
       // Mock the database queries for statistics - first call gets count, second gets sample
@@ -422,7 +424,7 @@ describe('Export Integration Tests', () => {
           query: vi.fn().mockReturnValue({}),
         },
         env: mockEnv,
-        json: vi.fn((data) => {
+        json: vi.fn(data => {
           const response = new Response(JSON.stringify(data), {
             headers: { 'Content-Type': 'application/json' },
             status: 200,
@@ -447,7 +449,7 @@ describe('Export Integration Tests', () => {
       const mockCountResult = { total: 50 };
       const mockSampleResult = { results: [] };
 
-      // Mock the database queries for statistics with bounds - first call gets count, second gets sample  
+      // Mock the database queries for statistics with bounds - first call gets count, second gets sample
       const mockStatement1 = mockDB.prepare();
       const mockChainedStatement1 = mockStatement1.bind();
       mockChainedStatement1.first.mockResolvedValueOnce(mockCountResult);
@@ -463,7 +465,7 @@ describe('Export Integration Tests', () => {
           }),
         },
         env: mockEnv,
-        json: vi.fn((data) => {
+        json: vi.fn(data => {
           const response = new Response(JSON.stringify(data), {
             headers: { 'Content-Type': 'application/json' },
             status: 200,

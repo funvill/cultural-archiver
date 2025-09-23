@@ -13,15 +13,15 @@ onMounted(async () => {
     if (!response.ok) {
       throw new Error(`Failed to load privacy policy: ${response.status}`);
     }
-    
+
     const markdownContent = await response.text();
-    
+
     // Configure marked for security and proper rendering
     marked.setOptions({
       breaks: true,
       gfm: true,
     });
-    
+
     // Parse markdown to HTML
     privacyContent.value = await marked(markdownContent);
   } catch (err) {
@@ -38,7 +38,9 @@ onMounted(async () => {
     <div class="bg-white rounded-lg shadow-md p-8">
       <!-- Loading State -->
       <div v-if="isLoading" class="text-center py-8">
-        <div class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div
+          class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
+        ></div>
         <p class="mt-2 text-gray-600">Loading privacy policy...</p>
       </div>
 
@@ -47,8 +49,8 @@ onMounted(async () => {
         <div class="bg-red-50 border border-red-200 rounded-lg p-6">
           <h2 class="text-xl font-semibold text-red-800 mb-2">Unable to Load Privacy Policy</h2>
           <p class="text-red-600">{{ error }}</p>
-          <button 
-            @click="$router.go(0)" 
+          <button
+            @click="$router.go(0)"
             class="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
           >
             Retry
@@ -57,8 +59,8 @@ onMounted(async () => {
       </div>
 
       <!-- Content -->
-      <div 
-        v-else 
+      <div
+        v-else
         class="prose prose-blue max-w-none prose-headings:text-gray-900 prose-a:text-blue-600 prose-a:hover:text-blue-800"
         v-html="privacyContent"
       ></div>

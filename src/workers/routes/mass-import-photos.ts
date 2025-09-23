@@ -1,6 +1,6 @@
 /**
  * Mass Import Submission Routes
- * 
+ *
  * Handles complete mass import submissions including photo downloading,
  * processing, and logbook entry creation in a single operation.
  * This endpoint is specifically designed for mass import operations.
@@ -30,7 +30,7 @@ interface MassImportSubmissionPayload {
 
 /**
  * POST /api/mass-import/submit - Complete mass import submission
- * 
+ *
  * This endpoint handles the complete mass import workflow:
  * 1. Downloads photos from provided URLs
  * 2. Processes them through the photo pipeline
@@ -42,7 +42,7 @@ export async function processMassImportPhotos(
 ): Promise<Response> {
   try {
     // Parse JSON payload
-    const payload = await c.req.json() as MassImportSubmissionPayload;
+    const payload = (await c.req.json()) as MassImportSubmissionPayload;
 
     // Validate required fields
     if (!payload.user_token) {
@@ -54,7 +54,13 @@ export async function processMassImportPhotos(
 
     if (typeof payload.lat !== 'number' || typeof payload.lon !== 'number') {
       throw new ValidationApiError(
-        [{ message: 'Valid latitude and longitude are required', field: 'coordinates', code: 'INVALID_COORDINATES' }],
+        [
+          {
+            message: 'Valid latitude and longitude are required',
+            field: 'coordinates',
+            code: 'INVALID_COORDINATES',
+          },
+        ],
         'Invalid coordinates provided'
       );
     }
@@ -62,7 +68,13 @@ export async function processMassImportPhotos(
     // Validate coordinates range
     if (payload.lat < -90 || payload.lat > 90 || payload.lon < -180 || payload.lon > 180) {
       throw new ValidationApiError(
-        [{ message: 'Coordinates must be valid lat/lon values', field: 'coordinates', code: 'COORDINATES_OUT_OF_RANGE' }],
+        [
+          {
+            message: 'Coordinates must be valid lat/lon values',
+            field: 'coordinates',
+            code: 'COORDINATES_OUT_OF_RANGE',
+          },
+        ],
         'Coordinates out of valid range'
       );
     }
@@ -72,12 +84,12 @@ export async function processMassImportPhotos(
     // Process photos if provided
     if (payload.photo_urls && payload.photo_urls.length > 0) {
       console.log(`[MASS_IMPORT] Processing ${payload.photo_urls.length} photos for mass import`);
-      
+
       // Download and process each photo
       for (const photoUrl of payload.photo_urls) {
         try {
           console.log(`[MASS_IMPORT] Downloading photo: ${photoUrl}`);
-          
+
           // Download the photo
           const response = await fetch(photoUrl, {
             headers: {
@@ -86,7 +98,9 @@ export async function processMassImportPhotos(
           });
 
           if (!response.ok) {
-            console.warn(`[MASS_IMPORT] Failed to download photo ${photoUrl}: ${response.status} ${response.statusText}`);
+            console.warn(
+              `[MASS_IMPORT] Failed to download photo ${photoUrl}: ${response.status} ${response.statusText}`
+            );
             continue; // Skip this photo but continue with others
           }
 
@@ -99,11 +113,13 @@ export async function processMassImportPhotos(
 
           // Get the image data
           const arrayBuffer = await response.arrayBuffer();
-          
+
           // Validate file size (15MB limit)
           const maxSize = 15 * 1024 * 1024;
           if (arrayBuffer.byteLength > maxSize) {
-            console.warn(`[MASS_IMPORT] Photo too large: ${arrayBuffer.byteLength} bytes (max: ${maxSize})`);
+            console.warn(
+              `[MASS_IMPORT] Photo too large: ${arrayBuffer.byteLength} bytes (max: ${maxSize})`
+            );
             continue;
           }
 
@@ -126,30 +142,32 @@ export async function processMassImportPhotos(
             processedPhotoUrls.push(results[0].originalUrl);
             console.log(`[MASS_IMPORT] Successfully processed photo: ${results[0].originalUrl}`);
           }
-
         } catch (error) {
           console.error(`[MASS_IMPORT] Failed to process photo ${photoUrl}:`, error);
           // Continue with other photos
         }
       }
 
-      console.log(`[MASS_IMPORT] Successfully processed ${processedPhotoUrls.length}/${payload.photo_urls.length} photos`);
+      console.log(
+        `[MASS_IMPORT] Successfully processed ${processedPhotoUrls.length}/${payload.photo_urls.length} photos`
+      );
     }
 
     // Create logbook entry with proper title and content structure
     let initialNote = '';
-    
+
     // Include title if provided - use markdown heading for proper parsing
     if (payload.title) {
       initialNote = `# ${payload.title}\n\n`;
     }
-    
+
     // Add description/note content
     if (payload.note) {
       initialNote += payload.note;
     }
 
-    const logbookEntry: CreateSubmissionEntryRequest = { // Fixed: was CreateLogbookEntryRequest
+    const logbookEntry: CreateSubmissionEntryRequest = {
+      // Fixed: was CreateLogbookEntryRequest
       user_token: payload.user_token,
       lat: payload.lat,
       lon: payload.lon,
@@ -158,25 +176,32 @@ export async function processMassImportPhotos(
       consent_version: payload.consent_version || CONSENT_VERSION,
     };
 
-    console.log(`[MASS_IMPORT] Creating logbook entry with ${processedPhotoUrls.length} photos and title: ${payload.title || 'No title'}`);
+    console.log(
+      `[MASS_IMPORT] Creating logbook entry with ${processedPhotoUrls.length} photos and title: ${payload.title || 'No title'}`
+    );
     const db = createDatabaseService(c.env.DB);
     const newEntry = await db.createLogbookEntry(logbookEntry);
 
     // If tags are provided, store them as part of the note for moderation
     let enhancedNote = initialNote;
     if (payload.tags && Object.keys(payload.tags).length > 0) {
-      const tagsSection = '\n\n## Import Tags\n' + 
+      const tagsSection =
+        '\n\n## Import Tags\n' +
         Object.entries(payload.tags)
           .map(([key, value]) => `- **${key}**: ${value}`)
           .join('\n');
       enhancedNote = enhancedNote + tagsSection;
-      
+
       // Update the logbook entry with enhanced note in submissions table
-      await c.env.DB.prepare(`
+      await c.env.DB.prepare(
+        `
         UPDATE submissions 
         SET notes = ? 
         WHERE id = ? AND submission_type = 'logbook_entry'
-      `).bind(enhancedNote, newEntry.id).run();
+      `
+      )
+        .bind(enhancedNote, newEntry.id)
+        .run();
     }
 
     // Return successful response
@@ -192,9 +217,10 @@ export async function processMassImportPhotos(
       },
     };
 
-    console.log(`[MASS_IMPORT] Successfully created submission ${newEntry.id} with ${processedPhotoUrls.length} photos`);
+    console.log(
+      `[MASS_IMPORT] Successfully created submission ${newEntry.id} with ${processedPhotoUrls.length} photos`
+    );
     return c.json(createSuccessResponse(response), 201);
-
   } catch (error) {
     console.error('[MASS_IMPORT] Mass import submission error:', error);
 
@@ -202,12 +228,9 @@ export async function processMassImportPhotos(
       throw error;
     }
 
-    throw new ApiError(
-      'Failed to process mass import submission',
-      'MASS_IMPORT_ERROR',
-      500,
-      { details: { originalError: error instanceof Error ? error.message : String(error) } }
-    );
+    throw new ApiError('Failed to process mass import submission', 'MASS_IMPORT_ERROR', 500, {
+      details: { originalError: error instanceof Error ? error.message : String(error) },
+    });
   }
 }
 
@@ -219,7 +242,7 @@ function generateFilenameFromUrl(url: string, contentType: string): string {
     // Extract filename from URL if possible
     const urlPath = new URL(url).pathname;
     const urlFilename = urlPath.split('/').pop();
-    
+
     if (urlFilename && urlFilename.includes('.')) {
       return urlFilename;
     }

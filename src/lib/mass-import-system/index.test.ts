@@ -1,15 +1,11 @@
 /**
  * Tests for Mass Import System Library
- * 
+ *
  * Tests the core library functionality without CLI execution.
  */
 
 import { describe, it, expect } from 'vitest';
-import { 
-  createDefaultConfig,
-  validateConfig,
-  getLibraryInfo,
-} from './index.js';
+import { createDefaultConfig, validateConfig, getLibraryInfo } from './index.js';
 
 describe('Mass Import System Library', () => {
   describe('Library Configuration', () => {
@@ -50,7 +46,8 @@ describe('Mass Import System Library', () => {
       expect(info).toMatchObject({
         name: '@cultural-archiver/mass-import',
         version: '1.0.0',
-        description: 'Mass import library for Cultural Archiver - automated ingestion of public art data',
+        description:
+          'Mass import library for Cultural Archiver - automated ingestion of public art data',
         author: 'Steven Smethurst',
         license: 'MIT',
       });
@@ -61,7 +58,7 @@ describe('Mass Import System Library', () => {
   describe('Configuration Validation', () => {
     it('should validate API endpoint format', () => {
       const invalidEndpoints = ['not-a-url', 'ftp://invalid.com', ''];
-      
+
       invalidEndpoints.forEach(endpoint => {
         const validation = validateConfig({ apiEndpoint: endpoint });
         expect(validation.isValid).toBe(false);
@@ -71,7 +68,7 @@ describe('Mass Import System Library', () => {
 
     it('should validate UUID format for token', () => {
       const invalidTokens = ['not-a-uuid', '12345', ''];
-      
+
       invalidTokens.forEach(token => {
         const validation = validateConfig({ massImportUserToken: token });
         expect(validation.isValid).toBe(false);
@@ -81,12 +78,12 @@ describe('Mass Import System Library', () => {
 
     it('should validate numeric ranges', () => {
       const config = createDefaultConfig();
-      
+
       // Test batch size
       expect(validateConfig({ ...config, batchSize: -1 }).isValid).toBe(false);
       expect(validateConfig({ ...config, batchSize: 1001 }).isValid).toBe(false);
       expect(validateConfig({ ...config, batchSize: 50 }).isValid).toBe(true);
-      
+
       // Test similarity threshold
       expect(validateConfig({ ...config, titleSimilarityThreshold: -0.1 }).isValid).toBe(false);
       expect(validateConfig({ ...config, titleSimilarityThreshold: 1.1 }).isValid).toBe(false);

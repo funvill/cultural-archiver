@@ -31,6 +31,7 @@
 ## Production Security Measures
 
 ### Authentication & Authorization
+
 - **Magic Link System**: Secure email-based authentication without passwords
 - **Role-Based Access Control**: Admin/moderator/user/banned roles with granular permissions
 - **Session Management**: Secure session tokens with automatic expiration
@@ -38,6 +39,7 @@
 - **Anonymous Support**: Secure anonymous submission workflow with UUID tokens
 
 ### Data Protection
+
 - **Content Validation**: Strict input validation on all submission endpoints
 - **SQL Injection Prevention**: Parameterized queries throughout D1 database layer
 - **XSS Protection**: Content Security Policy headers and input sanitization
@@ -45,6 +47,7 @@
 - **CORS Configuration**: Strict cross-origin resource sharing policies
 
 ### Infrastructure Security
+
 - **Cloudflare Protection**: DDoS protection, Web Application Firewall (WAF)
 - **TLS Encryption**: All traffic encrypted with Cloudflare SSL/TLS certificates
 - **Secure Headers**: HSTS, X-Frame-Options, X-Content-Type-Options implemented
@@ -52,6 +55,7 @@
 - **Secret Management**: Cloudflare Workers secrets for sensitive configuration
 
 ### Privacy & Compliance
+
 - **GDPR Compliance**: User data deletion endpoints and privacy controls
 - **Consent System**: Comprehensive consent tracking for all content submissions
 - **Data Minimization**: Only collect necessary data for functionality

@@ -12,8 +12,7 @@ The location services module consists of three main components:
 
 ## Quick Start
 
-```npm run warm-location-cache "src/lib/data-collection/osm/output/merged/merged-artworks.geojson"```
-
+`npm run warm-location-cache "src/lib/data-collection/osm/output/merged/merged-artworks.geojson"`
 
 ### Basic Usage
 
@@ -69,6 +68,7 @@ To pre-populate the location cache before running mass imports:
 Ensure your import file contains coordinates in one of these formats:
 
 **JSON Format:**
+
 ```json
 [
   {
@@ -78,13 +78,14 @@ Ensure your import file contains coordinates in one of these formats:
   },
   {
     "latitude": 49.2476,
-    "longitude": -123.1336, 
+    "longitude": -123.1336,
     "title": "Artwork 2"
   }
 ]
 ```
 
 **CSV Format:**
+
 ```csv
 title,lat,lon,description
 "Artwork 1",49.2827,-123.1207,"Description here"
@@ -100,7 +101,7 @@ npm run warm-location-cache path/to/your/data.json
 # Example with OSM import data
 npm run warm-location-cache src/lib/data-collection/osm-vancouver-art.json
 
-# Example with Vancouver Public Art data  
+# Example with Vancouver Public Art data
 npm run warm-location-cache src/lib/data-collection/vancouver-public-art.json
 ```
 
@@ -131,6 +132,7 @@ For OpenStreetMap import data specifically:
 ### 1. Locate OSM Data Files
 
 OSM import files are typically located in:
+
 ```
 src/lib/data-collection/
 ├── osm-vancouver-art.json
@@ -177,7 +179,7 @@ const service = new LocationService('/custom/path/to/cache.sqlite');
 ```typescript
 // Set custom timeout (default: 10 seconds)
 const result = await service.getLocation(lat, lon, {
-  timeout: 15000 // 15 seconds
+  timeout: 15000, // 15 seconds
 });
 ```
 
@@ -186,7 +188,7 @@ const result = await service.getLocation(lat, lon, {
 ```typescript
 // Force API lookup (bypass cache)
 const result = await service.getLocation(lat, lon, {
-  useCache: false
+  useCache: false,
 });
 ```
 
@@ -230,16 +232,19 @@ CREATE TABLE location_cache (
 The location services handle various error conditions:
 
 ### Network Errors
+
 - Connection timeouts (configurable)
 - DNS resolution failures
 - HTTP error responses (4xx, 5xx)
 
 ### Data Errors
+
 - Invalid coordinates (out of range)
 - Malformed API responses
 - Database corruption
 
 ### Rate Limiting
+
 - Automatic throttling to respect API limits
 - Graceful handling of 429 (Too Many Requests) responses
 
@@ -263,23 +268,26 @@ try {
 ## Performance
 
 ### Cache Performance
+
 - **Cache hits**: < 1ms response time
 - **Database size**: ~1KB per cached location
 - **Memory usage**: ~50MB for 50,000 cached locations
 
 ### API Performance
+
 - **Rate limit**: 1 request/second (enforced)
 - **Typical response**: 200-500ms per request
 - **Timeout**: 10 seconds (configurable)
 
 ### Warming Estimates
-| Dataset Size | Estimated Time |
-|-------------|----------------|
-| 100 locations | ~2 minutes |
-| 500 locations | ~9 minutes |
-| 1,000 locations | ~17 minutes |
-| 5,000 locations | ~1.4 hours |
-| 10,000 locations | ~2.8 hours |
+
+| Dataset Size     | Estimated Time |
+| ---------------- | -------------- |
+| 100 locations    | ~2 minutes     |
+| 500 locations    | ~9 minutes     |
+| 1,000 locations  | ~17 minutes    |
+| 5,000 locations  | ~1.4 hours     |
+| 10,000 locations | ~2.8 hours     |
 
 ## File Structure
 
@@ -301,6 +309,7 @@ The location services integrate seamlessly with the mass import system. See the 
 ### Common Issues
 
 **Database locked error:**
+
 ```bash
 # Ensure no other processes are using the cache
 ps aux | grep location-cache
@@ -308,6 +317,7 @@ ps aux | grep location-cache
 ```
 
 **Rate limit errors:**
+
 ```bash
 # The system handles this automatically, but you can check:
 npm run location-cache:stats
@@ -315,12 +325,14 @@ npm run location-cache:stats
 ```
 
 **Module compilation errors (better-sqlite3):**
+
 ```bash
 # Rebuild native modules for your Node.js version
 npm rebuild better-sqlite3
 ```
 
 **Out of memory during cache warming:**
+
 ```bash
 # Process in smaller batches using offset/limit
 npm run warm-location-cache data.json --limit 1000 --offset 0

@@ -1,16 +1,21 @@
 /**
  * Mass Import API Endpoint
- * 
+ *
  * Handles complete mass import submissions for trusted users (moderators or higher).
- * This endpoint allows importing large batches of artworks, including images, 
+ * This endpoint allows importing large batches of artworks, including images,
  * logbook entries, and tags from public datasets.
- * 
+ *
  * All imported records are automatically approved and attributed to the importing user.
  */
 
 import type { Context } from 'hono';
 import type { WorkerEnv } from '../types';
-import { createSuccessResponse, ValidationApiError, ApiError, UnauthorizedError } from '../lib/errors';
+import {
+  createSuccessResponse,
+  ValidationApiError,
+  ApiError,
+  UnauthorizedError,
+} from '../lib/errors';
 import { processAndUploadPhotos } from '../lib/photos';
 import { createDatabaseService } from '../lib/database';
 import { createMassImportDuplicateDetectionService } from '../lib/mass-import-duplicate-detection';
@@ -80,7 +85,7 @@ interface MassImportResponse {
 
 /**
  * POST /api/mass-import - Complete mass import submission
- * 
+ *
  * This endpoint handles the complete mass import workflow:
  * 1. Validates user has moderator or admin privileges
  * 2. Downloads photos from provided URLs
@@ -88,12 +93,10 @@ interface MassImportResponse {
  * 4. Creates logbook entries with tags
  * 5. Returns submission details for tracking
  */
-export async function processMassImport(
-  c: Context<{ Bindings: WorkerEnv }>
-): Promise<Response> {
+export async function processMassImport(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   try {
     // Parse JSON payload
-    const payload = await c.req.json() as MassImportPayload;
+    const payload = (await c.req.json()) as MassImportPayload;
 
     // Validate required fields
     if (!payload.user_uuid) {
@@ -119,16 +122,32 @@ export async function processMassImport(
 
     if (typeof payload.artwork.lat !== 'number' || typeof payload.artwork.lon !== 'number') {
       throw new ValidationApiError(
-        [{ message: 'Valid latitude and longitude are required', field: 'artwork.coordinates', code: 'INVALID_COORDINATES' }],
+        [
+          {
+            message: 'Valid latitude and longitude are required',
+            field: 'artwork.coordinates',
+            code: 'INVALID_COORDINATES',
+          },
+        ],
         'Invalid coordinates provided'
       );
     }
 
     // Validate coordinates range
-    if (payload.artwork.lat < -90 || payload.artwork.lat > 90 || 
-        payload.artwork.lon < -180 || payload.artwork.lon > 180) {
+    if (
+      payload.artwork.lat < -90 ||
+      payload.artwork.lat > 90 ||
+      payload.artwork.lon < -180 ||
+      payload.artwork.lon > 180
+    ) {
       throw new ValidationApiError(
-        [{ message: 'Coordinates must be valid lat/lon values', field: 'artwork.coordinates', code: 'COORDINATES_OUT_OF_RANGE' }],
+        [
+          {
+            message: 'Coordinates must be valid lat/lon values',
+            field: 'artwork.coordinates',
+            code: 'COORDINATES_OUT_OF_RANGE',
+          },
+        ],
         'Coordinates out of valid range'
       );
     }
@@ -146,12 +165,12 @@ export async function processMassImport(
     // ========================================
     // DUPLICATE DETECTION
     // ========================================
-    
+
     console.log(`[MASS_IMPORT] Starting duplicate detection for artwork: ${payload.artwork.title}`);
-    
+
     // Create duplicate detection service
     const duplicateDetectionService = createMassImportDuplicateDetectionService(c.env.DB);
-    
+
     // Build tags from logbook entries for duplicate detection
     const allTags: Record<string, string> = {};
     if (payload.logbook) {
@@ -168,12 +187,12 @@ export async function processMassImport(
 
     // Extract artist information for duplicate detection
     // Priority: 1) payload.artwork.created_by, 2) tags.artist, 3) tags.created_by
-    const artistForDuplicateDetection = payload.artwork.created_by || 
-                                       allTags.artist || 
-                                       allTags.created_by || 
-                                       undefined;
+    const artistForDuplicateDetection =
+      payload.artwork.created_by || allTags.artist || allTags.created_by || undefined;
 
-    console.log(`[MASS_IMPORT] Artist for duplicate detection: "${artistForDuplicateDetection}" (from ${payload.artwork.created_by ? 'artwork.created_by' : allTags.artist ? 'tags.artist' : allTags.created_by ? 'tags.created_by' : 'none'})`);
+    console.log(
+      `[MASS_IMPORT] Artist for duplicate detection: "${artistForDuplicateDetection}" (from ${payload.artwork.created_by ? 'artwork.created_by' : allTags.artist ? 'tags.artist' : allTags.created_by ? 'tags.created_by' : 'none'})`
+    );
 
     // Check for duplicates
     const duplicateResult = await duplicateDetectionService.checkForDuplicates({
@@ -183,21 +202,27 @@ export async function processMassImport(
       lon: payload.artwork.lon,
       ...(artistForDuplicateDetection && { artist: artistForDuplicateDetection }),
       ...(Object.keys(allTags).length > 0 && { tags: allTags }),
-      ...(payload.duplicateThreshold && { duplicateThreshold: payload.duplicateThreshold })
+      ...(payload.duplicateThreshold && { duplicateThreshold: payload.duplicateThreshold }),
     });
 
-    console.log(`[MASS_IMPORT] Duplicate detection complete. Checked ${duplicateResult.candidatesChecked} candidates. Duplicate: ${duplicateResult.isDuplicate}`);
+    console.log(
+      `[MASS_IMPORT] Duplicate detection complete. Checked ${duplicateResult.candidatesChecked} candidates. Duplicate: ${duplicateResult.isDuplicate}`
+    );
 
     // If duplicate detected, return early with duplicate information
     if (duplicateResult.isDuplicate && duplicateResult.duplicateInfo) {
-      console.log(`[MASS_IMPORT] Duplicate detected with confidence score: ${duplicateResult.duplicateInfo.confidenceScore}`);
-      
+      console.log(
+        `[MASS_IMPORT] Duplicate detected with confidence score: ${duplicateResult.duplicateInfo.confidenceScore}`
+      );
+
       // Merge tags
-      const existingArtwork = await db.getArtworkById(duplicateResult.duplicateInfo.existingArtworkId);
+      const existingArtwork = await db.getArtworkById(
+        duplicateResult.duplicateInfo.existingArtworkId
+      );
       let newTagsAdded = 0;
       if (existingArtwork) {
         const existingTags = existingArtwork.tags ? JSON.parse(existingArtwork.tags) : {};
-        
+
         for (const [key, value] of Object.entries(allTags)) {
           if (!Object.prototype.hasOwnProperty.call(existingTags, key)) {
             existingTags[key] = value;
@@ -206,10 +231,13 @@ export async function processMassImport(
         }
 
         if (newTagsAdded > 0) {
-          await db.db.prepare('UPDATE artwork SET tags = ? WHERE id = ?')
+          await db.db
+            .prepare('UPDATE artwork SET tags = ? WHERE id = ?')
             .bind(JSON.stringify(existingTags), existingArtwork.id)
             .run();
-          console.log(`[MASS_IMPORT] Merged ${newTagsAdded} new tags into existing artwork ${existingArtwork.id}`);
+          console.log(
+            `[MASS_IMPORT] Merged ${newTagsAdded} new tags into existing artwork ${existingArtwork.id}`
+          );
         }
       }
 
@@ -220,7 +248,7 @@ export async function processMassImport(
           lat: payload.artwork.lat,
           lon: payload.artwork.lon,
         },
-        duplicate: duplicateResult.duplicateInfo
+        duplicate: duplicateResult.duplicateInfo,
       };
 
       return c.json(createSuccessResponse(response), 200);
@@ -229,93 +257,148 @@ export async function processMassImport(
     // ========================================
     // ARTIST LINKING
     // ========================================
-    
+
     console.log(`[MASS_IMPORT] Starting artist linking process`);
-    
+
     let artistId: string | undefined;
     let artistSearchLink: string | undefined;
     let artistStatus: 'linked' | 'created' | 'search_required' | 'ambiguous' = 'search_required';
     let artistCandidates: Array<{ id: string; name: string; score: number }> = [];
-    
+
     // Create artist matching service
     const artistMatchingService = new ArtistMatchingService(db);
-    
+
     if (artistForDuplicateDetection) {
       console.log(`[MASS_IMPORT_ARTIST_DEBUG] ===== ARTIST PROCESSING START =====`);
-      console.log(`[MASS_IMPORT_ARTIST_DEBUG] Looking for artist: "${artistForDuplicateDetection}"`);
+      console.log(
+        `[MASS_IMPORT_ARTIST_DEBUG] Looking for artist: "${artistForDuplicateDetection}"`
+      );
       console.log(`[MASS_IMPORT_ARTIST_DEBUG] Import source: ${payload.importer || 'unknown'}`);
-      
+
       // Search for existing artist
       console.log(`[MASS_IMPORT_ARTIST_DEBUG] Searching existing artists in database...`);
-      const matchingResult = await artistMatchingService.findMatchingArtists(artistForDuplicateDetection);
-      console.log(`[MASS_IMPORT_ARTIST_DEBUG] Artist search completed: found ${matchingResult.matches.length} matches`);
-      
-      if (matchingResult.bestMatch && matchingResult.bestMatch.score >= 0.85 && !matchingResult.isAmbiguous) {
+      const matchingResult = await artistMatchingService.findMatchingArtists(
+        artistForDuplicateDetection
+      );
+      console.log(
+        `[MASS_IMPORT_ARTIST_DEBUG] Artist search completed: found ${matchingResult.matches.length} matches`
+      );
+
+      if (
+        matchingResult.bestMatch &&
+        matchingResult.bestMatch.score >= 0.85 &&
+        !matchingResult.isAmbiguous
+      ) {
         // High confidence match found - link to existing artist
         artistId = matchingResult.bestMatch.id;
         artistStatus = 'linked';
-        console.log(`[MASS_IMPORT_ARTIST_DEBUG] ✅ LINKED to existing artist: "${matchingResult.bestMatch.name}" (ID: ${matchingResult.bestMatch.id}, score: ${matchingResult.bestMatch.score})`);
+        console.log(
+          `[MASS_IMPORT_ARTIST_DEBUG] ✅ LINKED to existing artist: "${matchingResult.bestMatch.name}" (ID: ${matchingResult.bestMatch.id}, score: ${matchingResult.bestMatch.score})`
+        );
       } else if (matchingResult.isAmbiguous) {
         // Multiple candidates found - flag for manual review
         artistStatus = 'ambiguous';
         artistCandidates = matchingResult.matches;
-        artistSearchLink = artistMatchingService.generateArtistSearchUrl(artistForDuplicateDetection);
-        console.log(`[MASS_IMPORT_ARTIST_DEBUG] ⚠️ AMBIGUOUS: ${matchingResult.matches.length} artist candidates found, flagged for manual review`);
+        artistSearchLink = artistMatchingService.generateArtistSearchUrl(
+          artistForDuplicateDetection
+        );
+        console.log(
+          `[MASS_IMPORT_ARTIST_DEBUG] ⚠️ AMBIGUOUS: ${matchingResult.matches.length} artist candidates found, flagged for manual review`
+        );
         matchingResult.matches.forEach((match, i) => {
-          console.log(`[MASS_IMPORT_ARTIST_DEBUG]   Candidate ${i + 1}: "${match.name}" (ID: ${match.id}, score: ${match.score})`);
+          console.log(
+            `[MASS_IMPORT_ARTIST_DEBUG]   Candidate ${i + 1}: "${match.name}" (ID: ${match.id}, score: ${match.score})`
+          );
         });
       } else if (payload.importer === 'vancouver-mass-import') {
         // Vancouver special case - try to create artist from JSON data
-        console.log(`[MASS_IMPORT_ARTIST_DEBUG] No existing artist found, checking Vancouver artist data...`);
-        console.log(`[MASS_IMPORT_ARTIST_DEBUG] Searching Vancouver JSON data for: "${artistForDuplicateDetection}"`);
-        
+        console.log(
+          `[MASS_IMPORT_ARTIST_DEBUG] No existing artist found, checking Vancouver artist data...`
+        );
+        console.log(
+          `[MASS_IMPORT_ARTIST_DEBUG] Searching Vancouver JSON data for: "${artistForDuplicateDetection}"`
+        );
+
         const vancouverData = vancouverArtistsData as VancouverArtistData[];
-        console.log(`[MASS_IMPORT_ARTIST_DEBUG] Vancouver data contains ${vancouverData.length} artist records`);
-        const vancouverArtist = artistMatchingService.findVancouverArtistByName(artistForDuplicateDetection, vancouverData);
-        
+        console.log(
+          `[MASS_IMPORT_ARTIST_DEBUG] Vancouver data contains ${vancouverData.length} artist records`
+        );
+        const vancouverArtist = artistMatchingService.findVancouverArtistByName(
+          artistForDuplicateDetection,
+          vancouverData
+        );
+
         if (vancouverArtist) {
-          console.log(`[MASS_IMPORT_ARTIST_DEBUG] ✅ Found Vancouver artist data: ID=${vancouverArtist.artistid}, "${vancouverArtist.firstname} ${vancouverArtist.lastname}"`);
-          console.log(`[MASS_IMPORT_ARTIST_DEBUG] Vancouver artist details: country="${vancouverArtist.country}", website="${vancouverArtist.website}", biography=${vancouverArtist.biography ? `${vancouverArtist.biography.length} chars` : 'none'}`);
-          
+          console.log(
+            `[MASS_IMPORT_ARTIST_DEBUG] ✅ Found Vancouver artist data: ID=${vancouverArtist.artistid}, "${vancouverArtist.firstname} ${vancouverArtist.lastname}"`
+          );
+          console.log(
+            `[MASS_IMPORT_ARTIST_DEBUG] Vancouver artist details: country="${vancouverArtist.country}", website="${vancouverArtist.website}", biography=${vancouverArtist.biography ? `${vancouverArtist.biography.length} chars` : 'none'}`
+          );
+
           try {
             // Create artist from Vancouver data
             console.log(`[MASS_IMPORT_ARTIST_DEBUG] Creating new artist from Vancouver data...`);
-            artistId = await artistMatchingService.createArtistFromVancouverData(artistForDuplicateDetection, vancouverArtist);
+            artistId = await artistMatchingService.createArtistFromVancouverData(
+              artistForDuplicateDetection,
+              vancouverArtist
+            );
             artistStatus = 'created';
-            console.log(`[MASS_IMPORT_ARTIST_DEBUG] ✅ CREATED new artist from Vancouver data: ${artistId}`);
+            console.log(
+              `[MASS_IMPORT_ARTIST_DEBUG] ✅ CREATED new artist from Vancouver data: ${artistId}`
+            );
           } catch (error) {
-            console.error(`[MASS_IMPORT_ARTIST_DEBUG] ❌ Failed to create artist from Vancouver data:`, error);
+            console.error(
+              `[MASS_IMPORT_ARTIST_DEBUG] ❌ Failed to create artist from Vancouver data:`,
+              error
+            );
             // Fall back to search link
-            artistSearchLink = artistMatchingService.generateArtistSearchUrl(artistForDuplicateDetection);
-            console.log(`[MASS_IMPORT_ARTIST_DEBUG] Providing search link as fallback: ${artistSearchLink}`);
+            artistSearchLink = artistMatchingService.generateArtistSearchUrl(
+              artistForDuplicateDetection
+            );
+            console.log(
+              `[MASS_IMPORT_ARTIST_DEBUG] Providing search link as fallback: ${artistSearchLink}`
+            );
           }
         } else {
           // No Vancouver data found - create minimal artist
-          console.log(`[MASS_IMPORT_ARTIST_DEBUG] ❌ No Vancouver data found for: "${artistForDuplicateDetection}"`);
+          console.log(
+            `[MASS_IMPORT_ARTIST_DEBUG] ❌ No Vancouver data found for: "${artistForDuplicateDetection}"`
+          );
           console.log(`[MASS_IMPORT_ARTIST_DEBUG] Creating minimal artist entry...`);
-          
+
           try {
             artistId = await db.createArtistFromMassImport({
               name: artistForDuplicateDetection,
               source: 'vancouver-mass-import',
-              sourceData: { original_name: artistForDuplicateDetection }
+              sourceData: { original_name: artistForDuplicateDetection },
             });
             artistStatus = 'created';
             console.log(`[MASS_IMPORT_ARTIST_DEBUG] ✅ CREATED minimal artist: ${artistId}`);
           } catch (error) {
             console.error(`[MASS_IMPORT_ARTIST_DEBUG] ❌ Failed to create minimal artist:`, error);
-            artistSearchLink = artistMatchingService.generateArtistSearchUrl(artistForDuplicateDetection);
-            console.log(`[MASS_IMPORT_ARTIST_DEBUG] Providing search link as fallback: ${artistSearchLink}`);
+            artistSearchLink = artistMatchingService.generateArtistSearchUrl(
+              artistForDuplicateDetection
+            );
+            console.log(
+              `[MASS_IMPORT_ARTIST_DEBUG] Providing search link as fallback: ${artistSearchLink}`
+            );
           }
         }
       } else {
         // General import - provide search link
-        artistSearchLink = artistMatchingService.generateArtistSearchUrl(artistForDuplicateDetection);
-        console.log(`[MASS_IMPORT_ARTIST_DEBUG] ℹ️ General import - no artist found, providing search link: ${artistSearchLink}`);
+        artistSearchLink = artistMatchingService.generateArtistSearchUrl(
+          artistForDuplicateDetection
+        );
+        console.log(
+          `[MASS_IMPORT_ARTIST_DEBUG] ℹ️ General import - no artist found, providing search link: ${artistSearchLink}`
+        );
       }
-      
+
       console.log(`[MASS_IMPORT_ARTIST_DEBUG] ===== ARTIST PROCESSING END =====`);
-      console.log(`[MASS_IMPORT_ARTIST_DEBUG] Final status: ${artistStatus}, artistId: ${artistId || 'none'}, searchLink: ${artistSearchLink || 'none'}`);
+      console.log(
+        `[MASS_IMPORT_ARTIST_DEBUG] Final status: ${artistStatus}, artistId: ${artistId || 'none'}, searchLink: ${artistSearchLink || 'none'}`
+      );
     } else {
       console.log(`[MASS_IMPORT_ARTIST_DEBUG] No artist name provided, skipping artist linking`);
     }
@@ -327,13 +410,15 @@ export async function processMassImport(
 
     // Process photos if provided
     if (payload.artwork.photos && payload.artwork.photos.length > 0) {
-      console.log(`[MASS_IMPORT] Processing ${payload.artwork.photos.length} photos for mass import`);
-      
+      console.log(
+        `[MASS_IMPORT] Processing ${payload.artwork.photos.length} photos for mass import`
+      );
+
       // Download and process each photo
       for (const photo of payload.artwork.photos) {
         try {
           console.log(`[MASS_IMPORT] Downloading photo: ${photo.url}`);
-          
+
           // Download the photo
           const response = await fetch(photo.url, {
             headers: {
@@ -342,7 +427,9 @@ export async function processMassImport(
           });
 
           if (!response.ok) {
-            console.warn(`[MASS_IMPORT] Failed to download photo ${photo.url}: ${response.status} ${response.statusText}`);
+            console.warn(
+              `[MASS_IMPORT] Failed to download photo ${photo.url}: ${response.status} ${response.statusText}`
+            );
             continue; // Skip this photo but continue with others
           }
 
@@ -355,11 +442,13 @@ export async function processMassImport(
 
           // Get the image data
           const arrayBuffer = await response.arrayBuffer();
-          
+
           // Validate file size (15MB limit)
           const maxSize = 15 * 1024 * 1024;
           if (arrayBuffer.byteLength > maxSize) {
-            console.warn(`[MASS_IMPORT] Photo too large: ${arrayBuffer.byteLength} bytes (max: ${maxSize})`);
+            console.warn(
+              `[MASS_IMPORT] Photo too large: ${arrayBuffer.byteLength} bytes (max: ${maxSize})`
+            );
             continue;
           }
 
@@ -382,14 +471,15 @@ export async function processMassImport(
             processedPhotoUrls.push(results[0].originalUrl);
             console.log(`[MASS_IMPORT] Successfully processed photo: ${results[0].originalUrl}`);
           }
-
         } catch (error) {
           console.error(`[MASS_IMPORT] Failed to process photo ${photo.url}:`, error);
           // Continue with other photos
         }
       }
 
-      console.log(`[MASS_IMPORT] Successfully processed ${processedPhotoUrls.length}/${payload.artwork.photos.length} photos`);
+      console.log(
+        `[MASS_IMPORT] Successfully processed ${processedPhotoUrls.length}/${payload.artwork.photos.length} photos`
+      );
     }
 
     // Create artwork entry (automatically approved)
@@ -399,22 +489,27 @@ export async function processMassImport(
 
     // Create tags object with default artwork_type for mass imports
     const defaultTags = {
-      artwork_type: 'public_art'
+      artwork_type: 'public_art',
     };
 
-    await db.db.prepare(`
+    await db.db
+      .prepare(
+        `
       INSERT INTO artwork (id, title, description, lat, lon, tags, status, created_at, created_by)
       VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?)
-    `).bind(
-      artworkId,
-      payload.artwork.title,
-      payload.artwork.description || null,
-      payload.artwork.lat,
-      payload.artwork.lon,
-      JSON.stringify(defaultTags),
-      timestamp,
-      payload.user_uuid
-    ).run();
+    `
+      )
+      .bind(
+        artworkId,
+        payload.artwork.title,
+        payload.artwork.description || null,
+        payload.artwork.lat,
+        payload.artwork.lon,
+        JSON.stringify(defaultTags),
+        timestamp,
+        payload.user_uuid
+      )
+      .run();
 
     console.log(`[MASS_IMPORT] Created artwork ${artworkId}: ${payload.artwork.title}`);
 
@@ -433,80 +528,103 @@ export async function processMassImport(
 
     // Create logbook entries if provided, or a default entry if photos were processed
     const logbookIds: string[] = [];
-    
+
     if (payload.logbook && payload.logbook.length > 0) {
       // Use provided logbook entries
       for (let i = 0; i < payload.logbook.length; i++) {
         const logbookEntry = payload.logbook[i];
         if (!logbookEntry) continue; // Skip undefined entries
-        
+
         const logbookId = generateId();
-        const logbookTimestamp = logbookEntry.timestamp ? new Date(logbookEntry.timestamp).toISOString() : timestamp;
+        const logbookTimestamp = logbookEntry.timestamp
+          ? new Date(logbookEntry.timestamp).toISOString()
+          : timestamp;
 
         // Put photos in the first logbook entry if we processed any
-        const photosForThisEntry = (i === 0 && processedPhotoUrls.length > 0) ? processedPhotoUrls : [];
+        const photosForThisEntry =
+          i === 0 && processedPhotoUrls.length > 0 ? processedPhotoUrls : [];
 
         // Create logbook entry (automatically approved) in submissions table
-        await db.db.prepare(`
+        await db.db
+          .prepare(
+            `
           INSERT INTO submissions (id, artwork_id, notes, lat, lon, photos, status, created_at, user_token, consent_version, submission_type)
           VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?, 'logbook_entry')
-        `).bind(
-          logbookId,
-          artworkId,
-          logbookEntry.note || null,
-          payload.artwork.lat,
-          payload.artwork.lon,
-          JSON.stringify(photosForThisEntry),
-          logbookTimestamp,
-          payload.user_uuid,
-          CONSENT_VERSION
-        ).run();
+        `
+          )
+          .bind(
+            logbookId,
+            artworkId,
+            logbookEntry.note || null,
+            payload.artwork.lat,
+            payload.artwork.lon,
+            JSON.stringify(photosForThisEntry),
+            logbookTimestamp,
+            payload.user_uuid,
+            CONSENT_VERSION
+          )
+          .run();
 
-        console.log(`[MASS_IMPORT] Created logbook entry ${logbookId}${photosForThisEntry.length > 0 ? ` with ${photosForThisEntry.length} photos` : ''}`);
+        console.log(
+          `[MASS_IMPORT] Created logbook entry ${logbookId}${photosForThisEntry.length > 0 ? ` with ${photosForThisEntry.length} photos` : ''}`
+        );
         logbookIds.push(logbookId);
 
         // Create tags for this logbook entry if provided
         if (logbookEntry.tags && logbookEntry.tags.length > 0) {
-          console.log(`[MASS_IMPORT] Starting to process ${logbookEntry.tags.length} tags for artwork...`);
-          
+          console.log(
+            `[MASS_IMPORT] Starting to process ${logbookEntry.tags.length} tags for artwork...`
+          );
+
           // Convert tags array to object format for JSON storage
           const tagsObject: Record<string, string> = {};
           for (const tag of logbookEntry.tags) {
             tagsObject[tag.label] = tag.value;
             console.log(`[MASS_IMPORT] Processing tag: ${tag.label}=${tag.value}`);
           }
-          
-          // Update artwork tags field with the processed tags
-          await db.db.prepare(`
-            UPDATE artwork SET tags = ? WHERE id = ?
-          `).bind(
-            JSON.stringify(tagsObject),
-            artworkId
-          ).run();
 
-          console.log(`[MASS_IMPORT] ✅ Successfully updated artwork ${artworkId} with ${logbookEntry.tags.length} tags`);
+          // Update artwork tags field with the processed tags
+          await db.db
+            .prepare(
+              `
+            UPDATE artwork SET tags = ? WHERE id = ?
+          `
+            )
+            .bind(JSON.stringify(tagsObject), artworkId)
+            .run();
+
+          console.log(
+            `[MASS_IMPORT] ✅ Successfully updated artwork ${artworkId} with ${logbookEntry.tags.length} tags`
+          );
         }
       }
     } else if (processedPhotoUrls.length > 0) {
       // Create a default logbook entry to hold the photos
       const logbookId = generateId();
-      
-      await db.db.prepare(`
+
+      await db.db
+        .prepare(
+          `
         INSERT INTO submissions (id, artwork_id, notes, lat, lon, photos, status, created_at, user_token, consent_version, submission_type)
         VALUES (?, ?, ?, ?, ?, ?, 'approved', ?, ?, ?, 'logbook_entry')
-      `).bind(
-        logbookId,
-        artworkId,
-        'Mass import submission', // Default note
-        payload.artwork.lat,
-        payload.artwork.lon,
-        JSON.stringify(processedPhotoUrls),
-        timestamp,
-        payload.user_uuid,
-        CONSENT_VERSION
-      ).run();
+      `
+        )
+        .bind(
+          logbookId,
+          artworkId,
+          'Mass import submission', // Default note
+          payload.artwork.lat,
+          payload.artwork.lon,
+          JSON.stringify(processedPhotoUrls),
+          timestamp,
+          payload.user_uuid,
+          CONSENT_VERSION
+        )
+        .run();
 
-      console.log(`[MASS_IMPORT] Created default logbook entry ${logbookId} with ${processedPhotoUrls.length} photos`);
+      console.log(
+        `[MASS_IMPORT] Created default logbook entry ${logbookId} with ${processedPhotoUrls.length} photos`
+      );
       logbookIds.push(logbookId);
     }
 
@@ -530,9 +648,10 @@ export async function processMassImport(
       debug: debugInfo,
     };
 
-    console.log(`[MASS_IMPORT] Successfully completed mass import for artwork ${artworkId} with ${logbookIds.length} logbook entries`);
+    console.log(
+      `[MASS_IMPORT] Successfully completed mass import for artwork ${artworkId} with ${logbookIds.length} logbook entries`
+    );
     return c.json(createSuccessResponse(response), 201);
-
   } catch (error) {
     console.error('[MASS_IMPORT] Mass import submission error:', error);
 
@@ -540,12 +659,9 @@ export async function processMassImport(
       throw error;
     }
 
-    throw new ApiError(
-      'Failed to process mass import submission',
-      'MASS_IMPORT_ERROR',
-      500,
-      { details: { originalError: error instanceof Error ? error.message : String(error) } }
-    );
+    throw new ApiError('Failed to process mass import submission', 'MASS_IMPORT_ERROR', 500, {
+      details: { originalError: error instanceof Error ? error.message : String(error) },
+    });
   }
 }
 
@@ -565,7 +681,7 @@ function generateFilenameFromUrl(url: string, contentType: string): string {
     // Extract filename from URL if possible
     const urlPath = new URL(url).pathname;
     const urlFilename = urlPath.split('/').pop();
-    
+
     if (urlFilename && urlFilename.includes('.')) {
       return urlFilename;
     }

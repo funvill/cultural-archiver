@@ -11,11 +11,7 @@ Primary goals:
 
 ## 2. Goals
 
-\- G1: 80% of successful single-photo submissions complete in ≤ 20 seconds (from file selected to confirmation screen) on a normal broadband/mobile connection.
-\- G2: Reduce duplicate new artwork submissions by at least 30% versus baseline (measure: moderator-marked duplicates over total new submissions after release, 4-week comparison).
-\- G3: ≥ 90% of submissions include a valid GPS location (from EXIF, browser geolocation, or manual map pin) at initial submission.
-\- G4: Provide a reusable similarity scoring service (distance + fuzzy title + tag/type) with clear extensibility for mass import.
-\- G5: Zero increase in moderation time per submission (keep or reduce average review handling time).
+\- G1: 80% of successful single-photo submissions complete in ≤ 20 seconds (from file selected to confirmation screen) on a normal broadband/mobile connection. \- G2: Reduce duplicate new artwork submissions by at least 30% versus baseline (measure: moderator-marked duplicates over total new submissions after release, 4-week comparison). \- G3: ≥ 90% of submissions include a valid GPS location (from EXIF, browser geolocation, or manual map pin) at initial submission. \- G4: Provide a reusable similarity scoring service (distance + fuzzy title + tag/type) with clear extensibility for mass import. \- G5: Zero increase in moderation time per submission (keep or reduce average review handling time).
 
 ## 3. User Stories
 
@@ -197,4 +193,5 @@ Secondary:
 - Enhanced privacy mode (blur coordinates until approved).
 
 ---
+
 Prepared for implementation. Await resolution of Open Questions (esp. instrumentation & threshold calibration) before final development kickoff.

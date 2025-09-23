@@ -20,8 +20,10 @@ export async function recordUserActivity(
 ): Promise<string> {
   const id = generateUUID();
   const windowStart = getWindowStart(activityType);
-  
-  await db.prepare(`
+
+  await db
+    .prepare(
+      `
     INSERT INTO user_activity (
       id, identifier, identifier_type, activity_type, 
       window_start, request_count, session_data, 
@@ -31,18 +33,21 @@ export async function recordUserActivity(
     DO UPDATE SET 
       request_count = request_count + 1,
       last_activity_at = datetime('now')
-  `).bind(
-    id,
-    identifier,
-    identifierType,
-    activityType,
-    windowStart,
-    1,
-    sessionData ? JSON.stringify(sessionData) : null,
-    new Date().toISOString(),
-    new Date().toISOString(),
-    getExpiresAt(activityType)
-  ).run();
+  `
+    )
+    .bind(
+      id,
+      identifier,
+      identifierType,
+      activityType,
+      windowStart,
+      1,
+      sessionData ? JSON.stringify(sessionData) : null,
+      new Date().toISOString(),
+      new Date().toISOString(),
+      getExpiresAt(activityType)
+    )
+    .run();
 
   return id;
 }
@@ -54,11 +59,16 @@ export async function getUserActivity(
   windowStart?: string
 ): Promise<UserActivityRecord | null> {
   const window = windowStart || getWindowStart(activityType);
-  
-  const result = await db.prepare(`
+
+  const result = await db
+    .prepare(
+      `
     SELECT * FROM user_activity 
     WHERE identifier = ? AND activity_type = ? AND window_start = ?
-  `).bind(identifier, activityType, window).first<UserActivityRecord>();
+  `
+    )
+    .bind(identifier, activityType, window)
+    .first<UserActivityRecord>();
 
   return result || null;
 }
@@ -71,14 +81,19 @@ export async function updateUserActivity(
   const setClause = Object.keys(updates)
     .map(key => `${key} = ?`)
     .join(', ');
-  
+
   const values = Object.values(updates);
-  
-  const result = await db.prepare(`
+
+  const result = await db
+    .prepare(
+      `
     UPDATE user_activity 
     SET ${setClause}, last_activity_at = datetime('now')
     WHERE id = ?
-  `).bind(...values, id).run();
+  `
+    )
+    .bind(...values, id)
+    .run();
 
   return result.success;
 }
@@ -100,30 +115,32 @@ export async function checkRateLimit(
 }> {
   const windowStart = getWindowStart('rate_limit');
   const activity = await getUserActivity(db, identifier, 'rate_limit', windowStart);
-  
+
   const requestCount = activity?.request_count || 0;
   const allowed = requestCount < limit;
-  
+
   if (allowed) {
     await recordUserActivity(db, identifier, identifierType, 'rate_limit');
   }
-  
+
   return {
     allowed,
     remainingRequests: Math.max(0, limit - requestCount - (allowed ? 1 : 0)),
     resetTime: getNextWindowStart('rate_limit'),
-    windowStart
+    windowStart,
   };
 }
 
-export async function resetRateLimit(
-  db: D1Database,
-  identifier: string
-): Promise<boolean> {
-  const result = await db.prepare(`
+export async function resetRateLimit(db: D1Database, identifier: string): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `
     DELETE FROM user_activity 
     WHERE identifier = ? AND activity_type = 'rate_limit'
-  `).bind(identifier).run();
+  `
+    )
+    .bind(identifier)
+    .run();
 
   return result.success;
 }
@@ -143,13 +160,13 @@ export async function createSession(
   }
 ): Promise<string> {
   const sessionId = await recordUserActivity(
-    db, 
-    userToken, 
-    'user_token', 
+    db,
+    userToken,
+    'user_token',
     'auth_session',
     sessionData
   );
-  
+
   return sessionId;
 }
 
@@ -167,33 +184,37 @@ export async function updateSession(
 ): Promise<boolean> {
   const session = await getSession(db, userToken);
   if (!session) return false;
-  
+
   return updateUserActivity(db, session.id, {
-    session_data: JSON.stringify(sessionData)
+    session_data: JSON.stringify(sessionData),
   });
 }
 
-export async function deleteSession(
-  db: D1Database,
-  userToken: string
-): Promise<boolean> {
-  const result = await db.prepare(`
+export async function deleteSession(db: D1Database, userToken: string): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `
     DELETE FROM user_activity 
     WHERE identifier = ? AND activity_type = 'auth_session'
-  `).bind(userToken).run();
+  `
+    )
+    .bind(userToken)
+    .run();
 
   return result.success;
 }
 
-export async function cleanExpiredSessions(
-  db: D1Database
-): Promise<number> {
-  const result = await db.prepare(`
+export async function cleanExpiredSessions(db: D1Database): Promise<number> {
+  const result = await db
+    .prepare(
+      `
     DELETE FROM user_activity 
     WHERE activity_type = 'auth_session' 
     AND expires_at IS NOT NULL 
     AND expires_at < datetime('now')
-  `).run();
+  `
+    )
+    .run();
 
   return result.meta.changes || 0;
 }
@@ -212,13 +233,7 @@ export async function trackSubmission(
     artistId?: string;
   }
 ): Promise<string> {
-  return recordUserActivity(
-    db,
-    userToken,
-    'user_token',
-    'submission',
-    submissionData
-  );
+  return recordUserActivity(db, userToken, 'user_token', 'submission', submissionData);
 }
 
 export async function getUserSubmissionActivity(
@@ -227,12 +242,17 @@ export async function getUserSubmissionActivity(
   windowStart?: string
 ): Promise<UserActivityRecord[]> {
   const window = windowStart || getWindowStart('submission');
-  
-  const results = await db.prepare(`
+
+  const results = await db
+    .prepare(
+      `
     SELECT * FROM user_activity 
     WHERE identifier = ? AND activity_type = 'submission' AND window_start >= ?
     ORDER BY created_at DESC
-  `).bind(userToken, window).all<UserActivityRecord>();
+  `
+    )
+    .bind(userToken, window)
+    .all<UserActivityRecord>();
 
   return results.results || [];
 }
@@ -249,15 +269,18 @@ export async function cleanExpiredActivity(
     DELETE FROM user_activity 
     WHERE expires_at IS NOT NULL AND expires_at < datetime('now')
   `;
-  
+
   const params: string[] = [];
-  
+
   if (activityType) {
     query += ` AND activity_type = ?`;
     params.push(activityType);
   }
-  
-  const result = await db.prepare(query).bind(...params).run();
+
+  const result = await db
+    .prepare(query)
+    .bind(...params)
+    .run();
   return result.meta.changes || 0;
 }
 
@@ -270,7 +293,9 @@ export async function getUserActivityStats(
   rateLimitHits: number;
   lastActivity: string | null;
 }> {
-  const stats = await db.prepare(`
+  const stats = await db
+    .prepare(
+      `
     SELECT 
       activity_type,
       COUNT(*) as count,
@@ -278,17 +303,20 @@ export async function getUserActivityStats(
     FROM user_activity 
     WHERE identifier = ?
     GROUP BY activity_type
-  `).bind(identifier).all<{
-    activity_type: string;
-    count: number;
-    last_activity: string;
-  }>();
+  `
+    )
+    .bind(identifier)
+    .all<{
+      activity_type: string;
+      count: number;
+      last_activity: string;
+    }>();
 
   const result = {
     totalSessions: 0,
     totalSubmissions: 0,
     rateLimitHits: 0,
-    lastActivity: null as string | null
+    lastActivity: null as string | null,
   };
 
   for (const stat of stats.results || []) {
@@ -303,7 +331,7 @@ export async function getUserActivityStats(
         result.rateLimitHits = stat.count;
         break;
     }
-    
+
     if (!result.lastActivity || stat.last_activity > result.lastActivity) {
       result.lastActivity = stat.last_activity;
     }
@@ -318,14 +346,14 @@ export async function getUserActivityStats(
 
 function getWindowStart(activityType: 'rate_limit' | 'auth_session' | 'submission'): string {
   const now = new Date();
-  
+
   switch (activityType) {
     case 'rate_limit':
       // Hourly windows
       now.setMinutes(0, 0, 0);
       return now.toISOString();
     case 'submission':
-      // Daily windows  
+      // Daily windows
       now.setHours(0, 0, 0, 0);
       return now.toISOString();
     case 'auth_session':
@@ -338,7 +366,7 @@ function getWindowStart(activityType: 'rate_limit' | 'auth_session' | 'submissio
 
 function getNextWindowStart(activityType: 'rate_limit' | 'auth_session' | 'submission'): string {
   const now = new Date();
-  
+
   switch (activityType) {
     case 'rate_limit':
       now.setHours(now.getHours() + 1, 0, 0, 0);
@@ -356,7 +384,7 @@ function getNextWindowStart(activityType: 'rate_limit' | 'auth_session' | 'submi
 
 function getExpiresAt(activityType: 'rate_limit' | 'auth_session' | 'submission'): string {
   const now = new Date();
-  
+
   switch (activityType) {
     case 'rate_limit':
       // Rate limit windows expire after 25 hours (1 hour + buffer)

@@ -25,7 +25,7 @@ import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 import 'leaflet/dist/leaflet.css';
 const fastStore = useFastUploadSessionStore();
 const fastUploadSession = ref<{
-  photos: Array<{id: string; name: string; preview?: string}>;
+  photos: Array<{ id: string; name: string; preview?: string }>;
   location: Coordinates | null;
   detectedSources?: any;
 } | null>(null);
@@ -40,7 +40,7 @@ const formData = ref({
   access: '',
   condition: 'good',
   location: null as Coordinates | null,
-  notes: '' // Removed from UI but keep for potential future use
+  notes: '', // Removed from UI but keep for potential future use
 });
 
 // UI state
@@ -70,14 +70,24 @@ const canSubmit = computed(() => {
 
 // Predefined options
 const artworkTypes = [
-  'Sculpture', 'Mural', 'Street Art', 'Monument', 'Installation',
-  'Mosaic', 'Statue', 'Relief', 'Fountain', 'Architecture', 'tiny_library', 'Other'
+  'Sculpture',
+  'Mural',
+  'Street Art',
+  'Monument',
+  'Installation',
+  'Mosaic',
+  'Statue',
+  'Relief',
+  'Fountain',
+  'Architecture',
+  'tiny_library',
+  'Other',
 ];
 
 const accessOptions = [
   { value: 'public', label: 'Public - Open to everyone' },
   { value: 'restricted', label: 'Restricted - Limited access' },
-  { value: 'private', label: 'Private - Not publicly accessible' }
+  { value: 'private', label: 'Private - Not publicly accessible' },
 ];
 
 const conditionOptions = [
@@ -85,7 +95,7 @@ const conditionOptions = [
   { value: 'good', label: 'Good' },
   { value: 'fair', label: 'Fair' },
   { value: 'poor', label: 'Poor' },
-  { value: 'damaged', label: 'Damaged' }
+  { value: 'damaged', label: 'Damaged' },
 ];
 
 // Map modal state
@@ -98,24 +108,24 @@ const consentSection = ref<InstanceType<typeof ConsentSection> | null>(null);
 // Methods
 async function handleSubmit() {
   if (!canSubmit.value) return;
-  
+
   isSubmitting.value = true;
   submitError.value = null;
-  
+
   try {
     // Ensure user token
     await authStore.ensureUserToken();
-    
+
     // Prepare submission data
     const consentData = {
       ...consentCheckboxes.value,
       consentVersion: '2025-01-01', // Use current consent version
       consentedAt: new Date().toISOString(),
     };
-    
+
     // Log consent data for audit trail
     console.log('Submitting with consent data:', consentData);
-    
+
     const submission: any = {
       // Title optional now
       title: formData.value.title || undefined,
@@ -131,36 +141,45 @@ async function handleSubmit() {
       notes: undefined,
       // Include consent data
       consent: consentData,
-  photos: fastStore.photos.map((p: { file?: File }) => p.file).filter((f: File | undefined): f is File => !!f)
+      photos: fastStore.photos
+        .map((p: { file?: File }) => p.file)
+        .filter((f: File | undefined): f is File => !!f),
     };
 
     // Guard: if photos missing (e.g. page reload wiped File objects), abort with message
     if (submission.photos.length === 0) {
-      console.warn('[FAST SUBMIT] No in-memory file objects available. Fast store photo entries:', fastStore.photos.length);
-      submitError.value = 'Photo data not available (likely page reload). Please go back and re-upload your photos.';
+      console.warn(
+        '[FAST SUBMIT] No in-memory file objects available. Fast store photo entries:',
+        fastStore.photos.length
+      );
+      submitError.value =
+        'Photo data not available (likely page reload). Please go back and re-upload your photos.';
       isSubmitting.value = false;
       return;
     }
-  console.info('[FAST SUBMIT] Submitting fast artwork with files:', submission.photos.map((f: File) => ({ name: f.name, size: f.size, type: f.type })));
-    
+    console.info(
+      '[FAST SUBMIT] Submitting fast artwork with files:',
+      submission.photos.map((f: File) => ({ name: f.name, size: f.size, type: f.type }))
+    );
+
     // Submit artwork
-  await artworkSubmissionService.submitArtwork({
+    await artworkSubmissionService.submitArtwork({
       userToken: authStore.token || authStore.getUserToken(),
       ...submission,
       photos: submission.photos,
     });
-    
+
     submitSuccess.value = true;
-    
+
     // Clear consent checkboxes and disable submit button
     consentSection.value?.resetConsents();
-    
+
     // Scroll to top to show success notification
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    
+
     // Clear session data
     sessionStorage.removeItem('fast-upload-session');
-    
+
     // Start countdown and redirect to map page after 5 seconds
     redirectCountdown.value = 5;
     const countdownInterval = setInterval(() => {
@@ -170,10 +189,10 @@ async function handleSubmit() {
         router.push('/');
       }
     }, 1000);
-    
   } catch (error) {
     console.error('Submission failed:', error);
-    submitError.value = error instanceof Error ? error.message : 'Submission failed. Please try again.';
+    submitError.value =
+      error instanceof Error ? error.message : 'Submission failed. Please try again.';
   } finally {
     isSubmitting.value = false;
   }
@@ -188,7 +207,9 @@ function handleConsentChanged(consents: any) {
 }
 
 function openLocationPicker() {
-  tempLocation.value = formData.value.location ? { ...formData.value.location } : (fastUploadSession.value?.location || null);
+  tempLocation.value = formData.value.location
+    ? { ...formData.value.location }
+    : fastUploadSession.value?.location || null;
   showLocationModal.value = true;
   // Initialize map after next tick
   // Use a short staged sequence so the modal has laid out before Leaflet measures the container.
@@ -234,14 +255,14 @@ async function initPickerMap(force = false) {
     return;
   }
   const center = tempLocation.value || { latitude: 49.2827, longitude: -123.1207 };
-  pickerMap = L.map(container, { attributionControl: false }).setView([
-    center.latitude,
-    center.longitude,
-  ], 18);
+  pickerMap = L.map(container, { attributionControl: false }).setView(
+    [center.latitude, center.longitude],
+    18
+  );
   const tileUrls = [
     'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
     // Fallback (will only be used manually via console if needed)
-    'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
+    'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
   ];
   const primaryLayer = L.tileLayer(tileUrls[0], { maxZoom: 19 });
   primaryLayer.addTo(pickerMap);
@@ -314,7 +335,7 @@ onMounted(async () => {
       router.push('/add');
     }
   }
-  
+
   // Ensure user token is available
   await authStore.ensureUserToken();
 });
@@ -322,7 +343,7 @@ onMounted(async () => {
 // Helper functions for location method display
 function getLocationMethodText(detectedSources: any): string {
   if (!detectedSources) return 'Unknown';
-  
+
   // Check which method was successfully used (in order of preference/accuracy)
   if (detectedSources.exif?.detected && detectedSources.exif?.coordinates) {
     return 'Photo EXIF data';
@@ -333,13 +354,13 @@ function getLocationMethodText(detectedSources: any): string {
   if (detectedSources.ip?.detected && detectedSources.ip?.coordinates) {
     return 'IP location';
   }
-  
+
   return 'Manual entry';
 }
 
 function getLocationMethodStyle(detectedSources: any): string {
   const method = getLocationMethodText(detectedSources);
-  
+
   switch (method) {
     case 'Photo EXIF data':
       return 'bg-green-100 text-green-800 border border-green-200';
@@ -356,7 +377,7 @@ function getLocationMethodStyle(detectedSources: any): string {
 
 function getLocationMethodDescription(detectedSources: any): string {
   const method = getLocationMethodText(detectedSources);
-  
+
   switch (method) {
     case 'Photo EXIF data':
       return 'Location extracted from photo metadata - most accurate';
@@ -395,29 +416,32 @@ function getLocationMethodDescription(detectedSources: any): string {
         <div class="lg:col-span-2">
           <div class="bg-white rounded-lg shadow-md p-6">
             <!-- Success Message -->
-            <div v-if="submitSuccess" class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <div
+              v-if="submitSuccess"
+              class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg"
+            >
               <div class="flex items-center">
                 <CheckCircleIcon class="w-5 h-5 text-green-500 mr-2" />
                 <span class="text-green-800 font-medium">Artwork submitted successfully!</span>
               </div>
               <p class="text-green-600 text-sm mt-1">
-                Submission received and pending review. 
-                <span class="font-medium">Redirecting to map in {{ redirectCountdown }} seconds...</span>
+                Submission received and pending review.
+                <span class="font-medium"
+                  >Redirecting to map in {{ redirectCountdown }} seconds...</span
+                >
               </p>
             </div>
 
             <!-- Error Message -->
             <div v-if="submitError" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div class="text-red-800">
-                <strong>Submission failed:</strong> {{ submitError }}
-              </div>
+              <div class="text-red-800"><strong>Submission failed:</strong> {{ submitError }}</div>
             </div>
 
             <form @submit.prevent="handleSubmit" class="space-y-6">
               <!-- Required Fields -->
               <div>
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
-                
+
                 <!-- Title (Optional) -->
                 <div class="mb-4">
                   <label for="title" class="block text-sm font-medium text-gray-700 mb-2">
@@ -449,8 +473,10 @@ function getLocationMethodDescription(detectedSources: any): string {
 
               <!-- Optional Details -->
               <div>
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Additional Details (Optional)</h3>
-                
+                <h3 class="text-lg font-medium text-gray-900 mb-4">
+                  Additional Details (Optional)
+                </h3>
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <!-- Artist -->
                   <div>
@@ -465,7 +491,6 @@ function getLocationMethodDescription(detectedSources: any): string {
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
-
 
                   <!-- Artwork Type -->
                   <div>
@@ -509,7 +534,11 @@ function getLocationMethodDescription(detectedSources: any): string {
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
                       <option value="">Select access level</option>
-                      <option v-for="option in accessOptions" :key="option.value" :value="option.value">
+                      <option
+                        v-for="option in accessOptions"
+                        :key="option.value"
+                        :value="option.value"
+                      >
                         {{ option.label }}
                       </option>
                     </select>
@@ -525,7 +554,11 @@ function getLocationMethodDescription(detectedSources: any): string {
                       v-model="formData.condition"
                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option v-for="option in conditionOptions" :key="option.value" :value="option.value">
+                      <option
+                        v-for="option in conditionOptions"
+                        :key="option.value"
+                        :value="option.value"
+                      >
                         {{ option.label }}
                       </option>
                     </select>
@@ -563,7 +596,9 @@ function getLocationMethodDescription(detectedSources: any): string {
         <div class="space-y-6">
           <!-- Photos -->
           <div class="bg-white rounded-lg shadow-md p-6" v-if="fastUploadSession?.photos.length">
-            <h3 class="text-lg font-medium text-gray-900 mb-4">Photos ({{ fastUploadSession.photos.length }})</h3>
+            <h3 class="text-lg font-medium text-gray-900 mb-4">
+              Photos ({{ fastUploadSession.photos.length }})
+            </h3>
             <div class="grid grid-cols-2 gap-3">
               <div v-for="photo in fastUploadSession.photos" :key="photo.id">
                 <img
@@ -578,7 +613,7 @@ function getLocationMethodDescription(detectedSources: any): string {
           <!-- Location -->
           <div class="bg-white rounded-lg shadow-md p-6">
             <h3 class="text-lg font-medium text-gray-900 mb-4">Location</h3>
-            
+
             <div v-if="formData.location" class="space-y-3">
               <div class="flex items-center text-green-600">
                 <CheckCircleIcon class="w-5 h-5 mr-2" />
@@ -592,7 +627,10 @@ function getLocationMethodDescription(detectedSources: any): string {
                 <div v-if="fastUploadSession?.detectedSources" class="space-y-1">
                   <div class="flex items-center space-x-2">
                     <span class="text-xs font-medium">Method:</span>
-                    <span class="text-xs px-2 py-1 rounded-full" :class="getLocationMethodStyle(fastUploadSession.detectedSources)">
+                    <span
+                      class="text-xs px-2 py-1 rounded-full"
+                      :class="getLocationMethodStyle(fastUploadSession.detectedSources)"
+                    >
                       {{ getLocationMethodText(fastUploadSession.detectedSources) }}
                     </span>
                   </div>
@@ -609,7 +647,7 @@ function getLocationMethodDescription(detectedSources: any): string {
                 Change location
               </button>
             </div>
-            
+
             <div v-else class="space-y-3">
               <div class="flex items-center text-red-600">
                 <MapPinIcon class="w-5 h-5 mr-2" />
@@ -645,19 +683,35 @@ function getLocationMethodDescription(detectedSources: any): string {
       <div class="relative bg-white w-full max-w-xl rounded-lg shadow-xl overflow-hidden">
         <div class="flex items-center justify-between px-4 py-3 border-b">
           <h3 class="text-lg font-semibold text-gray-900">Select Location</h3>
-          <button @click="cancelLocationModal" class="p-2 rounded hover:bg-gray-100"><XMarkIcon class="w-5 h-5" /></button>
+          <button @click="cancelLocationModal" class="p-2 rounded hover:bg-gray-100">
+            <XMarkIcon class="w-5 h-5" />
+          </button>
         </div>
         <div class="relative">
           <div id="picker-map" class="h-80 w-full"></div>
           <!-- Center Pin (fixed overlay while map pans) -->
-          <div class="pointer-events-none absolute inset-0 flex items-center justify-center z-10" aria-hidden="true">
+          <div
+            class="pointer-events-none absolute inset-0 flex items-center justify-center z-10"
+            aria-hidden="true"
+          >
             <div class="relative -mt-5 flex flex-col items-center">
               <!-- Pin icon -->
-              <svg class="w-9 h-9 text-red-600 drop-shadow animate-pin-bounce" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-                <path fill-rule="evenodd" d="M12 2.25c-3.728 0-6.75 2.97-6.75 6.64 0 1.586.68 3.225 1.57 4.751.884 1.515 2.012 2.945 2.992 4.094a32.724 32.724 0 002.01 2.194l.012.012.002.002a.75.75 0 001.07 0s.005-.005.012-.012a32.685 32.685 0 002.01-2.194c.98-1.149 2.108-2.579 2.992-4.094.89-1.526 1.57-3.165 1.57-4.751 0-3.67-3.022-6.64-6.75-6.64zm0 9.19a2.55 2.55 0 100-5.1 2.55 2.55 0 000 5.1z" clip-rule="evenodd" />
+              <svg
+                class="w-9 h-9 text-red-600 drop-shadow animate-pin-bounce"
+                viewBox="0 0 24 24"
+                fill="currentColor"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fill-rule="evenodd"
+                  d="M12 2.25c-3.728 0-6.75 2.97-6.75 6.64 0 1.586.68 3.225 1.57 4.751.884 1.515 2.012 2.945 2.992 4.094a32.724 32.724 0 002.01 2.194l.012.012.002.002a.75.75 0 001.07 0s.005-.005.012-.012a32.685 32.685 0 002.01-2.194c.98-1.149 2.108-2.579 2.992-4.094.89-1.526 1.57-3.165 1.57-4.751 0-3.67-3.022-6.64-6.75-6.64zm0 9.19a2.55 2.55 0 100-5.1 2.55 2.55 0 000 5.1z"
+                  clip-rule="evenodd"
+                />
               </svg>
               <!-- Crosshair ring -->
-              <div class="absolute top-full mt-1 w-6 h-6 border-2 border-red-400/60 rounded-full"></div>
+              <div
+                class="absolute top-full mt-1 w-6 h-6 border-2 border-red-400/60 rounded-full"
+              ></div>
             </div>
           </div>
         </div>
@@ -667,8 +721,18 @@ function getLocationMethodDescription(detectedSources: any): string {
             <div>Lng: {{ tempLocation?.longitude?.toFixed(6) || '...' }}</div>
           </div>
           <div class="space-x-2">
-            <button @click="cancelLocationModal" class="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50">Cancel</button>
-            <button @click="confirmLocationModal" class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700">Update Location</button>
+            <button
+              @click="cancelLocationModal"
+              class="px-4 py-2 rounded border border-gray-300 text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              @click="confirmLocationModal"
+              class="px-4 py-2 rounded bg-blue-600 text-white hover:bg-blue-700"
+            >
+              Update Location
+            </button>
           </div>
         </div>
       </div>
@@ -694,7 +758,12 @@ function getLocationMethodDescription(detectedSources: any): string {
   transform-origin: 50% 90%;
 }
 @keyframes pin-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
 }
 </style>

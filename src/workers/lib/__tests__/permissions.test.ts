@@ -272,7 +272,7 @@ describe('Permission Management', () => {
                 granted_at: '2025-01-03T15:30:00Z',
                 granted_by: 'admin-1',
                 notes: 'Test permission',
-                email: 'user1@example.com'
+                email: 'user1@example.com',
               },
               {
                 user_uuid: 'user-2',
@@ -280,7 +280,7 @@ describe('Permission Management', () => {
                 granted_at: '2025-01-03T15:35:00Z',
                 granted_by: 'system',
                 notes: null,
-                email: 'admin@example.com'
+                email: 'admin@example.com',
               },
             ],
           }),
@@ -310,7 +310,7 @@ describe('Permission Management', () => {
             granted_at: '2025-01-03T15:35:00Z',
             granted_by: 'system',
             notes: null,
-            email: 'admin@example.com'
+            email: 'admin@example.com',
           },
         ],
       });

@@ -65,7 +65,9 @@ describe('SubmitView', () => {
     it('shows updated description mentioning fast workflow', (): void => {
       const description = wrapper.find('p');
       expect(description.exists()).toBe(true);
-      expect(description.text()).toContain('Fast photo-first workflow with intelligent duplicate detection');
+      expect(description.text()).toContain(
+        'Fast photo-first workflow with intelligent duplicate detection'
+      );
     });
   });
 

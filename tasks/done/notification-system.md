@@ -27,18 +27,23 @@ This document outlines the requirements for a new in-app notification system. Th
 This section clarifies the high-level goals and vision for the notification system based on stakeholder feedback.
 
 **1. What is the single most important business goal for the MVP of the notification system?**
+
 > **A. Increase user engagement and retention by making achievements (like earning badges) more visible and rewarding.** This focuses on making the user feel valued and encouraging them to contribute more.
 
 **2. What should be the core principle guiding the user experience design for notifications?**
+
 > **A. Notifications should be helpful and celebratory, not intrusive or distracting.** The system should prioritize positive reinforcement and provide clear, actionable information without overwhelming the user.
 
 **3. How does a notification system directly support the Cultural Archiver's mission of preserving and sharing cultural artifacts?**
+
 > **A. By encouraging and recognizing user contributions (submissions, reviews), the system directly incentivizes the core activities that build the archive's content and data quality.**
 
 **4. Which element is most critical to get right for the MVP to be considered a success?**
+
 > **A. The "badge awarded" notification flow, including the toast and confetti celebration.** This is the primary user-facing feature that delivers on the engagement goal.
 
 **5. What is the primary "feeling" we want users to associate with receiving a notification?**
+
 > **A. A sense of accomplishment and recognition.** Notifications should feel like a small reward or a helpful tip, making users feel valued.
 
 ---
@@ -121,7 +126,6 @@ Authentication: All `/api/me/*` endpoints require a valid `user_token` and follo
 
 Endpoints:
 
-
 ### GET /api/me/notifications
 
 - Query params: `limit=20` (default), `offset=0`, `not_dismissed_only=false`
@@ -129,7 +133,7 @@ Endpoints:
 
 ### GET /api/me/notifications/unread-count
 
-- Response: { unread_count: N }  # number of notifications where `is_dismissed = 0`
+- Response: { unread_count: N } # number of notifications where `is_dismissed = 0`
 
 ### POST /api/me/notifications/:id/dismiss
 
@@ -151,13 +155,11 @@ Security & Rate-limiting:
 
 ## Backend Behavior & Contracts
 
-
 - Notification creation is a simple insert; caller is responsible for deduplication if needed.
 - BadgeService: when awarding a badge, call NotificationService.create({ user_token, type: 'badge', type_key, title, message, metadata: { badge_id, badge_key, award_reason } }).
 - API responses must not leak other users' data.
 
 Mark-dismiss operations should return 204 No Content or success JSON.
-
 
 Idempotency and deduping
 
@@ -194,7 +196,6 @@ This section captures clarified functional choices for the notification system (
 ### 10) Future notification types to support
 
 > **A.** Design the system to support submission status changes (e.g., "Approved", "Needs more info"), admin messages, and system-wide announcements in future phases.
-
 
 ---
 
@@ -246,7 +247,6 @@ Backend
 
 This section records the prioritized user stories and choices (questions 11-15).
 
-
 ### 11) Highest-priority user story for the MVP notification flow
 
 > **A.** As a verified user, when I earn a badge, I want to see a clear notification in my notification center and be able to dismiss it, so I feel recognized.
@@ -266,7 +266,6 @@ This section records the prioritized user stories and choices (questions 11-15).
 ### 15) Backend contract for marking read/dismiss
 
 > **A.** Notifications do not have a separate "read" state. A notification is either new or dismissed; the unread-count reflects notifications where `is_dismissed = 0`.
-
 
 ## Design Considerations
 
@@ -308,7 +307,6 @@ End-to-end
 
 This section records technical choices and constraints for the notification system (questions 21-25).
 
-
 ### 21) Storage for MVP
 
 > **A.** Store notifications in Cloudflare D1 in a new `notifications` table (persistent, queryable, SQLite-compatible).
@@ -335,7 +333,6 @@ This section records technical choices and constraints for the notification syst
 
 Use this section to lock down decisions that shrink the MVP surface.
 
-
 ### 26) Which user segment should the MVP target?
 
 > **A.** Verified, authenticated users only (keeps scope small and consistent with badge system).
@@ -357,7 +354,6 @@ Use this section to lock down decisions that shrink the MVP surface.
 > **A.** Persist notifications indefinitely in DB but show only last 90 days in UI (admin tools to adjust later).
 
 ---
-
 
 ## Implementation Decisions (further scope reduction)
 
@@ -394,9 +390,6 @@ Qualitative success:
 
 - Users report increased discoverability of awards and minimal friction in viewing notifications.
 
-
-
-
 ---
 
 ## Rollout Plan
@@ -429,7 +422,7 @@ Qualitative success:
 
 ---
 
-## Next Steps 
+## Next Steps
 
 Backend-first plan (recommended):
 

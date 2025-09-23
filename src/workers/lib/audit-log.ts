@@ -27,36 +27,43 @@ export async function createAuditLog(
 ): Promise<string> {
   const id = generateUUID();
   const now = new Date().toISOString();
-  
-  await db.prepare(`
+
+  await db
+    .prepare(
+      `
     INSERT INTO audit_log (
       id, entity_type, entity_id, action, user_token, ip_address, user_agent,
       old_data, new_data, metadata, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    id,
-    logData.entityType,
-    logData.entityId,
-    logData.action,
-    logData.userToken || null,
-    logData.ipAddress || null,
-    logData.userAgent || null,
-    logData.oldData ? JSON.stringify(logData.oldData) : null,
-    logData.newData ? JSON.stringify(logData.newData) : null,
-    logData.metadata ? JSON.stringify(logData.metadata) : null,
-    now
-  ).run();
+  `
+    )
+    .bind(
+      id,
+      logData.entityType,
+      logData.entityId,
+      logData.action,
+      logData.userToken || null,
+      logData.ipAddress || null,
+      logData.userAgent || null,
+      logData.oldData ? JSON.stringify(logData.oldData) : null,
+      logData.newData ? JSON.stringify(logData.newData) : null,
+      logData.metadata ? JSON.stringify(logData.metadata) : null,
+      now
+    )
+    .run();
 
   return id;
 }
 
-export async function getAuditLog(
-  db: D1Database,
-  id: string
-): Promise<AuditLogRecord | null> {
-  const result = await db.prepare(`
+export async function getAuditLog(db: D1Database, id: string): Promise<AuditLogRecord | null> {
+  const result = await db
+    .prepare(
+      `
     SELECT * FROM audit_log WHERE id = ?
-  `).bind(id).first<AuditLogRecord>();
+  `
+    )
+    .bind(id)
+    .first<AuditLogRecord>();
 
   return result || null;
 }
@@ -77,55 +84,58 @@ export async function getAuditLogs(
 ): Promise<AuditLogRecord[]> {
   let query = `SELECT * FROM audit_log WHERE 1=1`;
   const params: (string | number)[] = [];
-  
+
   if (filters.entityType) {
     query += ` AND entity_type = ?`;
     params.push(filters.entityType);
   }
-  
+
   if (filters.entityId) {
     query += ` AND entity_id = ?`;
     params.push(filters.entityId);
   }
-  
+
   if (filters.action) {
     query += ` AND action = ?`;
     params.push(filters.action);
   }
-  
+
   if (filters.userToken) {
     query += ` AND user_token = ?`;
     params.push(filters.userToken);
   }
-  
+
   if (filters.ipAddress) {
     query += ` AND ip_address = ?`;
     params.push(filters.ipAddress);
   }
-  
+
   if (filters.startDate) {
     query += ` AND created_at >= ?`;
     params.push(filters.startDate);
   }
-  
+
   if (filters.endDate) {
     query += ` AND created_at <= ?`;
     params.push(filters.endDate);
   }
-  
+
   query += ` ORDER BY created_at DESC`;
-  
+
   if (filters.limit) {
     query += ` LIMIT ?`;
     params.push(filters.limit);
-    
+
     if (filters.offset) {
       query += ` OFFSET ?`;
       params.push(filters.offset);
     }
   }
-  
-  const results = await db.prepare(query).bind(...params).all<AuditLogRecord>();
+
+  const results = await db
+    .prepare(query)
+    .bind(...params)
+    .all<AuditLogRecord>();
   return results.results || [];
 }
 
@@ -155,7 +165,7 @@ export async function auditArtworkChange(
     userAgent: context?.userAgent,
     oldData,
     newData,
-    metadata: context?.metadata
+    metadata: context?.metadata,
   });
 }
 
@@ -181,7 +191,7 @@ export async function auditArtistChange(
     userAgent: context?.userAgent,
     oldData,
     newData,
-    metadata: context?.metadata
+    metadata: context?.metadata,
   });
 }
 
@@ -207,7 +217,7 @@ export async function auditSubmissionChange(
     userAgent: context?.userAgent,
     oldData,
     newData,
-    metadata: context?.metadata
+    metadata: context?.metadata,
   });
 }
 
@@ -233,7 +243,7 @@ export async function auditUserActivityChange(
     userAgent: context?.userAgent,
     oldData,
     newData,
-    metadata: context?.metadata
+    metadata: context?.metadata,
   });
 }
 
@@ -259,7 +269,7 @@ export async function auditUserRoleChange(
     userAgent: context?.userAgent,
     oldData,
     newData,
-    metadata: context?.metadata
+    metadata: context?.metadata,
   });
 }
 
@@ -288,8 +298,8 @@ export async function auditDataExport(
     metadata: {
       exportType,
       recordCount,
-      ...context?.metadata
-    }
+      ...context?.metadata,
+    },
   });
 }
 
@@ -317,8 +327,8 @@ export async function auditSuspiciousActivity(
       suspiciousAction,
       riskLevel,
       flaggedAt: new Date().toISOString(),
-      ...context?.metadata
-    }
+      ...context?.metadata,
+    },
   });
 }
 
@@ -346,35 +356,39 @@ export async function getAuditStatistics(
     FROM audit_log
   `;
   const params: string[] = [];
-  
+
   if (dateRange) {
     query += ` WHERE created_at BETWEEN ? AND ?`;
     params.push(dateRange.start, dateRange.end);
   }
-  
+
   query += ` GROUP BY action, entity_type, user_token, ip_address`;
-  
-  const results = await db.prepare(query).bind(...params).all<{
-    action: string;
-    entity_type: string;
-    user_token: string | null;
-    ip_address: string | null;
-    count: number;
-  }>();
+
+  const results = await db
+    .prepare(query)
+    .bind(...params)
+    .all<{
+      action: string;
+      entity_type: string;
+      user_token: string | null;
+      ip_address: string | null;
+      count: number;
+    }>();
 
   const stats = {
     totalActions: 0,
     actionsByType: {} as Record<string, number>,
     actionsByEntity: {} as Record<string, number>,
     uniqueUsers: new Set<string>(),
-    uniqueIPs: new Set<string>()
+    uniqueIPs: new Set<string>(),
   };
 
   for (const row of results.results || []) {
     stats.totalActions += row.count;
     stats.actionsByType[row.action] = (stats.actionsByType[row.action] || 0) + row.count;
-    stats.actionsByEntity[row.entity_type] = (stats.actionsByEntity[row.entity_type] || 0) + row.count;
-    
+    stats.actionsByEntity[row.entity_type] =
+      (stats.actionsByEntity[row.entity_type] || 0) + row.count;
+
     if (row.user_token) {
       stats.uniqueUsers.add(row.user_token);
     }
@@ -388,7 +402,7 @@ export async function getAuditStatistics(
     actionsByType: stats.actionsByType,
     actionsByEntity: stats.actionsByEntity,
     uniqueUsers: stats.uniqueUsers.size,
-    uniqueIPs: stats.uniqueIPs.size
+    uniqueIPs: stats.uniqueIPs.size,
   };
 }
 
@@ -405,17 +419,17 @@ export async function getUserActivity(
     endDate?: string;
   } = {
     userToken,
-    limit
+    limit,
   };
-  
+
   if (dateRange?.start) {
     params.startDate = dateRange.start;
   }
-  
+
   if (dateRange?.end) {
     params.endDate = dateRange.end;
   }
-  
+
   return getAuditLogs(db, params);
 }
 
@@ -428,7 +442,7 @@ export async function getEntityHistory(
   return getAuditLogs(db, {
     entityType,
     entityId,
-    limit
+    limit,
   });
 }
 
@@ -443,16 +457,19 @@ export async function getSecurityEvents(
     AND json_extract(metadata, '$.suspiciousAction') IS NOT NULL
   `;
   const params: (string | number)[] = [];
-  
+
   if (dateRange) {
     query += ` AND created_at BETWEEN ? AND ?`;
     params.push(dateRange.start, dateRange.end);
   }
-  
+
   query += ` ORDER BY created_at DESC LIMIT ?`;
   params.push(limit);
-  
-  const results = await db.prepare(query).bind(...params).all<AuditLogRecord>();
+
+  const results = await db
+    .prepare(query)
+    .bind(...params)
+    .all<AuditLogRecord>();
   return results.results || [];
 }
 
@@ -466,12 +483,17 @@ export async function cleanOldAuditLogs(
 ): Promise<number> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - retentionPeriodDays);
-  
-  const result = await db.prepare(`
+
+  const result = await db
+    .prepare(
+      `
     DELETE FROM audit_log 
     WHERE created_at < ?
     AND json_extract(metadata, '$.suspiciousAction') IS NULL
-  `).bind(cutoffDate.toISOString()).run();
+  `
+    )
+    .bind(cutoffDate.toISOString())
+    .run();
 
   return result.meta.changes || 0;
 }
@@ -482,14 +504,19 @@ export async function archiveSecurityEvents(
 ): Promise<AuditLogRecord[]> {
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - archivePeriodDays);
-  
+
   // Get events to archive
-  const events = await db.prepare(`
+  const events = await db
+    .prepare(
+      `
     SELECT * FROM audit_log 
     WHERE created_at < ?
     AND json_extract(metadata, '$.suspiciousAction') IS NOT NULL
     ORDER BY created_at DESC
-  `).bind(cutoffDate.toISOString()).all<AuditLogRecord>();
+  `
+    )
+    .bind(cutoffDate.toISOString())
+    .all<AuditLogRecord>();
 
   return events.results || [];
 }

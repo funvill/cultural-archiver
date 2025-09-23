@@ -77,7 +77,7 @@ These are not avaliable, but also not perfect names. Listed here for reference.
 
 **No .Com**
 
-- [2] CulturalCommon.org + culturalcommon.com  (Note: the missing "S" at the end)
+- [2] CulturalCommon.org + culturalcommon.com (Note: the missing "S" at the end)
 
 - findart.io
 - OpenArt.org (premimum aka expensive)
@@ -90,7 +90,6 @@ These are not avaliable, but also not perfect names. Listed here for reference.
 - artcollect.app
 - iArchivist.org
 - discoverart.app
-
 
 ### Avalaible but not what I am looking for
 

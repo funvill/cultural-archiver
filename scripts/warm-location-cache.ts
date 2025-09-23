@@ -39,15 +39,26 @@ class LocationCacheWarmer {
     try {
       if (ext === '.json' || ext === '.geojson') {
         const parsed = JSON.parse(content);
-        
+
         // Handle GeoJSON format
-        if (parsed && typeof parsed === 'object' && 'type' in parsed && (parsed as Record<string, unknown>)['type'] === 'FeatureCollection' && Array.isArray((parsed as Record<string, unknown>)['features'])) {
+        if (
+          parsed &&
+          typeof parsed === 'object' &&
+          'type' in parsed &&
+          (parsed as Record<string, unknown>)['type'] === 'FeatureCollection' &&
+          Array.isArray((parsed as Record<string, unknown>)['features'])
+        ) {
           const features = (parsed as unknown as Record<string, unknown>)['features'] as unknown[];
           data = features.map((feature: unknown) => {
             if (typeof feature === 'object' && feature !== null) {
               const f = feature as Record<string, unknown>;
               const geom = f['geometry'];
-              if (typeof geom === 'object' && geom !== null && (geom as Record<string, unknown>)['type'] === 'Point' && Array.isArray((geom as Record<string, unknown>)['coordinates'])) {
+              if (
+                typeof geom === 'object' &&
+                geom !== null &&
+                (geom as Record<string, unknown>)['type'] === 'Point' &&
+                Array.isArray((geom as Record<string, unknown>)['coordinates'])
+              ) {
                 const coords = (geom as Record<string, unknown>)['coordinates'] as unknown[];
                 const lon = coords[0] as number;
                 const lat = coords[1] as number;
@@ -64,11 +75,11 @@ class LocationCacheWarmer {
         // Simple CSV parser - assumes first row is headers
         const lines = content.split('\n').filter(line => line.trim());
         const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-        
+
         data = lines.slice(1).map(line => {
           const values = line.split(',').map(v => v.trim());
           const record: ImportRecord = {};
-          
+
           headers.forEach((header, index) => {
             const value = values[index];
             if (header.includes('lat') && !isNaN(parseFloat(value))) {
@@ -81,14 +92,18 @@ class LocationCacheWarmer {
               record.longitude = parseFloat(value);
             }
           });
-          
+
           return record;
         });
       } else {
-        throw new Error(`Unsupported file format: ${ext}. Supported formats: .json, .geojson, .csv`);
+        throw new Error(
+          `Unsupported file format: ${ext}. Supported formats: .json, .geojson, .csv`
+        );
       }
     } catch (error) {
-      throw new Error(`Failed to parse file ${filePath}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to parse file ${filePath}: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
 
     // Extract coordinates with fallback patterns and support for nested shapes
@@ -97,7 +112,7 @@ class LocationCacheWarmer {
       const r = record as unknown;
 
       // Helper to validate numeric lat/lon ranges
-  const pushIfValid = (lat: unknown, lon: unknown): boolean => {
+      const pushIfValid = (lat: unknown, lon: unknown): boolean => {
         if (typeof lat === 'number' && typeof lon === 'number') {
           if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
             coordinates.push({ lat, lon });
@@ -119,10 +134,18 @@ class LocationCacheWarmer {
 
       // 2) Geo feature stored on record.geom or record.geometry (common in Vancouver export)
       if (typeof r === 'object' && r !== null) {
-        const maybeGeom = (r as Record<string, unknown>)['geom'] ?? (r as Record<string, unknown>)['geometry'];
+        const maybeGeom =
+          (r as Record<string, unknown>)['geom'] ?? (r as Record<string, unknown>)['geometry'];
         if (typeof maybeGeom === 'object' && maybeGeom !== null) {
-          const innerGeom = ((maybeGeom as Record<string, unknown>)['geometry'] ?? maybeGeom) as unknown;
-          if (typeof innerGeom === 'object' && innerGeom !== null && 'type' in (innerGeom as Record<string, unknown>) && (innerGeom as Record<string, unknown>)['type'] === 'Point' && Array.isArray((innerGeom as Record<string, unknown>)['coordinates'])) {
+          const innerGeom = ((maybeGeom as Record<string, unknown>)['geometry'] ??
+            maybeGeom) as unknown;
+          if (
+            typeof innerGeom === 'object' &&
+            innerGeom !== null &&
+            'type' in (innerGeom as Record<string, unknown>) &&
+            (innerGeom as Record<string, unknown>)['type'] === 'Point' &&
+            Array.isArray((innerGeom as Record<string, unknown>)['coordinates'])
+          ) {
             const coords = (innerGeom as Record<string, unknown>)['coordinates'] as unknown[];
             const lon = coords[0] as unknown;
             const lat = coords[1] as unknown;
@@ -134,8 +157,15 @@ class LocationCacheWarmer {
       // 3) Fallback: top-level lat/lon or latitude/longitude or nested location fields
       if (typeof r === 'object' && r !== null) {
         const top = r as Record<string, unknown>;
-        const lat = (top['lat'] ?? top['latitude'] ?? (top['location'] && (top['location'] as Record<string, unknown>)['lat']) ?? (top['location'] && (top['location'] as Record<string, unknown>)['latitude'])) as unknown;
-        const lon = (top['lon'] ?? top['longitude'] ?? (top['location'] && (top['location'] as Record<string, unknown>)['lon']) ?? (top['location'] && (top['location'] as Record<string, unknown>)['longitude'])) as unknown;
+        const lat = (top['lat'] ??
+          top['latitude'] ??
+          (top['location'] && (top['location'] as Record<string, unknown>)['lat']) ??
+          (top['location'] && (top['location'] as Record<string, unknown>)['latitude'])) as unknown;
+        const lon = (top['lon'] ??
+          top['longitude'] ??
+          (top['location'] && (top['location'] as Record<string, unknown>)['lon']) ??
+          (top['location'] &&
+            (top['location'] as Record<string, unknown>)['longitude'])) as unknown;
         if (pushIfValid(lat, lon)) continue;
       }
     }
@@ -174,13 +204,16 @@ class LocationCacheWarmer {
     const remaining = total - current;
     const eta = remaining / rate; // seconds
 
-    const etaFormatted = eta > 3600 
-      ? `${Math.floor(eta / 3600)}h ${Math.floor((eta % 3600) / 60)}m`
-      : `${Math.floor(eta / 60)}m ${Math.floor(eta % 60)}s`;
+    const etaFormatted =
+      eta > 3600
+        ? `${Math.floor(eta / 3600)}h ${Math.floor((eta % 3600) / 60)}m`
+        : `${Math.floor(eta / 60)}m ${Math.floor(eta % 60)}s`;
 
-    console.log(`Progress: ${current}/${total} (${((current/total) * 100).toFixed(1)}%) | ` +
-                `Rate: ${rate.toFixed(2)}/sec | ETA: ${etaFormatted} | ` +
-                `Errors: ${this.errorCount} | Skipped: ${this.skippedCount}`);
+    console.log(
+      `Progress: ${current}/${total} (${((current / total) * 100).toFixed(1)}%) | ` +
+        `Rate: ${rate.toFixed(2)}/sec | ETA: ${etaFormatted} | ` +
+        `Errors: ${this.errorCount} | Skipped: ${this.skippedCount}`
+    );
   }
 
   /**
@@ -188,7 +221,7 @@ class LocationCacheWarmer {
    */
   async warmCache(filePath: string): Promise<void> {
     console.log(`🌟 Starting cache warming from: ${filePath}`);
-    
+
     if (!fs.existsSync(filePath)) {
       throw new Error(`File not found: ${filePath}`);
     }
@@ -198,14 +231,18 @@ class LocationCacheWarmer {
     const allCoordinates = this.extractCoordinatesFromFile(filePath);
     const uniqueCoordinates = this.getUniqueCoordinates(allCoordinates);
 
-    console.log(`Found ${allCoordinates.length} total coordinates, ${uniqueCoordinates.length} unique`);
-
-    // Filter out coordinates already in cache
-    const uncachedCoordinates = uniqueCoordinates.filter(coord => 
-      !this.locationService.hasLocationInCache(coord.lat, coord.lon)
+    console.log(
+      `Found ${allCoordinates.length} total coordinates, ${uniqueCoordinates.length} unique`
     );
 
-    console.log(`${uniqueCoordinates.length - uncachedCoordinates.length} already in cache, ${uncachedCoordinates.length} to fetch`);
+    // Filter out coordinates already in cache
+    const uncachedCoordinates = uniqueCoordinates.filter(
+      coord => !this.locationService.hasLocationInCache(coord.lat, coord.lon)
+    );
+
+    console.log(
+      `${uniqueCoordinates.length - uncachedCoordinates.length} already in cache, ${uncachedCoordinates.length} to fetch`
+    );
 
     if (uncachedCoordinates.length === 0) {
       console.log('✅ All coordinates already cached!');
@@ -218,11 +255,13 @@ class LocationCacheWarmer {
 
     // Process each coordinate
     console.log(`🚀 Processing ${uncachedCoordinates.length} coordinates...`);
-    console.log(`⏱️  Estimated time: ${Math.ceil(uncachedCoordinates.length * this.locationService.getRateLimitDelay() / 1000 / 60)} minutes`);
-    
+    console.log(
+      `⏱️  Estimated time: ${Math.ceil((uncachedCoordinates.length * this.locationService.getRateLimitDelay()) / 1000 / 60)} minutes`
+    );
+
     for (let i = 0; i < uncachedCoordinates.length; i++) {
       const coord = uncachedCoordinates[i];
-      
+
       try {
         // Wait for rate limit if needed
         const waitTime = this.locationService.getTimeUntilNextRequest();
@@ -238,11 +277,12 @@ class LocationCacheWarmer {
         if ((i + 1) % 10 === 0 || i === uncachedCoordinates.length - 1) {
           this.logProgress(i + 1, uncachedCoordinates.length);
         }
-
       } catch (error) {
         this.errorCount++;
-        console.error(`❌ Error processing ${coord.lat}, ${coord.lon}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-        
+        console.error(
+          `❌ Error processing ${coord.lat}, ${coord.lon}: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
+
         // Continue processing other coordinates
         continue;
       }
@@ -251,14 +291,18 @@ class LocationCacheWarmer {
     // Final stats
     const finalStats = this.locationService.getCacheStats();
     const elapsed = Date.now() - this.startTime;
-    
+
     console.log('\n✅ Cache warming completed!');
-    console.log(`📊 Final cache: ${finalStats.totalEntries} entries (${finalStats.totalEntries - initialStats.totalEntries} added)`);
-    console.log(`⏱️  Total time: ${Math.floor(elapsed / 60000)}m ${Math.floor((elapsed % 60000) / 1000)}s`);
+    console.log(
+      `📊 Final cache: ${finalStats.totalEntries} entries (${finalStats.totalEntries - initialStats.totalEntries} added)`
+    );
+    console.log(
+      `⏱️  Total time: ${Math.floor(elapsed / 60000)}m ${Math.floor((elapsed % 60000) / 1000)}s`
+    );
     console.log(`✅ Processed: ${this.processedCount}`);
     console.log(`❌ Errors: ${this.errorCount}`);
     console.log(`⏭️  Skipped: ${this.skippedCount}`);
-    
+
     if (this.errorCount > 0) {
       console.log(`\n⚠️  ${this.errorCount} errors occurred during processing`);
     }
@@ -275,7 +319,7 @@ class LocationCacheWarmer {
 // Main execution
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  
+
   if (args.length === 0) {
     console.error('Usage: npm run warm-cache <import-file>');
     console.error('');

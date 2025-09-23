@@ -1,6 +1,6 @@
 /**
  * Mass Import Duplicate Detection Service
- * 
+ *
  * Handles duplicate detection during mass import operations by:
  * 1. Querying existing artworks within 100m radius
  * 2. Calculating similarity scores using PRD algorithm
@@ -9,10 +9,10 @@
  */
 
 import type { D1Database } from '@cloudflare/workers-types';
-import type { 
+import type {
   MassImportSimilarityQuery,
   MassImportCandidate,
-  MassImportSimilarityResult
+  MassImportSimilarityResult,
 } from '../../shared/mass-import-similarity';
 import { createMassImportSimilarityStrategy } from '../../shared/mass-import-similarity';
 import { createDatabaseService } from './database';
@@ -26,7 +26,7 @@ export interface MassImportDuplicateRequest {
   description?: string;
   lat: number;
   lon: number;
-  artist?: string;           // From created_by or artist field
+  artist?: string; // From created_by or artist field
   tags?: Record<string, string>;
   duplicateThreshold?: number; // Default: 0.7
 }
@@ -67,21 +67,22 @@ export class MassImportDuplicateDetectionService {
   /**
    * Check for duplicates of the given artwork import data
    */
-  async checkForDuplicates(request: MassImportDuplicateRequest): Promise<MassImportDuplicateResult> {
-
+  async checkForDuplicates(
+    request: MassImportDuplicateRequest
+  ): Promise<MassImportDuplicateResult> {
     const threshold = request.duplicateThreshold ?? 0.75; // Increased from 0.7 for more conservative detection
 
     // 1. Find nearby existing artworks within 100m radius
     const candidates = await this.findNearbyArtworks(
-      request.lat, 
-      request.lon, 
+      request.lat,
+      request.lon,
       this.SEARCH_RADIUS_METERS
     );
 
     if (candidates.length === 0) {
       return {
         isDuplicate: false,
-        candidatesChecked: 0
+        candidatesChecked: 0,
       };
     }
 
@@ -90,7 +91,7 @@ export class MassImportDuplicateDetectionService {
       coordinates: { lat: request.lat, lon: request.lon },
       ...(request.title && { title: request.title }),
       ...(request.artist && { artist: request.artist }),
-      ...(request.tags && { tags: request.tags })
+      ...(request.tags && { tags: request.tags }),
     };
 
     // 3. Calculate similarity scores for all candidates
@@ -98,14 +99,18 @@ export class MassImportDuplicateDetectionService {
 
     console.log(`[DUPLICATE_DETECTION] Evaluating ${candidates.length} candidates for similarity`);
     const tagCount = query.tags ? Object.keys(query.tags as Record<string, string>).length : 0;
-    console.log(`[DUPLICATE_DETECTION] Query: title="${query.title}", artist="${query.artist}", tags=${tagCount} tags`);
+    console.log(
+      `[DUPLICATE_DETECTION] Query: title="${query.title}", artist="${query.artist}", tags=${tagCount} tags`
+    );
 
     for (const candidate of candidates) {
       try {
         const result = this.similarityStrategy.calculateSimilarity(query, candidate, threshold);
-        
-        console.log(`[DUPLICATE_DETECTION] Candidate ${candidate.id}: title="${candidate.title}", score=${result.confidenceScore.toFixed(3)} (title=${result.scoreBreakdown.title.toFixed(3)}, artist=${result.scoreBreakdown.artist.toFixed(3)}, location=${result.scoreBreakdown.location.toFixed(3)}, tags=${result.scoreBreakdown.tags.toFixed(3)})`);
-        
+
+        console.log(
+          `[DUPLICATE_DETECTION] Candidate ${candidate.id}: title="${candidate.title}", score=${result.confidenceScore.toFixed(3)} (title=${result.scoreBreakdown.title.toFixed(3)}, artist=${result.scoreBreakdown.artist.toFixed(3)}, location=${result.scoreBreakdown.location.toFixed(3)}, tags=${result.scoreBreakdown.tags.toFixed(3)})`
+        );
+
         // Keep track of best match (highest score)
         if (!bestMatch || result.confidenceScore > bestMatch!.confidenceScore) {
           bestMatch = result;
@@ -118,7 +123,9 @@ export class MassImportDuplicateDetectionService {
 
     // 4. Return results
     if (bestMatch && bestMatch!.isDuplicate) {
-      console.log(`[DUPLICATE_DETECTION] DUPLICATE FOUND: ${bestMatch!.existingArtworkId} with confidence ${bestMatch!.confidenceScore.toFixed(3)}`);
+      console.log(
+        `[DUPLICATE_DETECTION] DUPLICATE FOUND: ${bestMatch!.existingArtworkId} with confidence ${bestMatch!.confidenceScore.toFixed(3)}`
+      );
       return {
         isDuplicate: true,
         duplicateInfo: {
@@ -127,17 +134,19 @@ export class MassImportDuplicateDetectionService {
           confidenceScore: bestMatch!.confidenceScore,
           scoreBreakdown: bestMatch!.scoreBreakdown,
           existingArtworkId: bestMatch!.existingArtworkId,
-          existingArtworkUrl: bestMatch!.existingArtworkUrl
+          existingArtworkUrl: bestMatch!.existingArtworkUrl,
         },
-        candidatesChecked: candidates.length
+        candidatesChecked: candidates.length,
       };
     }
 
-    console.log(`[DUPLICATE_DETECTION] NO DUPLICATE: Best match score ${bestMatch?.confidenceScore.toFixed(3) || 'none'} < threshold ${threshold}`);
-    
+    console.log(
+      `[DUPLICATE_DETECTION] NO DUPLICATE: Best match score ${bestMatch?.confidenceScore.toFixed(3) || 'none'} < threshold ${threshold}`
+    );
+
     return {
       isDuplicate: false,
-      candidatesChecked: candidates.length
+      candidatesChecked: candidates.length,
     };
   }
 
@@ -146,8 +155,8 @@ export class MassImportDuplicateDetectionService {
    * Uses spatial indexing for performance
    */
   private async findNearbyArtworks(
-    lat: number, 
-    lon: number, 
+    lat: number,
+    lon: number,
     radiusMeters: number
   ): Promise<MassImportCandidate[]> {
     // Convert radius to approximate degrees for initial filtering
@@ -155,14 +164,16 @@ export class MassImportDuplicateDetectionService {
     const radiusDegrees = radiusMeters / 111000;
     const latMin = lat - radiusDegrees;
     const latMax = lat + radiusDegrees;
-    const lonMin = lon - radiusDegrees;  
+    const lonMin = lon - radiusDegrees;
     const lonMax = lon + radiusDegrees;
 
     const db = createDatabaseService(this.database);
 
     try {
       // Query using spatial index for initial filtering
-      const results = await db.db.prepare(`
+      const results = await db.db
+        .prepare(
+          `
         SELECT 
           id,
           lat,
@@ -177,11 +188,10 @@ export class MassImportDuplicateDetectionService {
         ORDER BY 
           (lat - ?) * (lat - ?) + (lon - ?) * (lon - ?)
         LIMIT 50
-      `).bind(
-        latMin, latMax,
-        lonMin, lonMax,
-        lat, lat, lon, lon
-      ).all();
+      `
+        )
+        .bind(latMin, latMax, lonMin, lonMax, lat, lat, lon, lon)
+        .all();
 
       const candidates: MassImportCandidate[] = [];
 
@@ -197,10 +207,7 @@ export class MassImportDuplicateDetectionService {
         };
 
         // Calculate exact distance using haversine formula
-        const distance = this.calculateHaversineDistance(
-          lat, lon, 
-          record.lat, record.lon
-        );
+        const distance = this.calculateHaversineDistance(lat, lon, record.lat, record.lon);
 
         if (distance <= radiusMeters) {
           candidates.push({
@@ -208,13 +215,12 @@ export class MassImportDuplicateDetectionService {
             coordinates: { lat: record.lat, lon: record.lon },
             title: record.title,
             created_by: record.created_by,
-            tags: record.tags
+            tags: record.tags,
           });
         }
       }
 
       return candidates;
-
     } catch (error) {
       console.error('Failed to query nearby artworks:', error);
       throw new Error('Database query failed during duplicate detection');
@@ -225,19 +231,24 @@ export class MassImportDuplicateDetectionService {
    * Calculate distance between two coordinates using haversine formula
    */
   private calculateHaversineDistance(
-    lat1: number, lon1: number,
-    lat2: number, lon2: number
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
   ): number {
     const R = 6371000; // Earth radius in meters
     const dLat = this.toRadians(lat2 - lat1);
     const dLon = this.toRadians(lon2 - lon1);
-    
-    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-              Math.cos(this.toRadians(lat1)) * Math.cos(this.toRadians(lat2)) *
-              Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    
+
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this.toRadians(lat1)) *
+        Math.cos(this.toRadians(lat2)) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    
+
     return R * c;
   }
 

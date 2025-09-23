@@ -50,7 +50,7 @@ The authentication system uses four main tables:
 **auth_sessions**: Active user sessions
 
 - `id` (TEXT, PRIMARY KEY): Session identifier (UUID)
-- `user_uuid` (TEXT): Associated user UUID  
+- `user_uuid` (TEXT): Associated user UUID
 - `token_hash` (TEXT): SHA-256 hash of session token
 - `created_at` (TEXT): Session creation timestamp
 - `last_accessed_at` (TEXT): Last access timestamp
@@ -124,24 +124,28 @@ The Cultural Archiver implements a flexible role-based permissions system alongs
 #### Role Hierarchy
 
 **admin**: Full system access
+
 - Can review and approve all submissions
 - Can manage user roles and permissions
 - Can access administrative functions
 - Can perform moderation actions
 
 **moderator**: Content moderation capabilities
+
 - Can review and approve submissions
 - Can access moderation queue
 - Can approve/reject content
 - Cannot manage user roles
 
 **user**: Standard user permissions (default)
+
 - Can submit content
 - Can view approved content
 - Can edit own submissions
 - Limited to public features
 
 **banned**: Restricted access
+
 - Cannot submit content
 - Read-only access to approved content
 - Cannot participate in community features

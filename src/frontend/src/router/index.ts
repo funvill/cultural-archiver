@@ -11,13 +11,15 @@ const ArtworkDetailView = (): Promise<Component> => import('../views/ArtworkDeta
 const ArtworkIndexView = (): Promise<Component> => import('../views/ArtworkIndexView.vue');
 const ArtistIndexView = (): Promise<Component> => import('../views/ArtistIndexView.vue');
 const ProfileView = (): Promise<Component> => import('../views/ProfileView.vue');
-const ProfileNotificationsView = (): Promise<Component> => import('../views/ProfileNotificationsView.vue');
+const ProfileNotificationsView = (): Promise<Component> =>
+  import('../views/ProfileNotificationsView.vue');
 const ReviewView = (): Promise<Component> => import('../views/ReviewView.vue');
 const AdminView = (): Promise<Component> => import('../views/AdminView.vue');
 const VerifyView = (): Promise<Component> => import('../views/VerifyView.vue');
 const SearchView = (): Promise<Component> => import('../views/SearchView.vue');
 const FastPhotoUploadView = (): Promise<Component> => import('../views/FastPhotoUploadView.vue');
-const LogbookSubmissionView = (): Promise<Component> => import('../views/LogbookSubmissionView.vue');
+const LogbookSubmissionView = (): Promise<Component> =>
+  import('../views/LogbookSubmissionView.vue');
 const PublicProfileView = (): Promise<Component> => import('../views/PublicProfileView.vue');
 
 const router = createRouter({

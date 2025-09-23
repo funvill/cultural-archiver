@@ -273,7 +273,10 @@ function handleKeydown(event: KeyboardEvent): void {
             <span class="font-medium">Material:</span>
             <span class="ml-1 truncate">{{ artwork.tags.material }}</span>
           </div>
-          <div v-if="artwork.tags.year || artwork.tags.year_of_installation" class="flex items-center">
+          <div
+            v-if="artwork.tags.year || artwork.tags.year_of_installation"
+            class="flex items-center"
+          >
             <span class="font-medium">Year:</span>
             <span class="ml-1">{{ artwork.tags.year || artwork.tags.year_of_installation }}</span>
           </div>
@@ -286,8 +289,18 @@ function handleKeydown(event: KeyboardEvent): void {
             :disabled="!!loading"
             class="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
           >
-            <svg class="w-4 h-4 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            <svg
+              class="w-4 h-4 inline-block mr-2"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 4v16m8-8H4"
+              />
             </svg>
             Add Report
           </button>

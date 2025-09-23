@@ -80,6 +80,7 @@ File: `src/workers/lib/badges.ts`
   - The implementation prevents duplicates by checking existing user_badges before awarding.
 
 Developer notes:
+
 - The BadgeService uses real-time queries (COUNT and SUM on submissions). For very large historical datasets consider a cached counter on users to avoid heavy aggregation.
 - Awarding is resilient: failures to record one badge are logged and won't stop other badges from being processed.
 
@@ -101,11 +102,13 @@ Search for usages of BadgeService in `src/workers/routes` and submission review 
 ### Frontend integration
 
 Components:
+
 - `BadgeGrid.vue` — a grid view used to show a user's earned badges. Props: `badges: UserBadgeResponse['user_badges']`, `loading`.
 - `BadgeCard.vue` — individual badge card that shows emoji icon, title, description, level, award date, and a details popover.
 - `ProfileNameEditor.vue` — UI for setting/updating `profile_name` (uses `apiService.updateProfileName` and `apiService.checkProfileNameAvailability`).
 
 API client methods (frontend):
+
 - `apiService.getAllBadges()` -> GET `/badges`
 - `apiService.getUserBadges()` -> GET `/me/badges`
 - `apiService.getPublicUserProfile(uuid)` -> GET `/users/:uuid` (returns profile info + badges array)
@@ -113,9 +116,11 @@ API client methods (frontend):
 - `apiService.checkProfileNameAvailability()` -> GET `/me/profile-check`
 
 Types:
+
 - Shared types for badges and user badges are in `shared/types.ts` and re-exported for the frontend in `src/frontend/src/types/index.ts`.
 
 UI behaviour and rules (from PRD & implementation):
+
 - Only earned badges are displayed on a user's public profile page; unearned badges are not shown.
 - Badges are permanent once awarded.
 - Users are notified in-app when they earn a badge (backend should trigger a toast/notification via the existing notification system).

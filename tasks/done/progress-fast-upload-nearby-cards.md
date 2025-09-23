@@ -8,32 +8,33 @@ source: .github/prompts/WithMem.prompt.md
 # Progress: Fast-Upload Nearby Cards Bugfix
 
 Purpose: Track work to fix two issues on the fast-upload search results (nearby artworks cards):
+
 - Incorrect thumbnail shows the user's uploaded preview on artworks with zero photos
 - Title always displays "Untitled" even when a name/title is available in tags
 
 ## Major Tasks
 
-- [X] Reproduce and locate bug
-  - [X] Inspect fast-upload flow in `FastPhotoUploadView.vue`
-  - [X] Trace redirect to `/search?mode=photo&source=fast-upload&lat=...&lng=...`
-  - [X] Review `SearchView.vue` fast-upload branch rendering of nearby artworks
-  - [X] Identify helpers controlling title and thumbnail
+- [x] Reproduce and locate bug
+  - [x] Inspect fast-upload flow in `FastPhotoUploadView.vue`
+  - [x] Trace redirect to `/search?mode=photo&source=fast-upload&lat=...&lng=...`
+  - [x] Review `SearchView.vue` fast-upload branch rendering of nearby artworks
+  - [x] Identify helpers controlling title and thumbnail
   - Summary: Found logic in `SearchView.vue`:
     - `getArtworkImage()` incorrectly fell back to the uploaded preview when `recent_photo` was missing, causing misleading thumbnails on nearby cards with zero photos.
     - `getArtworkTitle()` only looked for `tags.title` and otherwise returned "Untitled", ignoring `tags.name` and sensible fallback to humanized `type_name`.
 
-- [X] Fix incorrect thumbnail logic
-  - [X] Update `getArtworkImage()` to only return `artwork.recent_photo` when present; never use uploaded preview for artwork cards.
-  - [X] Remove unused `firstUploadedPreview` computed.
+- [x] Fix incorrect thumbnail logic
+  - [x] Update `getArtworkImage()` to only return `artwork.recent_photo` when present; never use uploaded preview for artwork cards.
+  - [x] Remove unused `firstUploadedPreview` computed.
   - Summary: Cards now show actual artwork photo or the designed "No photo" placeholder. Prevents the uploaded image from appearing on unrelated artworks.
 
-- [X] Fix title extraction logic
-  - [X] Update `getArtworkTitle()` to prefer `tags.title` then `tags.name`; fallback to humanized `type_name`.
+- [x] Fix title extraction logic
+  - [x] Update `getArtworkTitle()` to prefer `tags.title` then `tags.name`; fallback to humanized `type_name`.
   - Summary: Titles render correctly when provided in tags and otherwise show a readable type (e.g., "Street Art"), not always "Untitled".
 
-- [X] Validate with tests and build
-  - [X] `npm run test` → 42 files, 648 tests passed, 1 skipped (no regressions)
-  - [X] `npm run build` → build succeeds with 0 errors
+- [x] Validate with tests and build
+  - [x] `npm run test` → 42 files, 648 tests passed, 1 skipped (no regressions)
+  - [x] `npm run build` → build succeeds with 0 errors
   - Summary: Changes compile cleanly and pass test suite.
 
 - [ ] Handoff + verification in UI
@@ -62,10 +63,10 @@ Purpose: Track work to fix two issues on the fast-upload search results (nearby 
 
 ## Acceptance Criteria Checklist
 
-- [X] Nearby artwork cards never display the just-uploaded photo as their thumbnail.
-- [X] Titles prefer tags.title, then tags.name; otherwise show humanized type_name.
-- [X] `npm run test` passes with 0 failures.
-- [X] `npm run build` completes with 0 errors.
+- [x] Nearby artwork cards never display the just-uploaded photo as their thumbnail.
+- [x] Titles prefer tags.title, then tags.name; otherwise show humanized type_name.
+- [x] `npm run test` passes with 0 failures.
+- [x] `npm run build` completes with 0 errors.
 - [ ] Manual verification completed in UI.
 
 ---

@@ -1,9 +1,9 @@
 /**
  * Mass Import Duplication Detection - Similarity Strategy
- * 
+ *
  * Implements the exact scoring algorithm specified in the PRD:
  * - Title match: +0.2 points (Levenshtein distance)
- * - Artist match: +0.2 points (split comma-separated artists)  
+ * - Artist match: +0.2 points (split comma-separated artists)
  * - Location proximity: +0.3 points (distance-weighted within 50m)
  * - Tag matches: +0.05 per matching tag
  * - Threshold: 0.7 default, configurable
@@ -27,20 +27,20 @@ export interface MassImportCandidate {
   id: string;
   coordinates: Coordinates;
   title?: string | null;
-  created_by?: string | null;  // User UUID who submitted the artwork
-  tags?: string | null;        // JSON string containing artist and other metadata
+  created_by?: string | null; // User UUID who submitted the artwork
+  tags?: string | null; // JSON string containing artist and other metadata
 }
 
 export interface MassImportSimilarityResult {
   artworkId: string;
-  confidenceScore: number;      // 0-1 overall score
+  confidenceScore: number; // 0-1 overall score
   scoreBreakdown: {
-    title: number;              // 0-0.2
-    artist: number;             // 0-0.2
-    location: number;           // 0-0.3
-    tags: number;               // 0-N*0.05
+    title: number; // 0-0.2
+    artist: number; // 0-0.2
+    location: number; // 0-0.3
+    tags: number; // 0-N*0.05
   };
-  isDuplicate: boolean;         // score >= threshold
+  isDuplicate: boolean; // score >= threshold
   existingArtworkId: string;
   existingArtworkUrl: string;
 }
@@ -57,9 +57,7 @@ export class MassImportSimilarityStrategy {
   private readonly POINTS_PER_TAG = 0.05;
   private readonly LOCATION_RADIUS_METERS = 50;
 
-  constructor(
-    private readonly baseUrl: string = 'https://art.abluestar.com'
-  ) {}
+  constructor(private readonly baseUrl: string = 'https://art.abluestar.com') {}
 
   /**
    * Calculate similarity between import item and existing artwork
@@ -73,17 +71,19 @@ export class MassImportSimilarityStrategy {
       title: 0,
       artist: 0,
       location: 0,
-      tags: 0
+      tags: 0,
     };
 
     // 1. Title Match (+0.2 points max)
     if (query.title != null && candidate.title != null) {
       const titleSimilarity = this.calculateTitleSimilarity(query.title, candidate.title);
       scoreBreakdown.title = titleSimilarity * this.POINTS_TITLE;
-      
+
       // Debug logging for title matching
       if (titleSimilarity === 0 && query.title === candidate.title) {
-        console.warn(`[SIMILARITY] Title mismatch despite identical strings: "${query.title}" vs "${candidate.title}"`);
+        console.warn(
+          `[SIMILARITY] Title mismatch despite identical strings: "${query.title}" vs "${candidate.title}"`
+        );
       }
     }
 
@@ -105,7 +105,9 @@ export class MassImportSimilarityStrategy {
       if (candidateArtist) {
         const artistSimilarity = this.calculateArtistSimilarity(query.artist, candidateArtist);
         scoreBreakdown.artist = artistSimilarity * this.POINTS_ARTIST;
-        console.log(`[SIMILARITY] Artist comparison: "${query.artist}" vs "${candidateArtist}" = ${artistSimilarity.toFixed(3)}`);
+        console.log(
+          `[SIMILARITY] Artist comparison: "${query.artist}" vs "${candidateArtist}" = ${artistSimilarity.toFixed(3)}`
+        );
       } else {
         console.log(`[SIMILARITY] No artist found for artwork ${candidate.id}`);
       }
@@ -119,14 +121,13 @@ export class MassImportSimilarityStrategy {
 
     // 4. Tag Matches (+0.05 per matching tag)
     if (query.tags && candidate.tags) {
-      scoreBreakdown.tags = this.calculateTagSimilarity(
-        query.tags,
-        candidate.tags
-      );
-      
+      scoreBreakdown.tags = this.calculateTagSimilarity(query.tags, candidate.tags);
+
       // Debug logging for tag matching
       if (scoreBreakdown.tags === 0 && Object.keys(query.tags).length > 0) {
-        console.warn(`[SIMILARITY] No tag matches found despite ${Object.keys(query.tags).length} query tags`);
+        console.warn(
+          `[SIMILARITY] No tag matches found despite ${Object.keys(query.tags).length} query tags`
+        );
         console.debug(`[SIMILARITY] Query tags:`, query.tags);
         try {
           const candidateTagsParsed = JSON.parse(candidate.tags);
@@ -138,10 +139,8 @@ export class MassImportSimilarityStrategy {
     }
 
     // Calculate total confidence score
-    const confidenceScore = scoreBreakdown.title + 
-                           scoreBreakdown.artist + 
-                           scoreBreakdown.location + 
-                           scoreBreakdown.tags;
+    const confidenceScore =
+      scoreBreakdown.title + scoreBreakdown.artist + scoreBreakdown.location + scoreBreakdown.tags;
 
     const isDuplicate = confidenceScore >= threshold;
 
@@ -151,7 +150,7 @@ export class MassImportSimilarityStrategy {
       scoreBreakdown,
       isDuplicate,
       existingArtworkId: candidate.id,
-      existingArtworkUrl: `${this.baseUrl}/artwork/${candidate.id}`
+      existingArtworkUrl: `${this.baseUrl}/artwork/${candidate.id}`,
     };
   }
 
@@ -174,9 +173,9 @@ export class MassImportSimilarityStrategy {
 
     const distance = this.levenshteinDistance(normalized1, normalized2);
     const maxLength = Math.max(normalized1.length, normalized2.length);
-    
+
     // Convert distance to similarity (0-1)
-    return maxLength === 0 ? 1 : 1 - (distance / maxLength);
+    return maxLength === 0 ? 1 : 1 - distance / maxLength;
   }
 
   /**
@@ -205,7 +204,7 @@ export class MassImportSimilarityStrategy {
    */
   private calculateLocationSimilarity(coords1: Coordinates, coords2: Coordinates): number {
     const distanceMeters = calculateDistance(coords1, coords2);
-    
+
     // PRD formula: max(0, 0.3 * (1 - distance_meters / 50))
     return Math.max(0, this.POINTS_LOCATION * (1 - distanceMeters / this.LOCATION_RADIUS_METERS));
   }
@@ -213,12 +212,15 @@ export class MassImportSimilarityStrategy {
   /**
    * Tag matches - fuzzy match on labels and values, +0.05 per match
    */
-  private calculateTagSimilarity(queryTags: Record<string, string>, candidateTagsJson: string): number {
+  private calculateTagSimilarity(
+    queryTags: Record<string, string>,
+    candidateTagsJson: string
+  ): number {
     let candidateTags: Record<string, string>;
-    
+
     try {
       const parsed = JSON.parse(candidateTagsJson);
-      
+
       // Handle different tag formats
       if (parsed.tags && typeof parsed.tags === 'object') {
         candidateTags = parsed.tags;
@@ -238,7 +240,7 @@ export class MassImportSimilarityStrategy {
     // Check for fuzzy matches on both labels and values
     for (const [queryLabel, queryValue] of queryEntries) {
       let matched = false;
-      
+
       for (const [candidateLabel, candidateValue] of candidateEntries) {
         // Exact label match with exact value match gets priority
         if (queryLabel === candidateLabel && String(queryValue) === String(candidateValue)) {
@@ -246,14 +248,14 @@ export class MassImportSimilarityStrategy {
           matched = true;
           break;
         }
-        
+
         // Fuzzy label match
         if (this.fuzzyStringMatch(queryLabel, candidateLabel)) {
           matchCount++;
           matched = true;
           break;
         }
-        
+
         // Fuzzy value match (only if no label match found yet)
         if (!matched && this.fuzzyStringMatch(String(queryValue), String(candidateValue))) {
           matchCount++;
@@ -303,7 +305,9 @@ export class MassImportSimilarityStrategy {
     const len2 = str2.length;
 
     // Create matrix
-    const matrix: number[][] = Array(len1 + 1).fill(null).map(() => Array(len2 + 1).fill(0));
+    const matrix: number[][] = Array(len1 + 1)
+      .fill(null)
+      .map(() => Array(len2 + 1).fill(0));
 
     // Initialize first row and column
     for (let i = 0; i <= len1; i++) {
@@ -320,9 +324,9 @@ export class MassImportSimilarityStrategy {
           matrix[i]![j] = matrix[i - 1]![j - 1]!;
         } else {
           matrix[i]![j] = Math.min(
-            matrix[i - 1]![j]! + 1,     // deletion
-            matrix[i]![j - 1]! + 1,     // insertion
-            matrix[i - 1]![j - 1]! + 1  // substitution
+            matrix[i - 1]![j]! + 1, // deletion
+            matrix[i]![j - 1]! + 1, // insertion
+            matrix[i - 1]![j - 1]! + 1 // substitution
           );
         }
       }

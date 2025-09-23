@@ -1,6 +1,6 @@
 /**
  * Mass Import Plugin System - Report Tracker
- * 
+ *
  * This module provides comprehensive tracking and reporting for mass import operations,
  * including individual record processing, timing, and detailed error reporting.
  */
@@ -68,11 +68,11 @@ export class ReportTracker {
         cliFlags: this.extractCliFlags(params.parameters),
         importerConfig: this.extractConfig(params.parameters, 'importer'),
         exporterConfig: this.extractConfig(params.parameters, 'exporter'),
-        ...(this.extractNumber(params.parameters, 'batchSize') !== undefined && { 
-          batchSize: this.extractNumber(params.parameters, 'batchSize')! 
+        ...(this.extractNumber(params.parameters, 'batchSize') !== undefined && {
+          batchSize: this.extractNumber(params.parameters, 'batchSize')!,
         }),
-        ...(this.extractBoolean(params.parameters, 'dryRun') !== undefined && { 
-          dryRun: this.extractBoolean(params.parameters, 'dryRun')! 
+        ...(this.extractBoolean(params.parameters, 'dryRun') !== undefined && {
+          dryRun: this.extractBoolean(params.parameters, 'dryRun')!,
         }),
       },
       environment: {
@@ -104,7 +104,7 @@ export class ReportTracker {
     if (!this.enabled) return;
 
     const processingTime = this.calculateRecordTime(externalId);
-    
+
     const record: ReportRecord = {
       id: this.generateRecordId(),
       externalId,
@@ -114,7 +114,7 @@ export class ReportTracker {
       ...(data && { data }),
       ...(processingTime !== undefined && { processingTime }),
     };
-    
+
     this.records.push(record);
   }
 
@@ -125,7 +125,7 @@ export class ReportTracker {
     if (!this.enabled) return;
 
     const processingTime = this.calculateRecordTime(externalId);
-    
+
     const record: ReportRecord = {
       id: this.generateRecordId(),
       externalId,
@@ -136,7 +136,7 @@ export class ReportTracker {
       ...(data && { data }),
       ...(processingTime !== undefined && { processingTime }),
     };
-    
+
     this.records.push(record);
 
     // Also add to errors collection for quick access
@@ -155,7 +155,7 @@ export class ReportTracker {
     if (!this.enabled) return;
 
     const processingTime = this.calculateRecordTime(externalId);
-    
+
     const record: ReportRecord = {
       id: this.generateRecordId(),
       externalId,
@@ -165,7 +165,7 @@ export class ReportTracker {
       ...(data && { data }),
       ...(processingTime !== undefined && { processingTime }),
     };
-    
+
     this.records.push(record);
   }
 
@@ -176,7 +176,7 @@ export class ReportTracker {
     if (!this.enabled) return;
 
     const processingTime = this.calculateRecordTime(externalId);
-    
+
     const record: ReportRecord = {
       id: this.generateRecordId(),
       externalId,
@@ -186,7 +186,7 @@ export class ReportTracker {
       ...(data && { data }),
       ...(processingTime !== undefined && { processingTime }),
     };
-    
+
     this.records.push(record);
   }
 
@@ -238,7 +238,7 @@ export class ReportTracker {
     }
 
     const summary = this.calculateSummary(duration);
-    
+
     return {
       metadata: this.metadata!,
       summary,
@@ -283,7 +283,8 @@ export class ReportTracker {
     // Calculate average processing time per record
     const recordsWithTiming = this.records.filter(r => typeof r.processingTime === 'number');
     const totalRecordTime = recordsWithTiming.reduce((sum, r) => sum + (r.processingTime || 0), 0);
-    const averageRecordTime = recordsWithTiming.length > 0 ? totalRecordTime / recordsWithTiming.length : 0;
+    const averageRecordTime =
+      recordsWithTiming.length > 0 ? totalRecordTime / recordsWithTiming.length : 0;
 
     return {
       totalRecords: total,
@@ -342,7 +343,7 @@ export class ReportTracker {
         stack: error.stack,
       };
     }
-    
+
     if (typeof error === 'object' && error !== null) {
       try {
         // Try to serialize the object
@@ -353,7 +354,7 @@ export class ReportTracker {
         return String(error);
       }
     }
-    
+
     return error;
   }
 
@@ -362,7 +363,7 @@ export class ReportTracker {
    */
   private extractCliFlags(params: Record<string, unknown>): string[] {
     const flags: string[] = [];
-    
+
     for (const [key, value] of Object.entries(params)) {
       if (typeof value === 'boolean' && value) {
         flags.push(`--${key}`);
@@ -370,7 +371,7 @@ export class ReportTracker {
         flags.push(`--${key}`, String(value));
       }
     }
-    
+
     return flags;
   }
 
@@ -380,7 +381,7 @@ export class ReportTracker {
   private extractConfig(params: Record<string, unknown>, type: 'importer' | 'exporter'): object {
     const configKey = `${type}Config`;
     const config = params[configKey];
-    return (typeof config === 'object' && config !== null) ? config : {};
+    return typeof config === 'object' && config !== null ? config : {};
   }
 
   /**
@@ -454,12 +455,14 @@ export class ReportTracker {
   } {
     const currentTime = Date.now();
     const totalProcessingTime = currentTime - this.startTime.getTime();
-    
+
     const recordsWithTiming = this.records.filter(r => typeof r.processingTime === 'number');
     const totalRecordTime = recordsWithTiming.reduce((sum, r) => sum + (r.processingTime || 0), 0);
-    const averageRecordTime = recordsWithTiming.length > 0 ? totalRecordTime / recordsWithTiming.length : 0;
-    
-    const recordsPerSecond = totalProcessingTime > 0 ? (this.records.length / totalProcessingTime) * 1000 : 0;
+    const averageRecordTime =
+      recordsWithTiming.length > 0 ? totalRecordTime / recordsWithTiming.length : 0;
+
+    const recordsPerSecond =
+      totalProcessingTime > 0 ? (this.records.length / totalProcessingTime) * 1000 : 0;
 
     return {
       totalProcessingTime,

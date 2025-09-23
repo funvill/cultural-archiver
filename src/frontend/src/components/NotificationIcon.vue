@@ -100,7 +100,7 @@ const displayCount = computed(() => {
 function togglePanel() {
   showPanel.value = !showPanel.value;
   emit('panelToggle', showPanel.value);
-  
+
   if (showPanel.value && notificationsStore.notifications.length === 0) {
     // Fetch notifications when panel is opened for the first time
     notificationsStore.fetchNotifications({ limit: 10 }).catch(() => {
@@ -129,7 +129,7 @@ onMounted(() => {
   if (props.autoStartPolling) {
     notificationsStore.startPolling();
   }
-  
+
   document.addEventListener('keydown', handleKeydown);
 });
 
@@ -137,7 +137,7 @@ onUnmounted(() => {
   if (props.autoStartPolling) {
     notificationsStore.stopPolling();
   }
-  
+
   document.removeEventListener('keydown', handleKeydown);
 });
 </script>
@@ -149,7 +149,8 @@ onUnmounted(() => {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {

@@ -76,8 +76,8 @@ This creates a new migration file with automatic numbering: `NNNN_migration_name
 
 #### Step 2: Database Schema Reference
 
-**Current Database Schema**: See `docs/database.md` for complete schema
-**Key Tables**:
+**Current Database Schema**: See `docs/database.md` for complete schema **Key Tables**:
+
 - `artwork` - Main artwork records with spatial data (lat, lon)
 - `users` - User authentication system
 - `magic_links` - Email verification tokens
@@ -101,6 +101,7 @@ This creates a new migration file with automatic numbering: `NNNN_migration_name
 #### SQLite Compatibility Rules (Critical)
 
 **✅ ALLOWED - SQLite/D1 Compatible:**
+
 ```sql
 -- Basic table creation
 CREATE TABLE table_name (
@@ -120,6 +121,7 @@ INSERT INTO table_name (name) VALUES ('value');
 ```
 
 **❌ FORBIDDEN - Not supported in D1:**
+
 ```sql
 -- NO foreign key constraints
 ALTER TABLE table_name ADD CONSTRAINT fk_name FOREIGN KEY (field) REFERENCES other_table(id);
@@ -140,6 +142,7 @@ ALTER TABLE table_name DROP COLUMN column_name;  -- Use with caution
 ### Spatial Data Handling
 
 **Geographic Coordinates**:
+
 ```sql
 -- Store as REAL (float) columns
 ALTER TABLE artwork ADD COLUMN lat REAL;
@@ -152,16 +155,18 @@ CREATE INDEX idx_artwork_spatial ON artwork(lat, lon);
 ```
 
 **Spatial Query Patterns**:
+
 ```sql
 -- Bounding box queries (±0.0045 degrees ~= 500m)
-SELECT * FROM artwork 
-WHERE lat BETWEEN ? - 0.0045 AND ? + 0.0045 
+SELECT * FROM artwork
+WHERE lat BETWEEN ? - 0.0045 AND ? + 0.0045
   AND lon BETWEEN ? - 0.0045 AND ? + 0.0045;
 ```
 
 ### JSON Data Handling
 
 **Store as TEXT, parse at application level**:
+
 ```sql
 -- Correct way to store JSON in D1
 ALTER TABLE artwork ADD COLUMN tags TEXT; -- JSON string
@@ -177,6 +182,7 @@ INSERT INTO artwork (tags, photos) VALUES (
 ### Common Migration Patterns
 
 #### Adding New Table
+
 ```sql
 -- Migration: 0007_add_user_preferences
 -- Description: Add user preference storage
@@ -196,6 +202,7 @@ CREATE UNIQUE INDEX idx_user_preferences_unique ON user_preferences(user_uuid, p
 ```
 
 #### Adding Column with Index
+
 ```sql
 -- Migration: 0008_add_artwork_status
 -- Description: Add status tracking to artwork submissions
@@ -211,6 +218,7 @@ UPDATE artwork SET status = 'approved' WHERE id IS NOT NULL;
 ```
 
 #### Data Migration Pattern
+
 ```sql
 -- Migration: 0009_migrate_tag_structure
 -- Description: Convert old tag format to new structured format
@@ -227,10 +235,10 @@ INSERT INTO artwork_tags_temp (artwork_id, tag_data)
 SELECT id, tags FROM artwork WHERE tags IS NOT NULL;
 
 -- Update main table with transformed data
-UPDATE artwork 
+UPDATE artwork
 SET tags = (
-    SELECT tag_data 
-    FROM artwork_tags_temp 
+    SELECT tag_data
+    FROM artwork_tags_temp
     WHERE artwork_tags_temp.artwork_id = artwork.id
 )
 WHERE id IN (SELECT artwork_id FROM artwork_tags_temp);
@@ -255,7 +263,7 @@ PRAGMA index_list(table_name);
 SELECT COUNT(*) FROM table_name WHERE new_column IS NOT NULL;
 
 -- Test spatial queries work (if applicable)
-SELECT COUNT(*) FROM artwork 
+SELECT COUNT(*) FROM artwork
 WHERE lat BETWEEN 49.2 AND 49.3 AND lon BETWEEN -123.2 AND -123.1;
 ```
 
@@ -289,8 +297,9 @@ COMMIT;
 ### Migration File Naming Convention
 
 AI agents should use descriptive names:
+
 - `0001_initial_schema.sql`
-- `0002_add_user_authentication.sql`  
+- `0002_add_user_authentication.sql`
 - `0003_add_spatial_indexes.sql`
 - `0004_add_photo_processing.sql`
 - `0005_extend_artwork_metadata.sql`
@@ -299,9 +308,10 @@ AI agents should use descriptive names:
 ### Pre-Migration Checklist for AI Agents
 
 Before creating any migration:
+
 1. ✅ Read current database schema from `docs/database.md`
 2. ✅ Understand the existing table relationships
-3. ✅ Check what indexes already exist  
+3. ✅ Check what indexes already exist
 4. ✅ Verify the migration is SQLite/D1 compatible
 5. ✅ Include proper header comments
 6. ✅ Test queries are included for validation
@@ -368,7 +378,7 @@ Before creating any migration:
 
 #### 3.1 Migration Management Scripts
 
-```json
+````json
 ## Technical Specifications (Simplified)
 
 ### Environment Configuration
@@ -379,7 +389,7 @@ Before creating any migration:
 # Existing configuration supports migrations - no changes needed
 # Migrations will be stored in: src/workers/migrations/
 # Database bindings already configured for both environments
-```
+````
 
 ### Migration File Management
 
@@ -433,7 +443,8 @@ Before creating any migration:
 - [ ] `npm run database:create-migration` creates new migration files
 - [ ] All commands work in Windows PowerShell without additional dependencies
 - [ ] Uses existing Wrangler configuration and authentication
-```
+
+````
 
 #### 3.2 Migration Features
 
@@ -450,7 +461,7 @@ Before creating any migration:
 {
   "database:import": "node scripts/database-import.js"
 }
-```
+````
 
 #### 4.2 Import Safety Script (`scripts/database-import.js`)
 

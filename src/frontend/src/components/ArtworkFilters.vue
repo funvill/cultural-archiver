@@ -40,7 +40,7 @@ function toggleCollapsed(): void {
 <template>
   <div class="bg-white border border-gray-200 rounded-lg p-4">
     <!-- Header -->
-    <div 
+    <div
       class="flex items-center justify-between cursor-pointer"
       :class="{ 'mb-4': !collapsible || !isCollapsed }"
       @click="collapsible ? toggleCollapsed() : undefined"
@@ -49,7 +49,7 @@ function toggleCollapsed(): void {
         <h3 class="text-lg font-medium text-gray-900">{{ title }}</h3>
         <p v-if="description" class="text-sm text-gray-600 mt-1">{{ description }}</p>
       </div>
-      
+
       <!-- Collapse toggle -->
       <button
         v-if="collapsible"
@@ -64,7 +64,12 @@ function toggleCollapsed(): void {
           stroke="currentColor"
           viewBox="0 0 24 24"
         >
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M19 9l-7 7-7-7"
+          />
         </svg>
       </button>
     </div>
@@ -80,7 +85,7 @@ function toggleCollapsed(): void {
         >
           Enable All
         </button>
-        
+
         <button
           @click="disableAllFilters"
           :disabled="!allFiltersEnabled"
@@ -88,7 +93,7 @@ function toggleCollapsed(): void {
         >
           Disable All
         </button>
-        
+
         <button
           @click="resetToDefaults"
           class="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:ring-2 focus:ring-gray-500"
@@ -99,11 +104,7 @@ function toggleCollapsed(): void {
 
       <!-- Filter Toggles -->
       <div class="space-y-3">
-        <div
-          v-for="filter in artworkFilters"
-          :key="filter.key"
-          class="flex items-start space-x-3"
-        >
+        <div v-for="filter in artworkFilters" :key="filter.key" class="flex items-start space-x-3">
           <!-- Toggle Switch -->
           <label class="relative inline-flex items-center cursor-pointer">
             <input
@@ -111,7 +112,7 @@ function toggleCollapsed(): void {
               :checked="filter.enabled"
               @change="toggleFilter(filter.key)"
               class="sr-only"
-            >
+            />
             <div
               class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer transition-colors duration-200"
               :class="filter.enabled ? 'bg-blue-600' : 'bg-gray-200'"
@@ -126,20 +127,20 @@ function toggleCollapsed(): void {
           <!-- Filter Info -->
           <div class="flex-1 min-w-0">
             <div class="flex items-center space-x-2">
-              <span 
+              <span
                 class="text-sm font-medium transition-colors duration-200"
                 :class="filter.enabled ? 'text-gray-900' : 'text-gray-500'"
               >
                 {{ filter.label }}
               </span>
-              <span 
+              <span
                 v-if="filter.enabled"
                 class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
               >
                 Active
               </span>
             </div>
-            <p 
+            <p
               class="text-xs mt-1 transition-colors duration-200"
               :class="filter.enabled ? 'text-gray-600' : 'text-gray-400'"
             >

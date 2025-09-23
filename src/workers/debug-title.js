@@ -9,7 +9,7 @@ function normalizeString(str) {
 function calculateTitleSimilarity(title1, title2) {
   const normalized1 = normalizeString(title1);
   const normalized2 = normalizeString(title2);
-  
+
   console.log(`Input: "${title1}" -> "${normalized1}" (length: ${normalized1.length})`);
   console.log(`Input: "${title2}" -> "${normalized2}" (length: ${normalized2.length})`);
 

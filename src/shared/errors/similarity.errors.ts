@@ -21,11 +21,11 @@ export abstract class SimilarityError extends Error {
     this.name = this.constructor.name;
     this.timestamp = new Date();
     this.context = context;
-    
+
     if (cause) {
       this.cause = cause;
     }
-    
+
     // Ensure proper prototype chain for instanceof checks
     Object.setPrototypeOf(this, new.target.prototype);
   }
@@ -40,10 +40,13 @@ export abstract class SimilarityError extends Error {
       code: this.code,
       timestamp: this.timestamp.toISOString(),
       context: this.context,
-      cause: this.cause instanceof Error ? {
-        name: this.cause.name,
-        message: this.cause.message,
-      } : undefined,
+      cause:
+        this.cause instanceof Error
+          ? {
+              name: this.cause.name,
+              message: this.cause.message,
+            }
+          : undefined,
     };
   }
 }
@@ -57,7 +60,7 @@ export abstract class SimilarityError extends Error {
  */
 export class SimilarityCalculationError extends SimilarityError {
   readonly code = 'SIMILARITY_CALCULATION_FAILED';
-  
+
   constructor(artworkId: string, cause: Error, context?: Record<string, unknown>) {
     super(
       `Similarity calculation failed for artwork ${artworkId}: ${cause.message}`,
@@ -72,13 +75,13 @@ export class SimilarityCalculationError extends SimilarityError {
  */
 export class DistanceCalculationError extends SimilarityError {
   readonly code = 'DISTANCE_CALCULATION_FAILED';
-  
-  constructor(coords1: { lat: number; lon: number }, coords2: { lat: number; lon: number }, cause: Error) {
-    super(
-      `Distance calculation failed between coordinates`,
-      { coords1, coords2 },
-      cause
-    );
+
+  constructor(
+    coords1: { lat: number; lon: number },
+    coords2: { lat: number; lon: number },
+    cause: Error
+  ) {
+    super(`Distance calculation failed between coordinates`, { coords1, coords2 }, cause);
   }
 }
 
@@ -87,13 +90,9 @@ export class DistanceCalculationError extends SimilarityError {
  */
 export class TitleSimilarityError extends SimilarityError {
   readonly code = 'TITLE_SIMILARITY_FAILED';
-  
+
   constructor(title1: string, title2: string, cause: Error) {
-    super(
-      `Title similarity calculation failed`,
-      { title1, title2 },
-      cause
-    );
+    super(`Title similarity calculation failed`, { title1, title2 }, cause);
   }
 }
 
@@ -102,13 +101,9 @@ export class TitleSimilarityError extends SimilarityError {
  */
 export class TagSimilarityError extends SimilarityError {
   readonly code = 'TAG_SIMILARITY_FAILED';
-  
+
   constructor(tags1: string[], tags2: string[], cause: Error) {
-    super(
-      `Tag similarity calculation failed`,
-      { tags1, tags2 },
-      cause
-    );
+    super(`Tag similarity calculation failed`, { tags1, tags2 }, cause);
   }
 }
 
@@ -121,7 +116,7 @@ export class TagSimilarityError extends SimilarityError {
  */
 export class SimilarityConfigurationError extends SimilarityError {
   readonly code = 'SIMILARITY_CONFIG_INVALID';
-  
+
   constructor(message: string, context?: Record<string, unknown>) {
     super(`Similarity configuration error: ${message}`, context);
   }
@@ -136,7 +131,7 @@ export class SimilarityConfigurationError extends SimilarityError {
  */
 export class SimilarityServiceError extends SimilarityError {
   readonly code = 'SIMILARITY_SERVICE_ERROR';
-  
+
   constructor(operation: string, cause: Error, context?: Record<string, unknown>) {
     super(
       `Similarity service operation '${operation}' failed: ${cause.message}`,
@@ -151,13 +146,9 @@ export class SimilarityServiceError extends SimilarityError {
  */
 export class DuplicateDetectionError extends SimilarityError {
   readonly code = 'DUPLICATE_DETECTION_FAILED';
-  
+
   constructor(queryInfo: Record<string, unknown>, cause: Error) {
-    super(
-      `Duplicate detection failed`,
-      { query: queryInfo },
-      cause
-    );
+    super(`Duplicate detection failed`, { query: queryInfo }, cause);
   }
 }
 
@@ -170,12 +161,9 @@ export class DuplicateDetectionError extends SimilarityError {
  */
 export class SimilarityInputError extends SimilarityError {
   readonly code = 'SIMILARITY_INPUT_INVALID';
-  
+
   constructor(field: string, value: unknown, reason: string) {
-    super(
-      `Invalid input for ${field}: ${reason}`,
-      { field, value, reason }
-    );
+    super(`Invalid input for ${field}: ${reason}`, { field, value, reason });
   }
 }
 
@@ -184,12 +172,9 @@ export class SimilarityInputError extends SimilarityError {
  */
 export class SimilarityDataMissingError extends SimilarityError {
   readonly code = 'SIMILARITY_DATA_MISSING';
-  
+
   constructor(field: string, context?: Record<string, unknown>) {
-    super(
-      `Required similarity data missing: ${field}`,
-      { field, ...context }
-    );
+    super(`Required similarity data missing: ${field}`, { field, ...context });
   }
 }
 
@@ -219,7 +204,7 @@ export function getSimilarityErrorCode(error: unknown): string {
  */
 export function createErrorContext(data: Record<string, unknown>): Record<string, unknown> {
   const context: Record<string, unknown> = {};
-  
+
   for (const [key, value] of Object.entries(data)) {
     try {
       // Ensure values are JSON-serializable
@@ -230,7 +215,7 @@ export function createErrorContext(data: Record<string, unknown>): Record<string
       context[key] = String(value);
     }
   }
-  
+
   return context;
 }
 
@@ -248,7 +233,7 @@ export function wrapSimilarityOperation<T extends any[], R>(
       if (error instanceof SimilarityError) {
         throw error; // Re-throw similarity errors as-is
       }
-      
+
       // Wrap unknown errors
       throw new SimilarityServiceError(
         operation,
@@ -273,7 +258,7 @@ export function wrapAsyncSimilarityOperation<T extends any[], R>(
       if (error instanceof SimilarityError) {
         throw error; // Re-throw similarity errors as-is
       }
-      
+
       // Wrap unknown errors
       throw new SimilarityServiceError(
         operation,

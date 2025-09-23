@@ -5,12 +5,7 @@
  */
 
 import type { Context } from 'hono';
-import type {
-  WorkerEnv,
-  ArtworkRecord,
-  ArtworkWithPhotos,
-  NearbyArtworksResponse,
-} from '../types';
+import type { WorkerEnv, ArtworkRecord, ArtworkWithPhotos, NearbyArtworksResponse } from '../types';
 import type { ArtistRecord } from '../../shared/types';
 import { DEFAULT_ARTWORK_SEARCH_RADIUS } from '../../shared/geo';
 import { createDatabaseService } from '../lib/database';
@@ -21,9 +16,7 @@ import { createSimilarityService } from '../lib/similarity';
 import type { SimilarityQuery } from '../../shared/similarity';
 
 // Import new database patch for submissions compatibility
-import { 
-  getAllLogbookEntriesForArtworkFromSubmissions 
-} from '../lib/database-patch.js';
+import { getAllLogbookEntriesForArtworkFromSubmissions } from '../lib/database-patch.js';
 
 /**
  * GET /api/artworks/nearby - Find Nearby Artworks
@@ -73,7 +66,10 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       artworks.map(async artwork => {
         // Get logbook entries for this artwork to find photos - UPDATED: using submissions
-        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(
+          c.env.DB,
+          artwork.id
+        );
 
         // Extract photos from logbook entries
         const combinedPhotos: string[] = [];
@@ -117,7 +113,10 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
             tags_parsed = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
           }
         } catch (e) {
-          console.warn('Failed to parse artwork tags for nearby API', { artwork_id: artwork.id, error: e });
+          console.warn('Failed to parse artwork tags for nearby API', {
+            artwork_id: artwork.id,
+            error: e,
+          });
         }
 
         return {
@@ -170,8 +169,11 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
           };
         });
 
-        const enhancedResults = similarityService.enhanceNearbyResults(query, artworksForSimilarity);
-        
+        const enhancedResults = similarityService.enhanceNearbyResults(
+          query,
+          artworksForSimilarity
+        );
+
         // Convert back to ArtworkWithPhotos format for response - merge properties
         enhancedArtworks = enhancedResults.map(enhanced => {
           const original = artworksWithPhotos.find(a => a.id === enhanced.id);
@@ -211,10 +213,12 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
  * GET /api/artworks/:id - Get Artwork Details
  */
 export async function getArtworkDetails(c: Context): Promise<Response> {
-  return c.json(createSuccessResponse({
-    artwork: null,
-    message: 'Artwork details endpoint temporarily simplified during schema migration'
-  }));
+  return c.json(
+    createSuccessResponse({
+      artwork: null,
+      message: 'Artwork details endpoint temporarily simplified during schema migration',
+    })
+  );
 }
 
 /**
@@ -239,13 +243,19 @@ export async function listArtworks(c: Context<{ Bindings: WorkerEnv }>): Promise
     const url = new URL(c.req.url);
     validatedQuery = {
       page: url.searchParams.get('page') ? parseInt(url.searchParams.get('page')!, 10) : undefined,
-      limit: url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit')!, 10) : undefined,
-      sort: url.searchParams.get('sort') as 'updated_desc' | 'title_asc' | 'created_desc' | undefined,
+      limit: url.searchParams.get('limit')
+        ? parseInt(url.searchParams.get('limit')!, 10)
+        : undefined,
+      sort: url.searchParams.get('sort') as
+        | 'updated_desc'
+        | 'title_asc'
+        | 'created_desc'
+        | undefined,
     };
   }
 
   const db = createDatabaseService(c.env.DB);
-  
+
   // Set defaults per PRD
   const page = Math.max(validatedQuery.page || 1, 1);
   const limit = Math.min(validatedQuery.limit || 30, 50);
@@ -257,7 +267,8 @@ export async function listArtworks(c: Context<{ Bindings: WorkerEnv }>): Promise
     let orderClause = '';
     switch (sort) {
       case 'title_asc':
-        orderClause = 'ORDER BY COALESCE(a.title, json_extract(a.tags, \'$.artwork_type\'), \'unknown\') ASC, a.created_at DESC';
+        orderClause =
+          "ORDER BY COALESCE(a.title, json_extract(a.tags, '$.artwork_type'), 'unknown') ASC, a.created_at DESC";
         break;
       case 'created_desc':
         orderClause = 'ORDER BY a.created_at DESC';
@@ -275,17 +286,20 @@ export async function listArtworks(c: Context<{ Bindings: WorkerEnv }>): Promise
       FROM artwork a
       WHERE a.status = 'approved'
     `;
-    
-    const countResult = await db.db.prepare(countQuery).first() as { total: number };
+
+    const countResult = (await db.db.prepare(countQuery).first()) as { total: number };
     const totalItems = countResult.total;
     const totalPages = Math.ceil(totalItems / limit);
 
     // Validate page number
     if (page > totalPages && totalItems > 0) {
-      return c.json({
-        error: 'Page not found',
-        message: `Page ${page} does not exist. Total pages: ${totalPages}`,
-      }, 404);
+      return c.json(
+        {
+          error: 'Page not found',
+          message: `Page ${page} does not exist. Total pages: ${totalPages}`,
+        },
+        404
+      );
     }
 
     // Get artworks with type information and primary artist
@@ -302,17 +316,23 @@ export async function listArtworks(c: Context<{ Bindings: WorkerEnv }>): Promise
       LIMIT ? OFFSET ?
     `;
 
-    const artworks = await db.db.prepare(artworksQuery)
-      .bind(limit, offset)
-      .all();
+    const artworks = await db.db.prepare(artworksQuery).bind(limit, offset).all();
 
     // Get photos for each artwork
     const artworksWithPhotos = await Promise.all(
-      (artworks.results as unknown as (ArtworkRecord & { type_name?: string; primary_artist_name?: string })[] || []).map(async (artwork) => {
+      (
+        (artworks.results as unknown as (ArtworkRecord & {
+          type_name?: string;
+          primary_artist_name?: string;
+        })[]) || []
+      ).map(async artwork => {
         // Get logbook entries for this artwork to find photos
-        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(
+          c.env.DB,
+          artwork.id
+        );
         const allPhotos: string[] = [];
-        
+
         logbookEntries.forEach(entry => {
           if (entry.photos) {
             const photos = safeJsonParse<string[]>(entry.photos, []);
@@ -322,7 +342,7 @@ export async function listArtworks(c: Context<{ Bindings: WorkerEnv }>): Promise
 
         // Use primary artist name from JOIN query, with fallback to tags
         let artistName = artwork.primary_artist_name || 'Unknown Artist';
-        
+
         // Fallback to tags if no artist found through relationships
         if (artistName === 'Unknown Artist' && artwork.tags) {
           const tags = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
@@ -432,29 +452,29 @@ export async function listArtists(c: Context<{ Bindings: WorkerEnv }>): Promise<
     const countQuery = validatedQuery.search
       ? `SELECT COUNT(*) as total FROM artists WHERE status = ? AND name LIKE ?`
       : `SELECT COUNT(*) as total FROM artists WHERE status = ?`;
-    
-    const countParams = validatedQuery.search
-      ? [status, `%${validatedQuery.search}%`]
-      : [status];
+
+    const countParams = validatedQuery.search ? [status, `%${validatedQuery.search}%`] : [status];
 
     const countStmt = db.db.prepare(countQuery);
-    const countResult = await countStmt.bind(...countParams).first() as { total: number };
+    const countResult = (await countStmt.bind(...countParams).first()) as { total: number };
     const totalItems = countResult?.total || 0;
     const totalPages = Math.ceil(totalItems / limit);
 
     // Format artists for API response
-    const formattedArtists: import('../../shared/types').ArtistApiResponse[] = artists.map(artist => ({
-      id: artist.id,
-      name: artist.name,
-      description: artist.description || '',
-      aliases: artist.aliases || null,
-      tags: artist.tags,
-      created_at: artist.created_at,
-      updated_at: artist.updated_at,
-      status: artist.status,
-      tags_parsed: safeJsonParse(artist.tags, {}),
-      artwork_count: artist.artwork_count || 0,
-    }));
+    const formattedArtists: import('../../shared/types').ArtistApiResponse[] = artists.map(
+      artist => ({
+        id: artist.id,
+        name: artist.name,
+        description: artist.description || '',
+        aliases: artist.aliases || null,
+        tags: artist.tags,
+        created_at: artist.created_at,
+        updated_at: artist.updated_at,
+        status: artist.status,
+        tags_parsed: safeJsonParse(artist.tags, {}),
+        artwork_count: artist.artwork_count || 0,
+      })
+    );
 
     const response: import('../../shared/types').ArtistIndexResponse = {
       totalItems,

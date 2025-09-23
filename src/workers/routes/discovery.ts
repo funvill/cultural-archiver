@@ -24,9 +24,9 @@ import { categorizeTagsForDisplay } from '../../shared/tag-display';
 import type { SimilarityQuery } from '../../shared/similarity';
 
 // Import new database patch for submissions compatibility
-import { 
+import {
   getLogbookEntriesForArtworkFromSubmissions,
-  getAllLogbookEntriesForArtworkFromSubmissions 
+  getAllLogbookEntriesForArtworkFromSubmissions,
 } from '../lib/database-patch.js';
 
 // Database result interfaces
@@ -90,50 +90,61 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
     // If minimal flag requested, short-circuit and return compact payload for map pins
     if (validatedQuery.minimal) {
       // For minimal mode, include a recent photo from artwork.photos, logbook entries, or artwork tags
-      const minimal = await Promise.all(artworks.map(async artwork => {
-        // Try artwork.photos first
-        let recentPhoto: string | null = null;
-        try {
-          if (artwork.photos) {
-            const parsed = safeJsonParse<string[]>(artwork.photos as unknown as string, []);
-            if (parsed.length > 0) recentPhoto = parsed[0] ?? null;
-          }
-        } catch {/* ignore parse errors */}
-
-        // If not found, check logbook entries (submissions)
-        if (!recentPhoto) {
+      const minimal = await Promise.all(
+        artworks.map(async artwork => {
+          // Try artwork.photos first
+          let recentPhoto: string | null = null;
           try {
-            const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
-            for (const entry of logbookEntries) {
-              if (entry.photos) {
-                const photos = safeJsonParse<string[]>(entry.photos, []);
-                if (photos.length > 0) {
-                  recentPhoto = photos[0] ?? null;
-                  break;
+            if (artwork.photos) {
+              const parsed = safeJsonParse<string[]>(artwork.photos as unknown as string, []);
+              if (parsed.length > 0) recentPhoto = parsed[0] ?? null;
+            }
+          } catch {
+            /* ignore parse errors */
+          }
+
+          // If not found, check logbook entries (submissions)
+          if (!recentPhoto) {
+            try {
+              const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(
+                c.env.DB,
+                artwork.id
+              );
+              for (const entry of logbookEntries) {
+                if (entry.photos) {
+                  const photos = safeJsonParse<string[]>(entry.photos, []);
+                  if (photos.length > 0) {
+                    recentPhoto = photos[0] ?? null;
+                    break;
+                  }
                 }
               }
+            } catch {
+              /* ignore logbook errors */
             }
-          } catch {/* ignore logbook errors */}
-        }
+          }
 
-        // If still not found, check artwork-level tags for _photos
-        if (!recentPhoto && artwork.tags) {
-          try {
-            const raw = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
-            if (raw && Array.isArray(raw._photos) && raw._photos.length > 0) {
-              if (typeof raw._photos[0] === 'string') recentPhoto = raw._photos[0];
+          // If still not found, check artwork-level tags for _photos
+          if (!recentPhoto && artwork.tags) {
+            try {
+              const raw = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
+              if (raw && Array.isArray(raw._photos) && raw._photos.length > 0) {
+                if (typeof raw._photos[0] === 'string') recentPhoto = raw._photos[0];
+              }
+            } catch {
+              /* ignore tag parse errors */
             }
-          } catch {/* ignore tag parse errors */}
-        }
+          }
 
-        return {
-          id: artwork.id,
-          lat: artwork.lat,
-          lon: artwork.lon,
-          type_name: artwork.type_name,
-          recent_photo: recentPhoto,
-        };
-      }));
+          return {
+            id: artwork.id,
+            lat: artwork.lat,
+            lon: artwork.lon,
+            type_name: artwork.type_name,
+            recent_photo: recentPhoto,
+          };
+        })
+      );
 
       const response = {
         artworks: minimal,
@@ -149,7 +160,10 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       artworks.map(async artwork => {
         // Get logbook entries for this artwork to find photos - UPDATED: using submissions
-        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(
+          c.env.DB,
+          artwork.id
+        );
 
         // Extract photos from logbook entries
         const combinedPhotos: string[] = [];
@@ -207,7 +221,10 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
             tags_parsed = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
           }
         } catch (e) {
-          console.warn('Failed to parse artwork tags for nearby API', { artwork_id: artwork.id, error: e });
+          console.warn('Failed to parse artwork tags for nearby API', {
+            artwork_id: artwork.id,
+            error: e,
+          });
         }
 
         return {
@@ -260,8 +277,11 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
           };
         });
 
-        const enhancedResults = similarityService.enhanceNearbyResults(query, artworksForSimilarity);
-        
+        const enhancedResults = similarityService.enhanceNearbyResults(
+          query,
+          artworksForSimilarity
+        );
+
         // Convert back to ArtworkWithPhotos format for response - merge properties
         enhancedArtworks = enhancedResults.map(enhanced => {
           const original = artworksWithPhotos.find(a => a.id === enhanced.id);
@@ -327,7 +347,12 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
     const artists = await db.getArtistsForArtwork(artworkId);
 
     // Get logbook entries for timeline with pagination - UPDATED: using submissions
-    const logbookEntries = await getLogbookEntriesForArtworkFromSubmissions(c.env.DB, artworkId, perPage, offset);
+    const logbookEntries = await getLogbookEntriesForArtworkFromSubmissions(
+      c.env.DB,
+      artworkId,
+      perPage,
+      offset
+    );
 
     // Format logbook entries with parsed photos (using inline type from ArtworkDetailResponse)
     const logbookEntriesWithPhotos: Array<{
@@ -371,7 +396,7 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
     // updateArtworkPhotos stores photos inside root JSON object under _photos key.
     try {
       if (artwork.tags) {
-  const raw = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
+        const raw = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
         if (raw && Array.isArray(raw._photos)) {
           for (const p of raw._photos) {
             if (typeof p === 'string' && !allPhotos.includes(p)) {
@@ -385,7 +410,11 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
     }
 
     // Parse artwork tags from structured format
-    const rawTagsFallback: StructuredTagsData = { tags: {}, version: '1.0.0', lastModified: new Date().toISOString() };
+    const rawTagsFallback: StructuredTagsData = {
+      tags: {},
+      version: '1.0.0',
+      lastModified: new Date().toISOString(),
+    };
     const structuredTags = safeJsonParse<StructuredTagsData>(artwork.tags || '{}', rawTagsFallback);
 
     // Defensive: some legacy rows may have plain JSON without wrapping { tags: {..} }
@@ -421,7 +450,7 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
 
     // Compute artist_name field using artists from database relationship
     let artistName = 'Unknown Artist';
-    
+
     // Check if we have artists from the database relationship
     if (artists && artists.length > 0) {
       // Use the first primary artist, or just the first artist if no primary found
@@ -453,7 +482,7 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
       // Continue without cooldown status if check fails
     }
 
-  const response: ArtworkDetailResponse = {
+    const response: ArtworkDetailResponse = {
       ...artwork,
       type_name: artwork.type_name,
       photos: allPhotos,
@@ -562,7 +591,10 @@ export async function searchArtworks(
     // Format results similar to nearby artworks
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       (results.results as unknown as ArtworkWithPhotos[]).map(async artwork => {
-        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(
+          c.env.DB,
+          artwork.id
+        );
 
         const allPhotos: string[] = [];
         logbookEntries.forEach(entry => {
@@ -615,7 +647,10 @@ export async function getPopularArtworks(
     // Format results
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       (results.results as unknown as ArtworkWithPhotos[]).map(async artwork => {
-        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(
+          c.env.DB,
+          artwork.id
+        );
 
         const allPhotos: string[] = [];
         logbookEntries.forEach(entry => {
@@ -665,7 +700,10 @@ export async function getRecentArtworks(
     // Format results
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       (results.results as unknown as ArtworkWithPhotos[]).map(async artwork => {
-        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(
+          c.env.DB,
+          artwork.id
+        );
 
         const allPhotos: string[] = [];
         logbookEntries.forEach(entry => {
@@ -718,7 +756,10 @@ export async function getArtworksInBounds(c: Context<{ Bindings: WorkerEnv }>): 
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       artworks.map(async (artwork: ArtworkRecord & { type_name: string; distance_km: number }) => {
         // Get logbook entries for this artwork to find photos
-        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(
+          c.env.DB,
+          artwork.id
+        );
 
         // Extract photos from logbook entries
         const allPhotos: string[] = [];
@@ -760,7 +801,9 @@ export async function getArtworksInBounds(c: Context<{ Bindings: WorkerEnv }>): 
  * POST /api/artworks/check-similarity - Check for Similar Artworks
  * Dedicated endpoint for the fast photo-first workflow to check for duplicates
  */
-export async function checkArtworkSimilarity(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+export async function checkArtworkSimilarity(
+  c: Context<{ Bindings: WorkerEnv }>
+): Promise<Response> {
   const validatedData = getValidatedData<{
     lat: number;
     lon: number;
@@ -788,13 +831,15 @@ export async function checkArtworkSimilarity(c: Context<{ Bindings: WorkerEnv }>
 
     // If no candidates, no duplicates possible
     if (candidates.length === 0) {
-      return c.json(createSuccessResponse({
-        has_similar_artworks: false,
-        high_similarity_count: 0,
-        warning_similarity_count: 0,
-        candidates: [],
-        similarity_service: null,
-      }));
+      return c.json(
+        createSuccessResponse({
+          has_similar_artworks: false,
+          high_similarity_count: 0,
+          warning_similarity_count: 0,
+          candidates: [],
+          similarity_service: null,
+        })
+      );
     }
 
     // Check for similarity using the similarity service
@@ -812,8 +857,8 @@ export async function checkArtworkSimilarity(c: Context<{ Bindings: WorkerEnv }>
     const similarityCandidates = candidates.map(artwork => ({
       id: artwork.id,
       coordinates: { lat: artwork.lat, lon: artwork.lon },
-  title: (artwork as ArtworkRecord & { title?: string }).title ?? null,
-  tags: (artwork as ArtworkRecord & { tags?: string | null }).tags ?? null, // JSON string format
+      title: (artwork as ArtworkRecord & { title?: string }).title ?? null,
+      tags: (artwork as ArtworkRecord & { tags?: string | null }).tags ?? null, // JSON string format
       type_name: artwork.type_name,
       distance_meters: Math.round(artwork.distance_km * 1000),
     }));
@@ -822,10 +867,14 @@ export async function checkArtworkSimilarity(c: Context<{ Bindings: WorkerEnv }>
 
     // Format candidates with photos for display
     const candidatesWithPhotos = await Promise.all(
-      candidates.slice(0, 5).map(async artwork => { // Limit to top 5 for performance
-        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
+      candidates.slice(0, 5).map(async artwork => {
+        // Limit to top 5 for performance
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(
+          c.env.DB,
+          artwork.id
+        );
         const allPhotos: string[] = [];
-        
+
         logbookEntries.forEach(entry => {
           if (entry.photos) {
             const photos = safeJsonParse<string[]>(entry.photos, []);
@@ -834,8 +883,13 @@ export async function checkArtworkSimilarity(c: Context<{ Bindings: WorkerEnv }>
         });
 
         // Find similarity result for this artwork
-        const allSimilarityResults = similarityService.calculateSimilarityScores(query, similarityCandidates);
-        const similarityResult = allSimilarityResults.find(result => result.artworkId === artwork.id);
+        const allSimilarityResults = similarityService.calculateSimilarityScores(
+          query,
+          similarityCandidates
+        );
+        const similarityResult = allSimilarityResults.find(
+          result => result.artworkId === artwork.id
+        );
 
         return {
           id: artwork.id,
@@ -849,15 +903,18 @@ export async function checkArtworkSimilarity(c: Context<{ Bindings: WorkerEnv }>
           // Similarity enhancements
           similarity_score: similarityResult?.overallScore,
           similarity_threshold: similarityResult?.threshold,
-          similarity_explanation: similarityResult ? getSimilarityExplanation(similarityResult) : undefined,
-          ...(validatedData.dev_mode && similarityResult && {
-            similarity_signals: similarityResult.signals.map(signal => ({
-              type: signal.type,
-              raw_score: signal.rawScore,
-              weighted_score: signal.weightedScore,
-              metadata: signal.metadata,
-            }))
-          })
+          similarity_explanation: similarityResult
+            ? getSimilarityExplanation(similarityResult)
+            : undefined,
+          ...(validatedData.dev_mode &&
+            similarityResult && {
+              similarity_signals: similarityResult.signals.map(signal => ({
+                type: signal.type,
+                raw_score: signal.rawScore,
+                weighted_score: signal.weightedScore,
+                metadata: signal.metadata,
+              })),
+            }),
         };
       })
     );
@@ -882,7 +939,7 @@ export async function checkArtworkSimilarity(c: Context<{ Bindings: WorkerEnv }>
     return c.json(createSuccessResponse(response));
   } catch (error) {
     console.error('Failed to check artwork similarity:', error);
-    
+
     // Graceful degradation - return basic nearby results without similarity
     try {
       const basicCandidates = await db.findNearbyArtworks(
@@ -928,9 +985,19 @@ export async function checkArtworkSimilarity(c: Context<{ Bindings: WorkerEnv }>
  * Helper function to generate similarity explanations
  * Extracted here to avoid circular dependencies
  */
-interface SimilaritySignalMeta { distanceMeters?: number; [key: string]: unknown }
-interface SimilaritySignal { type: string; rawScore: number; metadata?: SimilaritySignalMeta }
-function getSimilarityExplanation(result: { overallScore: number; signals: SimilaritySignal[] }): string {
+interface SimilaritySignalMeta {
+  distanceMeters?: number;
+  [key: string]: unknown;
+}
+interface SimilaritySignal {
+  type: string;
+  rawScore: number;
+  metadata?: SimilaritySignalMeta;
+}
+function getSimilarityExplanation(result: {
+  overallScore: number;
+  signals: SimilaritySignal[];
+}): string {
   const { overallScore, signals } = result;
   const explanations: string[] = [];
 
@@ -946,7 +1013,7 @@ function getSimilarityExplanation(result: { overallScore: number; signals: Simil
   }
 
   const scorePercent = Math.round(overallScore * 100);
-  return explanations.length > 0 
+  return explanations.length > 0
     ? `${scorePercent}% similar (${explanations.join(', ')})`
     : `${scorePercent}% similar`;
 }
@@ -973,13 +1040,19 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
     const url = new URL(c.req.url);
     validatedQuery = {
       page: url.searchParams.get('page') ? parseInt(url.searchParams.get('page')!, 10) : undefined,
-      limit: url.searchParams.get('limit') ? parseInt(url.searchParams.get('limit')!, 10) : undefined,
-      sort: url.searchParams.get('sort') as 'updated_desc' | 'title_asc' | 'created_desc' | undefined,
+      limit: url.searchParams.get('limit')
+        ? parseInt(url.searchParams.get('limit')!, 10)
+        : undefined,
+      sort: url.searchParams.get('sort') as
+        | 'updated_desc'
+        | 'title_asc'
+        | 'created_desc'
+        | undefined,
     };
   }
 
   const db = createDatabaseService(c.env.DB);
-  
+
   // Set defaults per PRD
   const page = Math.max(validatedQuery.page || 1, 1);
   const limit = Math.min(validatedQuery.limit || 30, 50);
@@ -991,7 +1064,8 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
     let orderClause = '';
     switch (sort) {
       case 'title_asc':
-        orderClause = 'ORDER BY COALESCE(a.title, json_extract(a.tags, \'$.artwork_type\'), \'unknown\') ASC, a.created_at DESC';
+        orderClause =
+          "ORDER BY COALESCE(a.title, json_extract(a.tags, '$.artwork_type'), 'unknown') ASC, a.created_at DESC";
         break;
       case 'created_desc':
         orderClause = 'ORDER BY a.created_at DESC';
@@ -1009,17 +1083,20 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
       FROM artwork a
       WHERE a.status = 'approved'
     `;
-    
-    const countResult = await db.db.prepare(countQuery).first() as { total: number };
+
+    const countResult = (await db.db.prepare(countQuery).first()) as { total: number };
     const totalItems = countResult.total;
     const totalPages = Math.ceil(totalItems / limit);
 
     // Validate page number
     if (page > totalPages && totalItems > 0) {
-      return c.json({
-        error: 'Page not found',
-        message: `Page ${page} does not exist. Total pages: ${totalPages}`,
-      }, 404);
+      return c.json(
+        {
+          error: 'Page not found',
+          message: `Page ${page} does not exist. Total pages: ${totalPages}`,
+        },
+        404
+      );
     }
 
     // Get artworks with type information and primary artist
@@ -1036,17 +1113,23 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
       LIMIT ? OFFSET ?
     `;
 
-    const artworks = await db.db.prepare(artworksQuery)
-      .bind(limit, offset)
-      .all();
+    const artworks = await db.db.prepare(artworksQuery).bind(limit, offset).all();
 
     // Get photos for each artwork
     const artworksWithPhotos = await Promise.all(
-      (artworks.results as unknown as (ArtworkRecord & { type_name?: string; primary_artist_name?: string })[] || []).map(async (artwork) => {
+      (
+        (artworks.results as unknown as (ArtworkRecord & {
+          type_name?: string;
+          primary_artist_name?: string;
+        })[]) || []
+      ).map(async artwork => {
         // Get logbook entries for this artwork to find photos
-        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(c.env.DB, artwork.id);
+        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(
+          c.env.DB,
+          artwork.id
+        );
         const allPhotos: string[] = [];
-        
+
         logbookEntries.forEach(entry => {
           if (entry.photos) {
             const photos = safeJsonParse<string[]>(entry.photos, []);
@@ -1056,7 +1139,7 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
 
         // Use primary artist name from JOIN query, with fallback to tags
         let artistName = artwork.primary_artist_name || 'Unknown Artist';
-        
+
         // Fallback to tags if no artist found through relationships
         if (artistName === 'Unknown Artist' && artwork.tags) {
           const tags = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
@@ -1080,11 +1163,11 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
           photos: allPhotos,
           tags_parsed: safeJsonParse(artwork.tags, {}),
           // Add derived fields for card display
-          recent_photo: (() : string | null => {
+          recent_photo: ((): string | null => {
             if (allPhotos.length > 0) {
               const photo = allPhotos[0];
               if (photo) {
-                return (photo.startsWith('http') || photo.startsWith('/photos/'))
+                return photo.startsWith('http') || photo.startsWith('/photos/')
                   ? photo
                   : `/photos/${photo}`;
               }

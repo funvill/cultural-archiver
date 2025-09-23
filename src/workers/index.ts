@@ -39,7 +39,11 @@ import {
 import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
 // Import route handlers
-import { createSubmission, createFastArtworkSubmission, createUnifiedSubmission } from './routes/submissions';
+import {
+  createSubmission,
+  createFastArtworkSubmission,
+  createUnifiedSubmission,
+} from './routes/submissions';
 import {
   getNearbyArtworks,
   getArtworkDetails,
@@ -48,16 +52,34 @@ import {
   getArtworkStats,
   getArtworksList,
 } from './routes/discovery';
-import { submitArtworkEdit, getUserPendingEdits, validateArtworkEdit, exportArtworkToOSM } from './routes/artwork';
-import { 
-  getArtistsList, 
-  getArtistProfile, 
-  createArtist, 
-  submitArtistEdit, 
-  getUserPendingArtistEdits 
+import {
+  submitArtworkEdit,
+  getUserPendingEdits,
+  validateArtworkEdit,
+  exportArtworkToOSM,
+} from './routes/artwork';
+import {
+  getArtistsList,
+  getArtistProfile,
+  createArtist,
+  submitArtistEdit,
+  getUserPendingArtistEdits,
 } from './routes/artists';
 import { bulkExportToOSM, getExportStats } from './routes/export';
-import { getUserSubmissions, getUserProfile, sendTestEmail, getAllBadges, getUserBadges, updateProfileName, checkProfileNameAvailability, getPublicUserProfile, getUserNotifications, getUserNotificationUnreadCount, dismissUserNotification, markUserNotificationRead } from './routes/user';
+import {
+  getUserSubmissions,
+  getUserProfile,
+  sendTestEmail,
+  getAllBadges,
+  getUserBadges,
+  updateProfileName,
+  checkProfileNameAvailability,
+  getPublicUserProfile,
+  getUserNotifications,
+  getUserNotificationUnreadCount,
+  dismissUserNotification,
+  markUserNotificationRead,
+} from './routes/user';
 import { handleSearchRequest, handleSearchSuggestions } from './routes/search';
 import { processMassImportPhotos } from './routes/mass-import-photos';
 import { processMassImport } from './routes/mass-import';
@@ -866,11 +888,7 @@ app.get(
 app.get('/api/badges', withErrorHandling(getAllBadges));
 
 // User badge endpoints (require email verification)
-app.get(
-  '/api/me/badges',
-  addUserTokenToResponse,
-  withErrorHandling(getUserBadges)
-);
+app.get('/api/me/badges', addUserTokenToResponse, withErrorHandling(getUserBadges));
 
 // Profile management endpoints (require email verification)
 app.patch(
@@ -937,7 +955,11 @@ app.post('/api/test-email', withErrorHandling(sendTestEmail));
 app.post('/api/mass-import/v2', withErrorHandling(processMassImportV2)); // NEW V2 endpoint for CLI plugin system
 app.post('/api/mass-import', withErrorHandling(processMassImport)); // Legacy V1 endpoint
 app.post('/api/mass-import/submit', withErrorHandling(processMassImportPhotos)); // JSON endpoint for photo URLs
-app.post('/api/mass-import/photos', validateFileUploads, withErrorHandling(processMassImportPhotos)); // Keep for backward compatibility
+app.post(
+  '/api/mass-import/photos',
+  validateFileUploads,
+  withErrorHandling(processMassImportPhotos)
+); // Keep for backward compatibility
 app.post('/api/mass-import/osm', withErrorHandling(handleOSMImport)); // OSM GeoJSON mass import
 app.post('/api/mass-import/osm/validate', withErrorHandling(handleOSMValidate)); // OSM validation endpoint
 
@@ -991,7 +1013,6 @@ app.post(
   addUserTokenToResponse,
   withErrorHandling(requestMagicLink)
 );
-
 
 // Development helper endpoint (Resend fallback)
 app.get('/api/auth/dev-magic-link', withErrorHandling(getDevMagicLink));
@@ -1115,7 +1136,12 @@ app.get('/p/artwork/:id', validateUUID('id'), async c => {
 // ================================
 
 // Keep some legacy endpoints for backwards compatibility
-app.get('/api/artworks', rateLimitQueries, validateSchema(artworkListSchema, 'query'), withErrorHandling(getArtworksList));
+app.get(
+  '/api/artworks',
+  rateLimitQueries,
+  validateSchema(artworkListSchema, 'query'),
+  withErrorHandling(getArtworksList)
+);
 
 app.get('/api/logbook', async c => {
   // Redirect to user submissions

@@ -10,7 +10,7 @@ export class LocationCacheService {
   constructor(dbPath?: string) {
     // Default to _data/location-cache.sqlite
     this.dbPath = dbPath || path.join(process.cwd(), '_data', 'location-cache.sqlite');
-    
+
     // Ensure directory exists
     const dbDir = path.dirname(this.dbPath);
     if (!fs.existsSync(dbDir)) {
@@ -132,7 +132,7 @@ export class LocationCacheService {
     return {
       totalEntries: countResult.count,
       oldestEntry: oldestResult.oldest,
-      newestEntry: newestResult.newest
+      newestEntry: newestResult.newest,
     };
   }
 
@@ -169,7 +169,7 @@ export class LocationCacheService {
       road: record.road,
       postcode: record.postcode,
       source: 'cache',
-      last_updated: record.created_at
+      last_updated: record.created_at,
     };
   }
 

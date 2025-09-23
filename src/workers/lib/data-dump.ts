@@ -157,8 +157,8 @@ export async function filterApprovedArtwork(db: D1Database): Promise<{
       throw new Error('Failed to query approved artwork');
     }
 
-    const artworks: ExportArtworkData[] = (artworkQuery.results as Array<
-      {
+    const artworks: ExportArtworkData[] = (
+      artworkQuery.results as Array<{
         id: string;
         lat: number;
         lon: number;
@@ -167,8 +167,8 @@ export async function filterApprovedArtwork(db: D1Database): Promise<{
         tags?: string | null;
         photos?: string | null;
         type_name?: string | null;
-      }
-    >).map((row) => {
+      }>
+    ).map(row => {
       const artwork: ExportArtworkData = {
         id: row.id,
         lat: row.lat,
@@ -267,7 +267,9 @@ export async function exportArtworkAsJSON(db: D1Database): Promise<{
     }
 
     // Sanitize all artwork data
-  const sanitizedArtworks = result.artworks!.map(artwork => sanitizeUserData(artwork as unknown as Record<string, unknown>));
+    const sanitizedArtworks = result.artworks!.map(artwork =>
+      sanitizeUserData(artwork as unknown as Record<string, unknown>)
+    );
 
     const jsonContent = JSON.stringify(sanitizedArtworks, null, 2);
     console.log(`[DATA_DUMP] Exported ${result.total_count} artworks as JSON`);
@@ -324,9 +326,14 @@ export async function exportCreatorsAsJSON(db: D1Database): Promise<{
       throw new Error('Failed to query creators');
     }
 
-    const creators: ExportCreatorData[] = (creatorsQuery.results as Array<{
-      id: string; name: string; bio?: string | null; created_at: string;
-    }>).map((row) => {
+    const creators: ExportCreatorData[] = (
+      creatorsQuery.results as Array<{
+        id: string;
+        name: string;
+        bio?: string | null;
+        created_at: string;
+      }>
+    ).map(row => {
       const creator: ExportCreatorData = {
         id: row.id,
         name: row.name,
@@ -337,7 +344,9 @@ export async function exportCreatorsAsJSON(db: D1Database): Promise<{
     });
 
     // Sanitize creator data (though typically no sensitive fields)
-  const sanitizedCreators = creators.map(creator => sanitizeUserData(creator as unknown as Record<string, unknown>));
+    const sanitizedCreators = creators.map(creator =>
+      sanitizeUserData(creator as unknown as Record<string, unknown>)
+    );
 
     const jsonContent = JSON.stringify(sanitizedCreators, null, 2);
     console.log(`[DATA_DUMP] Exported ${creators.length} creators as JSON`);
@@ -405,7 +414,10 @@ export async function exportTagsAsJSON(db: D1Database): Promise<{
           if (value === undefined || value === null) continue;
           // Skip internal keys
           if (label.startsWith('_')) continue;
-          const valStr = Array.isArray(value) || typeof value === 'object' ? JSON.stringify(value) : String(value);
+          const valStr =
+            Array.isArray(value) || typeof value === 'object'
+              ? JSON.stringify(value)
+              : String(value);
           const key = `${label}::${valStr}`;
           if (!tagSet.has(key)) {
             tagSet.set(key, {
@@ -421,8 +433,8 @@ export async function exportTagsAsJSON(db: D1Database): Promise<{
       }
     };
 
-    (artworkWithTags.results as Row[]).forEach((row) => addFromRow(row, 'artwork'));
-    (artistsWithTags.results as Row[]).forEach((row) => addFromRow(row, 'artist'));
+    (artworkWithTags.results as Row[]).forEach(row => addFromRow(row, 'artwork'));
+    (artistsWithTags.results as Row[]).forEach(row => addFromRow(row, 'artist'));
 
     const tags: ExportTagData[] = Array.from(tagSet.values()).sort((a, b) => {
       if (a.label === b.label) return a.value.localeCompare(b.value);
@@ -430,7 +442,9 @@ export async function exportTagsAsJSON(db: D1Database): Promise<{
     });
 
     // Sanitize tag data
-    const sanitizedTags = tags.map((tag) => sanitizeUserData(tag as unknown as Record<string, unknown>));
+    const sanitizedTags = tags.map(tag =>
+      sanitizeUserData(tag as unknown as Record<string, unknown>)
+    );
 
     const jsonContent = JSON.stringify(sanitizedTags, null, 2);
     console.log(`[DATA_DUMP] Exported ${tags.length} tags as JSON (from JSON fields)`);
@@ -479,19 +493,24 @@ export async function exportArtworkCreatorsAsJSON(db: D1Database): Promise<{
       throw new Error('Failed to query artwork-creator relationships');
     }
 
-    const relationships: ExportArtworkCreatorData[] = (relationshipsQuery.results as Array<{
-      artwork_id: string; creator_id: string; role: string; created_at: string;
-    }>).map(
-      (row) => ({
-        artwork_id: row.artwork_id,
-        creator_id: row.creator_id,
-        role: row.role,
-        created_at: row.created_at,
-      })
-    );
+    const relationships: ExportArtworkCreatorData[] = (
+      relationshipsQuery.results as Array<{
+        artwork_id: string;
+        creator_id: string;
+        role: string;
+        created_at: string;
+      }>
+    ).map(row => ({
+      artwork_id: row.artwork_id,
+      creator_id: row.creator_id,
+      role: row.role,
+      created_at: row.created_at,
+    }));
 
     // Sanitize relationship data
-  const sanitizedRelationships = relationships.map(rel => sanitizeUserData(rel as unknown as Record<string, unknown>));
+    const sanitizedRelationships = relationships.map(rel =>
+      sanitizeUserData(rel as unknown as Record<string, unknown>)
+    );
 
     const jsonContent = JSON.stringify(sanitizedRelationships, null, 2);
     console.log(

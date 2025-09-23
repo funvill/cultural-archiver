@@ -76,7 +76,7 @@ describe('ServerTagValidationService', () => {
       const result = service.validateTags(invalidTags);
 
       expect(result.valid).toBe(false);
-      
+
       const artworkTypeError = result.errors.find(e => e.key === 'artwork_type');
       expect(artworkTypeError?.suggestions).toBeDefined();
       expect(artworkTypeError?.suggestions?.some(s => s.includes('Valid values:'))).toBe(true);
@@ -111,7 +111,7 @@ describe('ServerTagValidationService', () => {
     it('should validate enum values strictly', () => {
       // Valid enum
       expect(service.validateSingleTag('access', 'yes').isValid).toBe(true);
-      
+
       // Invalid enum
       expect(service.validateSingleTag('access', 'maybe').isValid).toBe(false);
     });
@@ -119,10 +119,10 @@ describe('ServerTagValidationService', () => {
     it('should validate numbers with range checking', () => {
       // Valid number
       expect(service.validateSingleTag('height', 5.5).isValid).toBe(true);
-      
+
       // Invalid: negative
       expect(service.validateSingleTag('height', -1).isValid).toBe(false);
-      
+
       // Invalid: too large
       expect(service.validateSingleTag('height', 300).isValid).toBe(false);
     });
@@ -131,7 +131,7 @@ describe('ServerTagValidationService', () => {
       expect(service.validateSingleTag('start_date', '2023').isValid).toBe(true);
       expect(service.validateSingleTag('start_date', '2023-07').isValid).toBe(true);
       expect(service.validateSingleTag('start_date', '2023-07-15').isValid).toBe(true);
-      
+
       // Invalid formats
       expect(service.validateSingleTag('start_date', '23').isValid).toBe(false);
       expect(service.validateSingleTag('start_date', '2023-13').isValid).toBe(false);
@@ -140,12 +140,12 @@ describe('ServerTagValidationService', () => {
     it('should validate URLs', () => {
       expect(service.validateSingleTag('website', 'https://example.com').isValid).toBe(true);
       expect(service.validateSingleTag('website', 'http://example.org').isValid).toBe(true);
-      
+
       // Should warn about HTTP
       const httpResult = service.validateSingleTag('website', 'http://example.com');
       expect(httpResult.isValid).toBe(true);
       expect(httpResult.warnings.length).toBeGreaterThan(0);
-      
+
       // Invalid URLs
       expect(service.validateSingleTag('website', 'not-a-url').isValid).toBe(false);
     });
@@ -153,7 +153,7 @@ describe('ServerTagValidationService', () => {
     it('should validate yes/no values', () => {
       expect(service.validateSingleTag('fee', 'yes').isValid).toBe(true);
       expect(service.validateSingleTag('fee', 'no').isValid).toBe(true);
-      
+
       // Invalid
       expect(service.validateSingleTag('fee', 'maybe').isValid).toBe(false);
       expect(service.validateSingleTag('fee', 'true').isValid).toBe(false);
@@ -221,7 +221,7 @@ describe('ServerTagValidationService', () => {
       const result = service.validateForArtworkEdit(oldTags, newTags);
 
       expect(result.valid).toBe(true);
-      
+
       // Should have warning about changing core identification tag
       const hasArtworkTypeWarning = result.warnings.some(w => w.message.includes('Artwork Type'));
       expect(hasArtworkTypeWarning).toBe(true);
@@ -283,7 +283,7 @@ describe('ServerTagValidationService', () => {
       const result = service.validateTags(invalidTags);
 
       expect(result.valid).toBe(false);
-      
+
       // Check that validation fails for invalid values, not missing required tags
       const artworkTypeError = result.errors.find(e => e.key === 'artwork_type');
       expect(artworkTypeError?.code).toBe('invalid_enum');
@@ -324,7 +324,9 @@ describe('ServerTagValidationService', () => {
       // Test with various malformed inputs
       expect(() => service.validateTags(null as unknown as StructuredTags)).not.toThrow();
       expect(() => service.validateTags(undefined as unknown as StructuredTags)).not.toThrow();
-      expect(() => service.validateTags('not an object' as unknown as StructuredTags)).not.toThrow();
+      expect(() =>
+        service.validateTags('not an object' as unknown as StructuredTags)
+      ).not.toThrow();
     });
 
     it('should provide consistent validation between single and batch validation', () => {

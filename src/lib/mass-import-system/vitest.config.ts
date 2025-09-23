@@ -9,21 +9,17 @@ export default defineConfig({
     coverage: {
       reporter: ['text', 'html'],
       include: ['src/**/*.ts'],
-      exclude: [
-        'test/**',
-        'src/types/**',
-        'src/**/*.d.ts'
-      ]
+      exclude: ['test/**', 'src/types/**', 'src/**/*.d.ts'],
     },
     setupFiles: [],
-    testTimeout: 10000
+    testTimeout: 10000,
   },
   esbuild: {
-    target: 'node18'
+    target: 'node18',
   },
   resolve: {
     alias: {
-      '@': '/src'
-    }
-  }
+      '@': '/src',
+    },
+  },
 });

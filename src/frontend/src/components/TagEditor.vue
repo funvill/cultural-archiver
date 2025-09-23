@@ -95,8 +95,11 @@ const currentTagError = computed(() => {
 });
 
 const tagsByCategory = computed(() => {
-  const result: Record<string, Array<{ key: string; value: string; definition: TagDefinition }>> = {};
-  
+  const result: Record<
+    string,
+    Array<{ key: string; value: string; definition: TagDefinition }>
+  > = {};
+
   categories.value.forEach((category: any) => {
     result[category.key] = [];
   });
@@ -112,16 +115,16 @@ const tagsByCategory = computed(() => {
         categoryArray.push({ key, value: String(value), definition });
       }
     } else {
-      result.other.push({ 
-        key, 
-        value: String(value), 
+      result.other.push({
+        key,
+        value: String(value),
         definition: {
           key,
           label: key,
           description: 'Unknown tag',
           category: 'other',
           dataType: 'text' as const,
-        } as TagDefinition
+        } as TagDefinition,
       });
     }
   }
@@ -179,7 +182,7 @@ function selectTagKey(key: string) {
   tagValue.value = '';
   showDropdown.value = false;
   clearValidationError(key);
-  
+
   nextTick(() => {
     valueInputRef.value?.focus();
   });
@@ -192,7 +195,7 @@ function addTag() {
   }
 
   const validation = validateTagValue(selectedTagKey.value, valueStr);
-  
+
   if (!validation.valid) {
     setValidationError(selectedTagKey.value, validation.error || 'Invalid value');
     return;
@@ -229,7 +232,7 @@ function setValidationError(key: string, error: string) {
 
 function clearValidationError(key: string) {
   if (!key) return;
-  
+
   const errors = { ...validationErrors.value };
   delete errors[key];
   validationErrors.value = errors;
@@ -271,7 +274,12 @@ function startEditingTag(key: string, currentValue: any) {
   isEditingTag.value = true;
   editingTagKey.value = key;
   selectedTagKey.value = key;
-  tagValue.value = currentValue == null ? '' : (typeof currentValue === 'string' ? currentValue : String(currentValue));
+  tagValue.value =
+    currentValue == null
+      ? ''
+      : typeof currentValue === 'string'
+        ? currentValue
+        : String(currentValue);
   showDropdown.value = true;
   nextTick(() => valueInputRef.value?.focus());
 }
@@ -292,7 +300,7 @@ function updateTag() {
   }
 
   const validation = validateTagValue(selectedTagKey.value, valueStr);
-  
+
   if (!validation.valid) {
     setValidationError(selectedTagKey.value, validation.error || 'Invalid value');
     return;
@@ -334,9 +342,7 @@ defineExpose({
     <!-- Header -->
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-lg font-semibold text-gray-900">Tags</h3>
-      <div class="text-sm text-gray-500">
-        {{ Object.keys(tags).length }}/{{ maxTags }} tags
-      </div>
+      <div class="text-sm text-gray-500">{{ Object.keys(tags).length }}/{{ maxTags }} tags</div>
     </div>
 
     <!-- Empty state -->
@@ -362,7 +368,7 @@ defineExpose({
       <p class="text-sm text-gray-500 mb-4">
         Add structured metadata to help others discover and learn about this artwork.
       </p>
-      
+
       <!-- Example tags -->
       <div class="text-left max-w-md mx-auto mb-6">
         <p class="text-xs font-medium text-gray-700 mb-2">Try adding tags like these:</p>
@@ -376,7 +382,7 @@ defineExpose({
           </span>
         </div>
       </div>
-      
+
       <button
         v-if="!disabled && canAddMoreTags"
         @click="startAddingTag"
@@ -404,7 +410,7 @@ defineExpose({
         <h4 class="font-medium text-gray-900 mb-3">
           {{ getCategoryLabel(categoryKey) }}
         </h4>
-        
+
         <!-- Full-row display for tags -->
         <div class="space-y-2">
           <div
@@ -417,10 +423,12 @@ defineExpose({
             <div class="flex-1 min-w-0">
               <div class="flex items-baseline gap-2">
                 <span class="text-sm font-bold text-gray-900">{{ tag.definition.label }}:</span>
-                <span class="text-sm text-gray-600">{{ formatValueForDisplay(tag.key, tag.value) }}</span>
+                <span class="text-sm text-gray-600">{{
+                  formatValueForDisplay(tag.key, tag.value)
+                }}</span>
               </div>
             </div>
-            
+
             <button
               v-if="!disabled"
               @click.stop="removeTag(tag.key)"
@@ -465,7 +473,9 @@ defineExpose({
                   :label="category.label"
                 >
                   <option
-                    v-for="tagDef in getTagsByCategory(category.key).filter(def => !tags.hasOwnProperty(def.key))"
+                    v-for="tagDef in getTagsByCategory(category.key).filter(
+                      def => !tags.hasOwnProperty(def.key)
+                    )"
                     :key="tagDef.key"
                     :value="tagDef.key"
                   >
@@ -488,7 +498,7 @@ defineExpose({
                 {{ selectedTagDefinition.label }}
                 <span v-if="selectedTagDefinition.required" class="text-red-500">*</span>
               </label>
-              
+
               <!-- Different input types based on data type -->
               <select
                 v-if="selectedTagDefinition.dataType === 'enum'"
@@ -532,7 +542,7 @@ defineExpose({
                 :class="{ 'border-red-300 bg-red-50': currentTagError }"
                 @keypress="handleKeyPress"
               />
-              
+
               <!-- URL input -->
               <input
                 v-else-if="selectedTagDefinition.dataType === 'url'"
@@ -544,7 +554,7 @@ defineExpose({
                 :class="{ 'border-red-300 bg-red-50': currentTagError }"
                 @keypress="handleKeyPress"
               />
-              
+
               <!-- Text input -->
               <input
                 v-else
@@ -568,7 +578,12 @@ defineExpose({
                   aria-label="Learn more (opens in new window)"
                 >
                   Learn more
-                  <svg class="inline h-3 w-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg
+                    class="inline h-3 w-3 ml-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path
                       stroke-linecap="round"
                       stroke-linejoin="round"
@@ -617,7 +632,9 @@ defineExpose({
     <!-- Screen reader announcements -->
     <div aria-live="polite" aria-atomic="true" class="sr-only">
       <span v-if="Object.keys(tags).length === 1">1 tag added</span>
-      <span v-else-if="Object.keys(tags).length > 1">{{ Object.keys(tags).length }} tags added</span>
+      <span v-else-if="Object.keys(tags).length > 1"
+        >{{ Object.keys(tags).length }} tags added</span
+      >
     </div>
   </div>
 </template>

@@ -1,6 +1,6 @@
 /**
  * Tag Display Utilities
- * 
+ *
  * Utilities for formatting and categorizing tags for display purposes
  */
 
@@ -10,7 +10,9 @@ import { getCategoriesOrderedForDisplay, getTagDefinition } from './tag-schema';
  * Categorize tags by their schema category for display
  * Returns tags organized by category with an "Other" category for uncategorized tags
  */
-export function categorizeTagsForDisplay(tags: Record<string, string>): Record<string, Array<{ key: string; value: string; label: string }>> {
+export function categorizeTagsForDisplay(
+  tags: Record<string, string>
+): Record<string, Array<{ key: string; value: string; label: string }>> {
   const categories = getCategoriesOrderedForDisplay();
   const result: Record<string, Array<{ key: string; value: string; label: string }>> = {};
 

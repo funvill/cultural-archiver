@@ -24,13 +24,13 @@ import { testEnvironment } from './test-utils.js';
 const mockImporter = testEnvironment.createMockImporter('TestImporter', {
   mockData: generateTestRawData(5),
   shouldFailValidation: false,
-  shouldThrowError: false
+  shouldThrowError: false,
 });
 
 // Create mock exporter
 const mockExporter = testEnvironment.createMockExporter('TestExporter', {
   outputType: 'file',
-  requiresNetwork: false
+  requiresNetwork: false,
 });
 ```
 
@@ -90,8 +90,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/test/**/*.test.ts'],
-    testTimeout: 10000
-  }
+    testTimeout: 10000,
+  },
 });
 ```
 
@@ -124,7 +124,7 @@ Test data flow through the system:
 test('should process data correctly', async () => {
   const testData = generateTestRawData(5);
   const importer = testEnvironment.createMockImporter('Test', { mockData: testData });
-  
+
   const result = await importer.mapData({}, {});
   expect(result).toHaveLength(5);
 });
@@ -141,9 +141,9 @@ Verify graceful error handling:
 ```typescript
 test('should handle errors gracefully', async () => {
   const errorPlugin = testEnvironment.createMockImporter('Error', {
-    shouldThrowError: true
+    shouldThrowError: true,
   });
-  
+
   await expect(errorPlugin.mapData({}, {})).rejects.toThrow();
 });
 ```
@@ -161,10 +161,10 @@ test('should maintain data integrity', async () => {
   const originalData = generateTestRawData(3);
   const importer = testEnvironment.createMockImporter('Test', { mockData: originalData });
   const exporter = testEnvironment.createMockExporter('Test');
-  
+
   const imported = await importer.mapData({}, {});
   await exporter.export(imported, {});
-  
+
   const exported = exporter.getExportedData();
   expect(exported).toEqual(originalData);
 });
@@ -211,8 +211,12 @@ testData.forEach(data => {
 
 ```typescript
 // Test both success and failure paths
-test('success case', async () => { /* ... */ });
-test('error case', async () => { /* ... */ });
+test('success case', async () => {
+  /* ... */
+});
+test('error case', async () => {
+  /* ... */
+});
 ```
 
 ### 4. Configuration Testing
@@ -221,7 +225,7 @@ test('error case', async () => { /* ... */ });
 test('should handle configuration', async () => {
   const config = { outputPath: '/custom/path' };
   await exporter.configure(config);
-  
+
   const actualConfig = exporter.getExportConfig();
   expect(actualConfig.outputPath).toBe('/custom/path');
 });
@@ -234,7 +238,7 @@ test('should handle configuration', async () => {
 ```typescript
 // Enable verbose logging for debugging
 const mockExporter = testEnvironment.createMockExporter('Debug', {
-  verbose: true
+  verbose: true,
 });
 ```
 

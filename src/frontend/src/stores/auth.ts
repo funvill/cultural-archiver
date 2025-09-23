@@ -26,7 +26,7 @@ export const useAuthStore = defineStore('auth', () => {
       permissions.value.includes('admin') ||
       (user.value?.isModerator ?? false)
   );
-  
+
   const canReview = computed(() => isModerator.value || isAdmin.value);
   const isEmailVerified = computed(() => user.value?.emailVerified ?? false);
 

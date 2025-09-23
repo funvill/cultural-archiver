@@ -1,9 +1,11 @@
 # Logbook System Removal Progress
 
 ## Overview
+
 The logbook table and related functionality has been migrated to a unified submissions system. However, extensive references to the old logbook system remain throughout the codebase and need to be systematically removed or updated.
 
 ## Background
+
 - **Database Change**: The `logbook` table was removed and replaced with a unified `submissions` table
 - **Type Unification**: LogbookRecord, UserSubmissionInfo, and TagRecord were unified into SubmissionRecord
 - **API Evolution**: Endpoints that previously used logbook-specific logic now use the submissions system
@@ -12,7 +14,8 @@ The logbook table and related functionality has been migrated to a unified submi
 ## Research Findings
 
 ### 1. Backend API References (src/workers/)
-- **Main Router** (`src/workers/index.ts`): 
+
+- **Main Router** (`src/workers/index.ts`):
   - Imports `createLogbookSubmission` and `validateLogbookFormData`
   - Defines `/api/logbook` POST and GET endpoints
   - Contains legacy logbook count queries in user stats
@@ -34,6 +37,7 @@ The logbook table and related functionality has been migrated to a unified submi
   - Multiple test files contain logbook-related assertions
 
 ### 2. Frontend Components (src/frontend/)
+
 - **API Service** (`src/frontend/src/services/api.ts`):
   - Defines `LogbookSubmission` interface
   - Makes POST requests to `/api/logbook` endpoint
@@ -47,16 +51,19 @@ The logbook table and related functionality has been migrated to a unified submi
   - Multiple views may reference logbook functionality through the timeline component
 
 ### 3. Database Documentation
+
 - `docs/database.md`: Contains references to old logbook table and schema
 - Migration documentation may reference logbook table structure
 
 ### 4. Configuration and Types
+
 - `src/shared/types.ts`: May contain legacy logbook type definitions
 - `src/workers/types.ts`: Contains LogbookSubmissionRequest and related types
 
 ## Removal Plan
 
 ### Phase 1: Backend API Cleanup ✅ PLANNED
+
 1. **Update Route Names and Documentation**
    - [ ] Rename `/api/logbook` to `/api/submissions` or similar
    - [ ] Update route handler documentation in submissions.ts
@@ -84,6 +91,7 @@ The logbook table and related functionality has been migrated to a unified submi
    - [ ] Remove `submission_type = 'logbook'` filters
 
 ### Phase 2: Frontend Component Migration ✅ PLANNED
+
 1. **Update API Service**
    - [ ] Rename `LogbookSubmission` interface → `Submission`
    - [ ] Update POST endpoint from `/api/logbook` to new endpoint
@@ -101,6 +109,7 @@ The logbook table and related functionality has been migrated to a unified submi
    - [ ] Update component props and event handling
 
 ### Phase 3: Test Updates ✅ PLANNED
+
 1. **Update Test Files**
    - [ ] Update consent test file to use submissions terminology
    - [ ] Remove references to logbook table in mock database
@@ -113,6 +122,7 @@ The logbook table and related functionality has been migrated to a unified submi
    - [ ] Update test database schemas
 
 ### Phase 4: Documentation Updates ✅ PLANNED
+
 1. **Database Documentation**
    - [ ] Remove logbook table references from docs/database.md
    - [ ] Update schema documentation to reflect submissions table
@@ -129,6 +139,7 @@ The logbook table and related functionality has been migrated to a unified submi
    - [ ] Update README files if they reference logbook
 
 ### Phase 5: Final Cleanup ✅ PLANNED
+
 1. **Search and Replace Verification**
    - [ ] Perform comprehensive search for remaining "logbook" references
    - [ ] Check for capitalization variants (Logbook, LOGBOOK)
@@ -147,11 +158,13 @@ The logbook table and related functionality has been migrated to a unified submi
 ## Progress Tracking
 
 ### Completed Tasks
+
 - [✅] Research phase: Identified all logbook references throughout the codebase
 - [✅] Plan creation: Documented comprehensive removal strategy
 - [🔄] **Phase 1 PARTIALLY COMPLETED**: Backend API Cleanup - Major renaming completed but 74+ TypeScript errors remain
 
 #### Phase 1 Completed Work:
+
 - [✅] **Validation Schema Renaming**: `logbookSubmissionSchema` → `submissionSchema`
 - [✅] **Validation Function Renaming**: `validateLogbookSubmission` → `validateSubmission`, `validateLogbookFormData` → `validateSubmissionFormData`
 - [✅] **Type Definition Updates**: `LogbookSubmissionRequest` → `SubmissionRequest`, `LogbookSubmissionResponse` → `SubmissionResponse`, `CreateLogbookEntryRequest` → `CreateSubmissionEntryRequest`
@@ -160,9 +173,11 @@ The logbook table and related functionality has been migrated to a unified submi
 - [✅] **Route Handler Updates**: Updated function calls in POST /api/logbook route
 
 ### In Progress
+
 - [🔄] **Phase 1: Backend API Cleanup** - 74+ TypeScript errors remaining in backend build
 
 #### Remaining Phase 1 Work:
+
 1. **Critical Backend Errors** (74+ errors to fix):
    - `lib/database.ts`: Still uses LogbookRecord return types
    - `lib/submissions.ts`: Missing type definitions (NewArtworkRecord, NewArtistRecord, reviewer_token field)
@@ -179,6 +194,7 @@ The logbook table and related functionality has been migrated to a unified submi
    - Rename `/api/logbook` → `/api/submissions` (requires frontend coordination)
 
 ### Blocked/Issues
+
 - **Backend Build Failing**: 74 TypeScript errors prevent progress to subsequent phases
 - **Type System Inconsistency**: Multiple files reference obsolete types that need unified SubmissionRecord usage
 - **Complex Dependencies**: Mass import system has extensive type dependencies that need careful updating
@@ -186,11 +202,13 @@ The logbook table and related functionality has been migrated to a unified submi
 ## Risk Assessment
 
 ### High Risk Items
+
 1. **LogbookTimeline.vue Component**: Complex component (431 lines) that may be deeply integrated
 2. **API Endpoint Changes**: Frontend and backend must be updated in sync
 3. **Test Database Mocks**: Need to ensure test mocks reflect new schema
 
 ### Mitigation Strategies
+
 1. Work in phases to maintain buildable state
 2. Update imports and references systematically
 3. Test each phase before proceeding to next
@@ -199,6 +217,7 @@ The logbook table and related functionality has been migrated to a unified submi
 ## Handoff Instructions for Sub-Agent
 
 ### Current State Summary
+
 - **Frontend Build**: ✅ PASSING - All frontend TypeScript errors resolved
 - **Backend Build**: ❌ FAILING - 74+ TypeScript errors need resolution
 - **Tests**: ✅ PASSING - All test suites currently pass
@@ -207,11 +226,12 @@ The logbook table and related functionality has been migrated to a unified submi
 ### Immediate Next Steps (Priority Order)
 
 1. **Fix Backend Build Errors** (CRITICAL - blocks all other work):
+
    ```powershell
    cd src/workers
    npm run build
    ```
-   
+
    **Key Error Categories to Address**:
    - Missing type exports in `src/shared/types.ts` (NewArtworkRecord, NewArtistRecord, AuthSessionRecord, RateLimitRecord)
    - Type mismatches in `lib/submissions.ts` (reviewer_token field, new_data property)
@@ -228,30 +248,36 @@ The logbook table and related functionality has been migrated to a unified submi
 ### Files Modified in This Session
 
 **Successfully Updated**:
+
 - `src/workers/middleware/validation.ts`: Schema and function renaming
-- `src/workers/types.ts`: Type definition updates  
+- `src/workers/types.ts`: Type definition updates
 - `src/workers/routes/submissions.ts`: Function renaming and type updates
 - `src/workers/index.ts`: Import and route handler updates
 - `src/workers/lib/database.ts`: Partial type updates
 
 **Files Needing Attention** (have remaining errors):
+
 - `src/workers/lib/*`: Multiple files with type import errors
 - `src/workers/routes/mass-import-*.ts`: Type definition issues
 - `src/shared/types.ts`: Missing type exports
 
 ### Testing Strategy
+
 After fixing backend build:
+
 1. Run `npm run build` (both frontend and backend must pass)
-2. Run `npm run test` (all tests must continue passing)  
+2. Run `npm run test` (all tests must continue passing)
 3. Test API endpoints locally with `npm run dev`
 
 ### Key Architecture Notes
+
 - The database has already migrated from `logbook` table to `submissions` table
 - Core functionality uses `SubmissionRecord` type from `src/shared/types.ts`
 - Frontend is using the updated types but still has LogbookTimeline.vue component to migrate
 - All consent and submission logic is working - this is primarily a naming/reference cleanup
 
 ## Notes
+
 - The database migration has already been completed (logbook table removed)
 - The core functionality now uses the submissions system
 - This cleanup is primarily about removing outdated references and terminology

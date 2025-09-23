@@ -1,4 +1,8 @@
-import type { NominatimResponse, LocationResult, LocationLookupOptions } from '../../shared/types.js';
+import type {
+  NominatimResponse,
+  LocationResult,
+  LocationLookupOptions,
+} from '../../shared/types.js';
 
 export class NominatimApiClient {
   private readonly baseUrl = 'https://nominatim.openstreetmap.org';
@@ -12,24 +16,28 @@ export class NominatimApiClient {
   private async enforceRateLimit(): Promise<void> {
     const now = Date.now();
     const timeSinceLastRequest = now - this.lastRequestTime;
-    
+
     if (timeSinceLastRequest < this.rateLimitDelay) {
       const waitTime = this.rateLimitDelay - timeSinceLastRequest;
       await new Promise(resolve => setTimeout(resolve, waitTime));
     }
-    
+
     this.lastRequestTime = Date.now();
   }
 
   /**
    * Perform reverse geocoding lookup using Nominatim
    */
-  async reverseGeocode(lat: number, lon: number, options: LocationLookupOptions = {}): Promise<LocationResult> {
+  async reverseGeocode(
+    lat: number,
+    lon: number,
+    options: LocationLookupOptions = {}
+  ): Promise<LocationResult> {
     await this.enforceRateLimit();
 
     const timeout = options.timeout || 10000; // 10 second default timeout
     const url = new URL(`${this.baseUrl}/reverse`);
-    
+
     url.searchParams.set('lat', lat.toString());
     url.searchParams.set('lon', lon.toString());
     url.searchParams.set('format', 'json');
@@ -43,9 +51,9 @@ export class NominatimApiClient {
       const response = await fetch(url.toString(), {
         headers: {
           'User-Agent': this.userAgent,
-          'Accept': 'application/json'
+          Accept: 'application/json',
         },
-        signal: controller.signal
+        signal: controller.signal,
       });
 
       clearTimeout(timeoutId);
@@ -54,8 +62,8 @@ export class NominatimApiClient {
         throw new Error(`Nominatim API error: ${response.status} ${response.statusText}`);
       }
 
-      const data = await response.json() as NominatimResponse;
-      
+      const data = (await response.json()) as NominatimResponse;
+
       if (!data || !data.display_name) {
         throw new Error('Invalid response from Nominatim API');
       }
@@ -63,14 +71,14 @@ export class NominatimApiClient {
       return this.parseNominatimResponse(data);
     } catch (error) {
       clearTimeout(timeoutId);
-      
+
       if (error instanceof Error) {
         if (error.name === 'AbortError') {
           throw new Error(`Nominatim request timed out after ${timeout}ms`);
         }
         throw error;
       }
-      
+
       throw new Error('Unknown error occurred during Nominatim request');
     }
   }
@@ -80,7 +88,7 @@ export class NominatimApiClient {
    */
   private parseNominatimResponse(data: NominatimResponse): LocationResult {
     const address = data.address || {};
-    
+
     return {
       lat: parseFloat(data.lat),
       lon: parseFloat(data.lon),
@@ -94,14 +102,17 @@ export class NominatimApiClient {
       road: address.road || null,
       postcode: address.postcode || null,
       source: 'nominatim',
-      last_updated: new Date().toISOString()
+      last_updated: new Date().toISOString(),
     };
   }
 
   /**
    * Convert LocationResult to LocationCacheRecord format for storage
    */
-  static toLocationCacheRecord(locationResult: LocationResult, rawResponse: NominatimResponse): {
+  static toLocationCacheRecord(
+    locationResult: LocationResult,
+    rawResponse: NominatimResponse
+  ): {
     lat: number;
     lon: number;
     version: string;
@@ -129,7 +140,7 @@ export class NominatimApiClient {
       neighbourhood: locationResult.neighbourhood,
       road: locationResult.road,
       postcode: locationResult.postcode,
-      raw_response: JSON.stringify(rawResponse)
+      raw_response: JSON.stringify(rawResponse),
     };
   }
 

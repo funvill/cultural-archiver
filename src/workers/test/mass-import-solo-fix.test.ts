@@ -1,6 +1,6 @@
 /**
  * Integration test for the exact "Solo" artwork duplication scenario
- * 
+ *
  * Tests the fixed similarity algorithm with identical artworks that should
  * now be properly detected as duplicates.
  */
@@ -24,11 +24,11 @@ describe('Mass Import Duplicate Detection - Solo Artwork Fix', () => {
         license: 'Open Government Licence – Vancouver',
         city: 'vancouver',
         province: 'british_columbia',
-        country: 'canada'
-      }
+        country: 'canada',
+      },
     };
 
-    // Candidate (existing artwork in database) 
+    // Candidate (existing artwork in database)
     const candidate = {
       id: 'existing-solo-artwork',
       coordinates: { lat: 49.2827, lon: -123.1207 }, // Same coordinates
@@ -36,14 +36,14 @@ describe('Mass Import Duplicate Detection - Solo Artwork Fix', () => {
       created_by: null, // No artist data
       tags: JSON.stringify({
         source: 'vancouver-opendata',
-        material: 'bronze', 
+        material: 'bronze',
         type: 'sculpture',
         data_source: 'vancouver_open_data',
         license: 'Open Government Licence – Vancouver',
         city: 'vancouver',
         province: 'british_columbia',
-        country: 'canada'
-      })
+        country: 'canada',
+      }),
     };
 
     const result = strategy.calculateSimilarity(query, candidate, 0.7);
@@ -75,7 +75,7 @@ describe('Mass Import Duplicate Detection - Solo Artwork Fix', () => {
     // Same test but without tags - should get title + location = 0.5 < 0.7
     const query = {
       coordinates: { lat: 49.2827, lon: -123.1207 },
-      title: 'Solo'
+      title: 'Solo',
       // No tags, no artist
     };
 
@@ -84,7 +84,7 @@ describe('Mass Import Duplicate Detection - Solo Artwork Fix', () => {
       coordinates: { lat: 49.2827, lon: -123.1207 },
       title: 'Solo',
       created_by: null,
-      tags: null
+      tags: null,
     };
 
     const result = strategy.calculateSimilarity(query, candidate, 0.7);
@@ -113,7 +113,7 @@ describe('Mass Import Duplicate Detection - Solo Artwork Fix', () => {
     for (const testCase of testCases) {
       const query = {
         coordinates: { lat: 49.2827, lon: -123.1207 },
-        title: testCase.title1
+        title: testCase.title1,
       };
 
       const candidate = {
@@ -121,7 +121,7 @@ describe('Mass Import Duplicate Detection - Solo Artwork Fix', () => {
         coordinates: { lat: 49.2827, lon: -123.1207 },
         title: testCase.title2,
         created_by: null,
-        tags: null
+        tags: null,
       };
 
       const result = strategy.calculateSimilarity(query, candidate, 0.7);

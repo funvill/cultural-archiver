@@ -13,7 +13,7 @@
 import { describe, it } from 'vitest';
 
 describe.skip('SearchView Fast Add multiple updates (legacy)', () => {
-	it('legacy multi-add behavior superseded by overwrite model', () => {
-		// Intentionally empty. See comment above.
-	});
+  it('legacy multi-add behavior superseded by overwrite model', () => {
+    // Intentionally empty. See comment above.
+  });
 });

@@ -13,9 +13,9 @@
  *   - --maxAgeHours=NN to refetch tiles older than NN hours.
  */
 
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // ---------------------- Config (defaults) ----------------------
 const DEFAULTS = {
@@ -24,28 +24,28 @@ const DEFAULTS = {
   maxLat: 49.32,
   maxLon: -123.02,
   zoom: 3,
-  overpassUrl: "https://overpass-api.de/api/interpreter",
-  concurrency: 1,       // Be kind: only 1 concurrent request
-  sleepMs: 3000,        // Be kind: 3+ second delay between requests
-  maxRetries: 3,        // Be kind: fewer retries to avoid hammering
-  backoffBaseMs: 5000,  // Be kind: longer backoff delays
-  outDir: "./output",
+  overpassUrl: 'https://overpass-api.de/api/interpreter',
+  concurrency: 1, // Be kind: only 1 concurrent request
+  sleepMs: 3000, // Be kind: 3+ second delay between requests
+  maxRetries: 3, // Be kind: fewer retries to avoid hammering
+  backoffBaseMs: 5000, // Be kind: longer backoff delays
+  outDir: './output',
 
   // Resume controls
-  force: false,          // if true, fetch even if tile file exists
-  maxAgeHours: null,     // number: refetch if older than this (null = never refetch)
+  force: false, // if true, fetch even if tile file exists
+  maxAgeHours: null, // number: refetch if older than this (null = never refetch)
 };
 
 // ---------------------- CLI arg parsing ----------------------
 function parseArgs() {
   const args = {};
   const argv = process.argv.slice(2);
-  
+
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg.startsWith('--')) {
       const key = arg.replace(/^--/, '');
-      
+
       // Handle --key=value format
       if (key.includes('=')) {
         const [k, v] = key.split('=', 2);
@@ -63,7 +63,7 @@ function parseArgs() {
       }
     }
   }
-  
+
   return args;
 }
 
@@ -78,23 +78,23 @@ function numArg(name, fallback) {
 function boolArg(name, fallback) {
   if (args[name] === undefined) return fallback;
   const v = String(args[name]).toLowerCase();
-  return v === "true" || v === "1" || v === "yes";
+  return v === 'true' || v === '1' || v === 'yes';
 }
 
 const cfg = {
-  minLat: numArg("minLat", DEFAULTS.minLat),
-  minLon: numArg("minLon", DEFAULTS.minLon),
-  maxLat: numArg("maxLat", DEFAULTS.maxLat),
-  maxLon: numArg("maxLon", DEFAULTS.maxLon),
-  zoom: numArg("zoom", DEFAULTS.zoom),
-  concurrency: numArg("concurrency", DEFAULTS.concurrency),
-  sleepMs: numArg("sleepMs", DEFAULTS.sleepMs),
-  maxRetries: numArg("maxRetries", DEFAULTS.maxRetries),
-  backoffBaseMs: numArg("backoffBaseMs", DEFAULTS.backoffBaseMs),
+  minLat: numArg('minLat', DEFAULTS.minLat),
+  minLon: numArg('minLon', DEFAULTS.minLon),
+  maxLat: numArg('maxLat', DEFAULTS.maxLat),
+  maxLon: numArg('maxLon', DEFAULTS.maxLon),
+  zoom: numArg('zoom', DEFAULTS.zoom),
+  concurrency: numArg('concurrency', DEFAULTS.concurrency),
+  sleepMs: numArg('sleepMs', DEFAULTS.sleepMs),
+  maxRetries: numArg('maxRetries', DEFAULTS.maxRetries),
+  backoffBaseMs: numArg('backoffBaseMs', DEFAULTS.backoffBaseMs),
   overpassUrl: args.overpassUrl ?? DEFAULTS.overpassUrl,
   outDir: args.outDir ?? DEFAULTS.outDir,
 
-  force: boolArg("force", DEFAULTS.force),
+  force: boolArg('force', DEFAULTS.force),
   maxAgeHours:
     args.maxAgeHours === undefined || args.maxAgeHours === null
       ? DEFAULTS.maxAgeHours
@@ -109,7 +109,7 @@ function ensureDir(p) {
 }
 
 function sleep(ms) {
-  return new Promise((res) => setTimeout(res, ms));
+  return new Promise(res => setTimeout(res, ms));
 }
 
 function lon2tileX(lon, z) {
@@ -118,8 +118,7 @@ function lon2tileX(lon, z) {
 function lat2tileY(lat, z) {
   const rad = (lat * Math.PI) / 180;
   return Math.floor(
-    ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) *
-      Math.pow(2, z)
+    ((1 - Math.log(Math.tan(rad) + 1 / Math.cos(rad)) / Math.PI) / 2) * Math.pow(2, z)
   );
 }
 function tileX2lon(x, z) {
@@ -162,20 +161,20 @@ out center tags;
 
 function elementsToGeoJSON(elements) {
   return elements
-    .map((el) => {
+    .map(el => {
       let geometry = null;
-      if (el.type === "node") {
-        geometry = { type: "Point", coordinates: [el.lon, el.lat] };
-      } else if (el.center && typeof el.center.lon === "number") {
+      if (el.type === 'node') {
+        geometry = { type: 'Point', coordinates: [el.lon, el.lat] };
+      } else if (el.center && typeof el.center.lon === 'number') {
         geometry = {
-          type: "Point",
+          type: 'Point',
           coordinates: [el.center.lon, el.center.lat],
         };
       } else {
         return null;
       }
       return {
-        type: "Feature",
+        type: 'Feature',
         id: `${el.type}/${el.id}`,
         properties: { osm_type: el.type, osm_id: el.id, ...el.tags },
         geometry,
@@ -189,8 +188,8 @@ async function fetchOverpass(query, { maxRetries, backoffBaseMs, endpoint }) {
   while (true) {
     try {
       const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({ data: query }),
       });
       if (!res.ok) {
@@ -198,9 +197,7 @@ async function fetchOverpass(query, { maxRetries, backoffBaseMs, endpoint }) {
         if ([429, 504, 502, 503].includes(res.status) && attempt < maxRetries) {
           attempt++;
           const wait = backoffBaseMs * Math.pow(2, attempt - 1);
-          console.warn(
-            `Overpass ${res.status}. Retry ${attempt}/${maxRetries} in ${wait}ms`
-          );
+          console.warn(`Overpass ${res.status}. Retry ${attempt}/${maxRetries} in ${wait}ms`);
           await sleep(wait);
           continue;
         }
@@ -250,8 +247,8 @@ async function main() {
     maxLon: Math.max(cfg.minLon, cfg.maxLon),
   };
 
-  const outTilesDir = path.resolve(__dirname, cfg.outDir, "tiles");
-  const outMergedDir = path.resolve(__dirname, cfg.outDir, "merged");
+  const outTilesDir = path.resolve(__dirname, cfg.outDir, 'tiles');
+  const outMergedDir = path.resolve(__dirname, cfg.outDir, 'merged');
   ensureDir(outTilesDir);
   ensureDir(outMergedDir);
 
@@ -270,7 +267,7 @@ async function main() {
   }
 
   console.log(
-    `Will process ${tiles.length} tiles at z=${cfg.zoom} (force=${cfg.force}, maxAgeHours=${cfg.maxAgeHours ?? "none"})`
+    `Will process ${tiles.length} tiles at z=${cfg.zoom} (force=${cfg.force}, maxAgeHours=${cfg.maxAgeHours ?? 'none'})`
   );
 
   const queue = [...tiles];
@@ -293,7 +290,7 @@ async function main() {
         if (shouldSkip(tilePath, { force: cfg.force, maxAgeHours: cfg.maxAgeHours })) {
           skipped++;
           if (processed % 20 === 0) await sleep(10); // tiny yield
-          console.log(`[tile ${key}] skipped (exists${cfg.maxAgeHours ? ` & fresh` : ""})`);
+          console.log(`[tile ${key}] skipped (exists${cfg.maxAgeHours ? ` & fresh` : ''})`);
         } else {
           await sleep(cfg.sleepMs * Math.random()); // polite stagger
           const query = overpassQuery(tile.bbox);
@@ -307,8 +304,8 @@ async function main() {
 
           fs.writeFileSync(
             tilePath,
-            JSON.stringify({ type: "FeatureCollection", features }, null, 2),
-            "utf-8"
+            JSON.stringify({ type: 'FeatureCollection', features }, null, 2),
+            'utf-8'
           );
           // touch mtime -> now (useful for freshness checks)
           fs.utimesSync(tilePath, new Date(), new Date());
@@ -333,19 +330,15 @@ async function main() {
   const merged = [];
 
   // Read all existing tile files under outTilesDir (so skipped ones count too)
-  const allFiles = fs
-    .readdirSync(outTilesDir)
-    .filter((f) => f.endsWith(".geojson"));
+  const allFiles = fs.readdirSync(outTilesDir).filter(f => f.endsWith('.geojson'));
 
   for (const f of allFiles) {
     try {
-      const raw = fs.readFileSync(path.join(outTilesDir, f), "utf-8");
+      const raw = fs.readFileSync(path.join(outTilesDir, f), 'utf-8');
       const json = JSON.parse(raw);
       const feats = json?.features ?? [];
       for (const feat of feats) {
-        const id =
-          feat?.id ||
-          `${feat?.properties?.osm_type}/${feat?.properties?.osm_id}`;
+        const id = feat?.id || `${feat?.properties?.osm_type}/${feat?.properties?.osm_id}`;
         if (!id) continue;
         if (seen.has(id)) continue;
         seen.add(id);
@@ -356,11 +349,11 @@ async function main() {
     }
   }
 
-  const mergedPath = path.join(outMergedDir, "merged-artworks.geojson");
+  const mergedPath = path.join(outMergedDir, 'merged-artworks.geojson');
   fs.writeFileSync(
     mergedPath,
-    JSON.stringify({ type: "FeatureCollection", features: merged }, null, 2),
-    "utf-8"
+    JSON.stringify({ type: 'FeatureCollection', features: merged }, null, 2),
+    'utf-8'
   );
 
   console.log(
@@ -369,7 +362,7 @@ async function main() {
   console.log(`Merged GeoJSON: ${mergedPath}`);
 }
 
-main().catch((e) => {
+main().catch(e => {
   console.error(e);
   process.exit(1);
 });

@@ -18,13 +18,18 @@ import {
   updateArtworkPhotos,
   getPhotosFromArtwork,
 } from '../lib/database';
-import { movePhotosToArtwork, cleanupRejectedPhotos, generatePhotoUrl, extractR2KeyFromRef } from '../lib/photos';
+import {
+  movePhotosToArtwork,
+  cleanupRejectedPhotos,
+  generatePhotoUrl,
+  extractR2KeyFromRef,
+} from '../lib/photos';
 import { calculateDistance } from '../lib/spatial';
-import { 
+import {
   getSubmissionsByStatus,
   getSubmission,
   approveSubmission as approveSubmissionInDb,
-  rejectSubmission as rejectSubmissionInDb
+  rejectSubmission as rejectSubmissionInDb,
 } from '../lib/submissions';
 import type { ArtworkEditReviewData, SubmissionRecord, ArtworkEditDiff } from '../../shared/types';
 import { BadgeService } from '../lib/badges';
@@ -68,25 +73,25 @@ import { ApiError } from '../lib/errors';
 function convertSubmissionToArtworkEditReview(submission: SubmissionRecord): ArtworkEditReviewData {
   // Parse the field_changes to create diffs
   const fieldChanges = submission.field_changes ? JSON.parse(submission.field_changes) : {};
-  
+
   const diffs: ArtworkEditDiff[] = [];
-  
+
   // Create diffs for all fields that have changed
   for (const [fieldName, change] of Object.entries(fieldChanges)) {
     const changeObj = change as { old: unknown; new: unknown };
     diffs.push({
       field_name: fieldName,
       old_value: typeof changeObj.old === 'string' ? changeObj.old : JSON.stringify(changeObj.old),
-      new_value: typeof changeObj.new === 'string' ? changeObj.new : JSON.stringify(changeObj.new)
+      new_value: typeof changeObj.new === 'string' ? changeObj.new : JSON.stringify(changeObj.new),
     });
   }
-  
+
   return {
     edit_ids: [submission.id], // Single submission ID instead of multiple edit IDs
     artwork_id: submission.artwork_id!,
     user_token: submission.user_token,
     submitted_at: submission.created_at,
-    diffs
+    diffs,
   };
 }
 
@@ -94,18 +99,12 @@ function convertSubmissionToArtworkEditReview(submission: SubmissionRecord): Art
  * Get pending artwork edits for review using the new submissions system
  */
 async function getPendingArtworkEditsForReview(
-  db: D1Database, 
-  limit: number = 50, 
+  db: D1Database,
+  limit: number = 50,
   offset: number = 0
 ): Promise<ArtworkEditReviewData[]> {
-  const submissions = await getSubmissionsByStatus(
-    db, 
-    'pending', 
-    'artwork_edit', 
-    limit, 
-    offset
-  );
-  
+  const submissions = await getSubmissionsByStatus(db, 'pending', 'artwork_edit', limit, offset);
+
   return submissions.map(convertSubmissionToArtworkEditReview);
 }
 
@@ -117,11 +116,11 @@ async function getArtworkEditSubmissionForReview(
   submissionId: string
 ): Promise<ArtworkEditReviewData | null> {
   const submission = await getSubmission(db, submissionId);
-  
+
   if (!submission || submission.submission_type !== 'artwork_edit') {
     return null;
   }
-  
+
   return convertSubmissionToArtworkEditReview(submission);
 }
 
@@ -142,8 +141,8 @@ export async function getReviewQueue(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-  if (!authContext.canReview) {
-  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    if (!authContext.canReview) {
+      throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     // Get query parameters
@@ -165,11 +164,11 @@ export async function getReviewQueue(
     `);
 
     const results = await stmt.bind(status, limitNum, offsetNum).all();
-    
-    console.log(`[DEBUG] Database query result:`, { 
-      success: results.success, 
+
+    console.log(`[DEBUG] Database query result:`, {
+      success: results.success,
       count: results.results?.length,
-      meta: results.meta 
+      meta: results.meta,
     });
 
     if (!results.success) {
@@ -180,81 +179,83 @@ export async function getReviewQueue(
       results.results.length > 0 ? (results.results[0] as unknown as SubmissionRow).total_count : 0;
 
     // Format submissions for review
-    const submissions = results.results.map((row: unknown) => {
-      try {
-        const submissionRow = row as SubmissionRow;
-        
-        // Parse the structured submission data
-        let title = 'Untitled Submission';
-        let note = 'No note provided';
-        let artworkType = 'Other';
-        
-        if (submissionRow.notes) {
-          try {
-            const submissionData = JSON.parse(submissionRow.notes);
-            if (submissionData._submission) {
-              // Extract title from tags
-              if (submissionData._submission.tags?.title) {
-                title = submissionData._submission.tags.title;
+    const submissions = results.results
+      .map((row: unknown) => {
+        try {
+          const submissionRow = row as SubmissionRow;
+
+          // Parse the structured submission data
+          let title = 'Untitled Submission';
+          let note = 'No note provided';
+          let artworkType = 'Other';
+
+          if (submissionRow.notes) {
+            try {
+              const submissionData = JSON.parse(submissionRow.notes);
+              if (submissionData._submission) {
+                // Extract title from tags
+                if (submissionData._submission.tags?.title) {
+                  title = submissionData._submission.tags.title;
+                }
+                // Extract artwork type
+                if (submissionData._submission.tags?.artwork_type) {
+                  artworkType = submissionData._submission.tags.artwork_type;
+                } else if (submissionData._submission.type_name) {
+                  artworkType = submissionData._submission.type_name;
+                }
               }
-              // Extract artwork type
-              if (submissionData._submission.tags?.artwork_type) {
-                artworkType = submissionData._submission.tags.artwork_type;
-              } else if (submissionData._submission.type_name) {
-                artworkType = submissionData._submission.type_name;
+              // Extract the actual user note
+              if (submissionData.notes) {
+                note = submissionData.notes;
               }
+            } catch (parseError) {
+              console.warn('Failed to parse submission data:', parseError);
+              // Use the raw notes as fallback
+              note = submissionRow.notes;
             }
-            // Extract the actual user note
-            if (submissionData.notes) {
-              note = submissionData.notes;
-            }
-          } catch (parseError) {
-            console.warn('Failed to parse submission data:', parseError);
-            // Use the raw notes as fallback
-            note = submissionRow.notes;
           }
+
+          // Normalize photo references to absolute URLs where possible
+          const rawPhotos = submissionRow.photos ? JSON.parse(submissionRow.photos) : [];
+          const normalizedPhotos = (rawPhotos || []).map((p: string) => {
+            try {
+              // If already an absolute URL, leave as-is (constructor will throw if invalid)
+              new URL(p);
+              return p;
+            } catch (err) {
+              // If looks like an internal permalink or app route, skip normalization
+              if (typeof p === 'string' && (p.startsWith('/p/') || p.startsWith('/artwork/'))) {
+                return p; // leave as-is; frontend will handle or ignore
+              }
+
+              // Otherwise treat as an R2 key and generate full URL
+              const key = extractR2KeyFromRef(p);
+              return key ? generatePhotoUrl(c.env, key) : p;
+            }
+          });
+
+          return {
+            id: submissionRow.id,
+            title: title,
+            type: 'logbook_entry', // Label logbook submissions as "Logbook Entry" for moderation UI
+            artwork_type: artworkType, // Keep the actual artwork type in a separate field
+            lat: submissionRow.lat || 49.2827,
+            lon: submissionRow.lon || -123.1207,
+            note: note,
+            photos: normalizedPhotos,
+            tags: {},
+            status: submissionRow.status,
+            created_at: submissionRow.created_at,
+            artwork_id: submissionRow.artwork_id,
+            user_token: submissionRow.user_token, // Add missing user_token field
+          };
+        } catch (error) {
+          console.error(`Failed to process submission ${(row as { id?: string })?.id}:`, error);
+          return null;
         }
-        
-        // Normalize photo references to absolute URLs where possible
-        const rawPhotos = submissionRow.photos ? JSON.parse(submissionRow.photos) : [];
-        const normalizedPhotos = (rawPhotos || []).map((p: string) => {
-          try {
-            // If already an absolute URL, leave as-is (constructor will throw if invalid)
-            new URL(p);
-            return p;
-          } catch (err) {
-            // If looks like an internal permalink or app route, skip normalization
-            if (typeof p === 'string' && (p.startsWith('/p/') || p.startsWith('/artwork/'))) {
-              return p; // leave as-is; frontend will handle or ignore
-            }
+      })
+      .filter(submission => submission !== null); // Remove failed submissions
 
-            // Otherwise treat as an R2 key and generate full URL
-            const key = extractR2KeyFromRef(p);
-            return key ? generatePhotoUrl(c.env, key) : p;
-          }
-        });
-
-        return {
-          id: submissionRow.id,
-          title: title,
-          type: 'logbook_entry', // Label logbook submissions as "Logbook Entry" for moderation UI
-          artwork_type: artworkType, // Keep the actual artwork type in a separate field
-          lat: submissionRow.lat || 49.2827,
-          lon: submissionRow.lon || -123.1207,
-          note: note,
-          photos: normalizedPhotos,
-          tags: {},
-          status: submissionRow.status,
-          created_at: submissionRow.created_at,
-          artwork_id: submissionRow.artwork_id,
-          user_token: submissionRow.user_token, // Add missing user_token field
-        };
-      } catch (error) {
-        console.error(`Failed to process submission ${(row as { id?: string })?.id}:`, error);
-        return null;
-      }
-    }).filter(submission => submission !== null); // Remove failed submissions
-    
     console.log(`[DEBUG] Review queue returning ${submissions.length} submissions`);
 
     return c.json({
@@ -295,10 +296,11 @@ function parseSubmissionData(logbookEntry: LogbookRecord): ParsedSubmissionData 
           lon: noteData._submission.lon,
           tags: JSON.stringify(submissionTags),
           notes: noteData.notes || null, // Extract the actual user note
-          artwork_type_name: submissionTags.artwork_type || noteData._submission.type_name || 'unknown',
+          artwork_type_name:
+            submissionTags.artwork_type || noteData._submission.type_name || 'unknown',
         };
       }
-      
+
       // Handle old format: "Tags: {...}"
       if (typeof logbookEntry.notes === 'string' && logbookEntry.notes.startsWith('Tags: ')) {
         const tagsString = logbookEntry.notes.substring(6); // Remove "Tags: " prefix
@@ -338,8 +340,8 @@ export async function getSubmissionForReview(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-  if (!authContext.canReview) {
-  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    if (!authContext.canReview) {
+      throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     const submissionId = c.req.param('id');
@@ -430,8 +432,8 @@ export async function approveSubmission(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-  if (!authContext.canReview) {
-  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    if (!authContext.canReview) {
+      throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     const submissionId = c.req.param('id');
@@ -462,76 +464,86 @@ export async function approveSubmission(
     let newArtworkCreated = false;
 
     if (action === 'create_new') {
-    // Create new artwork from submission - include title and description from tags if available
-    const submissionTags = submission.tags ? JSON.parse(submission.tags) : {};
-    console.log('[APPROVAL DEBUG] Title/Description extraction:', {
-      submissionId: submission.id,
-      originalTags: submission.tags,
-      parsedTags: submissionTags,
-      extractedTitle: typeof submissionTags.title === 'string' ? submissionTags.title : null,
-      extractedDescription: typeof submissionTags.description === 'string' ? submissionTags.description : null,
-      titleType: typeof submissionTags.title,
-      descriptionType: typeof submissionTags.description
-    });
-    const artworkData: Omit<ArtworkRecord, 'id' | 'created_at'> = {
-      lat: overrides?.lat || submission.lat,
-      lon: overrides?.lon || submission.lon,
-      tags: submission.tags || '{}',
-      status: 'approved',
-      title: typeof submissionTags.title === 'string' ? submissionTags.title : null,
-      description: typeof submissionTags.description === 'string' ? submissionTags.description : null,
-      created_by: (typeof submissionTags.artist === 'string' ? submissionTags.artist : 
-                  typeof submissionTags.artist_name === 'string' ? submissionTags.artist_name : 
-                  typeof submissionTags.created_by === 'string' ? submissionTags.created_by : null),
-      photos: submission.photos ? JSON.stringify(JSON.parse(submission.photos)) : null // Fix: ensure proper JSON format
-    };      
-    finalArtworkId = await insertArtwork(c.env.DB, artworkData);
-    newArtworkCreated = true;
-
-    // Create consent record for the new artwork 
-    // Use the original submission's consent information to create artwork consent
-    try {
-      const { recordConsent, generateConsentTextHash, getConsentRecord } = await import('../lib/consent-new');
-      
-      // Get the logbook consent record to extract consent information
-      const logbookConsentRecord = await getConsentRecord(c.env.DB, {
-        contentType: 'logbook',
-        contentId: submission.id,
+      // Create new artwork from submission - include title and description from tags if available
+      const submissionTags = submission.tags ? JSON.parse(submission.tags) : {};
+      console.log('[APPROVAL DEBUG] Title/Description extraction:', {
+        submissionId: submission.id,
+        originalTags: submission.tags,
+        parsedTags: submissionTags,
+        extractedTitle: typeof submissionTags.title === 'string' ? submissionTags.title : null,
+        extractedDescription:
+          typeof submissionTags.description === 'string' ? submissionTags.description : null,
+        titleType: typeof submissionTags.title,
+        descriptionType: typeof submissionTags.description,
       });
+      const artworkData: Omit<ArtworkRecord, 'id' | 'created_at'> = {
+        lat: overrides?.lat || submission.lat,
+        lon: overrides?.lon || submission.lon,
+        tags: submission.tags || '{}',
+        status: 'approved',
+        title: typeof submissionTags.title === 'string' ? submissionTags.title : null,
+        description:
+          typeof submissionTags.description === 'string' ? submissionTags.description : null,
+        created_by:
+          typeof submissionTags.artist === 'string'
+            ? submissionTags.artist
+            : typeof submissionTags.artist_name === 'string'
+              ? submissionTags.artist_name
+              : typeof submissionTags.created_by === 'string'
+                ? submissionTags.created_by
+                : null,
+        photos: submission.photos ? JSON.stringify(JSON.parse(submission.photos)) : null, // Fix: ensure proper JSON format
+      };
+      finalArtworkId = await insertArtwork(c.env.DB, artworkData);
+      newArtworkCreated = true;
 
-      if (logbookConsentRecord) {
-        const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
-        const consentTextHash = await generateConsentTextHash(
-          `Cultural Archiver Consent v${logbookConsentRecord.consent_version} - Artwork Created from Submission`
+      // Create consent record for the new artwork
+      // Use the original submission's consent information to create artwork consent
+      try {
+        const { recordConsent, generateConsentTextHash, getConsentRecord } = await import(
+          '../lib/consent-new'
         );
 
-        const consentParams = {
-          ...(logbookConsentRecord.user_id 
-            ? { userId: logbookConsentRecord.user_id } 
-            : logbookConsentRecord.anonymous_token 
-              ? { anonymousToken: logbookConsentRecord.anonymous_token }
-              : { anonymousToken: submission.user_token }), // fallback to submission user token
-          contentType: 'artwork' as const,
-          contentId: finalArtworkId,
-          consentVersion: logbookConsentRecord.consent_version,
-          ipAddress: clientIP,
-          consentTextHash,
-          db: c.env.DB,
-        };
-
-        const artworkConsentRecord = await recordConsent(consentParams);
-        console.info('Created consent record for new artwork:', {
-          artworkId: finalArtworkId,
-          consentId: artworkConsentRecord.id,
-          fromLogbookConsent: logbookConsentRecord.id,
+        // Get the logbook consent record to extract consent information
+        const logbookConsentRecord = await getConsentRecord(c.env.DB, {
+          contentType: 'logbook',
+          contentId: submission.id,
         });
-      } else {
-        console.warn('No logbook consent record found for submission:', submission.id);
+
+        if (logbookConsentRecord) {
+          const clientIP =
+            c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
+          const consentTextHash = await generateConsentTextHash(
+            `Cultural Archiver Consent v${logbookConsentRecord.consent_version} - Artwork Created from Submission`
+          );
+
+          const consentParams = {
+            ...(logbookConsentRecord.user_id
+              ? { userId: logbookConsentRecord.user_id }
+              : logbookConsentRecord.anonymous_token
+                ? { anonymousToken: logbookConsentRecord.anonymous_token }
+                : { anonymousToken: submission.user_token }), // fallback to submission user token
+            contentType: 'artwork' as const,
+            contentId: finalArtworkId,
+            consentVersion: logbookConsentRecord.consent_version,
+            ipAddress: clientIP,
+            consentTextHash,
+            db: c.env.DB,
+          };
+
+          const artworkConsentRecord = await recordConsent(consentParams);
+          console.info('Created consent record for new artwork:', {
+            artworkId: finalArtworkId,
+            consentId: artworkConsentRecord.id,
+            fromLogbookConsent: logbookConsentRecord.id,
+          });
+        } else {
+          console.warn('No logbook consent record found for submission:', submission.id);
+        }
+      } catch (error) {
+        console.error('Failed to create artwork consent record:', error);
+        // Don't fail the approval if consent creation fails - log and continue
       }
-    } catch (error) {
-      console.error('Failed to create artwork consent record:', error);
-      // Don't fail the approval if consent creation fails - log and continue
-    }
     } else if (action === 'link_existing') {
       // Link to existing artwork
       if (!artwork_id) {
@@ -585,7 +597,7 @@ export async function approveSubmission(
           const allPhotos = Array.from(new Set([...existingPhotos, ...newPhotoUrls]));
           await updateArtworkPhotos(c.env.DB, finalArtworkId, allPhotos);
         }
-        
+
         // Update the logbook entry to point to the moved photos to prevent duplication
         // in photo aggregation (logbook + artwork photos would show duplicates otherwise)
         await updateLogbookPhotos(c.env.DB, submissionId, newPhotoUrls);
@@ -622,10 +634,12 @@ export async function approveSubmission(
     try {
       const badgeService = new BadgeService(c.env.DB);
       const awardedBadges = await badgeService.checkSubmissionBadges(submission.user_token);
-      
+
       if (awardedBadges.length > 0) {
-        console.log(`User ${submission.user_token} earned ${awardedBadges.length} badges:`, 
-          awardedBadges.map(b => b.badge_key));
+        console.log(
+          `User ${submission.user_token} earned ${awardedBadges.length} badges:`,
+          awardedBadges.map(b => b.badge_key)
+        );
       }
     } catch (badgeError) {
       // Log badge errors but don't fail the approval
@@ -663,8 +677,8 @@ export async function rejectSubmission(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-  if (!authContext.canReview) {
-  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    if (!authContext.canReview) {
+      throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     const submissionId = c.req.param('id');
@@ -741,8 +755,8 @@ export async function getReviewStats(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-  if (!authContext.canReview) {
-  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    if (!authContext.canReview) {
+      throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     // Get submission counts by status
@@ -819,8 +833,8 @@ export async function processBatchReview(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-  if (!authContext.canReview) {
-  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    if (!authContext.canReview) {
+      throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     const { submissions } = await c.req.json();
@@ -853,37 +867,45 @@ export async function processBatchReview(
           const rawSubmission = await findLogbookById(c.env.DB, id);
           if (rawSubmission && rawSubmission.status === 'pending') {
             const submission = parseSubmissionData(rawSubmission);
-            
+
             // Parse submission tags to extract title, description, and artist
             let submissionTags: Record<string, unknown> = {};
             try {
-              submissionTags = typeof submission.tags === 'string' 
-                ? JSON.parse(submission.tags) 
-                : (submission.tags || {});
+              submissionTags =
+                typeof submission.tags === 'string'
+                  ? JSON.parse(submission.tags)
+                  : submission.tags || {};
             } catch (e) {
               console.error('Failed to parse submission tags:', e);
             }
-            
+
             console.log('[BULK APPROVAL DEBUG] Title/Description extraction:', {
               submissionId: submission.id,
               originalTags: submission.tags,
               parsedTags: submissionTags,
-              extractedTitle: typeof submissionTags.title === 'string' ? submissionTags.title : null,
-              extractedDescription: typeof submissionTags.description === 'string' ? submissionTags.description : null,
+              extractedTitle:
+                typeof submissionTags.title === 'string' ? submissionTags.title : null,
+              extractedDescription:
+                typeof submissionTags.description === 'string' ? submissionTags.description : null,
               titleType: typeof submissionTags.title,
-              descriptionType: typeof submissionTags.description
+              descriptionType: typeof submissionTags.description,
             });
-            
+
             const artworkData: Omit<ArtworkRecord, 'id' | 'created_at'> = {
               lat: submission.lat,
               lon: submission.lon,
               tags: submission.tags || '{}',
               status: 'approved',
               title: typeof submissionTags.title === 'string' ? submissionTags.title : null,
-              description: typeof submissionTags.description === 'string' ? submissionTags.description : null,
-              created_by: (typeof submissionTags.artist === 'string' ? submissionTags.artist : 
-                          typeof submissionTags.created_by === 'string' ? submissionTags.created_by : null),
-              photos: submission.photos || null
+              description:
+                typeof submissionTags.description === 'string' ? submissionTags.description : null,
+              created_by:
+                typeof submissionTags.artist === 'string'
+                  ? submissionTags.artist
+                  : typeof submissionTags.created_by === 'string'
+                    ? submissionTags.created_by
+                    : null,
+              photos: submission.photos || null,
             };
 
             const artworkId = await insertArtwork(c.env.DB, artworkData);
@@ -894,10 +916,12 @@ export async function processBatchReview(
             try {
               const badgeService = new BadgeService(c.env.DB);
               const awardedBadges = await badgeService.checkSubmissionBadges(submission.user_token);
-              
+
               if (awardedBadges.length > 0) {
-                console.log(`User ${submission.user_token} earned ${awardedBadges.length} badges in batch approval:`, 
-                  awardedBadges.map(b => b.badge_key));
+                console.log(
+                  `User ${submission.user_token} earned ${awardedBadges.length} badges in batch approval:`,
+                  awardedBadges.map(b => b.badge_key)
+                );
               }
             } catch (badgeError) {
               // Log badge errors but don't fail the batch approval
@@ -946,8 +970,8 @@ export async function getArtworkEditsForReview(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-  if (!authContext.canReview) {
-  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    if (!authContext.canReview) {
+      throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     // Handle both frontend parameter styles (page/per_page and limit/offset)
@@ -1024,14 +1048,16 @@ export async function getArtworkEditForReview(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-  if (!authContext.canReview) {
-  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    if (!authContext.canReview) {
+      throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     const editId = c.req.param('editId');
 
-    const editSubmission: ArtworkEditReviewData | null =
-      await getArtworkEditSubmissionForReview(c.env.DB, editId);
+    const editSubmission: ArtworkEditReviewData | null = await getArtworkEditSubmissionForReview(
+      c.env.DB,
+      editId
+    );
     if (!editSubmission) {
       throw new ApiError('Edit submission not found', 'EDIT_NOT_FOUND', 404);
     }
@@ -1080,16 +1106,18 @@ export async function approveArtworkEdit(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-  if (!authContext.canReview) {
-  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    if (!authContext.canReview) {
+      throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     const editId = c.req.param('editId');
     const { apply_to_artwork = true } = await c.req.json();
 
     // Get the full edit submission
-    const editSubmission: ArtworkEditReviewData | null =
-      await getArtworkEditSubmissionForReview(c.env.DB, editId);
+    const editSubmission: ArtworkEditReviewData | null = await getArtworkEditSubmissionForReview(
+      c.env.DB,
+      editId
+    );
     if (!editSubmission) {
       throw new ApiError('Edit submission not found', 'EDIT_NOT_FOUND', 404);
     }
@@ -1099,7 +1127,7 @@ export async function approveArtworkEdit(
     if (!submissionId) {
       throw new ApiError('Invalid submission data', 'INVALID_SUBMISSION', 400);
     }
-    
+
     await approveSubmissionInDb(
       c.env.DB,
       submissionId,
@@ -1156,16 +1184,18 @@ export async function rejectArtworkEdit(
     const authContext = c.get('authContext');
 
     // Check reviewer permissions
-  if (!authContext.canReview) {
-  throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    if (!authContext.canReview) {
+      throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
     const editId = c.req.param('editId');
     const { reason } = await c.req.json();
 
     // Get the full edit submission
-    const editSubmission: ArtworkEditReviewData | null =
-      await getArtworkEditSubmissionForReview(c.env.DB, editId);
+    const editSubmission: ArtworkEditReviewData | null = await getArtworkEditSubmissionForReview(
+      c.env.DB,
+      editId
+    );
     if (!editSubmission) {
       throw new ApiError('Edit submission not found', 'EDIT_NOT_FOUND', 404);
     }
@@ -1175,13 +1205,8 @@ export async function rejectArtworkEdit(
     if (!submissionId) {
       throw new ApiError('Invalid submission data', 'INVALID_SUBMISSION', 400);
     }
-    
-    await rejectSubmissionInDb(
-      c.env.DB,
-      submissionId,
-      authContext.userToken,
-      reason
-    );
+
+    await rejectSubmissionInDb(c.env.DB, submissionId, authContext.userToken, reason);
 
     // Log the moderation decision for audit trail
     const { logModerationDecision, createModerationAuditContext } = await import('../lib/audit');

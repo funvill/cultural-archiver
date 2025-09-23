@@ -20,17 +20,16 @@ These are groups doing "Art walks" or festvials. They might be good groups to pa
 - `support@art.abluestar.com` currently errors out when sending an email to this address. This address should forward to my personal address.
 - Check to make sure that the only email address that is public is `support@art.abluestar.com`
 
-
 - In artwork edit mode, make the description text box 3 times as tall.
 - Create a script to remove the deployed recoreds on cloudflare for the frontend and backend workers. These are piling up for no reason.
 
-- Add an artwork for NULL island https://en.wikipedia.org/wiki/Null_Island 
+- Add an artwork for NULL island https://en.wikipedia.org/wiki/Null_Island
 
-----
+---
 
 - Need to spend some more time on the mobile and experience. I found it difficult to change and edit the tags.
 
-----
+---
 
 ## Prior Art research
 
@@ -81,44 +80,39 @@ The admin page is a super user that can give moderators permissions to other use
 
 - [ ] After uploading artwork, If no artworks are detected nearby the search results. Go straight to add art details page. No reason to show a page that doesn't have any actions.
 
-
-----
+---
 
 ## Mass Import merge tags
 
 - Update the "source_url" value to be clickable as a link. This means it shouldn't search that tag, that link should be clickable.
   - Tags that have urls in them, should be clickable
 
-----
+---
 
 The "Nearby Artworks" results in the FastAdd Artwork. The thumbnails for the artworks are not showing. For example this artwork https://art.abluestar.com/artwork/969b3394-e3a0-4dbb-8d62-87a42b382b1e?action=add-logbook&from=fast-upload as a photo but it the photo isn't showing up on the "Nearby Artworks" results.
 
-
-----
+---
 
 We are going to update the user profile page
 
 Add a username to the user table. The users can change their username on the user settings page. The username must be unique across the whole system.
 
-
-Badges
-Users can earn badges by doing tasks for the system. A user can have the same badge multiple times. 
-
-
+Badges Users can earn badges by doing tasks for the system. A user can have the same badge multiple times.
 
 ## Top row
-- Total points card. Show zero right now 
+
+- Total points card. Show zero right now
 - Cards for: Total submitted Artworks, Approved Artworks, Approved edits... Do not show rejected count
 
 ## Second row
-Badges
-Show a list of badges that this user has been awarded.
+
+Badges Show a list of badges that this user has been awarded.
 
 ## Next row
-Submissions
-Show the submission cards
 
-----
+Submissions Show the submission cards
+
+---
 
 Cultural archive project note
 

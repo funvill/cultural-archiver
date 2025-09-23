@@ -21,25 +21,29 @@ vi.mock('../../stores/auth', () => ({
 // Mock API service
 vi.mock('../../services/api', () => ({
   apiService: {
-    getUserProfile: vi.fn(() => Promise.resolve({
-      data: {
-        email: 'test@example.com',
-        debug: {
-          user_info: {
-            email: 'test@example.com'
-          }
-        }
-      }
-    })),
-    getUserSubmissions: vi.fn(() => Promise.resolve({
-      data: {
-        submissions: [],
-        total: 0,
-        page: 1,
-        per_page: 10
-      }
-    }))
-  }
+    getUserProfile: vi.fn(() =>
+      Promise.resolve({
+        data: {
+          email: 'test@example.com',
+          debug: {
+            user_info: {
+              email: 'test@example.com',
+            },
+          },
+        },
+      })
+    ),
+    getUserSubmissions: vi.fn(() =>
+      Promise.resolve({
+        data: {
+          submissions: [],
+          total: 0,
+          page: 1,
+          per_page: 10,
+        },
+      })
+    ),
+  },
 }));
 
 const createMockRouter = (): Router => {
@@ -157,10 +161,10 @@ describe('ProfileView', () => {
     it('switches between tabs', async (): Promise<void> => {
       // The component has filter functionality instead of tabs
       expect(wrapper.vm.filterStatus).toBe('all');
-      
+
       wrapper.vm.filterStatus = 'pending';
       await wrapper.vm.$nextTick();
-      
+
       expect(wrapper.vm.filterStatus).toBe('pending');
     });
 

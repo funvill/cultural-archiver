@@ -87,7 +87,7 @@ describe('Search Utilities', () => {
       expect(result.tagKeys).toHaveLength(0);
       expect(result.tagPairs).toEqual([
         { key: 'material', value: 'bronze' },
-        { key: 'artist', value: 'banksy' }
+        { key: 'artist', value: 'banksy' },
       ]);
     });
 

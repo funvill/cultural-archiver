@@ -1,6 +1,6 @@
 /**
  * OpenStreetMap Mass Import Parser
- * 
+ *
  * Parses OSM GeoJSON artwork data and converts it to mass-import format
  * with proper field mappings, validation, and attribution.
  */
@@ -55,24 +55,24 @@ export interface OSMGeoJSON {
 export interface OSMImportConfig {
   /** User UUID for imports (uses MASS_IMPORT_USER_UUID) */
   user_uuid: string;
-  
+
   /** Duplicate detection threshold (0.7 recommended) */
   duplicateThreshold: number;
-  
+
   /** Source attribution */
   attribution: {
     source: string;
     license: string;
     attribution_text: string;
   };
-  
+
   /** Field mappings from OSM properties to platform fields */
   fieldMappings: {
     title: string;
     artist: string;
     description?: string;
   };
-  
+
   /** Validation rules */
   validation: {
     requireName: boolean;
@@ -98,25 +98,25 @@ export const DEFAULT_OSM_CONFIG: OSMImportConfig = {
   attribution: {
     source: 'OpenStreetMap',
     license: '[ODbL](https://www.openstreetmap.org/copyright)',
-    attribution_text: '© OpenStreetMap contributors'
+    attribution_text: '© OpenStreetMap contributors',
   },
   fieldMappings: {
     title: 'name',
     artist: 'artist_name',
-    description: 'description'
+    description: 'description',
   },
   validation: {
     requireName: true,
     requireCoordinates: true,
-    skipIncomplete: true
-  }
+    skipIncomplete: true,
+  },
 };
 
 /**
  * Parse OSM GeoJSON and convert to mass-import payloads
  */
 export function parseOSMGeoJSON(
-  geoJSON: OSMGeoJSON, 
+  geoJSON: OSMGeoJSON,
   config: Partial<OSMImportConfig> = {}
 ): OSMImportResult {
   const cfg = { ...DEFAULT_OSM_CONFIG, ...config };
@@ -125,13 +125,13 @@ export function parseOSMGeoJSON(
     valid: 0,
     skipped: 0,
     errors: [],
-    payloads: []
+    payloads: [],
   };
 
   for (const feature of geoJSON.features) {
     try {
       const payload = convertOSMFeatureToPayload(feature, cfg);
-      
+
       if (payload) {
         result.payloads.push(payload);
         result.valid++;
@@ -141,7 +141,7 @@ export function parseOSMGeoJSON(
     } catch (error) {
       result.errors.push({
         feature_id: feature.id || 'unknown',
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       result.skipped++;
     }
@@ -172,13 +172,13 @@ function convertOSMFeatureToPayload(
   }
 
   const [lon, lat] = feature.geometry.coordinates;
-  
+
   // Build core tags with OSM attribution
   const coreTags = [
     { label: 'Source', value: config.attribution.source },
     { label: 'License', value: config.attribution.license },
     { label: 'Attribution', value: config.attribution.attribution_text },
-    { label: 'External ID', value: feature.id }
+    { label: 'External ID', value: feature.id },
   ];
 
   // Add OSM-specific metadata tags
@@ -195,10 +195,13 @@ function convertOSMFeatureToPayload(
 
   // Build artwork object
   const artwork = {
-    title: feature.properties[config.fieldMappings.title] || feature.properties.name || 'Untitled Artwork',
+    title:
+      feature.properties[config.fieldMappings.title] ||
+      feature.properties.name ||
+      'Untitled Artwork',
     lat,
     lon,
-    created_by: feature.properties[config.fieldMappings.artist] || feature.properties.artist_name
+    created_by: feature.properties[config.fieldMappings.artist] || feature.properties.artist_name,
   };
 
   // Add description if available
@@ -212,19 +215,23 @@ function convertOSMFeatureToPayload(
     duplicateThreshold: config.duplicateThreshold,
     importer: 'osm-geojson-importer',
     artwork: artworkWithDescription,
-    logbook: [{
-      note: `Imported from OpenStreetMap (${feature.id})`,
-      tags: allTags
-    }]
+    logbook: [
+      {
+        note: `Imported from OpenStreetMap (${feature.id})`,
+        tags: allTags,
+      },
+    ],
   };
 }
 
 /**
  * Map OSM properties to structured tags
  */
-function mapOSMPropertiesToTags(properties: OSMFeature['properties']): Array<{ label: string; value: string }> {
+function mapOSMPropertiesToTags(
+  properties: OSMFeature['properties']
+): Array<{ label: string; value: string }> {
   const tags: Array<{ label: string; value: string }> = [];
-  
+
   // Common OSM artwork fields with smart labeling
   const fieldMappings: Record<string, string> = {
     artwork_type: 'Artwork Type',
@@ -234,7 +241,7 @@ function mapOSMPropertiesToTags(properties: OSMFeature['properties']): Array<{ l
     artist: 'Artist',
     creator: 'Creator',
     start_date: 'Created Date',
-    inscription: 'Inscription'
+    inscription: 'Inscription',
   };
 
   // Process known fields
@@ -246,14 +253,15 @@ function mapOSMPropertiesToTags(properties: OSMFeature['properties']): Array<{ l
 
   // Process other fields (excluding system fields)
   const systemFields = new Set(['osm_type', 'osm_id', 'name', 'artist_name', 'description']);
-  
+
   for (const [key, value] of Object.entries(properties)) {
     if (!systemFields.has(key) && !fieldMappings[key] && value != null) {
       // Convert field name to readable label
-      const label = key.split('_')
+      const label = key
+        .split('_')
         .map(word => word.charAt(0).toUpperCase() + word.slice(1))
         .join(' ');
-      
+
       tags.push({ label, value: String(value) });
     }
   }
@@ -268,9 +276,12 @@ function isValidCoordinate(lat: number, lon: number): boolean {
   return (
     typeof lat === 'number' &&
     typeof lon === 'number' &&
-    lat >= -90 && lat <= 90 &&
-    lon >= -180 && lon <= 180 &&
-    !isNaN(lat) && !isNaN(lon)
+    lat >= -90 &&
+    lat <= 90 &&
+    lon >= -180 &&
+    lon <= 180 &&
+    !isNaN(lat) &&
+    !isNaN(lon)
   );
 }
 
@@ -288,19 +299,19 @@ export async function loadOSMGeoJSON(_filePath: string): Promise<OSMGeoJSON> {
  */
 export function generateImportSummary(result: OSMImportResult): string {
   const successRate = ((result.valid / result.total) * 100).toFixed(1);
-  
+
   let summary = `OSM Import Summary:\n`;
   summary += `Total features: ${result.total}\n`;
   summary += `Valid imports: ${result.valid} (${successRate}%)\n`;
   summary += `Skipped: ${result.skipped}\n`;
   summary += `Errors: ${result.errors.length}\n`;
-  
+
   if (result.errors.length > 0) {
     summary += `\nError details:\n`;
     result.errors.forEach(err => {
       summary += `- ${err.feature_id}: ${err.error}\n`;
     });
   }
-  
+
   return summary;
 }

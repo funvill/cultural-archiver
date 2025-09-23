@@ -1,11 +1,12 @@
 # Progress: Image Upload Refresh Bug Fix
 
 ---
+
 **Issue**: Second image upload doesn't refresh search results  
 **Created**: 2025-09-18  
 **Author**: GitHub Copilot  
 **Status**: Investigation Complete - Ready for Development  
-**Priority**: High (User Experience Bug)  
+**Priority**: High (User Experience Bug)
 
 ---
 
@@ -18,7 +19,7 @@ When users are on the search page (`/search`) and upload a second image via the 
 **Expected Behavior:**
 
 - Show the newly uploaded image
-- Update location coordinates display  
+- Update location coordinates display
 - Fetch and display nearby artworks for the new location
 - Update "Your Photos" section with new image
 
@@ -38,9 +39,9 @@ When users are on the search page (`/search`) and upload a second image via the 
 
 ### 1. Code Investigation & Analysis
 
-- [X] **1.1** Reproduce bug with Playwright MCP testing on production site
-- [X] **1.2** Analyze console logs and network requests to identify data flow
-- [X] **1.3** Identify root cause: URL params update but components don't react
+- [x] **1.1** Reproduce bug with Playwright MCP testing on production site
+- [x] **1.2** Analyze console logs and network requests to identify data flow
+- [x] **1.3** Identify root cause: URL params update but components don't react
 - [ ] **1.4** Map out component hierarchy and data flow for search page
 - [ ] **1.5** Identify which components need to watch for route parameter changes
 
@@ -48,25 +49,26 @@ When users are on the search page (`/search`) and upload a second image via the 
 
 ### 2. Frontend Component Analysis
 
-- [X] **2.1** Examine `SearchView.vue` component and its route parameter watching
-- [X] **2.2** Check photo upload handling and state management
-- [X] **2.3** Analyze nearby artworks API call triggers and dependencies
-- [X] **2.4** Review how location coordinates are passed between components
-- [X] **2.5** Identify missing `watch` properties or `computed` dependencies
+- [x] **2.1** Examine `SearchView.vue` component and its route parameter watching
+- [x] **2.2** Check photo upload handling and state management
+- [x] **2.3** Analyze nearby artworks API call triggers and dependencies
+- [x] **2.4** Review how location coordinates are passed between components
+- [x] **2.5** Identify missing `watch` properties or `computed` dependencies
 
 **Summary (2.1-2.5):** Identified the root cause - SearchView component only watched `route.params.query` but not `route.query` (lat/lng parameters). Photo upload flow via AppShell navigates with new coordinates, but SearchView doesn't react to URL query parameter changes.
 
 ### 3. Fix Implementation
 
-- [X] **3.1** Add proper route parameter watchers in SearchView component
-- [X] **3.2** Ensure photo display updates when URL parameters change
-- [X] **3.3** Fix location coordinate display reactivity
-- [X] **3.4** Ensure nearby artworks API calls trigger on coordinate changes
-- [X] **3.5** Clear previous photo/location state when new image uploaded
+- [x] **3.1** Add proper route parameter watchers in SearchView component
+- [x] **3.2** Ensure photo display updates when URL parameters change
+- [x] **3.3** Fix location coordinate display reactivity
+- [x] **3.4** Ensure nearby artworks API calls trigger on coordinate changes
+- [x] **3.5** Clear previous photo/location state when new image uploaded
 
 **Summary (3.1-3.5):** Implemented comprehensive route query parameter watcher in SearchView component. Added watcher for route.query changes that detects lat/lng parameter updates and triggers both fast upload session refresh and location search updates. Both photo display and nearby artworks now update reactively when new images are uploaded.
 
 **Technical Implementation Details:**
+
 ```javascript
 // Added to SearchView.vue
 watch(() => route.query, async (newQuery: any, oldQuery: any) => {
@@ -76,11 +78,11 @@ watch(() => route.query, async (newQuery: any, oldQuery: any) => {
     const newLng = newQuery.lng ? parseFloat(newQuery.lng as string) : null
     const oldLat = oldQuery.lat ? parseFloat(oldQuery.lat as string) : null
     const oldLng = oldQuery.lng ? parseFloat(oldQuery.lng as string) : null
-    
+
     if (newLat !== oldLat || newLng !== oldLng) {
       // Update session to get latest photo data
       fastUploadStore.refreshSessionFromStore()
-      
+
       if (newLat && newLng) {
         // Trigger location search with new coordinates
         await searchStore.performLocationSearch(newLat, newLng)
@@ -92,11 +94,11 @@ watch(() => route.query, async (newQuery: any, oldQuery: any) => {
 
 ### 4. Testing Results
 
-- [X] **4.1** Test first image upload displays correctly
-- [X] **4.2** Test second image upload replaces first image
-- [X] **4.3** Verify location coordinates update on new upload
-- [X] **4.4** Confirm nearby artworks API call triggers
-- [X] **4.5** Validate photo session state refresh
+- [x] **4.1** Test first image upload displays correctly
+- [x] **4.2** Test second image upload replaces first image
+- [x] **4.3** Verify location coordinates update on new upload
+- [x] **4.4** Confirm nearby artworks API call triggers
+- [x] **4.5** Validate photo session state refresh
 
 **Summary (4.1-4.5):** ✅ **TESTING SUCCESSFUL!** Using Playwright browser automation, verified that our fix works correctly:
 
@@ -106,6 +108,7 @@ watch(() => route.query, async (newQuery: any, oldQuery: any) => {
 4. **API responses received**: Both authentication and nearby artworks API calls completed successfully
 
 **Test Evidence from Console Logs:**
+
 ```
 [LOG] [ApiClient.get] API Base URL: /api endpoint: /artworks/nearby params: {lat: 49.2828, lon: -123...
 [LOG] [ApiClient.request] Making fetch request to: /api/artworks/nearby?lat=49.2828&lon=-123.1208&radius=500&limit=250&minimal=true
@@ -192,19 +195,23 @@ npm run test
 
 ```javascript
 // In SearchView.vue <script setup>
-import { watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { watch } from 'vue';
+import { useRoute } from 'vue-router';
 
-const route = useRoute()
+const route = useRoute();
 
 // Watch for route parameter changes
-watch(() => route.query, (newQuery, oldQuery) => {
-  if (newQuery.lat !== oldQuery.lat || newQuery.lng !== oldQuery.lng) {
-    // Trigger photo and location updates
-    updatePhotoDisplay()
-    fetchNearbyArtworks()
-  }
-}, { deep: true })
+watch(
+  () => route.query,
+  (newQuery, oldQuery) => {
+    if (newQuery.lat !== oldQuery.lat || newQuery.lng !== oldQuery.lng) {
+      // Trigger photo and location updates
+      updatePhotoDisplay();
+      fetchNearbyArtworks();
+    }
+  },
+  { deep: true }
+);
 ```
 
 ---
@@ -232,13 +239,11 @@ This issue has been thoroughly investigated and the root cause identified. The b
 3. Ensure coordinate extraction is reactive to route parameters
 4. Test fix with the Playwright scenario documented above
 
-**Priority**: High - This breaks the core photo upload workflow and confuses users  
+**Priority**: High - This breaks the core photo upload workflow and confuses users
+
 ## ✅ IMPLEMENTATION COMPLETE
 
-**Status**: FIXED ✅
-**Date Completed**: September 18, 2025
-**Implementation Time**: ~2 hours
-**Testing Status**: PASSED ✅
+**Status**: FIXED ✅ **Date Completed**: September 18, 2025 **Implementation Time**: ~2 hours **Testing Status**: PASSED ✅
 
 ### Summary
 
@@ -249,8 +254,9 @@ Successfully implemented and tested the fix for the image upload refresh bug. Th
 **Solution**: Added comprehensive watcher for `route.query` changes that detects coordinate updates and triggers both photo session refresh and location-based API calls.
 
 **Key Technical Changes**:
+
 - Added route query parameter watcher in SearchView.vue
-- Implemented fast upload session data synchronization  
+- Implemented fast upload session data synchronization
 - Ensured nearby artworks API calls trigger on coordinate changes
 - Maintained backward compatibility with existing functionality
 

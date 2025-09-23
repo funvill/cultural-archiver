@@ -45,6 +45,7 @@ The endpoint will utilize the new `submissions` table with the following submiss
 - `new_artist`: For new artist imports
 
 **Key Schema Features:**
+
 - All imports are auto-approved (`status: 'approved'`)
 - Uses a default system user token for mass imports
 - Stores original plugin data in `old_data` field for traceability
@@ -82,36 +83,40 @@ export const RawImportDataSchema = z.object({
   lon: z.number().min(-180).max(180),
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
-  
+
   // Artist and creation info
   artist: z.string().max(500).optional(),
   created_by: z.string().max(500).optional(),
   yearOfInstallation: z.string().optional(),
-  
+
   // Physical properties
   material: z.string().max(200).optional(),
   type: z.string().max(100).optional(),
-  
+
   // Location details
   address: z.string().max(500).optional(),
   neighborhood: z.string().max(200).optional(),
   siteName: z.string().max(300).optional(),
-  
+
   // Photos
-  photos: z.array(z.object({
-    url: z.string().url(),
-    caption: z.string().optional(),
-    credit: z.string().optional(),
-    filename: z.string().optional(),
-  })).optional(),
+  photos: z
+    .array(
+      z.object({
+        url: z.string().url(),
+        caption: z.string().optional(),
+        credit: z.string().optional(),
+        filename: z.string().optional(),
+      })
+    )
+    .optional(),
   primaryPhotoUrl: z.string().url().optional(),
-  
+
   // Attribution and tracking
   source: z.string().max(100), // Required: data source identifier
   sourceUrl: z.string().url().optional(),
   externalId: z.string().max(200).optional(),
   license: z.string().max(200).optional(),
-  
+
   // Additional metadata
   tags: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
   status: z.enum(['active', 'inactive', 'removed', 'unknown']).optional(),
@@ -125,15 +130,17 @@ export type RawImportData = z.infer<typeof RawImportDataSchema>;
 #### Multi-Entity Deduplication
 
 **Artwork Deduplication Scoring:**
+
 - **GPS Location**: 0.6 points (primary indicator, distance-weighted within 100m)
 - **Title Match**: 0.25 points (Levenshtein distance with normalization)
 - **Artist Match**: 0.2 points (fuzzy match against artist names)
 - **Reference IDs**: 0.5 points (external_id, registry_id matches)
 - **Tag Similarity**: 0.05 points (matching structured tags)
 
-*Note: The above weights are the default. The API will accept weight overrides in the `config` object to allow for flexible, per-import tuning.*
+_Note: The above weights are the default. The API will accept weight overrides in the `config` object to allow for flexible, per-import tuning._
 
 **Artist Deduplication Scoring:**
+
 - **Name Match**: 0.5 points (primary indicator with fuzzy matching)
 - **Website Match**: 0.2 points (exact URL match)
 - **Bio Similarity**: 0.15 points (text similarity analysis)
@@ -143,12 +150,14 @@ export type RawImportData = z.infer<typeof RawImportDataSchema>;
 #### Intelligent Duplicate Handling
 
 **When Duplicates Detected:**
+
 1. Skip import of duplicate entity
 2. Merge new tags with existing entity tags
 3. Log merge operation in audit trail
 4. Return existing entity ID in response
 
 **Tag Merging Logic:**
+
 - Add new tags that don't exist in existing entity
 - If a tag with the same label exists, keep the original tag's value and discard the new one, preserving the earliest data.
 - Update tag values only if existing value is empty/null
@@ -192,10 +201,10 @@ interface AutoCreatedArtist {
   tags: {
     source: string; // "mass-import-auto-created"
     original_artwork_id: string; // The first artwork that triggered creation
-    created_reason: "referenced_in_artwork";
+    created_reason: 'referenced_in_artwork';
     website?: string; // Artist website stored as tag
   };
-  status: "approved";
+  status: 'approved';
   created_at: string;
   updated_at: string;
 }
@@ -256,9 +265,9 @@ interface MassImportResponseV2 {
   };
   results: {
     artworks: {
-      created: Array<{ 
+      created: Array<{
         id: string; // UUID of created artwork
-        title: string; 
+        title: string;
         submissionId: string;
       }>;
       duplicates: Array<{
@@ -266,7 +275,7 @@ interface MassImportResponseV2 {
         existingId: string;
         confidenceScore: number;
         scoreBreakdown: DuplicationScore;
-        error: "DUPLICATE_DETECTED";
+        error: 'DUPLICATE_DETECTED';
       }>;
       failed: Array<{
         title: string;
@@ -275,9 +284,9 @@ interface MassImportResponseV2 {
       }>;
     };
     artists: {
-      created: Array<{ 
+      created: Array<{
         id: string; // UUID of created artist
-        name: string; 
+        name: string;
         submissionId: string;
       }>;
       autoCreated: Array<{
@@ -290,7 +299,7 @@ interface MassImportResponseV2 {
         name: string;
         existingId: string;
         confidenceScore: number;
-        error: "DUPLICATE_DETECTED";
+        error: 'DUPLICATE_DETECTED';
       }>;
       failed: Array<{
         name: string;
@@ -499,20 +508,20 @@ Since this is a pre-release development system, there is no need for backward co
 ### Technical Risks
 
 1. **Photo Processing Failures**: Issues downloading or uploading photos to R2
-   - *Mitigation*: Implement retry logic and graceful failure handling for photo operations
+   - _Mitigation_: Implement retry logic and graceful failure handling for photo operations
 2. **Data Corruption**: Duplicate detection errors causing data loss
-   - *Mitigation*: Comprehensive testing and rollback procedures
+   - _Mitigation_: Comprehensive testing and rollback procedures
 3. **CLI Plugin Compatibility**: Breaking changes between CLI and API systems
-   - *Mitigation*: Coordinate development of both systems, shared type definitions
+   - _Mitigation_: Coordinate development of both systems, shared type definitions
 
 ### Operational Risks
 
 1. **Development Coordination**: Coordinating changes between CLI and API systems
-   - *Mitigation*: Shared development timeline and regular integration testing
+   - _Mitigation_: Shared development timeline and regular integration testing
 2. **R2 Storage Costs**: Photo uploads increasing storage costs unexpectedly
-   - *Mitigation*: Monitor storage usage and implement photo optimization
+   - _Mitigation_: Monitor storage usage and implement photo optimization
 3. **Small Batch Inefficiency**: Processing overhead for very small batches
-   - *Mitigation*: Profile and optimize batch processing for small datasets
+   - _Mitigation_: Profile and optimize batch processing for small datasets
 
 ## Conclusion
 

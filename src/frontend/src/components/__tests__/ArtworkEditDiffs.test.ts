@@ -29,7 +29,8 @@ describe('ArtworkEditDiffs', () => {
         version: '1.0.0',
       }),
       formatted_old: 'Artwork Classification: Type: statue\nReference Data: Name: Old Name',
-      formatted_new: 'Artwork Classification: Type: mural\nReference Data: Name: New Name\nPhysical Properties: Height: 3.5m',
+      formatted_new:
+        'Artwork Classification: Type: mural\nReference Data: Name: New Name\nPhysical Properties: Height: 3.5m',
     },
   ];
 
@@ -46,10 +47,7 @@ describe('ArtworkEditDiffs', () => {
     },
   ];
 
-  const mockMixedDiffs: ArtworkEditDiff[] = [
-    ...mockTextDiffs,
-    ...mockTagDiffs,
-  ];
+  const mockMixedDiffs: ArtworkEditDiff[] = [...mockTextDiffs, ...mockTagDiffs];
 
   describe('Field Organization', () => {
     it('should group diffs by field name', () => {
@@ -74,7 +72,7 @@ describe('ArtworkEditDiffs', () => {
       // Title should come before tags (higher priority)
       const titleIndex = fieldNames.findIndex(name => name.includes('Title'));
       const tagsIndex = fieldNames.findIndex(name => name.includes('Tags'));
-      
+
       expect(titleIndex).toBeLessThan(tagsIndex);
     });
   });
@@ -133,7 +131,7 @@ describe('ArtworkEditDiffs', () => {
   describe('Compact Mode', () => {
     it('should hide header in compact mode', () => {
       const wrapper = mount(ArtworkEditDiffs, {
-        props: { 
+        props: {
           diffs: mockTextDiffs,
           compact: true,
         },
@@ -145,7 +143,7 @@ describe('ArtworkEditDiffs', () => {
 
     it('should show header in non-compact mode', () => {
       const wrapper = mount(ArtworkEditDiffs, {
-        props: { 
+        props: {
           diffs: mockTextDiffs,
           compact: false,
         },

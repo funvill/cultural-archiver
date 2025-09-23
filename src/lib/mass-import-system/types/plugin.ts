@@ -1,6 +1,6 @@
 /**
  * Mass Import Plugin System - Plugin Interfaces and Types
- * 
+ *
  * This module defines the standardized interfaces for importer and exporter plugins
  * in the modular mass import system.
  */
@@ -42,18 +42,18 @@ export interface ImporterPlugin {
   name: string;
   description: string;
   metadata: PluginMetadata;
-  
+
   // Configuration schema for validation
   configSchema: object;
-  
+
   // Core plugin methods
   mapData(sourceData: unknown, config: ImporterConfig): Promise<RawImportData[]>;
   validateData(sourceData: unknown): Promise<ValidationResult>;
   generateImportId(record: unknown): string;
-  
+
   // Optional methods
   getDefaultDataPath?(): string;
-  
+
   // Plugin capabilities
   supportedFormats: string[];
   requiredFields: string[];
@@ -114,12 +114,12 @@ export interface ExporterPlugin {
   name: string;
   description: string;
   metadata: PluginMetadata;
-  
+
   // Core plugin methods
   export(data: RawImportData[], config: ExporterConfig): Promise<ExportResult>;
   configure(options: ExporterOptions): Promise<void>;
   validate(config: ExporterConfig): Promise<ValidationResult>;
-  
+
   // Plugin capabilities
   supportedFormats: string[];
   requiresNetwork: boolean;

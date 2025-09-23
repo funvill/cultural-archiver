@@ -8,7 +8,6 @@ The logbook submission feature allows users to document their visits to existing
 
 **Goal:** Enable users to document their visits to existing artworks, contribute to data quality, and be rewarded for their engagement, with a clear and intuitive user experience that leverages existing UI patterns.
 
-
 Add logbook submission
 
 Users need the abiltiy to indicate that they have gone and seen an artwork. This is done by taking a photo of the artwork and adding it to the system as a logbook entry. While adding the photo they can update other information about the artwork to help with the documentation. The users will be rewarded with points each time they visit an artwork.
@@ -48,6 +47,7 @@ This logbook submission are submitted to the submissions table.
 ## 4. Functional Requirements
 
 ### Core Functionality
+
 1.  **Entry Point:** Users access the logbook flow via the existing "Add" button, which leads to the "Nearby Artwork" search.
 2.  **Nearby Artwork Integration:** The system must display nearby artworks (500m radius) with an "Add Report" button on each artwork card.
 3.  **Direct Navigation:** Clicking "Add Report" navigates directly to the logbook submission page for the selected artwork. The button will always be visible and clickable.
@@ -61,6 +61,7 @@ This logbook submission are submitted to the submissions table.
 11. **No Drafts:** The system will not save drafts. If a user navigates away during submission, the data is lost.
 
 ### Moderation Workflow
+
 12. **Unified Queue:** Logbook submissions will appear in the same review queue as new artwork submissions but will be clearly labeled "Logbook Entry".
 13. **Moderator View:** The review interface must show the submitted photo, any answers to questions (e.g., condition), and a list of any suggested changes to artwork info.
 14. **Two-Step Approval:** When a submission contains suggested data changes, moderators will perform a two-step approval: first approve the logbook entry itself, then separately approve each suggested data change.
@@ -74,8 +75,8 @@ This logbook submission are submitted to the submissions table.
 2.  **Cooldown Messaging:** If a user attempts to submit for an artwork within the 30-day cooldown, the submission page will display a playful message: "Looks like you've been here recently! Come back after [Date] to log another visit."
 3.  **Submission Confirmation:** After successful submission, the user will receive a simple toast notification (e.g., "Logbook entry submitted for review!").
 4.  **Error Handling:**
-    *   If a photo upload fails mid-submission, the entire form will be cleared, forcing the user to start over.
-    *   If submission fails due to network loss, a clear error ("Submission Failed. Please check your connection and try again") will be shown, and the entered form data will be preserved for a manual retry.
+    - If a photo upload fails mid-submission, the entire form will be cleared, forcing the user to start over.
+    - If submission fails due to network loss, a clear error ("Submission Failed. Please check your connection and try again") will be shown, and the entered form data will be preserved for a manual retry.
 
 ## 6. Technical Requirements & API
 
@@ -84,9 +85,9 @@ This logbook submission are submitted to the submissions table.
 3.  **Cooldown Status:** The user's cooldown status for an artwork will be included in the main `GET /api/artworks/{artworkId}` response via a `userLogbookStatus` field.
 4.  **API Response:** On successful submission, the API will return a `201 Created` status with a JSON body containing the `submissionId` and a status message: `"Submission received for review."`
 5.  **Error Handling (API):**
-    *   If a logbook entry is submitted for a deleted/disabled artwork, the API will reject it with a `404 Not Found` or `409 Conflict` error.
-    *   If an artwork is edited while a user is submitting, the submission will proceed based on the old data, and any inconsistencies will be handled by moderators.
-    *   If a photo's EXIF location is >1km from the artwork's location, the submission will be accepted but automatically flagged with a "Location Mismatch" warning for moderators.
+    - If a logbook entry is submitted for a deleted/disabled artwork, the API will reject it with a `404 Not Found` or `409 Conflict` error.
+    - If an artwork is edited while a user is submitting, the submission will proceed based on the old data, and any inconsistencies will be handled by moderators.
+    - If a photo's EXIF location is >1km from the artwork's location, the submission will be accepted but automatically flagged with a "Location Mismatch" warning for moderators.
 
 ## 7. Non-Goals (Out of Scope)
 
@@ -101,8 +102,8 @@ This logbook submission are submitted to the submissions table.
 
 - **Primary Metric:** Total number of logbook entries submitted in the first three months.
 - **Data Quality:**
-    - Reduction in the number of artworks with missing information.
-    - Manual audit of 100 random artworks to check for improved data accuracy.
+  - Reduction in the number of artworks with missing information.
+  - Manual audit of 100 random artworks to check for improved data accuracy.
 - **User Engagement:** Number of unique users who submit more than one logbook entry.
 - **Feature Adoption:** Number of unique users submitting their first logbook entry each week.
 - **Long-Term Value:** Sustained rate of logbook submissions over time (measured after 6 months).
@@ -114,6 +115,5 @@ This logbook submission are submitted to the submissions table.
 - **Mitigation for Low-Quality Photos:** Rely on the manual review process to filter out bad submissions. Moderators will remove bad or low-ranked photos after they have been submitted.
 - **Key Assumption:** The 500m "Nearby Artwork" radius is effective for users to find the correct artwork.
 - **Likely User Confusion:**
-    - Understanding the one-month submission cooldown.
-    - Finding the "Add Report" button in the nearby artwork list.
-
+  - Understanding the one-month submission cooldown.
+  - Finding the "Add Report" button in the nearby artwork list.

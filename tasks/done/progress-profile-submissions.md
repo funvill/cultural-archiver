@@ -1,5 +1,5 @@
 ---
-name: "Fix profile submissions fetch error"
+name: 'Fix profile submissions fetch error'
 created: 2025-Sep-19
 updated: 2025-Sep-19
 owner: AI Agent (Copilot)
@@ -12,16 +12,16 @@ Purpose: Resolve the 404 error on the profile page caused by a mismatch between 
 
 ## Tasks
 
-- [X] Inspect frontend profile calls
+- [x] Inspect frontend profile calls
   - Located `src/frontend/src/services/api.ts` and `src/frontend/src/views/ProfileView.vue`.
   - Found `getUserSubmissions()` calling `/user/submissions`.
-- [X] Verify backend submissions route
+- [x] Verify backend submissions route
   - Confirmed backend registers `GET /api/me/submissions` in `src/workers/index.ts`.
   - Handler provided by `getUserSubmissions` in user routes with proper middlewares.
-- [X] Align frontend endpoint path
+- [x] Align frontend endpoint path
   - Updated `apiService.getUserSubmissions()` to call `/me/submissions`.
   - File: `src/frontend/src/services/api.ts`.
-- [X] Run tests and build
+- [x] Run tests and build
   - Frontend tests: PASS (0 tests discovered, no failures).
   - Workers tests: PASS (0 tests discovered, no failures).
   - Frontend build: PASS (vue-tsc + vite build completed without errors).
@@ -47,4 +47,3 @@ Root cause was a path mismatch. Frontend used `/user/submissions` while backend 
 ## Files Touched
 
 - `src/frontend/src/services/api.ts` — changed `/user/submissions` to `/me/submissions`.
-

@@ -1,6 +1,6 @@
 /**
  * Mass Import System - Data Validation and Transformation
- * 
+ *
  * This module handles validation and transformation of raw import data
  * using the structured tag system and coordinate bounds checking.
  */
@@ -27,7 +27,7 @@ export const MASS_IMPORT_USER_TOKEN = 'a0000000-1000-4000-8000-000000000002';
 // Vancouver coordinate bounds for validation
 export const VANCOUVER_BOUNDS = {
   north: 49.31,
-  south: 49.20,
+  south: 49.2,
   west: -123.25,
   east: -123.02,
 };
@@ -57,14 +57,16 @@ export function validateImportData(
   warnings.push(...tagValidation.warnings);
 
   // Validate photos
-  const photoValidation = validatePhotos(rawData.photos?.map(p => {
-    const photo: { url: string; caption?: string; credit?: string } = {
-      url: p.url,
-    };
-    if (p.caption) photo.caption = p.caption;
-    if (p.credit) photo.credit = p.credit;
-    return photo;
-  }) || []);
+  const photoValidation = validatePhotos(
+    rawData.photos?.map(p => {
+      const photo: { url: string; caption?: string; credit?: string } = {
+        url: p.url,
+      };
+      if (p.caption) photo.caption = p.caption;
+      if (p.credit) photo.credit = p.credit;
+      return photo;
+    }) || []
+  );
   errors.push(...photoValidation.errors);
   warnings.push(...photoValidation.warnings);
 
@@ -150,7 +152,7 @@ function validateCoordinates(
   // Check for suspicious precision (too many decimal places might indicate data quality issues)
   const latPrecision = countDecimalPlaces(lat);
   const lonPrecision = countDecimalPlaces(lon);
-  
+
   if (latPrecision > 8 || lonPrecision > 8) {
     warnings.push({
       field: 'coordinates',
@@ -187,7 +189,7 @@ function validateAndTransformTags(rawData: RawImportData): {
     // Validate using a mock tag validation for now
     // In the actual implementation, this would use the existing tag validation system
     const mockValidation = mockValidateTags(tags);
-    
+
     if (!mockValidation.valid) {
       mockValidation.errors.forEach(error => {
         errors.push({
@@ -253,7 +255,7 @@ function addAttributionTags(
 ): void {
   // Data source attribution
   tags.source = rawData.source;
-  
+
   if (rawData.sourceUrl) {
     tags.source_url = rawData.sourceUrl;
   }
@@ -279,17 +281,17 @@ function addAttributionTags(
  */
 function mapArtworkType(type: string): string {
   const normalized = type.toLowerCase().trim();
-  
+
   const typeMap: Record<string, string> = {
-    'sculpture': 'sculpture',
-    'mural': 'mural',
-    'installation': 'installation',
-    'monument': 'monument',
-    'statue': 'sculpture',
-    'fountain': 'fountain',
-    'mosaic': 'mosaic',
-    'relief': 'relief',
-    'painting': 'painting',
+    sculpture: 'sculpture',
+    mural: 'mural',
+    installation: 'installation',
+    monument: 'monument',
+    statue: 'sculpture',
+    fountain: 'fountain',
+    mosaic: 'mosaic',
+    relief: 'relief',
+    painting: 'painting',
     'mixed media': 'mixed_media',
     'public art': 'public_art',
   };
@@ -322,10 +324,10 @@ function validatePhotos(photos: Array<{ url: string; caption?: string; credit?: 
 
     // Check for common image file extensions
     const url = photo.url.toLowerCase();
-    const hasImageExtension = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].some(ext => 
+    const hasImageExtension = ['.jpg', '.jpeg', '.png', '.gif', '.webp'].some(ext =>
       url.includes(ext)
     );
-    
+
     if (!hasImageExtension && !url.includes('image') && !url.includes('photo')) {
       warnings.push({
         field: `photos[${index}].url`,
@@ -401,7 +403,7 @@ function transformToProcessedData(
 ): ProcessedImportData {
   // Build note field from description (not title - title goes in separate field)
   const noteParts: string[] = [];
-  
+
   if (rawData.description) {
     noteParts.push(`${rawData.description}`);
   }
@@ -492,7 +494,7 @@ function mockValidateTags(tags: Record<string, string | number | boolean>): {
     if (value === null || value === undefined || value === '') {
       errors.push(`Tag '${key}' has empty value`);
     }
-    
+
     if (typeof value === 'string' && value.length > 1000) {
       errors.push(`Tag '${key}' value is too long (max 1000 characters)`);
     }

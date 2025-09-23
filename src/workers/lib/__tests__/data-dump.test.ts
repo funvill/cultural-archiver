@@ -335,11 +335,16 @@ describe('Data Dump System', () => {
       expect(result.success).toBe(true);
       expect(result.count).toBe(2);
 
-  const parsedJson = JSON.parse(result.json_content!) as Array<{ id: string; label: string; value: string; created_at: string }>;
+      const parsedJson = JSON.parse(result.json_content!) as Array<{
+        id: string;
+        label: string;
+        value: string;
+        created_at: string;
+      }>;
       expect(parsedJson).toHaveLength(2);
       // Should include the two user-facing tags from artwork.tags
-  const labels = parsedJson.map((t) => t.label);
-  const values = parsedJson.map((t) => t.value);
+      const labels = parsedJson.map(t => t.label);
+      const values = parsedJson.map(t => t.value);
       expect(labels).toContain('material');
       expect(values).toContain('bronze');
       expect(labels).toContain('style');
@@ -585,7 +590,7 @@ describe('Data Dump System', () => {
       expect(archiveBuffer.byteLength).toBeGreaterThan(0);
 
       // Verify that createZipArchive was called with correct files
-  const { createZipArchive } = await import('../archive');
+      const { createZipArchive } = await import('../archive');
       expect(createZipArchive).toHaveBeenCalled();
 
       const callArgs = (createZipArchive as any).mock.calls[0];
@@ -756,7 +761,7 @@ describe('Data Dump System', () => {
 
     it('should handle archive creation failures', async () => {
       // Mock createZipArchive to fail
-  const { createZipArchive } = await import('../archive');
+      const { createZipArchive } = await import('../archive');
       (createZipArchive as any).mockRejectedValueOnce(new Error('Archive creation failed'));
 
       await expect(

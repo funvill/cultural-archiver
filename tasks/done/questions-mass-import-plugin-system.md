@@ -89,50 +89,65 @@ This document tracks the questions and answers used to refine the PRD for the ma
 ### Section 3: CLI and Reporting
 
 **11. How should a user specify which importer and exporter to use?**
+
 > Answer: A. Via command-line arguments: `mass-import --importer vancouver --exporter api`
 
 **12. What should be the standard output in the console during an import?**
+
 > Answer: A useful output for unit testing. (Interpreted as Minimal: Only show a final summary message upon completion or failure.)
 
 **13. How should the final JSON report be generated?**
+
 > Answer: A. Automatically for every run: A report file is always created with a timestamp in the filename.
 
 **14. Where should the generated report be saved?**
+
 > Answer: A. In a central `reports/` directory with a timestamped filename (e.g., `reports/2025-09-13-143000-vancouver-api.json`).
 
 **15. Besides record status, what is the most important information to include in the JSON report?**
+
 > Answer: A. Performance metrics: Total time, records per second, and memory usage.
 
 ### Section 4: Configuration, Errors, and Plugin Structure
 
 **16. How should individual plugins be configured (e.g., setting a file path for a CSV importer)?**
+
 > Answer: C. Each plugin has its own configuration file in the plugin's directory.
 
 **17. What should happen if a user tries to run an importer that isn't in the manual registry?**
+
 > Answer: B. The system should fail with an error listing all available importers.
 
 **18. How should data conflicts be handled by an exporter (e.g., trying to import an artwork that already exists)?**
+
 > Answer: A. The exporter should always overwrite the existing data. Duplicate data is handled by the mass-import endpoint.
 
 **19. What is the minimum required documentation for a new plugin to be accepted into the registry?**
+
 > Answer: A. A `README.md` file in its directory explaining its purpose, configuration, and data source.
 
 **20. How should the `DataPipeline` orchestrator be implemented?**
+
 > Answer: A. As a class that is instantiated with importer and exporter plugins for each run.
 
 ### Section 5: Testing, Quality, and Developer Experience
 
 **21. What level of testing is required for a new plugin to be accepted into the registry?**
+
 > Answer: A. No strict requirement; tests are encouraged but not mandatory.
 
 **22. Will plugins be required to adhere to the project's existing ESLint and Prettier configurations?**
+
 > Answer: A. Yes, all submitted plugin code must pass the project's linting and formatting checks.
 
 **23. Should a CLI tool be provided to bootstrap a new plugin directory structure?**
+
 > Answer: C. Provide a well-documented template directory in the repository instead of a CLI tool.
 
 **24. Should the core `mass-import` library provide common data transformation utilities (e.g., for date conversion, string cleaning)?**
+
 > Answer: C. Yes, create a comprehensive utility library that can be extended over time.
 
 **25. How should versions of individual plugins be managed?**
+
 > Answer: A. Plugins are not versioned individually; they are versioned along with the main application.

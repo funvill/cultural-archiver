@@ -11,7 +11,7 @@ This system has two primary components:
 
 This module will eventually serve other parts of the application, such as the public-facing submission form.
 
-------------------------------------------------------------------------
+---
 
 ## Problem Statement
 
@@ -19,7 +19,7 @@ The mass-import system processes thousands of artworks, each with GPS coordinate
 
 Performing these lookups in real-time during an import is not feasible, as it would make the process incredibly slow (e.g., importing 10,000 records would take over 2.7 hours on API calls alone). We need a robust, persistent caching mechanism to handle these lookups efficiently and reliably.
 
-------------------------------------------------------------------------
+---
 
 ## Goals & Non-Goals
 
@@ -39,7 +39,7 @@ Performing these lookups in real-time during an import is not feasible, as it wo
 - **Real-time cache invalidation**: For the MVP, cached results are considered permanent. We will not build a mechanism to refresh stale data.
 - **Batch API lookups**: The system will fetch coordinates one by one.
 
-------------------------------------------------------------------------
+---
 
 ## System Design
 
@@ -68,13 +68,9 @@ Performing these lookups in real-time during an import is not feasible, as it wo
   1. During a mass import, when processing an artwork, the system will read its GPS coordinates.
   2. It will query the `location-cache.sqlite` database for a matching entry.
   3. **Cache Hit**: If a result is found, it is used immediately.
-  4. **Cache Miss**: If no result is found, the system will:
-     a. Call the Nominatim API to fetch the location data.
-     b. Adhere to the 1-second delay.
-     c. Save the new result into `location-cache.sqlite`.
-     d. Use the result to proceed with the import.
+  4. **Cache Miss**: If no result is found, the system will: a. Call the Nominatim API to fetch the location data. b. Adhere to the 1-second delay. c. Save the new result into `location-cache.sqlite`. d. Use the result to proceed with the import.
 
-------------------------------------------------------------------------
+---
 
 ## Data Schema
 
@@ -82,28 +78,28 @@ Performing these lookups in real-time during an import is not feasible, as it wo
 
 A single table in the `location-cache.sqlite` database will store the results.
 
-| Column         | Type    | Description                                                  |
-|----------------|---------|--------------------------------------------------------------|
-| `lat`          | REAL    | Latitude, rounded to 6 decimal places. Part of primary key.  |
-| `lon`          | REAL    | Longitude, rounded to 6 decimal places. Part of primary key. |
-| `version`      | TEXT    | Schema version of the stored result (e.g., "1.0").           |
-| `display_name` | TEXT    | Full display name from Nominatim.                            |
-| `country_code` | TEXT    | Two-letter country code (e.g., "ca").                        |
-| `country`      | TEXT    | Country name.                                                |
-| `state`        | TEXT    | State or province.                                           |
-| `city`         | TEXT    | City or town.                                                |
-| `suburb`       | TEXT    | Suburb or district.                                          |
-| `neighbourhood`| TEXT    | Neighbourhood name.                                          |
-| `road`         | TEXT    | Road name.                                                   |
-| `postcode`     | TEXT    | Postal code.                                                 |
-| `raw_response` | TEXT    | The full JSON response from Nominatim, for future use.       |
-| `created_at`   | TEXT    | Timestamp (ISO 8601) of when the record was created.         |
+| Column          | Type | Description                                                  |
+| --------------- | ---- | ------------------------------------------------------------ |
+| `lat`           | REAL | Latitude, rounded to 6 decimal places. Part of primary key.  |
+| `lon`           | REAL | Longitude, rounded to 6 decimal places. Part of primary key. |
+| `version`       | TEXT | Schema version of the stored result (e.g., "1.0").           |
+| `display_name`  | TEXT | Full display name from Nominatim.                            |
+| `country_code`  | TEXT | Two-letter country code (e.g., "ca").                        |
+| `country`       | TEXT | Country name.                                                |
+| `state`         | TEXT | State or province.                                           |
+| `city`          | TEXT | City or town.                                                |
+| `suburb`        | TEXT | Suburb or district.                                          |
+| `neighbourhood` | TEXT | Neighbourhood name.                                          |
+| `road`          | TEXT | Road name.                                                   |
+| `postcode`      | TEXT | Postal code.                                                 |
+| `raw_response`  | TEXT | The full JSON response from Nominatim, for future use.       |
+| `created_at`    | TEXT | Timestamp (ISO 8601) of when the record was created.         |
 
 **Primary Key**: `(lat, lon)`
 
 An index will be created on `(lat, lon)` for fast lookups.
 
-------------------------------------------------------------------------
+---
 
 ## Future Considerations
 
@@ -111,6 +107,6 @@ An index will be created on `(lat, lon)` for fast lookups.
 - **Error Handling**: The system must gracefully handle API errors from Nominatim (e.g., 404 Not Found, 429 Too Many Requests) and network issues.
 - **Attribution**: As per Nominatim's requirements, any UI that displays this data must include the attribution: "Geocoding © OpenStreetMap contributors".
 
-------------------------------------------------------------------------
+---
 
 ✅ This PRD is now **finalized for MVP**.

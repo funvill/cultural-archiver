@@ -29,9 +29,9 @@ All public visitors, including casual browsers and researchers.
 - **Pagination:** Controls will be present at the bottom of the grid to navigate between pages. The browser URL will update to reflect the current page (e.g., `?page=2`).
 - **Page Size Selector:** A UI control allowing users to select 10, 30, or 50 items per page. The default is 30. The selection is reflected in the URL (e.g., `?limit=30`).
 - **Sorting:** A UI control to sort the content. Options include:
-    - Last Updated (default, descending)
-    - Title/Name (ascending)
-    - Creation Date (descending)
+  - Last Updated (default, descending)
+  - Title/Name (ascending)
+  - Creation Date (descending)
 
 ### 2.2. Out of Scope
 
@@ -47,22 +47,22 @@ All public visitors, including casual browsers and researchers.
 
 - **Layout:** A responsive, flexible grid of cards. The number of columns will adapt to the screen width.
 - **Artwork Cards:** Will display:
-    1.  Thumbnail image.
-    2.  Artwork title.
-    3.  Primary artist's name.
+  1.  Thumbnail image.
+  2.  Artwork title.
+  3.  Primary artist's name.
 - **Artist Cards:** Will display:
-    1.  Thumbnail image (avatar).
-    2.  Artist's full name.
-    3.  A count of their artworks.
-    4.  A short bio (truncated to ~20 words).
+  1.  Thumbnail image (avatar).
+  2.  Artist's full name.
+  3.  A count of their artworks.
+  4.  A short bio (truncated to ~20 words).
 - **Placeholder Images:** If a thumbnail is missing, a colored block with the first letter of the item's title or name will be displayed.
 - **Empty State:** If no items are found, a message "No artwork found. Be the first to submit something!" will be displayed with a link to the submission page.
 
 ### 3.2. User Interaction
 
 - **Card Click Behavior:**
-    - **Artwork Card:** Navigates to the artwork's detail page (`/artwork/:id`).
-    - **Artist Card:** Navigates to a filtered search results page (`/search?artist=Artist%20Name`). This is a temporary measure until dedicated artist detail pages are built.
+  - **Artwork Card:** Navigates to the artwork's detail page (`/artwork/:id`).
+  - **Artist Card:** Navigates to a filtered search results page (`/search?artist=Artist%20Name`). This is a temporary measure until dedicated artist detail pages are built.
 - **Page Size Change:** When the page size is changed, the view will attempt to keep the current top item in view by calculating the new page number.
 - **Page Title:** The browser tab title will update to reflect the current page number (e.g., "Artworks (Page 2) | Cultural Archiver").
 
@@ -73,21 +73,23 @@ All public visitors, including casual browsers and researchers.
 ### 4.1. Backend API
 
 - **Endpoints:** Create two new dedicated endpoints:
-    - `GET /api/artworks`
-    - `GET /api/artists`
+  - `GET /api/artworks`
+  - `GET /api/artists`
 - **Query Parameters:**
-    - `page` (integer, default: 1)
-    - `limit` (integer, default: 30)
-    - `sort` (string, e.g., `updated_desc`, `title_asc`, `created_desc`)
+  - `page` (integer, default: 1)
+  - `limit` (integer, default: 30)
+  - `sort` (string, e.g., `updated_desc`, `title_asc`, `created_desc`)
 - **API Response:** The JSON response for both endpoints will have the following structure:
-    ```json
-    {
-      "totalItems": 123,
-      "currentPage": 1,
-      "totalPages": 5,
-      "items": [ /* array of artwork or artist objects */ ]
-    }
-    ```
+  ```json
+  {
+    "totalItems": 123,
+    "currentPage": 1,
+    "totalPages": 5,
+    "items": [
+      /* array of artwork or artist objects */
+    ]
+  }
+  ```
 - **Sorting Behavior:** When sorting, records with `null` values in the sort field will be placed at the end of the results.
 - **Error Handling:** Navigating to an invalid page number (e.g., `?page=999`) should result in a "Page not found" error.
 
@@ -104,36 +106,36 @@ All public visitors, including casual browsers and researchers.
 ### 5.1. Development Tasks
 
 1.  **Backend:**
-    -   Create new routes and handlers for `/api/artworks` and `/api/artists`.
-    -   Implement pagination, sorting, and data shaping logic.
-    -   Ensure `approved` status is enforced.
+    - Create new routes and handlers for `/api/artworks` and `/api/artists`.
+    - Implement pagination, sorting, and data shaping logic.
+    - Ensure `approved` status is enforced.
 2.  **Frontend:**
-    -   Create `ArtworkIndexView.vue` and `ArtistIndexView.vue`.
-    -   Develop or reuse a `PaginatedGrid` component to handle the layout and controls.
-    -   Wire up the UI to the new API endpoints.
-    -   Implement the card components for both artwork and artists.
+    - Create `ArtworkIndexView.vue` and `ArtistIndexView.vue`.
+    - Develop or reuse a `PaginatedGrid` component to handle the layout and controls.
+    - Wire up the UI to the new API endpoints.
+    - Implement the card components for both artwork and artists.
 3.  **Navigation:**
-    -   Add "Artworks" and "Artists" links to the main site navigation bar.
+    - Add "Artworks" and "Artists" links to the main site navigation bar.
 
 ### 5.2. Testing
 
 - **Unit Tests (Vitest):**
-    -   Verify that the index pages render correctly.
-    -   Test pagination logic, page-size selector, and sorting controls.
-    -   Confirm that card clicks navigate to the correct URLs.
+  - Verify that the index pages render correctly.
+  - Test pagination logic, page-size selector, and sorting controls.
+  - Confirm that card clicks navigate to the correct URLs.
 - **Integration Tests:**
-    -   Test the full flow from page load to API call and rendering.
-    -   Verify the empty state and invalid page handling.
+  - Test the full flow from page load to API call and rendering.
+  - Verify the empty state and invalid page handling.
 
 ---
 
 ## 6. Acceptance Criteria
 
--   **AC-1:** Visiting `/artworks` and `/artists` displays a paginated grid of approved items, defaulting to 30 items per page, sorted by "last updated."
--   **AC-2:** The page size can be changed to 10, 30, or 50, and the grid updates accordingly.
--   **AC-3:** The content can be sorted by "last updated," "title/name," and "creation date."
--   **AC-4:** Pagination controls are present at the bottom of the grid and correctly navigate between pages.
--   **AC-5:** Artwork cards link to their detail page; artist cards link to a filtered search page.
--   **AC-6:** Placeholder images are shown for items without a thumbnail.
--   **AC-7:** The browser tab title includes the current page number.
--   **AC-8:** Navigating to a URL with an out-of-bounds page number shows a "Page not found" error.
+- **AC-1:** Visiting `/artworks` and `/artists` displays a paginated grid of approved items, defaulting to 30 items per page, sorted by "last updated."
+- **AC-2:** The page size can be changed to 10, 30, or 50, and the grid updates accordingly.
+- **AC-3:** The content can be sorted by "last updated," "title/name," and "creation date."
+- **AC-4:** Pagination controls are present at the bottom of the grid and correctly navigate between pages.
+- **AC-5:** Artwork cards link to their detail page; artist cards link to a filtered search page.
+- **AC-6:** Placeholder images are shown for items without a thumbnail.
+- **AC-7:** The browser tab title includes the current page number.
+- **AC-8:** Navigating to a URL with an out-of-bounds page number shows a "Page not found" error.

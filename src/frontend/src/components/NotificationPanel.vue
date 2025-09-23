@@ -1,15 +1,14 @@
 <template>
-  <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-96 max-h-96 overflow-hidden">
+  <div
+    class="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 w-96 max-h-96 overflow-hidden"
+  >
     <!-- Header -->
-    <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-        Notifications
-      </h3>
+    <div
+      class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between"
+    >
+      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Notifications</h3>
       <div class="flex items-center space-x-2">
-        <span
-          v-if="unreadCount > 0"
-          class="text-sm text-gray-500 dark:text-gray-400"
-        >
+        <span v-if="unreadCount > 0" class="text-sm text-gray-500 dark:text-gray-400">
           {{ unreadCount }} unread
         </span>
         <!-- New: Mark all as read in header for quick access -->
@@ -83,9 +82,7 @@
             />
           </svg>
         </div>
-        <p class="text-sm text-gray-600 dark:text-gray-400">
-          No notifications yet
-        </p>
+        <p class="text-sm text-gray-600 dark:text-gray-400">No notifications yet</p>
       </div>
 
       <!-- Notifications list -->
@@ -95,7 +92,7 @@
           :key="notification.id"
           :class="[
             'p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors cursor-pointer',
-            { 'bg-blue-50 dark:bg-blue-900/20': !notification.is_dismissed }
+            { 'bg-blue-50 dark:bg-blue-900/20': !notification.is_dismissed },
           ]"
           @click="handleNotificationClick(notification)"
         >
@@ -114,7 +111,11 @@
                 v-else-if="notification.type === 'system'"
                 class="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center"
               >
-                <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+                <svg
+                  class="w-4 h-4 text-blue-600 dark:text-blue-400"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
                   <path
                     fill-rule="evenodd"
                     d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
@@ -126,7 +127,11 @@
                 v-else
                 class="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center"
               >
-                <svg class="w-4 h-4 text-gray-600 dark:text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                <svg
+                  class="w-4 h-4 text-gray-600 dark:text-gray-400"
+                  fill="currentColor"
+                  viewBox="0 0 20 20"
+                >
                   <path
                     d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"
                   />
@@ -242,7 +247,7 @@ const displayedNotifications = computed(() => {
 // Methods
 function handleNotificationClick(notification: NotificationResponse) {
   emit('notificationAction', { type: 'click', notificationId: notification.id });
-  
+
   // Mark as read if unread
   if (!notification.is_dismissed) {
     notificationsStore.markNotificationRead(notification.id).catch(console.error);
@@ -271,7 +276,11 @@ function retryFetch() {
 }
 
 function getBadgeEmoji(notification: NotificationResponse): string {
-  if (notification.type === 'badge' && notification.metadata && isBadgeNotificationMetadata(notification.metadata)) {
+  if (
+    notification.type === 'badge' &&
+    notification.metadata &&
+    isBadgeNotificationMetadata(notification.metadata)
+  ) {
     return notification.metadata.badge_icon_emoji || '🏆';
   }
   return '🏆';
