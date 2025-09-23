@@ -267,6 +267,85 @@ function handleResize() {
   }
 }
 
+// Geolocation state
+const geoSupported = typeof navigator !== 'undefined' && 'geolocation' in navigator;
+const position = ref<GeolocationPosition | null>(null);
+const geoError = ref<string | null>(null);
+const geoLoading = ref(false);
+let geoWatchId: number | null = null;
+
+function formatCoords(pos: GeolocationPosition | null) {
+  if (!pos) return null;
+  return {
+    lat: pos.coords.latitude.toFixed(6),
+    lon: pos.coords.longitude.toFixed(6),
+    accuracy: `${pos.coords.accuracy} m`,
+    timestamp: new Date(pos.timestamp).toLocaleString(),
+  };
+}
+
+function clearGeoWatch() {
+  if (!geoSupported) return;
+  if (geoWatchId !== null) {
+    navigator.geolocation.clearWatch(geoWatchId);
+    geoWatchId = null;
+  }
+  geoLoading.value = false;
+}
+
+function startGeoWatch() {
+  if (!geoSupported) {
+    geoError.value = 'Geolocation is not supported by this browser.';
+    return;
+  }
+
+  geoError.value = null;
+  geoLoading.value = true;
+
+  try {
+    geoWatchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        position.value = pos;
+        geoLoading.value = false;
+      },
+      (err) => {
+        geoError.value = `Geolocation error: ${err.message}`;
+        geoLoading.value = false;
+      },
+      {
+        enableHighAccuracy: true,
+        maximumAge: 5000,
+        timeout: 10000,
+      }
+    );
+  } catch (err: any) {
+    geoError.value = `Failed to start geolocation: ${err?.message || err}`;
+    geoLoading.value = false;
+  }
+}
+
+function requestSinglePosition() {
+  if (!geoSupported) {
+    geoError.value = 'Geolocation is not supported by this browser.';
+    return;
+  }
+
+  geoError.value = null;
+  geoLoading.value = true;
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      position.value = pos;
+      geoLoading.value = false;
+    },
+    (err) => {
+      geoError.value = `Geolocation error: ${err.message}`;
+      geoLoading.value = false;
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+}
+
 onMounted(() => {
   checkSystemHealth();
   window.addEventListener('resize', handleResize);
@@ -446,6 +525,55 @@ onUnmounted(() => {
                 🔔 Test Notification
               </button>
             </div>
+
+            <!-- Device GPS Location Tool -->
+            <div class="p-4 bg-indigo-50 rounded-lg border border-indigo-100">
+              <div class="flex items-start justify-between">
+                <div>
+                  <h3 class="font-medium text-gray-900">Device GPS Location</h3>
+                  <p class="text-sm text-gray-600">Show current device GPS coordinates and accuracy (for debugging).</p>
+                </div>
+              </div>
+
+              <div class="mt-3 space-y-2">
+                <div v-if="!geoSupported" class="text-sm text-gray-600">Geolocation is not supported by this browser.</div>
+
+                <div v-else>
+                  <div v-if="geoLoading" class="text-sm text-gray-600">Acquiring location…</div>
+                  <div v-if="geoError" class="text-sm text-red-600">{{ geoError }}</div>
+
+                  <div v-if="position" class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                    <div class="flex justify-between"><span class="font-medium text-gray-600">Latitude:</span><span class="text-gray-900 font-mono">{{ formatCoords(position)?.lat }}</span></div>
+                    <div class="flex justify-between"><span class="font-medium text-gray-600">Longitude:</span><span class="text-gray-900 font-mono">{{ formatCoords(position)?.lon }}</span></div>
+                    <div class="flex justify-between"><span class="font-medium text-gray-600">Accuracy:</span><span class="text-gray-900">{{ formatCoords(position)?.accuracy }}</span></div>
+                    <div class="flex justify-between"><span class="font-medium text-gray-600">Timestamp:</span><span class="text-gray-900">{{ formatCoords(position)?.timestamp }}</span></div>
+                  </div>
+
+                  <div class="flex items-center space-x-2 mt-3">
+                    <button
+                      @click="requestSinglePosition"
+                      class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                    >
+                      📍 Get Current Location
+                    </button>
+
+                    <button
+                      @click="startGeoWatch"
+                      class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                    >
+                      👀 Start Watching
+                    </button>
+
+                    <button
+                      @click="clearGeoWatch"
+                      class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                    >
+                      ✖️ Stop
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -487,6 +615,8 @@ onUnmounted(() => {
         </button>
       </div>
     </div>
+
+      <!-- Device GPS controls moved into Development Tools card (below) -->
   </div>
 </template>
 

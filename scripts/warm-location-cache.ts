@@ -41,13 +41,20 @@ class LocationCacheWarmer {
         const parsed = JSON.parse(content);
         
         // Handle GeoJSON format
-        if (parsed.type === 'FeatureCollection' && Array.isArray(parsed.features)) {
-          data = parsed.features.map((feature: any) => {
-            if (feature.geometry?.type === 'Point' && Array.isArray(feature.geometry.coordinates)) {
-              const [lon, lat] = feature.geometry.coordinates;
-              return { lat, lon };
+        if (parsed && typeof parsed === 'object' && 'type' in parsed && (parsed as Record<string, unknown>)['type'] === 'FeatureCollection' && Array.isArray((parsed as Record<string, unknown>)['features'])) {
+          const features = (parsed as unknown as Record<string, unknown>)['features'] as unknown[];
+          data = features.map((feature: unknown) => {
+            if (typeof feature === 'object' && feature !== null) {
+              const f = feature as Record<string, unknown>;
+              const geom = f['geometry'];
+              if (typeof geom === 'object' && geom !== null && (geom as Record<string, unknown>)['type'] === 'Point' && Array.isArray((geom as Record<string, unknown>)['coordinates'])) {
+                const coords = (geom as Record<string, unknown>)['coordinates'] as unknown[];
+                const lon = coords[0] as number;
+                const lat = coords[1] as number;
+                return { lat, lon };
+              }
             }
-            return {};
+            return {} as ImportRecord;
           });
         } else {
           // Handle regular JSON array/object
@@ -84,17 +91,52 @@ class LocationCacheWarmer {
       throw new Error(`Failed to parse file ${filePath}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
-    // Extract coordinates with fallback patterns
+    // Extract coordinates with fallback patterns and support for nested shapes
     const coordinates: CoordinatePair[] = [];
     for (const record of data) {
-      const lat = record.lat ?? record.latitude;
-      const lon = record.lon ?? record.longitude;
+      const r = record as unknown;
 
-      if (typeof lat === 'number' && typeof lon === 'number') {
-        // Validate coordinate ranges
-        if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-          coordinates.push({ lat, lon });
+      // Helper to validate numeric lat/lon ranges
+  const pushIfValid = (lat: unknown, lon: unknown): boolean => {
+        if (typeof lat === 'number' && typeof lon === 'number') {
+          if (lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
+            coordinates.push({ lat, lon });
+            return true;
+          }
         }
+        return false;
+      };
+
+      // 1) Vancouver Open Data: geo_point_2d { lat, lon }
+      if (typeof r === 'object' && r !== null && 'geo_point_2d' in (r as Record<string, unknown>)) {
+        const gp = (r as Record<string, unknown>)['geo_point_2d'];
+        if (typeof gp === 'object' && gp !== null) {
+          const lat = (gp as Record<string, unknown>)['lat'];
+          const lon = (gp as Record<string, unknown>)['lon'];
+          if (pushIfValid(lat, lon)) continue;
+        }
+      }
+
+      // 2) Geo feature stored on record.geom or record.geometry (common in Vancouver export)
+      if (typeof r === 'object' && r !== null) {
+        const maybeGeom = (r as Record<string, unknown>)['geom'] ?? (r as Record<string, unknown>)['geometry'];
+        if (typeof maybeGeom === 'object' && maybeGeom !== null) {
+          const innerGeom = ((maybeGeom as Record<string, unknown>)['geometry'] ?? maybeGeom) as unknown;
+          if (typeof innerGeom === 'object' && innerGeom !== null && 'type' in (innerGeom as Record<string, unknown>) && (innerGeom as Record<string, unknown>)['type'] === 'Point' && Array.isArray((innerGeom as Record<string, unknown>)['coordinates'])) {
+            const coords = (innerGeom as Record<string, unknown>)['coordinates'] as unknown[];
+            const lon = coords[0] as unknown;
+            const lat = coords[1] as unknown;
+            if (pushIfValid(lat, lon)) continue;
+          }
+        }
+      }
+
+      // 3) Fallback: top-level lat/lon or latitude/longitude or nested location fields
+      if (typeof r === 'object' && r !== null) {
+        const top = r as Record<string, unknown>;
+        const lat = (top['lat'] ?? top['latitude'] ?? (top['location'] && (top['location'] as Record<string, unknown>)['lat']) ?? (top['location'] && (top['location'] as Record<string, unknown>)['latitude'])) as unknown;
+        const lon = (top['lon'] ?? top['longitude'] ?? (top['location'] && (top['location'] as Record<string, unknown>)['lon']) ?? (top['location'] && (top['location'] as Record<string, unknown>)['longitude'])) as unknown;
+        if (pushIfValid(lat, lon)) continue;
       }
     }
 
