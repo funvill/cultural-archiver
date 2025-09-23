@@ -85,6 +85,10 @@ wrangler.toml.bak
 # Database backups - don't commit backup files
 _backup_database/
 
+# Location cache database - local development only
+_data/
+location-cache.sqlite
+
 # Package manager lock files (keep package-lock.json, exclude others)
 yarn.lock
 pnpm-lock.yaml

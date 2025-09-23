@@ -1425,6 +1425,82 @@ export function isBadgeNotificationMetadata(obj: unknown): obj is BadgeNotificat
 }
 
 // ================================
+// Location Cache Types
+// ================================
+
+export interface LocationCacheRecord {
+  lat: number;
+  lon: number;
+  version: string;
+  display_name: string;
+  country_code: string | null;
+  country: string | null;
+  state: string | null;
+  city: string | null;
+  suburb: string | null;
+  neighbourhood: string | null;
+  road: string | null;
+  postcode: string | null;
+  raw_response: string; // JSON string of full Nominatim response
+  created_at: string; // ISO 8601 timestamp
+}
+
+export interface NominatimResponse {
+  place_id: number;
+  licence: string;
+  osm_type: string;
+  osm_id: number;
+  lat: string;
+  lon: string;
+  category: string;
+  type: string;
+  place_rank: number;
+  importance: number;
+  addresstype: string;
+  name: string;
+  display_name: string;
+  address: {
+    tourism?: string;
+    amenity?: string;
+    road?: string;
+    neighbourhood?: string;
+    suburb?: string;
+    city_district?: string;
+    city?: string;
+    county?: string;
+    state_district?: string;
+    state?: string;
+    'ISO3166-2-lvl4'?: string;
+    postcode?: string;
+    country?: string;
+    country_code?: string;
+  };
+  boundingbox: [string, string, string, string];
+}
+
+export interface LocationLookupOptions {
+  useCache?: boolean;
+  zoom?: number;
+  timeout?: number;
+}
+
+export interface LocationResult {
+  lat: number;
+  lon: number;
+  display_name: string;
+  country_code: string | null;
+  country: string | null;
+  state: string | null;
+  city: string | null;
+  suburb: string | null;
+  neighbourhood: string | null;
+  road: string | null;
+  postcode: string | null;
+  source: 'cache' | 'nominatim';
+  last_updated: string;
+}
+
+// ================================
 // LEGACY TYPES (Maintaining for compatibility)
 // ================================
 

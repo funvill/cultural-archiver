@@ -48,6 +48,12 @@ export {
 } from './lib/validation.js';
 
 export {
+  LocationEnhancer,
+  type LocationEnhancementOptions,
+  type LocationEnhancementResult,
+} from './lib/location-enhancer.js';
+
+export {
   detectDuplicates,
   checkExternalIdDuplicate,
   type ExistingArtwork,

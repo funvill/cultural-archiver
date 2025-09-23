@@ -160,6 +160,21 @@ export interface ProcessingOptions {
   importerConfig?: ImporterConfig;
   exporterOptions?: ExporterOptions;
   exporterConfig?: ExporterConfig;
+  // Location enhancement options
+  locationEnhancement?: {
+    enabled?: boolean;
+    cacheDbPath?: string;
+    requestTimeout?: number;
+    failOnErrors?: boolean;
+    tagFields?: {
+      displayName?: string;
+      country?: string;
+      state?: string;
+      city?: string;
+      suburb?: string;
+      neighbourhood?: string;
+    };
+  };
 }
 
 export interface PipelineResult {

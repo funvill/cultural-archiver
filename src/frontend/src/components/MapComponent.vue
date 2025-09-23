@@ -44,6 +44,8 @@ const lastLoadedBounds = ref<{north: number; south: number; east: number; west: 
 const loadingTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 // Marker update debouncing
 const markerUpdateTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
+// Debounce for updating marker styles during continuous zoom
+const zoomStyleTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 // Progressive loading state
 const isProgressiveLoading = ref(false);
 const progressiveLoadingStats = ref<{loaded: number; total: number; percentage: number; batchSize?: number; avgTime?: number} | null>(null);
@@ -129,15 +131,33 @@ const createArtworkStyle = (type: string) => {
   const normalized = (type || 'other').toLowerCase();
   
   // Calculate dynamic radius based on zoom level
-  const currentZoom = map.value?.getZoom() || 15;
-  const baseRadius = 16; // Base radius at zoom 15 (increased from 8)
-  const minRadius = 8;   // Minimum radius at low zoom (increased from 2)
-  const maxRadius = 20;  // Maximum radius at high zoom (unchanged)
+  // Note: Leaflet zoom increases when you zoom in (higher = closer). We want radius to grow as zoom increases.
+  const currentZoom = map.value?.getZoom() ?? 15;
+  // Set base min/max for the raw radius (before applying the 2x multiplier)
+  const minRadius = 3;   // smallest marker at lower zoom levels
+  const maxRadius = 10;  // largest marker at higher zoom levels
+
+  // Effective zoom range for interpolation (adjustable)
+  // 10 = metropolitan area, 16 = Street, 18 = buildings/trees
+  const minZoom = 12;
+  const maxZoom = 18;
+  let dynamicRadius: number;
+
+  if (currentZoom <= minZoom) {
+    dynamicRadius = minRadius;
+  } else if (currentZoom >= maxZoom) {
+    dynamicRadius = maxRadius;
+  } else {
+    // t = 0 at minZoom (smallest), t = 1 at maxZoom (largest)
+    const t = (currentZoom - minZoom) / (maxZoom - minZoom);
+    dynamicRadius = minRadius + t * (maxRadius - minRadius);
+  }
+
+  // Apply the user's requested unconditional doubling of marker sizes across all zooms.
+  // Clamp to a reasonable maximum to avoid excessively large markers.
+  dynamicRadius = Math.min(dynamicRadius * 2, maxRadius * 2);
+  console.log('Zoom:', currentZoom, 'Dynamic radius:', dynamicRadius);
   
-  // Scale radius: larger at low zoom, same at high zoom
-  // Uses inverse exponential scaling for better visibility when zoomed out
-  const zoomFactor = Math.pow(0.7, (currentZoom - 10)); // Inverse scaling starting from zoom 10
-  const dynamicRadius = Math.max(minRadius, Math.min(maxRadius, baseRadius * zoomFactor));
   
   // Use shared color logic from composable
   const fillColor = getTypeColor(normalized);
@@ -370,6 +390,14 @@ async function initializeMap() {
     // Setup event listeners
   map.value.on('moveend', handleMapMove);
   map.value.on('zoomend', handleMapMove);
+  // Update marker styles during continuous zoom events (throttled)
+  map.value.on('zoom', () => {
+    if (zoomStyleTimeout.value) clearTimeout(zoomStyleTimeout.value);
+    zoomStyleTimeout.value = setTimeout(() => {
+      try { updateMarkerStyles(); } catch (e) { /* ignore */ }
+      zoomStyleTimeout.value = null;
+    }, 50);
+  });
   // Save map state on move/zoom
   map.value.on('moveend', saveMapState);
   map.value.on('zoomend', saveMapState);
@@ -789,6 +817,46 @@ function updateArtworkMarkers() {
   });
 }
 
+// Update styles (radius/color/etc) for all existing markers to react to zoom changes
+function updateMarkerStyles() {
+  try {
+    // Recompute style for each marker and apply via setStyle
+    artworkMarkers.value.forEach((marker: any) => {
+      try {
+        const artworkType = marker._artworkType || 'other';
+        const newStyle = createArtworkStyle(artworkType as string);
+        // circleMarker supports setStyle; markerCluster may wrap markers but setStyle should still work
+        if (typeof marker.setStyle === 'function') {
+          marker.setStyle(newStyle);
+        }
+        // Also attempt to setRadius on circle markers which sometimes don't update via setStyle
+        if (typeof marker.setRadius === 'function' && typeof newStyle.radius === 'number') {
+          try { marker.setRadius(newStyle.radius); } catch {/* ignore */}
+        }
+
+        // If this is a group/cluster wrapper, try to update inner layers as well
+        if (marker.getLayers && typeof marker.getLayers === 'function') {
+          const layers = marker.getLayers();
+          layers.forEach((inner: any) => {
+            if (!inner) return;
+            if (typeof inner.setStyle === 'function') {
+              try { inner.setStyle(newStyle); } catch {/* ignore */}
+            }
+            if (typeof inner.setRadius === 'function' && typeof newStyle.radius === 'number') {
+              try { inner.setRadius(newStyle.radius); } catch {/* ignore */}
+            }
+          });
+        }
+      } catch (err) {
+        // ignore per-marker failures
+        // console.debug('Failed to update marker style for marker', marker, err);
+      }
+    });
+  } catch (err) {
+    console.warn('updateMarkerStyles failed:', err);
+  }
+}
+
 // Ensure marker cluster plugin is loaded when needed
 async function ensureMarkerClusterPluginLoaded() {
   if (typeof window === 'undefined') return;
@@ -838,6 +906,9 @@ async function configureMarkerGroup() {
   
   updateArtworkMarkers();
 
+  // Ensure styles applied to any markers added during updateArtworkMarkers
+  updateMarkerStyles();
+
   // Persist preference
   try {
     localStorage.setItem('map:clusterEnabled', String(clusterEnabled.value));
@@ -875,6 +946,8 @@ function handleMapMove() {
   debounceLoadArtworks();
   // Also update marker styles immediately for zoom changes (better responsiveness)
   updateArtworkMarkers();
+  // Ensure existing markers update their style (radius/color) when zoom changes
+  updateMarkerStyles();
   // Move debug rings to new center
   updateDebugRings();
 }

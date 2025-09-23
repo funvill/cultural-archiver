@@ -5,10 +5,10 @@
 - Developed on a Windows computer using PowerShell. Commands should be PowerShell compliant. Use PowerShell syntax instead
   - Use `Invoke-WebRequest` instead of `curl`
 - Use Playwright-MCP over `simple browser` tools when available.
-- When starting a devlopment server for testing, use `npm run dev` in the project root to start the frontend and backend test servers.
+- When starting a devlopment server for testing, use `npm run devout`. This produces a log file `dev-server-logs.txt` that contains the server logs
 - [ ] `npm run test` passes with 0 failures
 - [ ] `npm run build` completes with 0 errors
-- The project is in pre-release. We can recreate the database and lose data at this stage. In general backward compatibility is not required. I prefer database replacement over migration
+- The project is in pre-release. We can recreate the database and lose data at this stage. In backward compatibility is not required. I prefer database replacement over migration
 - When working with Wrangler, use `CI=true` environment variable to ensure that its set to non interactive mode. This asks me less questions
 
 ## Settings
@@ -31,11 +31,8 @@
 
 - **Frontend Deployment**
   - **NOT Cloudflare Pages** - Uses Cloudflare Worker with static assets
-  - Configured via `src/frontend/wrangler.jsonc` with `assets.directory: "./dist"`
+  - Configured via `src/frontend/wrangler.jsonc` with `assets.directory: "./dist"`. Built-in SPA configuration handles routing
   - Serves static files through Worker runtime at `art.abluestar.com`
-  - Uses `assets.not_found_handling: "single-page-application"` for automatic SPA routing
-  - Cloudflare automatically serves `index.html` for client-side routes like `/ verify`, `/artwork/*`, etc.
-  - No custom worker script needed - built-in SPA configuration handles routing
 - **Backend Deployment**
   - Separate Cloudflare Worker at `art-api.abluestar.com`
   - Configured via `src/workers/wrangler.toml`
@@ -66,6 +63,7 @@
   - `/migrations/` - Database migration SQL files with sequential numbering
   - `/test/` - Comprehensive test suite with 170+ tests across 5 test suites
 - `/src/shared/` - Shared TypeScript types and utilities
+- `/src/lib` - Utilities
 - `/docs/` - Complete project documentation including API specs, deployment guides, and troubleshooting
 - `/tasks/` - Current tasks and project requirements documents
 - `/_backup_database/` - Database export files and backup storage (excluded from git)
@@ -79,9 +77,7 @@
 - Follow the existing naming conventions (Record suffix for DB types)
 - Leverage TypeScript strict mode and proper type inference
 
-### Frontend Component Development
-
-#### Vue.js Best Practices
+### Vue.js Best Practices
 
 - Use Composition API with `<script setup lang="ts">`
 - Follow mobile-first responsive design principles
@@ -92,8 +88,7 @@
 
 - Follow RESTful conventions with proper HTTP status codes
 - Return consistent error responses with descriptive messages
-
-### Backend Development Patterns
+- Validate coordinates and enforce 500-character note limits
 
 ### Security & Privacy
 
@@ -110,39 +105,11 @@
 - Default radius is 500 meters for nearby artwork searches
 - Index lat/lon columns for performance
 
-## Development Guidelines
-
-### TypeScript Types
-
-- All database interfaces are defined in `src/shared/types.ts`
-- Use the provided type guards for status validation
-- Follow the existing naming conventions (Record suffix for DB types)
-
 ### Database Queries
 
 - Use the spatial index for lat/lon queries: `WHERE lat BETWEEN ? AND ? AND lon BETWEEN ? AND ?`
 - Always filter by status for public-facing queries: `WHERE status = 'approved'`
 - JSON fields (tags, photos) are stored as TEXT - parse at application level
-
-### API Design
-
-- Follow RESTful conventions
-- Return consistent error responses with proper HTTP status codes
-- Rate limit submissions (10/day per user token, 60/hour for lookups)
-- Validate coordinates and enforce 500-character note limits
-
-### Security & Privacy
-
-- Use anonymous user tokens (UUIDs) for submissions
-- Support optional email verification via magic links
-- Implement age gates and content consent workflows
-- Store original photos + generate 800px thumbnails
-
-### Spatial Queries
-
-- Use ±0.0045 degrees (~500m) for initial filtering
-- Implement haversine formula for precise distance calculations
-- Default radius is 500 meters for nearby artwork searches
 
 ## Database Migration System
 
@@ -208,19 +175,6 @@ npm run database:status:staging # Check migration status for staging
 - Use transactions for multi-statement migrations
 - Document schema changes in `/docs/database.md`
 - Follow existing table naming conventions (snake_case)
-
-
-### Backup and Recovery
-
-**Automatic Backups:**
-- Export commands create timestamped SQL files in `_backup_database/`
-- Files include complete schema and data dumps
-- Backups are excluded from git via `.gitignore`
-
-**Recovery Process:**
-1. Use `npm run database:import:dev backup_file.sql` to restore from backup
-2. Verify data integrity after restoration
-3. Re-apply any migrations if needed
 
 ### Database Schema Management
 

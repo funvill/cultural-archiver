@@ -18,6 +18,7 @@ import type {
 } from '../types/plugin.js';
 import type { RawImportData } from '../types/index.js';
 import { ReportTracker } from './report-tracker.js';
+import { LocationEnhancer } from './location-enhancer.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import { fileURLToPath } from 'url';
@@ -102,6 +103,23 @@ export class DataPipeline {
       reportTracker.recordProcessedRecords(unifiedData.length);
       
       console.log(`✅ Transformed ${unifiedData.length} records`);
+      
+      // 4.3. Enhance with location data if enabled
+      if (options.locationEnhancement?.enabled !== false) {
+        console.log(`🌍 Enhancing records with location data...`);
+        const locationEnhancer = new LocationEnhancer(options.locationEnhancement);
+        
+        try {
+          const enhancementResult = await locationEnhancer.enhanceRecords(unifiedData);
+          unifiedData = enhancementResult.records;
+          
+          console.log(`✅ Location enhancement completed: ${enhancementResult.result.fromCache} from cache, ${enhancementResult.result.fromApi} from API`);
+          
+          // TODO: Track enhancement stats in the report when available
+        } finally {
+          locationEnhancer.close();
+        }
+      }
       
       // 5. Configure exporter
       console.log(`⚙️ Configuring ${this.exporter.name} exporter...`);

@@ -408,6 +408,147 @@ Exporters support various configuration options:
 }
 ```
 
+## 🗺️ Location Enhancement
+
+The mass import system includes automatic location enhancement that enriches artwork records with human-readable location names using reverse geocoding. This feature uses a local SQLite cache with fallback to the Nominatim (OpenStreetMap) API.
+
+### Features
+
+- **Cache-first Strategy**: Checks local database before making API requests
+- **Rate Limiting**: Respects Nominatim's 1 request/second limit
+- **Resumable Processing**: Can be interrupted and resumed without re-fetching
+- **Structured Data**: Stores detailed address components (city, state, country, etc.)
+- **Automatic Integration**: Works seamlessly with existing import pipelines
+
+### Quick Start
+
+#### 1. Pre-warm the Location Cache
+
+Before running large imports, warm the cache with your data to avoid API delays:
+
+```bash
+# Warm cache with OSM data
+npm run warm-location-cache src/lib/data-collection/osm-vancouver-art.json
+
+# Warm cache with Vancouver Public Art data
+npm run warm-location-cache src/lib/data-collection/vancouver-public-art.json
+
+# Warm cache with custom data file
+npm run warm-location-cache path/to/your/data.json
+```
+
+#### 2. Enable Location Enhancement in Imports
+
+Location enhancement is enabled by default but can be configured:
+
+**Basic Usage (CLI):**
+```bash
+# Location enhancement enabled by default
+npm run mass-import -- osm json example-vancouver-data.json --out processed-art.json
+
+# Disable location enhancement
+npm run mass-import -- osm json example-vancouver-data.json --out processed-art.json --no-location-enhancement
+```
+
+**Programmatic Usage:**
+```typescript
+import { DataPipeline } from './lib/data-pipeline.js';
+
+const pipeline = new DataPipeline(importer, exporter);
+
+const result = await pipeline.process(inputData, {
+  locationEnhancement: {
+    enabled: true,
+    failOnErrors: false,
+    tagFields: {
+      displayName: 'location_display_name',
+      city: 'location_city',
+      country: 'location_country',
+      state: 'location_state'
+    }
+  }
+});
+```
+
+### Configuration Options
+
+```typescript
+interface LocationEnhancementOptions {
+  enabled?: boolean;           // Enable/disable enhancement (default: true)
+  cacheDbPath?: string;        // Custom cache database path
+  requestTimeout?: number;     // API timeout in ms (default: 10000)
+  failOnErrors?: boolean;      // Fail on lookup errors (default: false)
+  tagFields?: {               // Custom tag field names
+    displayName?: string;     // Field for full address
+    country?: string;         // Field for country
+    state?: string;           // Field for state/province
+    city?: string;            // Field for city
+    suburb?: string;          // Field for suburb
+    neighbourhood?: string;   // Field for neighbourhood
+  };
+}
+```
+
+### Cache Management
+
+**Check Cache Statistics:**
+```bash
+npm run location-cache:stats
+```
+
+**Cache Performance:**
+- Cache hits: < 1ms response time
+- API requests: ~500ms + 1 second rate limit delay
+- Database size: ~1KB per cached location
+
+### Data Enhancement
+
+Location enhancement adds the following fields to artwork records:
+
+```json
+{
+  "lat": 49.2827,
+  "lon": -123.1207,
+  "title": "Sample Artwork",
+  "tags": {
+    "location_display_name": "Downtown Vancouver, BC, Canada",
+    "location_country": "Canada",
+    "location_state": "British Columbia", 
+    "location_city": "Vancouver",
+    "location_suburb": "Downtown",
+    "material": "bronze",
+    "artist": "Example Artist"
+  }
+}
+```
+
+### Performance Estimates
+
+| Dataset Size | Cache Warming Time |
+|-------------|-------------------|
+| 100 locations | ~2 minutes |
+| 500 locations | ~9 minutes |
+| 1,000 locations | ~17 minutes |
+| 5,000 locations | ~1.4 hours |
+
+### Troubleshooting
+
+**Rate limit exceeded:**
+- The system automatically handles rate limiting
+- Pre-warm the cache to avoid API calls during imports
+
+**Database locked:**
+- Ensure no other processes are accessing the cache
+- Check that `_data/location-cache.sqlite` isn't open elsewhere
+
+**Module compilation error:**
+```bash
+# Rebuild better-sqlite3 for your Node.js version
+npm rebuild better-sqlite3
+```
+
+For more detailed information, see the [Location Services Documentation](../../location/README.md).
+
 ## 🧪 Testing
 
 Run the test suite:
