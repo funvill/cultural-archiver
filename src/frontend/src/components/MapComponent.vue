@@ -179,13 +179,25 @@ const createArtworkStyle = (type: string) => {
   return baseStyle;
 };
 
-// Custom icon for user location
+// Custom icon for user location - use a person icon so it's clearly the user, not an artwork
 const createUserLocationIcon = () => {
+  // Inline SVG for a simple person/user glyph (keeps dependency-free)
+  const personSvg = `
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <circle cx="12" cy="8" r="3" fill="white"/>
+      <path d="M4 20c0-3.314 2.686-6 6-6h4c3.314 0 6 2.686 6 6v0H4z" fill="white"/>
+    </svg>
+  `;
+
   return L.divIcon({
-    html: `<div class="user-location-marker bg-blue-500 rounded-full w-4 h-4 border-2 border-white shadow-lg animate-pulse"></div>`,
+    html: `
+      <div class="user-location-marker flex items-center justify-center bg-blue-600 rounded-full w-8 h-8 border-2 border-white shadow-lg">
+        ${personSvg}
+      </div>
+    `,
     className: 'custom-user-location-icon',
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
   });
 };
 
@@ -412,7 +424,42 @@ async function initializeMap() {
     // Request user location only when there's no saved state
     if (!hadSavedMapState.value) {
       if (props.showUserLocation && hasGeolocation.value) {
-        await requestUserLocation();
+        // If Permissions API is available, check current permission state first.
+        try {
+          if (navigator.permissions && typeof navigator.permissions.query === 'function') {
+            const perm = await navigator.permissions.query({ name: 'geolocation' as PermissionName });
+            // If already granted, request location but do not show the notice
+            if (perm.state === 'granted') {
+              showLocationNotice.value = false;
+              await requestUserLocation();
+            } else if (perm.state === 'prompt') {
+              // Prompting: attempt to get location which will trigger browser prompt
+              await requestUserLocation();
+            } else {
+              // denied - attempt request which will trigger immediate rejection and let the error handler show the notice
+              await requestUserLocation();
+            }
+            // Listen for permission changes to update the notice dynamically
+            try {
+              perm.onchange = () => {
+                if (perm.state === 'granted') {
+                  showLocationNotice.value = false;
+                  // Try to get location once permission flips to granted
+                  requestUserLocation().catch(() => {/* ignore */});
+                }
+              };
+            } catch (e) {
+              // noop
+            }
+          } else {
+            // Permissions API not available - fall back to requesting location which will trigger prompt
+            await requestUserLocation();
+          }
+        } catch (err) {
+          // In case of any errors querying permissions, fall back to requesting location
+          console.warn('Permissions API check failed:', err);
+          await requestUserLocation();
+        }
       } else {
         // No geolocation available and no saved state: use default
         showLocationNotice.value = true;
@@ -425,11 +472,7 @@ async function initializeMap() {
         }, 10000);
       }
     } else {
-      // We had a saved state; don't override it. Optionally show notice to enable location.
-      showLocationNotice.value = true;
-      setTimeout(() => {
-        showLocationNotice.value = false;
-      }, 7000);
+      // We had a saved state; don't override it. Do not show the location notice unless a location request fails.
     }
 
     // Load initial artworks with a small delay to ensure DOM stability

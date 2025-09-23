@@ -39,22 +39,15 @@ onMounted(() => {
             mapping initiative to preserve cultural heritage for future generations.
           </p>
           <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-            <button
-              @click="$router.push('/submit')"
-              class="px-6 sm:px-8 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 focus:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
-            >
+            <button @click="$router.push('/add')" class="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold">
               📸 Submit Artwork
             </button>
-            <button
-              @click="$router.push('/search?mode=photo')"
-              class="px-6 sm:px-8 py-3 bg-green-500 text-white font-semibold rounded-lg hover:bg-green-600 focus:bg-green-600 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-green-500 transition-colors"
-            >
+
+            <button @click="$router.push('/search?mode=photo')" class="px-6 py-3 bg-green-500 text-white rounded-lg font-semibold">
               🔍 Search by Photo
             </button>
-            <button
-              @click="$router.push('/')"
-              class="px-6 sm:px-8 py-3 bg-transparent border-2 border-white text-white font-semibold rounded-lg hover:bg-white hover:text-blue-600 focus:bg-white focus:text-blue-600 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
-            >
+
+            <button @click="$router.push('/')" class="px-6 py-3 bg-transparent border-2 border-white text-white rounded-lg font-semibold">
               🗺️ Explore Map
             </button>
           </div>
@@ -352,7 +345,7 @@ onMounted(() => {
         </p>
         <div class="flex flex-col sm:flex-row gap-4 justify-center">
           <button
-            @click="$router.push('/submit')"
+            @click="$router.push('/add')"
             class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
           >
             Start Contributing

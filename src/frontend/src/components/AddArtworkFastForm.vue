@@ -10,7 +10,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useArtworkSubmissionStore } from '../stores/artworkSubmission';
 import {
   CheckIcon,
@@ -31,6 +31,7 @@ import LoadingSpinner from './LoadingSpinner.vue';
 // Store
 const submission = useArtworkSubmissionStore();
 const router = useRouter();
+const route = useRoute();
 
 // Local State
 const currentStep = ref<string>('photos');
@@ -185,6 +186,18 @@ function handleSubmitAnother() {
 onMounted(() => {
   // Start with photos step
   currentStep.value = 'photos';
+  // If the route includes an existing artwork id, pre-select it for a logbook entry
+  try {
+    const existing = route.query.existing || route.query.existingArtwork || route.query.existing_artwork;
+    if (existing && typeof existing === 'string') {
+      submission.selectArtwork(existing as string);
+      showWorkflow.value = true;
+      // If no photos yet, keep the photos step active; otherwise, move to selection
+      currentStep.value = submission.hasPhotos ? 'selection' : 'photos';
+    }
+  } catch (e) {
+    // ignore
+  }
 });
 
 onBeforeUnmount(() => {

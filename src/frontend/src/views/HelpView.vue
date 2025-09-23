@@ -15,7 +15,7 @@
           </p>
           <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
             <button
-              @click="$router.push('/submit')"
+              @click="$router.push('/add')"
               class="px-6 sm:px-8 py-3 bg-white text-blue-600 font-semibold rounded-lg hover:bg-gray-100 focus:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
             >
               Submit Artwork

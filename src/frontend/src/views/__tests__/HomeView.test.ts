@@ -17,7 +17,7 @@ const createMockRouter = (): Router => {
     history: createWebHistory(),
     routes: [
       { path: '/', component: { template: '<div>Home</div>' } },
-      { path: '/submit', component: { template: '<div>Submit</div>' } },
+  { path: '/add', component: { template: '<div>Add</div>' } },
       { path: '/map', component: { template: '<div>Map</div>' } },
     ],
   });

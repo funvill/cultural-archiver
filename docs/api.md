@@ -124,12 +124,42 @@ POST /api/mass-import/v2
 - ✅ Batch processing with atomic transactions
 - ✅ Comprehensive audit logging
 
+**Response** (201 Created):
+
+```json
+{
+  "success": true,
+  "data": {
+    "import_id": "import-uuid",
+    "items_processed": 120,
+    "items_created": 118,
+    "items_updated": 2,
+    "errors": [],
+    "created_at": "2025-09-22T12:00:00Z"
+  }
+}
+```
+
 ### Mass-Import V1 (Legacy)
 
 Original endpoint for backward compatibility.
 
 ```http
 POST /api/mass-import
+```
+
+**Response** (201 Created):
+
+```json
+{
+  "success": true,
+  "data": {
+    "import_id": "legacy-import-uuid",
+    "items_processed": 50,
+    "items_created": 50,
+    "errors": []
+  }
+}
 ```
 
 ## Consent System
@@ -209,6 +239,29 @@ POST /api/logbook
 - `tags` (optional): JSON object with structured metadata
 - `email` (optional): Email for verification workflow
 - `submitter_name` (optional): Submitter name
+
+**Response** (201 Created - Sample):
+
+```json
+{
+  "success": true,
+  "data": {
+    "submission_id": "submission-uuid",
+    "type": "logbook",
+    "status": "pending",
+    "verification_status": "pending",
+    "nearby_artworks": [
+      {
+        "id": "artwork-uuid",
+        "distance_km": 0.12,
+        "title": "Downtown Mural",
+        "photos": ["https://art-photos.abluestar.com/photo.jpg"]
+      }
+    ],
+    "created_at": "2025-09-22T12:05:00Z"
+  }
+}
+```
 
 #### Submit New Content (Unified Submissions)
 
@@ -1653,8 +1706,6 @@ GET /api/users/{uuid}
 
 ### Authentication Endpoints
 
-### Authentication Endpoints
-
 #### Request Magic Link
 
 Request an email verification link for enhanced user privileges.
@@ -1795,55 +1846,7 @@ POST /api/auth/magic-link
 }
 ```
 
-#### Consume Magic Link (Deprecated)
-
-```http
-POST /api/auth/consume
-```
-
-**Content-Type**: `application/json`
-
-**Body**:
-
-```json
-{
-  "token": "magic-link-token",
-  "user_token": "user-uuid"
-}
-```
-
-**Response** (200 OK):
-
-```json
-{
-  "success": true,
-  "data": {
-    "verified": true,
-    "email": "user@example.com"
-  }
-}
-```
-
-#### Check Verification Status (Deprecated)
-
-```http
-GET /api/auth/verify-status
-```
-
-**Authentication**: Required
-
-**Response** (200 OK):
-
-```json
-{
-  "success": true,
-  "data": {
-    "verified": true,
-    "email": "user@example.com",
-    "verified_at": "2024-01-15T10:30:00Z"
-  }
-}
-```
+Note: The legacy endpoints `POST /api/auth/consume` and `GET /api/auth/verify-status` have been removed in favor of the unified magic-link flow. Use `POST /api/auth/verify-magic-link` to exchange and verify magic-link tokens (see the "Verify Magic Link" section above).
 
 ### Moderation Endpoints
 

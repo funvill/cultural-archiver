@@ -272,7 +272,7 @@ onMounted(() => {
             Be the first to submit something!
           </p>
           <router-link
-            to="/submit"
+            to="/add"
             class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500"
           >
             Submit Artwork

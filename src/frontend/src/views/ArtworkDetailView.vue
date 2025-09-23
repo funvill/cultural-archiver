@@ -681,8 +681,8 @@ async function checkPendingEdits(): Promise<void> {
           </ol>
         </nav>
 
-        <!-- Edit button for authenticated users -->
-        <div v-if="canEdit && !isEditMode" class="flex items-center gap-3">
+  <!-- Edit button for authenticated users -->
+  <div v-if="canEdit && !isEditMode" class="flex items-center gap-3">
           <!-- Pending edits indicator -->
           <div
             v-if="hasPendingEdits"
@@ -712,6 +712,17 @@ async function checkPendingEdits(): Promise<void> {
               />
             </svg>
             {{ hasPendingEdits ? 'Edit Disabled' : 'Edit Artwork' }}
+          </button>
+          <!-- Add Logbook Entry button - opens the fast submit workflow with this artwork pre-selected -->
+          <button
+            @click="router.push({ path: `/logbook/${props.id}` })"
+            aria-label="Add logbook entry"
+            class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Add log
           </button>
         </div>
       </div>

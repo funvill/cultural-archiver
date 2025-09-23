@@ -164,10 +164,9 @@ function viewArtwork(result: ArtworkWithPhotos & SimilarityResult) {
 function addToArtwork(result: ArtworkWithPhotos & SimilarityResult) {
   // Navigate to submission with pre-selected artwork
   router.push({
-    path: '/submit',
-    query: { 
-      artwork_id: result.id,
-      photo: searchPhoto.value 
+    path: `/logbook/${result.id}`,
+    query: {
+      photo: searchPhoto.value,
     }
   });
 }
@@ -175,8 +174,8 @@ function addToArtwork(result: ArtworkWithPhotos & SimilarityResult) {
 function submitNewArtwork() {
   // Navigate to submission with the search photo
   router.push({
-    path: '/submit',
-    query: { 
+    path: '/add',
+    query: {
       photo: searchPhoto.value,
       new_artwork: 'true'
     }

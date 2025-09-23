@@ -119,3 +119,12 @@ Submissions
 Show the submission cards
 
 ----
+
+Cultural archive project note
+
+- [x] It asks for location even when location is provided by the browser
+- [x] The map markers are too small when fully zoomed in
+- [x] The current location blue circle marker on the map isn't clear that it's your location rather than a piece of art. Change it to a icon person
+- Artist Pages need to be created
+- [x] Add log book entry button to artwork details page
+- The photo checkbox in the search results does not work because it's searching the tags for photos instead of the photos field
