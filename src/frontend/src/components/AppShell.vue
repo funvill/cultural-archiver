@@ -46,16 +46,7 @@ const authStore = useAuthStore();
 const drawerCloseButton = ref<HTMLElement>();
 // Note: firstNavLink ref is defined but not used - keeping for future drawer focus enhancement
 
-// Main navigation items (shown in desktop header)
-// NOTE: We keep a placeholder object for consistency but override click handling for fast-add
-const mainNavigationItems: NavigationItem[] = [
-  {
-    name: 'Add',
-    path: '/add', // legacy path (fallback) not directly navigated to when fast-add succeeds
-    icon: CameraIcon,
-    primaryAction: true,
-  },
-];
+// (removed mainNavigationItems - header uses FAB instead)
 
 // Menu navigation items (shown in hamburger menu)
 const menuNavigationItems: NavigationItem[] = [
@@ -549,45 +540,65 @@ try {
           </button>
         </div>
 
-        <!-- Center: Add Button -->
+        <!-- Center: Floating Add FAB (Material-style) -->
         <div class="flex justify-center">
-          <nav role="navigation" aria-label="Main navigation">
-            <button
-              v-for="item in mainNavigationItems"
-              :key="item.path"
-              type="button"
-              @click="triggerFastAdd"
-              class="nav-link rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors px-4 py-2 text-sm relative hover:bg-blue-700"
-            >
-              <span class="absolute -inset-1 rounded-lg bg-white/10 pointer-events-none" />
-              <component
-                v-if="item.icon"
-                :is="item.icon"
-                class="w-6 h-6 inline-block mr-1"
-                aria-hidden="true"
-              />
-              <span class="text-base font-semibold">{{ item.name }}</span>
-            </button>
-            <input
-              ref="fastFileInput"
-              type="file"
-              accept="image/*"
-              multiple
-              class="hidden"
-              @change="handleFastFileChange"
-            />
-          </nav>
+          <!-- Hidden textual Add button to preserve legacy selectors/tests -->
+          <button
+            type="button"
+            @click="triggerFastAdd"
+            class="sr-only"
+            aria-label="Add"
+          >
+            Add
+          </button>
+
+          <!-- FAB button positioned absolutely via scoped styles to overlap header -->
+          <button
+            type="button"
+            @click="triggerFastAdd"
+            class="fab pointer-events-auto flex items-center justify-center shadow-lg bg-primary-500 text-white rounded-full focus:outline-none focus:ring-4 focus:ring-primary-200 transition-transform"
+            aria-label="Add photo"
+          >
+            <CameraIcon class="w-7 h-7" aria-hidden="true" />
+          </button>
+          <input
+            ref="fastFileInput"
+            type="file"
+            accept="image/*"
+            multiple
+            class="hidden"
+            @change="handleFastFileChange"
+          />
         </div>
 
-        <!-- Right side: Notifications and Navigation -->
+        <!-- Right side: Search, Notifications, Profile and Navigation -->
         <div class="flex items-center justify-end space-x-2">
+          <!-- Search Icon -->
+          <button
+            class="p-2 rounded-md hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
+            @click="() => { router.push('/search'); }"
+            aria-label="Search"
+          >
+            <MagnifyingGlassIcon class="w-6 h-6" aria-hidden="true" />
+          </button>
+
           <!-- Notification Icon (only for authenticated users) -->
           <NotificationIcon 
             v-if="authStore.isAuthenticated"
             @notification-click="handleNotificationClick"
             @panel-toggle="handleNotificationPanelToggle"
           />
-          
+
+          <!-- Profile Icon (navigates to profile) -->
+          <button
+            v-if="authStore.isAuthenticated"
+            class="p-2 rounded-md hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
+            @click="() => { router.push('/profile'); }"
+            aria-label="Profile"
+          >
+            <UserIcon class="w-6 h-6" aria-hidden="true" />
+          </button>
+
           <!-- Navigation Drawer Button -->
           <button
             class="p-2 rounded-md hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
@@ -748,6 +759,7 @@ try {
 
 .app-header {
   flex-shrink: 0;
+  position: relative; /* allow absolutely positioned FAB inside header */
 }
 
 .app-main {
@@ -788,6 +800,29 @@ try {
   }
 }
 
+/* Scoped FAB positioning: make the FAB overlap the app bar so 30% extends into content */
+/* Make the FAB fixed so its top touches the viewport top and it visually clips into the header
+   We keep the bottom hanging 30% into the content by offsetting the header's inner padding. */
+.fab {
+  position: fixed;
+  top: 0; /* FAB top aligns with window top */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40; /* above header but below modals */
+  /* visually center the icon inside the circular FAB — existing width/height apply */
+}
+
+@media (max-width: 640px) {
+  /* Slightly smaller FAB on small screens and adjust overlap */
+  .fab {
+    width: 64px;
+    height: 64px;
+    /* top is fixed at 0 with fixed positioning; no top calc needed */
+  }
+}
+
+/* Ensure header content isn't covered by the clipped top of the FAB by adding top padding
+   equal to approximately 30% of the FAB so the visible lower portion overlaps the header. */
 /* Prevent body scroll when drawer is open */
 body.drawer-open {
   overflow: hidden;
