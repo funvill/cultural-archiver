@@ -1,20 +1,5 @@
 # Known things to do
 
-## Find partners
-
-Find people that would be willing to partner with me on this project. Be specific and say that you are NOT looking for monetary support but are looking for in-kind support. Advertisement, recommendations, etc.
-
-- Burrard Arts Foundation, Centre for Digital Media students. They spondered a simlare project in the past. https://intergalactic.com/content/muse-public-art-app?utm_source=chatgpt.com
-- Canada Council - They prefer events over resources. The event could be a mass hunt for new art.
-
-- https://www.art-bc.com/
-
-### Art walk / festivals
-
-These are groups doing "Art walks" or festvials. They might be good groups to partner with. Give them the tools that they need then they use our service.
-
-- https://vancouverartwalk.com/
-
 ## General
 
 - `support@art.abluestar.com` currently errors out when sending an email to this address. This address should forward to my personal address.
@@ -30,18 +15,6 @@ These are groups doing "Art walks" or festvials. They might be good groups to pa
 - Need to spend some more time on the mobile and experience. I found it difficult to change and edit the tags.
 
 ---
-
-## Prior Art research
-
-- **School Of Cities** - Vancouver public Art
-  - https://github.com/schoolofcities/vancouver-public-art
-  - The data is just Vancouver public art database
-  - I like the way they put a box on the left hand side when you click on an icon instead of just going direct to the artwork page
-  - Contact them and say hello, maybe we could do something together.
-  - I like how the markers on the map are small and stay the same reliative size as the map scales up and down.
-  - The markers are colored making it easy at a glance to see what each marker repersents.
-
-- https://artmap.ca using public data for artworks.
 
 ## Marketing and gameafication
 
@@ -122,3 +95,8 @@ Cultural archive project note
 - Artist Pages need to be created
 - [x] Add log book entry button to artwork details page
 - The photo checkbox in the search results does not work because it's searching the tags for photos instead of the photos field
+
+---- 
+
+Downloadable QR code "Sign" for the artwork page. 
+This allows people to print the sign for their own artworks to link to this page.

@@ -119,7 +119,7 @@ function handleKeydown(event: KeyboardEvent): void {
 
 <template>
   <article
-    class="bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-200 ease-in-out hover:shadow-md hover:border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2"
+    class="bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-200 ease-in-out hover:shadow-xl hover:border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 transform-gpu hover:translate-y-0.5"
     :class="{
       'cursor-pointer': clickable && !loading,
       'cursor-default': !clickable || loading,
@@ -161,7 +161,7 @@ function handleKeydown(event: KeyboardEvent): void {
         </div>
 
         <!-- Optional overlay badge slot (e.g., moderation status) -->
-        <div class="absolute top-2 left-2 z-10">
+        <div class="absolute top-2 left-2 z-10 badge-slot">
           <slot name="badge"></slot>
         </div>
 
@@ -191,19 +191,19 @@ function handleKeydown(event: KeyboardEvent): void {
 
     <!-- Full Layout -->
     <div v-else class="overflow-hidden">
-      <!-- Photo -->
+      <!-- Photo with overlayed text -->
       <div class="aspect-w-16 aspect-h-12 bg-gray-100 relative">
         <img
           v-if="hasPhoto && photoUrl"
           :src="photoUrl"
           :alt="`Photo of ${artworkTitle}`"
-          class="w-full h-48 object-cover"
+          class="w-full h-full object-cover"
           @load="handleImageLoad"
           @error="handleImageError"
         />
         <div
           v-else
-          class="w-full h-48 flex items-center justify-center bg-gray-50"
+          class="w-full h-full flex items-center justify-center bg-gray-50"
           aria-hidden="true"
         >
           <svg
@@ -222,7 +222,7 @@ function handleKeydown(event: KeyboardEvent): void {
         </div>
 
         <!-- Optional overlay badge slot (e.g., moderation status) -->
-        <div class="absolute top-2 left-2 z-10">
+        <div class="absolute top-2 left-2 z-10 badge-slot">
           <slot name="badge"></slot>
         </div>
 
@@ -234,77 +234,75 @@ function handleKeydown(event: KeyboardEvent): void {
           <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
         </div>
 
-        <!-- Photo count badge -->
+        <!-- Photo count badge (top-left) -->
         <div
-          v-if="artwork.photo_count > 1"
-          class="absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded"
+          v-if="artwork.photo_count && artwork.photo_count > 1"
+          class="photo-count-overlay absolute top-2 left-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded z-10"
         >
-          {{ artwork.photo_count }} photos
+          {{ artwork.photo_count }}
+        </div>
+
+        <!-- Type badge (top-right) -->
+        <div class="type-badge-overlay absolute top-2 right-2 z-10">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800 bg-opacity-60 text-white">{{ artworkType }}</span>
+        </div>
+
+        <!-- Bottom overlay with title + artist -->
+        <div class="text-overlay absolute left-0 right-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent text-white z-10">
+          <h3 class="text-sm font-semibold leading-tight line-clamp-2">{{ artworkTitle }}</h3>
+          <p v-if="artwork.artist_name" class="text-xs text-gray-200 mt-1 truncate">{{ artwork.artist_name }}</p>
         </div>
       </div>
 
-      <!-- Content -->
-      <div class="p-4">
-        <h3 class="text-lg font-medium text-gray-900 mb-2 line-clamp-2">
-          {{ artworkTitle }}
-        </h3>
-        <p v-if="artwork.artist_name" class="text-sm text-gray-600 mb-1 line-clamp-1">
-          {{ artwork.artist_name }}
-        </p>
-
-        <div class="flex items-center justify-between text-sm text-gray-600 mb-2">
-          <span
-            class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
-          >
-            {{ artworkType }}
-          </span>
-          <span v-if="distanceText" class="text-xs">
-            {{ distanceText }}
-          </span>
+      <!-- Small info row (type/distance) kept subtle under the card for layout consistency -->
+      <div class="p-2">
+        <div class="flex items-center justify-between text-xs text-gray-600">
+          <span v-if="distanceText" class="text-gray-500">{{ distanceText }}</span>
+          <span v-else class="text-transparent">.</span>
         </div>
+      </div>
 
-        <!-- Additional artwork details if available in tags -->
-        <div v-if="artwork.tags" class="text-sm text-gray-500 space-y-1">
-          <div v-if="!artwork.artist_name && artwork.tags.artist" class="flex items-center">
-            <span class="font-medium">Artist:</span>
-            <span class="ml-1 truncate">{{ artwork.tags.artist }}</span>
-          </div>
-          <div v-if="artwork.tags.material" class="flex items-center">
-            <span class="font-medium">Material:</span>
-            <span class="ml-1 truncate">{{ artwork.tags.material }}</span>
-          </div>
-          <div
-            v-if="artwork.tags.year || artwork.tags.year_of_installation"
-            class="flex items-center"
-          >
-            <span class="font-medium">Year:</span>
-            <span class="ml-1">{{ artwork.tags.year || artwork.tags.year_of_installation }}</span>
-          </div>
+      <!-- Additional artwork details if available in tags -->
+      <div v-if="artwork.tags" class="text-sm text-gray-500 space-y-1 px-3 pb-3">
+        <div v-if="!artwork.artist_name && artwork.tags.artist" class="flex items-center">
+          <span class="font-medium">Artist:</span>
+          <span class="ml-1 truncate">{{ artwork.tags.artist }}</span>
         </div>
+        <div v-if="artwork.tags.material" class="flex items-center">
+          <span class="font-medium">Material:</span>
+          <span class="ml-1 truncate">{{ artwork.tags.material }}</span>
+        </div>
+        <div
+          v-if="artwork.tags.year || artwork.tags.year_of_installation"
+          class="flex items-center"
+        >
+          <span class="font-medium">Year:</span>
+          <span class="ml-1">{{ artwork.tags.year || artwork.tags.year_of_installation }}</span>
+        </div>
+      </div>
 
-        <!-- Add Report Button (only shown when showAddReport is true) -->
-        <div v-if="showAddReport" class="mt-4 pt-3 border-t border-gray-200">
-          <button
-            @click="handleAddReport"
-            :disabled="!!loading"
-            class="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+      <!-- Add Report Button (only shown when showAddReport is true) -->
+      <div v-if="showAddReport" class="mt-2 px-3 pb-3">
+        <button
+          @click="handleAddReport"
+          :disabled="!!loading"
+          class="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+        >
+          <svg
+            class="w-4 h-4 inline-block mr-2"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
           >
-            <svg
-              class="w-4 h-4 inline-block mr-2"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Add Report
-          </button>
-        </div>
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          Add Report
+        </button>
       </div>
     </div>
   </article>
@@ -315,6 +313,8 @@ function handleKeydown(event: KeyboardEvent): void {
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  /* Define standard property for compatibility */
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -323,13 +323,15 @@ function handleKeydown(event: KeyboardEvent): void {
 .aspect-w-16 {
   position: relative;
   width: 100%;
+  overflow: hidden; /* Prevent overlays from extending outside */
 }
 .aspect-w-16::before {
   content: '';
   display: block;
   padding-bottom: calc(12 / 16 * 100%);
 }
-.aspect-h-12 > * {
+
+.aspect-h-12 > img {
   position: absolute;
   height: 100%;
   width: 100%;
@@ -338,4 +340,55 @@ function handleKeydown(event: KeyboardEvent): void {
   bottom: 0;
   left: 0;
 }
+
+/* Specific overrides for our overlay elements - ensuring they stay within bounds */
+.aspect-h-12 .photo-count-overlay {
+  position: absolute !important;
+  top: 0.5rem !important;
+  left: 0.5rem !important;
+  z-index: 10 !important;
+}
+
+.aspect-h-12 .type-badge-overlay {
+  position: absolute !important;
+  top: 0.5rem !important;
+  right: 0.5rem !important;
+  z-index: 10 !important;
+}
+
+.aspect-h-12 .text-overlay {
+  position: absolute !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 20 !important;
+}
+
+/* Ensure overlay badges are not stretched to full size by the aspect ratio helper */
+.badge-slot {
+  position: absolute !important;
+  width: auto !important;
+  height: auto !important;
+  pointer-events: none;
+}
+
+/* High-specificity override so the aspect helper cannot stretch the badge slot */
+.aspect-w-16.aspect-h-12 > .badge-slot {
+  position: absolute !important;
+  width: auto !important;
+  height: auto !important;
+  top: 0.5rem !important;
+  left: 0.5rem !important;
+  right: auto !important;
+  bottom: auto !important;
+  inset: auto !important;
+}
+
+/* Small visual tweak: ensure badge content doesn't inherit the full-image clipping */
+.badge-slot > * {
+  display: inline-block;
+  pointer-events: auto;
+}
+
+
 </style>

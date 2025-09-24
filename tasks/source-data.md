@@ -2,6 +2,8 @@
 
 Where to get information about Public Art
 
+https://docs.google.com/document/d/1OSZZh9jSyd6ECd66BA4C1n9rm1p_asZb5QKnUrK_LyE/edit?tab=t.0
+
 ## Open Street Map
 
 I generated a OSM importer that finds all the artwork and downloads them into a JSON file. see `src\lib\data-collection\osm`
