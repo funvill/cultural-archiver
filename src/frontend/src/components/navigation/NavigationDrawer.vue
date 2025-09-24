@@ -36,7 +36,7 @@ interface Emits {
 const emit = defineEmits<Emits>();
 
 // Local state
-const searchQuery = ref('');
+// (search removed from drawer per design)
 const route = useRoute();
 const drawerRef = ref<HTMLElement>();
 const closeButtonRef = ref<HTMLElement>();
@@ -66,8 +66,14 @@ const navigationItems = computed(() => [
     path: '/search',
     icon: MagnifyingGlassIcon,
     description: 'Search artworks and artists',
+  },{
+    name: 'Help',
+    path: '/help',
+    icon: MagnifyingGlassIcon,
+    description: 'Help',
   },
 ]);
+
 
 // Role-based items
 const roleBasedItems = computed(() => {
@@ -108,13 +114,7 @@ const handleOverlayClick = (): void => {
   handleClose();
 };
 
-const handleSearch = (): void => {
-  if (searchQuery.value.trim()) {
-    emit('searchSubmit', searchQuery.value.trim());
-    searchQuery.value = '';
-    handleClose();
-  }
-};
+// Search has been removed from the drawer. Keep searchSubmit emit in other components.
 
 const handleNavItemClick = (): void => {
   // Close drawer when navigation item is clicked
@@ -131,10 +131,7 @@ const handleLogoutClick = (): void => {
   handleClose();
 };
 
-const handleAboutModalOpen = (): void => {
-  emit('aboutModalOpen');
-  handleClose();
-};
+// About modal removed from drawer; Read More now links to /help directly.
 
 // Keyboard navigation
 const handleKeyDown = (event: KeyboardEvent): void => {
@@ -154,7 +151,7 @@ const handleFocusManagement = (): void => {
 };
 
 // Watch for open/close changes
-watch(() => props.isOpen, (isOpen) => {
+watch(() => props.isOpen, (isOpen: boolean) => {
   if (isOpen) {
     handleFocusManagement();
     // Prevent body scroll
@@ -216,40 +213,15 @@ onUnmounted(() => {
         <!-- Introduction -->
         <div class="p-4 border-b border-gray-200">
           <p class="text-sm text-gray-600 leading-relaxed">
-            Welcome to the Public Art Registry!
+            make culture accessible to everyone while preserving it for future generations
           </p>
-          <button
-            @click="handleAboutModalOpen"
-            class="mt-1 text-sm text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded transition-colors"
+          <RouterLink
+            to="/help"
+            @click="handleClose"
+            class="mt-1 inline-block text-sm text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded transition-colors"
           >
             Read More
-          </button>
-        </div>
-
-        <!-- Search Section -->
-        <div class="p-4 border-b border-gray-200">
-          <label for="drawer-search" class="sr-only">Search</label>
-          <div class="relative">
-            <MagnifyingGlassIcon
-              class="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400"
-              aria-hidden="true"
-            />
-            <input
-              id="drawer-search"
-              v-model="searchQuery"
-              type="search"
-              placeholder="Search artworks, artists..."
-              class="w-full pl-10 pr-16 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              @keydown.enter="handleSearch"
-            />
-            <button
-              v-if="searchQuery.trim()"
-              @click="handleSearch"
-              class="absolute right-2 top-1/2 transform -translate-y-1/2 px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
-            >
-              Go
-            </button>
-          </div>
+          </RouterLink>
         </div>
 
         <!-- Navigation Items -->
@@ -335,6 +307,8 @@ onUnmounted(() => {
             <span class="truncate">Logout</span>
           </button>
         </div>
+        
+
       </div>
     </nav>
   </Transition>
