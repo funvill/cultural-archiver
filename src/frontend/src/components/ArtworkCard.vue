@@ -87,6 +87,35 @@ const photoCount = computed(() => {
   return `${count} photos`;
 });
 
+const artistName = computed(() => {
+  // Prefer explicit artwork property if present
+  // Some backends provide `artist_name` at top level, others inside tags
+  if ((props.artwork as any).artist_name) return (props.artwork as any).artist_name;
+  if (props.artwork.tags && typeof props.artwork.tags === 'object') {
+    // common keys that might contain artist/author
+    return (
+      (props.artwork.tags as any).artist ||
+      (props.artwork.tags as any).artist_name ||
+      (props.artwork.tags as any).creator ||
+      (props.artwork.tags as any).author ||
+      ''
+    );
+  }
+
+  return '';
+});
+
+const materialYear = computed(() => {
+  const tags = props.artwork.tags as Record<string, unknown> | null;
+  if (!tags) return '';
+  const m = (tags as any).material;
+  const y = (tags as any).year;
+  if (m && y) return `${m} · ${y}`;
+  if (m) return String(m);
+  if (y) return String(y);
+  return '';
+});
+
 // Methods
 function handleClick(): void {
   if (props.clickable && !props.loading) {
@@ -234,27 +263,31 @@ function handleKeydown(event: KeyboardEvent): void {
           <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
         </div>
 
-        <!-- Photo count badge (top-left) -->
+        <!-- Photo count badge (top-right) - show human readable text so tests can assert '3 photos' -->
         <div
           v-if="artwork.photo_count && artwork.photo_count > 1"
-          class="photo-count-overlay absolute top-2 left-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded z-10 flex items-center gap-1"
+          class="photo-count-overlay absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded z-10 flex items-center gap-1"
         >
           <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-          {{ artwork.photo_count }}
+          {{ photoCount }}
         </div>
 
         <!-- Type badge (top-right) -->
-        <div class="type-badge-overlay absolute top-2 right-2 z-10">
+        <div class="type-badge-overlay absolute top-2 left-12 z-10">
           <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800 bg-opacity-60 text-white">{{ artworkType }}</span>
         </div>
 
         <!-- Bottom overlay with title + artist -->
         <div class="text-overlay absolute left-0 right-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent text-white z-10">
           <h3 class="text-base font-semibold leading-tight line-clamp-2">{{ artworkTitle }}</h3>
-          <p v-if="artwork.artist_name" class="text-xs text-gray-200 mt-1 truncate">{{ artwork.artist_name }}</p>
+          <p v-if="artistName" class="text-xs text-gray-200 mt-1 truncate">{{ artistName }}</p>
+          <!-- Always show distance if requested (even when artist exists) -->
+          <p v-if="showDistance && distanceText" class="text-xs text-gray-200 mt-1">{{ distanceText }}</p>
+          <!-- Show material/year if available as secondary meta -->
+          <p v-if="materialYear" class="text-xs text-gray-300 mt-1">{{ materialYear }}</p>
         </div>
       </div>
 
@@ -322,8 +355,8 @@ function handleKeydown(event: KeyboardEvent): void {
 .aspect-h-1 .photo-count-overlay {
   position: absolute !important;
   top: 0.5rem !important;
-  left: 0.5rem !important;
-  z-index: 10 !important;
+  right: 0.5rem !important;
+  z-index: 15 !important;
 }
 
 .aspect-h-1 .type-badge-overlay {

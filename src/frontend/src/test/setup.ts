@@ -1,5 +1,28 @@
 import { config } from '@vue/test-utils';
 import { vi, beforeEach } from 'vitest';
+import { createPinia, setActivePinia } from 'pinia';
+
+// Ensure an active Pinia exists as soon as the test setup module is loaded.
+// Some components access stores during their setup phase; creating an
+// active Pinia immediately prevents "no active Pinia" errors during
+// component initialization. We still recreate a fresh Pinia in beforeEach
+// to avoid test-state leakage between tests.
+setActivePinia(createPinia());
+
+// Provide a safe Pinia provider for tests. Instead of pushing a single shared
+// Pinia instance (which causes Vue to warn when multiple apps are created
+// during tests), register a small plugin that will create and provide a new
+// Pinia instance for the app only if it hasn't been provided already.
+config.global.plugins = config.global.plugins || [];
+
+// Instead of installing Pinia onto the app (which causes Vue to warn when
+// multiple apps are created in tests), set an active Pinia instance per test
+// run. Pinia's `useStore()` will fall back to the active Pinia when there is
+// no injection context, which is suitable for unit tests.
+beforeEach(() => {
+  // Create a fresh Pinia instance for each test and make it the active one.
+  setActivePinia(createPinia());
+});
 
 // Mock Vue Router
 config.global.mocks = {

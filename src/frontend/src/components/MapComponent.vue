@@ -1417,8 +1417,8 @@ watch(
       </div>
     </div>
 
-    <!-- Map Controls -->
-    <div class="absolute bottom-4 right-4 flex flex-col space-y-2 z-20">
+  <!-- Map Controls -->
+  <div class="absolute top-4 right-4 flex flex-col space-y-2 z-20">
       <!-- Map Options (Layers) Button -->
       <div class="relative">
         <button
@@ -1434,7 +1434,7 @@ watch(
         <!-- Options Panel -->
         <div
           v-show="showOptionsPanel"
-          class="absolute bottom-14 right-0 w-80 sm:w-96 lg:w-[32rem] bg-white shadow-xl rounded-lg p-4 border border-gray-200 max-h-[calc(100vh-8rem)] overflow-y-auto"
+          class="absolute top-14 right-0 w-80 sm:w-96 lg:w-[32rem] bg-white shadow-xl rounded-lg p-4 border border-gray-200 max-h-[calc(100vh-8rem)] overflow-y-auto"
           role="dialog"
           aria-label="Map options"
         >

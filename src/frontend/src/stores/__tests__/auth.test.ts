@@ -36,6 +36,9 @@ vi.mock('../../services/api', () => ({
         user: null,
       },
     }),
+    getUserProfile: vi.fn().mockResolvedValue({
+      data: { is_reviewer: false, debug: { permissions: [] } },
+    }),
   },
   getErrorMessage: vi.fn().mockReturnValue('Test error message'),
   isUnauthorized: vi.fn().mockReturnValue(false),

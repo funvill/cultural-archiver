@@ -100,7 +100,6 @@ async function checkConsentStatus() {
       hasValidConsent.value = false;
       return;
     }
-
     const response = await fetch(createApiUrl('/consent'), {
       method: 'GET',
       headers: {
@@ -108,6 +107,11 @@ async function checkConsentStatus() {
         Authorization: `Bearer ${props.userToken}`,
       },
     });
+    // Be defensive: tests or environments may stub fetch and return undefined or non-Response values
+    if (!response || typeof (response as any).ok === 'undefined') {
+      hasValidConsent.value = false;
+      return;
+    }
 
     if (response.ok) {
       const data = await response.json();
@@ -281,7 +285,7 @@ async function handleSubmit() {
     const formData = new FormData();
 
     // Add files
-    selectedFiles.value.forEach(photoFile => {
+    selectedFiles.value.forEach((photoFile: PhotoFile) => {
       formData.append(`photos`, photoFile.file);
     });
 

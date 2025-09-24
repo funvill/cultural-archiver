@@ -100,6 +100,10 @@ async function handleFastFileChange(e: Event) {
 
 async function fastProcessFiles(files: File[]) {
   fastIsProcessing.value = true;
+  // If user re-triggers Add after having navigated once, treat this as overwrite
+  if (fastHasNavigated.value) {
+    fastSelected.value = [];
+  }
   const imageFiles = files.filter(f => f.type.startsWith('image/'));
   for (const file of imageFiles) {
     try {

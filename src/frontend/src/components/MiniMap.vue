@@ -49,12 +49,15 @@ async function initializeMap(): Promise<void> {
     isLoading.value = true;
     hasError.value = false;
 
-    // Dynamic import of Leaflet to avoid SSR issues
-    const L = await import('leaflet');
+  // Dynamic import of Leaflet to avoid SSR issues
+  const imported = await import('leaflet');
+  // Support both module shapes: default export or named exports (mocks may provide either)
+  const L: any = (imported && (imported as any).default) ? (imported as any).default : imported;
 
-    // Create map
-    const mapInstance = L.map(mapContainer.value, {
-      zoomControl: props.showZoomControls,
+  // Create map
+  const mapInstance = L.map(mapContainer.value, {
+      // Disable default zoomControl here and add a positioned control below if requested
+      zoomControl: false,
       scrollWheelZoom: false, // Prevent accidental zooming
       doubleClickZoom: true,
       touchZoom: true,
@@ -63,7 +66,7 @@ async function initializeMap(): Promise<void> {
     }).setView([props.latitude, props.longitude], props.zoom);
 
     // Add tile layer
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors',
       maxZoom: 19,
     }).addTo(mapInstance);
@@ -77,6 +80,20 @@ async function initializeMap(): Promise<void> {
     map.value = mapInstance;
     marker.value = markerInstance;
 
+    // Add zoom control in top-right if requested
+    if (props.showZoomControls) {
+      try {
+        // Some test environments mock 'leaflet' and may not provide control.zoom
+        if (L && (L as any).control && typeof (L as any).control.zoom === 'function') {
+          (L as any).control.zoom({ position: 'topright' }).addTo(mapInstance);
+        } else {
+          // If the mock doesn't support controls, skip gracefully
+          console.warn('Leaflet control.zoom not available; skipping zoom control addition in MiniMap.');
+        }
+      } catch (err) {
+        console.warn('Could not add zoom control:', err);
+      }
+    }
     // Emit map ready event
     emit('mapReady', mapInstance);
 
@@ -146,7 +163,7 @@ watch(
 
 watch(
   () => props.title,
-  newTitle => {
+  (newTitle: string) => {
     if (marker.value) {
       marker.value.bindPopup(newTitle);
     }
