@@ -337,7 +337,7 @@ describe('PRD Success Criteria Tests', () => {
       // Verify metadata preservation
       expect(responseData.data.importId).toBe('cli-test-123');
       expect(responseData.data.auditTrail.systemUserToken).toBeDefined();
-    }, 20000);
+    }, 10000);
   });
 
   describe('Success Criterion: Artist Auto-Creation', () => {
