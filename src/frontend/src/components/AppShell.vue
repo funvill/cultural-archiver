@@ -14,7 +14,6 @@ import DevelopmentBanner from './DevelopmentBanner.vue';
 import LiveRegion from './LiveRegion.vue';
 
 // Import new navigation components
-import NavigationRail from './navigation/NavigationRail.vue';
 import BottomNavigation from './navigation/BottomNavigation.vue';
 import NavigationDrawer from './navigation/NavigationDrawer.vue';
 import AboutModal from './navigation/AboutModal.vue';
@@ -33,12 +32,11 @@ const showDrawer = ref(false);
 const showAuthModal = ref(false);
 const authMode = ref<'login' | 'signup'>('login');
 const showAboutModal = ref(false);
-const isNavigationRailExpanded = ref(true);
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const notificationsStore = useNotificationsStore();
-const { showNavigationRail, showBottomNavigation } = useBreakpoint();
+const { showBottomNavigation } = useBreakpoint();
 
 
 // Fast Add Implementation - keeping existing functionality
@@ -270,11 +268,7 @@ function handleNotificationClick(): void {
   router.push('/profile/notifications');
 }
 
-function handleToggleNavigationRail(): void {
-  isNavigationRailExpanded.value = !isNavigationRailExpanded.value;
-  // Optional: persist state to localStorage
-  localStorage.setItem('navigation-rail-expanded', String(isNavigationRailExpanded.value));
-}
+// Previously used to toggle a left navigation rail; no longer needed with a single bottom nav.
 
 
 
@@ -329,11 +323,7 @@ function handleTabTrapping(event: KeyboardEvent): void {
 onMounted(() => {
   document.addEventListener('keydown', handleKeydown);
   
-  // Initialize navigation rail expanded state from localStorage
-  const savedState = localStorage.getItem('navigation-rail-expanded');
-  if (savedState !== null) {
-    isNavigationRailExpanded.value = savedState === 'true';
-  }
+  // No desktop navigation rail state to initialize; using unified bottom navigation.
   
   // Initialize notifications if user is authenticated
   if (authStore.isAuthenticated) {
@@ -375,22 +365,14 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
     <!-- Development Warning Banner -->
     <DevelopmentBanner />
 
-    <!-- Desktop Navigation Rail (shown on screens ≥600px) -->
-    <NavigationRail
-      v-if="showNavigationRail"
-      :is-expanded="isNavigationRailExpanded"
+    <!-- Global Bottom Navigation (used for both desktop and mobile) -->
+    <BottomNavigation
       :current-route="route.path"
-      :user-role="authStore.isAdmin ? 'admin' : authStore.canReview ? 'moderator' : 'user'"
       :notification-count="notificationsStore.unreadCount"
-      :is-authenticated="authStore.isAuthenticated"
-      :user-display-name="authStore.user?.email || 'User'"
-      @toggleExpanded="handleToggleNavigationRail"
-      @notificationClick="handleNotificationClick"
-      @profileClick="() => router.push('/profile')"
-      @aboutModalOpen="handleAboutClick"
-      @loginClick="() => openAuthModal('login')"
-      @logoutClick="handleLogout"
+      :show-notifications="authStore.isAuthenticated"
+      @menuToggle="handleDrawerToggle"
       @fabClick="triggerFastAdd"
+      @notificationClick="handleNotificationClick"
     />
 
     <!-- Mobile Bottom Navigation (shown on screens <600px) -->
@@ -423,9 +405,7 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
       class="app-main" 
       role="main"
       :class="{
-        'ml-80': showNavigationRail && isNavigationRailExpanded,
-        'ml-16': showNavigationRail && !isNavigationRailExpanded,
-        'pb-16': showBottomNavigation
+        'pb-16': true
       }"
     >
       <RouterView />
@@ -476,15 +456,8 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
 }
 
 /* Desktop layout - main content with left margin for navigation rail */
-@media (min-width: 600px) {
-  .app-main.ml-80 {
-    margin-left: 20rem; /* 320px - expanded rail width */
-  }
-  
-  .app-main.ml-16 {
-    margin-left: 4rem; /* 64px - collapsed rail width */
-  }
-}
+/* Desktop previously used a left navigation rail; desktop now uses a bottom navigation so
+   main content no longer needs left margin reserved. */
 
 /* Mobile layout - main content with bottom padding for bottom navigation */
 @media (max-width: 599px) {
