@@ -119,7 +119,7 @@ function handleKeydown(event: KeyboardEvent): void {
 
 <template>
   <article
-    class="bg-white rounded-lg shadow-sm border border-gray-200 transition-all duration-200 ease-in-out hover:shadow-xl hover:border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 transform-gpu hover:translate-y-0.5"
+    class="artwork-card bg-white rounded-xl shadow-sm border-1 border-gray transition-all duration-300 ease-in-out hover:shadow-2xl focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 transform-gpu overflow-hidden"
     :class="{
       'cursor-pointer': clickable && !loading,
       'cursor-default': !clickable || loading,
@@ -136,18 +136,18 @@ function handleKeydown(event: KeyboardEvent): void {
     <!-- Compact Layout -->
     <div v-if="compact" class="flex h-full">
       <!-- Photo Thumbnail -->
-      <div class="flex-shrink-0 w-32 h-full relative overflow-hidden rounded-l-lg bg-gray-100">
+  <div class="flex-shrink-0 w-32 h-full relative overflow-hidden rounded-l-lg bg-gray-100">
         <img
           v-if="hasPhoto && photoUrl"
           :src="photoUrl"
           :alt="`Photo of ${artworkTitle}`"
-          class="w-full h-full object-cover"
+          class="w-full h-full object-cover block"
           @load="handleImageLoad"
           @error="handleImageError"
         />
         <div
           v-else
-          class="w-full h-full flex items-center justify-center bg-gray-50"
+    class="w-full h-full flex items-center justify-center bg-gray-50"
           aria-hidden="true"
         >
           <svg class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -190,14 +190,14 @@ function handleKeydown(event: KeyboardEvent): void {
     </div>
 
     <!-- Full Layout -->
-    <div v-else class="overflow-hidden">
+  <div v-else class="overflow-hidden rounded-xl">
       <!-- Photo with overlayed text -->
-      <div class="aspect-w-16 aspect-h-12 bg-gray-100 relative">
+      <div class="aspect-w-1 aspect-h-1 bg-gray-100 relative">
         <img
           v-if="hasPhoto && photoUrl"
           :src="photoUrl"
           :alt="`Photo of ${artworkTitle}`"
-          class="w-full h-full object-cover"
+          class="w-full h-full object-cover block"
           @load="handleImageLoad"
           @error="handleImageError"
         />
@@ -237,8 +237,12 @@ function handleKeydown(event: KeyboardEvent): void {
         <!-- Photo count badge (top-left) -->
         <div
           v-if="artwork.photo_count && artwork.photo_count > 1"
-          class="photo-count-overlay absolute top-2 left-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded z-10"
+          class="photo-count-overlay absolute top-2 left-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded z-10 flex items-center gap-1"
         >
+          <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
           {{ artwork.photo_count }}
         </div>
 
@@ -249,35 +253,8 @@ function handleKeydown(event: KeyboardEvent): void {
 
         <!-- Bottom overlay with title + artist -->
         <div class="text-overlay absolute left-0 right-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent text-white z-10">
-          <h3 class="text-sm font-semibold leading-tight line-clamp-2">{{ artworkTitle }}</h3>
+          <h3 class="text-base font-semibold leading-tight line-clamp-2">{{ artworkTitle }}</h3>
           <p v-if="artwork.artist_name" class="text-xs text-gray-200 mt-1 truncate">{{ artwork.artist_name }}</p>
-        </div>
-      </div>
-
-      <!-- Small info row (type/distance) kept subtle under the card for layout consistency -->
-      <div class="p-2">
-        <div class="flex items-center justify-between text-xs text-gray-600">
-          <span v-if="distanceText" class="text-gray-500">{{ distanceText }}</span>
-          <span v-else class="text-transparent">.</span>
-        </div>
-      </div>
-
-      <!-- Additional artwork details if available in tags -->
-      <div v-if="artwork.tags" class="text-sm text-gray-500 space-y-1 px-3 pb-3">
-        <div v-if="!artwork.artist_name && artwork.tags.artist" class="flex items-center">
-          <span class="font-medium">Artist:</span>
-          <span class="ml-1 truncate">{{ artwork.tags.artist }}</span>
-        </div>
-        <div v-if="artwork.tags.material" class="flex items-center">
-          <span class="font-medium">Material:</span>
-          <span class="ml-1 truncate">{{ artwork.tags.material }}</span>
-        </div>
-        <div
-          v-if="artwork.tags.year || artwork.tags.year_of_installation"
-          class="flex items-center"
-        >
-          <span class="font-medium">Year:</span>
-          <span class="ml-1">{{ artwork.tags.year || artwork.tags.year_of_installation }}</span>
         </div>
       </div>
 
@@ -320,18 +297,18 @@ function handleKeydown(event: KeyboardEvent): void {
 }
 
 /* Aspect ratio utility for responsive images */
-.aspect-w-16 {
+.aspect-w-1 {
   position: relative;
   width: 100%;
   overflow: hidden; /* Prevent overlays from extending outside */
 }
-.aspect-w-16::before {
+.aspect-w-1::before {
   content: '';
   display: block;
-  padding-bottom: calc(12 / 16 * 100%);
+  padding-bottom: calc(1 / 1 * 100%); /* Square ratio */
 }
 
-.aspect-h-12 > img {
+.aspect-h-1 > img {
   position: absolute;
   height: 100%;
   width: 100%;
@@ -342,21 +319,21 @@ function handleKeydown(event: KeyboardEvent): void {
 }
 
 /* Specific overrides for our overlay elements - ensuring they stay within bounds */
-.aspect-h-12 .photo-count-overlay {
+.aspect-h-1 .photo-count-overlay {
   position: absolute !important;
   top: 0.5rem !important;
   left: 0.5rem !important;
   z-index: 10 !important;
 }
 
-.aspect-h-12 .type-badge-overlay {
+.aspect-h-1 .type-badge-overlay {
   position: absolute !important;
   top: 0.5rem !important;
   right: 0.5rem !important;
   z-index: 10 !important;
 }
 
-.aspect-h-12 .text-overlay {
+.aspect-h-1 .text-overlay {
   position: absolute !important;
   bottom: 0 !important;
   left: 0 !important;
@@ -373,7 +350,7 @@ function handleKeydown(event: KeyboardEvent): void {
 }
 
 /* High-specificity override so the aspect helper cannot stretch the badge slot */
-.aspect-w-16.aspect-h-12 > .badge-slot {
+.aspect-w-1.aspect-h-1 > .badge-slot {
   position: absolute !important;
   width: auto !important;
   height: auto !important;
@@ -388,6 +365,36 @@ function handleKeydown(event: KeyboardEvent): void {
 .badge-slot > * {
   display: inline-block;
   pointer-events: auto;
+}
+
+/* Exciting hover animation - grow and shake */
+.artwork-card:hover {
+  transform: scale(1.05) translateY(-5px);
+  animation: shake-and-settle 0.6s ease-in-out;
+}
+
+@keyframes shake-and-settle {
+  0% {
+    transform: scale(1) translateY(0);
+  }
+  15% {
+    transform: scale(1.05) translateY(-5px) rotateZ(1deg);
+  }
+  30% {
+    transform: scale(1.05) translateY(-5px) rotateZ(-1deg);
+  }
+  45% {
+    transform: scale(1.05) translateY(-5px) rotateZ(0.5deg);
+  }
+  60% {
+    transform: scale(1.05) translateY(-5px) rotateZ(-0.5deg);
+  }
+  75% {
+    transform: scale(1.05) translateY(-5px) rotateZ(0.2deg);
+  }
+  100% {
+    transform: scale(1.05) translateY(-5px) rotateZ(0);
+  }
 }
 
 
