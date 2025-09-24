@@ -1,15 +1,11 @@
 /**
  * Mass Import Plugin System - JSON File Exporter
- * 
+ *
  * This plugin exports unified data to JSON files with configurable formatting,
  * batch processing, and comprehensive error handling.
  */
 
-import type {
-  ExporterPlugin,
-  ExporterConfig,
-  ExportResult,
-} from '../types/plugin.js';
+import type { ExporterPlugin, ExporterConfig, ExportResult } from '../types/plugin.js';
 import type { RawImportData, ValidationResult } from '../types/index.js';
 import * as fs from 'fs/promises';
 import * as path from 'path';
@@ -41,7 +37,7 @@ export interface JsonExporterOptions {
 export class JsonExporter implements ExporterPlugin {
   name = 'json';
   description = 'Export data to JSON files with configurable formatting and batch processing';
-  
+
   metadata = {
     name: 'json',
     description: 'Export data to JSON files with configurable formatting and batch processing',
@@ -49,9 +45,16 @@ export class JsonExporter implements ExporterPlugin {
     author: 'Cultural Archiver',
     supportedFormats: ['array', 'lines', 'pretty'],
     requiredFields: ['outputPath'],
-    optionalFields: ['format', 'indent', 'splitFiles', 'recordsPerFile', 'includeMetadata', 'compression'],
+    optionalFields: [
+      'format',
+      'indent',
+      'splitFiles',
+      'recordsPerFile',
+      'includeMetadata',
+      'compression',
+    ],
   };
-  
+
   supportedFormats = ['array', 'lines', 'pretty'];
   requiresNetwork = false;
   outputType = 'file' as const;
@@ -70,41 +73,41 @@ export class JsonExporter implements ExporterPlugin {
       createDirectories: true,
       ...options,
     } as JsonExporterOptions;
-    
+
     console.log(`🔧 JSON Exporter configured:`, this.options);
   }
 
   async validate(config: ExporterConfig): Promise<ValidationResult> {
     const errors: string[] = [];
-    
+
     try {
       const jsonConfig = config as JsonExporterConfig;
-      
+
       // Validate required fields
       if (!jsonConfig.outputPath) {
         errors.push('outputPath is required');
       }
-      
+
       // Validate output path format
       if (jsonConfig.outputPath && !jsonConfig.outputPath.endsWith('.json')) {
         errors.push('outputPath must end with .json extension');
       }
-      
+
       // Validate format option
       if (jsonConfig.format && !['array', 'lines', 'pretty'].includes(jsonConfig.format)) {
         errors.push('format must be one of: array, lines, pretty');
       }
-      
+
       // Validate indent
       if (jsonConfig.indent !== undefined && (jsonConfig.indent < 0 || jsonConfig.indent > 10)) {
         errors.push('indent must be between 0 and 10');
       }
-      
+
       // Validate split configuration
       if (jsonConfig.splitFiles && jsonConfig.recordsPerFile && jsonConfig.recordsPerFile < 1) {
         errors.push('recordsPerFile must be greater than 0 when splitFiles is enabled');
       }
-      
+
       // Check if output directory exists (if creating directories is disabled)
       if (!this.options.createDirectories && jsonConfig.outputPath) {
         const outputDir = path.dirname(jsonConfig.outputPath);
@@ -114,61 +117,65 @@ export class JsonExporter implements ExporterPlugin {
           errors.push(`Output directory does not exist: ${outputDir}`);
         }
       }
-      
     } catch (error) {
-      errors.push(`Configuration validation error: ${error instanceof Error ? error.message : String(error)}`);
+      errors.push(
+        `Configuration validation error: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
-    
+
     return {
       isValid: errors.length === 0,
-      errors: errors.map(error => ({ field: 'config', message: error, severity: 'error' as const })),
+      errors: errors.map(error => ({
+        field: 'config',
+        message: error,
+        severity: 'error' as const,
+      })),
       warnings: [],
     };
   }
 
   async export(data: RawImportData[], config: ExporterConfig): Promise<ExportResult> {
     const startTime = Date.now();
-    
+
     try {
       this.config = config as JsonExporterConfig;
-      
+
       // Validate configuration
       const validation = await this.validate(config);
       if (!validation.isValid) {
         throw new Error(`Invalid configuration: ${validation.errors?.join(', ')}`);
       }
-      
+
       console.log(`📤 Starting JSON export of ${data.length} records...`);
-      
+
       // Prepare output directory
       await this.prepareOutputDirectory();
-      
+
       // Backup existing file if requested
       if (this.options.backupExisting) {
         await this.backupExistingFile();
       }
-      
+
       // Export data based on configuration
       let exportResult: ExportResult;
-      
+
       if (this.config.splitFiles) {
         exportResult = await this.exportSplitFiles(data);
       } else {
         exportResult = await this.exportSingleFile(data);
       }
-      
+
       const processingTime = Date.now() - startTime;
       console.log(`✅ JSON export completed in ${processingTime}ms`);
-      
+
       return {
         ...exportResult,
         summary: `${exportResult.summary} (${processingTime}ms)`,
       };
-      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'JSON export failed';
       console.error(`❌ JSON export failed:`, error);
-      
+
       return {
         success: false,
         recordsProcessed: data.length,
@@ -188,7 +195,7 @@ export class JsonExporter implements ExporterPlugin {
 
   private async prepareOutputDirectory(): Promise<void> {
     if (!this.config?.outputPath) return;
-    
+
     if (this.options.createDirectories) {
       const outputDir = path.dirname(this.config.outputPath);
       await fs.mkdir(outputDir, { recursive: true });
@@ -198,7 +205,7 @@ export class JsonExporter implements ExporterPlugin {
 
   private async backupExistingFile(): Promise<void> {
     if (!this.config?.outputPath) return;
-    
+
     try {
       await fs.access(this.config.outputPath);
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -214,16 +221,16 @@ export class JsonExporter implements ExporterPlugin {
     if (!this.config?.outputPath) {
       throw new Error('Output path not configured');
     }
-    
+
     try {
       // Format data based on configuration
       const formattedData = await this.formatData(data);
-      
+
       // Write to file
       await fs.writeFile(this.config.outputPath, formattedData, 'utf-8');
-      
+
       console.log(`💾 Exported ${data.length} records to: ${this.config.outputPath}`);
-      
+
       return {
         success: true,
         recordsProcessed: data.length,
@@ -233,9 +240,10 @@ export class JsonExporter implements ExporterPlugin {
         recordsDuplicate: 0,
         summary: `Successfully exported ${data.length} records to JSON file: ${this.config.outputPath}`,
       };
-      
     } catch (error) {
-      throw new Error(`Failed to write JSON file: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to write JSON file: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -243,32 +251,32 @@ export class JsonExporter implements ExporterPlugin {
     if (!this.config?.outputPath || !this.config.recordsPerFile) {
       throw new Error('Split file configuration incomplete');
     }
-    
+
     const recordsPerFile = this.config.recordsPerFile;
     const totalFiles = Math.ceil(data.length / recordsPerFile);
     const outputFiles: string[] = [];
-    
+
     for (let fileIndex = 0; fileIndex < totalFiles; fileIndex++) {
       const startIndex = fileIndex * recordsPerFile;
       const endIndex = Math.min(startIndex + recordsPerFile, data.length);
       const fileData = data.slice(startIndex, endIndex);
-      
+
       // Generate file path with index
       const fileExtension = path.extname(this.config.outputPath);
       const baseName = path.basename(this.config.outputPath, fileExtension);
       const dirName = path.dirname(this.config.outputPath);
       const fileName = `${baseName}_part${fileIndex + 1}${fileExtension}`;
       const filePath = path.join(dirName, fileName);
-      
+
       // Format and write file data
       const formattedData = await this.formatData(fileData);
       await fs.writeFile(filePath, formattedData, 'utf-8');
-      
+
       outputFiles.push(filePath);
-      
+
       console.log(`💾 Exported ${fileData.length} records to: ${filePath}`);
     }
-    
+
     return {
       success: true,
       recordsProcessed: data.length,
@@ -284,9 +292,9 @@ export class JsonExporter implements ExporterPlugin {
     const format = this.config?.format ?? 'pretty';
     const indent = this.config?.indent ?? 2;
     const includeMetadata = this.config?.includeMetadata ?? false;
-    
+
     let outputData: unknown = data;
-    
+
     // Add metadata if requested
     if (includeMetadata) {
       outputData = {
@@ -299,19 +307,19 @@ export class JsonExporter implements ExporterPlugin {
         data,
       };
     }
-    
+
     // Format based on style
     switch (format) {
       case 'array':
         return JSON.stringify(outputData);
-        
+
       case 'lines':
         if (Array.isArray(outputData)) {
           return outputData.map(record => JSON.stringify(record)).join('\n');
         } else {
           return JSON.stringify(outputData);
         }
-        
+
       case 'pretty':
       default:
         return JSON.stringify(outputData, null, indent);

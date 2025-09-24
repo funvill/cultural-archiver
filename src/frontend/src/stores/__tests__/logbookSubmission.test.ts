@@ -73,8 +73,8 @@ describe('Logbook Submission Store', () => {
         lon: -123.1207,
         userLogbookStatus: {
           onCooldown: true,
-          cooldownUntil: '2025-10-19T07:00:00.000Z'
-        }
+          cooldownUntil: '2025-10-19T07:00:00.000Z',
+        },
       } as ArtworkDetailResponse;
 
       expect(store.isOnCooldown).toBe(true);
@@ -92,8 +92,8 @@ describe('Logbook Submission Store', () => {
         lon: -123.1207,
         userLogbookStatus: {
           onCooldown: true,
-          cooldownUntil: '2025-10-19T07:00:00.000Z'
-        }
+          cooldownUntil: '2025-10-19T07:00:00.000Z',
+        },
       } as ArtworkDetailResponse;
 
       const message = store.cooldownMessage;
@@ -127,7 +127,7 @@ describe('Logbook Submission Store', () => {
       // Test cooldown prevents submission
       store.artwork.userLogbookStatus = {
         onCooldown: true,
-        cooldownUntil: '2025-10-19T07:00:00.000Z'
+        cooldownUntil: '2025-10-19T07:00:00.000Z',
       };
 
       expect(store.canSubmit).toBe(false);
@@ -210,8 +210,11 @@ describe('Logbook Submission Store', () => {
         removeEventListener: vi.fn(),
         dispatchEvent: vi.fn(),
       } as Partial<FileReader> as FileReader;
-      
-      vi.stubGlobal('FileReader', vi.fn(() => mockFileReader));
+
+      vi.stubGlobal(
+        'FileReader',
+        vi.fn(() => mockFileReader)
+      );
 
       store.setPhoto(mockFile);
 
@@ -219,7 +222,9 @@ describe('Logbook Submission Store', () => {
 
       // Simulate FileReader onload - check for null before calling
       if (mockFileReader.onload) {
-        mockFileReader.onload.call(mockFileReader, { target: mockFileReader } as ProgressEvent<FileReader>);
+        mockFileReader.onload.call(mockFileReader, {
+          target: mockFileReader,
+        } as ProgressEvent<FileReader>);
       }
       expect(store.photoPreview).toBe('data:image/jpeg;base64,mockdata');
     });
@@ -262,7 +267,7 @@ describe('Logbook Submission Store', () => {
     it('should submit logbook entry successfully', async () => {
       const store = useLogbookSubmissionStore();
       const mockFile = createMockFile();
-      
+
       // Setup store state
       store.setPhoto(mockFile);
       store.setCondition('Good');
@@ -278,7 +283,7 @@ describe('Logbook Submission Store', () => {
       const mockResponse = {
         id: 'submission-123',
         status: 'pending',
-        message: 'Submission received for review.'
+        message: 'Submission received for review.',
       };
       vi.mocked(apiService.postRaw).mockResolvedValue(mockResponse);
 
@@ -298,7 +303,7 @@ describe('Logbook Submission Store', () => {
     it('should handle submission error with network failure', async () => {
       const store = useLogbookSubmissionStore();
       const mockFile = createMockFile();
-      
+
       store.setPhoto(mockFile);
       store.artwork = {
         id: 'test-artwork',
@@ -316,14 +321,16 @@ describe('Logbook Submission Store', () => {
       const result = await store.submitLogbookEntry('test-artwork');
 
       expect(result.success).toBe(false);
-      expect(store.submitError).toBe('Submission Failed. Please check your connection and try again.');
+      expect(store.submitError).toBe(
+        'Submission Failed. Please check your connection and try again.'
+      );
       expect(store.selectedPhoto).toBe(mockFile); // Form data preserved
     });
 
     it('should handle submission error with other failure', async () => {
       const store = useLogbookSubmissionStore();
       const mockFile = createMockFile();
-      
+
       store.setPhoto(mockFile);
       store.setCondition('Good');
       store.artwork = {
@@ -349,7 +356,7 @@ describe('Logbook Submission Store', () => {
 
     it('should clear form data', () => {
       const store = useLogbookSubmissionStore();
-      
+
       // Set up form data
       store.setPhoto(createMockFile());
       store.setCondition('Good');
@@ -371,7 +378,7 @@ describe('Logbook Submission Store', () => {
 
     it('should reset store state', () => {
       const store = useLogbookSubmissionStore();
-      
+
       // Set up state
       store.artwork = { id: 'test' } as ArtworkDetailResponse;
       store.setPhoto(createMockFile());
@@ -394,19 +401,23 @@ describe('Logbook Submission Store', () => {
       // No photo, so canSubmit will be false
       store.artwork = {
         id: 'test-artwork',
-        title: 'Test Artwork', 
+        title: 'Test Artwork',
         lat: 49.2827,
         lon: -123.1207,
       } as ArtworkDetailResponse;
 
       // This should fail with canSubmit check first
-      await expect(store.submitLogbookEntry('test-artwork')).rejects.toThrow('Cannot submit: form is not ready or user is on cooldown');
+      await expect(store.submitLogbookEntry('test-artwork')).rejects.toThrow(
+        'Cannot submit: form is not ready or user is on cooldown'
+      );
     });
 
     it('should handle submission when canSubmit is false', async () => {
       const store = useLogbookSubmissionStore();
-      
-      await expect(store.submitLogbookEntry('test-artwork')).rejects.toThrow('Cannot submit: form is not ready or user is on cooldown');
+
+      await expect(store.submitLogbookEntry('test-artwork')).rejects.toThrow(
+        'Cannot submit: form is not ready or user is on cooldown'
+      );
     });
 
     it('should handle fetch artwork details with empty artworkId', async () => {

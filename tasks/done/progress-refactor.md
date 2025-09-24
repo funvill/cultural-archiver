@@ -2,19 +2,21 @@
 
 **Date Created**: September 14, 2025  
 **Branch**: copilot/fix-71  
-**Status**: In Progress  
+**Status**: In Progress
 
 ## Issue Summary
 
 The project underwent a major refactoring that unified multiple legacy types (`LogbookRecord`, `UserSubmissionInfo`, `TagRecord`) into a single `SubmissionRecord` type. This breaking change caused widespread build failures across both frontend and backend codebases.
 
 ### Root Cause
+
 - Legacy types were removed from `src/shared/types.ts`
 - Frontend components and API services were still importing and using obsolete types
 - Backend workers had similar issues with missing types and changed data structures
 - Time-based tests were flaky and failing consistently
 
 ### Impact
+
 - `npm run test` failing due to flaky time-based assertions
 - `npm run build` failing with 19+ TypeScript errors across 3+ files
 - Frontend build initially failing, backend build currently failing with 79+ errors
@@ -22,6 +24,7 @@ The project underwent a major refactoring that unified multiple legacy types (`L
 ## Completed Tasks ✅
 
 ### [x] Fix Test Suite
+
 - **Task**: Remove flaky time-based tests
 - **Files Modified**:
   - `src/workers/test/mass-import-v2-prd-criteria.test.ts`
@@ -30,6 +33,7 @@ The project underwent a major refactoring that unified multiple legacy types (`L
 - **Result**: All tests now pass (`npm run test` ✅)
 
 ### [x] Fix Frontend Build Errors
+
 - **Task**: Resolve TypeScript compilation errors in frontend
 - **Files Modified**:
   - `src/frontend/src/services/api.ts`
@@ -38,6 +42,7 @@ The project underwent a major refactoring that unified multiple legacy types (`L
   - `src/shared/tests/database-test.ts`
 
 #### ProfileView.vue Fixes
+
 - Removed unused `UserSubmissionsResponse` import
 - Fixed auth store property access (`userToken` → `token`)
 - Corrected API response data access (`response` → `response.data`)
@@ -46,14 +51,17 @@ The project underwent a major refactoring that unified multiple legacy types (`L
 - Fixed email property access path (`profile.email` → `profile.debug?.user_info?.email`)
 
 #### api.ts Fixes
+
 - Removed unused `SubmissionRecord` import
 - Fixed method calls from `this.get`/`this.request` to `client.get`
 
 #### ReviewView.vue Fixes
+
 - Fixed API response data access (`statsResponse.recent_activity` → `statsResponse.data.recent_activity`)
 - Added standard `line-clamp` CSS property for compatibility
 
 #### database-test.ts Fixes
+
 - Removed legacy `LogbookRecord` and `TagRecord` tests
 - Removed `testLogbookCRUD`, `testTagsCRUD`, and `testForeignKeyIntegrity` functions
 - Updated `testJSONFieldParsing` to remove logbook-related code
@@ -64,13 +72,16 @@ The project underwent a major refactoring that unified multiple legacy types (`L
 ## Current Status 🔄
 
 ### [ ] Fix Backend Build Errors (IN PROGRESS)
+
 - **Status**: 74+ errors across 13 files in `src/workers/`
 - **Current Focus**: Logbook system removal and type cleanup
 
 #### Major Discovery: Incomplete Logbook System Removal
+
 During backend build fix attempts, discovered that the logbook table was removed and replaced with a unified submissions system, but extensive references to the old logbook system remain throughout the codebase. This requires a comprehensive cleanup effort.
 
 **Logbook Removal Progress** (See `tasks/progress-LogbookRemoval.md` for detailed plan):
+
 - [✅] **Research Phase**: Identified all logbook references across frontend, backend, tests, and docs
 - [🔄] **Phase 1 - Backend API Cleanup (60% complete)**:
   - [✅] Renamed validation schemas: `logbookSubmissionSchema` → `submissionSchema`
@@ -80,6 +91,7 @@ During backend build fix attempts, discovered that the logbook table was removed
 - [⏳] **Phases 2-5**: Frontend component migration, test updates, documentation updates, final cleanup
 
 #### Current Error Categories:
+
 1. **Logbook Reference Cleanup**: Functions and types still referencing old logbook system
 2. **Missing Type Imports**: `NewArtworkRecord`, `NewArtistRecord`, `AuthSessionRecord`, `RateLimitRecord`, etc.
 3. **Property Access Errors**: `submission.notes` → `submission.note`, missing `new_data` property, `reviewer_token` field
@@ -89,9 +101,11 @@ During backend build fix attempts, discovered that the logbook table was removed
 ## Pending Tasks 📋
 
 ### [ ] **PRIORITY 1: Complete Logbook System Removal**
+
 **Detailed Plan**: See `tasks/progress-LogbookRemoval.md` for comprehensive removal strategy
 
 #### [ ] Phase 1: Complete Backend API Cleanup (60% done)
+
 - [ ] **Fix Critical Backend Errors** (74+ TypeScript errors):
   - [ ] `lib/database.ts`: Update function signatures to use SubmissionRecord
   - [ ] `lib/submissions.ts`: Fix reviewer_token, new_data properties, submission types
@@ -100,29 +114,35 @@ During backend build fix attempts, discovered that the logbook table was removed
   - [ ] Update `submission_type = 'logbook'` references throughout codebase
 
 #### [ ] Phase 2: Frontend Component Migration
+
 - [ ] Update API service: `LogbookSubmission` interface → `Submission`
 - [ ] Migrate `LogbookTimeline.vue` → `SubmissionTimeline.vue` (431 lines - complex component)
 - [ ] Update component imports and usage in ArtworkDetailView.vue
 - [ ] Update POST endpoint from `/api/logbook` to new submissions endpoint
 
 #### [ ] Phase 3: Test Updates
+
 - [ ] Update `src/workers/routes/__tests__/submissions-consent.test.ts`
 - [ ] Remove logbook table references in test mocks
 - [ ] Update test assertions to use submissions terminology
 
 #### [ ] Phase 4: Documentation Updates
+
 - [ ] Update `docs/database.md` to remove logbook table references
 - [ ] Update `docs/api.md` endpoint documentation
 - [ ] Update inline comments throughout codebase
 
 ### [ ] **PRIORITY 2: General Backend Type Resolution**
+
 #### [ ] Fix Remaining Missing Type Imports (overlaps with logbook cleanup)
+
 - [ ] Replace `RawImportData` with correct type from mass-import system
 - [ ] Update `NewAuditLogRecord` → `AuditLogRecord`
 - [ ] Remove references to `AuthSessionRecord`, `RateLimitRecord`
 - [ ] Update `NewArtworkRecord`, `NewArtistRecord` imports
 
 #### [ ] Fix Database Code (overlaps with logbook cleanup)
+
 - [ ] `lib/artist-auto-creation.ts` - Fix type imports and matrix initialization
 - [ ] `lib/audit-log.ts` - Update audit log type imports
 - [ ] `lib/auth.ts` - Remove obsolete session record references
@@ -135,6 +155,7 @@ During backend build fix attempts, discovered that the logbook table was removed
 - [ ] `routes/mass-import-v2.ts` - Fix mass import request handling
 
 ### [ ] Final Verification
+
 - [ ] Run `npm run test` to ensure all tests still pass
 - [ ] Run `npm run build` to verify complete build success
 - [ ] Test basic functionality in development environment
@@ -142,17 +163,20 @@ During backend build fix attempts, discovered that the logbook table was removed
 ## Technical Notes 📝
 
 ### Type Migration Patterns
+
 - `LogbookRecord` → `SubmissionRecord` (unified submissions system)
 - `UserSubmissionInfo` → `SubmissionRecord`
 - `TagRecord` → Embedded JSON in artwork/artist records
 - Property name changes: `notes` → `note`, `created_at` variations
 
 ### Key Files for Reference
+
 - `src/shared/types.ts` - Master type definitions
 - `src/shared/mass-import.ts` - Mass import system types
 - Database schema docs: `/docs/database.md`
 
 ### Build Commands
+
 ```powershell
 npm run test          # Run test suite
 npm run build         # Full build (frontend + workers)
@@ -185,6 +209,7 @@ npm run build:workers  # Workers only
 ## Architecture Discovery 🔍
 
 ### Major Finding: Incomplete Database Migration
+
 During the type refactoring investigation, we discovered that the project underwent a significant database architecture change:
 
 - **Old System**: Separate `logbook` table with LogbookRecord type
@@ -192,11 +217,13 @@ During the type refactoring investigation, we discovered that the project underw
 - **Migration Status**: Database table was removed, but extensive code references remain
 
 This explains many of the current build errors - the codebase is in a transitional state where:
+
 1. The database schema has been updated
 2. Core types have been unified (LogbookRecord → SubmissionRecord)
 3. But many function names, endpoints, and component references still use "logbook" terminology
 
 ### Impact on Current Work
+
 - The 74+ backend errors are not just from the recent type refactoring
 - They're primarily from incomplete cleanup of the logbook → submissions migration
 - This creates a more complex but well-defined cleanup task
@@ -211,16 +238,19 @@ This explains many of the current build errors - the codebase is in a transition
 ## Success Criteria ✅
 
 ### Phase 1: Backend Build Success
+
 - [ ] `npm run build:workers` completes with 0 TypeScript errors
 - [ ] All logbook-related function names and types updated to submission terminology
 - [ ] Legacy logbook database queries removed or updated
 
 ### Phase 2: Frontend Integration
+
 - [ ] LogbookTimeline component successfully migrated to submissions system
 - [ ] API service updated to use new endpoint and response types
 - [ ] Frontend build continues to pass after backend changes
 
 ### Final Validation
+
 - [ ] `npm run test` passes with 0 failures
 - [ ] `npm run build` completes with 0 errors (both frontend + backend)
 - [ ] Frontend serves correctly in development
@@ -229,6 +259,7 @@ This explains many of the current build errors - the codebase is in a transition
 - [ ] Submission/logbook functionality works end-to-end
 
 ### Documentation
+
 - [ ] All references to logbook system updated in documentation
 - [ ] API documentation reflects new endpoint names
 - [ ] Database schema documentation updated

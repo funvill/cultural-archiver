@@ -1,6 +1,6 @@
 /**
  * Mass Import Plugin System - CLI Interface
- * 
+ *
  * This module provides a modular CLI interface that supports the new plugin
  * architecture with --importer and --exporter flags, replacing hardcoded commands.
  */
@@ -53,7 +53,7 @@ export class PluginCLI {
     this.registerCorePlugins();
   }
 
-    /**
+  /**
    * Register core plugins with the registry
    */
   private async registerCorePlugins(): Promise<void> {
@@ -95,7 +95,7 @@ export class PluginCLI {
       .command('list-plugins')
       .description('List all available importer and exporter plugins')
       .option('--type <type>', 'Filter by plugin type (importer, exporter)', 'all')
-      .action(async (options) => {
+      .action(async options => {
         await this.handleListPlugins(options.type);
       });
 
@@ -116,7 +116,7 @@ export class PluginCLI {
       .description('Show detailed information about a specific plugin')
       .requiredOption('--name <name>', 'Plugin name')
       .option('--type <type>', 'Plugin type (importer, exporter)', 'importer')
-      .action(async (options) => {
+      .action(async options => {
         await this.handlePluginInfo(options.name, options.type);
       });
   }
@@ -126,7 +126,7 @@ export class PluginCLI {
    */
   private async handleImportCommand(options: CLIOptions): Promise<void> {
     const spinner = ora('Initializing import process...').start();
-    
+
     try {
       // Validate required plugins exist
       const importer = this.registry.getImporter(options.importer);
@@ -149,21 +149,29 @@ export class PluginCLI {
       const { importerConfig, exporterConfig } = await this.loadConfigurations(options);
 
       // Provide default configuration for osm-artwork importer if none provided
-      const finalImporterConfig = options.importer === 'osm-artwork' && Object.keys(importerConfig).length === 0 
-        ? {
-            preset: 'general',
-            includeFeatureTypes: ['artwork', 'monument', 'sculpture', 'statue', 'mural', 'installation'],
-            tagMappings: {
-              'artwork_type': 'artwork_type',
-              'material': 'material',
-              'subject': 'subject',
-              'style': 'style'
-            },
-            descriptionFields: ['description', 'inscription', 'subject'],
-            artistFields: ['artist_name', 'artist', 'created_by'],
-            yearFields: ['start_date', 'year', 'date']
-          }
-        : importerConfig;
+      const finalImporterConfig =
+        options.importer === 'osm-artwork' && Object.keys(importerConfig).length === 0
+          ? {
+              preset: 'general',
+              includeFeatureTypes: [
+                'artwork',
+                'monument',
+                'sculpture',
+                'statue',
+                'mural',
+                'installation',
+              ],
+              tagMappings: {
+                artwork_type: 'artwork_type',
+                material: 'material',
+                subject: 'subject',
+                style: 'style',
+              },
+              descriptionFields: ['description', 'inscription', 'subject'],
+              artistFields: ['artist_name', 'artist', 'created_by'],
+              yearFields: ['start_date', 'year', 'date'],
+            }
+          : importerConfig;
 
       // Provide default configuration for api exporter if none provided
       let finalExporterConfig = exporterConfig;
@@ -176,7 +184,9 @@ export class PluginCLI {
           finalExporterConfig = JSON.parse(apiConfigContent);
           console.log('📄 Loaded default API configuration from api-config.json');
         } catch (error) {
-          throw new Error(`API exporter requires configuration. Please provide --config file or ensure api-config.json exists. Error: ${error instanceof Error ? error.message : String(error)}`);
+          throw new Error(
+            `API exporter requires configuration. Please provide --config file or ensure api-config.json exists. Error: ${error instanceof Error ? error.message : String(error)}`
+          );
         }
       }
 
@@ -192,22 +202,22 @@ export class PluginCLI {
         ...(options.verbose !== undefined && {
           exporterOptions: {
             verbose: options.verbose,
-          }
+          },
         }),
         importerConfig: finalImporterConfig,
         exporterConfig: {
           ...finalExporterConfig,
           ...(options.output && { outputPath: options.output }),
-        }
+        },
       };
 
       spinner.text = 'Creating data pipeline...';
 
       // Create and execute pipeline
       const pipeline = new DataPipeline(importer, exporter);
-      
+
       spinner.succeed('Pipeline initialized');
-      
+
       if (options.verbose) {
         console.log(chalk.blue('📋 Processing Options:'), processingOptions);
         console.log(chalk.blue('🔧 Importer:'), importer.name, `(${importer.metadata.version})`);
@@ -219,7 +229,9 @@ export class PluginCLI {
       if (options.input) {
         const inputSpinner = ora(`Loading input data from ${options.input}...`).start();
         inputData = await this.loadInputData(options.input);
-        inputSpinner.succeed(`Loaded input data: ${Array.isArray(inputData) ? inputData.length : 'unknown'} records`);
+        inputSpinner.succeed(
+          `Loaded input data: ${Array.isArray(inputData) ? inputData.length : 'unknown'} records`
+        );
       } else {
         // For importers that don't require input files (e.g., API-based importers)
         inputData = {};
@@ -253,7 +265,7 @@ export class PluginCLI {
       console.log(`  ${chalk.cyan('🔄 Duplicates:')} ${duplicates}`);
       console.log(`  ${chalk.blue('📊 Total Processed:')} ${total}`);
       console.log(`  ${chalk.magenta('⏱️  Processing Time:')} ${summary.processingTime}ms`);
-      
+
       if (successful > 0) {
         const successRate = ((successful / total) * 100).toFixed(1);
         console.log(`  ${chalk.green('📈 Success Rate:')} ${successRate}%`);
@@ -263,11 +275,13 @@ export class PluginCLI {
         console.log(chalk.gray('\n🔍 Detailed Information:'));
         console.log(`  • Pipeline Success: ${result.exportResult.success}`);
         console.log(`  • Average Record Time: ${summary.averageRecordTime}ms`);
-        
+
         if (result.report && options.generateReport) {
-          console.log(chalk.cyan(`  • Report Generated: ${result.report.metadata?.operation.endTime}`));
+          console.log(
+            chalk.cyan(`  • Report Generated: ${result.report.metadata?.operation.endTime}`)
+          );
         }
-        
+
         if (exportResult.errors && exportResult.errors.length > 0) {
           console.log(chalk.red('\n❌ Export Errors:'));
           exportResult.errors.slice(0, 5).forEach((error, index) => {
@@ -278,15 +292,14 @@ export class PluginCLI {
           }
         }
       }
-
     } catch (error) {
       spinner.fail('Import process failed');
       console.error(chalk.red('❌ Error:'), error instanceof Error ? error.message : String(error));
-      
+
       if (options.verbose && error instanceof Error) {
         console.error(chalk.gray('Stack trace:'), error.stack);
       }
-      
+
       process.exit(1);
     }
   }
@@ -300,7 +313,7 @@ export class PluginCLI {
     if (type === 'all' || type === 'importer') {
       console.log(chalk.yellow('🔽 Importers:'));
       const importers = this.registry.getAllImporters();
-      
+
       if (importers.length === 0) {
         console.log(chalk.gray('  No importers registered'));
         console.log(chalk.gray('  Note: Core importers will be available after Task 6 migration'));
@@ -317,14 +330,16 @@ export class PluginCLI {
     if (type === 'all' || type === 'exporter') {
       console.log(chalk.yellow('🔼 Exporters:'));
       const exporters = this.registry.getAllExporters();
-      
+
       if (exporters.length === 0) {
         console.log(chalk.gray('  No exporters registered'));
       } else {
         exporters.forEach(exporter => {
           console.log(`  • ${chalk.green(exporter.name)} - ${exporter.description}`);
           console.log(`    Version: ${exporter.metadata.version || 'unknown'}`);
-          console.log(`    Output: ${exporter.outputType} | Network: ${exporter.requiresNetwork ? 'Yes' : 'No'}`);
+          console.log(
+            `    Output: ${exporter.outputType} | Network: ${exporter.requiresNetwork ? 'Yes' : 'No'}`
+          );
           console.log(`    Formats: ${exporter.supportedFormats.join(', ')}`);
         });
       }
@@ -345,7 +360,7 @@ export class PluginCLI {
       const importer = this.registry.getImporter(options.importer);
       if (importer) {
         console.log(chalk.yellow(`Validating ${options.importer} importer configuration...`));
-        
+
         // Note: Importer validation will be implemented when importers are migrated
         console.log(chalk.green('✅ Importer configuration valid'));
       }
@@ -354,7 +369,7 @@ export class PluginCLI {
       const exporter = this.registry.getExporter(options.exporter);
       if (exporter) {
         console.log(chalk.yellow(`Validating ${options.exporter} exporter configuration...`));
-        
+
         const validation = await exporter.validate(exporterConfig);
         if (validation.isValid) {
           console.log(chalk.green('✅ Exporter configuration valid'));
@@ -368,9 +383,11 @@ export class PluginCLI {
       }
 
       console.log(chalk.green('\\n🎉 All configurations are valid!'));
-
     } catch (error) {
-      console.error(chalk.red('❌ Configuration validation failed:'), error instanceof Error ? error.message : String(error));
+      console.error(
+        chalk.red('❌ Configuration validation failed:'),
+        error instanceof Error ? error.message : String(error)
+      );
       process.exit(1);
     }
   }
@@ -398,7 +415,6 @@ export class PluginCLI {
         console.log(`Supported Formats: ${importer.metadata.supportedFormats.join(', ')}`);
         console.log(`Required Fields: ${importer.metadata.requiredFields.join(', ')}`);
         console.log(`Optional Fields: ${importer.metadata.optionalFields.join(', ')}`);
-
       } else if (type === 'exporter') {
         const exporter = this.registry.getExporter(name);
         if (!exporter) {
@@ -418,16 +434,20 @@ export class PluginCLI {
         console.log(`Required Fields: ${exporter.metadata.requiredFields.join(', ')}`);
         console.log(`Optional Fields: ${exporter.metadata.optionalFields.join(', ')}`);
       }
-
     } catch (error) {
-      console.error(chalk.red('❌ Failed to get plugin info:'), error instanceof Error ? error.message : String(error));
+      console.error(
+        chalk.red('❌ Failed to get plugin info:'),
+        error instanceof Error ? error.message : String(error)
+      );
     }
   }
 
   /**
    * Load plugin configuration files
    */
-  private async loadConfigurations(options: CLIOptions): Promise<{ importerConfig: Record<string, unknown>; exporterConfig: Record<string, unknown> }> {
+  private async loadConfigurations(
+    options: CLIOptions
+  ): Promise<{ importerConfig: Record<string, unknown>; exporterConfig: Record<string, unknown> }> {
     let importerConfig = {};
     let exporterConfig = {};
 
@@ -437,15 +457,17 @@ export class PluginCLI {
         const configPath = path.resolve(options.config);
         const configContent = await fs.readFile(configPath, 'utf-8');
         const config = JSON.parse(configContent);
-        
+
         importerConfig = config.importer || {};
         exporterConfig = config.exporter || {};
-        
+
         if (options.verbose) {
           console.log(chalk.blue(`📄 Loaded configuration from: ${configPath}`));
         }
       } catch (error) {
-        throw new Error(`Failed to load configuration file: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Failed to load configuration file: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
 
@@ -459,7 +481,7 @@ export class PluginCLI {
     try {
       const filePath = path.resolve(inputPath);
       const content = await fs.readFile(filePath, 'utf-8');
-      
+
       // Try to parse as JSON first
       try {
         return JSON.parse(content);
@@ -468,7 +490,9 @@ export class PluginCLI {
         return content;
       }
     } catch (error) {
-      throw new Error(`Failed to load input data: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to load input data: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -477,7 +501,7 @@ export class PluginCLI {
    */
   private async suggestAvailablePlugins(type: 'importer' | 'exporter'): Promise<void> {
     console.log(chalk.yellow(`\\n💡 Available ${type}s:`));
-    
+
     if (type === 'importer') {
       const importers = this.registry.listImporters();
       if (importers.length === 0) {
@@ -503,7 +527,10 @@ export class PluginCLI {
     try {
       await this.program.parseAsync(argv || process.argv);
     } catch (error) {
-      console.error(chalk.red('❌ CLI Error:'), error instanceof Error ? error.message : String(error));
+      console.error(
+        chalk.red('❌ CLI Error:'),
+        error instanceof Error ? error.message : String(error)
+      );
       process.exit(1);
     }
   }
@@ -534,7 +561,7 @@ export async function runCLI(argv?: string[]): Promise<void> {
 
 // Check if this file is being run directly
 if (import.meta.url === `file://${process.argv[1]}`) {
-  runCLI().catch((error) => {
+  runCLI().catch(error => {
     console.error('CLI execution failed:', error);
     process.exit(1);
   });

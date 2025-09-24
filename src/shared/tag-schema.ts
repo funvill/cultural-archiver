@@ -1,6 +1,6 @@
 /**
  * Artwork Variable Tagging System - Tag Schema Definition
- * 
+ *
  * This module defines the structured tag schema for artwork metadata,
  * including validation rules, categories, and OpenStreetMap compatibility.
  */
@@ -34,9 +34,9 @@ export interface TagDefinition {
   examples?: string[];
 }
 
-export type TagCategory = 
+export type TagCategory =
   | 'physical_properties'
-  | 'historical_info' 
+  | 'historical_info'
   | 'location_details'
   | 'artwork_classification'
   | 'reference_data';
@@ -78,7 +78,7 @@ export const TAG_CATEGORIES: Record<TagCategory, CategoryInfo> = {
     displayOrder: 1,
   },
   historical_info: {
-    key: 'historical_info', 
+    key: 'historical_info',
     label: 'Historical Information',
     description: 'Creation date, artist information, and historical context',
     icon: 'calendar',
@@ -86,7 +86,7 @@ export const TAG_CATEGORIES: Record<TagCategory, CategoryInfo> = {
   },
   location_details: {
     key: 'location_details',
-    label: 'Location Details', 
+    label: 'Location Details',
     description: 'Access information, fees, and location-specific attributes',
     icon: 'map-pin',
     displayOrder: 3,
@@ -120,7 +120,17 @@ export const TAG_DEFINITIONS: Record<string, TagDefinition> = {
     category: 'artwork_classification',
     dataType: 'enum',
     required: false,
-    enumValues: ['statue', 'mural', 'sculpture', 'installation', 'monument', 'mosaic', 'graffiti', 'street_art', 'tiny_library'],
+    enumValues: [
+      'statue',
+      'mural',
+      'sculpture',
+      'installation',
+      'monument',
+      'mosaic',
+      'graffiti',
+      'street_art',
+      'tiny_library',
+    ],
     osmMapping: 'artwork_type',
     helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:artwork_type',
     examples: ['statue', 'mural', 'sculpture', 'tiny_library'],
@@ -171,7 +181,7 @@ export const TAG_DEFINITIONS: Record<string, TagDefinition> = {
     examples: ['1998', '2011-07', '2011-07-15'],
   },
 
-  // Physical Properties  
+  // Physical Properties
   material: {
     key: 'material',
     label: 'Material',

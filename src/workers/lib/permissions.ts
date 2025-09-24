@@ -53,9 +53,11 @@ export async function hasPermission(
       LIMIT 1
     `);
 
-    const result = (await stmt.bind(userUuid, permission).first()) as
-      | { role: string; granted_at?: string; granted_by?: string }
-      | null;
+    const result = (await stmt.bind(userUuid, permission).first()) as {
+      role: string;
+      granted_at?: string;
+      granted_by?: string;
+    } | null;
 
     if (result && typeof result.role === 'string') {
       // Update cache
@@ -110,9 +112,11 @@ export async function hasAnyPermission(
       LIMIT 1
     `);
 
-    const result = (await stmt.bind(userUuid, ...permissions).first()) as
-      | { role: string; granted_at?: string; granted_by?: string }
-      | null;
+    const result = (await stmt.bind(userUuid, ...permissions).first()) as {
+      role: string;
+      granted_at?: string;
+      granted_by?: string;
+    } | null;
 
     if (result && typeof result.role === 'string') {
       // Update cache with found permission
@@ -160,9 +164,7 @@ export async function getUserPermissions(db: D1Database, userUuid: string): Prom
     const results = await stmt.bind(userUuid).all();
 
     if (results.success) {
-      const permissions = results.results.map(
-        row => (row as { role: Permission }).role
-      );
+      const permissions = results.results.map(row => (row as { role: Permission }).role);
       updatePermissionCache(userUuid, permissions);
       return permissions;
     }
@@ -243,9 +245,9 @@ export async function revokePermission(
     `);
 
     const revokeReason = reason || 'Permission revoked';
-  const result = await stmt.bind(revokedBy, revokeReason, userUuid, permission).run();
+    const result = await stmt.bind(revokedBy, revokeReason, userUuid, permission).run();
 
-  if (result.success && result.meta && result.meta.changes && result.meta.changes > 0) {
+    if (result.success && result.meta && result.meta.changes && result.meta.changes > 0) {
       // Clear cache for this user
       clearUserPermissionCache(userUuid);
 
@@ -399,12 +401,12 @@ export async function enhanceAuthContext(
   return {
     ...authContext,
     permissions,
-  // Deprecated flag maintained
-  // Deprecated alias: keep true when moderator/admin present
-  isReviewer: permissions.includes('moderator') || permissions.includes('admin'),
-  isModerator: permissions.includes('moderator') || permissions.includes('admin'),
-  canReview: permissions.includes('moderator') || permissions.includes('admin'),
-  isAdmin: permissions.includes('admin'),
+    // Deprecated flag maintained
+    // Deprecated alias: keep true when moderator/admin present
+    isReviewer: permissions.includes('moderator') || permissions.includes('admin'),
+    isModerator: permissions.includes('moderator') || permissions.includes('admin'),
+    canReview: permissions.includes('moderator') || permissions.includes('admin'),
+    isAdmin: permissions.includes('admin'),
   };
 }
 
@@ -435,10 +437,10 @@ function updatePermissionCache(userUuid: string, permissions: Permission[]): voi
       permissionCache.delete(firstKey);
     }
   }
-  
+
   // Remove existing entry if present (for LRU reordering)
   permissionCache.delete(userUuid);
-  
+
   // Add to end (most recently used)
   permissionCache.set(userUuid, {
     permissions,

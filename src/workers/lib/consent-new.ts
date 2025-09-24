@@ -1,19 +1,17 @@
 /**
  * Centralized consent management library for Cultural Archiver
- * 
+ *
  * Provides database-based consent tracking for all user-submitted content
- * with proper legal compliance audit trail and support for both 
+ * with proper legal compliance audit trail and support for both
  * authenticated users and anonymous submissions.
  */
 
-import type { 
-  WorkerEnv
-} from '../types';
+import type { WorkerEnv } from '../types';
 import type {
   ConsentRecord,
   RecordConsentParams,
   RecordConsentResponse,
-  ContentType
+  ContentType,
 } from '../../shared/types';
 import type { D1Database } from '@cloudflare/workers-types';
 import { ApiError } from './errors';
@@ -29,14 +27,14 @@ export const CURRENT_CONSENT_VERSION = '1.0.0';
  */
 export const REQUIRED_CONSENTS = [
   'ageVerification',
-  'cc0Licensing', 
+  'cc0Licensing',
   'publicCommons',
   'freedomOfPanorama',
 ] as const;
 
 /**
  * Record consent for specific content before content creation
- * 
+ *
  * This is the core function for the consent-first pattern.
  * Creates a consent record in the database that must exist
  * before any content (artwork/logbook) can be created.
@@ -50,16 +48,24 @@ export async function recordConsent(params: RecordConsentParams): Promise<Record
     consentVersion,
     ipAddress,
     consentTextHash,
-    db
+    db,
   } = params;
 
   // Validate that exactly one of userId or anonymousToken is provided
   if (!userId && !anonymousToken) {
-    throw new ApiError('Either userId or anonymousToken must be provided', 'CONSENT_INVALID_IDENTITY', 400);
+    throw new ApiError(
+      'Either userId or anonymousToken must be provided',
+      'CONSENT_INVALID_IDENTITY',
+      400
+    );
   }
 
   if (userId && anonymousToken) {
-    throw new ApiError('Cannot provide both userId and anonymousToken', 'CONSENT_INVALID_IDENTITY', 400);
+    throw new ApiError(
+      'Cannot provide both userId and anonymousToken',
+      'CONSENT_INVALID_IDENTITY',
+      400
+    );
   }
 
   // Validate content type
@@ -86,7 +92,8 @@ export async function recordConsent(params: RecordConsentParams): Promise<Record
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
-    await db.prepare(insertQuery)
+    await db
+      .prepare(insertQuery)
       .bind(
         consentId,
         now,
@@ -111,7 +118,6 @@ export async function recordConsent(params: RecordConsentParams): Promise<Record
     });
 
     return { id: consentId };
-
   } catch (error: any) {
     // Handle unique constraint violations gracefully
     if (error.message?.includes('UNIQUE constraint failed')) {
@@ -122,7 +128,7 @@ export async function recordConsent(params: RecordConsentParams): Promise<Record
         contentId,
         consentVersion,
       });
-      
+
       // Return existing consent ID instead of failing
       const existingConsent = await getConsentRecord(db, {
         ...(userId && { userId }),
@@ -131,7 +137,7 @@ export async function recordConsent(params: RecordConsentParams): Promise<Record
         contentId,
         consentVersion,
       });
-      
+
       if (existingConsent) {
         return { id: existingConsent.id };
       }
@@ -202,9 +208,11 @@ export async function getConsentRecord(
 
     query += ' ORDER BY created_at DESC LIMIT 1';
 
-    const result = await db.prepare(query).bind(...bindings).first();
+    const result = await db
+      .prepare(query)
+      .bind(...bindings)
+      .first();
     return result ? (result as unknown as ConsentRecord) : null;
-
   } catch (error) {
     console.warn('Failed to get consent record:', error);
     return null;
@@ -310,8 +318,10 @@ export function generateConsentFormData(): {
     consentDescriptions: {
       ageVerification: 'I confirm that I am 18 years of age or older',
       cc0Licensing: 'I dedicate my submissions to the public domain under CC0 (no rights reserved)',
-      publicCommons: 'I understand that my submissions will be publicly accessible and may be used by others',
-      freedomOfPanorama: 'I acknowledge that I have reviewed Canadian copyright law regarding public art photography',
+      publicCommons:
+        'I understand that my submissions will be publicly accessible and may be used by others',
+      freedomOfPanorama:
+        'I acknowledge that I have reviewed Canadian copyright law regarding public art photography',
     },
   };
 }
@@ -320,7 +330,9 @@ export function generateConsentFormData(): {
  * Legacy functions for backward compatibility during migration
  */
 
-export function validateConsentFromRequest(requestData: Record<string, unknown>): ConsentValidationResult {
+export function validateConsentFromRequest(
+  requestData: Record<string, unknown>
+): ConsentValidationResult {
   const consentData = {
     ageVerification: Boolean(requestData.ageVerification),
     cc0Licensing: Boolean(requestData.cc0Licensing),
@@ -354,7 +366,10 @@ export async function storeConsentData(env: WorkerEnv, consentData: ConsentData)
   }
 }
 
-export async function getConsentData(env: WorkerEnv, userToken: string): Promise<ConsentData | null> {
+export async function getConsentData(
+  env: WorkerEnv,
+  userToken: string
+): Promise<ConsentData | null> {
   // Legacy KV retrieval - this will be phased out
   try {
     const key = `consent:${userToken}:${CURRENT_CONSENT_VERSION}`;

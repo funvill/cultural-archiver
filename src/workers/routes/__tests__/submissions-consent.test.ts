@@ -19,10 +19,27 @@ class MockD1Database {
       bind: (...bindings: any[]) => ({
         run: async () => {
           if (query.includes('INSERT INTO consent')) {
-            const [id, created_at, user_id, anonymous_token, consent_version, content_type, content_id, ip_address, consent_text_hash] = bindings;
+            const [
+              id,
+              created_at,
+              user_id,
+              anonymous_token,
+              consent_version,
+              content_type,
+              content_id,
+              ip_address,
+              consent_text_hash,
+            ] = bindings;
             const record = {
-              id, created_at, user_id, anonymous_token, consent_version, 
-              content_type, content_id, ip_address, consent_text_hash
+              id,
+              created_at,
+              user_id,
+              anonymous_token,
+              consent_version,
+              content_type,
+              content_id,
+              ip_address,
+              consent_text_hash,
             };
             this.tables.consent.push(record);
             this.data[id] = record;
@@ -46,7 +63,11 @@ class MockD1Database {
         first: async () => {
           if (query.includes('SELECT * FROM consent')) {
             const [contentType, contentId] = bindings;
-            return this.tables.consent.find(r => r.content_type === contentType && r.content_id === contentId) || null;
+            return (
+              this.tables.consent.find(
+                r => r.content_type === contentType && r.content_id === contentId
+              ) || null
+            );
           }
           return null;
         },
@@ -105,9 +126,14 @@ describe('Consent-First Submission Flow Integration', () => {
 
       // Step 3: Simulate logbook creation (would normally happen in submission endpoint)
       const actualLogbookId = 'actual-logbook-456';
-      await mockDb.prepare(`
+      await mockDb
+        .prepare(
+          `
         UPDATE consent SET content_id = ? WHERE id = ?
-      `).bind(actualLogbookId, consentResult.id).run();
+      `
+        )
+        .bind(actualLogbookId, consentResult.id)
+        .run();
 
       // Verify the consent record was updated with the actual logbook ID
       const updatedConsents = mockDb.getConsents();
@@ -116,15 +142,17 @@ describe('Consent-First Submission Flow Integration', () => {
 
     it('should handle consent failure before submission', async () => {
       // Simulate consent failure by providing invalid data
-      await expect(recordConsent({
-        // Missing user identity
-        contentType: 'logbook',
-        contentId: 'test-content-123',
-        consentVersion: CONSENT_VERSION,
-        ipAddress: '192.168.1.100',
-        consentTextHash: 'hash123',
-        db: mockDb as any,
-      })).rejects.toThrow('Either userId or anonymousToken must be provided');
+      await expect(
+        recordConsent({
+          // Missing user identity
+          contentType: 'logbook',
+          contentId: 'test-content-123',
+          consentVersion: CONSENT_VERSION,
+          ipAddress: '192.168.1.100',
+          consentTextHash: 'hash123',
+          db: mockDb as any,
+        })
+      ).rejects.toThrow('Either userId or anonymousToken must be provided');
 
       // Verify no consent was recorded
       const consents = mockDb.getConsents();
@@ -253,7 +281,7 @@ describe('Consent-First Submission Flow Integration', () => {
 
       // Test with different version
       const newResult = await recordConsent({
-        anonymousToken: 'version-user-2', 
+        anonymousToken: 'version-user-2',
         contentType: 'logbook',
         contentId: 'version-test-456',
         consentVersion: '1.1.0',
@@ -276,42 +304,48 @@ describe('Consent-First Submission Flow Integration', () => {
     it('should reject invalid content types', async () => {
       const consentTextHash = await generateConsentTextHash('test');
 
-      await expect(recordConsent({
-        userId: 'test-user',
-        contentType: 'invalid' as any,
-        contentId: 'test-id',
-        consentVersion: CONSENT_VERSION,
-        ipAddress: '127.0.0.1',
-        consentTextHash,
-        db: mockDb as any,
-      })).rejects.toThrow('Invalid content type: invalid');
+      await expect(
+        recordConsent({
+          userId: 'test-user',
+          contentType: 'invalid' as any,
+          contentId: 'test-id',
+          consentVersion: CONSENT_VERSION,
+          ipAddress: '127.0.0.1',
+          consentTextHash,
+          db: mockDb as any,
+        })
+      ).rejects.toThrow('Invalid content type: invalid');
     });
 
     it('should reject missing required fields', async () => {
-      await expect(recordConsent({
-        userId: 'test-user',
-        contentType: 'logbook',
-        contentId: '', // Empty content ID
-        consentVersion: CONSENT_VERSION,
-        ipAddress: '127.0.0.1',
-        consentTextHash: 'hash',
-        db: mockDb as any,
-      })).rejects.toThrow('Missing required consent fields');
+      await expect(
+        recordConsent({
+          userId: 'test-user',
+          contentType: 'logbook',
+          contentId: '', // Empty content ID
+          consentVersion: CONSENT_VERSION,
+          ipAddress: '127.0.0.1',
+          consentTextHash: 'hash',
+          db: mockDb as any,
+        })
+      ).rejects.toThrow('Missing required consent fields');
     });
 
     it('should reject providing both userId and anonymousToken', async () => {
       const consentTextHash = await generateConsentTextHash('test');
 
-      await expect(recordConsent({
-        userId: 'test-user',
-        anonymousToken: 'test-token',
-        contentType: 'logbook',
-        contentId: 'test-id',
-        consentVersion: CONSENT_VERSION,
-        ipAddress: '127.0.0.1',
-        consentTextHash,
-        db: mockDb as any,
-      })).rejects.toThrow('Cannot provide both userId and anonymousToken');
+      await expect(
+        recordConsent({
+          userId: 'test-user',
+          anonymousToken: 'test-token',
+          contentType: 'logbook',
+          contentId: 'test-id',
+          consentVersion: CONSENT_VERSION,
+          ipAddress: '127.0.0.1',
+          consentTextHash,
+          db: mockDb as any,
+        })
+      ).rejects.toThrow('Cannot provide both userId and anonymousToken');
     });
   });
 });

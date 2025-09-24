@@ -1,6 +1,6 @@
 /**
  * Tests for Mass Import CLI Commands
- * 
+ *
  * This test file validates the CLI command structure and help output.
  */
 
@@ -61,13 +61,13 @@ describe('Mass Import CLI', () => {
       // Test the chunkArray helper function logic
       const testArray = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
       const chunkSize = 3;
-      
+
       // Simple chunking algorithm test
       const chunks = [];
       for (let i = 0; i < testArray.length; i += chunkSize) {
         chunks.push(testArray.slice(i, i + chunkSize));
       }
-      
+
       expect(chunks).toHaveLength(4);
       expect(chunks[0]).toHaveLength(3);
       expect(chunks[3]).toHaveLength(1); // Last chunk
@@ -77,14 +77,14 @@ describe('Mass Import CLI', () => {
       // Test tag parsing logic
       const validJson = '{"source": "vancouver-opendata"}';
       const invalidJson = 'invalid-json';
-      
+
       try {
         const parsed = JSON.parse(validJson);
         expect(parsed.source).toBe('vancouver-opendata');
       } catch {
         expect(false).toBe(true); // Should not reach here
       }
-      
+
       try {
         JSON.parse(invalidJson);
         expect(false).toBe(true); // Should not reach here

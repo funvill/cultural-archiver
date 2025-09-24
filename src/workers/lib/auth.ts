@@ -222,12 +222,12 @@ export async function updateUserEmailVerified(env: WorkerEnv, uuid: string): Pro
   const now = new Date().toISOString();
   const stmt = env.DB.prepare('UPDATE users SET email_verified_at = ? WHERE uuid = ?');
   await stmt.bind(now, uuid).run();
-  
+
   // Check for email verification badges (non-blocking)
   try {
     const badgeService = new BadgeService(env.DB);
     const badgeAwards = await badgeService.checkEmailVerificationBadge(uuid);
-    
+
     if (badgeAwards.length > 0) {
       console.info('Badges awarded for email verification:', {
         userUuid: uuid,

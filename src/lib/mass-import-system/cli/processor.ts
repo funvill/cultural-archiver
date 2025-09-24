@@ -1,6 +1,6 @@
 /**
  * Mass Import System - Main Processor
- * 
+ *
  * This module orchestrates the mass import process, handling batch processing,
  * progress tracking, and error handling.
  */
@@ -39,9 +39,7 @@ export class MassImportProcessor {
 
   constructor(config: MassImportConfig) {
     this.config = config;
-    this.apiClient = config.dryRun 
-      ? new DryRunAPIClient(config) 
-      : new MassImportAPIClient(config);
+    this.apiClient = config.dryRun ? new DryRunAPIClient(config) : new MassImportAPIClient(config);
   }
 
   /**
@@ -99,11 +97,11 @@ export class MassImportProcessor {
           console.log(chalk.yellow('\n⚠️ Operation cancelled - returning partial results'));
           break;
         }
-        
+
         batchIndex++;
-        
+
         console.log(chalk.blue(`\n🔄 Processing batch ${batchIndex}/${batches.length}`));
-        
+
         const batchResult = await this.processBatch(batch, batchIndex, options);
         session.batches.push(batchResult);
 
@@ -115,29 +113,39 @@ export class MassImportProcessor {
 
         // Check if we should continue on batch failures
         if (batchResult.summary.failed > 0 && !options.continueOnError) {
-          console.log(chalk.yellow('⚠️ Stopping due to batch failures (remove --stop-on-error to continue processing)'));
+          console.log(
+            chalk.yellow(
+              '⚠️ Stopping due to batch failures (remove --stop-on-error to continue processing)'
+            )
+          );
           break;
         }
       }
 
       session.endTime = new Date().toISOString();
-      
+
       // Track how many records were actually processed vs intended
-      const actualProcessedRecords = session.batches.reduce((total, batch) => total + batch.summary.total, 0);
-      
+      const actualProcessedRecords = session.batches.reduce(
+        (total, batch) => total + batch.summary.total,
+        0
+      );
+
       // Add processed count to summary for transparency
       (session.summary as any).processedRecords = actualProcessedRecords;
-      
+
       // Only update totalRecords if processing was incomplete to show the discrepancy
       if (actualProcessedRecords < session.summary.totalRecords) {
-        console.log(chalk.yellow(`⚠️ Processing incomplete: ${actualProcessedRecords}/${session.summary.totalRecords} records processed`));
+        console.log(
+          chalk.yellow(
+            `⚠️ Processing incomplete: ${actualProcessedRecords}/${session.summary.totalRecords} records processed`
+          )
+        );
       }
-      
+
       // Display final summary
       this.displayFinalSummary(session);
 
       return session;
-
     } catch (error) {
       console.error(chalk.red('❌ Import session failed:'), error);
       session.endTime = new Date().toISOString();
@@ -150,7 +158,7 @@ export class MassImportProcessor {
    */
   private createBatches(rawData: any[]): any[][] {
     const batches: any[][] = [];
-    
+
     for (let i = 0; i < rawData.length; i += this.config.batchSize) {
       const batch = rawData.slice(i, i + this.config.batchSize);
       batches.push(batch);
@@ -179,9 +187,9 @@ export class MassImportProcessor {
           console.log(chalk.yellow(`⚠️ Batch ${batchIndex} cancelled - returning partial results`));
           break;
         }
-        
+
         const rawRecord = batch[i];
-        
+
         try {
           // Update spinner with current record
           spinner.text = `Processing batch ${batchIndex}: ${i + 1}/${batch.length}`;
@@ -194,7 +202,6 @@ export class MassImportProcessor {
           if (!options.dryRun && i < batch.length - 1) {
             await new Promise(resolve => setTimeout(resolve, 100));
           }
-
         } catch (error) {
           // Handle individual record failures
           const recordId = this.extractRecordId(rawRecord);
@@ -215,7 +222,6 @@ export class MassImportProcessor {
       }
 
       spinner.succeed(`Batch ${batchIndex} completed`);
-
     } catch (error) {
       spinner.fail(`Batch ${batchIndex} failed`);
       throw error;
@@ -246,25 +252,30 @@ export class MassImportProcessor {
   ): Promise<ImportResult> {
     const recordId = this.extractRecordId(rawRecord);
     let title = this.extractRecordTitle(rawRecord);
-    
+
     console.log(`[RECORD_PROCESSING_DEBUG] Starting record ${recordId}: "${title}"`);
-    
+
     // Step 1: Use mapper if available (for non-standard data formats like Vancouver)
     let validationResult;
     if (this.mapper) {
       console.log(`[RECORD_PROCESSING_DEBUG] Using mapper for record ${recordId}`);
       validationResult = this.mapper.mapData(rawRecord);
-      
+
       // Update title from mapped data if available
       if (validationResult.isValid && validationResult.data?.title) {
         title = validationResult.data.title;
-        console.log(`[RECORD_PROCESSING_DEBUG] Updated title from mapper for record ${recordId}: "${title}"`);
+        console.log(
+          `[RECORD_PROCESSING_DEBUG] Updated title from mapper for record ${recordId}: "${title}"`
+        );
       }
-      
+
       if (validationResult.isValid && validationResult.data?.tags) {
-        const artistFromTags = validationResult.data.tags.artist || validationResult.data.tags.created_by;
+        const artistFromTags =
+          validationResult.data.tags.artist || validationResult.data.tags.created_by;
         if (artistFromTags) {
-          console.log(`[RECORD_PROCESSING_DEBUG] Mapped artist for record ${recordId}: "${artistFromTags}"`);
+          console.log(
+            `[RECORD_PROCESSING_DEBUG] Mapped artist for record ${recordId}: "${artistFromTags}"`
+          );
         } else {
           console.log(`[RECORD_PROCESSING_DEBUG] No artist found in tags for record ${recordId}`);
         }
@@ -280,7 +291,10 @@ export class MassImportProcessor {
       });
 
       if (!parseResult.success) {
-        console.log(`[RECORD_PROCESSING_DEBUG] Schema validation failed for record ${recordId}:`, parseResult.error.errors);
+        console.log(
+          `[RECORD_PROCESSING_DEBUG] Schema validation failed for record ${recordId}:`,
+          parseResult.error.errors
+        );
         return {
           id: recordId,
           title: title,
@@ -297,7 +311,10 @@ export class MassImportProcessor {
     }
 
     if (!validationResult.isValid) {
-      console.log(`[RECORD_PROCESSING_DEBUG] Validation failed for record ${recordId}:`, validationResult.errors);
+      console.log(
+        `[RECORD_PROCESSING_DEBUG] Validation failed for record ${recordId}:`,
+        validationResult.errors
+      );
       return {
         id: recordId,
         title: title,
@@ -310,7 +327,9 @@ export class MassImportProcessor {
       };
     }
 
-    console.log(`[RECORD_PROCESSING_DEBUG] Record ${recordId} validation successful, submitting to API...`);
+    console.log(
+      `[RECORD_PROCESSING_DEBUG] Record ${recordId} validation successful, submitting to API...`
+    );
 
     // Step 2: Submit to API (server will handle duplicate detection and tag merging)
     const result = await this.apiClient.submitImportRecord(validationResult.data!);
@@ -323,13 +342,11 @@ export class MassImportProcessor {
    */
   private extractRecordId(rawRecord: Record<string, unknown>): string {
     // Try various common ID fields
-    return (
-      rawRecord.id ||
+    return (rawRecord.id ||
       rawRecord.registryid ||
       rawRecord.external_id ||
       rawRecord.uuid ||
-      `record_${Date.now()}_${Math.random().toString(36).substring(2)}`
-    ) as string;
+      `record_${Date.now()}_${Math.random().toString(36).substring(2)}`) as string;
   }
 
   /**
@@ -337,12 +354,7 @@ export class MassImportProcessor {
    */
   private extractRecordTitle(rawRecord: Record<string, unknown>): string {
     // Try various common title fields
-    return (
-      rawRecord.title ||
-      rawRecord.title_of_work ||
-      rawRecord.name ||
-      'Unknown'
-    ) as string;
+    return (rawRecord.title || rawRecord.title_of_work || rawRecord.name || 'Unknown') as string;
   }
 
   /**
@@ -370,11 +382,11 @@ export class MassImportProcessor {
     totalBatches: number
   ): void {
     const { summary } = batchResult;
-    
+
     console.log(chalk.gray(`  ✅ Successful: ${summary.successful}`));
     console.log(chalk.gray(`  ❌ Failed: ${summary.failed}`));
     console.log(chalk.gray(`  ⚠️ Duplicates: ${summary.duplicates}`));
-    
+
     const progress = ((batchIndex / totalBatches) * 100).toFixed(1);
     console.log(chalk.blue(`  📈 Progress: ${progress}% (${batchIndex}/${totalBatches} batches)`));
   }
@@ -388,17 +400,24 @@ export class MassImportProcessor {
     console.log(chalk.green(`✅ Successful imports: ${session.summary.successfulImports}`));
     console.log(chalk.red(`❌ Failed imports: ${session.summary.failedImports}`));
     console.log(chalk.yellow(`⚠️ Skipped duplicates: ${session.summary.skippedDuplicates}`));
-    console.log(chalk.blue(`📷 Photos processed: ${session.summary.successfulPhotos}/${session.summary.totalPhotos}`));
-    
-    const successRate = ((session.summary.successfulImports / session.summary.totalRecords) * 100).toFixed(1);
+    console.log(
+      chalk.blue(
+        `📷 Photos processed: ${session.summary.successfulPhotos}/${session.summary.totalPhotos}`
+      )
+    );
+
+    const successRate = (
+      (session.summary.successfulImports / session.summary.totalRecords) *
+      100
+    ).toFixed(1);
     console.log(chalk.blue(`📈 Success rate: ${successRate}%`));
-    
+
     if (session.endTime && session.startTime) {
       const duration = new Date(session.endTime).getTime() - new Date(session.startTime).getTime();
       const durationMinutes = (duration / 60000).toFixed(1);
       console.log(chalk.blue(`⏱️ Duration: ${durationMinutes} minutes`));
     }
-    
+
     console.log(chalk.blue(`📋 Session ID: ${session.sessionId}`));
   }
 }

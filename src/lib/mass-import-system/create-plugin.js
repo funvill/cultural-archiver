@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Simple Plugin Creator Script
- * 
+ *
  * Basic utility to create new plugins from templates by replacing placeholders.
  * Usage: node create-plugin.js <type> <name> [options]
  */
@@ -25,7 +25,7 @@ function toKebabCase(str) {
 
 function toPascalCase(str) {
   return str
-    .replace(/[-_\s]+(.)?/g, (_, char) => char ? char.toUpperCase() : '')
+    .replace(/[-_\s]+(.)?/g, (_, char) => (char ? char.toUpperCase() : ''))
     .replace(/^(.)/, char => char.toUpperCase());
 }
 
@@ -62,7 +62,7 @@ async function createPlugin(type, name, options = {}) {
     '{{DATA_TYPE_NAME}}': dataTypeName,
     '{{OUTPUT_FORMAT}}': options.outputFormat || 'JSON',
     '{{REQUIRES_NETWORK}}': options.requiresNetwork || 'false',
-    '{{OUTPUT_TYPE}}': options.outputType || 'file'
+    '{{OUTPUT_TYPE}}': options.outputType || 'file',
   };
 
   try {
@@ -72,7 +72,10 @@ async function createPlugin(type, name, options = {}) {
 
     // Replace placeholders
     for (const [placeholder, value] of Object.entries(replacements)) {
-      templateContent = templateContent.replace(new RegExp(placeholder.replace(/[{}]/g, '\\\\$&'), 'g'), value);
+      templateContent = templateContent.replace(
+        new RegExp(placeholder.replace(/[{}]/g, '\\\\$&'), 'g'),
+        value
+      );
     }
 
     // Write plugin file
@@ -88,13 +91,13 @@ async function createPlugin(type, name, options = {}) {
       [type]: {
         ...(type === 'importer' && {
           dataFile: `./data/${kebabName}-data.json`,
-          processingMode: 'sequential'
+          processingMode: 'sequential',
         }),
         ...(type === 'exporter' && {
           verbose: true,
-          outputPath: `./output/${kebabName}-export.json`
-        })
-      }
+          outputPath: `./output/${kebabName}-export.json`,
+        }),
+      },
     };
 
     await fs.mkdir(path.dirname(configPath), { recursive: true });
@@ -106,7 +109,6 @@ async function createPlugin(type, name, options = {}) {
     console.log(`1. Edit ${outputPath} to implement your logic`);
     console.log(`2. Add your plugin to src/${type}s/index.ts`);
     console.log(`3. Test with: npm run build && node dist/cli/plugin-cli.js list-plugins`);
-
   } catch (error) {
     console.error(`❌ Failed to create plugin:`, error.message);
     process.exit(1);

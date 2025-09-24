@@ -3,7 +3,13 @@
  */
 
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { getArtistsList, getArtistProfile, createArtist, submitArtistEdit, getUserPendingArtistEdits } from '../artists';
+import {
+  getArtistsList,
+  getArtistProfile,
+  createArtist,
+  submitArtistEdit,
+  getUserPendingArtistEdits,
+} from '../artists';
 import type { WorkerEnv } from '../../types';
 
 // Mock auth middleware
@@ -140,12 +146,7 @@ describe('Artist Routes', () => {
       await getArtistsList(c);
 
       // Should use search in query (with new default limit of 30)
-      expect(mockDbStmt.bind).toHaveBeenCalledWith(
-        'active',
-        '%Test%',
-        30,
-        0
-      );
+      expect(mockDbStmt.bind).toHaveBeenCalledWith('active', '%Test%', 30, 0);
     });
   });
 
@@ -250,7 +251,8 @@ describe('Artist Routes', () => {
 
       const mockDbStmt = {
         bind: vi.fn().mockReturnThis(),
-        first: vi.fn()
+        first: vi
+          .fn()
           .mockResolvedValueOnce({ id: 'artist-1' }) // Artist exists
           .mockResolvedValueOnce(null), // No pending edits
         run: vi.fn().mockResolvedValue({ success: true }),
@@ -298,7 +300,8 @@ describe('Artist Routes', () => {
 
       const mockDbStmt = {
         bind: vi.fn().mockReturnThis(),
-        first: vi.fn()
+        first: vi
+          .fn()
           .mockResolvedValueOnce({ id: 'artist-1' }) // Artist exists
           .mockResolvedValueOnce({ edit_id: 'existing-edit' }), // Pending edit exists
       };
@@ -306,7 +309,9 @@ describe('Artist Routes', () => {
 
       const c = createMockContext({ id: 'artist-1' }, requestBody);
 
-      await expect(submitArtistEdit(c)).rejects.toThrow('You already have pending edits for this artist');
+      await expect(submitArtistEdit(c)).rejects.toThrow(
+        'You already have pending edits for this artist'
+      );
     });
   });
 

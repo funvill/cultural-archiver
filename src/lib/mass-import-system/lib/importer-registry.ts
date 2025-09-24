@@ -1,6 +1,6 @@
 /**
  * Mass Import System - Importer Registry
- * 
+ *
  * This module manages available data source importers and provides
  * a registry system for dynamic importer discovery and selection.
  */
@@ -40,7 +40,7 @@ export class ImporterRegistry {
       mapper: VancouverMapper,
       description: 'Vancouver Open Data public art dataset importer',
       supportedFileTypes: ['.json'],
-      defaultDataPath: 'public-art.json'
+      defaultDataPath: 'public-art.json',
     });
 
     // Register OSM importer
@@ -49,7 +49,7 @@ export class ImporterRegistry {
       mapper: OSMMapper,
       description: 'OpenStreetMap GeoJSON artwork data importer',
       supportedFileTypes: ['.geojson', '.json'],
-      defaultDataPath: 'src/data-collection/osm/output/merged/merged-artworks.geojson'
+      defaultDataPath: 'src/data-collection/osm/output/merged/merged-artworks.geojson',
     });
 
     this.initialized = true;
@@ -114,7 +114,11 @@ export class ImporterRegistry {
   /**
    * Validate importer name and provide suggestions
    */
-  static validateImporter(name: string): { valid: boolean; message?: string; suggestions?: string[] } {
+  static validateImporter(name: string): {
+    valid: boolean;
+    message?: string;
+    suggestions?: string[];
+  } {
     if (name === 'all') {
       return { valid: true };
     }
@@ -124,14 +128,12 @@ export class ImporterRegistry {
     }
 
     const available = this.getAll();
-    const suggestions = available.filter(imp => 
-      imp.includes(name) || name.includes(imp)
-    );
+    const suggestions = available.filter(imp => imp.includes(name) || name.includes(imp));
 
     return {
       valid: false,
       message: `Unknown importer: "${name}". ${this.getHelpMessage()}`,
-      suggestions: suggestions.length > 0 ? suggestions : available
+      suggestions: suggestions.length > 0 ? suggestions : available,
     };
   }
 }

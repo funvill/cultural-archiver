@@ -41,11 +41,16 @@ const showLocationPicker = ref(false);
 // Methods
 function formatLocationSource(source: string): string {
   switch (source) {
-    case 'exif': return 'Photo metadata';
-    case 'geolocation': return 'Device GPS';
-    case 'ip': return 'IP location';
-    case 'manual': return 'Manual selection';
-    default: return source;
+    case 'exif':
+      return 'Photo metadata';
+    case 'geolocation':
+      return 'Device GPS';
+    case 'ip':
+      return 'IP location';
+    case 'manual':
+      return 'Manual selection';
+    default:
+      return source;
   }
 }
 
@@ -71,25 +76,26 @@ function getSimilarityBorderClass(artwork: SimilarityCandidate): string {
 <template>
   <div class="location-section">
     <div class="mb-6">
-      <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
-        Artwork Location
-      </h4>
+      <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Artwork Location</h4>
       <p class="text-sm text-gray-600 dark:text-gray-300">
-        We need to know where the artwork is located to check for duplicates and help others find it.
+        We need to know where the artwork is located to check for duplicates and help others find
+        it.
       </p>
     </div>
 
     <!-- Location Status -->
-    <div v-if="location" class="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+    <div
+      v-if="location"
+      class="mb-6 p-4 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg"
+    >
       <div class="flex items-start">
         <CheckCircleIcon class="w-5 h-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
         <div class="flex-1">
-          <h5 class="font-medium text-green-900 dark:text-green-100 mb-1">
-            Location Detected
-          </h5>
+          <h5 class="font-medium text-green-900 dark:text-green-100 mb-1">Location Detected</h5>
           <div class="text-sm text-green-800 dark:text-green-200 space-y-1">
             <div>
-              <strong>Coordinates:</strong> {{ location.lat.toFixed(6) }}, {{ location.lon.toFixed(6) }}
+              <strong>Coordinates:</strong> {{ location.lat.toFixed(6) }},
+              {{ location.lon.toFixed(6) }}
             </div>
             <div>
               <strong>Source:</strong> {{ formatLocationSource(location.source) }}
@@ -97,11 +103,9 @@ function getSimilarityBorderClass(artwork: SimilarityCandidate): string {
                 (±{{ Math.round(location.accuracy) }}m accuracy)
               </span>
             </div>
-            <div v-if="location.address">
-              <strong>Address:</strong> {{ location.address }}
-            </div>
+            <div v-if="location.address"><strong>Address:</strong> {{ location.address }}</div>
           </div>
-          <button 
+          <button
             @click="showLocationPicker = true"
             class="mt-2 text-sm text-green-700 dark:text-green-300 hover:text-green-800 dark:hover:text-green-200 underline"
           >
@@ -112,25 +116,26 @@ function getSimilarityBorderClass(artwork: SimilarityCandidate): string {
     </div>
 
     <!-- Location Error -->
-    <div v-if="error && !location" class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+    <div
+      v-if="error && !location"
+      class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"
+    >
       <div class="flex items-start">
         <ExclamationTriangleIcon class="w-5 h-5 text-red-500 mt-0.5 mr-3 flex-shrink-0" />
         <div class="flex-1">
-          <h5 class="font-medium text-red-900 dark:text-red-100 mb-1">
-            Location Error
-          </h5>
+          <h5 class="font-medium text-red-900 dark:text-red-100 mb-1">Location Error</h5>
           <p class="text-sm text-red-800 dark:text-red-200 mb-3">
             {{ error }}
           </p>
           <div class="flex space-x-3">
-            <button 
+            <button
               @click="tryGeolocation"
               :disabled="loading"
               class="text-sm bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-200 px-3 py-1 rounded hover:bg-red-200 dark:hover:bg-red-700 disabled:opacity-50"
             >
               Try Again
             </button>
-            <button 
+            <button
               @click="showLocationPicker = true"
               class="text-sm bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-200 px-3 py-1 rounded hover:bg-red-200 dark:hover:bg-red-700"
             >
@@ -149,9 +154,7 @@ function getSimilarityBorderClass(artwork: SimilarityCandidate): string {
           <div class="flex items-start">
             <MapPinIcon class="w-6 h-6 text-blue-500 mt-1 mr-3 flex-shrink-0" />
             <div class="flex-1">
-              <h5 class="font-medium text-gray-900 dark:text-white mb-2">
-                Auto-detect Location
-              </h5>
+              <h5 class="font-medium text-gray-900 dark:text-white mb-2">Auto-detect Location</h5>
               <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">
                 Use your device's GPS to automatically detect the artwork location.
               </p>
@@ -178,9 +181,7 @@ function getSimilarityBorderClass(artwork: SimilarityCandidate): string {
           <div class="flex items-start">
             <CursorArrowRippleIcon class="w-6 h-6 text-green-500 mt-1 mr-3 flex-shrink-0" />
             <div class="flex-1">
-              <h5 class="font-medium text-gray-900 dark:text-white mb-2">
-                Set Location Manually
-              </h5>
+              <h5 class="font-medium text-gray-900 dark:text-white mb-2">Set Location Manually</h5>
               <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">
                 Click on a map to pinpoint the exact location of the artwork.
               </p>
@@ -201,9 +202,7 @@ function getSimilarityBorderClass(artwork: SimilarityCandidate): string {
     <div v-if="location" class="mt-8">
       <div class="flex items-center justify-between mb-4">
         <div>
-          <h5 class="font-medium text-gray-900 dark:text-white">
-            Nearby Artworks
-          </h5>
+          <h5 class="font-medium text-gray-900 dark:text-white">Nearby Artworks</h5>
           <p class="text-sm text-gray-600 dark:text-gray-300">
             Check for existing artworks to avoid duplicates
           </p>
@@ -238,7 +237,10 @@ function getSimilarityBorderClass(artwork: SimilarityCandidate): string {
                 :alt="artwork.type_name"
                 class="w-16 h-16 object-cover rounded-lg"
               />
-              <div v-else class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+              <div
+                v-else
+                class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center"
+              >
                 <PhotoIcon class="w-8 h-8 text-gray-400" />
               </div>
             </div>
@@ -249,23 +251,28 @@ function getSimilarityBorderClass(artwork: SimilarityCandidate): string {
                 <h6 class="font-medium text-gray-900 dark:text-white truncate">
                   {{ artwork.type_name }}
                 </h6>
-                <SimilarityBadge v-if="artwork.similarity_threshold" :threshold="artwork.similarity_threshold" />
+                <SimilarityBadge
+                  v-if="artwork.similarity_threshold"
+                  :threshold="artwork.similarity_threshold"
+                />
               </div>
-              
+
               <div class="text-sm text-gray-600 dark:text-gray-300 space-y-1">
                 <div class="flex items-center">
                   <MapPinIcon class="w-4 h-4 mr-1 flex-shrink-0" />
                   <span>{{ artwork.distance_meters }}m away</span>
                 </div>
-                
+
                 <div v-if="artwork.similarity_explanation" class="flex items-center">
                   <ScaleIcon class="w-4 h-4 mr-1 flex-shrink-0" />
                   <span>{{ artwork.similarity_explanation }}</span>
                 </div>
-                
+
                 <div v-if="artwork.photo_count" class="flex items-center">
                   <PhotoIcon class="w-4 h-4 mr-1 flex-shrink-0" />
-                  <span>{{ artwork.photo_count }} photo{{ artwork.photo_count !== 1 ? 's' : '' }}</span>
+                  <span
+                    >{{ artwork.photo_count }} photo{{ artwork.photo_count !== 1 ? 's' : '' }}</span
+                  >
                 </div>
               </div>
             </div>
@@ -285,11 +292,12 @@ function getSimilarityBorderClass(artwork: SimilarityCandidate): string {
       </div>
 
       <!-- No Nearby Artworks -->
-      <div v-else-if="!similarityLoading" class="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg text-center">
+      <div
+        v-else-if="!similarityLoading"
+        class="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg text-center"
+      >
         <CheckCircleIcon class="w-12 h-12 text-green-500 mx-auto mb-3" />
-        <h6 class="font-medium text-gray-900 dark:text-white mb-2">
-          No Similar Artworks Found
-        </h6>
+        <h6 class="font-medium text-gray-900 dark:text-white mb-2">No Similar Artworks Found</h6>
         <p class="text-sm text-gray-600 dark:text-gray-300">
           Great! This appears to be a new artwork that hasn't been documented yet.
         </p>
@@ -297,8 +305,8 @@ function getSimilarityBorderClass(artwork: SimilarityCandidate): string {
     </div>
 
     <!-- Location Picker Modal -->
-    <Modal 
-      v-if="showLocationPicker" 
+    <Modal
+      v-if="showLocationPicker"
       :isOpen="showLocationPicker"
       @close="showLocationPicker = false"
     >

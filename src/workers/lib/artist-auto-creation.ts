@@ -1,6 +1,6 @@
 /**
  * Artist Auto-Creation Service for Mass Import V2
- * 
+ *
  * Handles automatic artist creation and linking for mass import operations:
  * 1. Fuzzy search for existing artists with high similarity threshold (>95%)
  * 2. Auto-create artist records when createMissingArtists flag is enabled
@@ -71,36 +71,42 @@ export class ArtistAutoCreationService {
       linkedArtistIds: [],
       newArtistsCreated: 0,
       existingArtistsLinked: 0,
-      errors: []
+      errors: [],
     };
 
     // Extract artist names from artwork data
     const artistNames = this.extractArtistNames(artworkData);
-    
+
     if (artistNames.length === 0) {
       console.log(`[ARTIST_AUTO] No artist names found for artwork ${artworkId}`);
       return result;
     }
 
-    console.log(`[ARTIST_AUTO] Processing ${artistNames.length} artists for artwork ${artworkId}: ${artistNames.join(', ')}`);
+    console.log(
+      `[ARTIST_AUTO] Processing ${artistNames.length} artists for artwork ${artworkId}: ${artistNames.join(', ')}`
+    );
 
     // Process each artist name
     for (const artistName of artistNames) {
       try {
         const artistResult = await this.processSingleArtist(artistName, artworkData, config);
-        
+
         if (artistResult.artistId) {
           // Link artist to artwork
           if (config.autoLinkArtwork) {
             await this.linkArtworkToArtist(artworkId, artistResult.artistId, 'primary');
             result.linkedArtistIds.push(artistResult.artistId);
-            
+
             if (artistResult.wasCreated) {
               result.newArtistsCreated++;
-              console.log(`[ARTIST_AUTO] Created and linked new artist: ${artistName} (${artistResult.artistId})`);
+              console.log(
+                `[ARTIST_AUTO] Created and linked new artist: ${artistName} (${artistResult.artistId})`
+              );
             } else {
               result.existingArtistsLinked++;
-              console.log(`[ARTIST_AUTO] Linked to existing artist: ${artistName} (${artistResult.artistId}), score: ${artistResult.score?.toFixed(3)}`);
+              console.log(
+                `[ARTIST_AUTO] Linked to existing artist: ${artistName} (${artistResult.artistId}), score: ${artistResult.score?.toFixed(3)}`
+              );
             }
           }
         }
@@ -111,7 +117,9 @@ export class ArtistAutoCreationService {
       }
     }
 
-    console.log(`[ARTIST_AUTO] Completed processing: ${result.newArtistsCreated} created, ${result.existingArtistsLinked} linked, ${result.errors.length} errors`);
+    console.log(
+      `[ARTIST_AUTO] Completed processing: ${result.newArtistsCreated} created, ${result.existingArtistsLinked} linked, ${result.errors.length} errors`
+    );
     return result;
   }
 
@@ -125,39 +133,43 @@ export class ArtistAutoCreationService {
   ): Promise<ArtistAutoCreationResult> {
     // 1. Search for existing artists with fuzzy matching
     const existingMatches = await this.findMatchingArtists(artistName);
-    
+
     // 2. Check for high-confidence match
     const strongMatch = existingMatches.find(match => match.score >= config.similarityThreshold);
-    
+
     if (strongMatch) {
-      console.log(`[ARTIST_AUTO] Strong match found for "${artistName}": ${strongMatch.name} (score: ${strongMatch.score.toFixed(3)})`);
-      
+      console.log(
+        `[ARTIST_AUTO] Strong match found for "${artistName}": ${strongMatch.name} (score: ${strongMatch.score.toFixed(3)})`
+      );
+
       return {
         artistId: strongMatch.id,
         wasCreated: false,
         linkedToArtwork: false, // Will be handled by caller
         name: strongMatch.name,
-        score: strongMatch.score
+        score: strongMatch.score,
       };
     }
 
     // 3. Create new artist if configured to do so
     if (config.createMissingArtists) {
       const newArtistId = await this.createArtistFromArtworkData(artistName, artworkData, config);
-      
+
       console.log(`[ARTIST_AUTO] Created new artist for "${artistName}": ${newArtistId}`);
-      
+
       return {
         artistId: newArtistId,
         wasCreated: true,
         linkedToArtwork: false, // Will be handled by caller
-        name: artistName
+        name: artistName,
       };
     }
 
     // 4. No match found and not configured to create
-    console.log(`[ARTIST_AUTO] No strong match found for "${artistName}" and createMissingArtists is disabled`);
-    
+    console.log(
+      `[ARTIST_AUTO] No strong match found for "${artistName}" and createMissingArtists is disabled`
+    );
+
     throw new Error(`Artist "${artistName}" not found and auto-creation is disabled`);
   }
 
@@ -166,12 +178,16 @@ export class ArtistAutoCreationService {
    */
   async findMatchingArtists(searchName: string): Promise<ArtistMatchResult[]> {
     // Get all approved artists for fuzzy matching
-    const result = await this.db.db.prepare(`
+    const result = await this.db.db
+      .prepare(
+        `
       SELECT id, name, description, tags
       FROM artists
       WHERE status = 'approved'
       ORDER BY name
-    `).all();
+    `
+      )
+      .all();
 
     const allArtists = (result.results || []) as any[];
     const matches: ArtistMatchResult[] = [];
@@ -179,21 +195,22 @@ export class ArtistAutoCreationService {
     // Calculate similarity scores for each artist
     for (const artist of allArtists) {
       const score = this.calculateNameSimilarity(searchName, artist.name as string);
-      
-      if (score > 0.5) { // Only include reasonable matches
+
+      if (score > 0.5) {
+        // Only include reasonable matches
         matches.push({
           id: artist.id as string,
           name: artist.name as string,
-          score
+          score,
         });
       }
     }
 
     // Sort by score descending
     matches.sort((a, b) => b.score - a.score);
-    
+
     console.log(`[ARTIST_AUTO] Found ${matches.length} potential matches for "${searchName}"`);
-    
+
     return matches;
   }
 
@@ -214,25 +231,30 @@ export class ArtistAutoCreationService {
       created_reason: 'auto_created_from_artwork',
       original_artwork_source: artworkData.externalId || '',
       import_batch: timestamp,
-      auto_created: true
+      auto_created: true,
     };
 
     // Create artist record
-    await this.db.db.prepare(`
+    await this.db.db
+      .prepare(
+        `
       INSERT INTO artists (
         id, name, description, tags, status, created_at, updated_at
       ) VALUES (?, ?, ?, ?, 'approved', ?, ?)
-    `).bind(
-      artistId,
-      artistName,
-      null, // Bio will be filled by future edits
-      JSON.stringify(artistTags),
-      timestamp,
-      timestamp
-    ).run();
+    `
+      )
+      .bind(
+        artistId,
+        artistName,
+        null, // Bio will be filled by future edits
+        JSON.stringify(artistTags),
+        timestamp,
+        timestamp
+      )
+      .run();
 
     console.log(`[ARTIST_AUTO] Created artist record: ${artistId} for "${artistName}"`);
-    
+
     return artistId;
   }
 
@@ -245,42 +267,61 @@ export class ArtistAutoCreationService {
     role: string = 'primary'
   ): Promise<void> {
     // Check if link already exists
-    const existing = await this.db.db.prepare(`
+    const existing = await this.db.db
+      .prepare(
+        `
       SELECT artwork_id FROM artwork_artists 
       WHERE artwork_id = ? AND artist_id = ?
-    `).bind(artworkId, artistId).first();
+    `
+      )
+      .bind(artworkId, artistId)
+      .first();
 
     if (existing) {
-      console.log(`[ARTIST_AUTO] Link already exists between artwork ${artworkId} and artist ${artistId}`);
+      console.log(
+        `[ARTIST_AUTO] Link already exists between artwork ${artworkId} and artist ${artistId}`
+      );
       return;
     }
 
     // Create the link
-    await this.db.db.prepare(`
+    await this.db.db
+      .prepare(
+        `
       INSERT INTO artwork_artists (artwork_id, artist_id, role, created_at)
       VALUES (?, ?, ?, datetime('now'))
-    `).bind(artworkId, artistId, role).run();
+    `
+      )
+      .bind(artworkId, artistId, role)
+      .run();
 
-    console.log(`[ARTIST_AUTO] Linked artwork ${artworkId} to artist ${artistId} with role "${role}"`);
+    console.log(
+      `[ARTIST_AUTO] Linked artwork ${artworkId} to artist ${artistId} with role "${role}"`
+    );
   }
 
   /**
    * Get artists linked to an artwork
    */
   async getArtworkArtists(artworkId: string): Promise<ArtworkArtistRecord[]> {
-    const result = await this.db.db.prepare(`
+    const result = await this.db.db
+      .prepare(
+        `
       SELECT aa.artwork_id, aa.artist_id, aa.role, aa.created_at, a.name
       FROM artwork_artists aa
       JOIN artists a ON aa.artist_id = a.id
       WHERE aa.artwork_id = ?
       ORDER BY aa.created_at
-    `).bind(artworkId).all();
+    `
+      )
+      .bind(artworkId)
+      .all();
 
     return (result.results || []).map((row: any) => ({
       artwork_id: row.artwork_id as string,
       artist_id: row.artist_id as string,
       role: row.role as string,
-      created_at: row.created_at as string
+      created_at: row.created_at as string,
     }));
   }
 
@@ -314,7 +355,7 @@ export class ArtistAutoCreationService {
   private parseArtistString(artistStr: string): string[] {
     // Handle common separators: comma, semicolon, ampersand, "and"
     const separators = /[,;]+|\s+and\s+|\s*&\s*/i;
-    
+
     return artistStr
       .split(separators)
       .map(name => name.trim())
@@ -326,18 +367,18 @@ export class ArtistAutoCreationService {
    */
   private calculateNameSimilarity(name1: string, name2: string): number {
     if (!name1 || !name2) return 0;
-    
+
     // Normalize names: lowercase, remove extra spaces
     const n1 = name1.toLowerCase().replace(/\s+/g, ' ').trim();
     const n2 = name2.toLowerCase().replace(/\s+/g, ' ').trim();
-    
+
     if (n1 === n2) return 1.0;
-    
+
     // Use Levenshtein distance for similarity
     const distance = this.levenshteinDistance(n1, n2);
     const maxLength = Math.max(n1.length, n2.length);
-    
-    return maxLength === 0 ? 0 : 1 - (distance / maxLength);
+
+    return maxLength === 0 ? 0 : 1 - distance / maxLength;
   }
 
   /**
@@ -349,15 +390,15 @@ export class ArtistAutoCreationService {
     for (let i = 0; i <= str2.length; i++) {
       matrix[i] = new Array(str1.length + 1).fill(0);
     }
-    
+
     for (let i = 0; i <= str2.length; i++) {
       matrix[i]![0] = i; // Non-null assertion since we just created the array
     }
-    
+
     for (let j = 0; j <= str1.length; j++) {
       matrix[0]![j] = j; // Non-null assertion since we just created the array
     }
-    
+
     for (let i = 1; i <= str2.length; i++) {
       for (let j = 1; j <= str1.length; j++) {
         if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
@@ -371,7 +412,7 @@ export class ArtistAutoCreationService {
         }
       }
     }
-    
+
     return matrix[str2.length]![str1.length]!; // Non-null assertion for final result
   }
 }

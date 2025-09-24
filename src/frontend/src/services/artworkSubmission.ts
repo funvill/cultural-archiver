@@ -33,7 +33,7 @@ export const artworkSubmissionService = {
       formData.append('lon', payload.longitude.toString());
       formData.append('consent_version', CONSENT_VERSION);
       if (payload.title) formData.append('title', payload.title);
-  if (payload.notes) formData.append('notes', payload.notes);
+      if (payload.notes) formData.append('notes', payload.notes);
       // Build lightweight structured tags from provided optional metadata so backend can retain it later
       const tagPayload: Record<string, string | number> = {};
       if (payload.artworkType) tagPayload.artwork_type = payload.artworkType;
@@ -67,15 +67,15 @@ export const artworkSubmissionService = {
       }
       const raw = await apiService.postRaw<FastSubmitApiEnvelope>('/artworks/fast', formData);
       // Expected shape: { success: boolean, data: { id, submission_type, artwork_id? ... }, message }
-  const data: FastSubmitApiEnvelope['data'] | undefined = raw?.data;
-  const resolvedId = data?.artwork_id || data?.id;
+      const data: FastSubmitApiEnvelope['data'] | undefined = raw?.data;
+      const resolvedId = data?.artwork_id || data?.id;
       if (!resolvedId) {
         console.warn('[FAST SUBMIT] API response missing artwork/logbook id', raw);
       }
       return {
         id: resolvedId || 'unknown',
-  message: data?.message ?? raw?.message ?? null,
-  status: data?.status ?? null,
+        message: data?.message ?? raw?.message ?? null,
+        status: data?.status ?? null,
       };
     } catch (e) {
       console.error('[FAST SUBMIT] Submission failed', e);

@@ -80,7 +80,11 @@ export const mapCache = {
     const all = loadAll();
     const stamp = now();
     for (const pin of pins) {
-      all[pin.id] = { ...(all[pin.id] as CachedPin | undefined), ...pin, cachedAt: stamp } as CachedPin;
+      all[pin.id] = {
+        ...(all[pin.id] as CachedPin | undefined),
+        ...pin,
+        cachedAt: stamp,
+      } as CachedPin;
     }
     saveAll(all);
   },
@@ -105,7 +109,9 @@ export const mapCache = {
     if (typeof window === 'undefined') return;
     try {
       window.localStorage.removeItem(CACHE_KEY);
-    } catch {/* ignore */}
+    } catch {
+      /* ignore */
+    }
   },
 
   // For stats/diagnostics

@@ -11,7 +11,7 @@ import type { BadgeRecord, UserRecord } from '../../../shared/types.js';
 const createMockDb = () => {
   const mockResults = new Map<string, any[]>();
   const mockFirst = new Map<string, any>();
-  
+
   const mockDb = {
     prepare: vi.fn((sql: string) => ({
       bind: vi.fn((...params: any[]) => ({
@@ -28,7 +28,7 @@ const createMockDb = () => {
       run: vi.fn(async () => ({ success: true })),
     })),
   };
-  
+
   return { mockDb, mockResults, mockFirst };
 };
 
@@ -79,15 +79,18 @@ describe('Badge System', () => {
           updated_at: '2024-01-01T00:00:00Z',
         },
       ];
-      
-      mockResults.set(`
+
+      mockResults.set(
+        `
       SELECT * FROM badges 
       WHERE is_active = TRUE 
       ORDER BY category, level, threshold_value ASC
-    `, mockBadges);
+    `,
+        mockBadges
+      );
 
       const badges = await badgeService.getAllBadges();
-      
+
       expect(badges).toBeDefined();
       expect(badges.length).toBe(2);
       expect(badges[0].badge_key).toBe('email_verified');
@@ -98,10 +101,13 @@ describe('Badge System', () => {
   describe('Badge Eligibility Calculation', () => {
     it('should identify eligible badges based on context', async () => {
       // Mock empty existing badges
-      mockResults.set(`
+      mockResults.set(
+        `
       SELECT badge_id FROM user_badges WHERE user_uuid = ?
-    `, []);
-      
+    `,
+        []
+      );
+
       // Mock available badges
       const mockBadges: BadgeRecord[] = [
         {
@@ -119,12 +125,15 @@ describe('Badge System', () => {
           updated_at: '2024-01-01T00:00:00Z',
         },
       ];
-      
-      mockResults.set(`
+
+      mockResults.set(
+        `
       SELECT * FROM badges 
       WHERE is_active = TRUE 
       ORDER BY category, level, threshold_value ASC
-    `, mockBadges);
+    `,
+        mockBadges
+      );
 
       const context: BadgeCalculationContext = {
         user_uuid: 'test-user-123',
@@ -132,36 +141,44 @@ describe('Badge System', () => {
       };
 
       const awardedBadges = await badgeService.calculateAndAwardBadges(context);
-      
+
       expect(awardedBadges.length).toBe(1);
       expect(awardedBadges[0].badge_key).toBe('email_verified');
     });
 
     it('should not award duplicate badges', async () => {
       // Mock existing badge
-      mockResults.set(`
+      mockResults.set(
+        `
       SELECT badge_id FROM user_badges WHERE user_uuid = ?
-    `, [{ badge_id: 'badge-1' }]);
-      
+    `,
+        [{ badge_id: 'badge-1' }]
+      );
+
       // Mock available badges (same as what user already has)
-      mockResults.set(`
+      mockResults.set(
+        `
       SELECT * FROM badges 
       WHERE is_active = TRUE 
       ORDER BY category, level, threshold_value ASC
-    `, [{
-        id: 'badge-1',
-        badge_key: 'email_verified',
-        title: 'Email Verified',
-        description: 'Completed email verification',
-        icon_emoji: '✅',
-        category: 'activity',
-        threshold_type: 'email_verified',
-        threshold_value: null,
-        level: 1,
-        is_active: true,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-      }]);
+    `,
+        [
+          {
+            id: 'badge-1',
+            badge_key: 'email_verified',
+            title: 'Email Verified',
+            description: 'Completed email verification',
+            icon_emoji: '✅',
+            category: 'activity',
+            threshold_type: 'email_verified',
+            threshold_value: null,
+            level: 1,
+            is_active: true,
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+          },
+        ]
+      );
 
       const context: BadgeCalculationContext = {
         user_uuid: 'test-user-123',
@@ -169,7 +186,7 @@ describe('Badge System', () => {
       };
 
       const awardedBadges = await badgeService.calculateAndAwardBadges(context);
-      
+
       expect(awardedBadges.length).toBe(0); // No new badges
     });
   });
@@ -178,55 +195,68 @@ describe('Badge System', () => {
     it('should check profile name availability', async () => {
       // Mock no existing user with that name
       mockFirst.set('SELECT uuid FROM users WHERE LOWER(profile_name) = LOWER(?)', null);
-      
+
       const isAvailable = await badgeService.isProfileNameAvailable('testuser123');
       expect(isAvailable).toBe(true);
 
-      // Mock existing user with that name  
-      mockFirst.set('SELECT uuid FROM users WHERE LOWER(profile_name) = LOWER(?)', { uuid: 'existing-user' });
-      
+      // Mock existing user with that name
+      mockFirst.set('SELECT uuid FROM users WHERE LOWER(profile_name) = LOWER(?)', {
+        uuid: 'existing-user',
+      });
+
       const isAvailableAfter = await badgeService.isProfileNameAvailable('testuser123');
       expect(isAvailableAfter).toBe(false);
     });
 
     it('should reject updating to taken profile name', async () => {
       // Mock existing user with that name
-      mockFirst.set('SELECT uuid FROM users WHERE LOWER(profile_name) = LOWER(?) AND uuid != ?', { uuid: 'other-user' });
-      
-      await expect(badgeService.updateProfileName('test-user-123', 'takenname'))
-        .rejects.toThrow('Profile name is already taken');
+      mockFirst.set('SELECT uuid FROM users WHERE LOWER(profile_name) = LOWER(?) AND uuid != ?', {
+        uuid: 'other-user',
+      });
+
+      await expect(badgeService.updateProfileName('test-user-123', 'takenname')).rejects.toThrow(
+        'Profile name is already taken'
+      );
     });
   });
 
   describe('Integration Points', () => {
     it('should check email verification badge', async () => {
       // Mock empty existing badges
-      mockResults.set(`
+      mockResults.set(
+        `
       SELECT badge_id FROM user_badges WHERE user_uuid = ?
-    `, []);
-      
+    `,
+        []
+      );
+
       // Mock email verification badge
-      mockResults.set(`
+      mockResults.set(
+        `
       SELECT * FROM badges 
       WHERE is_active = TRUE 
       ORDER BY category, level, threshold_value ASC
-    `, [{
-        id: 'badge-1',
-        badge_key: 'email_verified',
-        title: 'Email Verified',
-        description: 'Completed email verification',
-        icon_emoji: '✅',
-        category: 'activity',
-        threshold_type: 'email_verified',
-        threshold_value: null,
-        level: 1,
-        is_active: true,
-        created_at: '2024-01-01T00:00:00Z',
-        updated_at: '2024-01-01T00:00:00Z',
-      }]);
+    `,
+        [
+          {
+            id: 'badge-1',
+            badge_key: 'email_verified',
+            title: 'Email Verified',
+            description: 'Completed email verification',
+            icon_emoji: '✅',
+            category: 'activity',
+            threshold_type: 'email_verified',
+            threshold_value: null,
+            level: 1,
+            is_active: true,
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+          },
+        ]
+      );
 
       const awardedBadges = await badgeService.checkEmailVerificationBadge('test-user-123');
-      
+
       expect(awardedBadges.length).toBe(1);
       expect(awardedBadges[0].badge_key).toBe('email_verified');
       expect(awardedBadges[0].award_reason).toBe('Email verification completed');

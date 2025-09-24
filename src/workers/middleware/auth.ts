@@ -8,8 +8,6 @@ import type { WorkerEnv } from '../types';
 import { UnauthorizedError, ForbiddenError } from '../lib/errors';
 import { getUserPermissions } from '../lib/permissions';
 
-
-
 export interface AuthContext {
   userToken: string;
   /** True if user has moderator role (or admin role which inherits moderator privileges). */
@@ -85,10 +83,10 @@ export async function ensureUserToken(
     const permissions = await getUserPermissions(c.env.DB, userToken);
     const isAdmin = permissions.includes('admin');
     const isModerator = permissions.includes('moderator');
-    
+
     // canReview is derived from roles: admins and moderators can review
     const canReview = isAdmin || isModerator;
-    
+
     c.set('authContext', {
       userToken,
       isModerator: isModerator || isAdmin, // Admins have moderator privileges
@@ -212,7 +210,7 @@ export async function checkEmailVerification(
           LIMIT 1
         `);
         const result = await stmt.bind(userToken).first();
-        
+
         if (result && result.email_verified_at) {
           isEmailVerified = true;
         }
@@ -302,8 +300,6 @@ export function getAuthContext(c: Context): AuthContext {
 export function getUserToken(c: Context): string {
   return c.get('userToken') || '';
 }
-
-
 
 export function isModeratorUser(c: Context): boolean {
   const authContext = getAuthContext(c);

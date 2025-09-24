@@ -133,7 +133,7 @@ interface SimilarityResult {
   score: number;
   breakdown: {
     title: number;
-    artist: number; 
+    artist: number;
     location: number;
     tags: number;
   };
@@ -141,11 +141,7 @@ interface SimilarityResult {
   existingArtworkId?: string;
 }
 
-function calculateSimilarity(
-  existingArtwork: ArtworkRecord, 
-  newArtwork: MassImportItem,
-  threshold: number = 0.7
-): SimilarityResult
+function calculateSimilarity(existingArtwork: ArtworkRecord, newArtwork: MassImportItem, threshold: number = 0.7): SimilarityResult;
 ```
 
 ## Implementation Priority

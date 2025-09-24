@@ -80,9 +80,9 @@ async function loadArtist() {
   try {
     loading.value = true;
     error.value = null;
-    
+
     const response = await fetch(`/api/artists/${props.id}`);
-    
+
     if (!response.ok) {
       if (response.status === 404) {
         error.value = 'Artist not found';
@@ -90,10 +90,10 @@ async function loadArtist() {
       }
       throw new Error(`HTTP ${response.status}`);
     }
-    
+
     const result = await response.json();
     artist.value = result.data;
-    
+
     // Set form data
     if (artist.value) {
       editData.value = {
@@ -103,7 +103,6 @@ async function loadArtist() {
       };
       originalData.value = { ...editData.value };
     }
-    
   } catch (err) {
     console.error('Failed to load artist:', err);
     error.value = 'Failed to load artist details. Please try again.';
@@ -115,7 +114,7 @@ async function loadArtist() {
 
 async function checkPendingEdits() {
   if (!authStore.isAuthenticated) return;
-  
+
   try {
     const response = await fetch(`/api/artists/${props.id}/pending-edits`);
     if (response.ok) {
@@ -133,12 +132,12 @@ function startEdit() {
     announceError('Please log in to edit artist information');
     return;
   }
-  
+
   if (hasPendingEdits.value) {
     announceError('You have pending edits for this artist that are awaiting moderation');
     return;
   }
-  
+
   isEditMode.value = true;
   editError.value = null;
 }
@@ -163,14 +162,14 @@ async function saveEdit() {
     isEditMode.value = false;
     return;
   }
-  
+
   try {
     editLoading.value = true;
     editError.value = null;
-    
+
     // Build edits array
     const edits = [];
-    
+
     if (editData.value.name !== originalData.value.name) {
       edits.push({
         field_name: 'name',
@@ -178,7 +177,7 @@ async function saveEdit() {
         field_value_new: editData.value.name,
       });
     }
-    
+
     if (editData.value.description !== originalData.value.description) {
       edits.push({
         field_name: 'description',
@@ -186,7 +185,7 @@ async function saveEdit() {
         field_value_new: editData.value.description,
       });
     }
-    
+
     if (JSON.stringify(editData.value.tags) !== JSON.stringify(originalData.value.tags)) {
       edits.push({
         field_name: 'tags',
@@ -194,12 +193,12 @@ async function saveEdit() {
         field_value_new: JSON.stringify(editData.value.tags),
       });
     }
-    
+
     if (edits.length === 0) {
       isEditMode.value = false;
       return;
     }
-    
+
     const response = await fetch(`/api/artists/${props.id}`, {
       method: 'PUT',
       headers: {
@@ -207,18 +206,17 @@ async function saveEdit() {
       },
       body: JSON.stringify({ edits }),
     });
-    
+
     if (!response.ok) {
       const result = await response.json();
       throw new Error(result.error || `HTTP ${response.status}`);
     }
-    
+
     // Success
     isEditMode.value = false;
     showSuccessModal.value = true;
     hasPendingEdits.value = true;
     announceSuccess('Artist edits submitted for moderation');
-    
   } catch (err) {
     console.error('Failed to save artist edits:', err);
     editError.value = err instanceof Error ? err.message : 'Failed to save changes';
@@ -243,7 +241,7 @@ function removeTag(key: string) {
 function addTagFromInputs() {
   const keyEl = keyInput.value;
   const valueEl = valueInput.value;
-  
+
   if (keyEl && valueEl && keyEl.value && valueEl.value) {
     addTag(keyEl.value, valueEl.value);
     keyEl.value = '';
@@ -265,12 +263,17 @@ onMounted(() => {
       <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
       <p class="mt-4 text-gray-600">Loading artist details...</p>
     </div>
-    
+
     <!-- Error State -->
     <div v-else-if="error" class="text-center py-12">
       <div class="text-red-600 mb-4">
         <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+          ></path>
         </svg>
       </div>
       <h2 class="text-xl font-semibold text-gray-900 mb-2">{{ error }}</h2>
@@ -278,7 +281,7 @@ onMounted(() => {
         Try Again
       </button>
     </div>
-    
+
     <!-- Artist Content -->
     <div v-else-if="artist" class="space-y-8">
       <!-- Header -->
@@ -300,7 +303,7 @@ onMounted(() => {
                 placeholder="Enter artist name"
               />
             </div>
-            
+
             <div class="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-600">
               <span v-if="artist.artwork_count">
                 {{ artist.artwork_count }} artwork{{ artist.artwork_count !== 1 ? 's' : '' }}
@@ -308,18 +311,23 @@ onMounted(() => {
               <span>Active</span>
             </div>
           </div>
-          
+
           <!-- Edit Controls -->
           <div class="flex items-center gap-3">
             <div v-if="hasPendingEdits" class="text-sm">
               <div class="flex items-center gap-2 px-3 py-2 bg-amber-100 text-amber-800 rounded-lg">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  ></path>
                 </svg>
                 <span>Edits pending moderation</span>
               </div>
             </div>
-            
+
             <div v-if="!isEditMode">
               <button
                 @click="startEdit"
@@ -329,7 +337,7 @@ onMounted(() => {
                 Edit Artist Info
               </button>
             </div>
-            
+
             <div v-else class="flex items-center gap-2">
               <button
                 @click="cancelEdit"
@@ -348,13 +356,13 @@ onMounted(() => {
             </div>
           </div>
         </div>
-        
+
         <!-- Edit Error -->
         <div v-if="editError" class="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
           <p class="text-red-800">{{ editError }}</p>
         </div>
       </div>
-      
+
       <!-- Main Content Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Left Column: Biography and Tags -->
@@ -362,15 +370,16 @@ onMounted(() => {
           <!-- Biography -->
           <div class="bg-white rounded-lg border border-gray-200 p-6">
             <h2 class="text-xl font-semibold text-gray-900 mb-4">Biography</h2>
-            
+
             <div v-if="!isEditMode">
-              <div v-if="artist.description" 
-                   class="prose prose-gray max-w-none"
-                   v-html="renderedBio">
-              </div>
+              <div
+                v-if="artist.description"
+                class="prose prose-gray max-w-none"
+                v-html="renderedBio"
+              ></div>
               <p v-else class="text-gray-500 italic">No biography available.</p>
             </div>
-            
+
             <div v-else>
               <label for="edit-description" class="block text-sm font-medium text-gray-700 mb-2">
                 Biography (Markdown supported)
@@ -384,38 +393,46 @@ onMounted(() => {
               ></textarea>
             </div>
           </div>
-          
+
           <!-- Tags -->
           <div class="bg-white rounded-lg border border-gray-200 p-6">
             <h2 class="text-xl font-semibold text-gray-900 mb-4">Information</h2>
-            
+
             <div v-if="!isEditMode">
               <div v-if="Object.keys(artist.tags_parsed || {}).length > 0" class="space-y-3">
                 <div v-for="[key, value] in Object.entries(artist.tags_parsed || {})" :key="key">
-                  <TagBadge :tags="{[key]: String(value)}" />
+                  <TagBadge :tags="{ [key]: String(value) }" />
                 </div>
               </div>
               <p v-else class="text-gray-500 italic">No additional information available.</p>
             </div>
-            
+
             <div v-else>
               <div class="space-y-3 mb-4">
-                <div v-for="[key, value] in Object.entries(editData.tags)" :key="key" 
-                     class="flex items-center gap-2 p-2 bg-gray-50 rounded">
+                <div
+                  v-for="[key, value] in Object.entries(editData.tags)"
+                  :key="key"
+                  class="flex items-center gap-2 p-2 bg-gray-50 rounded"
+                >
                   <span class="text-sm font-medium text-gray-700">{{ key }}:</span>
                   <span class="text-sm text-gray-600">{{ value }}</span>
-                  <button 
+                  <button
                     @click="removeTag(key)"
                     class="text-red-600 hover:text-red-700"
                     aria-label="Remove tag"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M6 18L18 6M6 6l12 12"
+                      ></path>
                     </svg>
                   </button>
                 </div>
               </div>
-              
+
               <div class="flex gap-2">
                 <input
                   ref="keyInput"
@@ -441,20 +458,26 @@ onMounted(() => {
             </div>
           </div>
         </div>
-        
+
         <!-- Right Column: Artworks -->
         <div class="space-y-6">
           <!-- Artwork Gallery -->
           <div class="bg-white rounded-lg border border-gray-200 p-6">
             <h2 class="text-xl font-semibold text-gray-900 mb-4">Artworks</h2>
-            
+
             <div v-if="artist.artworks && artist.artworks.length > 0" class="space-y-4">
-              <div v-for="artwork in artist.artworks" :key="artwork.id"
-                   class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
-                   @click="navigateToArtwork(artwork.id)">
+              <div
+                v-for="artwork in artist.artworks"
+                :key="artwork.id"
+                class="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition-shadow cursor-pointer"
+                @click="navigateToArtwork(artwork.id)"
+              >
                 <div v-if="artwork.recent_photo" class="aspect-w-16 aspect-h-9">
-                  <img :src="artwork.recent_photo" :alt="artwork.title || 'Artwork'"
-                       class="w-full h-32 object-cover">
+                  <img
+                    :src="artwork.recent_photo"
+                    :alt="artwork.title || 'Artwork'"
+                    class="w-full h-32 object-cover"
+                  />
                 </div>
                 <div class="p-3">
                   <h3 class="font-medium text-gray-900">{{ artwork.title || 'Untitled' }}</h3>
@@ -465,51 +488,78 @@ onMounted(() => {
                 </div>
               </div>
             </div>
-            
+
             <p v-else class="text-gray-500 italic">No artworks found for this artist.</p>
           </div>
-          
+
           <!-- Photo Gallery -->
-          <div v-if="artworkPhotos.length > 0" class="bg-white rounded-lg border border-gray-200 p-6">
+          <div
+            v-if="artworkPhotos.length > 0"
+            class="bg-white rounded-lg border border-gray-200 p-6"
+          >
             <h2 class="text-xl font-semibold text-gray-900 mb-4">Recent Photos</h2>
-            <PhotoCarousel 
-              :photos="artworkPhotos" 
-              @photoSelect="(index) => {
-                if (artist?.artworks?.[index]) {
-                  navigateToArtwork(artist.artworks[index].id);
+            <PhotoCarousel
+              :photos="artworkPhotos"
+              @photoSelect="
+                index => {
+                  if (artist?.artworks?.[index]) {
+                    navigateToArtwork(artist.artworks[index].id);
+                  }
                 }
-              }"
+              "
             />
           </div>
         </div>
       </div>
     </div>
-    
+
     <!-- Cancel Confirmation Dialog -->
-    <div v-if="showCancelDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div
+      v-if="showCancelDialog"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    >
       <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
         <h3 class="text-lg font-medium text-gray-900 mb-4">Discard Changes?</h3>
-        <p class="text-gray-600 mb-6">You have unsaved changes. Are you sure you want to discard them?</p>
+        <p class="text-gray-600 mb-6">
+          You have unsaved changes. Are you sure you want to discard them?
+        </p>
         <div class="flex gap-3 justify-end">
-          <button @click="showCancelDialog = false" 
-                  class="px-4 py-2 text-gray-600 hover:text-gray-700">
+          <button
+            @click="showCancelDialog = false"
+            class="px-4 py-2 text-gray-600 hover:text-gray-700"
+          >
             Keep Editing
           </button>
-          <button @click="confirmCancel" 
-                  class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+          <button
+            @click="confirmCancel"
+            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
             Discard Changes
           </button>
         </div>
       </div>
     </div>
-    
+
     <!-- Success Modal -->
-    <div v-if="showSuccessModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div
+      v-if="showSuccessModal"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    >
       <div class="bg-white rounded-lg p-6 max-w-md w-full mx-4">
         <div class="flex items-center gap-3 mb-4">
           <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
-            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            <svg
+              class="w-5 h-5 text-green-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M5 13l4 4L19 7"
+              ></path>
             </svg>
           </div>
           <h3 class="text-lg font-medium text-gray-900">Changes Submitted</h3>
@@ -518,8 +568,10 @@ onMounted(() => {
           Your edits have been submitted for moderation and will be reviewed by our team.
         </p>
         <div class="flex justify-end">
-          <button @click="showSuccessModal = false" 
-                  class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+          <button
+            @click="showSuccessModal = false"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
             Close
           </button>
         </div>

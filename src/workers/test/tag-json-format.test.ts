@@ -2,7 +2,7 @@
  * Test for verifying the fix for tag JSON format issue
  * Previously, the frontend was sending tags as strings like "material: wood"
  * Now it should send proper JSON like {"material": "wood"}
- * 
+ *
  * Updated to use the new submissions system instead of deprecated ArtworkEditsService
  */
 
@@ -18,11 +18,11 @@ vi.mock('../lib/submissions.js', async () => {
 });
 
 describe('Tag JSON Format Fix', () => {
-  // Mock D1Database 
+  // Mock D1Database
   const mockDb = {
     prepare: vi.fn(),
     exec: vi.fn(),
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } as any;
 
   // Mock prepared statement
@@ -44,9 +44,9 @@ describe('Tag JSON Format Fix', () => {
       id: 'test-artwork-123',
       tags: '{"material": "bronze", "existing": "tag"}',
     };
-    
+
     mockStmt.first.mockResolvedValueOnce(mockArtwork);
-    
+
     // Mock successful submission
     const { createArtworkEditFromFields } = await import('../lib/submissions');
     vi.mocked(createArtworkEditFromFields).mockResolvedValue('submission-id-123');
@@ -76,7 +76,7 @@ describe('Tag JSON Format Fix', () => {
       id: 'test-artwork-123',
       tags: '{"existing": "tag"}',
     };
-    
+
     mockStmt.first.mockResolvedValueOnce(mockArtwork);
 
     // Mock function to throw error for invalid JSON
@@ -99,9 +99,9 @@ describe('Tag JSON Format Fix', () => {
     };
 
     // Should throw an error with the specific message we saw
-    await expect(createArtworkEditFromFields(mockDb, invalidTagsEdit))
-      .rejects
-      .toThrow('Invalid tags format: Unexpected token \'m\', "material: wood" is not valid JSON');
+    await expect(createArtworkEditFromFields(mockDb, invalidTagsEdit)).rejects.toThrow(
+      'Invalid tags format: Unexpected token \'m\', "material: wood" is not valid JSON'
+    );
   });
 
   test('should handle structured tags as JSON string', async () => {
@@ -110,9 +110,9 @@ describe('Tag JSON Format Fix', () => {
       id: 'test-artwork-123',
       tags: null,
     };
-    
+
     mockStmt.first.mockResolvedValueOnce(mockArtwork);
-    
+
     // Mock successful submission
     const { createArtworkEditFromFields } = await import('../lib/submissions');
     vi.mocked(createArtworkEditFromFields).mockResolvedValue('submission-id-456');
@@ -125,7 +125,11 @@ describe('Tag JSON Format Fix', () => {
         {
           field_name: 'tags',
           field_value_old: null,
-          field_value_new: JSON.stringify({ material: 'wood', artwork_type: 'statue', height: '2.5' }), // JSON string format
+          field_value_new: JSON.stringify({
+            material: 'wood',
+            artwork_type: 'statue',
+            height: '2.5',
+          }), // JSON string format
         },
       ],
     };

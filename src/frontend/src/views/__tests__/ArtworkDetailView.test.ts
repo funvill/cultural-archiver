@@ -555,9 +555,7 @@ describe('ArtworkDetailView', () => {
       await wrapper.vm.$nextTick();
 
       // Check if TagEditor component is rendered
-      const tagEditor = wrapper.find(
-        '.tag-editor, [class*="tag-editor"]'
-      );
+      const tagEditor = wrapper.find('.tag-editor, [class*="tag-editor"]');
       expect(tagEditor.exists()).toBe(true);
     });
 

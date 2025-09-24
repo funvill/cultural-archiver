@@ -1,6 +1,6 @@
 /**
  * Mass Import Plugin System - Plugin Registry
- * 
+ *
  * This module provides plugin discovery, registration, and validation functionality
  * for the modular mass import system.
  */
@@ -71,7 +71,7 @@ export class PluginRegistry {
    */
   registerImporter(plugin: ImporterPlugin, configPath?: string): void {
     const validation = this.validateImporter(plugin);
-    
+
     const entry: PluginRegistryEntry<ImporterPlugin> = {
       name: plugin.name,
       plugin,
@@ -95,9 +95,7 @@ export class PluginRegistry {
    * Get all available importer names
    */
   listImporters(): string[] {
-    return Array.from(this.importers.keys()).filter(name => 
-      this.importers.get(name)?.isValid
-    );
+    return Array.from(this.importers.keys()).filter(name => this.importers.get(name)?.isValid);
   }
 
   /**
@@ -133,7 +131,7 @@ export class PluginRegistry {
    */
   registerExporter(plugin: ExporterPlugin): void {
     const validation = this.validateExporter(plugin);
-    
+
     const entry: PluginRegistryEntry<ExporterPlugin> = {
       name: plugin.name,
       plugin,
@@ -156,9 +154,7 @@ export class PluginRegistry {
    * Get all available exporter names
    */
   listExporters(): string[] {
-    return Array.from(this.exporters.keys()).filter(name => 
-      this.exporters.get(name)?.isValid
-    );
+    return Array.from(this.exporters.keys()).filter(name => this.exporters.get(name)?.isValid);
   }
 
   /**
@@ -202,7 +198,7 @@ export class PluginRegistry {
         field: 'name',
         message: 'Plugin name is required and must be a string',
         severity: 'error',
-        code: 'MISSING_NAME'
+        code: 'MISSING_NAME',
       });
     }
 
@@ -211,7 +207,7 @@ export class PluginRegistry {
         field: 'description',
         message: 'Plugin description is required and must be a string',
         severity: 'error',
-        code: 'MISSING_DESCRIPTION'
+        code: 'MISSING_DESCRIPTION',
       });
     }
 
@@ -221,7 +217,7 @@ export class PluginRegistry {
         field: 'mapData',
         message: 'mapData method is required',
         severity: 'error',
-        code: 'MISSING_METHOD'
+        code: 'MISSING_METHOD',
       });
     }
 
@@ -230,7 +226,7 @@ export class PluginRegistry {
         field: 'validateData',
         message: 'validateData method is required',
         severity: 'error',
-        code: 'MISSING_METHOD'
+        code: 'MISSING_METHOD',
       });
     }
 
@@ -239,7 +235,7 @@ export class PluginRegistry {
         field: 'generateImportId',
         message: 'generateImportId method is required',
         severity: 'error',
-        code: 'MISSING_METHOD'
+        code: 'MISSING_METHOD',
       });
     }
 
@@ -249,7 +245,7 @@ export class PluginRegistry {
         field: 'supportedFormats',
         message: 'supportedFormats must be an array',
         severity: 'error',
-        code: 'INVALID_TYPE'
+        code: 'INVALID_TYPE',
       });
     }
 
@@ -258,7 +254,7 @@ export class PluginRegistry {
         field: 'requiredFields',
         message: 'requiredFields must be an array',
         severity: 'error',
-        code: 'INVALID_TYPE'
+        code: 'INVALID_TYPE',
       });
     }
 
@@ -268,14 +264,14 @@ export class PluginRegistry {
         field: 'metadata',
         message: 'Plugin metadata is recommended for better documentation',
         severity: 'warning',
-        code: 'MISSING_METADATA'
+        code: 'MISSING_METADATA',
       });
     }
 
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -292,7 +288,7 @@ export class PluginRegistry {
         field: 'name',
         message: 'Plugin name is required and must be a string',
         severity: 'error',
-        code: 'MISSING_NAME'
+        code: 'MISSING_NAME',
       });
     }
 
@@ -301,7 +297,7 @@ export class PluginRegistry {
         field: 'description',
         message: 'Plugin description is required and must be a string',
         severity: 'error',
-        code: 'MISSING_DESCRIPTION'
+        code: 'MISSING_DESCRIPTION',
       });
     }
 
@@ -311,7 +307,7 @@ export class PluginRegistry {
         field: 'export',
         message: 'export method is required',
         severity: 'error',
-        code: 'MISSING_METHOD'
+        code: 'MISSING_METHOD',
       });
     }
 
@@ -320,7 +316,7 @@ export class PluginRegistry {
         field: 'configure',
         message: 'configure method is required',
         severity: 'error',
-        code: 'MISSING_METHOD'
+        code: 'MISSING_METHOD',
       });
     }
 
@@ -329,7 +325,7 @@ export class PluginRegistry {
         field: 'validate',
         message: 'validate method is required',
         severity: 'error',
-        code: 'MISSING_METHOD'
+        code: 'MISSING_METHOD',
       });
     }
 
@@ -339,7 +335,7 @@ export class PluginRegistry {
         field: 'outputType',
         message: 'outputType must be one of: file, api, stream, console',
         severity: 'error',
-        code: 'INVALID_OUTPUT_TYPE'
+        code: 'INVALID_OUTPUT_TYPE',
       });
     }
 
@@ -348,7 +344,7 @@ export class PluginRegistry {
         field: 'requiresNetwork',
         message: 'requiresNetwork must be a boolean',
         severity: 'error',
-        code: 'INVALID_TYPE'
+        code: 'INVALID_TYPE',
       });
     }
 
@@ -358,14 +354,14 @@ export class PluginRegistry {
         field: 'supportedFormats',
         message: 'supportedFormats must be an array',
         severity: 'error',
-        code: 'INVALID_TYPE'
+        code: 'INVALID_TYPE',
       });
     }
 
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -398,7 +394,10 @@ export class PluginRegistry {
   /**
    * Validate importer/exporter name and provide suggestions
    */
-  validatePluginName(name: string, type: 'importer' | 'exporter'): {
+  validatePluginName(
+    name: string,
+    type: 'importer' | 'exporter'
+  ): {
     valid: boolean;
     message?: string;
     suggestions?: string[];
@@ -407,35 +406,31 @@ export class PluginRegistry {
       if (name === 'all') {
         return { valid: true };
       }
-      
+
       if (this.hasImporter(name)) {
         return { valid: true };
       }
-      
+
       const available = this.listImporters();
-      const suggestions = available.filter(imp => 
-        imp.includes(name) || name.includes(imp)
-      );
-      
+      const suggestions = available.filter(imp => imp.includes(name) || name.includes(imp));
+
       return {
         valid: false,
         message: `Unknown importer: "${name}". ${this.getImporterHelpMessage()}`,
-        suggestions: suggestions.length > 0 ? suggestions : available
+        suggestions: suggestions.length > 0 ? suggestions : available,
       };
     } else {
       if (this.hasExporter(name)) {
         return { valid: true };
       }
-      
+
       const available = this.listExporters();
-      const suggestions = available.filter(exp => 
-        exp.includes(name) || name.includes(exp)
-      );
-      
+      const suggestions = available.filter(exp => exp.includes(name) || name.includes(exp));
+
       return {
         valid: false,
         message: `Unknown exporter: "${name}". ${this.getExporterHelpMessage()}`,
-        suggestions: suggestions.length > 0 ? suggestions : available
+        suggestions: suggestions.length > 0 ? suggestions : available,
       };
     }
   }
@@ -449,7 +444,7 @@ export class PluginRegistry {
   } {
     const importerEntries = Array.from(this.importers.values());
     const exporterEntries = Array.from(this.exporters.values());
-    
+
     return {
       importers: {
         total: importerEntries.length,
@@ -460,7 +455,7 @@ export class PluginRegistry {
         total: exporterEntries.length,
         valid: exporterEntries.filter(e => e.isValid).length,
         invalid: exporterEntries.filter(e => !e.isValid).length,
-      }
+      },
     };
   }
 }

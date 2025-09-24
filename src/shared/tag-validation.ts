@@ -1,11 +1,16 @@
 /**
  * Tag Validation Functions
- * 
+ *
  * This module provides comprehensive validation for all tag data types
  * used in the structured tagging system.
  */
 
-import type { TagDefinition, TagDataType, TagValidationResult, StructuredTags } from './tag-schema.js';
+import type {
+  TagDefinition,
+  TagDataType,
+  TagValidationResult,
+  StructuredTags,
+} from './tag-schema.js';
 
 // ================================
 // Core Validation Functions
@@ -14,10 +19,7 @@ import type { TagDefinition, TagDataType, TagValidationResult, StructuredTags } 
 /**
  * Validate a single tag value against its definition
  */
-export function validateTagValue(
-  value: unknown,
-  definition: TagDefinition
-): TagValidationResult {
+export function validateTagValue(value: unknown, definition: TagDefinition): TagValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -108,12 +110,12 @@ function validateTextValue(
     const regex = new RegExp(definition.validation.pattern);
     if (!regex.test(value)) {
       let message = `${definition.label} format is invalid`;
-      
+
       // Add helpful format hints for common patterns
       if (definition.key === 'wikipedia') {
         message += '. Expected format: language:Article_Name (e.g., en:Statue_of_Liberty)';
       }
-      
+
       errors.push(message);
     }
   }
@@ -158,7 +160,9 @@ function validateNumberValue(
   if (definition.key === 'height' && numValue.toString().includes('.')) {
     const decimalPart = numValue.toString().split('.')[1];
     if (decimalPart && decimalPart.length > 2) {
-      warnings.push(`${definition.label} has high precision - consider rounding to 2 decimal places`);
+      warnings.push(
+        `${definition.label} has high precision - consider rounding to 2 decimal places`
+      );
     }
   }
 }
@@ -187,12 +191,14 @@ function validateDateValue(
     errors.push(`${definition.label} is invalid`);
     return;
   }
-  
+
   const year = parseInt(parts[0], 10);
-  
+
   // Validate year range (reasonable bounds for artwork)
   if (year < 1000 || year > new Date().getFullYear() + 10) {
-    errors.push(`${definition.label} year must be between 1000 and ${new Date().getFullYear() + 10}`);
+    errors.push(
+      `${definition.label} year must be between 1000 and ${new Date().getFullYear() + 10}`
+    );
     return;
   }
 
@@ -245,7 +251,9 @@ function validateYesNoValue(
 
   // Warning for case mismatch
   if (value !== lowerValue) {
-    warnings.push(`${definition.label} should be lowercase ('${lowerValue}' instead of '${value}')`);
+    warnings.push(
+      `${definition.label} should be lowercase ('${lowerValue}' instead of '${value}')`
+    );
   }
 }
 
@@ -267,17 +275,20 @@ function validateUrlValue(
 
   try {
     const url = new URL(value);
-    
+
     // Warning for HTTP (not HTTPS)
     if (url.protocol === 'http:') {
-      warnings.push(`${definition.label} uses HTTP instead of HTTPS - consider using a secure connection`);
+      warnings.push(
+        `${definition.label} uses HTTP instead of HTTPS - consider using a secure connection`
+      );
     }
 
     // Basic length check
     if (value.length > 500) {
-      warnings.push(`${definition.label} is very long (${value.length} characters) - consider using a shorter URL`);
+      warnings.push(
+        `${definition.label} is very long (${value.length} characters) - consider using a shorter URL`
+      );
     }
-
   } catch (error) {
     errors.push(`${definition.label} is not a valid URL`);
   }
@@ -335,8 +346,8 @@ export function validateStructuredTags(
         category: 'reference_data', // Default category for user-defined tags
         description: `User-defined tag: ${key}`,
         validation: {
-          maxLength: 500 // Reasonable default limit
-        }
+          maxLength: 500, // Reasonable default limit
+        },
       };
       results[key] = validateTagValue(value, defaultDefinition);
       return;
@@ -364,9 +375,7 @@ export function validateStructuredTags(
 /**
  * Get overall validation summary
  */
-export function getValidationSummary(
-  validationResults: Record<string, TagValidationResult>
-): {
+export function getValidationSummary(validationResults: Record<string, TagValidationResult>): {
   isValid: boolean;
   totalErrors: number;
   totalWarnings: number;
@@ -397,7 +406,10 @@ export function getValidationSummary(
 /**
  * Sanitize tag value based on its data type
  */
-export function sanitizeTagValue(value: unknown, dataType: TagDataType): string | number | boolean | null {
+export function sanitizeTagValue(
+  value: unknown,
+  dataType: TagDataType
+): string | number | boolean | null {
   if (value === null || value === undefined) {
     return null;
   }
@@ -409,20 +421,20 @@ export function sanitizeTagValue(value: unknown, dataType: TagDataType): string 
     case 'url':
     case 'wikidata_id':
       return stringValue.trim();
-    
+
     case 'enum':
       return stringValue.trim().toLowerCase();
-    
+
     case 'number':
       const numValue = Number(stringValue);
       return isNaN(numValue) ? stringValue.trim() : numValue;
-    
+
     case 'date':
       return stringValue.trim();
-    
+
     case 'yes_no':
       return stringValue.trim().toLowerCase();
-    
+
     default:
       return stringValue.trim();
   }

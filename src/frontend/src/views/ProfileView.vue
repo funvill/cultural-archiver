@@ -6,7 +6,11 @@ import BadgeGrid from '../components/BadgeGrid.vue';
 import ProfileNameEditor from '../components/ProfileNameEditor.vue';
 import { apiService } from '../services/api';
 import type { SubmissionRecord, UserBadgeResponse } from '../../../shared/types';
-import type { UserProfile, SearchResult, ArtworkDetailResponse as ArtworkDetails } from '../types/index';
+import type {
+  UserProfile,
+  SearchResult,
+  ArtworkDetailResponse as ArtworkDetails,
+} from '../types/index';
 
 type SubmissionWithData = SubmissionRecord & {
   data_parsed?: {
@@ -39,7 +43,8 @@ function toSearchResult(submission: SubmissionWithData): SearchResult {
   const linked = submission.artwork_id ? artworksById.value[submission.artwork_id] : undefined;
 
   // Best-effort title and artist with safe fallbacks
-  const titleFromSubmission = submission.data_parsed?.title ||
+  const titleFromSubmission =
+    submission.data_parsed?.title ||
     (submission.data_parsed?.tags?.title as string | undefined) ||
     (submission.data_parsed?.tags?.name as string | undefined) ||
     null;
@@ -47,41 +52,54 @@ function toSearchResult(submission: SubmissionWithData): SearchResult {
   const artistFromSubmission = (submission.data_parsed?.tags?.artist as string | undefined) || null;
 
   const photos = submission.data_parsed?.photos || [];
-  const recentPhotoFromSubmission = photos.length > 0 && photos[0]?.url ? String(photos[0].url) : null;
+  const recentPhotoFromSubmission =
+    photos.length > 0 && photos[0]?.url ? String(photos[0].url) : null;
 
   // Determine card fields
   const id = linked?.id || submission.artwork_id || submission.id;
   const lat = linked?.lat ?? submission.lat ?? 0;
   const lon = linked?.lon ?? submission.lon ?? 0;
-  const typeName = linked?.type_name || (submission.data_parsed?.tags?.artwork_type as string) || submission.artwork_type_name || 'artwork';
+  const typeName =
+    linked?.type_name ||
+    (submission.data_parsed?.tags?.artwork_type as string) ||
+    submission.artwork_type_name ||
+    'artwork';
 
   // Title: prefer artwork.title, then submission, else explicit fallback
-  const resolvedTitle = (linked?.title && linked.title.trim().length > 0)
-    ? linked.title
-    : (titleFromSubmission && titleFromSubmission.trim().length > 0)
-      ? titleFromSubmission
-      : 'Unknown Artwork Title';
+  const resolvedTitle =
+    linked?.title && linked.title.trim().length > 0
+      ? linked.title
+      : titleFromSubmission && titleFromSubmission.trim().length > 0
+        ? titleFromSubmission
+        : 'Unknown Artwork Title';
 
   // Artist: prefer artwork.artist_name/created_by, then submission tag, else fallback
-  const resolvedArtist = (linked?.artist_name && linked.artist_name.trim().length > 0)
-    ? linked.artist_name
-    : (linked?.created_by && linked.created_by.trim().length > 0)
-      ? linked.created_by
-      : (artistFromSubmission && artistFromSubmission.trim().length > 0)
-        ? artistFromSubmission
-        : 'Unknown Artist';
+  const resolvedArtist =
+    linked?.artist_name && linked.artist_name.trim().length > 0
+      ? linked.artist_name
+      : linked?.created_by && linked.created_by.trim().length > 0
+        ? linked.created_by
+        : artistFromSubmission && artistFromSubmission.trim().length > 0
+          ? artistFromSubmission
+          : 'Unknown Artist';
 
   // Photo and counts: prefer submission photos for the thumbnail, fallback to artwork if none
   const recentPhoto = recentPhotoFromSubmission
     ? recentPhotoFromSubmission
-    : (Array.isArray(linked?.photos) && linked!.photos[0])
+    : Array.isArray(linked?.photos) && linked!.photos[0]
       ? String(linked!.photos[0])
       : null;
-  const photoCount = (photos.length || 0) > 0
-    ? photos.length
-    : (Array.isArray(linked?.photos) ? linked!.photos.length : 0);
+  const photoCount =
+    (photos.length || 0) > 0
+      ? photos.length
+      : Array.isArray(linked?.photos)
+        ? linked!.photos.length
+        : 0;
 
-  const tags = (linked?.tags_parsed as Record<string, unknown>) || (submission.data_parsed?.tags as Record<string, unknown>) || null;
+  const tags =
+    (linked?.tags_parsed as Record<string, unknown>) ||
+    (submission.data_parsed?.tags as Record<string, unknown>) ||
+    null;
 
   return {
     id,
@@ -135,7 +153,7 @@ const filteredAndSortedSubmissions = computed(() => {
     if (s.lon !== null && s.lon !== undefined) {
       data_parsed.lon = s.lon;
     }
-    
+
     let artwork_type_name = 'Submission';
     if (data_parsed.tags?.artwork_type) {
       artwork_type_name = (data_parsed.tags.artwork_type as string).replace(/_/g, ' ');
@@ -159,14 +177,17 @@ const filteredAndSortedSubmissions = computed(() => {
 
 const submissionStats = computed(() => {
   return submissions.value.reduce(
-    (acc: { total: number; pending: number; approved: number; rejected: number }, s: SubmissionWithData) => {
+    (
+      acc: { total: number; pending: number; approved: number; rejected: number },
+      s: SubmissionWithData
+    ) => {
       acc.total++;
       if (s.status === 'pending') acc.pending++;
       else if (s.status === 'approved') acc.approved++;
       else if (s.status === 'rejected') acc.rejected++;
       return acc;
     },
-    { total: 0, pending: 0, approved: 0, rejected: 0 },
+    { total: 0, pending: 0, approved: 0, rejected: 0 }
   );
 });
 
@@ -180,10 +201,7 @@ async function fetchUserProfile() {
       // TODO: Update UserProfile type to include profile_name when backend is updated
       currentProfileName.value = null;
     }
-    await Promise.all([
-      fetchUserSubmissions(),
-      fetchUserBadges()
-    ]);
+    await Promise.all([fetchUserSubmissions(), fetchUserBadges()]);
   } catch (err) {
     error.value = 'Failed to fetch user profile.';
     console.error(err);
@@ -227,7 +245,7 @@ async function fetchLinkedArtworks() {
       }
     })
   );
-  results.forEach((r) => {
+  results.forEach(r => {
     if (r) {
       artworksById.value[r.id] = r.details;
     }
@@ -292,7 +310,9 @@ onMounted(fetchUserProfile);
       <header class="mb-8">
         <h1 class="text-3xl font-bold tracking-tight text-gray-900">My Profile</h1>
         <p class="mt-2 text-lg text-gray-600">
-          Welcome back, <span class="font-semibold">{{ profile.debug?.user_info?.email || 'Contributor' }}</span>.
+          Welcome back,
+          <span class="font-semibold">{{ profile.debug?.user_info?.email || 'Contributor' }}</span
+          >.
         </p>
       </header>
 
@@ -320,7 +340,7 @@ onMounted(fetchUserProfile);
       <section class="mb-8">
         <div class="bg-white p-6 rounded-lg shadow">
           <h2 class="text-xl font-semibold text-gray-900 mb-4">Profile Settings</h2>
-          <ProfileNameEditor 
+          <ProfileNameEditor
             :currentProfileName="currentProfileName"
             @profile-updated="onProfileUpdated"
           />

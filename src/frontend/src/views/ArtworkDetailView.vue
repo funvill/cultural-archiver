@@ -155,7 +155,7 @@ const artworkTags = computed(() => {
 
   // Convert legacy tags_parsed format to structured tags
   const filteredTags = { ...artwork.value.tags_parsed };
-  
+
   // Remove special fields that are handled separately
   delete filteredTags.title;
   delete filteredTags.description;
@@ -181,12 +181,13 @@ const artworkTags = computed(() => {
 
 // Extract keywords (comma separated) from structured tags if present
 const keywordList = computed(() => {
-  const kwRaw = (artworkTags.value as any).keywords || (artwork.value?.tags_parsed?.keywords as string);
+  const kwRaw =
+    (artworkTags.value as any).keywords || (artwork.value?.tags_parsed?.keywords as string);
   if (!kwRaw) return [] as string[];
   return kwRaw
-  .split(',')
-  .map((k: string) => k.trim())
-  .filter((k: string) => k.length > 0)
+    .split(',')
+    .map((k: string) => k.trim())
+    .filter((k: string) => k.length > 0)
     .slice(0, 100); // safety limit
 });
 
@@ -195,7 +196,9 @@ const displayTags = computed(() => {
   const clone = { ...artworkTags.value } as Record<string, string>;
   delete clone.keywords; // keywords rendered separately
   // Double-safety: ensure no internal tags leak
-  Object.keys(clone).forEach(k => { if (k.startsWith('_')) delete clone[k]; });
+  Object.keys(clone).forEach(k => {
+    if (k.startsWith('_')) delete clone[k];
+  });
   return clone;
 });
 
@@ -251,15 +254,17 @@ const renderedDescription = computed(() => {
 
 // Basic sanitizer (not full-proof; for stronger security consider a library like DOMPurify)
 function sanitizeMarkdownHtml(input: string): string {
-  return input
-    // Remove script tags
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-    // Remove on*="..." event handlers
-    .replace(/ on[a-zA-Z]+="[^"]*"/g, '')
-    .replace(/ on[a-zA-Z]+='[^']*'/g, '')
-    // Remove javascript: URLs
-    .replace(/href\s*=\s*"javascript:[^"]*"/gi, 'href="#"')
-    .replace(/href\s*=\s*'javascript:[^']*'/gi, "href='#'");
+  return (
+    input
+      // Remove script tags
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      // Remove on*="..." event handlers
+      .replace(/ on[a-zA-Z]+="[^"]*"/g, '')
+      .replace(/ on[a-zA-Z]+='[^']*'/g, '')
+      // Remove javascript: URLs
+      .replace(/href\s*=\s*"javascript:[^"]*"/gi, 'href="#"')
+      .replace(/href\s*=\s*'javascript:[^']*'/gi, "href='#'")
+  );
 }
 
 const displayCreators = computed(() => {
@@ -269,14 +274,16 @@ const displayCreators = computed(() => {
 const displayCreatorsList = computed(() => {
   const creators = displayCreators.value;
   if (creators === 'Unknown' || !creators) return [];
-  
+
   // Split on comma and clean up names, filtering out system-generated values
-  return creators.split(',')
+  return creators
+    .split(',')
     .map((name: string) => name.trim())
     .filter((name: string) => {
       // Filter out empty names, UUIDs, and artist IDs
       if (!name || name === 'Unknown') return false;
-      if (name.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) return false;
+      if (name.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i))
+        return false;
       if (name.startsWith('Artist ID:')) return false;
       return true;
     });
@@ -326,17 +333,23 @@ onMounted(async () => {
     if (!artworkData) {
       error.value = `Artwork with ID "${props.id}" was not found. It may have been removed or is pending approval.`;
       announceError('Artwork not found');
-    // Try to locate a submission whose artwork_id matches this ID (best-effort, moderator only)
-  if (authStore?.canReview) {
+      // Try to locate a submission whose artwork_id matches this ID (best-effort, moderator only)
+      if (authStore?.canReview) {
         try {
           // Heuristic: call review queue (small limit) and scan for matching artwork_id
           // Use apiService.getReviewQueue if available in this scope; lazy import fallback
           // We keep it lightweight to avoid large queries.
           // @ts-ignore - dynamic access
           const reviewModule = await import('../services/api');
-          const queueResp: any = await reviewModule.apiService.getReviewQueue('pending', undefined, 1, 25);
-          const submissionsList = (queueResp as any).submissions || (queueResp?.data?.submissions) || [];
-          const match = submissionsList.find((s: any) => (s.artwork_id && s.artwork_id === props.id));
+          const queueResp: any = await reviewModule.apiService.getReviewQueue(
+            'pending',
+            undefined,
+            1,
+            25
+          );
+          const submissionsList =
+            (queueResp as any).submissions || queueResp?.data?.submissions || [];
+          const match = submissionsList.find((s: any) => s.artwork_id && s.artwork_id === props.id);
           if (match) {
             originatingSubmissionId.value = match.id;
           }
@@ -358,12 +371,18 @@ onMounted(async () => {
     const message = err instanceof Error ? err.message : 'Failed to load artwork';
     if (message.includes('404') || message.includes('not found')) {
       error.value = `Artwork with ID "${props.id}" was not found. It may have been removed or is pending approval.`;
-  if (authStore?.canReview) {
+      if (authStore?.canReview) {
         try {
           const reviewModule = await import('../services/api');
-          const queueResp: any = await reviewModule.apiService.getReviewQueue('pending', undefined, 1, 25);
-          const submissionsList = (queueResp as any).submissions || (queueResp?.data?.submissions) || [];
-          const match = submissionsList.find((s: any) => (s.artwork_id && s.artwork_id === props.id));
+          const queueResp: any = await reviewModule.apiService.getReviewQueue(
+            'pending',
+            undefined,
+            1,
+            25
+          );
+          const submissionsList =
+            (queueResp as any).submissions || queueResp?.data?.submissions || [];
+          const match = submissionsList.find((s: any) => s.artwork_id && s.artwork_id === props.id);
           if (match) {
             originatingSubmissionId.value = match.id;
           }
@@ -380,7 +399,7 @@ onMounted(async () => {
     announceError('Failed to load artwork details');
   } finally {
     loading.value = false;
-    
+
     // Check for submission success parameter
     if (route.query.submitted === 'true') {
       showSuccessToast('Logbook entry submitted for review!');
@@ -450,14 +469,13 @@ function enterEditMode(): void {
     title: artworkTitle.value,
     description: artworkDescription.value || '',
     creators: artworkCreators.value,
-  tags: { keywords: '', ...artworkTags.value }, // Copy structured tags, ensure keywords key exists
+    tags: { keywords: '', ...artworkTags.value }, // Copy structured tags, ensure keywords key exists
   };
 
   isEditMode.value = true;
   editError.value = null;
   announceSuccess('Entering edit mode');
 }
-
 
 function cancelEdit(): void {
   if (hasUnsavedChanges.value) {
@@ -520,7 +538,7 @@ async function saveEdit(): Promise<void> {
     // Tags edit - send structured tags as JSON to backend
     const originalTags = artworkTags.value;
     const hasTagChanges = JSON.stringify(editData.value.tags) !== JSON.stringify(originalTags);
-    
+
     if (hasTagChanges) {
       edits.push({
         field_name: 'tags',
@@ -619,26 +637,37 @@ async function checkPendingEdits(): Promise<void> {
           />
         </svg>
         <h1 class="text-2xl font-bold text-gray-900 mb-2">
-          <template v-if="(authStore?.canReview) && error?.includes('pending approval')">
+          <template v-if="authStore?.canReview && error?.includes('pending approval')">
             Artwork Pending Approval
           </template>
-          <template v-else>
-            Artwork Not Found
-          </template>
+          <template v-else> Artwork Not Found </template>
         </h1>
         <p class="text-gray-600 mb-6">{{ error }}</p>
-  <div v-if="authStore?.canReview && originatingSubmissionId" class="mb-4 text-sm text-gray-700">
+        <div
+          v-if="authStore?.canReview && originatingSubmissionId"
+          class="mb-4 text-sm text-gray-700"
+        >
           <p class="mb-1">Originating submission ID:</p>
-          <code class="px-2 py-1 bg-gray-100 rounded text-gray-800 text-xs">{{ originatingSubmissionId }}</code>
+          <code class="px-2 py-1 bg-gray-100 rounded text-gray-800 text-xs">{{
+            originatingSubmissionId
+          }}</code>
         </div>
         <!-- Moderator deep link: only show if user has reviewer permissions -->
-  <div v-if="authStore?.canReview && props.id && error?.includes('pending approval')" class="mb-6">
-          <p class="text-sm text-gray-700 mb-2">If this artwork was just submitted it may still be pending. You can review it now:</p>
+        <div
+          v-if="authStore?.canReview && props.id && error?.includes('pending approval')"
+          class="mb-6"
+        >
+          <p class="text-sm text-gray-700 mb-2">
+            If this artwork was just submitted it may still be pending. You can review it now:
+          </p>
           <router-link
             :to="{ path: '/review', query: { searchId: originatingSubmissionId || props.id } }"
             class="inline-block px-3 py-2 text-sm bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-500"
           >
-            <template v-if="originatingSubmissionId">Open Review Queue (submission {{ originatingSubmissionId.substring(0,8) }}…)</template>
+            <template v-if="originatingSubmissionId"
+              >Open Review Queue (submission
+              {{ originatingSubmissionId.substring(0, 8) }}…)</template
+            >
             <template v-else>Open Review Queue for {{ props.id.substring(0, 8) }}…</template>
           </router-link>
         </div>
@@ -713,12 +742,27 @@ async function checkPendingEdits(): Promise<void> {
             </svg>
             {{ hasPendingEdits ? 'Edit Disabled' : 'Edit Artwork' }}
           </button>
+          <!-- Add Logbook Entry button - opens the fast submit workflow with this artwork pre-selected -->
+          <button
+            @click="router.push({ path: `/logbook/${props.id}` })"
+            aria-label="Add logbook entry"
+            class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 4v16m8-8H4"
+              />
+            </svg>
+            Add log
+          </button>
         </div>
       </div>
 
-  <!-- Header with artwork info (icon/type row removed as requested) -->
-  <div class="mb-6">
-
+      <!-- Header with artwork info (icon/type row removed as requested) -->
+      <div class="mb-6">
         <!-- Title (editable in edit mode) -->
         <div v-if="!isEditMode">
           <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 leading-tight">
@@ -756,7 +800,7 @@ async function checkPendingEdits(): Promise<void> {
             </div>
             <!-- Show legacy creator info as well if different from linked artists -->
             <div v-if="hasDisplayableCreators" class="text-sm text-gray-500 italic">
-              Legacy: 
+              Legacy:
               <span v-for="(creatorName, index) in displayCreatorsList" :key="creatorName">
                 <button
                   @click="navigateToArtistSearch(creatorName)"
@@ -781,9 +825,7 @@ async function checkPendingEdits(): Promise<void> {
               <span v-if="index < displayCreatorsList.length - 1">, </span>
             </span>
           </div>
-          <div v-else class="text-gray-500 italic">
-            Artist unknown
-          </div>
+          <div v-else class="text-gray-500 italic">Artist unknown</div>
         </div>
         <div v-else-if="isEditMode" class="mb-4">
           <label for="edit-creators" class="block text-sm font-medium text-gray-700 mb-1"
@@ -1094,7 +1136,8 @@ async function checkPendingEdits(): Promise<void> {
                     placeholder="outdoor, landmark, bronze, abstract"
                   ></textarea>
                   <p class="text-xs text-gray-500 mt-1">
-                    {{ (editData.tags.keywords || '').length }}/500 characters. Separate with commas.
+                    {{ (editData.tags.keywords || '').length }}/500 characters. Separate with
+                    commas.
                   </p>
                 </div>
                 <TagEditor
@@ -1102,8 +1145,8 @@ async function checkPendingEdits(): Promise<void> {
                   v-model="editData.tags"
                   :disabled="editLoading"
                   :max-tags="30"
-                  @tagAdded="(key) => announceSuccess(`Tag '${key}' added`)"
-                  @tagRemoved="(key) => announceSuccess(`Tag '${key}' removed`)"
+                  @tagAdded="key => announceSuccess(`Tag '${key}' added`)"
+                  @tagRemoved="key => announceSuccess(`Tag '${key}' removed`)"
                 />
               </div>
             </section>
@@ -1271,7 +1314,11 @@ async function checkPendingEdits(): Promise<void> {
   >
     <div class="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center">
       <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+        <path
+          fill-rule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+          clip-rule="evenodd"
+        ></path>
       </svg>
       <span>{{ toastMessage }}</span>
     </div>

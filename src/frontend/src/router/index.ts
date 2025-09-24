@@ -7,18 +7,19 @@ const HomeView = (): Promise<Component> => import('../views/HomeView.vue');
 const HelpView = (): Promise<Component> => import('../views/HelpView.vue');
 const StatusView = (): Promise<Component> => import('../views/StatusView.vue');
 const MapView = (): Promise<Component> => import('../views/MapView.vue');
-const SubmitView = (): Promise<Component> => import('../views/SubmitView.vue');
 const ArtworkDetailView = (): Promise<Component> => import('../views/ArtworkDetailView.vue');
 const ArtworkIndexView = (): Promise<Component> => import('../views/ArtworkIndexView.vue');
 const ArtistIndexView = (): Promise<Component> => import('../views/ArtistIndexView.vue');
 const ProfileView = (): Promise<Component> => import('../views/ProfileView.vue');
-const ProfileNotificationsView = (): Promise<Component> => import('../views/ProfileNotificationsView.vue');
+const ProfileNotificationsView = (): Promise<Component> =>
+  import('../views/ProfileNotificationsView.vue');
 const ReviewView = (): Promise<Component> => import('../views/ReviewView.vue');
 const AdminView = (): Promise<Component> => import('../views/AdminView.vue');
 const VerifyView = (): Promise<Component> => import('../views/VerifyView.vue');
 const SearchView = (): Promise<Component> => import('../views/SearchView.vue');
 const FastPhotoUploadView = (): Promise<Component> => import('../views/FastPhotoUploadView.vue');
-const LogbookSubmissionView = (): Promise<Component> => import('../views/LogbookSubmissionView.vue');
+const LogbookSubmissionView = (): Promise<Component> =>
+  import('../views/LogbookSubmissionView.vue');
 const PublicProfileView = (): Promise<Component> => import('../views/PublicProfileView.vue');
 
 const router = createRouter({
@@ -48,14 +49,7 @@ const router = createRouter({
         title: 'Add Artwork - Cultural Archiver',
       },
     },
-    {
-      path: '/submit',
-      name: 'Submit',
-      component: SubmitView,
-      meta: {
-        title: 'Submit Artwork - Cultural Archiver',
-      },
-    },
+    // /submit route removed: use /add for new artwork fast-photo submissions
     {
       path: '/artworks',
       name: 'ArtworkIndex',

@@ -98,11 +98,13 @@ onMounted(() => {
         <div id="welcome-description" class="px-6 pb-6">
           <div class="space-y-4 text-gray-700">
             <p class="text-lg leading-relaxed">
-              Public art is fragile. Murals fade, sculptures crumble, stories vanish. If no one honors them, they are lost — forever.
+              Public art is fragile. Murals fade, sculptures crumble, stories vanish. If no one
+              honors them, they are lost — forever.
             </p>
 
             <p class="text-lg leading-relaxed">
-              By preserving artworks and committing them to this archive, you safeguard our shared cultural story — a legacy of memory and meaning for generations yet to come.
+              By preserving artworks and committing them to this archive, you safeguard our shared
+              cultural story — a legacy of memory and meaning for generations yet to come.
             </p>
 
             <p class="text-lg leading-relaxed font-semibold">
@@ -132,7 +134,7 @@ onMounted(() => {
                 🗺️ Explore the Map
               </button>
             </div>
-            
+
             <button
               @click="goToHelp"
               class="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"

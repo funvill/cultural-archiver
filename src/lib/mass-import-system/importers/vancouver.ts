@@ -1,6 +1,6 @@
 /**
  * Mass Import System - Vancouver Open Data Mapper
- * 
+ *
  * This module handles mapping Vancouver Public Art dataset to the internal format,
  * including field transformation, coordinate validation, and structured tag application.
  */
@@ -51,28 +51,33 @@ let artistLookupCache: Map<number, string> | null = null;
  */
 function getArtistNameById(artistId: number | string): string {
   const artistLookup = loadArtistLookup();
-  
+
   try {
     // Convert to number if it's a string
     const id = typeof artistId === 'string' ? parseInt(artistId, 10) : artistId;
-    
+
     if (isNaN(id)) {
-      console.log(`[VANCOUVER_ARTIST_DEBUG] Invalid artist ID format: "${artistId}" - using fallback format`);
+      console.log(
+        `[VANCOUVER_ARTIST_DEBUG] Invalid artist ID format: "${artistId}" - using fallback format`
+      );
       return `Vancouver Open data Artist ID=${artistId}`;
     }
-    
+
     // Look up the artist name in our cached data
     const artistName = artistLookup.get(id);
-    
+
     if (artistName && artistName.trim()) {
-      console.log(`[VANCOUVER_ARTIST_DEBUG] Found artist name for ID ${id}: "${artistName.trim()}"`);
+      console.log(
+        `[VANCOUVER_ARTIST_DEBUG] Found artist name for ID ${id}: "${artistName.trim()}"`
+      );
       return artistName.trim();
     }
-    
+
     // Fallback format if artist not found
-    console.log(`[VANCOUVER_ARTIST_DEBUG] No artist data found for ID ${id} - using fallback format`);
+    console.log(
+      `[VANCOUVER_ARTIST_DEBUG] No artist data found for ID ${id} - using fallback format`
+    );
     return `Vancouver Open data Artist ID=${id}`;
-    
   } catch (error) {
     console.warn(`[VANCOUVER_ARTIST_DEBUG] Error processing artist ID: ${artistId}`, error);
     return `Vancouver Open data Artist ID=${artistId}`;
@@ -114,41 +119,48 @@ function loadArtistLookup(): Map<number, string> {
     }
 
     if (!artistData) {
-      console.warn('[VANCOUVER_ARTIST_DEBUG] Could not load Vancouver artist data file. Artist names will not be resolved.');
+      console.warn(
+        '[VANCOUVER_ARTIST_DEBUG] Could not load Vancouver artist data file. Artist names will not be resolved.'
+      );
       artistLookupCache = new Map();
       return artistLookupCache;
     }
 
     console.log(`[VANCOUVER_ARTIST_DEBUG] Loaded ${artistData.length} artists from ${usedPath}`);
-    
+
     // Create the lookup map
     artistLookupCache = new Map();
-    
+
     for (const artist of artistData) {
       // Build artist name from firstname and lastname
       const nameParts: string[] = [];
-      
+
       if (artist.firstname && artist.firstname.trim()) {
         nameParts.push(artist.firstname.trim());
       }
-      
+
       if (artist.lastname && artist.lastname.trim()) {
         nameParts.push(artist.lastname.trim());
       }
-      
+
       const fullName = nameParts.join(' ').trim();
-      
+
       if (fullName) {
         artistLookupCache.set(artist.artistid, fullName);
-        console.log(`[VANCOUVER_ARTIST_DEBUG] Mapped artist ID ${artist.artistid} -> "${fullName}"`);
+        console.log(
+          `[VANCOUVER_ARTIST_DEBUG] Mapped artist ID ${artist.artistid} -> "${fullName}"`
+        );
       } else {
-        console.log(`[VANCOUVER_ARTIST_DEBUG] No valid name found for artist ID ${artist.artistid} (firstname: "${artist.firstname}", lastname: "${artist.lastname}")`);
+        console.log(
+          `[VANCOUVER_ARTIST_DEBUG] No valid name found for artist ID ${artist.artistid} (firstname: "${artist.firstname}", lastname: "${artist.lastname}")`
+        );
       }
     }
 
-    console.log(`[VANCOUVER_ARTIST_DEBUG] Created artist lookup map with ${artistLookupCache.size} entries`);
+    console.log(
+      `[VANCOUVER_ARTIST_DEBUG] Created artist lookup map with ${artistLookupCache.size} entries`
+    );
     return artistLookupCache;
-    
   } catch (error) {
     console.error('Error loading Vancouver artist data:', error);
     artistLookupCache = new Map();
@@ -171,21 +183,23 @@ export const VancouverMapper: DataSourceMapper = {
     try {
       // Transform Vancouver data to RawImportData format
       const mappedData = mapVancouverToRawData(rawData);
-      
+
       // Handle null return (artwork should be skipped)
       if (!mappedData) {
         return {
           isValid: false,
-          errors: [{
-            field: 'coordinates',
-            message: `Artwork ${rawData.registryid} skipped: No valid coordinates found`,
-            severity: 'error',
-            code: 'MISSING_COORDINATES',
-          }],
+          errors: [
+            {
+              field: 'coordinates',
+              message: `Artwork ${rawData.registryid} skipped: No valid coordinates found`,
+              severity: 'error',
+              code: 'MISSING_COORDINATES',
+            },
+          ],
           warnings: [],
         };
       }
-      
+
       // Use the standard validation with Vancouver-specific config
       const config = {
         apiEndpoint: 'https://art-api.abluestar.com',
@@ -202,12 +216,14 @@ export const VancouverMapper: DataSourceMapper = {
     } catch (error) {
       return {
         isValid: false,
-        errors: [{
-          field: 'mapping',
-          message: `Failed to map Vancouver data: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          severity: 'error',
-          code: 'MAPPING_ERROR',
-        }],
+        errors: [
+          {
+            field: 'mapping',
+            message: `Failed to map Vancouver data: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            severity: 'error',
+            code: 'MAPPING_ERROR',
+          },
+        ],
         warnings: [],
       };
     }
@@ -244,22 +260,26 @@ function mapVancouverToRawData(data: VancouverArtworkData): RawImportData | null
   // Extract coordinates with proper null checking
   let lat: number | undefined;
   let lon: number | undefined;
-  
+
   if (data.geo_point_2d?.lat && data.geo_point_2d?.lon) {
     lat = data.geo_point_2d.lat;
     lon = data.geo_point_2d.lon;
   } else if (data.geom?.geometry?.coordinates && Array.isArray(data.geom.geometry.coordinates)) {
     [lon, lat] = data.geom.geometry.coordinates; // GeoJSON is [lon, lat]
   }
-  
+
   if (!lat || !lon || !isFinite(lat) || !isFinite(lon)) {
-    console.warn(`Skipping artwork ${data.registryid} (${data.title_of_work}): No valid coordinates found`);
+    console.warn(
+      `Skipping artwork ${data.registryid} (${data.title_of_work}): No valid coordinates found`
+    );
     return null; // Skip this artwork
   }
 
   // Validate coordinates are within Vancouver bounds
   if (!VancouverMapper.validateBounds!(lat, lon)) {
-    console.warn(`Artwork ${data.registryid} (${data.title_of_work}): Coordinates (${lat}, ${lon}) are outside Vancouver bounds`);
+    console.warn(
+      `Artwork ${data.registryid} (${data.title_of_work}): Coordinates (${lat}, ${lon}) are outside Vancouver bounds`
+    );
     // Continue processing but log the warning - these might still be valid artworks
   }
 
@@ -271,46 +291,46 @@ function mapVancouverToRawData(data: VancouverArtworkData): RawImportData | null
 
   // Build description from available fields
   const descriptionParts: string[] = [];
-  
+
   if (data.descriptionofwork) {
     descriptionParts.push(`**Description Of Work**\n${data.descriptionofwork}\n\n`);
   }
-  
+
   if (data.artistprojectstatement) {
     descriptionParts.push(`**Artist statement**\n${data.artistprojectstatement}\n\n`);
   }
 
   // Add additional metadata fields
   const metadataParts: string[] = [];
-  
+
   if (data.registryid) {
     metadataParts.push(`**Registry ID:** ${data.registryid}`);
   }
-  
+
   if (data.status) {
     metadataParts.push(`**Status:** ${data.status}`);
   }
-  
+
   if (data.sitename) {
     metadataParts.push(`**Site Name:** ${data.sitename}`);
   }
-  
+
   if (data.siteaddress) {
     metadataParts.push(`**Site Address:** ${data.siteaddress}`);
   }
-  
+
   if (data.primarymaterial) {
     metadataParts.push(`**Primary Material:** ${data.primarymaterial}`);
   }
-  
+
   if (data.locationonsite) {
     metadataParts.push(`**Location on Site:** ${data.locationonsite}`);
   }
-  
+
   if (data.artists && data.artists.length > 0) {
     metadataParts.push(`**Artists:** ${data.artists.join(', ')}`);
   }
-  
+
   if (data.yearofinstallation) {
     metadataParts.push(`**Year of Installation:** ${data.yearofinstallation}`);
   }
@@ -320,10 +340,12 @@ function mapVancouverToRawData(data: VancouverArtworkData): RawImportData | null
   if (metadataParts.length > 0) {
     allParts.push(`**Additional Information:**\n${metadataParts.join('\n\n')}`);
   }
-  
+
   // Add data source attribution
-  allParts.push('Imported from Vancouver Open Data - [Open Government Licence](https://opendata.vancouver.ca/explore/dataset/public-art/).');
-  
+  allParts.push(
+    'Imported from Vancouver Open Data - [Open Government Licence](https://opendata.vancouver.ca/explore/dataset/public-art/).'
+  );
+
   const description = allParts.join('\n\n');
 
   // Extract artist information
@@ -365,11 +387,15 @@ function mapVancouverToRawData(data: VancouverArtworkData): RawImportData | null
  */
 function extractArtistName(data: VancouverArtworkData): string | undefined {
   if (!data.artists || data.artists.length === 0) {
-    console.log(`[VANCOUVER_ARTIST_DEBUG] No artists found for artwork ${data.registryid} (${data.title_of_work})`);
+    console.log(
+      `[VANCOUVER_ARTIST_DEBUG] No artists found for artwork ${data.registryid} (${data.title_of_work})`
+    );
     return undefined;
   }
 
-  console.log(`[VANCOUVER_ARTIST_DEBUG] Processing ${data.artists.length} artist(s) for artwork ${data.registryid} (${data.title_of_work}): [${data.artists.join(', ')}]`);
+  console.log(
+    `[VANCOUVER_ARTIST_DEBUG] Processing ${data.artists.length} artist(s) for artwork ${data.registryid} (${data.title_of_work}): [${data.artists.join(', ')}]`
+  );
 
   const artistNames: string[] = [];
 
@@ -382,7 +408,9 @@ function extractArtistName(data: VancouverArtworkData): string | undefined {
   }
 
   const finalArtistString = artistNames.length > 0 ? artistNames.join(', ') : undefined;
-  console.log(`[VANCOUVER_ARTIST_DEBUG] Final artist string for artwork ${data.registryid}: "${finalArtistString}"`);
+  console.log(
+    `[VANCOUVER_ARTIST_DEBUG] Final artist string for artwork ${data.registryid}: "${finalArtistString}"`
+  );
 
   // Return comma-separated list of artist names
   return finalArtistString;
@@ -410,13 +438,15 @@ function extractPhotoInfo(data: VancouverArtworkData): PhotoInfo[] {
  * Build structured tags from Vancouver data
  * All dataset fields become tags in the logbook entry for comprehensive metadata tracking
  */
-function buildStructuredTags(data: VancouverArtworkData): Record<string, string | number | boolean> {
+function buildStructuredTags(
+  data: VancouverArtworkData
+): Record<string, string | number | boolean> {
   const tags: Record<string, string | number | boolean> = {};
 
   // Core identification
   tags.registry_id = data.registryid.toString();
   tags.external_id = data.registryid.toString(); // For duplicate detection
-  
+
   // Add source tag for bulk approval filtering
   tags.source = 'vancouver-opendata';
 
@@ -464,7 +494,7 @@ function buildStructuredTags(data: VancouverArtworkData): Record<string, string 
   if (neighbourhood) {
     tags.neighbourhood = neighbourhood;
   }
-  
+
   if (data.geo_local_area && data.geo_local_area !== data.neighbourhood) {
     tags.geo_local_area = data.geo_local_area;
   }
@@ -513,7 +543,7 @@ function buildStructuredTags(data: VancouverArtworkData): Record<string, string 
   // Additional Vancouver-specific metadata
   tags.data_source = 'vancouver_open_data';
   tags.license = 'Open Government Licence – Vancouver';
-  
+
   // Add a Vancouver-specific identifier for filtering
   tags.city = 'vancouver';
   tags.province = 'british_columbia';
@@ -528,21 +558,21 @@ function buildStructuredTags(data: VancouverArtworkData): Record<string, string 
  */
 function mapVancouverStatusToCondition(status: string): string {
   const normalized = status.toLowerCase().trim();
-  
+
   // Map based on the specified requirements
   const statusMap: Record<string, string> = {
     'no longer in place': 'removed',
     'in place': 'good',
     'in progress': 'unknown',
-    'deaccessioned': 'removed',
+    deaccessioned: 'removed',
     // Additional common variations
-    'installed': 'good',
-    'active': 'good',
-    'removed': 'removed',
-    'demolished': 'removed',
-    'relocated': 'unknown',
+    installed: 'good',
+    active: 'good',
+    removed: 'removed',
+    demolished: 'removed',
+    relocated: 'unknown',
     'in storage': 'unknown',
-    'unknown': 'unknown',
+    unknown: 'unknown',
   };
 
   return statusMap[normalized] || 'unknown';
@@ -554,16 +584,16 @@ function mapVancouverStatusToCondition(status: string): string {
  */
 function mapVancouverStatus(status: string): 'active' | 'inactive' | 'removed' | 'unknown' {
   const normalized = status.toLowerCase().trim();
-  
+
   const statusMap: Record<string, 'active' | 'inactive' | 'removed' | 'unknown'> = {
     'in place': 'active',
-    'installed': 'active',
-    'active': 'active',
-    'removed': 'removed',
-    'demolished': 'removed',
-    'relocated': 'inactive',
+    installed: 'active',
+    active: 'active',
+    removed: 'removed',
+    demolished: 'removed',
+    relocated: 'inactive',
     'in storage': 'inactive',
-    'unknown': 'unknown',
+    unknown: 'unknown',
   };
 
   return statusMap[normalized] || 'unknown';
@@ -574,26 +604,26 @@ function mapVancouverStatus(status: string): 'active' | 'inactive' | 'removed' |
  */
 function normalizeMaterial(material: string): string {
   const normalized = material.toLowerCase().trim();
-  
+
   // Handle common Vancouver material patterns
   const materialMap: Record<string, string> = {
     'stainless steel': 'steel',
     'mild steel': 'steel',
     'corten steel': 'steel',
     'weathering steel': 'steel',
-    'bronze': 'bronze',
-    'aluminum': 'aluminium',
-    'aluminium': 'aluminium',
-    'concrete': 'concrete',
-    'stone': 'stone',
-    'granite': 'stone',
-    'marble': 'stone',
-    'wood': 'wood',
-    'cedar': 'wood',
-    'glass': 'glass',
-    'ceramic': 'ceramic',
-    'fiberglass': 'plastic',
-    'fibreglass': 'plastic',
+    bronze: 'bronze',
+    aluminum: 'aluminium',
+    aluminium: 'aluminium',
+    concrete: 'concrete',
+    stone: 'stone',
+    granite: 'stone',
+    marble: 'stone',
+    wood: 'wood',
+    cedar: 'wood',
+    glass: 'glass',
+    ceramic: 'ceramic',
+    fiberglass: 'plastic',
+    fibreglass: 'plastic',
   };
 
   // Check for direct matches
@@ -621,21 +651,21 @@ function normalizeMaterial(material: string): string {
  */
 function normalizeArtworkType(type: string): string {
   const normalized = type.toLowerCase().trim();
-  
+
   const typeMap: Record<string, string> = {
-    'sculpture': 'sculpture',
-    'statue': 'sculpture',
-    'fountain': 'fountain',
-    'mural': 'mural',
+    sculpture: 'sculpture',
+    statue: 'sculpture',
+    fountain: 'fountain',
+    mural: 'mural',
     'wall mural': 'mural',
-    'mosaic': 'mosaic',
-    'installation': 'installation',
+    mosaic: 'mosaic',
+    installation: 'installation',
     'public art installation': 'installation',
-    'monument': 'monument',
-    'memorial': 'monument',
-    'relief': 'relief',
+    monument: 'monument',
+    memorial: 'monument',
+    relief: 'relief',
     'bas-relief': 'relief',
-    'painting': 'painting',
+    painting: 'painting',
     'mixed media': 'mixed_media',
     'public art': 'public_art',
   };

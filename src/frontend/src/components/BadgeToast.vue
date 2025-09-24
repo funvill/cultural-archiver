@@ -15,7 +15,9 @@
         aria-live="polite"
         aria-atomic="true"
       >
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div
+          class="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
+        >
           <!-- Toast Header -->
           <div class="bg-gradient-to-r from-yellow-400 to-yellow-500 px-4 py-2">
             <div class="flex items-center justify-between">
@@ -23,9 +25,7 @@
                 <span class="text-2xl" aria-hidden="true">
                   {{ badge.icon_emoji || '🏆' }}
                 </span>
-                <span class="text-white font-semibold text-sm">
-                  New Badge!
-                </span>
+                <span class="text-white font-semibold text-sm"> New Badge! </span>
               </div>
               <button
                 @click="dismiss"
@@ -47,7 +47,9 @@
           <div class="p-4">
             <div class="flex items-start space-x-3">
               <div class="flex-shrink-0">
-                <div class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center">
+                <div
+                  class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center"
+                >
                   <span class="text-2xl">
                     {{ badge.icon_emoji || '🏆' }}
                   </span>
@@ -165,7 +167,7 @@ const confettiColors = ['#FFD700', '#FFA500', '#FF6347', '#32CD32', '#4169E1', '
 function dismiss() {
   isVisible.value = false;
   emit('dismiss', props.notificationId);
-  
+
   if (hideTimer.value) {
     clearTimeout(hideTimer.value);
     hideTimer.value = null;
@@ -179,7 +181,7 @@ function viewBadges() {
 
 function celebrate() {
   emit('celebrate', props.badge.badge_id);
-  
+
   if (!prefersReducedMotion.value) {
     startConfetti();
   }
@@ -187,17 +189,17 @@ function celebrate() {
 
 function startConfetti() {
   if (isConfettiActive.value || !confettiCanvas.value) return;
-  
+
   isConfettiActive.value = true;
-  
+
   // Set canvas size
   const canvas = confettiCanvas.value;
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  
+
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
-  
+
   // Create confetti particles
   confettiParticles.value = [];
   for (let i = 0; i < 100; i++) {
@@ -208,15 +210,15 @@ function startConfetti() {
       vy: Math.random() * 2 + 2,
       rotation: Math.random() * 360,
       rotationSpeed: (Math.random() - 0.5) * 10,
-  color: confettiColors[Math.floor(Math.random() * confettiColors.length)] || '#FFD700',
+      color: confettiColors[Math.floor(Math.random() * confettiColors.length)] || '#FFD700',
       size: Math.random() * 5 + 5,
       gravity: 0.1,
     });
   }
-  
+
   // Animate confetti
   animateConfetti(ctx);
-  
+
   // Stop confetti after 3 seconds
   setTimeout(() => {
     isConfettiActive.value = false;
@@ -226,22 +228,22 @@ function startConfetti() {
 
 function animateConfetti(ctx: CanvasRenderingContext2D) {
   if (!isConfettiActive.value || !confettiCanvas.value) return;
-  
+
   ctx.clearRect(0, 0, confettiCanvas.value.width, confettiCanvas.value.height);
-  
+
   confettiParticles.value.forEach((particle, index) => {
     // Update position
     particle.x += particle.vx;
     particle.y += particle.vy;
     particle.vy += particle.gravity;
     particle.rotation += particle.rotationSpeed;
-    
+
     // Remove particles that are off screen
     if (particle.y > confettiCanvas.value!.height + 10) {
       confettiParticles.value.splice(index, 1);
       return;
     }
-    
+
     // Draw particle
     ctx.save();
     ctx.translate(particle.x, particle.y);
@@ -250,7 +252,7 @@ function animateConfetti(ctx: CanvasRenderingContext2D) {
     ctx.fillRect(-particle.size / 2, -particle.size / 2, particle.size, particle.size);
     ctx.restore();
   });
-  
+
   requestAnimationFrame(() => animateConfetti(ctx));
 }
 
@@ -268,7 +270,7 @@ onMounted(() => {
       dismiss();
     }, props.autoHideDelay);
   }
-  
+
   window.addEventListener('resize', handleResize);
 });
 
@@ -276,7 +278,7 @@ onUnmounted(() => {
   if (hideTimer.value) {
     clearTimeout(hideTimer.value);
   }
-  
+
   window.removeEventListener('resize', handleResize);
   isConfettiActive.value = false;
 });
@@ -285,6 +287,8 @@ onUnmounted(() => {
 <style scoped>
 /* Additional toast styles if needed */
 .toast-shadow {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  box-shadow:
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 </style>

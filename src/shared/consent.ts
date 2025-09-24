@@ -87,7 +87,7 @@ export function validateConsent(consentData: Partial<ConsentData>): ConsentValid
   }
 
   // Validate consent version
-  const isVersionCompatible = consentData.consentVersion 
+  const isVersionCompatible = consentData.consentVersion
     ? isConsentVersionCompatible(consentData.consentVersion)
     : false;
 
@@ -116,7 +116,7 @@ export function validateConsent(consentData: Partial<ConsentData>): ConsentValid
     missingConsents,
     errors,
     isVersionCompatible,
-    versionMessage: !isVersionCompatible 
+    versionMessage: !isVersionCompatible
       ? `Current version ${CONSENT_VERSION} required`
       : undefined,
   };
@@ -137,7 +137,7 @@ export function isConsentVersionCompatible(version: string): boolean {
  */
 export function compareConsentVersions(version1: string, version2: string): number {
   if (version1 === version2) return 0;
-  
+
   // Simple string comparison for now (works for YYYY-MM-DD.vN format)
   // In production, might want more sophisticated version parsing
   return version1 < version2 ? -1 : 1;
@@ -179,7 +179,7 @@ export function getConsentSummary(consentData: ConsentData): {
   return {
     version: consentData.consentVersion,
     consentedAt: consentData.consentedAt,
-    allConsentsSigned: 
+    allConsentsSigned:
       consentData.ageVerification &&
       consentData.cc0Licensing &&
       consentData.publicCommons &&
@@ -207,10 +207,14 @@ export const CONSENT_FIELD_LABELS = {
 } as const;
 
 export const CONSENT_FIELD_DESCRIPTIONS = {
-  ageVerification: 'I confirm that I am 18 years of age or older and legally able to provide consent for photo submissions.',
-  cc0Licensing: 'I dedicate my photo submissions to the public domain under CC0 1.0 Universal. This means anyone can use these photos for any purpose without attribution requirements. I understand my content may be shared with third-party platforms like OpenStreetMap and Wikimedia Commons.',
-  publicCommons: 'I understand that my submissions will become part of a public cultural archive and may be used for educational, research, and cultural preservation purposes. I agree that submitted content may be redistributed through third parties and public APIs.',
-  freedomOfPanorama: "I understand Canada's Freedom of Panorama laws and confirm that my photos are taken from publicly accessible locations where photography is permitted. I have the right to photograph and share these artworks.",
+  ageVerification:
+    'I confirm that I am 18 years of age or older and legally able to provide consent for photo submissions.',
+  cc0Licensing:
+    'I dedicate my photo submissions to the public domain under CC0 1.0 Universal. This means anyone can use these photos for any purpose without attribution requirements. I understand my content may be shared with third-party platforms like OpenStreetMap and Wikimedia Commons.',
+  publicCommons:
+    'I understand that my submissions will become part of a public cultural archive and may be used for educational, research, and cultural preservation purposes. I agree that submitted content may be redistributed through third parties and public APIs.',
+  freedomOfPanorama:
+    "I understand Canada's Freedom of Panorama laws and confirm that my photos are taken from publicly accessible locations where photography is permitted. I have the right to photograph and share these artworks.",
 } as const;
 
 export const CONSENT_LINKS = {

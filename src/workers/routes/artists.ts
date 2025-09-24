@@ -26,9 +26,9 @@ import { safeJsonParse } from '../lib/errors';
 
 // UUID generation function
 function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c == 'x' ? r : (r & 0x3 | 0x8);
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c == 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
@@ -97,29 +97,29 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
     const countQuery = validatedQuery.search
       ? `SELECT COUNT(*) as total FROM artists WHERE status = ? AND name LIKE ?`
       : `SELECT COUNT(*) as total FROM artists WHERE status = ?`;
-    
-    const countParams = validatedQuery.search
-      ? [status, `%${validatedQuery.search}%`]
-      : [status];
+
+    const countParams = validatedQuery.search ? [status, `%${validatedQuery.search}%`] : [status];
 
     const countStmt = db.db.prepare(countQuery);
-    const countResult = await countStmt.bind(...countParams).first() as { total: number };
+    const countResult = (await countStmt.bind(...countParams).first()) as { total: number };
     const totalItems = countResult?.total || 0;
     const totalPages = Math.ceil(totalItems / limit);
 
     // Format artists for API response
-    const formattedArtists: import('../../shared/types').ArtistApiResponse[] = artists.map(artist => ({
-      id: artist.id,
-      name: artist.name,
-      description: artist.description || '',
-      aliases: artist.aliases || null,
-      tags: artist.tags,
-      created_at: artist.created_at,
-      updated_at: artist.updated_at,
-      status: artist.status,
-      tags_parsed: safeJsonParse(artist.tags, {}),
-      artwork_count: artist.artwork_count || 0,
-    }));
+    const formattedArtists: import('../../shared/types').ArtistApiResponse[] = artists.map(
+      artist => ({
+        id: artist.id,
+        name: artist.name,
+        description: artist.description || '',
+        aliases: artist.aliases || null,
+        tags: artist.tags,
+        created_at: artist.created_at,
+        updated_at: artist.updated_at,
+        status: artist.status,
+        tags_parsed: safeJsonParse(artist.tags, {}),
+        artwork_count: artist.artwork_count || 0,
+      })
+    );
 
     // Set cache headers for 1 hour as per PRD
     c.header('Cache-Control', 'public, max-age=3600');
@@ -144,13 +144,15 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
  */
 export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const artistId = c.req.param('id');
-  
+
   if (!artistId) {
-    throw new ValidationApiError([{
-      field: 'artist_id',
-      message: 'Artist ID is required',
-      code: 'REQUIRED_FIELD',
-    }]);
+    throw new ValidationApiError([
+      {
+        field: 'artist_id',
+        message: 'Artist ID is required',
+        code: 'REQUIRED_FIELD',
+      },
+    ]);
   }
 
   try {
@@ -162,7 +164,7 @@ export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Pro
       FROM artists
       WHERE id = ?
     `);
-    const artist = await artistStmt.bind(artistId).first() as ArtistRecord | null;
+    const artist = (await artistStmt.bind(artistId).first()) as ArtistRecord | null;
 
     if (!artist) {
       throw new NotFoundError(`Artist not found: ${artistId}`);
@@ -204,22 +206,23 @@ export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Pro
       updated_at: artist.updated_at,
       status: artist.status,
       tags_parsed: safeJsonParse(artist.tags, {}),
-      artworks: (artworks.results as ArtworkWithTypeAndPhotos[])?.map((artwork) => {
-        const recentPhotos = safeJsonParse(artwork.recent_photos, []);
-        return {
-          id: artwork.id,
-          title: artwork.title,
-          lat: artwork.lat,
-          lon: artwork.lon,
-          type_id: artwork.type_id,
-          created_at: artwork.created_at,
-          status: artwork.status,
-          tags: artwork.tags,
-          type_name: artwork.type_name || '',
-          photo_count: artwork.photo_count || 0,
-          ...(recentPhotos.length > 0 && { recent_photo: recentPhotos[0] }),
-        };
-      }) || [],
+      artworks:
+        (artworks.results as ArtworkWithTypeAndPhotos[])?.map(artwork => {
+          const recentPhotos = safeJsonParse(artwork.recent_photos, []);
+          return {
+            id: artwork.id,
+            title: artwork.title,
+            lat: artwork.lat,
+            lon: artwork.lon,
+            type_id: artwork.type_id,
+            created_at: artwork.created_at,
+            status: artwork.status,
+            tags: artwork.tags,
+            type_name: artwork.type_name || '',
+            photo_count: artwork.photo_count || 0,
+            ...(recentPhotos.length > 0 && { recent_photo: recentPhotos[0] }),
+          };
+        }) || [],
       artwork_count: artworks.results?.length || 0,
     };
 
@@ -236,32 +239,38 @@ export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Pro
  */
 export async function createArtist(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const userToken = getUserToken(c);
-  
+
   if (!userToken) {
-    throw new ValidationApiError([{
-      field: 'user_token',
-      message: 'Authentication required',
-      code: 'REQUIRED_AUTH',
-    }]);
+    throw new ValidationApiError([
+      {
+        field: 'user_token',
+        message: 'Authentication required',
+        code: 'REQUIRED_AUTH',
+      },
+    ]);
   }
 
   const requestBody = await c.req.json().catch(() => {
-    throw new ValidationApiError([{
-      field: 'request_body',
-      message: 'Invalid JSON in request body',
-      code: 'INVALID_JSON',
-    }]);
+    throw new ValidationApiError([
+      {
+        field: 'request_body',
+        message: 'Invalid JSON in request body',
+        code: 'INVALID_JSON',
+      },
+    ]);
   });
 
   const request = requestBody as CreateArtistRequest;
-  
+
   // Validate required fields
   if (!request.name?.trim()) {
-    throw new ValidationApiError([{
-      field: 'name',
-      message: 'Artist name is required',
-      code: 'REQUIRED_FIELD',
-    }]);
+    throw new ValidationApiError([
+      {
+        field: 'name',
+        message: 'Artist name is required',
+        code: 'REQUIRED_FIELD',
+      },
+    ]);
   }
 
   const db = createDatabaseService(c.env.DB);
@@ -274,17 +283,19 @@ export async function createArtist(c: Context<{ Bindings: WorkerEnv }>): Promise
       VALUES (?, ?, ?, ?, ?)
     `);
 
-    await insertStmt.bind(
-      artistId,
-      request.name.trim(),
-      request.description?.trim() || null,
-      request.tags ? JSON.stringify(request.tags) : '{}',
-      request.status || 'active'
-    ).run();
+    await insertStmt
+      .bind(
+        artistId,
+        request.name.trim(),
+        request.description?.trim() || null,
+        request.tags ? JSON.stringify(request.tags) : '{}',
+        request.status || 'active'
+      )
+      .run();
 
     // Get the created artist
     const artistStmt = db.db.prepare('SELECT * FROM artists WHERE id = ?');
-    const artist = await artistStmt.bind(artistId).first() as ArtistRecord;
+    const artist = (await artistStmt.bind(artistId).first()) as ArtistRecord;
 
     const response: ArtistApiResponse = {
       ...artist,
@@ -307,39 +318,47 @@ export async function createArtist(c: Context<{ Bindings: WorkerEnv }>): Promise
 export async function submitArtistEdit(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const userToken = getUserToken(c);
   const artistId = c.req.param('id');
-  
+
   if (!artistId) {
-    throw new ValidationApiError([{
-      field: 'artist_id',
-      message: 'Artist ID is required',
-      code: 'REQUIRED_FIELD',
-    }]);
+    throw new ValidationApiError([
+      {
+        field: 'artist_id',
+        message: 'Artist ID is required',
+        code: 'REQUIRED_FIELD',
+      },
+    ]);
   }
 
   if (!userToken) {
-    throw new ValidationApiError([{
-      field: 'user_token',
-      message: 'Authentication required',
-      code: 'REQUIRED_AUTH',
-    }]);
+    throw new ValidationApiError([
+      {
+        field: 'user_token',
+        message: 'Authentication required',
+        code: 'REQUIRED_AUTH',
+      },
+    ]);
   }
 
   const requestBody = await c.req.json().catch(() => {
-    throw new ValidationApiError([{
-      field: 'request_body',
-      message: 'Invalid JSON in request body',
-      code: 'INVALID_JSON',
-    }]);
+    throw new ValidationApiError([
+      {
+        field: 'request_body',
+        message: 'Invalid JSON in request body',
+        code: 'INVALID_JSON',
+      },
+    ]);
   });
 
   const request = requestBody as CreateArtistEditRequest;
-  
+
   if (!request.edits || !Array.isArray(request.edits) || request.edits.length === 0) {
-    throw new ValidationApiError([{
-      field: 'edits',
-      message: 'At least one edit is required',
-      code: 'REQUIRED_FIELD',
-    }]);
+    throw new ValidationApiError([
+      {
+        field: 'edits',
+        message: 'At least one edit is required',
+        code: 'REQUIRED_FIELD',
+      },
+    ]);
   }
 
   const db = createDatabaseService(c.env.DB);
@@ -348,7 +367,7 @@ export async function submitArtistEdit(c: Context<{ Bindings: WorkerEnv }>): Pro
     // Check if artist exists
     const artistStmt = db.db.prepare('SELECT id FROM artists WHERE id = ?');
     const artist = await artistStmt.bind(artistId).first();
-    
+
     if (!artist) {
       throw new NotFoundError(`Artist not found: ${artistId}`);
     }
@@ -360,13 +379,15 @@ export async function submitArtistEdit(c: Context<{ Bindings: WorkerEnv }>): Pro
       LIMIT 1
     `);
     const existingEdit = await existingEditStmt.bind(artistId, userToken).first();
-    
+
     if (existingEdit) {
-      throw new ValidationApiError([{
-        field: 'pending_edits',
-        message: 'You already have pending edits for this artist',
-        code: 'DUPLICATE_PENDING_EDIT',
-      }]);
+      throw new ValidationApiError([
+        {
+          field: 'pending_edits',
+          message: 'You already have pending edits for this artist',
+          code: 'DUPLICATE_PENDING_EDIT',
+        },
+      ]);
     }
 
     // Insert edit records
@@ -378,16 +399,18 @@ export async function submitArtistEdit(c: Context<{ Bindings: WorkerEnv }>): Pro
     `);
 
     const editId = generateUUID();
-    
+
     for (const edit of request.edits) {
-      await insertEditStmt.bind(
-        editId,
-        artistId,
-        userToken,
-        edit.field_name,
-        edit.field_value_old,
-        edit.field_value_new
-      ).run();
+      await insertEditStmt
+        .bind(
+          editId,
+          artistId,
+          userToken,
+          edit.field_name,
+          edit.field_value_old,
+          edit.field_value_new
+        )
+        .run();
     }
 
     const response: ArtistEditSubmissionResponse = {
@@ -410,24 +433,30 @@ export async function submitArtistEdit(c: Context<{ Bindings: WorkerEnv }>): Pro
  * GET /api/artists/:id/pending-edits - Check User's Pending Edits for Artist
  * Returns information about any pending edits the user has submitted
  */
-export async function getUserPendingArtistEdits(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+export async function getUserPendingArtistEdits(
+  c: Context<{ Bindings: WorkerEnv }>
+): Promise<Response> {
   const userToken = getUserToken(c);
   const artistId = c.req.param('id');
-  
+
   if (!artistId) {
-    throw new ValidationApiError([{
-      field: 'artist_id',
-      message: 'Artist ID is required',
-      code: 'REQUIRED_FIELD',
-    }]);
+    throw new ValidationApiError([
+      {
+        field: 'artist_id',
+        message: 'Artist ID is required',
+        code: 'REQUIRED_FIELD',
+      },
+    ]);
   }
 
   if (!userToken) {
-    throw new ValidationApiError([{
-      field: 'user_token',
-      message: 'Authentication required',
-      code: 'REQUIRED_AUTH',
-    }]);
+    throw new ValidationApiError([
+      {
+        field: 'user_token',
+        message: 'Authentication required',
+        code: 'REQUIRED_AUTH',
+      },
+    ]);
   }
 
   const db = createDatabaseService(c.env.DB);
@@ -440,7 +469,7 @@ export async function getUserPendingArtistEdits(c: Context<{ Bindings: WorkerEnv
       WHERE artist_id = ? AND user_token = ? AND status = 'pending'
       ORDER BY submitted_at DESC
     `);
-    
+
     const pendingEdits = await pendingEditsStmt.bind(artistId, userToken).all();
 
     const response: ArtistPendingEditsResponse = {

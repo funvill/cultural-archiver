@@ -18,6 +18,7 @@ templates/
 ### Creating a New Importer Plugin
 
 1. **Copy the template:**
+
    ```bash
    cp templates/importer/importer-template.ts src/importers/my-new-importer.ts
    ```
@@ -43,16 +44,18 @@ templates/
    - Helper methods for field mapping and data transformation
 
 4. **Create a configuration file:**
+
    ```bash
    cp configs/vancouver-public-art.json configs/my-new-importer.json
    ```
+
    Update the configuration to match your data source requirements.
 
-5. **Register the plugin:**
-   Add your plugin to `src/importers/index.ts`:
+5. **Register the plugin:** Add your plugin to `src/importers/index.ts`:
+
    ```typescript
    import { myNewImporter } from './my-new-importer.js';
-   
+
    export function registerCoreImporters(registry: PluginRegistry): void {
      // ... existing registrations
      registry.registerImporter(myNewImporter);
@@ -62,6 +65,7 @@ templates/
 ### Creating a New Exporter Plugin
 
 1. **Copy the template:**
+
    ```bash
    cp templates/exporter/exporter-template.ts src/exporters/my-new-exporter.ts
    ```
@@ -77,17 +81,18 @@ templates/
    - `validate()` - Validate exporter configuration
    - Helper methods for data transformation and output
 
-4. **Register the plugin:**
-   Add your plugin to `src/exporters/index.ts`
+4. **Register the plugin:** Add your plugin to `src/exporters/index.ts`
 
 ## 🧪 Testing Your Plugin
 
 1. **Build the project:**
+
    ```bash
    npm run build
    ```
 
 2. **Test with the CLI:**
+
    ```bash
    # Test importer
    node dist/cli/plugin-cli.js import \\
@@ -110,30 +115,35 @@ templates/
 ## 📝 Plugin Development Best Practices
 
 ### Data Validation
+
 - Always validate input data structure in `validateData()`
 - Provide clear error messages with field names
 - Use TypeScript interfaces for type safety
 - Handle edge cases gracefully
 
 ### Error Handling
+
 - Wrap risky operations in try-catch blocks
 - Log warnings for recoverable errors
 - Skip invalid records rather than failing completely
 - Provide detailed error context
 
 ### Performance
+
 - Process data in batches when possible
 - Use streaming for large datasets
 - Implement proper memory management
 - Add progress indicators for long operations
 
 ### Configuration
+
 - Use JSON Schema for configuration validation
 - Provide sensible defaults
 - Document all configuration options
 - Support both file and environment-based config
 
 ### Testing
+
 - Create sample data files for testing
 - Test with malformed/invalid data
 - Verify coordinate validation
@@ -142,6 +152,7 @@ templates/
 ## 🔧 Plugin Interface Reference
 
 ### Importer Interface
+
 ```typescript
 interface ImporterPlugin {
   name: string;
@@ -151,7 +162,7 @@ interface ImporterPlugin {
   supportedFormats: string[];
   requiredFields: string[];
   optionalFields: string[];
-  
+
   mapData(sourceData: unknown, config: ImporterConfig): Promise<RawImportData[]>;
   validateData(sourceData: unknown): Promise<ValidationResult>;
   generateImportId(record: unknown): string;
@@ -160,6 +171,7 @@ interface ImporterPlugin {
 ```
 
 ### Exporter Interface
+
 ```typescript
 interface ExporterPlugin {
   name: string;
@@ -168,7 +180,7 @@ interface ExporterPlugin {
   supportedFormats: string[];
   requiresNetwork: boolean;
   outputType: 'file' | 'api' | 'stream' | 'console';
-  
+
   export(data: RawImportData[], config: ExporterConfig): Promise<ExportResult>;
   configure(options: ExporterOptions): Promise<void>;
   validate(config: ExporterConfig): Promise<ValidationResult>;

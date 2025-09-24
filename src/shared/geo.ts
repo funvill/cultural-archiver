@@ -59,7 +59,10 @@ export interface LocationResolution {
 /**
  * Normalize coordinates to specified precision
  */
-export function normalizeCoordinates(coordinates: Coordinates, precision = COORDINATE_PRECISION): Coordinates {
+export function normalizeCoordinates(
+  coordinates: Coordinates,
+  precision = COORDINATE_PRECISION
+): Coordinates {
   const factor = Math.pow(10, precision);
   return {
     lat: Math.round(coordinates.lat * factor) / factor,
@@ -95,14 +98,16 @@ export function calculateDistance(point1: Coordinates, point2: Coordinates): num
   const R = 6371000; // Earth's radius in meters
   const dLat = toRadians(point2.lat - point1.lat);
   const dLon = toRadians(point2.lon - point1.lon);
-  
-  const a = 
+
+  const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRadians(point1.lat)) * Math.cos(toRadians(point2.lat)) *
-    Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    
+    Math.cos(toRadians(point1.lat)) *
+      Math.cos(toRadians(point2.lat)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  
+
   return R * c;
 }
 
@@ -121,10 +126,10 @@ export function getBoundingBox(center: Coordinates, radiusMeters: number): Bound
   // Approximate conversions (good enough for initial filtering)
   const latDegPerMeter = 1 / 111000; // 1 degree lat ≈ 111km
   const lonDegPerMeter = 1 / (111000 * Math.cos(toRadians(center.lat))); // Adjusts for latitude
-  
+
   const latOffset = radiusMeters * latDegPerMeter;
   const lonOffset = radiusMeters * lonDegPerMeter;
-  
+
   return {
     north: center.lat + latOffset,
     south: center.lat - latOffset,
@@ -158,11 +163,11 @@ export function formatCoordinates(coordinates: Coordinates, precision = 4): stri
 export function parseCoordinates(coordString: string): Coordinates | null {
   const match = coordString.match(/^(-?\d+\.?\d*)\s*,\s*(-?\d+\.?\d*)$/);
   if (!match) return null;
-  
+
   const lat = parseFloat(match[1]!);
   const lon = parseFloat(match[2]!);
-  
+
   if (!isValidCoordinates({ lat, lon })) return null;
-  
+
   return { lat, lon };
 }

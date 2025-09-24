@@ -319,7 +319,9 @@ describe('Cultural Archiver API Integration Tests', (): void => {
         };
 
         // Validate expected backup contents
-        (Object.keys(expectedBackupStructure) as Array<keyof typeof expectedBackupStructure>).forEach(key => {
+        (
+          Object.keys(expectedBackupStructure) as Array<keyof typeof expectedBackupStructure>
+        ).forEach(key => {
           expect(expectedBackupStructure[key]).toBe(true);
         });
       });

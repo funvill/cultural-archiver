@@ -3,35 +3,62 @@ import { describe, it, expect, vi } from 'vitest';
 import AppShell from '../components/AppShell.vue';
 
 // Minimal stubs for dependencies used in AppShell fast-add flow
-vi.mock('../stores/auth', () => ({ useAuthStore: (): { user: null; isAuthenticated: boolean } => ({ user: null, isAuthenticated: false }) }));
+vi.mock('../stores/auth', () => ({
+  useAuthStore: (): { user: null; isAuthenticated: boolean } => ({
+    user: null,
+    isAuthenticated: false,
+  }),
+}));
 vi.mock('../stores/fastUploadSession', () => ({
-  useFastUploadSessionStore: (): { setSession: (p: unknown) => void; clear: () => void } => ({ setSession: vi.fn(), clear: vi.fn() })
+  useFastUploadSessionStore: (): { setSession: (p: unknown) => void; clear: () => void } => ({
+    setSession: vi.fn(),
+    clear: vi.fn(),
+  }),
 }));
 vi.mock('../stores/ui', () => ({ useUIStore: (): Record<string, never> => ({}) }));
 vi.mock('../stores/search', () => ({ useSearchStore: (): Record<string, never> => ({}) }));
 // Basic vue-router mocks (component imports from 'vue-router')
 vi.mock('vue-router', () => ({
-  useRoute: (): { path: string; fullPath: string; params: Record<string, unknown>; query: Record<string, unknown> } => ({ path: '/', fullPath: '/', params: {}, query: {} }),
+  useRoute: (): {
+    path: string;
+    fullPath: string;
+    params: Record<string, unknown>;
+    query: Record<string, unknown>;
+  } => ({ path: '/', fullPath: '/', params: {}, query: {} }),
   useRouter: (): { push: (p: string) => void } => ({ push: vi.fn() }),
   RouterLink: { name: 'RouterLink', props: ['to'], template: '<a><slot /></a>' },
   RouterView: { name: 'RouterView', template: '<div />' },
 }));
 // Provide a successful geolocation so first add triggers navigation + sets fastHasNavigated
-vi.mock('../composables/useGeolocation', () => ({ useGeolocation: (): { getCurrentPosition: () => Promise<{ latitude: number; longitude: number }> } => ({ getCurrentPosition: vi.fn().mockResolvedValue({ latitude: 10, longitude: 20 }) }) }));
-vi.mock('../utils/image', () => ({ createImagePreview: (f: File): Promise<string> => Promise.resolve('preview-'+f.name) }));
+vi.mock('../composables/useGeolocation', () => ({
+  useGeolocation: (): {
+    getCurrentPosition: () => Promise<{ latitude: number; longitude: number }>;
+  } => ({ getCurrentPosition: vi.fn().mockResolvedValue({ latitude: 10, longitude: 20 }) }),
+}));
+vi.mock('../utils/image', () => ({
+  createImagePreview: (f: File): Promise<string> => Promise.resolve('preview-' + f.name),
+}));
 // Note: extractExifData is exported from utils/image.ts in the application code
 vi.mock('../utils/image', async (original: () => Promise<unknown>) => {
   const actual = await original();
   return {
     ...(actual as Record<string, unknown>),
-    extractExifData: async (): Promise<{ latitude: number; longitude: number }> => ({ latitude: 10, longitude: 20 })
+    extractExifData: async (): Promise<{ latitude: number; longitude: number }> => ({
+      latitude: 10,
+      longitude: 20,
+    }),
   };
 });
 
-function makeFile(name: string): File { return new File(['data'], name, { type: 'image/jpeg' }); }
+function makeFile(name: string): File {
+  return new File(['data'], name, { type: 'image/jpeg' });
+}
 
 // Helper to directly interact with hidden file input
-async function triggerAddWithFiles(wrapper: ReturnType<typeof mount>, files: File[]): Promise<void> {
+async function triggerAddWithFiles(
+  wrapper: ReturnType<typeof mount>,
+  files: File[]
+): Promise<void> {
   const allFileInputs = wrapper.findAll('input[type="file"]');
   if (allFileInputs.length === 0) throw new Error('No file input found');
   const inputWrapper = allFileInputs[0];
@@ -68,24 +95,32 @@ describe('AppShell Fast Add overwrite behavior', () => {
     await triggerAddWithFiles(wrapper, [makeFile('one.jpg'), makeFile('two.jpg')]);
     await flush();
     // Wait for navigation flag and selection length to stabilize
-    const vmRef = wrapper.vm as unknown as { fastHasNavigated?: { value: boolean }; fastSelected?: unknown[] };
-    await waitFor(() => !!(vmRef.fastHasNavigated?.value) && (vmRef.fastSelected?.length === 2));
+    const vmRef = wrapper.vm as unknown as {
+      fastHasNavigated?: { value: boolean };
+      fastSelected?: unknown[];
+    };
+    await waitFor(() => !!vmRef.fastHasNavigated?.value && vmRef.fastSelected?.length === 2);
     if (!vmRef.fastHasNavigated?.value) {
       vmRef.fastHasNavigated = { value: true } as { value: boolean };
     }
 
-  // fastHasNavigated should already be true due to successful location + navigation
-  // Simulate second Add (should reset before picking new file)
-  // Attempt to locate the Add button heuristically
-  const possibleButtons = wrapper.findAll('button');
-  const addBtnWrapper = possibleButtons.find(btn => /Add/i.test(btn.text())) || possibleButtons[0];
-  if (!addBtnWrapper) throw new Error('Add button not found');
-  await addBtnWrapper.trigger('click');
-  await triggerAddWithFiles(wrapper, [makeFile('fresh.jpg')]);
+    // fastHasNavigated should already be true due to successful location + navigation
+    // Simulate second Add (should reset before picking new file)
+    // Attempt to locate the Add button heuristically
+    const possibleButtons = wrapper.findAll('button');
+    const addBtnWrapper =
+      possibleButtons.find(btn => /Add/i.test(btn.text())) || possibleButtons[0];
+    if (!addBtnWrapper) throw new Error('Add button not found');
+    await addBtnWrapper.trigger('click');
+    await triggerAddWithFiles(wrapper, [makeFile('fresh.jpg')]);
     await flush();
     await waitFor(() => {
       const vmCheck = wrapper.vm as unknown as { fastSelected?: Array<{ name: string }> };
-      return !!vmCheck.fastSelected && vmCheck.fastSelected.length === 1 && vmCheck.fastSelected[0]?.name === 'fresh.jpg';
+      return (
+        !!vmCheck.fastSelected &&
+        vmCheck.fastSelected.length === 1 &&
+        vmCheck.fastSelected[0]?.name === 'fresh.jpg'
+      );
     });
 
     // Access component internal state

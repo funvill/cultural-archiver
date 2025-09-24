@@ -5,7 +5,11 @@
 
 import type { Context, Next } from 'hono';
 import type { WorkerEnv } from '../types';
-import { RATE_LIMIT_SUBMISSIONS_PER_HOUR, RATE_LIMIT_QUERIES_PER_HOUR, isRateLimitingEnabled } from '../types';
+import {
+  RATE_LIMIT_SUBMISSIONS_PER_HOUR,
+  RATE_LIMIT_QUERIES_PER_HOUR,
+  isRateLimitingEnabled,
+} from '../types';
 import { RateLimitError } from '../lib/errors';
 
 export interface RateLimitData {

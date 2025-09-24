@@ -1,6 +1,6 @@
 /**
  * Mass Import System - Duplicate Detection
- * 
+ *
  * This module handles duplicate detection using multiple approaches:
  * 1. Exact matches (external ID, content hash)
  * 2. Geographic proximity with enhanced similarity scoring
@@ -14,15 +14,19 @@ declare module 'fuzzy' {
     pre?: string;
     post?: string;
   }
-  
+
   interface FilterResult<T> {
     string: string;
     score: number;
     index: number;
     original: T;
   }
-  
-  export function filter<T>(pattern: string, arr: T[], options?: FilterOptions<T>): FilterResult<T>[];
+
+  export function filter<T>(
+    pattern: string,
+    arr: T[],
+    options?: FilterOptions<T>
+  ): FilterResult<T>[];
 }
 
 import fuzzy from 'fuzzy';
@@ -57,7 +61,7 @@ export async function detectDuplicates(
     return {
       isDuplicate: true,
       candidates: [externalIdMatch],
-      bestMatch: externalIdMatch
+      bestMatch: externalIdMatch,
     };
   }
 
@@ -67,7 +71,7 @@ export async function detectDuplicates(
     return {
       isDuplicate: true,
       candidates: [contentHashMatch],
-      bestMatch: contentHashMatch
+      bestMatch: contentHashMatch,
     };
   }
 
@@ -107,7 +111,7 @@ export async function detectDuplicates(
 }
 
 // ================================
-// Enhanced Detection Methods  
+// Enhanced Detection Methods
 // ================================
 
 /**
@@ -118,10 +122,10 @@ function checkContentHashDuplicate(
   existingArtworks: ExistingArtwork[]
 ): DuplicateCandidate | null {
   const importHash = generateContentHash(importData);
-  
+
   for (const artwork of existingArtworks) {
     const artworkHash = generateContentHashForExisting(artwork);
-    
+
     if (importHash === artworkHash) {
       const candidate: DuplicateCandidate = {
         id: artwork.id,
@@ -132,15 +136,15 @@ function checkContentHashDuplicate(
         confidence: 0.95, // Very high confidence for content hash match
         reason: `Identical content hash: ${importHash.substring(0, 8)}...`,
       };
-      
+
       if (artwork.title) {
         candidate.title = artwork.title;
       }
-      
+
       return candidate;
     }
   }
-  
+
   return null;
 }
 
@@ -151,17 +155,17 @@ function generateContentHash(importData: ProcessedImportData): string {
   const title = (importData.title || '').toLowerCase().trim();
   const coords = `${importData.lat.toFixed(6)},${importData.lon.toFixed(6)}`;
   const tags = JSON.stringify(importData.tags || {});
-  
+
   const content = [title, coords, tags].filter(Boolean).join('|');
-  
+
   // Simple hash - in production you might want crypto.subtle
   let hash = 0;
   for (let i = 0; i < content.length; i++) {
     const char = content.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32bit integer
   }
-  
+
   return Math.abs(hash).toString(36);
 }
 
@@ -172,17 +176,17 @@ function generateContentHashForExisting(artwork: ExistingArtwork): string {
   const title = (artwork.title || '').toLowerCase().trim();
   const coords = `${artwork.lat.toFixed(6)},${artwork.lon.toFixed(6)}`;
   const tags = JSON.stringify(artwork.tags_parsed || {});
-  
+
   const content = [title, coords, tags].filter(Boolean).join('|');
-  
+
   // Simple hash - in production you might want crypto.subtle
   let hash = 0;
   for (let i = 0; i < content.length; i++) {
     const char = content.charCodeAt(i);
-    hash = ((hash << 5) - hash) + char;
+    hash = (hash << 5) - hash + char;
     hash = hash & hash; // Convert to 32bit integer
   }
-  
+
   return Math.abs(hash).toString(36);
 }
 
@@ -233,7 +237,7 @@ async function calculateSimilarity(
 
   // Calculate title similarity
   const titleSimilarity = calculateTitleSimilarity(importTitle, artworkTitle);
-  
+
   console.log(`[DUPLICATE_DEBUG]   Title similarity score: ${titleSimilarity}`);
 
   // Calculate overall confidence based on distance and title similarity
@@ -283,19 +287,21 @@ function calculateTitleSimilarity(title1: string, title2: string): number {
 
   // Method 3: Levenshtein distance
   const levenshteinScore = calculateLevenshteinSimilarity(normalized1, normalized2);
-  
+
   // Method 4: Fuzzy matching (as fallback)
   const fuzzyScore = calculateFuzzyScore(normalized1, normalized2);
-  
+
   // Return the highest score from different methods
   const finalScore = Math.max(levenshteinScore, fuzzyScore);
-  
+
   // Debug logging for title similarity issues
   if (finalScore === 0 && title1.toLowerCase().trim() === title2.toLowerCase().trim()) {
-    console.warn(`[SIMILARITY] Title similarity returned 0 for identical titles: "${title1}" vs "${title2}"`);
+    console.warn(
+      `[SIMILARITY] Title similarity returned 0 for identical titles: "${title1}" vs "${title2}"`
+    );
     return 1.0; // Force match for identical titles
   }
-  
+
   return finalScore;
 }
 
@@ -328,9 +334,9 @@ function calculateLevenshteinSimilarity(str1: string, str2: string): number {
         matrix[i]![j] = matrix[i - 1]![j - 1]!;
       } else {
         matrix[i]![j] = Math.min(
-          matrix[i - 1]![j]! + 1,     // deletion
-          matrix[i]![j - 1]! + 1,     // insertion
-          matrix[i - 1]![j - 1]! + 1  // substitution
+          matrix[i - 1]![j]! + 1, // deletion
+          matrix[i]![j - 1]! + 1, // insertion
+          matrix[i - 1]![j - 1]! + 1 // substitution
         );
       }
     }
@@ -338,9 +344,9 @@ function calculateLevenshteinSimilarity(str1: string, str2: string): number {
 
   const distance = matrix[len1]![len2]!;
   const maxLength = Math.max(len1, len2);
-  
+
   // Convert distance to similarity (0-1)
-  return maxLength === 0 ? 1 : 1 - (distance / maxLength);
+  return maxLength === 0 ? 1 : 1 - distance / maxLength;
 }
 
 /**
@@ -348,13 +354,13 @@ function calculateLevenshteinSimilarity(str1: string, str2: string): number {
  */
 function calculateFuzzyScore(str1: string, str2: string): number {
   if (!str1 || !str2) return 0;
-  
+
   try {
     const results = fuzzy.filter(str1, [str2]);
     if (results.length === 0) {
       return 0;
     }
-    
+
     // Convert fuzzy score to 0-1 range (fuzzy scores can go above 100)
     const score = results[0]?.score ?? 0;
     return Math.min(score / 100, 1);
@@ -386,14 +392,14 @@ function calculateConfidence(
   _config: MassImportConfig
 ): number {
   // Distance factor (closer = higher confidence)
-  const distanceFactor = Math.max(0, 1 - (distance / _config.duplicateDetectionRadius));
-  
+  const distanceFactor = Math.max(0, 1 - distance / _config.duplicateDetectionRadius);
+
   // Title similarity factor
   const titleFactor = titleSimilarity;
-  
+
   // Weighted combination
-  const confidence = (distanceFactor * 0.4) + (titleFactor * 0.6);
-  
+  const confidence = distanceFactor * 0.4 + titleFactor * 0.6;
+
   return Math.min(confidence, 1);
 }
 
@@ -476,7 +482,7 @@ export function checkExternalIdDuplicate(
   const duplicate = existingArtworks.find(artwork => {
     // Check if artwork has matching external ID and source in tags
     let tags: Record<string, unknown> = {};
-    
+
     // Handle different possible tag formats
     if (artwork.tags_parsed) {
       tags = artwork.tags_parsed;
@@ -494,21 +500,25 @@ export function checkExternalIdDuplicate(
         return false;
       }
     }
-    
+
     console.log(`[DUPLICATE_DEBUG] Artwork ${artwork.id} tags:`, tags);
-    
+
     // Primary check: external_id + source (new format)
     if (tags.external_id === externalId && tags.source === source) {
       console.log(`[DUPLICATE_DEBUG] MATCH found by external_id: ${externalId}`);
       return true;
     }
-    
+
     // Fallback check: registry_id + source (backward compatibility for Vancouver imports)
-    if (source === 'vancouver-opendata' && tags.registry_id === externalId && tags.source === source) {
+    if (
+      source === 'vancouver-opendata' &&
+      tags.registry_id === externalId &&
+      tags.source === source
+    ) {
       console.log(`[DUPLICATE_DEBUG] MATCH found by registry_id: ${externalId}`);
       return true;
     }
-    
+
     return false;
   });
 
@@ -528,9 +538,9 @@ export function checkExternalIdDuplicate(
         // Ignore parsing errors
       }
     }
-    
+
     const matchType = tags.external_id === externalId ? 'external_id' : 'registry_id';
-    
+
     const candidate: DuplicateCandidate = {
       id: duplicate.id,
       lat: duplicate.lat,

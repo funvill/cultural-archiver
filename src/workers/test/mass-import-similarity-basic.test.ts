@@ -1,6 +1,6 @@
 /**
  * Basic Mass Import Similarity Tests
- * 
+ *
  * Tests the core similarity algorithm implementation
  * without requiring complex database setup.
  */
@@ -18,12 +18,12 @@ describe('Mass Import Similarity Strategy - Basic Tests', () => {
     const strategy = new MassImportSimilarityStrategy();
 
     const query = {
-      coordinates: { lat: 49.2827, lon: -123.1207 }
+      coordinates: { lat: 49.2827, lon: -123.1207 },
     };
 
     const candidate = {
       id: 'test-1',
-      coordinates: { lat: 49.2827, lon: -123.1207 }
+      coordinates: { lat: 49.2827, lon: -123.1207 },
     };
 
     const result = strategy.calculateSimilarity(query, candidate, 0.7);
@@ -38,13 +38,13 @@ describe('Mass Import Similarity Strategy - Basic Tests', () => {
 
     const query = {
       coordinates: { lat: 49.2827, lon: -123.1207 },
-      title: 'Victory Square Angel'
+      title: 'Victory Square Angel',
     };
 
     const candidate = {
       id: 'test-1',
       coordinates: { lat: 49.2827, lon: -123.1207 },
-      title: 'Victory Square Angel'
+      title: 'Victory Square Angel',
     };
 
     const result = strategy.calculateSimilarity(query, candidate, 0.7);
@@ -61,14 +61,14 @@ describe('Mass Import Similarity Strategy - Basic Tests', () => {
     const query = {
       coordinates: { lat: 49.2827, lon: -123.1207 },
       title: 'Victory Square Angel',
-      artist: 'Jane Doe'
+      artist: 'Jane Doe',
     };
 
     const candidate = {
       id: 'test-1',
       coordinates: { lat: 49.2827, lon: -123.1207 },
       title: 'Victory Square Angel',
-      created_by: 'Jane Doe'
+      created_by: 'Jane Doe',
     };
 
     const result = strategy.calculateSimilarity(query, candidate, 0.7);
@@ -84,13 +84,13 @@ describe('Mass Import Similarity Strategy - Basic Tests', () => {
 
     const query = {
       coordinates: { lat: 49.2827, lon: -123.1207 },
-      title: 'Different Title'
+      title: 'Different Title',
     };
 
     const candidate = {
       id: 'test-1',
       coordinates: { lat: 49.2827, lon: -123.1207 },
-      title: 'Another Title'
+      title: 'Another Title',
     };
 
     const result = strategy.calculateSimilarity(query, candidate, 0.7);

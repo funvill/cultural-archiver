@@ -213,10 +213,12 @@ export async function uploadToR2(
       throw new ApiError('Photo storage not configured', 'STORAGE_NOT_CONFIGURED', 503);
     }
 
-  const debugEnabled = env.PHOTO_DEBUG === '1' || env.PHOTO_DEBUG === 'true';
-  const debug = (...args: unknown[]): void => { if (debugEnabled) console.info('[PHOTO][R2]', ...args); };
-  const start = Date.now();
-  debug('R2 put begin', { key, sizeBytes: file.size, mime: file.type });
+    const debugEnabled = env.PHOTO_DEBUG === '1' || env.PHOTO_DEBUG === 'true';
+    const debug = (...args: unknown[]): void => {
+      if (debugEnabled) console.info('[PHOTO][R2]', ...args);
+    };
+    const start = Date.now();
+    debug('R2 put begin', { key, sizeBytes: file.size, mime: file.type });
 
     // Convert File to ArrayBuffer
     const arrayBuffer = await file.arrayBuffer();
@@ -236,12 +238,15 @@ export async function uploadToR2(
       },
       customMetadata: objectMetadata,
     });
-  debug('R2 put complete', { key, ms: Date.now() - start });
+    debug('R2 put complete', { key, ms: Date.now() - start });
   } catch (error) {
     console.error('R2 upload error:', error);
-  // Best-effort debug log (env already not accessible here if put failed early)
-  // Safe because we already gated earlier logs; here we just output once.
-  console.info('[PHOTO][R2]', 'R2 put error detail', { key, message: error instanceof Error ? error.message : String(error) });
+    // Best-effort debug log (env already not accessible here if put failed early)
+    // Safe because we already gated earlier logs; here we just output once.
+    console.info('[PHOTO][R2]', 'R2 put error detail', {
+      key,
+      message: error instanceof Error ? error.message : String(error),
+    });
 
     if (error instanceof ApiError) {
       throw error;
@@ -347,7 +352,7 @@ export async function processAndUploadPhotos(
       let exifProcessed = false;
       let permalinkInjected = false;
 
-  if (options.preserveExif !== false && file.type.includes('jpeg') && options.artworkId) {
+      if (options.preserveExif !== false && file.type.includes('jpeg') && options.artworkId) {
         try {
           const exifOptions = {
             ...getDefaultExifOptions(),
@@ -407,7 +412,13 @@ export async function processAndUploadPhotos(
 
       // Upload processed file with thumbnail support
       debug('Uploading to storage', { index: i, key: originalKey });
-      const uploadResult = await uploadWithThumbnail(env, processedFile, originalKey, metadata, options);
+      const uploadResult = await uploadWithThumbnail(
+        env,
+        processedFile,
+        originalKey,
+        metadata,
+        options
+      );
       debug('Upload result', {
         index: i,
         originalKey: uploadResult.originalKey,
@@ -496,7 +507,7 @@ export async function movePhotosToArtwork(
   try {
     for (const photoUrl of logbookPhotos) {
       // Extract key from URL or raw key string
-  const originalKey = extractR2KeyFromRef(photoUrl);
+      const originalKey = extractR2KeyFromRef(photoUrl);
       debug('Processing photo', { photoUrl, originalKey });
 
       if (!originalKey) {
@@ -559,7 +570,7 @@ export async function movePhotosToArtwork(
       }
     }
 
-  throw new ApiError('Failed to move photos to artwork', 'PHOTO_MOVE_ERROR', 500);
+    throw new ApiError('Failed to move photos to artwork', 'PHOTO_MOVE_ERROR', 500);
   }
 }
 
@@ -570,7 +581,7 @@ export async function cleanupRejectedPhotos(env: WorkerEnv, photoUrls: string[])
   try {
     const deletePromises = photoUrls.map(async photoUrl => {
       try {
-  const key = extractR2KeyFromRef(photoUrl);
+        const key = extractR2KeyFromRef(photoUrl);
         if (key) await deleteFromR2(env, key);
       } catch (error) {
         console.error('Error deleting photo:', photoUrl, error);
@@ -614,190 +625,190 @@ export async function getPhotoMetadata(
   }
 }
 
-  /**
-   * Generate photo URLs from R2 keys
-   */
-  export function generatePhotoUrls(env: WorkerEnv, keys: string[]): string[] {
-    return keys.map(key => generatePhotoUrl(env, key));
-  }
+/**
+ * Generate photo URLs from R2 keys
+ */
+export function generatePhotoUrls(env: WorkerEnv, keys: string[]): string[] {
+  return keys.map(key => generatePhotoUrl(env, key));
+}
 
-  /**
-   * Extract R2 key from a photo reference which may be a full URL or a raw R2 key.
-   * Returns null if the key cannot be determined.
-   */
-  export function extractR2KeyFromRef(ref: string): string | null {
-      if (!ref) return null;
+/**
+ * Extract R2 key from a photo reference which may be a full URL or a raw R2 key.
+ * Returns null if the key cannot be determined.
+ */
+export function extractR2KeyFromRef(ref: string): string | null {
+  if (!ref) return null;
 
-      // Helper to normalize a pathname-like string into an R2 key
-      const normalizePath = (path: string): string | null => {
-        if (!path) return null;
-        let candidate = path.replace(/^\/+/, ''); // remove leading slashes
+  // Helper to normalize a pathname-like string into an R2 key
+  const normalizePath = (path: string): string | null => {
+    if (!path) return null;
+    let candidate = path.replace(/^\/+/, ''); // remove leading slashes
 
-        // If the path begins with the public photos prefix, strip it.
-        // This ensures values like '/photos/originals/...' or 'photos/originals/...' map to 'originals/...'
-        if (candidate.toLowerCase().startsWith('photos/')) {
-          candidate = candidate.substring('photos/'.length);
-        }
-
-        // If after normalization we have something that looks like a key, return it
-        return candidate.length > 0 ? candidate : null;
-      };
-
-      try {
-        // If ref is an absolute URL, new URL(ref) will succeed and we can extract pathname
-        const u = new URL(ref);
-        return normalizePath(u.pathname);
-      } catch (err) {
-        // Not a full URL — treat as path or raw key
-        return normalizePath(ref);
-      }
-  }
-
-  /**
-   * Validate photo URL belongs to the system
-   */
-  export function validatePhotoUrl(env: WorkerEnv, url: string): boolean {
-    try {
-      new URL(url); // Validate URL format
-      const baseUrl = env.PHOTOS_BASE_URL || env.R2_PUBLIC_URL;
-
-      if (baseUrl) {
-        return url.startsWith(baseUrl);
-      }
-
-      // Check against R2 default pattern
-      const accountId = env.CLOUDFLARE_ACCOUNT_ID;
-      if (accountId) {
-        return url.includes(`${accountId}.r2.cloudflarestorage.com`);
-      }
-
-      return false;
-    } catch (error) {
-      return false;
-    }
-  }
-
-  /**
-   * Generate thumbnail URL using Cloudflare Images if enabled
-   */
-  export function generateThumbnailUrl(
-    env: WorkerEnv,
-    originalKey: string,
-    size: number = 800
-  ): string {
-    const cloudflareImagesEnabled = env.CLOUDFLARE_IMAGES_ENABLED === 'true';
-
-    if (cloudflareImagesEnabled && env.CLOUDFLARE_IMAGES_HASH) {
-      // Use Cloudflare Images for dynamic resizing
-      const accountId = env.CLOUDFLARE_ACCOUNT_ID;
-      const imagesHash = env.CLOUDFLARE_IMAGES_HASH;
-      return `https://imagedelivery.net/${accountId}/${imagesHash}/w=${size}`;
+    // If the path begins with the public photos prefix, strip it.
+    // This ensures values like '/photos/originals/...' or 'photos/originals/...' map to 'originals/...'
+    if (candidate.toLowerCase().startsWith('photos/')) {
+      candidate = candidate.substring('photos/'.length);
     }
 
-    // Fallback to original URL for MVP
-    return generatePhotoUrl(env, originalKey);
+    // If after normalization we have something that looks like a key, return it
+    return candidate.length > 0 ? candidate : null;
+  };
+
+  try {
+    // If ref is an absolute URL, new URL(ref) will succeed and we can extract pathname
+    const u = new URL(ref);
+    return normalizePath(u.pathname);
+  } catch (err) {
+    // Not a full URL — treat as path or raw key
+    return normalizePath(ref);
   }
+}
 
-  /**
-   * Upload to Cloudflare Images if enabled, otherwise use R2
-   */
-  export async function uploadWithThumbnail(
-    env: WorkerEnv,
-    file: File,
-    originalKey: string,
-    metadata?: Record<string, string>,
-    _options: PhotoProcessingOptions = {}
-  ): Promise<{ originalKey: string; thumbnailKey?: string; cloudflareImageId?: string }> {
-    const cloudflareImagesEnabled = env.CLOUDFLARE_IMAGES_ENABLED === 'true';
-    const debugEnabled = env.PHOTO_DEBUG === '1' || env.PHOTO_DEBUG === 'true';
-    const debug = (...args: unknown[]): void => {
-      if (debugEnabled) console.info('[PHOTO][STORE]', ...args);
-    };
-    debug('uploadWithThumbnail start', { originalKey, sizeBytes: file.size, mime: file.type });
+/**
+ * Validate photo URL belongs to the system
+ */
+export function validatePhotoUrl(env: WorkerEnv, url: string): boolean {
+  try {
+    new URL(url); // Validate URL format
+    const baseUrl = env.PHOTOS_BASE_URL || env.R2_PUBLIC_URL;
 
-    if (cloudflareImagesEnabled && env.CLOUDFLARE_ACCOUNT_ID) {
-      try {
-        // Upload to Cloudflare Images
-        const imageId = await uploadToCloudflareImages(env, file);
-        debug('Cloudflare Images upload success', { imageId, originalKey });
-
-        return {
-          originalKey,
-          cloudflareImageId: imageId,
-        };
-      } catch (error) {
-        console.warn('[PHOTO][STORE] Cloudflare Images upload failed, falling back to R2', error);
-        // Fall through to R2 upload
-      }
+    if (baseUrl) {
+      return url.startsWith(baseUrl);
     }
 
-    // Upload to R2 (existing behavior)
-    debug('Uploading to R2 bucket', { originalKey });
-    await uploadToR2(env, file, originalKey, metadata);
-    debug('R2 upload complete', { originalKey });
-
-    // Generate thumbnail key for potential future thumbnail generation
-    const thumbnailKey = generateThumbnailKey(originalKey);
-
-    const result = {
-      originalKey,
-      thumbnailKey,
-    };
-    debug('uploadWithThumbnail done', result);
-    return result;
-  }
-
-  /**
-   * Upload to Cloudflare Images API
-   */
-  async function uploadToCloudflareImages(env: WorkerEnv, file: File): Promise<string> {
+    // Check against R2 default pattern
     const accountId = env.CLOUDFLARE_ACCOUNT_ID;
-
-    if (!accountId) {
-      throw new Error('Cloudflare Account ID not configured');
+    if (accountId) {
+      return url.includes(`${accountId}.r2.cloudflarestorage.com`);
     }
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('requireSignedURLs', 'false'); // Allow public access
-    formData.append(
-      'metadata',
-      JSON.stringify({
-        source: 'cultural-archiver',
-        uploadedAt: new Date().toISOString(),
-      })
-    );
+    return false;
+  } catch (error) {
+    return false;
+  }
+}
 
-    const response = await fetch(
-      `https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${env.CLOUDFLARE_IMAGES_API_TOKEN || ''}`,
-        },
-        body: formData,
-      }
-    );
+/**
+ * Generate thumbnail URL using Cloudflare Images if enabled
+ */
+export function generateThumbnailUrl(
+  env: WorkerEnv,
+  originalKey: string,
+  size: number = 800
+): string {
+  const cloudflareImagesEnabled = env.CLOUDFLARE_IMAGES_ENABLED === 'true';
 
-    if (!response.ok) {
-      const error = await response.text();
-      throw new Error(`Cloudflare Images upload failed: ${error}`);
+  if (cloudflareImagesEnabled && env.CLOUDFLARE_IMAGES_HASH) {
+    // Use Cloudflare Images for dynamic resizing
+    const accountId = env.CLOUDFLARE_ACCOUNT_ID;
+    const imagesHash = env.CLOUDFLARE_IMAGES_HASH;
+    return `https://imagedelivery.net/${accountId}/${imagesHash}/w=${size}`;
+  }
+
+  // Fallback to original URL for MVP
+  return generatePhotoUrl(env, originalKey);
+}
+
+/**
+ * Upload to Cloudflare Images if enabled, otherwise use R2
+ */
+export async function uploadWithThumbnail(
+  env: WorkerEnv,
+  file: File,
+  originalKey: string,
+  metadata?: Record<string, string>,
+  _options: PhotoProcessingOptions = {}
+): Promise<{ originalKey: string; thumbnailKey?: string; cloudflareImageId?: string }> {
+  const cloudflareImagesEnabled = env.CLOUDFLARE_IMAGES_ENABLED === 'true';
+  const debugEnabled = env.PHOTO_DEBUG === '1' || env.PHOTO_DEBUG === 'true';
+  const debug = (...args: unknown[]): void => {
+    if (debugEnabled) console.info('[PHOTO][STORE]', ...args);
+  };
+  debug('uploadWithThumbnail start', { originalKey, sizeBytes: file.size, mime: file.type });
+
+  if (cloudflareImagesEnabled && env.CLOUDFLARE_ACCOUNT_ID) {
+    try {
+      // Upload to Cloudflare Images
+      const imageId = await uploadToCloudflareImages(env, file);
+      debug('Cloudflare Images upload success', { imageId, originalKey });
+
+      return {
+        originalKey,
+        cloudflareImageId: imageId,
+      };
+    } catch (error) {
+      console.warn('[PHOTO][STORE] Cloudflare Images upload failed, falling back to R2', error);
+      // Fall through to R2 upload
     }
-
-    const result = (await response.json()) as { result: { id: string } };
-    return result.result.id;
   }
 
-  /**
-   * Generate thumbnail key based on original key
-   */
-  function generateThumbnailKey(originalKey: string): string {
-    const parts = originalKey.split('/');
-    const filename = parts.pop() || '';
-    const folder = parts.join('/');
+  // Upload to R2 (existing behavior)
+  debug('Uploading to R2 bucket', { originalKey });
+  await uploadToR2(env, file, originalKey, metadata);
+  debug('R2 upload complete', { originalKey });
 
-    // Replace 'originals' with 'thumbnails' or add thumbnails folder
-    const thumbnailFolder = folder.replace('originals', 'thumbnails') || 'thumbnails';
+  // Generate thumbnail key for potential future thumbnail generation
+  const thumbnailKey = generateThumbnailKey(originalKey);
 
-    return `${thumbnailFolder}/${filename}`;
+  const result = {
+    originalKey,
+    thumbnailKey,
+  };
+  debug('uploadWithThumbnail done', result);
+  return result;
+}
+
+/**
+ * Upload to Cloudflare Images API
+ */
+async function uploadToCloudflareImages(env: WorkerEnv, file: File): Promise<string> {
+  const accountId = env.CLOUDFLARE_ACCOUNT_ID;
+
+  if (!accountId) {
+    throw new Error('Cloudflare Account ID not configured');
   }
+
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('requireSignedURLs', 'false'); // Allow public access
+  formData.append(
+    'metadata',
+    JSON.stringify({
+      source: 'cultural-archiver',
+      uploadedAt: new Date().toISOString(),
+    })
+  );
+
+  const response = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${accountId}/images/v1`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.CLOUDFLARE_IMAGES_API_TOKEN || ''}`,
+      },
+      body: formData,
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Cloudflare Images upload failed: ${error}`);
+  }
+
+  const result = (await response.json()) as { result: { id: string } };
+  return result.result.id;
+}
+
+/**
+ * Generate thumbnail key based on original key
+ */
+function generateThumbnailKey(originalKey: string): string {
+  const parts = originalKey.split('/');
+  const filename = parts.pop() || '';
+  const folder = parts.join('/');
+
+  // Replace 'originals' with 'thumbnails' or add thumbnails folder
+  const thumbnailFolder = folder.replace('originals', 'thumbnails') || 'thumbnails';
+
+  return `${thumbnailFolder}/${filename}`;
+}

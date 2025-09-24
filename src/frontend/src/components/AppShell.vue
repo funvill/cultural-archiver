@@ -46,16 +46,7 @@ const authStore = useAuthStore();
 const drawerCloseButton = ref<HTMLElement>();
 // Note: firstNavLink ref is defined but not used - keeping for future drawer focus enhancement
 
-// Main navigation items (shown in desktop header)
-// NOTE: We keep a placeholder object for consistency but override click handling for fast-add
-const mainNavigationItems: NavigationItem[] = [
-  {
-    name: 'Add',
-    path: '/add', // legacy path (fallback) not directly navigated to when fast-add succeeds
-    icon: CameraIcon,
-    primaryAction: true,
-  },
-];
+// (removed mainNavigationItems - header uses FAB instead)
 
 // Menu navigation items (shown in hamburger menu)
 const menuNavigationItems: NavigationItem[] = [
@@ -116,8 +107,8 @@ const drawerNavItems = computed(() => {
       return false;
     }
 
-  // Hide moderator-only items if user cannot review
-  if ((item as any).requiresModerator && !authStore.canReview) {
+    // Hide moderator-only items if user cannot review
+    if ((item as any).requiresModerator && !authStore.canReview) {
       return false;
     }
 
@@ -128,7 +119,7 @@ const drawerNavItems = computed(() => {
 
     return true;
   });
-  
+
   console.log('*** DRAWER DEBUG START ***');
   console.log('menuNavigationItems:', menuNavigationItems);
   console.log('authStore.isAuthenticated:', authStore.isAuthenticated);
@@ -136,7 +127,7 @@ const drawerNavItems = computed(() => {
   console.log('authStore.isAdmin:', authStore.isAdmin);
   console.log('filtered items:', items);
   console.log('*** DRAWER DEBUG END ***');
-  
+
   return items;
 });
 
@@ -194,7 +185,9 @@ function resetFastAddState(): void {
     const store = useFastUploadSessionStore();
     store.clear?.();
   } catch {}
-  try { sessionStorage.removeItem('fast-upload-session'); } catch {}
+  try {
+    sessionStorage.removeItem('fast-upload-session');
+  } catch {}
   fastHasNavigated.value = false; // allow navigation logic to treat next add as first
 }
 
@@ -246,7 +239,11 @@ async function fastProcessFiles(files: File[]) {
   if (!fastLocationSources.value.exif.detected) {
     try {
       const browserCoords = await getCurrentPosition();
-      fastLocationSources.value.browser = { detected: true, error: false, coordinates: browserCoords };
+      fastLocationSources.value.browser = {
+        detected: true,
+        error: false,
+        coordinates: browserCoords,
+      };
       if (!fastFinalLocation.value) fastFinalLocation.value = browserCoords;
     } catch (err) {
       fastLocationSources.value.browser = { detected: false, error: true, coordinates: null };
@@ -264,8 +261,10 @@ async function fastProcessFiles(files: File[]) {
       console.warn('[FAST ADD] No location detected from EXIF or browser geolocation');
       // Non-blocking lightweight UX (could be replaced by a toast component if available)
       // Using alert as a fallback since component-level toast system not referenced here
-  // TODO: Replace window.alert with centralized toast/notification system once available
-  alert('Could not detect photo location automatically (EXIF & browser GPS unavailable). You can still continue and set location later.');
+      // TODO: Replace window.alert with centralized toast/notification system once available
+      alert(
+        'Could not detect photo location automatically (EXIF & browser GPS unavailable). You can still continue and set location later.'
+      );
     } catch {}
   }
   maybeNavigateFast();
@@ -277,7 +276,14 @@ function maybeNavigateFast() {
   // Helper to write session (shared for first navigation and subsequent updates)
   const writeSession = () => {
     const store = useFastUploadSessionStore();
-    const metaWithPreview: Array<{ id: string; name: string; preview: string; exifLat?: number | undefined; exifLon?: number | undefined; file: File }> = fastSelected.value.map((p: FastPhotoFile) => ({
+    const metaWithPreview: Array<{
+      id: string;
+      name: string;
+      preview: string;
+      exifLat?: number | undefined;
+      exifLon?: number | undefined;
+      file: File;
+    }> = fastSelected.value.map((p: FastPhotoFile) => ({
       id: p.id,
       name: p.name,
       preview: p.preview,
@@ -285,7 +291,17 @@ function maybeNavigateFast() {
       exifLon: p.exifData?.longitude ?? undefined,
       file: p.file,
     }));
-    const meta: Array<{ id: string; name: string; exifLat?: number | undefined; exifLon?: number | undefined }> = metaWithPreview.map((m) => ({ id: m.id, name: m.name, exifLat: m.exifLat, exifLon: m.exifLon }));
+    const meta: Array<{
+      id: string;
+      name: string;
+      exifLat?: number | undefined;
+      exifLon?: number | undefined;
+    }> = metaWithPreview.map(m => ({
+      id: m.id,
+      name: m.name,
+      exifLat: m.exifLat,
+      exifLon: m.exifLon,
+    }));
     const payload = {
       photos: metaWithPreview,
       location: fastFinalLocation.value,
@@ -319,7 +335,6 @@ function maybeNavigateFast() {
     router.push(`/search?${query.toString()}`);
   }
 }
-
 
 const userDisplayName = computed(() => {
   if (!authStore.user) return 'Anonymous';
@@ -549,45 +564,68 @@ try {
           </button>
         </div>
 
-        <!-- Center: Add Button -->
+        <!-- Center: Floating Add FAB (Material-style) -->
         <div class="flex justify-center">
-          <nav role="navigation" aria-label="Main navigation">
-            <button
-              v-for="item in mainNavigationItems"
-              :key="item.path"
-              type="button"
-              @click="triggerFastAdd"
-              class="nav-link rounded-md font-medium focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors px-4 py-2 text-sm relative hover:bg-blue-700"
-            >
-              <span class="absolute -inset-1 rounded-lg bg-white/10 pointer-events-none" />
-              <component
-                v-if="item.icon"
-                :is="item.icon"
-                class="w-6 h-6 inline-block mr-1"
-                aria-hidden="true"
-              />
-              <span class="text-base font-semibold">{{ item.name }}</span>
-            </button>
-            <input
-              ref="fastFileInput"
-              type="file"
-              accept="image/*"
-              multiple
-              class="hidden"
-              @change="handleFastFileChange"
-            />
-          </nav>
+          <!-- Hidden textual Add button to preserve legacy selectors/tests -->
+          <button type="button" @click="triggerFastAdd" class="sr-only" aria-label="Add">
+            Add
+          </button>
+
+          <!-- FAB button positioned absolutely via scoped styles to overlap header -->
+          <button
+            type="button"
+            @click="triggerFastAdd"
+            class="fab pointer-events-auto flex items-center justify-center shadow-lg bg-primary-500 text-white rounded-full focus:outline-none focus:ring-4 focus:ring-primary-200 transition-transform"
+            aria-label="Add photo"
+          >
+            <CameraIcon class="w-7 h-7" aria-hidden="true" />
+          </button>
+          <input
+            ref="fastFileInput"
+            type="file"
+            accept="image/*"
+            multiple
+            class="hidden"
+            @change="handleFastFileChange"
+          />
         </div>
 
-        <!-- Right side: Notifications and Navigation -->
+        <!-- Right side: Search, Notifications, Profile and Navigation -->
         <div class="flex items-center justify-end space-x-2">
+          <!-- Search Icon -->
+          <button
+            class="p-2 rounded-md hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
+            @click="
+              () => {
+                router.push('/search');
+              }
+            "
+            aria-label="Search"
+          >
+            <MagnifyingGlassIcon class="w-6 h-6" aria-hidden="true" />
+          </button>
+
           <!-- Notification Icon (only for authenticated users) -->
-          <NotificationIcon 
+          <NotificationIcon
             v-if="authStore.isAuthenticated"
             @notification-click="handleNotificationClick"
             @panel-toggle="handleNotificationPanelToggle"
           />
-          
+
+          <!-- Profile Icon (navigates to profile) -->
+          <button
+            v-if="authStore.isAuthenticated"
+            class="p-2 rounded-md hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
+            @click="
+              () => {
+                router.push('/profile');
+              }
+            "
+            aria-label="Profile"
+          >
+            <UserIcon class="w-6 h-6" aria-hidden="true" />
+          </button>
+
           <!-- Navigation Drawer Button -->
           <button
             class="p-2 rounded-md hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
@@ -608,12 +646,7 @@ try {
     <DevelopmentBanner />
 
     <!-- Navigation Drawer Overlay -->
-    <div
-      v-if="showDrawer"
-      class="fixed inset-0 z-40"
-      @click="closeDrawer"
-      aria-hidden="true"
-    >
+    <div v-if="showDrawer" class="fixed inset-0 z-40" @click="closeDrawer" aria-hidden="true">
       <div class="fixed inset-0 bg-black bg-opacity-50" />
     </div>
 
@@ -654,19 +687,27 @@ try {
           class="drawer-link flex items-center px-6 py-4 text-gray-700 hover:bg-blue-50 hover:text-blue-600 focus:bg-blue-50 focus:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
           :class="[
             $route.path === item.path ? 'bg-blue-100 text-blue-600 border-r-4 border-blue-600' : '',
-            item.primaryAction ? 'relative z-0' : ''
+            item.primaryAction ? 'relative z-0' : '',
           ]"
           :aria-current="$route.path === item.path ? 'page' : undefined"
           @click="closeDrawer"
         >
-          <span v-if="item.primaryAction" class="absolute -inset-1 rounded bg-blue-50 border border-blue-200 pointer-events-none -z-10" />
+          <span
+            v-if="item.primaryAction"
+            class="absolute -inset-1 rounded bg-blue-50 border border-blue-200 pointer-events-none -z-10"
+          />
           <component
             v-if="item.icon"
             :is="item.icon"
             :class="item.primaryAction ? 'relative z-10 w-6 h-6 mr-4' : 'w-5 h-5 mr-4'"
             aria-hidden="true"
           />
-          <span :class="item.primaryAction ? 'relative z-10 font-semibold text-base' : 'font-medium text-base'">{{ item.name }}</span>
+          <span
+            :class="
+              item.primaryAction ? 'relative z-10 font-semibold text-base' : 'font-medium text-base'
+            "
+            >{{ item.name }}</span
+          >
         </RouterLink>
 
         <!-- Authentication Section -->
@@ -685,7 +726,9 @@ try {
               <UserIcon class="w-5 h-5 text-gray-600" aria-hidden="true" />
               <span>{{ userDisplayName }}</span>
             </button>
-            <div v-else class="text-base font-medium text-gray-900 px-3 py-3">{{ userDisplayName }}</div>
+            <div v-else class="text-base font-medium text-gray-900 px-3 py-3">
+              {{ userDisplayName }}
+            </div>
           </div>
 
           <!-- Auth Actions -->
@@ -748,6 +791,7 @@ try {
 
 .app-header {
   flex-shrink: 0;
+  position: relative; /* allow absolutely positioned FAB inside header */
 }
 
 .app-main {
@@ -788,6 +832,29 @@ try {
   }
 }
 
+/* Scoped FAB positioning: make the FAB overlap the app bar so 30% extends into content */
+/* Make the FAB fixed so its top touches the viewport top and it visually clips into the header
+   We keep the bottom hanging 30% into the content by offsetting the header's inner padding. */
+.fab {
+  position: fixed;
+  top: 0; /* FAB top aligns with window top */
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 40; /* above header but below modals */
+  /* visually center the icon inside the circular FAB — existing width/height apply */
+}
+
+@media (max-width: 640px) {
+  /* Slightly smaller FAB on small screens and adjust overlap */
+  .fab {
+    width: 64px;
+    height: 64px;
+    /* top is fixed at 0 with fixed positioning; no top calc needed */
+  }
+}
+
+/* Ensure header content isn't covered by the clipped top of the FAB by adding top padding
+   equal to approximately 30% of the FAB so the visible lower portion overlaps the header. */
 /* Prevent body scroll when drawer is open */
 body.drawer-open {
   overflow: hidden;

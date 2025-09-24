@@ -4,13 +4,23 @@
     <AppShell>
       <template #header>
         <div class="flex items-center space-x-4">
-          <button 
+          <button
             @click="$router.go(-1)"
             class="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             title="Go back"
           >
-            <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+            <svg
+              class="w-5 h-5 text-gray-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 19l-7-7 7-7"
+              />
             </svg>
           </button>
           <h1 class="text-xl font-semibold text-gray-900">
@@ -34,7 +44,7 @@
                 </div>
               </div>
             </div>
-            
+
             <!-- Badges Skeleton -->
             <div class="bg-white rounded-lg shadow p-6">
               <div class="h-6 bg-gray-200 rounded w-32 mb-4"></div>
@@ -47,10 +57,16 @@
 
         <!-- Error State -->
         <div v-else-if="error" class="text-center py-12">
-          <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+          <div
+            class="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center"
+          >
             <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
+              />
             </svg>
           </div>
           <h2 class="text-lg font-medium text-gray-900 mb-2">Profile not found</h2>
@@ -76,12 +92,10 @@
                   {{ profile.profile_name.charAt(0).toUpperCase() }}
                 </span>
               </div>
-              
+
               <div>
                 <h2 class="text-2xl font-bold text-gray-900">{{ profile.profile_name }}</h2>
-                <p class="text-gray-600">
-                  Member since {{ formatDate(profile.member_since) }}
-                </p>
+                <p class="text-gray-600">Member since {{ formatDate(profile.member_since) }}</p>
                 <div class="flex items-center space-x-4 mt-2 text-sm text-gray-500">
                   <span>{{ profile.badges.length }} badges earned</span>
                 </div>
@@ -132,7 +146,7 @@ const formatDate = (dateString: string): string => {
     return date.toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
-      day: 'numeric'
+      day: 'numeric',
     });
   } catch (error) {
     return 'Unknown date';
@@ -141,7 +155,7 @@ const formatDate = (dateString: string): string => {
 
 const loadProfile = async () => {
   const uuid = route.params.uuid as string;
-  
+
   if (!uuid) {
     error.value = 'Invalid profile URL';
     isLoading.value = false;
@@ -151,7 +165,7 @@ const loadProfile = async () => {
   try {
     isLoading.value = true;
     const response = await apiService.getPublicUserProfile(uuid);
-    
+
     if (response.success && response.data) {
       profile.value = response.data;
     } else {
@@ -159,7 +173,7 @@ const loadProfile = async () => {
     }
   } catch (err: any) {
     console.error('Failed to load public profile:', err);
-    
+
     if (err.status === 404) {
       error.value = 'This user profile is not available or does not exist.';
     } else {

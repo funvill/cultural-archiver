@@ -2,7 +2,7 @@
 
 /**
  * Mass Import System - CLI Tool
- * 
+ *
  * Command-line interface for the Cultural Archiver mass import system.
  * Provides commands for importing, validating, and managing public art data.
  */
@@ -32,18 +32,18 @@ const handleCancellation = (signal: string): void => {
     console.log(chalk.red('\n🛑 Force termination'));
     process.exit(1);
   }
-  
+
   isCancelled = true;
   setCancellationState(true);
-  
+
   if (currentSpinner) {
     currentSpinner.fail(chalk.yellow('Operation cancelled'));
     currentSpinner = null;
   }
-  
+
   console.log(chalk.yellow(`\n⚠️ Received ${signal} signal. Cancelling operation...`));
   console.log(chalk.gray('Press Ctrl+C again to force exit'));
-  
+
   // Give a brief moment for cleanup then exit
   setTimeout(() => {
     console.log(chalk.blue('👋 Graceful shutdown complete'));
@@ -70,7 +70,9 @@ const trackSpinner = (spinner: ReturnType<typeof ora>): ReturnType<typeof ora> =
 
 program
   .name('mass-import')
-  .description('Cultural Archiver Mass Import System - Import public art data from external sources')
+  .description(
+    'Cultural Archiver Mass Import System - Import public art data from external sources'
+  )
   .version('1.0.0');
 
 // ================================
@@ -87,8 +89,14 @@ program
   .option('--similarity-threshold <number>', 'Title similarity threshold (0-1)', '0.8')
   .option('--limit <number>', 'Limit number of records processed (testing / first-record import)')
   .option('--offset <number>', 'Skip first N records before processing (windowing)')
-  .option('--new-artwork-report <file>', 'Write list of newly created artwork URLs to file (non-dry-run only)')
-  .option('--frontend-base <url>', 'Frontend base URL for artwork links (defaults to https://art.abluestar.com)')
+  .option(
+    '--new-artwork-report <file>',
+    'Write list of newly created artwork URLs to file (non-dry-run only)'
+  )
+  .option(
+    '--frontend-base <url>',
+    'Frontend base URL for artwork links (defaults to https://art.abluestar.com)'
+  )
   .option('--config <file>', 'Configuration file path')
   .option('--verbose', 'Enable verbose logging', false);
 
@@ -100,11 +108,19 @@ program
   .command('import')
   .description('Import public art data using specified importer')
   .argument('<file>', 'Input data file path')
-  .option('--importer <name>', 'Data source importer (required). Use "all" to run all importers. Available: ' + ImporterRegistry.getAll().join(', '))
+  .option(
+    '--importer <name>',
+    'Data source importer (required). Use "all" to run all importers. Available: ' +
+      ImporterRegistry.getAll().join(', ')
+  )
   .option('--source <name>', 'Data source name override')
   .option('--dry-run', 'Perform validation only without importing', false)
   .option('--output <file>', 'Output report file path')
-  .option('--stop-on-error', 'Stop processing when batch failures occur (default is to continue)', false)
+  .option(
+    '--stop-on-error',
+    'Stop processing when batch failures occur (default is to continue)',
+    false
+  )
   .action(async (file: string, options: any) => {
     try {
       // Validate importer selection
@@ -118,7 +134,9 @@ program
       if (!importerValidation.valid) {
         console.error(chalk.red('❌ Error: ' + importerValidation.message));
         if (importerValidation.suggestions) {
-          console.log(chalk.yellow('💡 Did you mean: ' + importerValidation.suggestions.join(', ') + '?'));
+          console.log(
+            chalk.yellow('💡 Did you mean: ' + importerValidation.suggestions.join(', ') + '?')
+          );
         }
         process.exit(1);
       }
@@ -131,8 +149,10 @@ program
       if (options.importer === 'all') {
         // Run all importers sequentially
         const allImporters = ImporterRegistry.getAll();
-        console.log(chalk.blue(`🚀 Running all importers sequentially: ${allImporters.join(', ')}`));
-        
+        console.log(
+          chalk.blue(`🚀 Running all importers sequentially: ${allImporters.join(', ')}`)
+        );
+
         for (const importerName of allImporters) {
           console.log(chalk.cyan(`\n📦 Processing with ${importerName} importer...`));
           await runSingleImporter(importerName, file, mergedOptions, config);
@@ -141,7 +161,6 @@ program
         // Run single importer
         await runSingleImporter(options.importer, file, mergedOptions, config);
       }
-
     } catch (error) {
       console.error(chalk.red('❌ Import failed:'), error instanceof Error ? error.message : error);
       process.exit(1);
@@ -160,11 +179,11 @@ program
   .option('--output <file>', 'Output validation report file path')
   .action(async (file, options) => {
     try {
-  const globalOptions = program.opts();
-  const mergedOptions = { ...globalOptions, ...options };
-  const config = await loadConfig(mergedOptions);
+      const globalOptions = program.opts();
+      const mergedOptions = { ...globalOptions, ...options };
+      const config = await loadConfig(mergedOptions);
       config.dryRun = true; // Force dry-run mode for validation
-      
+
       const processor = new MassImportProcessor(config);
 
       console.log(chalk.blue('🔍 Validating data file...'));
@@ -177,7 +196,11 @@ program
       const offset = mergedOptions.offset ? parseInt(mergedOptions.offset, 10) : 0;
       if (!isNaN(offset) && offset > 0) {
         if (offset >= data.length) {
-          console.log(chalk.red(`⚠️ Offset ${offset} exceeds dataset length (${data.length}). No records to validate.`));
+          console.log(
+            chalk.red(
+              `⚠️ Offset ${offset} exceeds dataset length (${data.length}). No records to validate.`
+            )
+          );
           limitedData = [];
         } else {
           limitedData = data.slice(offset);
@@ -188,13 +211,17 @@ program
         const limit = parseInt(mergedOptions.limit, 10);
         if (!isNaN(limit) && limit > 0 && limitedData.length > limit) {
           limitedData = limitedData.slice(0, limit);
-          console.log(chalk.yellow(`⚠️ Record limit applied: validating ${limit} records (window ${offset}-${offset + limit - 1})`));
+          console.log(
+            chalk.yellow(
+              `⚠️ Record limit applied: validating ${limit} records (window ${offset}-${offset + limit - 1})`
+            )
+          );
         }
       }
       spinner.succeed(`Loaded ${data.length} records from ${file}`);
 
       // Validate data
-  const results = await processor.processData(limitedData, {
+      const results = await processor.processData(limitedData, {
         source: options.source,
         dryRun: true,
         continueOnError: true,
@@ -207,9 +234,11 @@ program
       const reportFile = options.output || `validation-report-${Date.now()}.json`;
       await saveDetailedReport(results, reportFile, 'validation');
       console.log(chalk.green(`📄 Detailed validation report saved to ${reportFile}`));
-
     } catch (error) {
-      console.error(chalk.red('❌ Validation failed:'), error instanceof Error ? error.message : error);
+      console.error(
+        chalk.red('❌ Validation failed:'),
+        error instanceof Error ? error.message : error
+      );
       process.exit(1);
     }
   });
@@ -224,11 +253,11 @@ program
   .option('--input <file>', 'Vancouver JSON data file', './public-art.json')
   .option('--dry-run', 'Perform validation only without importing', false)
   .option('--output <file>', 'Output report file path')
-  .action(async (options) => {
+  .action(async options => {
     try {
-  const globalOptions = program.opts();
-  const mergedOptions = { ...globalOptions, ...options };
-  const config = await loadConfig(mergedOptions);
+      const globalOptions = program.opts();
+      const mergedOptions = { ...globalOptions, ...options };
+      const config = await loadConfig(mergedOptions);
       const processor = new MassImportProcessor(config);
 
       console.log(chalk.blue('🏢 Starting Vancouver Open Data import...'));
@@ -242,18 +271,28 @@ program
       const offset = mergedOptions.offset ? parseInt(mergedOptions.offset, 10) : 0;
       if (!isNaN(offset) && offset > 0) {
         if (offset >= data.length) {
-          console.log(chalk.red(`⚠️ Offset ${offset} exceeds Vancouver dataset length (${data.length}). No records to process.`));
+          console.log(
+            chalk.red(
+              `⚠️ Offset ${offset} exceeds Vancouver dataset length (${data.length}). No records to process.`
+            )
+          );
           limitedData = [];
         } else {
           limitedData = data.slice(offset);
-          console.log(chalk.yellow(`⚠️ Offset applied: skipping first ${offset} Vancouver records`));
+          console.log(
+            chalk.yellow(`⚠️ Offset applied: skipping first ${offset} Vancouver records`)
+          );
         }
       }
       if (mergedOptions.limit) {
         const limit = parseInt(mergedOptions.limit, 10);
         if (!isNaN(limit) && limit > 0 && limitedData.length > limit) {
           limitedData = limitedData.slice(0, limit);
-          console.log(chalk.yellow(`⚠️ Record limit applied: processing ${limit} Vancouver records (window ${offset}-${offset + limit - 1})`));
+          console.log(
+            chalk.yellow(
+              `⚠️ Record limit applied: processing ${limit} Vancouver records (window ${offset}-${offset + limit - 1})`
+            )
+          );
         }
       }
       spinner.succeed(`Loaded ${data.length} Vancouver artworks`);
@@ -262,7 +301,7 @@ program
       processor.setMapper(VancouverMapper);
 
       // Process Vancouver data
-  const results = await processor.processData(limitedData, {
+      const results = await processor.processData(limitedData, {
         source: 'vancouver-opendata',
         dryRun: options.dryRun,
         continueOnError: true,
@@ -273,20 +312,26 @@ program
 
       // Always save a detailed report (auto-generate filename if not specified)
       const reportFile = options.output || `vancouver-report-${Date.now()}.json`;
-      await saveDetailedReport(results, reportFile, options.dryRun ? 'vancouver-validation' : 'vancouver-import');
+      await saveDetailedReport(
+        results,
+        reportFile,
+        options.dryRun ? 'vancouver-validation' : 'vancouver-import'
+      );
       console.log(chalk.green(`📄 Detailed Vancouver report saved to ${reportFile}`));
 
       if (!options.dryRun && mergedOptions.newArtworkReport) {
         await saveNewArtworkReport(results, mergedOptions, 'vancouver');
       }
-
     } catch (error) {
       // Don't treat cancellation as an error - the processor will handle partial results
       if (isCancelled) {
         console.log(chalk.yellow('\n⚠️ Vancouver operation completed with partial results'));
         process.exit(0);
       }
-      console.error(chalk.red('❌ Vancouver import failed:'), error instanceof Error ? error.message : error);
+      console.error(
+        chalk.red('❌ Vancouver import failed:'),
+        error instanceof Error ? error.message : error
+      );
       process.exit(1);
     }
   });
@@ -303,11 +348,11 @@ program
   .option('--output <file>', 'Output report file path')
   .action(async (file, options) => {
     try {
-  const globalOptions = program.opts();
-  const mergedOptions = { ...globalOptions, ...options };
-  const config = await loadConfig(mergedOptions);
+      const globalOptions = program.opts();
+      const mergedOptions = { ...globalOptions, ...options };
+      const config = await loadConfig(mergedOptions);
       config.dryRun = true;
-      
+
       const processor = new MassImportProcessor(config);
 
       console.log(chalk.blue('🧪 Performing dry run...'));
@@ -320,7 +365,11 @@ program
       const offset = mergedOptions.offset ? parseInt(mergedOptions.offset, 10) : 0;
       if (!isNaN(offset) && offset > 0) {
         if (offset >= data.length) {
-          console.log(chalk.red(`⚠️ Offset ${offset} exceeds dataset length (${data.length}). No records for dry-run.`));
+          console.log(
+            chalk.red(
+              `⚠️ Offset ${offset} exceeds dataset length (${data.length}). No records for dry-run.`
+            )
+          );
           limitedData = [];
         } else {
           limitedData = data.slice(offset);
@@ -331,12 +380,16 @@ program
         const limit = parseInt(mergedOptions.limit, 10);
         if (!isNaN(limit) && limit > 0 && limitedData.length > limit) {
           limitedData = limitedData.slice(0, limit);
-          console.log(chalk.yellow(`⚠️ Record limit applied: dry-run on ${limit} records (window ${offset}-${offset + limit - 1})`));
+          console.log(
+            chalk.yellow(
+              `⚠️ Record limit applied: dry-run on ${limit} records (window ${offset}-${offset + limit - 1})`
+            )
+          );
         }
       }
       spinner.succeed(`Loaded ${data.length} records from ${file}`);
 
-  const results = await processor.processData(limitedData, {
+      const results = await processor.processData(limitedData, {
         source: options.source,
         dryRun: true,
         continueOnError: true,
@@ -350,15 +403,17 @@ program
       const reportFile = options.output || `dry-run-report-${Date.now()}.json`;
       await saveDetailedReport(results, reportFile, 'dry-run');
       console.log(chalk.green(`📄 Detailed dry-run report saved to ${reportFile}`));
-      
+
       // Also save the traditional dry-run format if different filename requested
       if (options.output && options.output !== reportFile) {
         await saveDryRunReport(report, options.output);
         console.log(chalk.green(`📄 Traditional dry-run report saved to ${options.output}`));
       }
-
     } catch (error) {
-      console.error(chalk.red('❌ Dry run failed:'), error instanceof Error ? error.message : error);
+      console.error(
+        chalk.red('❌ Dry run failed:'),
+        error instanceof Error ? error.message : error
+      );
       process.exit(1);
     }
   });
@@ -377,7 +432,7 @@ program
   .option('--user-token <token>', 'Filter by user token (e.g., mass-import token)')
   .option('--max-submissions <number>', 'Maximum number of submissions to process')
   .option('--admin-token <token>', 'Administrator token for approval operations (required)')
-  .action(async (options) => {
+  .action(async options => {
     try {
       const globalOptions = program.opts();
       const mergedOptions = { ...globalOptions, ...options };
@@ -387,7 +442,11 @@ program
       if (!options.dryRun && !options.adminToken) {
         console.error(chalk.red('❌ Admin token is required for approval operations.'));
         console.error(chalk.yellow('Use --admin-token <token> or --dry-run to preview.'));
-        console.error(chalk.gray('The mass import token cannot be used for approvals - admin/moderator permissions required.'));
+        console.error(
+          chalk.gray(
+            'The mass import token cannot be used for approvals - admin/moderator permissions required.'
+          )
+        );
         process.exit(1);
       }
 
@@ -397,8 +456,10 @@ program
       console.log(chalk.blue('🔍 Bulk Approval Process...'));
       console.log(chalk.gray(`API Endpoint: ${config.apiEndpoint}`));
       console.log(chalk.gray(`Mode: ${options.dryRun ? 'DRY RUN' : 'APPROVE'}`));
-      console.log(chalk.gray(`Token: ${options.dryRun ? 'Mass Import (fetch only)' : 'Admin (approval)'}`));
-      
+      console.log(
+        chalk.gray(`Token: ${options.dryRun ? 'Mass Import (fetch only)' : 'Admin (approval)'}`)
+      );
+
       if (options.source) {
         console.log(chalk.gray(`Source Filter: ${options.source}`));
       }
@@ -431,13 +492,16 @@ program
       console.log(chalk.blue('\n📊 Approval Summary:'));
       console.log(chalk.gray('─'.repeat(50)));
       console.log(chalk.green(`✅ Submissions to approve: ${pendingSubmissions.length}`));
-      
+
       // Group by source for reporting
-      const submissionsBySource = pendingSubmissions.reduce((acc, sub) => {
-        const source = extractSourceFromTags(sub.tags) || 'unknown';
-        acc[source] = (acc[source] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
+      const submissionsBySource = pendingSubmissions.reduce(
+        (acc, sub) => {
+          const source = extractSourceFromTags(sub.tags) || 'unknown';
+          acc[source] = (acc[source] || 0) + 1;
+          return acc;
+        },
+        {} as Record<string, number>
+      );
 
       console.log(chalk.blue('\n📋 By Source:'));
       for (const [source, count] of Object.entries(submissionsBySource)) {
@@ -453,14 +517,14 @@ program
       if (!options.autoConfirm) {
         console.log(chalk.red('\n⚠️ WARNING: This will approve all matching submissions!'));
         console.log(chalk.yellow('Type "YES" to continue with bulk approval:'));
-        
+
         const readline = await import('readline');
         const rl = readline.createInterface({
           input: process.stdin,
           output: process.stdout,
         });
-        
-        const answer = await new Promise<string>((resolve) => {
+
+        const answer = await new Promise<string>(resolve => {
           rl.question('', resolve);
         });
         rl.close();
@@ -474,25 +538,29 @@ program
       // Process approvals in batches
       const batchSize = parseInt(options.batchSize, 10) || 25;
       const batches = chunkArray(pendingSubmissions, batchSize);
-      
+
       console.log(chalk.blue(`\n🔄 Processing ${batches.length} batches...`));
-      
+
       let totalApproved = 0;
       let totalErrors = 0;
 
       for (let i = 0; i < batches.length; i++) {
         const batch = batches[i];
         if (!batch) continue;
-        
-        const batchSpinner = ora(`Processing batch ${i + 1}/${batches.length} (${batch.length} items)`).start();
-        
+
+        const batchSpinner = ora(
+          `Processing batch ${i + 1}/${batches.length} (${batch.length} items)`
+        ).start();
+
         try {
           const batchResult = await processBulkApproval(config, batch, approvalToken);
-          batchSpinner.succeed(`Batch ${i + 1}: ${batchResult.approved} approved, ${batchResult.errors.length} errors`);
-          
+          batchSpinner.succeed(
+            `Batch ${i + 1}: ${batchResult.approved} approved, ${batchResult.errors.length} errors`
+          );
+
           totalApproved += batchResult.approved;
           totalErrors += batchResult.errors.length;
-          
+
           if (batchResult.errors.length > 0) {
             console.log(chalk.red(`❌ Batch ${i + 1} errors:`));
             batchResult.errors.forEach(error => {
@@ -500,7 +568,9 @@ program
             });
           }
         } catch (error) {
-          batchSpinner.fail(`Batch ${i + 1} failed: ${error instanceof Error ? error.message : error}`);
+          batchSpinner.fail(
+            `Batch ${i + 1} failed: ${error instanceof Error ? error.message : error}`
+          );
           totalErrors += batch.length;
         }
       }
@@ -510,10 +580,16 @@ program
       console.log(chalk.gray('─'.repeat(50)));
       console.log(chalk.green(`✅ Successfully approved: ${totalApproved}`));
       console.log(chalk.red(`❌ Errors: ${totalErrors}`));
-      console.log(chalk.blue(`📈 Success rate: ${((totalApproved / (totalApproved + totalErrors)) * 100).toFixed(1)}%`));
-
+      console.log(
+        chalk.blue(
+          `📈 Success rate: ${((totalApproved / (totalApproved + totalErrors)) * 100).toFixed(1)}%`
+        )
+      );
     } catch (error) {
-      console.error(chalk.red('❌ Bulk approval failed:'), error instanceof Error ? error.message : error);
+      console.error(
+        chalk.red('❌ Bulk approval failed:'),
+        error instanceof Error ? error.message : error
+      );
       process.exit(1);
     }
   });
@@ -523,7 +599,7 @@ program
   .command('status')
   .description('Check system status and configuration health')
   .option('--config-only', 'Only check configuration, skip API connectivity')
-  .action(async (options) => {
+  .action(async options => {
     try {
       const globalOptions = program.opts();
       const mergedOptions = { ...globalOptions, ...options };
@@ -536,7 +612,11 @@ program
       console.log(chalk.blue('\n📋 Configuration:'));
       console.log(chalk.green('✅ Configuration loaded successfully'));
       console.log(chalk.gray(`   API Endpoint: ${config.apiEndpoint}`));
-      console.log(chalk.gray(`   User Token: ${config.massImportUserToken ? config.massImportUserToken.substring(0, 8) + '...' : 'Not set'}`));
+      console.log(
+        chalk.gray(
+          `   User Token: ${config.massImportUserToken ? config.massImportUserToken.substring(0, 8) + '...' : 'Not set'}`
+        )
+      );
       console.log(chalk.gray(`   Batch Size: ${config.batchSize}`));
       console.log(chalk.gray(`   Max Retries: ${config.maxRetries}`));
       console.log(chalk.gray(`   Retry Delay: ${config.retryDelay}ms`));
@@ -551,15 +631,15 @@ program
       // API connectivity check
       console.log(chalk.blue('\n🌐 API Connectivity:'));
       const connectivitySpinner = ora('Testing API connection...').start();
-      
+
       try {
         // Simple health check - try to access API endpoint
         const response = await fetch(`${config.apiEndpoint}/health`, {
           method: 'GET',
           headers: {
-            'User-Agent': 'Mass-Import-CLI/1.0.0'
+            'User-Agent': 'Mass-Import-CLI/1.0.0',
           },
-          signal: AbortSignal.timeout(5000) // 5 second timeout
+          signal: AbortSignal.timeout(5000), // 5 second timeout
         });
 
         if (response.ok) {
@@ -568,7 +648,9 @@ program
           connectivitySpinner.warn(`API endpoint responded with status: ${response.status}`);
         }
       } catch (error) {
-        connectivitySpinner.fail(`API endpoint is not accessible: ${error instanceof Error ? error.message : error}`);
+        connectivitySpinner.fail(
+          `API endpoint is not accessible: ${error instanceof Error ? error.message : error}`
+        );
       }
 
       // Library status
@@ -587,8 +669,14 @@ program
       console.log(chalk.blue('\n✅ Configuration Validation:'));
       const validationResults = [];
 
-      if (!config.massImportUserToken || config.massImportUserToken === 'a0000000-1000-4000-8000-000000000002') { // MASS_IMPORT_USER_UUID
-        validationResults.push(chalk.yellow('⚠️ Using default mass import user token - consider setting custom token'));
+      if (
+        !config.massImportUserToken ||
+        config.massImportUserToken === 'a0000000-1000-4000-8000-000000000002'
+      ) {
+        // MASS_IMPORT_USER_UUID
+        validationResults.push(
+          chalk.yellow('⚠️ Using default mass import user token - consider setting custom token')
+        );
       } else {
         validationResults.push(chalk.green('✅ Custom user token configured'));
       }
@@ -602,7 +690,9 @@ program
       }
 
       if (config.duplicateDetectionRadius > 500) {
-        validationResults.push(chalk.yellow('⚠️ Large duplicate detection radius may cause false positives'));
+        validationResults.push(
+          chalk.yellow('⚠️ Large duplicate detection radius may cause false positives')
+        );
       } else {
         validationResults.push(chalk.green('✅ Duplicate detection radius is reasonable'));
       }
@@ -610,9 +700,11 @@ program
       validationResults.forEach(result => console.log(result));
 
       console.log(chalk.blue('\n🎯 System Status: Ready for import operations'));
-
     } catch (error) {
-      console.error(chalk.red('❌ Status check failed:'), error instanceof Error ? error.message : error);
+      console.error(
+        chalk.red('❌ Status check failed:'),
+        error instanceof Error ? error.message : error
+      );
       process.exit(1);
     }
   });
@@ -663,7 +755,7 @@ async function fetchPendingSubmissions(
 
   const response = await fetch(url.toString(), {
     headers: {
-      'Authorization': `Bearer ${adminToken}`,
+      Authorization: `Bearer ${adminToken}`,
       'Content-Type': 'application/json',
     },
   });
@@ -712,7 +804,7 @@ async function processBulkApproval(
   const response = await fetch(`${config.apiEndpoint}/api/review/batch`, {
     method: 'PUT',
     headers: {
-      'Authorization': `Bearer ${adminToken}`,
+      Authorization: `Bearer ${adminToken}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(approvalData),
@@ -724,7 +816,7 @@ async function processBulkApproval(
   }
 
   const result = await response.json();
-  
+
   // Ensure the result has the expected structure
   return {
     approved: result.results?.approved || 0,
@@ -737,9 +829,9 @@ async function processBulkApproval(
  * Run import process with a single importer
  */
 async function runSingleImporter(
-  importerName: string, 
-  file: string, 
-  options: any, 
+  importerName: string,
+  file: string,
+  options: any,
   _baseConfig: MassImportConfig
 ): Promise<void> {
   const importer = ImporterRegistry.get(importerName);
@@ -749,12 +841,12 @@ async function runSingleImporter(
 
   // Reload config with importer-specific settings
   const config = await loadConfig(options, importerName);
-  
+
   // Set dry-run mode based on options
   config.dryRun = options.dryRun || false;
-  
+
   const processor = new MassImportProcessor(config);
-  
+
   console.log(chalk.blue(`🚀 Starting ${importerName} import process...`));
   console.log(chalk.gray(`Importer: ${importer.description}`));
   console.log(chalk.gray(`File: ${file}`));
@@ -766,11 +858,11 @@ async function runSingleImporter(
   // Load and parse input file based on importer type
   const spinner = ora('Loading input file...').start();
   let data: any[];
-  
+
   if (importerName === 'osm') {
     // Use OSM-specific data loading
     data = loadOSMData(file);
-    
+
     // Display OSM-specific statistics
     const stats = getOSMProcessingStats(data);
     console.log(chalk.cyan('\n📊 OSM Dataset Statistics:'));
@@ -787,7 +879,11 @@ async function runSingleImporter(
   const offset = options.offset ? parseInt(options.offset, 10) : 0;
   if (!isNaN(offset) && offset > 0) {
     if (offset >= data.length) {
-      console.log(chalk.red(`⚠️ Offset ${offset} exceeds dataset length (${data.length}). No records to process.`));
+      console.log(
+        chalk.red(
+          `⚠️ Offset ${offset} exceeds dataset length (${data.length}). No records to process.`
+        )
+      );
       limitedData = [];
     } else {
       limitedData = data.slice(offset);
@@ -798,7 +894,11 @@ async function runSingleImporter(
     const limit = parseInt(options.limit, 10);
     if (!isNaN(limit) && limit > 0 && limitedData.length > limit) {
       limitedData = limitedData.slice(0, limit);
-      console.log(chalk.yellow(`⚠️ Record limit applied: processing ${limit} records (window ${offset}-${offset + limit - 1})`));
+      console.log(
+        chalk.yellow(
+          `⚠️ Record limit applied: processing ${limit} records (window ${offset}-${offset + limit - 1})`
+        )
+      );
     }
   }
   spinner.succeed(`Loaded ${data.length} records from ${file}`);
@@ -852,7 +952,7 @@ async function loadConfig(options: any, importerName?: string): Promise<MassImpo
       // Import the OSM config loader
       const { loadOSMConfig } = await import('../importers/osm.js');
       const osmConfig = loadOSMConfig();
-      
+
       // Use OSM-specific settings if not overridden
       if (!config.duplicateDetectionRadius && osmConfig.defaultConfig.duplicateDetectionRadius) {
         config.duplicateDetectionRadius = osmConfig.defaultConfig.duplicateDetectionRadius;
@@ -865,12 +965,17 @@ async function loadConfig(options: any, importerName?: string): Promise<MassImpo
   // Override with CLI options
   return {
     apiEndpoint: options.apiEndpoint || config.apiEndpoint || 'https://art-api.abluestar.com',
-    massImportUserToken: options.token || config.massImportUserToken || 'a0000000-1000-4000-8000-000000000002', // MASS_IMPORT_USER_UUID
+    massImportUserToken:
+      options.token || config.massImportUserToken || 'a0000000-1000-4000-8000-000000000002', // MASS_IMPORT_USER_UUID
     batchSize: parseInt(options.batchSize || config.batchSize || '50'),
     maxRetries: parseInt(options.maxRetries || config.maxRetries || '3'),
     retryDelay: parseInt(options.retryDelay || config.retryDelay || '1000'),
-    duplicateDetectionRadius: parseInt(options.duplicateRadius || config.duplicateDetectionRadius || '50'),
-    titleSimilarityThreshold: parseFloat(options.similarityThreshold || config.titleSimilarityThreshold || '0.8'),
+    duplicateDetectionRadius: parseInt(
+      options.duplicateRadius || config.duplicateDetectionRadius || '50'
+    ),
+    titleSimilarityThreshold: parseFloat(
+      options.similarityThreshold || config.titleSimilarityThreshold || '0.8'
+    ),
     dryRun: false, // Will be set by individual commands
   };
 }
@@ -882,7 +987,7 @@ async function loadInputFile(filePath: string): Promise<any[]> {
   try {
     const content = await fs.readFile(filePath, 'utf-8');
     const data = JSON.parse(content);
-    
+
     if (!Array.isArray(data)) {
       throw new Error('Input file must contain an array of records');
     }
@@ -904,16 +1009,23 @@ function displayResults(results: any): void {
   console.log(chalk.green(`✅ Successful: ${results.summary.successfulImports}`));
   console.log(chalk.red(`❌ Failed: ${results.summary.failedImports}`));
   console.log(chalk.yellow(`⚠️ Skipped (duplicates): ${results.summary.skippedDuplicates}`));
-  console.log(chalk.blue(`📷 Photos processed: ${results.summary.successfulPhotos}/${results.summary.totalPhotos}`));
-  
+  console.log(
+    chalk.blue(
+      `📷 Photos processed: ${results.summary.successfulPhotos}/${results.summary.totalPhotos}`
+    )
+  );
+
   // Show success rate
-  const successRate = ((results.summary.successfulImports / results.summary.totalRecords) * 100).toFixed(1);
+  const successRate = (
+    (results.summary.successfulImports / results.summary.totalRecords) *
+    100
+  ).toFixed(1);
   console.log(chalk.blue(`📈 Success rate: ${successRate}%`));
-  
+
   // Show first few created artworks
   let createdCount = 0;
   let failedCount = 0;
-  
+
   for (const batch of results.batches || []) {
     for (const result of batch.results || []) {
       if (result.success && createdCount < 3) {
@@ -921,7 +1033,11 @@ function displayResults(results: any): void {
           console.log(chalk.green('\n🎨 Sample Created Artworks:'));
         }
         createdCount++;
-        console.log(chalk.green(`  ✅ "${result.title || 'Unknown'}" (ID: ${result.submissionId || result.id})`));
+        console.log(
+          chalk.green(
+            `  ✅ "${result.title || 'Unknown'}" (ID: ${result.submissionId || result.id})`
+          )
+        );
         if (result.externalId) {
           console.log(chalk.gray(`     External ID: ${result.externalId}`));
         }
@@ -930,24 +1046,32 @@ function displayResults(results: any): void {
           console.log(chalk.red('\n❌ Sample Failed Records:'));
         }
         failedCount++;
-        console.log(chalk.red(`  ❌ "${result.title || 'Unknown'}": ${result.error || 'Unknown error'}`));
+        console.log(
+          chalk.red(`  ❌ "${result.title || 'Unknown'}": ${result.error || 'Unknown error'}`)
+        );
         if (result.externalId) {
           console.log(chalk.gray(`     External ID: ${result.externalId}`));
         }
       }
     }
   }
-  
+
   if (results.summary.successfulImports > 3) {
-    console.log(chalk.green(`  ... and ${results.summary.successfulImports - 3} more successful imports`));
+    console.log(
+      chalk.green(`  ... and ${results.summary.successfulImports - 3} more successful imports`)
+    );
   }
-  
+
   if (results.summary.failedImports > 3) {
     console.log(chalk.red(`  ... and ${results.summary.failedImports - 3} more failed imports`));
   }
-  
+
   if (results.summary.skippedDuplicates > 0) {
-    console.log(chalk.yellow(`\n⚠️ ${results.summary.skippedDuplicates} records skipped as potential duplicates`));
+    console.log(
+      chalk.yellow(
+        `\n⚠️ ${results.summary.skippedDuplicates} records skipped as potential duplicates`
+      )
+    );
   }
 }
 
@@ -959,7 +1083,11 @@ function displayValidationResults(results: any): void {
   console.log(chalk.green(`✅ Valid records: ${results.summary.successfulImports}`));
   console.log(chalk.red(`❌ Invalid records: ${results.summary.failedImports}`));
   console.log(chalk.yellow(`⚠️ Potential duplicates: ${results.summary.skippedDuplicates}`));
-  console.log(chalk.blue(`📷 Valid photos: ${results.summary.successfulPhotos}/${results.summary.totalPhotos}`));
+  console.log(
+    chalk.blue(
+      `📷 Valid photos: ${results.summary.successfulPhotos}/${results.summary.totalPhotos}`
+    )
+  );
 }
 
 /**
@@ -989,20 +1117,32 @@ function generateDryRunReport(results: any): DryRunReport {
 function displayDryRunReport(report: DryRunReport): void {
   console.log('\n' + chalk.blue('🧪 Dry Run Report:'));
   console.log(chalk.gray('─'.repeat(50)));
-  console.log(chalk.green(`✅ Valid records: ${report.summary.validRecords}/${report.summary.totalRecords}`));
+  console.log(
+    chalk.green(`✅ Valid records: ${report.summary.validRecords}/${report.summary.totalRecords}`)
+  );
   console.log(chalk.red(`❌ Invalid records: ${report.summary.invalidRecords}`));
   console.log(chalk.yellow(`🔄 Potential duplicates: ${report.summary.duplicateRecords}`));
-  console.log(chalk.blue(`📷 Valid photos: ${report.summary.validPhotos}/${report.summary.totalPhotos}`));
-  
+  console.log(
+    chalk.blue(`📷 Valid photos: ${report.summary.validPhotos}/${report.summary.totalPhotos}`)
+  );
+
   if (report.summary.invalidRecords > 0) {
-    console.log(chalk.red(`\n🚫 Found ${report.summary.invalidRecords} invalid records that would be skipped`));
+    console.log(
+      chalk.red(`\n🚫 Found ${report.summary.invalidRecords} invalid records that would be skipped`)
+    );
   }
-  
+
   if (report.summary.duplicateRecords > 0) {
-    console.log(chalk.yellow(`\n⚠️ Found ${report.summary.duplicateRecords} potential duplicates that would be skipped`));
+    console.log(
+      chalk.yellow(
+        `\n⚠️ Found ${report.summary.duplicateRecords} potential duplicates that would be skipped`
+      )
+    );
   }
-  
-  const successRate = ((report.summary.validRecords / report.summary.totalRecords) * 100).toFixed(1);
+
+  const successRate = ((report.summary.validRecords / report.summary.totalRecords) * 100).toFixed(
+    1
+  );
   console.log(chalk.blue(`\n📈 Success rate: ${successRate}%`));
 }
 
@@ -1010,9 +1150,9 @@ function displayDryRunReport(report: DryRunReport): void {
  * Save detailed results report to file
  */
 async function saveDetailedReport(
-  results: any, 
-  filePath: string, 
-  mode: string, 
+  results: any,
+  filePath: string,
+  mode: string,
   auditInfo?: {
     importerName: string;
     inputFile: string;
@@ -1022,7 +1162,7 @@ async function saveDetailedReport(
   }
 ): Promise<void> {
   const timestamp = new Date().toISOString();
-  
+
   // Extract successful artworks with details
   const createdArtworks: Array<{
     ExternalID: string;
@@ -1060,8 +1200,10 @@ async function saveDetailedReport(
       if (result.success) {
         const baseUrl = 'https://art.abluestar.com';
         // Only generate URL for actual artwork IDs (submissionId), not for dry-run external IDs
-        const artworkUrl = result.submissionId ? `${baseUrl}/artwork/${result.submissionId}` : undefined;
-        
+        const artworkUrl = result.submissionId
+          ? `${baseUrl}/artwork/${result.submissionId}`
+          : undefined;
+
         createdArtworks.push({
           ExternalID: result.id, // Always use the external ID here (OSM node ID)
           submissionId: result.submissionId,
@@ -1101,33 +1243,37 @@ async function saveDetailedReport(
       startTime: results.startTime,
       endTime: results.endTime,
     },
-    parameters: auditInfo ? {
-      importer: auditInfo.importerName,
-      inputFile: auditInfo.inputFile,
-      totalAvailableRecords: auditInfo.totalAvailableRecords,
-      configuration: {
-        // CLI options (excluding sensitive data)
-        dryRun: auditInfo.options.dryRun,
-        batchSize: auditInfo.options.batchSize,
-        limit: auditInfo.options.limit,
-        offset: auditInfo.options.offset,
-        stopOnError: auditInfo.options.stopOnError,
-        source: auditInfo.options.source,
-        verbose: auditInfo.options.verbose,
-        // Config settings (excluding sensitive data)
-        apiEndpoint: auditInfo.config.apiEndpoint,
-        duplicateDetectionRadius: auditInfo.config.duplicateDetectionRadius,
-        titleSimilarityThreshold: auditInfo.config.titleSimilarityThreshold,
-        maxRetries: auditInfo.config.maxRetries,
-        retryDelay: auditInfo.config.retryDelay,
-      },
-    } : null,
+    parameters: auditInfo
+      ? {
+          importer: auditInfo.importerName,
+          inputFile: auditInfo.inputFile,
+          totalAvailableRecords: auditInfo.totalAvailableRecords,
+          configuration: {
+            // CLI options (excluding sensitive data)
+            dryRun: auditInfo.options.dryRun,
+            batchSize: auditInfo.options.batchSize,
+            limit: auditInfo.options.limit,
+            offset: auditInfo.options.offset,
+            stopOnError: auditInfo.options.stopOnError,
+            source: auditInfo.options.source,
+            verbose: auditInfo.options.verbose,
+            // Config settings (excluding sensitive data)
+            apiEndpoint: auditInfo.config.apiEndpoint,
+            duplicateDetectionRadius: auditInfo.config.duplicateDetectionRadius,
+            titleSimilarityThreshold: auditInfo.config.titleSimilarityThreshold,
+            maxRetries: auditInfo.config.maxRetries,
+            retryDelay: auditInfo.config.retryDelay,
+          },
+        }
+      : null,
     summary: {
       ...results.summary,
-      successRate: ((results.summary.successfulImports / results.summary.totalRecords) * 100).toFixed(1) + '%',
-      processingTime: results.endTime && results.startTime 
-        ? `${((new Date(results.endTime).getTime() - new Date(results.startTime).getTime()) / 1000 / 60).toFixed(1)} minutes`
-        : 'Unknown',
+      successRate:
+        ((results.summary.successfulImports / results.summary.totalRecords) * 100).toFixed(1) + '%',
+      processingTime:
+        results.endTime && results.startTime
+          ? `${((new Date(results.endTime).getTime() - new Date(results.startTime).getTime()) / 1000 / 60).toFixed(1)} minutes`
+          : 'Unknown',
     },
     created_artworks: createdArtworks,
     failed_records: failedRecords,
@@ -1184,7 +1330,9 @@ async function saveNewArtworkReport(results: any, options: any, mode: string): P
   ];
 
   await fs.writeFile(filePath, lines.join('\n'));
-  console.log(chalk.green(`🔗 New artwork URL report written: ${filePath} (${newIds.length} entries)`));
+  console.log(
+    chalk.green(`🔗 New artwork URL report written: ${filePath} (${newIds.length} entries)`)
+  );
 }
 
 // ================================
@@ -1196,7 +1344,7 @@ process.on('unhandledRejection', (reason, promise) => {
   process.exit(1);
 });
 
-process.on('uncaughtException', (error) => {
+process.on('uncaughtException', error => {
   console.error(chalk.red('❌ Uncaught Exception:'), error);
   process.exit(1);
 });

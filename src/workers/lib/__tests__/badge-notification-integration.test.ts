@@ -13,7 +13,7 @@ const createMockDb = () => {
   const mockResults = new Map<string, any[]>();
   const mockFirst = new Map<string, any>();
   const mockRun = new Map<string, { success: boolean; changes: number }>();
-  
+
   const mockDb = {
     prepare: vi.fn((sql: string) => ({
       bind: vi.fn((...params: any[]) => ({
@@ -30,7 +30,7 @@ const createMockDb = () => {
       run: vi.fn(async () => mockRun.get(sql) || { success: true, changes: 1 }),
     })),
   };
-  
+
   return { mockDb, mockResults, mockFirst, mockRun };
 };
 
@@ -41,9 +41,9 @@ describe('Badge-Notification Integration', () => {
   let mockResults: Map<string, any[]>;
   let mockFirst: Map<string, any>;
   let mockRun: Map<string, { success: boolean; changes: number }>;
-  
+
   const testUserUuid = '123e4567-e89b-12d3-a456-426614174000';
-  
+
   const testBadge: BadgeRecord = {
     id: 'badge-123',
     badge_key: 'first_submission',
@@ -65,7 +65,7 @@ describe('Badge-Notification Integration', () => {
     mockResults = setup.mockResults;
     mockFirst = setup.mockFirst;
     mockRun = setup.mockRun;
-    
+
     badgeService = new BadgeService(mockDb);
     notificationService = new NotificationService(mockDb);
   });
@@ -78,17 +78,17 @@ describe('Badge-Notification Integration', () => {
       WHERE is_active = TRUE 
       ORDER BY category, level, threshold_value ASC
     `;
-      
+
       const getUserBadgeIdsQuery = `
       SELECT badge_id FROM user_badges WHERE user_uuid = ?
     `;
-      
+
       const getUserSubmissionCountQuery = `
       SELECT COUNT(*) as count 
       FROM submissions 
       WHERE user_token = ? AND status = 'approved'
     `;
-      
+
       const existingBadgeQuery = `
       SELECT awarded_at FROM user_badges 
       WHERE user_uuid = ? AND badge_id = ?
@@ -99,7 +99,7 @@ describe('Badge-Notification Integration', () => {
       mockResults.set(getUserBadgeIdsQuery, []); // No existing badges
       mockFirst.set(getUserSubmissionCountQuery, { count: 1 }); // User has 1 submission
       mockFirst.set(existingBadgeQuery, null); // Badge not yet awarded
-      
+
       // Test the badge calculation and award process
       const context = {
         user_uuid: testUserUuid,
@@ -107,9 +107,9 @@ describe('Badge-Notification Integration', () => {
         submission_count: 1,
         is_email_verified: true,
       };
-      
+
       const awardedBadges = await badgeService.calculateAndAwardBadges(context);
-      
+
       // Verify badge was awarded
       expect(awardedBadges).toHaveLength(1);
       expect(awardedBadges[0]).toMatchObject({
@@ -118,7 +118,7 @@ describe('Badge-Notification Integration', () => {
         title: 'First Submission',
         created: true,
       });
-      
+
       // Verify notification_id is present (indicating notification was created)
       expect(awardedBadges[0].notification_id).toBeDefined();
     });
@@ -130,17 +130,17 @@ describe('Badge-Notification Integration', () => {
       WHERE is_active = TRUE 
       ORDER BY category, level, threshold_value ASC
     `;
-      
+
       const getUserBadgeIdsQuery = `
       SELECT badge_id FROM user_badges WHERE user_uuid = ?
     `;
-      
+
       const getUserSubmissionCountQuery = `
       SELECT COUNT(*) as count 
       FROM submissions 
       WHERE user_token = ? AND status = 'approved'
     `;
-      
+
       const existingBadgeQuery = `
       SELECT awarded_at FROM user_badges 
       WHERE user_uuid = ? AND badge_id = ?
@@ -151,23 +151,23 @@ describe('Badge-Notification Integration', () => {
       mockResults.set(getUserBadgeIdsQuery, []); // GetUserBadgeIds returns empty but existingBadgeQuery returns data
       mockFirst.set(getUserSubmissionCountQuery, { count: 1 });
       mockFirst.set(existingBadgeQuery, { awarded_at: '2023-01-01T00:00:00Z' }); // Badge already awarded
-      
+
       const context = {
         user_uuid: testUserUuid,
         user_record: undefined,
         submission_count: 1,
         is_email_verified: true,
       };
-      
+
       const awardedBadges = await badgeService.calculateAndAwardBadges(context);
-      
+
       // Verify badge result shows not newly created
       expect(awardedBadges).toHaveLength(1);
       expect(awardedBadges[0]).toMatchObject({
         badge_id: 'badge-123',
         created: false, // Not newly created
       });
-      
+
       // Verify no notification was created
       expect(awardedBadges[0].notification_id).toBeUndefined();
     });
@@ -175,35 +175,41 @@ describe('Badge-Notification Integration', () => {
     it('should handle notification creation failure gracefully', async () => {
       // This test would verify that badge award succeeds even if notification creation fails
       // For the mock implementation, we'll just verify the structure is correct
-      
+
       const context = {
         user_uuid: testUserUuid,
         user_record: undefined,
         submission_count: 1,
         is_email_verified: true,
       };
-      
+
       // Setup minimal mocks for badge eligibility
       const getAllBadgesQuery = `
       SELECT * FROM badges 
       WHERE is_active = TRUE 
       ORDER BY category, level, threshold_value ASC
     `;
-      
+
       mockResults.set(getAllBadgesQuery, [testBadge]);
       mockResults.set(`SELECT badge_id FROM user_badges WHERE user_uuid = ?`, []);
-      mockFirst.set(`
+      mockFirst.set(
+        `
       SELECT COUNT(*) as count 
       FROM submissions 
       WHERE user_token = ? AND status = 'approved'
-    `, { count: 1 });
-      mockFirst.set(`
+    `,
+        { count: 1 }
+      );
+      mockFirst.set(
+        `
       SELECT awarded_at FROM user_badges 
       WHERE user_uuid = ? AND badge_id = ?
-    `, null);
-      
+    `,
+        null
+      );
+
       const awardedBadges = await badgeService.calculateAndAwardBadges(context);
-      
+
       // Badge should still be awarded even if notification fails
       expect(awardedBadges).toHaveLength(1);
       expect(awardedBadges[0].badge_key).toBe('first_submission');
@@ -218,28 +224,34 @@ describe('Badge-Notification Integration', () => {
       WHERE is_active = TRUE 
       ORDER BY category, level, threshold_value ASC
     `;
-      
+
       mockResults.set(getAllBadgesQuery, [testBadge]);
       mockResults.set(`SELECT badge_id FROM user_badges WHERE user_uuid = ?`, []);
-      mockFirst.set(`
+      mockFirst.set(
+        `
       SELECT COUNT(*) as count 
       FROM submissions 
       WHERE user_token = ? AND status = 'approved'
-    `, { count: 1 });
-      mockFirst.set(`
+    `,
+        { count: 1 }
+      );
+      mockFirst.set(
+        `
       SELECT awarded_at FROM user_badges 
       WHERE user_uuid = ? AND badge_id = ?
-    `, null);
-      
+    `,
+        null
+      );
+
       const context = {
         user_uuid: testUserUuid,
         user_record: undefined,
         submission_count: 1,
         is_email_verified: true,
       };
-      
+
       const awardedBadges = await badgeService.calculateAndAwardBadges(context);
-      
+
       // Verify the notification would contain the correct metadata structure
       expect(awardedBadges[0]).toMatchObject({
         badge_id: 'badge-123',
@@ -268,30 +280,33 @@ describe('Badge-Notification Integration', () => {
         created_at: '2023-01-01T00:00:00Z',
         updated_at: '2023-01-01T00:00:00Z',
       };
-      
+
       // Setup mocks for email verification badge
       const getAllBadgesQuery = `
       SELECT * FROM badges 
       WHERE is_active = TRUE 
       ORDER BY category, level, threshold_value ASC
     `;
-      
+
       mockResults.set(getAllBadgesQuery, [emailBadge]);
       mockResults.set(`SELECT badge_id FROM user_badges WHERE user_uuid = ?`, []);
-      mockFirst.set(`
+      mockFirst.set(
+        `
       SELECT awarded_at FROM user_badges 
       WHERE user_uuid = ? AND badge_id = ?
-    `, null);
-      
+    `,
+        null
+      );
+
       const awardedBadges = await badgeService.checkEmailVerificationBadge(testUserUuid);
-      
+
       expect(awardedBadges).toHaveLength(1);
       expect(awardedBadges[0]).toMatchObject({
         badge_key: 'email_verified',
         title: 'Email Verified',
         created: true,
       });
-      
+
       expect(awardedBadges[0].notification_id).toBeDefined();
     });
   });

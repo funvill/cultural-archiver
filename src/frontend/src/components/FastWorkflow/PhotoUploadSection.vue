@@ -51,7 +51,7 @@ function handleFileSelect(event: Event) {
 function handleDrop(event: DragEvent) {
   event.preventDefault();
   isDragging.value = false;
-  
+
   if (event.dataTransfer?.files) {
     processFiles(Array.from(event.dataTransfer.files));
   }
@@ -79,60 +79,59 @@ function handleDragLeave(event: DragEvent) {
 async function processFiles(files: File[]) {
   uploadErrors.value = [];
   const validFiles: File[] = [];
-  
+
   // Validate files
   for (const file of files) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       uploadErrors.value.push(`${file.name}: Unsupported file type. Use JPG, PNG, or WebP.`);
       continue;
     }
-    
+
     if (file.size > MAX_FILE_SIZE) {
       uploadErrors.value.push(`${file.name}: File too large. Maximum size is 10MB.`);
       continue;
     }
-    
+
     validFiles.push(file);
   }
-  
+
   if (validFiles.length === 0) return;
-  
+
   // Initialize progress tracking
   uploadProgress.value = validFiles.map(file => ({
     name: file.name,
     percent: 0,
     status: 'processing' as const,
   }));
-  
+
   try {
     // Process files with simulated progress
     for (let i = 0; i < validFiles.length; i++) {
       const progress = uploadProgress.value[i];
       if (!progress) continue;
-      
+
       // Simulate processing progress
       progress.status = 'processing';
       progress.percent = 20;
-      
+
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       progress.status = 'extracting';
       progress.percent = 60;
-      
+
       await new Promise(resolve => setTimeout(resolve, 100));
-      
+
       progress.percent = 100;
       progress.status = 'complete';
     }
-    
+
     // Emit the files to parent
     emit('photosAdded', validFiles);
-    
+
     // Clear progress after a delay
     setTimeout(() => {
       uploadProgress.value = [];
     }, 1000);
-    
   } catch (error) {
     console.error('Error processing files:', error);
     uploadErrors.value.push('Failed to process some files. Please try again.');
@@ -162,20 +161,19 @@ function formatDate(timestamp: string): string {
 <template>
   <div class="photo-upload-section">
     <div class="mb-6">
-      <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
-        Upload Photos
-      </h4>
+      <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">Upload Photos</h4>
       <p class="text-sm text-gray-600 dark:text-gray-300">
-        Add photos of the cultural artwork. We'll try to extract location data from your photos automatically.
+        Add photos of the cultural artwork. We'll try to extract location data from your photos
+        automatically.
       </p>
     </div>
 
     <!-- Upload Area -->
-    <div 
+    <div
       class="upload-area border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center transition-colors"
-      :class="{ 
+      :class="{
         'border-blue-500 bg-blue-50 dark:bg-blue-900/20': isDragging,
-        'hover:border-gray-400 dark:hover:border-gray-500': !isDragging 
+        'hover:border-gray-400 dark:hover:border-gray-500': !isDragging,
       }"
       @drop="handleDrop"
       @dragover="handleDragOver"
@@ -183,7 +181,7 @@ function formatDate(timestamp: string): string {
       @dragleave="handleDragLeave"
     >
       <PhotoIcon class="w-12 h-12 text-gray-400 mx-auto mb-4" />
-      
+
       <div class="space-y-2">
         <p class="text-lg font-medium text-gray-900 dark:text-white">
           Drop photos here or click to select
@@ -192,7 +190,7 @@ function formatDate(timestamp: string): string {
           Supports JPG, PNG, WebP up to 10MB each
         </p>
       </div>
-      
+
       <input
         ref="fileInput"
         type="file"
@@ -201,10 +199,10 @@ function formatDate(timestamp: string): string {
         class="hidden"
         @change="handleFileSelect"
       />
-      
+
       <button
         type="button"
-        @click="(($refs.fileInput as HTMLInputElement)?.click())"
+        @click="($refs.fileInput as HTMLInputElement)?.click()"
         class="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
       >
         Select Photos
@@ -215,18 +213,20 @@ function formatDate(timestamp: string): string {
     <div v-if="uploadProgress.length > 0" class="mt-6">
       <h5 class="font-medium text-gray-900 dark:text-white mb-3">Processing Photos</h5>
       <div class="space-y-2">
-        <div 
-          v-for="progress in uploadProgress" 
+        <div
+          v-for="progress in uploadProgress"
           :key="progress.name"
           class="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg"
         >
           <div class="flex-1">
             <div class="flex justify-between items-center mb-1">
-              <span class="text-sm font-medium text-gray-900 dark:text-white">{{ progress.name }}</span>
+              <span class="text-sm font-medium text-gray-900 dark:text-white">{{
+                progress.name
+              }}</span>
               <span class="text-xs text-gray-500">{{ progress.status }}</span>
             </div>
             <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-              <div 
+              <div
                 class="bg-blue-600 h-2 rounded-full transition-all duration-300"
                 :style="{ width: `${progress.percent}%` }"
               ></div>
@@ -250,20 +250,20 @@ function formatDate(timestamp: string): string {
           Clear All
         </button>
       </div>
-      
+
       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        <div 
-          v-for="(photo, index) in photos" 
+        <div
+          v-for="(photo, index) in photos"
           :key="index"
           class="relative group aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg overflow-hidden"
         >
-          <img 
+          <img
             :src="photo.url"
             :alt="`Photo ${index + 1}`"
             class="w-full h-full object-cover"
             loading="lazy"
           />
-          
+
           <!-- Remove Button -->
           <button
             @click="removePhoto(index)"
@@ -272,9 +272,12 @@ function formatDate(timestamp: string): string {
           >
             <XMarkIcon class="w-4 h-4" />
           </button>
-          
+
           <!-- EXIF Info -->
-          <div v-if="photo.exifData" class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white p-2 text-xs">
+          <div
+            v-if="photo.exifData"
+            class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white p-2 text-xs"
+          >
             <div v-if="photo.exifData.lat && photo.exifData.lon" class="flex items-center">
               <MapPinIcon class="w-3 h-3 mr-1" />
               <span>Location detected</span>
@@ -289,7 +292,10 @@ function formatDate(timestamp: string): string {
     </div>
 
     <!-- Upload Tips -->
-    <div v-if="photos.length === 0" class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+    <div
+      v-if="photos.length === 0"
+      class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
+    >
       <h5 class="flex items-center font-medium text-blue-900 dark:text-blue-100 mb-2">
         <InformationCircleIcon class="w-5 h-5 mr-2" />
         Photo Tips
@@ -304,7 +310,9 @@ function formatDate(timestamp: string): string {
 
     <!-- Error Display -->
     <div v-if="uploadErrors.length > 0" class="mt-6">
-      <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+      <div
+        class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg"
+      >
         <h5 class="flex items-center font-medium text-red-900 dark:text-red-100 mb-2">
           <ExclamationTriangleIcon class="w-5 h-5 mr-2" />
           Upload Errors

@@ -1,20 +1,36 @@
 /**
  * OSM Mass Import API Endpoint
- * 
+ *
  * Handles OpenStreetMap GeoJSON mass imports using the existing mass-import pipeline.
  * Converts OSM artwork data to platform format with proper attribution and validation.
  */
 
 import type { Context } from 'hono';
 import type { WorkerEnv } from '../types';
-import { createSuccessResponse, ValidationApiError, ApiError, UnauthorizedError } from '../lib/errors';
-import { parseOSMGeoJSON, type OSMGeoJSON, type OSMImportConfig, generateImportSummary, DEFAULT_OSM_CONFIG } from '../lib/osm-mass-import';
+import {
+  createSuccessResponse,
+  ValidationApiError,
+  ApiError,
+  UnauthorizedError,
+} from '../lib/errors';
+import {
+  parseOSMGeoJSON,
+  type OSMGeoJSON,
+  type OSMImportConfig,
+  generateImportSummary,
+  DEFAULT_OSM_CONFIG,
+} from '../lib/osm-mass-import';
 // Rate limiter - simplified for this implementation
 const rateLimiter = {
-  checkLimit: async (_storage: unknown, _key: string, _limit: number, _window: number): Promise<void> => {
+  checkLimit: async (
+    _storage: unknown,
+    _key: string,
+    _limit: number,
+    _window: number
+  ): Promise<void> => {
     // In production, implement proper rate limiting
     return Promise.resolve();
-  }
+  },
 };
 import { processMassImport } from './mass-import';
 
@@ -24,19 +40,19 @@ import { processMassImport } from './mass-import';
 interface OSMImportRequest {
   /** GeoJSON FeatureCollection with OSM artwork data */
   geoJSON: OSMGeoJSON;
-  
+
   /** Optional import configuration overrides */
   config?: Partial<OSMImportConfig>;
-  
+
   /** Optional batch processing settings */
   batchSize?: number;
-  
+
   /** Dry run mode - validate but don't import */
   dryRun?: boolean;
 }
 
 /**
- * OSM Mass Import Response Interface  
+ * OSM Mass Import Response Interface
  */
 interface OSMImportResponse {
   success: boolean;
@@ -64,18 +80,19 @@ interface OSMImportResponse {
 
 /**
  * POST /api/mass-import/osm
- * 
+ *
  * Import OpenStreetMap artwork data via mass-import pipeline
  */
 export async function handleOSMImport(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   try {
     // Rate limiting for mass imports (stricter than regular API)
-    const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
+    const clientIP =
+      c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown';
     await rateLimiter.checkLimit(c.env.RATE_LIMITS, `osm-import:${clientIP}`, 2, 3600); // 2 imports per hour
 
     // Parse request body
-    const requestBody = await c.req.json() as OSMImportRequest;
-    
+    const requestBody = (await c.req.json()) as OSMImportRequest;
+
     // Validate request structure
     if (!requestBody.geoJSON || requestBody.geoJSON.type !== 'FeatureCollection') {
       throw new ValidationApiError([], 'Invalid GeoJSON: must be FeatureCollection');
@@ -88,42 +105,46 @@ export async function handleOSMImport(c: Context<{ Bindings: WorkerEnv }>): Prom
     // Merge configuration with defaults
     const importConfig: OSMImportConfig = {
       ...DEFAULT_OSM_CONFIG,
-      ...requestBody.config
+      ...requestBody.config,
     };
 
     // Parse OSM GeoJSON to mass-import payloads
     console.log(`Starting OSM import: ${requestBody.geoJSON.features.length} features`);
     const parseResult = parseOSMGeoJSON(requestBody.geoJSON, importConfig);
-    
+
     // Generate summary
     const summaryText = generateImportSummary(parseResult);
     console.log(summaryText);
 
     // If dry run, return validation results without importing
     if (requestBody.dryRun) {
-      return c.json(createSuccessResponse<OSMImportResponse>({
-        success: true,
-        summary: {
-          total_features: parseResult.total,
-          valid_imports: parseResult.valid,
-          skipped_records: parseResult.skipped,
-          error_count: parseResult.errors.length,
-          success_rate: `${((parseResult.valid / parseResult.total) * 100).toFixed(1)}%`
-        },
-        errors: parseResult.errors.length > 0 ? parseResult.errors : [],
-        dry_run: true
-      }));
+      return c.json(
+        createSuccessResponse<OSMImportResponse>({
+          success: true,
+          summary: {
+            total_features: parseResult.total,
+            valid_imports: parseResult.valid,
+            skipped_records: parseResult.skipped,
+            error_count: parseResult.errors.length,
+            success_rate: `${((parseResult.valid / parseResult.total) * 100).toFixed(1)}%`,
+          },
+          errors: parseResult.errors.length > 0 ? parseResult.errors : [],
+          dry_run: true,
+        })
+      );
     }
 
     // Process imports in batches using existing mass-import system
     const batchSize = requestBody.batchSize || 50; // Smaller batches for OSM data
     const batches: Array<typeof parseResult.payloads> = [];
-    
+
     for (let i = 0; i < parseResult.payloads.length; i += batchSize) {
       batches.push(parseResult.payloads.slice(i, i + batchSize));
     }
 
-    console.log(`Processing ${parseResult.payloads.length} imports in ${batches.length} batches of ${batchSize}`);
+    console.log(
+      `Processing ${parseResult.payloads.length} imports in ${batches.length} batches of ${batchSize}`
+    );
 
     // Process batches sequentially (option A from requirements)
     const batchResults = [];
@@ -134,9 +155,9 @@ export async function handleOSMImport(c: Context<{ Bindings: WorkerEnv }>): Prom
     for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
       const batch = batches[batchIndex];
       if (!batch) continue;
-      
+
       console.log(`Processing batch ${batchIndex + 1}/${batches.length} (${batch.length} items)`);
-      
+
       let batchSucceeded = 0;
       let batchFailed = 0;
 
@@ -146,15 +167,15 @@ export async function handleOSMImport(c: Context<{ Bindings: WorkerEnv }>): Prom
           // Create a mock context for the mass-import function
           const mockContext = {
             req: {
-              json: async () => payload
+              json: async () => payload,
             },
             json: (data: unknown) => ({ json: (): unknown => data }),
-            env: c.env
+            env: c.env,
           } as unknown as Context<{ Bindings: WorkerEnv }>;
-          
+
           const response = await processMassImport(mockContext);
-          const responseData = await response.json() as { success: boolean };
-          
+          const responseData = (await response.json()) as { success: boolean };
+
           if (responseData.success) {
             batchSucceeded++;
           } else {
@@ -174,7 +195,7 @@ export async function handleOSMImport(c: Context<{ Bindings: WorkerEnv }>): Prom
         batch_id: batchIndex + 1,
         processed: batch?.length || 0,
         succeeded: batchSucceeded,
-        failed: batchFailed
+        failed: batchFailed,
       });
 
       // Brief pause between batches to be nice to the system
@@ -186,31 +207,32 @@ export async function handleOSMImport(c: Context<{ Bindings: WorkerEnv }>): Prom
     console.log(`OSM import completed: ${totalSucceeded}/${totalProcessed} successful`);
 
     // Return comprehensive response
-    return c.json(createSuccessResponse<OSMImportResponse>({
-      success: true,
-      summary: {
-        total_features: parseResult.total,
-        valid_imports: parseResult.valid,
-        skipped_records: parseResult.skipped,
-        error_count: parseResult.errors.length,
-        success_rate: `${((totalSucceeded / totalProcessed) * 100).toFixed(1)}%`
-      },
-      batch_info: {
-        batch_size: batchSize,
-        batch_count: batches.length,
-        processing_mode: 'sequential'
-      },
-      errors: parseResult.errors,
-      import_results: batchResults
-    }));
-
+    return c.json(
+      createSuccessResponse<OSMImportResponse>({
+        success: true,
+        summary: {
+          total_features: parseResult.total,
+          valid_imports: parseResult.valid,
+          skipped_records: parseResult.skipped,
+          error_count: parseResult.errors.length,
+          success_rate: `${((totalSucceeded / totalProcessed) * 100).toFixed(1)}%`,
+        },
+        batch_info: {
+          batch_size: batchSize,
+          batch_count: batches.length,
+          processing_mode: 'sequential',
+        },
+        errors: parseResult.errors,
+        import_results: batchResults,
+      })
+    );
   } catch (error) {
     console.error('OSM import error:', error);
-    
+
     if (error instanceof ValidationApiError || error instanceof UnauthorizedError) {
       throw error;
     }
-    
+
     throw new ApiError(
       error instanceof Error ? error.message : 'Unknown error during OSM import',
       'OSM_IMPORT_FAILED',
@@ -221,16 +243,16 @@ export async function handleOSMImport(c: Context<{ Bindings: WorkerEnv }>): Prom
 
 /**
  * GET /api/mass-import/osm/validate
- * 
+ *
  * Validate OSM GeoJSON without importing (convenience endpoint for dry runs)
  */
 export async function handleOSMValidate(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   try {
-    const requestBody = await c.req.json() as OSMImportRequest;
-    
+    const requestBody = (await c.req.json()) as OSMImportRequest;
+
     // Force dry run mode
     requestBody.dryRun = true;
-    
+
     return handleOSMImport(c);
   } catch (error) {
     console.error('OSM validation error:', error);

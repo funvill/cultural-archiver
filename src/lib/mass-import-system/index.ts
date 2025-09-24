@@ -1,9 +1,9 @@
 /**
  * Cultural Archiver Mass Import System
- * 
+ *
  * A comprehensive library for automated ingestion of public art data from
  * external sources like government open data portals.
- * 
+ *
  * @version 1.0.0
  * @author Steven Smethurst
  * @license MIT
@@ -31,21 +31,13 @@ export type {
   VancouverArtworkData,
 } from './types';
 
-export { 
-  RawImportDataSchema,
-  CoordinateSchema,
-  PhotoInfoSchema,
-} from './types';
+export { RawImportDataSchema, CoordinateSchema, PhotoInfoSchema } from './types';
 
 // ================================
 // Core Library Functions
 // ================================
 
-export {
-  validateImportData,
-  MASS_IMPORT_USER_TOKEN,
-  VANCOUVER_BOUNDS,
-} from './lib/validation.js';
+export { validateImportData, MASS_IMPORT_USER_TOKEN, VANCOUVER_BOUNDS } from './lib/validation.js';
 
 export {
   LocationEnhancer,
@@ -59,27 +51,19 @@ export {
   type ExistingArtwork,
 } from './lib/duplicate-detection.js';
 
-export {
-  MassImportAPIClient,
-  DryRunAPIClient,
-} from './lib/api-client.js';
+export { MassImportAPIClient, DryRunAPIClient } from './lib/api-client.js';
 
 // ================================
 // Data Source Importers
 // ================================
 
-export {
-  VancouverMapper,
-  validateVancouverData,
-} from './importers/vancouver.js';
+export { VancouverMapper, validateVancouverData } from './importers/vancouver.js';
 
 // ================================
 // CLI and Processing
 // ================================
 
-export {
-  MassImportProcessor,
-} from './cli/processor.js';
+export { MassImportProcessor } from './cli/processor.js';
 
 import type { MassImportConfig } from './types';
 
@@ -109,10 +93,7 @@ export const VERSION = '1.0.0';
 /**
  * Supported data sources
  */
-export const SUPPORTED_DATA_SOURCES = [
-  'vancouver-opendata',
-  'generic',
-] as const;
+export const SUPPORTED_DATA_SOURCES = ['vancouver-opendata', 'generic'] as const;
 
 // ================================
 // Utility Functions
@@ -166,19 +147,31 @@ export function validateConfig(config: Partial<MassImportConfig>): {
   }
 
   if (config.retryDelay !== undefined) {
-    if (!Number.isInteger(config.retryDelay) || config.retryDelay < 0 || config.retryDelay > 10000) {
+    if (
+      !Number.isInteger(config.retryDelay) ||
+      config.retryDelay < 0 ||
+      config.retryDelay > 10000
+    ) {
       errors.push('Retry delay must be an integer between 0 and 10000 milliseconds');
     }
   }
 
   if (config.duplicateDetectionRadius !== undefined) {
-    if (!Number.isFinite(config.duplicateDetectionRadius) || config.duplicateDetectionRadius < 1 || config.duplicateDetectionRadius > 5000) {
+    if (
+      !Number.isFinite(config.duplicateDetectionRadius) ||
+      config.duplicateDetectionRadius < 1 ||
+      config.duplicateDetectionRadius > 5000
+    ) {
       errors.push('Duplicate detection radius must be a number between 1 and 5000 meters');
     }
   }
 
   if (config.titleSimilarityThreshold !== undefined) {
-    if (!Number.isFinite(config.titleSimilarityThreshold) || config.titleSimilarityThreshold < 0 || config.titleSimilarityThreshold > 1) {
+    if (
+      !Number.isFinite(config.titleSimilarityThreshold) ||
+      config.titleSimilarityThreshold < 0 ||
+      config.titleSimilarityThreshold > 1
+    ) {
       errors.push('Title similarity threshold must be a number between 0 and 1');
     }
   }
@@ -196,7 +189,8 @@ export function getLibraryInfo() {
   return {
     name: '@cultural-archiver/mass-import',
     version: VERSION,
-    description: 'Mass import library for Cultural Archiver - automated ingestion of public art data',
+    description:
+      'Mass import library for Cultural Archiver - automated ingestion of public art data',
     supportedDataSources: [...SUPPORTED_DATA_SOURCES],
     author: 'Steven Smethurst',
     license: 'MIT',

@@ -118,13 +118,15 @@ The project includes a comprehensive database migration system for managing Clou
 ### Migration Commands (PowerShell Compatible)
 
 **Export Database:**
+
 ```powershell
 npm run database:export:dev     # Export development database
-npm run database:export:prod    # Export production database  
+npm run database:export:prod    # Export production database
 npm run database:export:staging # Export staging database
 ```
 
 **Apply Migrations:**
+
 ```powershell
 npm run database:migration:dev     # Apply migrations to development
 npm run database:migration:prod    # Apply migrations to production
@@ -132,6 +134,7 @@ npm run database:migration:staging # Apply migrations to staging
 ```
 
 **Import SQL Files:**
+
 ```powershell
 npm run database:import:dev <file.sql>     # Import to development
 npm run database:import:prod <file.sql>    # Import to production
@@ -139,6 +142,7 @@ npm run database:import:staging <file.sql> # Import to staging
 ```
 
 **Migration Status:**
+
 ```powershell
 npm run database:status:dev     # Check migration status for development
 npm run database:status:prod    # Check migration status for production
@@ -155,14 +159,16 @@ npm run database:status:staging # Check migration status for staging
 ### Migration File Guidelines
 
 **File Naming Convention:**
+
 ```
 0001_initial_schema.sql
-0002_add_user_table.sql  
+0002_add_user_table.sql
 0003_add_indexes.sql
 0004_modify_constraints.sql
 ```
 
 **SQL Compatibility Requirements:**
+
 - Use SQLite-compatible syntax (Cloudflare D1 is SQLite-based)
 - Avoid MySQL/PostgreSQL specific features
 - Use `TEXT` for JSON storage, not native JSON type
@@ -170,6 +176,7 @@ npm run database:status:staging # Check migration status for staging
 - Include proper constraints and indexes
 
 **Migration Best Practices:**
+
 - Include rollback instructions in comments when possible
 - Test migrations on development database first
 - Use transactions for multi-statement migrations
@@ -179,19 +186,22 @@ npm run database:status:staging # Check migration status for staging
 ### Database Schema Management
 
 **Schema Documentation:**
+
 - Current schema is documented in `/docs/database.md`
 - Update documentation when migrations change schema
 - Include relationship diagrams and constraints
 
 **Type Safety:**
+
 - Database interfaces are defined in `src/shared/types.ts`
 - Update TypeScript types when adding/modifying tables
 - Use proper type guards for status validation
 
 **AI Agent Guidelines for Migration Creation:**
+
 - Check existing schema in `/docs/database.md` before creating migrations
 - Use sequential numbering starting from next available number
-- Follow SQLite syntax and D1 compatibility requirements  
+- Follow SQLite syntax and D1 compatibility requirements
 - Include proper indexes for performance
 - Test migrations in development environment first
 - Document breaking changes and provide migration instructions

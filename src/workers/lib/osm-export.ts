@@ -20,7 +20,11 @@ export function artworkToOSMExport(artwork: ArtworkRecord): {
   updated_at: string;
 } {
   // Parse structured tags
-  const parsedTags = safeJsonParse<StructuredTagsData>(artwork.tags || '{}', { tags: {}, version: '1.0.0', lastModified: new Date().toISOString() });
+  const parsedTags = safeJsonParse<StructuredTagsData>(artwork.tags || '{}', {
+    tags: {},
+    version: '1.0.0',
+    lastModified: new Date().toISOString(),
+  });
   const structuredTags = parsedTags.tags || {};
 
   // Generate OSM-compatible tags using the schema mapping
@@ -92,7 +96,11 @@ export function validateOSMExportData(artwork: ArtworkRecord): {
   }
 
   // Validate structured tags if present
-  const parsedTags = safeJsonParse<StructuredTagsData>(artwork.tags || '{}', { tags: {}, version: '1.0.0', lastModified: new Date().toISOString() });
+  const parsedTags = safeJsonParse<StructuredTagsData>(artwork.tags || '{}', {
+    tags: {},
+    version: '1.0.0',
+    lastModified: new Date().toISOString(),
+  });
   if (parsedTags.tags && Object.keys(parsedTags.tags).length > 0) {
     // For now, just skip the structured validation to avoid import issues
     // TODO: Add proper structured tag validation
@@ -125,19 +133,27 @@ export function generateOSMXML(artwork: ArtworkRecord, nodeId: number = -1): str
   }
 
   const osmData = artworkToOSMExport(artwork);
-  
+
   let xml = `  <node id="${nodeId}" version="1" lat="${osmData.lat}" lon="${osmData.lon}">\n`;
-  
+
   // Add tags
   Object.entries(osmData.tags).forEach(([key, value]) => {
     // Escape XML special characters
-    const escapedKey = key.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    const escapedValue = String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const escapedKey = key
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+    const escapedValue = String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
     xml += `    <tag k="${escapedKey}" v="${escapedValue}" />\n`;
   });
-  
+
   xml += `  </node>\n`;
-  
+
   return xml;
 }
 
@@ -152,13 +168,13 @@ export function generateOSMXMLFile(artworks: ArtworkRecord[]): string {
 
   let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
   xml += `<osm version="0.6" generator="Cultural Archiver Export">\n`;
-  
+
   validArtworks.forEach((artwork, index) => {
     xml += generateOSMXML(artwork, -(index + 1)); // Use negative IDs for new nodes
   });
-  
+
   xml += `</osm>\n`;
-  
+
   return xml;
 }
 
@@ -166,7 +182,7 @@ export function generateOSMXMLFile(artworks: ArtworkRecord[]): string {
  * Format export response with metadata
  */
 export function createExportResponse(
-  artworks: ArtworkRecord[], 
+  artworks: ArtworkRecord[],
   _request: { artwork_ids?: string[]; format?: string; bounds?: string; limit?: number }
 ): OSMExportResponse {
   const exportData = exportArtworksToOSM(artworks);

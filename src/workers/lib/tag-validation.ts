@@ -5,10 +5,10 @@
  * integrating with the existing validation middleware and artwork editing system.
  */
 
-import type { 
-  TagDefinition, 
-  StructuredTags, 
-  TagValidationResult 
+import type {
+  TagDefinition,
+  StructuredTags,
+  TagValidationResult,
 } from '../../shared/tag-schema.js';
 import {
   TAG_DEFINITIONS,
@@ -23,10 +23,10 @@ import {
   getValidationSummary,
   sanitizeStructuredTags,
 } from '../../shared/tag-validation.js';
-import type { 
-  TagValidationError, 
+import type {
+  TagValidationError,
   TagValidationResponse,
-  StructuredTagsData 
+  StructuredTagsData,
 } from '../../shared/types.js';
 
 // ================================
@@ -45,7 +45,10 @@ export class ServerTagValidationService {
    */
   validateTags(tags: StructuredTags): TagValidationResponse {
     try {
-      console.log('[TAG VALIDATION DEBUG] Starting tag validation:', { tags, timestamp: new Date().toISOString() });
+      console.log('[TAG VALIDATION DEBUG] Starting tag validation:', {
+        tags,
+        timestamp: new Date().toISOString(),
+      });
       // Strip internal/system tags (underscore-prefixed) before any sanitization/validation
       // These are reserved for internal metadata (_photos, _internal, etc.) and not user-editable
       const externalTags: StructuredTags = {};
@@ -56,7 +59,7 @@ export class ServerTagValidationService {
           console.log('[TAG VALIDATION DEBUG] Ignoring internal tag key:', k);
         }
       });
-      
+
       // First sanitize the tags
       const sanitizedTags = sanitizeStructuredTags(externalTags, this.tagDefinitions);
       console.log('[TAG VALIDATION DEBUG] Tags sanitized:', { sanitizedTags });
@@ -64,7 +67,7 @@ export class ServerTagValidationService {
       // Then validate the sanitized tags
       const validationResults = validateStructuredTags(sanitizedTags, this.tagDefinitions);
       console.log('[TAG VALIDATION DEBUG] Validation results:', { validationResults });
-      
+
       const summary = getValidationSummary(validationResults);
       console.log('[TAG VALIDATION DEBUG] Validation summary:', { summary });
 
@@ -95,11 +98,11 @@ export class ServerTagValidationService {
         });
       });
 
-      console.log('[TAG VALIDATION DEBUG] Final validation response:', { 
-        valid: summary.isValid, 
-        errorCount: errors.length, 
-        warningCount: warnings.length, 
-        errors: errors.map(e => ({ key: e.key, message: e.message }))
+      console.log('[TAG VALIDATION DEBUG] Final validation response:', {
+        valid: summary.isValid,
+        errorCount: errors.length,
+        warningCount: warnings.length,
+        errors: errors.map(e => ({ key: e.key, message: e.message })),
       });
 
       return {
@@ -111,12 +114,14 @@ export class ServerTagValidationService {
     } catch (error) {
       return {
         valid: false,
-        errors: [{
-          key: 'validation',
-          field: 'tags',
-          message: 'Tag validation failed',
-          code: 'validation_error',
-        }],
+        errors: [
+          {
+            key: 'validation',
+            field: 'tags',
+            message: 'Tag validation failed',
+            code: 'validation_error',
+          },
+        ],
         warnings: [],
       };
     }
@@ -144,7 +149,7 @@ export class ServerTagValidationService {
   generateOSMExport(tags: StructuredTags): Record<string, string> {
     // Only include valid, non-empty tags
     const validTags: StructuredTags = {};
-    
+
     Object.entries(tags).forEach(([key, value]) => {
       if (isValidTagKey(key) && value !== null && value !== undefined && value !== '') {
         validTags[key] = value;
@@ -178,10 +183,7 @@ export class ServerTagValidationService {
   /**
    * Create structured tags data with metadata
    */
-  createStructuredTagsData(
-    tags: StructuredTags, 
-    version: string = '1.0.0'
-  ): StructuredTagsData {
+  createStructuredTagsData(tags: StructuredTags, version: string = '1.0.0'): StructuredTagsData {
     return {
       tags,
       version,
@@ -206,7 +208,11 @@ export class ServerTagValidationService {
     if (message.includes('format') || message.includes('pattern')) {
       return 'invalid_format';
     }
-    if (message.includes('must be between') || message.includes('at least') || message.includes('at most')) {
+    if (
+      message.includes('must be between') ||
+      message.includes('at least') ||
+      message.includes('at most')
+    ) {
       return 'out_of_range';
     }
     if (message.includes('Unknown tag')) {
@@ -267,15 +273,19 @@ export class ServerTagValidationService {
     const allKeys = Object.keys(this.tagDefinitions);
     return allKeys
       .filter(key => this.calculateSimilarity(inputKey, key) > 0.6)
-      .sort((a, b) => this.calculateSimilarity(inputKey, b) - this.calculateSimilarity(inputKey, a));
+      .sort(
+        (a, b) => this.calculateSimilarity(inputKey, b) - this.calculateSimilarity(inputKey, a)
+      );
   }
 
   /**
    * Calculate string similarity (simple Levenshtein-based)
    */
   private calculateSimilarity(a: string, b: string): number {
-    const matrix = Array(a.length + 1).fill(null).map(() => Array(b.length + 1).fill(null));
-    
+    const matrix = Array(a.length + 1)
+      .fill(null)
+      .map(() => Array(b.length + 1).fill(null));
+
     for (let i = 0; i <= a.length; i++) {
       const row = matrix[i];
       if (row) row[0] = i;
@@ -284,7 +294,7 @@ export class ServerTagValidationService {
       const row = matrix[0];
       if (row) row[j] = j;
     }
-    
+
     for (let i = 1; i <= a.length; i++) {
       for (let j = 1; j <= b.length; j++) {
         const cost = a[i - 1] === b[j - 1] ? 0 : 1;
@@ -299,9 +309,9 @@ export class ServerTagValidationService {
         }
       }
     }
-    
+
     const finalRow = matrix[a.length];
-    const distance = finalRow ? finalRow[b.length] ?? 0 : 0;
+    const distance = finalRow ? (finalRow[b.length] ?? 0) : 0;
     return 1 - distance / Math.max(a.length, b.length);
   }
 
@@ -359,17 +369,17 @@ export function parseArtworkTags(tagsField: string | null): StructuredTags {
 
   try {
     const parsed = JSON.parse(tagsField);
-    
+
     // Check if it's already structured tags format
     if (parsed && typeof parsed === 'object' && 'tags' in parsed && 'version' in parsed) {
       return (parsed as StructuredTagsData).tags;
     }
-    
+
     // Handle legacy flat key-value format
     if (parsed && typeof parsed === 'object') {
       return parsed as StructuredTags;
     }
-    
+
     return {};
   } catch {
     return {};
@@ -379,16 +389,13 @@ export function parseArtworkTags(tagsField: string | null): StructuredTags {
 /**
  * Serialize tags back to artwork record format
  */
-export function serializeArtworkTags(
-  tags: StructuredTags, 
-  version: string = '1.0.0'
-): string {
+export function serializeArtworkTags(tags: StructuredTags, version: string = '1.0.0'): string {
   const structuredData: StructuredTagsData = {
     tags,
     version,
     lastModified: new Date().toISOString(),
   };
-  
+
   return JSON.stringify(structuredData);
 }
 

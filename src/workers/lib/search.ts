@@ -71,7 +71,7 @@ export async function searchArtworks(
         ar.description LIKE ? OR
         ar.aliases LIKE ?
       )`);
-      
+
       // Add parameters for text search
       for (let i = 0; i < 8; i++) {
         params.push(likePattern);
@@ -79,8 +79,8 @@ export async function searchArtworks(
 
       // Add relevance scoring for text matches - temporarily disabled
       // relevanceSelects.push(`...`);
-      
-      // Add relevance parameters - temporarily disabled 
+
+      // Add relevance parameters - temporarily disabled
       // for (let i = 0; i < 6; i++) {
       //   params.push(likePattern);
       // }
@@ -88,15 +88,19 @@ export async function searchArtworks(
 
     // Tag key searches ("tag:key" format)
     // Support both nested ($.tags.key) and flat ($.key) structures
-    parsed.tagKeys.forEach((key) => {
-      conditions.push(`(json_extract(a.tags, '$.tags.${key}') IS NOT NULL OR json_extract(a.tags, '$.${key}') IS NOT NULL)`);
+    parsed.tagKeys.forEach(key => {
+      conditions.push(
+        `(json_extract(a.tags, '$.tags.${key}') IS NOT NULL OR json_extract(a.tags, '$.${key}') IS NOT NULL)`
+      );
       // relevanceSelects.push('3'); // Temporarily disabled
     });
 
-    // Tag key-value searches ("tag:key:value" format)  
+    // Tag key-value searches ("tag:key:value" format)
     // Support both nested ($.tags.key) and flat ($.key) structures
-    parsed.tagPairs.forEach((pair) => {
-      conditions.push(`(json_extract(a.tags, '$.tags.${pair.key}') LIKE ? OR json_extract(a.tags, '$.${pair.key}') LIKE ?)`);
+    parsed.tagPairs.forEach(pair => {
+      conditions.push(
+        `(json_extract(a.tags, '$.tags.${pair.key}') LIKE ? OR json_extract(a.tags, '$.${pair.key}') LIKE ?)`
+      );
       params.push(`%${pair.value}%`);
       params.push(`%${pair.value}%`); // Add the parameter twice for both conditions
       // relevanceSelects.push('4'); // Temporarily disabled
@@ -112,7 +116,7 @@ export async function searchArtworks(
       };
     }
 
-    // Build the relevance score calculation  
+    // Build the relevance score calculation
     // Temporarily simplified to fix parameter binding issues
     const relevanceScore = '0';
 
@@ -147,13 +151,13 @@ export async function searchArtworks(
       artworks.map(async artwork => {
         // Get photos from both artwork and submissions
         const allPhotos: string[] = [];
-        
+
         // Add artwork's own photos first
         if (artwork.photos) {
           const artworkPhotos = safeJsonParse<string[]>(artwork.photos, []);
           allPhotos.push(...artworkPhotos);
         }
-        
+
         // Add photos from logbook submissions
         const logbookEntries = await dbService.getLogbookEntriesForArtwork(artwork.id);
         logbookEntries.forEach(entry => {
@@ -200,8 +204,6 @@ export async function searchArtworks(
   }
 }
 
-
-
 /**
  * Parse search query to extract potential advanced search terms
  * Supports:
@@ -216,7 +218,7 @@ export function parseSearchQuery(query: string): {
   filters: Record<string, string>;
 } {
   const trimmed = query.trim();
-  
+
   if (!trimmed) {
     return {
       text: '',
@@ -229,10 +231,10 @@ export function parseSearchQuery(query: string): {
   const tagKeys: string[] = [];
   const tagPairs: Array<{ key: string; value: string }> = [];
   const textParts: string[] = [];
-  
+
   // Split query into parts and process each
   const parts = trimmed.split(/\s+/);
-  
+
   for (const part of parts) {
     // Check for tag search syntax (case insensitive)
     const tagMatch = part.match(/^tag:([^:]+)(?::(.+))?$/i);
@@ -240,7 +242,7 @@ export function parseSearchQuery(query: string): {
     if (tagMatch && tagMatch[1]) {
       const key = tagMatch[1].toLowerCase().trim();
       const value = tagMatch[2]?.trim();
-      
+
       if (value) {
         // "tag:key:value" format
         tagPairs.push({ key, value });
@@ -307,14 +309,14 @@ export async function getSearchSuggestions(
   limit: number = 8
 ): Promise<string[]> {
   const trimmed = partial.trim().toLowerCase();
-  
+
   try {
     const suggestions: string[] = [];
-    
+
     // Check if user is typing tag search syntax
     if (trimmed.startsWith('tag:')) {
       const tagPart = trimmed.substring(4);
-      
+
       if (tagPart.includes(':')) {
         // User is typing "tag:key:" - suggest values for this key
         // Support both nested ($.tags.key) and flat ($.key) structures
@@ -327,7 +329,7 @@ export async function getSearchSuggestions(
           AND status = 'approved'
           LIMIT ?
         `);
-        
+
         const valueResults = await valueStmt.bind(Math.ceil(limit / 2)).all();
         valueResults.results.forEach((row: any) => {
           if (row.tag_value) {
@@ -349,14 +351,14 @@ export async function getSearchSuggestions(
           WHERE key LIKE ?
           LIMIT ?
         `);
-        
+
         const keyPattern = `%${tagPart}%`;
         const keyResults = await keyStmt.bind(keyPattern, Math.ceil(limit / 2)).all();
-        
+
         keyResults.results.forEach((row: any) => {
           suggestions.push(`tag:${row.key}`);
         });
-        
+
         // Also suggest some complete tag:key:value pairs for popular tags
         if (suggestions.length < limit) {
           const popularStmt = db.prepare(`
@@ -370,8 +372,10 @@ export async function getSearchSuggestions(
             ORDER BY key
             LIMIT ?
           `);
-          
-          const popularResults = await popularStmt.bind(keyPattern, limit - suggestions.length).all();
+
+          const popularResults = await popularStmt
+            .bind(keyPattern, limit - suggestions.length)
+            .all();
           popularResults.results.forEach((row: any) => {
             if (row.value) {
               suggestions.push(`tag:${row.key}:${row.value}`);
@@ -381,7 +385,7 @@ export async function getSearchSuggestions(
       }
     } else {
       // Regular text suggestions - artwork types, creators, common terms
-      
+
       // Artwork type suggestions
       const typeStmt = db.prepare(`
         SELECT DISTINCT json_extract(tags, '$.artwork_type') as name
@@ -392,13 +396,13 @@ export async function getSearchSuggestions(
         ORDER BY name
         LIMIT ?
       `);
-      
+
       const typePattern = `%${trimmed}%`;
       const typeResults = await typeStmt.bind(typePattern, Math.ceil(limit / 3)).all();
       typeResults.results.forEach((row: any) => {
         suggestions.push(row.name);
       });
-      
+
       // Creator suggestions (from artwork.created_by field)
       if (suggestions.length < limit) {
         const creatorStmt = db.prepare(`
@@ -410,7 +414,7 @@ export async function getSearchSuggestions(
           ORDER BY created_by
           LIMIT ?
         `);
-        
+
         const creatorResults = await creatorStmt.bind(typePattern, Math.ceil(limit / 4)).all();
         creatorResults.results.forEach((row: any) => {
           if (row.created_by) {
@@ -418,7 +422,7 @@ export async function getSearchSuggestions(
           }
         });
       }
-      
+
       // Artist name suggestions (from artists table)
       if (suggestions.length < limit) {
         const artistStmt = db.prepare(`
@@ -430,7 +434,7 @@ export async function getSearchSuggestions(
           ORDER BY name
           LIMIT ?
         `);
-        
+
         const artistResults = await artistStmt.bind(typePattern, Math.ceil(limit / 4)).all();
         artistResults.results.forEach((row: any) => {
           if (row.name) {
@@ -438,7 +442,7 @@ export async function getSearchSuggestions(
           }
         });
       }
-      
+
       // Common tag values as suggestions
       if (suggestions.length < limit) {
         const tagValueStmt = db.prepare(`
@@ -450,8 +454,10 @@ export async function getSearchSuggestions(
           ORDER BY value
           LIMIT ?
         `);
-        
-        const tagValueResults = await tagValueStmt.bind(typePattern, limit - suggestions.length).all();
+
+        const tagValueResults = await tagValueStmt
+          .bind(typePattern, limit - suggestions.length)
+          .all();
         tagValueResults.results.forEach((row: any) => {
           if (row.value && typeof row.value === 'string') {
             suggestions.push(row.value);
@@ -459,13 +465,12 @@ export async function getSearchSuggestions(
         });
       }
     }
-    
+
     // Remove duplicates and limit results
     return Array.from(new Set(suggestions)).slice(0, limit);
-    
   } catch (error) {
     console.error('Failed to get search suggestions:', error);
-    
+
     // Fallback to basic artwork type suggestions
     try {
       const stmt = db.prepare(`

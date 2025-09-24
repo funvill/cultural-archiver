@@ -384,8 +384,6 @@ export interface UserSubmissionsResponse {
 
 // Removed obsolete UserSubmissionInfo - replaced by SubmissionRecord
 
-
-
 // Moderation Endpoints
 export interface ReviewSubmissionRequest {
   submission_id: string;
@@ -598,15 +596,15 @@ export interface AuditLogRecord {
 // ================================
 
 export interface ConsentRecord {
-  id: string;                           // UUID
-  created_at: string;                   // ISO timestamp
-  user_id: string | null;               // References users.uuid, nullable for anonymous
-  anonymous_token: string | null;       // UUID for anonymous users, nullable for authenticated
-  consent_version: string;              // Frontend-provided policy version
-  content_type: string;                 // 'artwork', 'logbook', etc.
-  content_id: string;                   // Resource ID of the content
-  ip_address: string;                   // For legal compliance
-  consent_text_hash: string;            // Hash of exact consent text shown
+  id: string; // UUID
+  created_at: string; // ISO timestamp
+  user_id: string | null; // References users.uuid, nullable for anonymous
+  anonymous_token: string | null; // UUID for anonymous users, nullable for authenticated
+  consent_version: string; // Frontend-provided policy version
+  content_type: string; // 'artwork', 'logbook', etc.
+  content_id: string; // Resource ID of the content
+  ip_address: string; // For legal compliance
+  consent_text_hash: string; // Hash of exact consent text shown
 }
 
 export type ContentType = 'artwork' | 'logbook';
@@ -627,8 +625,6 @@ export interface RecordConsentParams {
 export interface RecordConsentResponse {
   id: string;
 }
-
-
 
 // ================================
 // Structured Tagging System Types
@@ -662,7 +658,14 @@ export interface TagValidationError {
   key: string;
   field: string;
   message: string;
-  code: 'required' | 'invalid_format' | 'out_of_range' | 'invalid_enum' | 'unknown_key' | 'warning' | 'validation_error';
+  code:
+    | 'required'
+    | 'invalid_format'
+    | 'out_of_range'
+    | 'invalid_enum'
+    | 'unknown_key'
+    | 'warning'
+    | 'validation_error';
   suggestions?: string[];
 }
 
@@ -894,7 +897,7 @@ export interface UUIDClaimInfo {
 }
 
 // ================================
-// Badge System Types 
+// Badge System Types
 // ================================
 
 export interface BadgeRecord {
@@ -1019,7 +1022,6 @@ export interface ApiSuccessResponse<T = unknown> {
 export interface ApiErrorResponse extends ApiError {}
 
 // ================================
-
 
 // ================================
 // Type Guards and Validators
@@ -1287,21 +1289,21 @@ export interface SubmissionRecord {
   notes: string | null;
   lat: number | null;
   lon: number | null;
-  
+
   // Legacy fields for backward compatibility
   new_data?: string | null; // JSON object - deprecated, use field_changes
   tags?: string | null; // JSON tags - deprecated, use field_changes
-  
+
   // Integrated consent tracking
   consent_version: string;
   consent_text_hash: string;
   ip_address: string;
   user_agent: string | null;
-  
+
   // Timestamps
   created_at: string;
   submitted_at: string;
-  
+
   // Moderation workflow
   status: 'pending' | 'approved' | 'rejected';
   review_notes: string | null;

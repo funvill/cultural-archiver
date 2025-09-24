@@ -4,9 +4,23 @@
  */
 
 import type { Context } from 'hono';
-import type { WorkerEnv, UserSubmissionsResponse, UserSubmissionInfo, BadgeListResponse, UserBadgeResponse, ProfileUpdateRequest, ProfileUpdateResponse, ProfileNameCheckResponse } from '../types';
+import type {
+  WorkerEnv,
+  UserSubmissionsResponse,
+  UserSubmissionInfo,
+  BadgeListResponse,
+  UserBadgeResponse,
+  ProfileUpdateRequest,
+  ProfileUpdateResponse,
+  ProfileNameCheckResponse,
+} from '../types';
 import { createDatabaseService } from '../lib/database';
-import { createSuccessResponse, UnauthorizedError, ValidationApiError, NotFoundError } from '../lib/errors';
+import {
+  createSuccessResponse,
+  UnauthorizedError,
+  ValidationApiError,
+  NotFoundError,
+} from '../lib/errors';
 import { getUserToken, getAuthContext } from '../middleware/auth';
 import { getValidatedData } from '../middleware/validation';
 import { getRateLimitStatus } from '../middleware/rateLimit';
@@ -258,7 +272,7 @@ export async function getAllBadges(c: Context<{ Bindings: WorkerEnv }>): Promise
 
   try {
     const badges = await badgeService.getAllBadges();
-    
+
     const response: BadgeListResponse = {
       badges,
     };
@@ -291,7 +305,7 @@ export async function getUserBadges(c: Context<{ Bindings: WorkerEnv }>): Promis
 
   try {
     const userBadges = await badgeService.getUserBadges(userToken);
-    
+
     const response: UserBadgeResponse = {
       user_badges: userBadges,
     };
@@ -326,14 +340,16 @@ export async function updateProfileName(c: Context<{ Bindings: WorkerEnv }>): Pr
   // Validate profile name
   if (!isValidProfileName(profile_name)) {
     const errorMessage = getProfileNameValidationError(profile_name);
-    throw new ValidationApiError([{ field: 'profile_name', message: errorMessage, code: 'INVALID_PROFILE_NAME' }]);
+    throw new ValidationApiError([
+      { field: 'profile_name', message: errorMessage, code: 'INVALID_PROFILE_NAME' },
+    ]);
   }
 
   const badgeService = new BadgeService(c.env.DB);
 
   try {
     await badgeService.updateProfileName(userToken, profile_name);
-    
+
     const response: ProfileUpdateResponse = {
       success: true,
       message: 'Profile name updated successfully',
@@ -343,12 +359,14 @@ export async function updateProfileName(c: Context<{ Bindings: WorkerEnv }>): Pr
     return c.json(createSuccessResponse(response));
   } catch (error) {
     console.error('Failed to update profile name:', error);
-    
+
     // Check if it's a profile name taken error
     if (error instanceof Error && error.message === 'Profile name is already taken') {
-      throw new ValidationApiError([{ field: 'profile_name', message: error.message, code: 'PROFILE_NAME_TAKEN' }]);
+      throw new ValidationApiError([
+        { field: 'profile_name', message: error.message, code: 'PROFILE_NAME_TAKEN' },
+      ]);
     }
-    
+
     throw error;
   }
 }
@@ -357,7 +375,9 @@ export async function updateProfileName(c: Context<{ Bindings: WorkerEnv }>): Pr
  * GET /api/me/profile-check - Check profile name availability
  * Allows checking if a profile name is available before submitting
  */
-export async function checkProfileNameAvailability(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+export async function checkProfileNameAvailability(
+  c: Context<{ Bindings: WorkerEnv }>
+): Promise<Response> {
   const userToken = getUserToken(c);
   const authContext = getAuthContext(c);
 
@@ -387,7 +407,7 @@ export async function checkProfileNameAvailability(c: Context<{ Bindings: Worker
 
   try {
     const isAvailable = await badgeService.isProfileNameAvailable(profile_name, userToken);
-    
+
     const response: ProfileNameCheckResponse = {
       available: isAvailable,
       message: isAvailable ? 'Profile name is available' : 'Profile name is already taken',
@@ -412,7 +432,7 @@ export async function getPublicUserProfile(c: Context<{ Bindings: WorkerEnv }>):
 
   try {
     const user = await badgeService.getUserByUuid(uuid);
-    
+
     if (!user) {
       throw new NotFoundError('User not found');
     }
@@ -756,7 +776,7 @@ async function getUserDetailedInfo(
       uuid: result.uuid as string,
       email: result.email as string | null,
       email_verified: result.email_verified_at !== null,
-      status: result.status as string || 'active',
+      status: (result.status as string) || 'active',
       created_at: result.created_at as string,
       updated_at: result.last_login as string | null,
     };
@@ -794,14 +814,16 @@ async function getUserPermissionsInfo(
 
     const results = await stmt.bind(userToken).all();
     return results.success
-      ? (results.results as Array<{
-          permission: string;
-          granted_at: string;
-          granted_by: string;
-          granted_by_email: string | null;
-          revoked_at: string | null;
-          notes: string | null;
-        }>).map(result => ({
+      ? (
+          results.results as Array<{
+            permission: string;
+            granted_at: string;
+            granted_by: string;
+            granted_by_email: string | null;
+            revoked_at: string | null;
+            notes: string | null;
+          }>
+        ).map(result => ({
           ...result,
         }))
       : [];
@@ -842,7 +864,7 @@ export async function getUserNotifications(c: Context<{ Bindings: WorkerEnv }>):
     };
 
     const result = await notificationService.listForUser(userToken, options);
-    
+
     return c.json(createSuccessResponse(result));
   } catch (error) {
     console.error('Failed to get user notifications:', error);
@@ -854,7 +876,9 @@ export async function getUserNotifications(c: Context<{ Bindings: WorkerEnv }>):
  * GET /api/me/notifications/unread-count - Get unread notification count
  * Returns count of unread notifications for user
  */
-export async function getUserNotificationUnreadCount(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+export async function getUserNotificationUnreadCount(
+  c: Context<{ Bindings: WorkerEnv }>
+): Promise<Response> {
   const userToken = getUserToken(c);
 
   if (!userToken) {
@@ -865,7 +889,7 @@ export async function getUserNotificationUnreadCount(c: Context<{ Bindings: Work
 
   try {
     const result = await notificationService.unreadCount(userToken);
-    
+
     return c.json(createSuccessResponse(result));
   } catch (error) {
     console.error('Failed to get notification unread count:', error);
@@ -877,7 +901,9 @@ export async function getUserNotificationUnreadCount(c: Context<{ Bindings: Work
  * POST /api/me/notifications/:id/dismiss - Dismiss/mark notification as read
  * Marks a notification as dismissed/read for the authenticated user
  */
-export async function dismissUserNotification(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+export async function dismissUserNotification(
+  c: Context<{ Bindings: WorkerEnv }>
+): Promise<Response> {
   const userToken = getUserToken(c);
 
   if (!userToken) {
@@ -891,7 +917,7 @@ export async function dismissUserNotification(c: Context<{ Bindings: WorkerEnv }
 
   try {
     const result = await notificationService.dismiss(notificationId, userToken);
-    
+
     return c.json(createSuccessResponse(result));
   } catch (error) {
     console.error('Failed to dismiss notification:', error);
@@ -903,6 +929,8 @@ export async function dismissUserNotification(c: Context<{ Bindings: WorkerEnv }
  * POST /api/me/notifications/:id/read - Alias for dismiss (API compatibility)
  * Marks a notification as read for the authenticated user
  */
-export async function markUserNotificationRead(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+export async function markUserNotificationRead(
+  c: Context<{ Bindings: WorkerEnv }>
+): Promise<Response> {
   return dismissUserNotification(c);
 }

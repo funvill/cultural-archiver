@@ -16,7 +16,7 @@ describe('Title/Description Extraction Fix', () => {
 
   beforeEach(() => {
     // Create mock database with spies to track SQL calls
-    mockRun = vi.fn().mockResolvedValue({ 
+    mockRun = vi.fn().mockResolvedValue({
       success: true,
       results: [],
       meta: {
@@ -27,16 +27,16 @@ describe('Title/Description Extraction Fix', () => {
         rows_written: 1,
         last_row_id: 0,
         changed_db: true,
-      }
+      },
     });
-    
+
     const mockFirst = vi.fn().mockResolvedValue(null); // Mock the .first() method
-    mockBind = vi.fn().mockReturnValue({ 
+    mockBind = vi.fn().mockReturnValue({
       run: mockRun,
-      first: mockFirst
+      first: mockFirst,
     });
     mockPrepare = vi.fn().mockReturnValue({ bind: mockBind });
-    
+
     mockDB = {
       prepare: mockPrepare,
       exec: vi.fn(),
@@ -58,25 +58,25 @@ describe('Title/Description Extraction Fix', () => {
       tags: JSON.stringify({
         material: 'fiberglass',
         year: '2009',
-        condition: 'excellent'
+        condition: 'excellent',
       }),
       photos: null, // No photos for this test
       title: 'Digital Orca Sculpture', // Extracted from submission tags
-      description: 'A striking blue whale sculpture created by artist Douglas Coupland, resembling a digital pixelated orca whale.', // Extracted from submission tags
-      created_by: 'Douglas Coupland' // Extracted from submission tags
+      description:
+        'A striking blue whale sculpture created by artist Douglas Coupland, resembling a digital pixelated orca whale.', // Extracted from submission tags
+      created_by: 'Douglas Coupland', // Extracted from submission tags
     };
 
     // Act: Call insertArtwork with the data
     await insertArtwork(mockDB, artworkData);
 
     // Assert: Verify the SQL prepare call was made
-    expect(mockPrepare).toHaveBeenCalledWith(
-      expect.stringContaining('INSERT INTO artwork')
-    );
+    expect(mockPrepare).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO artwork'));
 
     // Assert: Verify all fields including title, description, and created_by were bound
     // Note: The first call should be the artwork insertion with all fields
-    expect(mockBind).toHaveBeenNthCalledWith(1,
+    expect(mockBind).toHaveBeenNthCalledWith(
+      1,
       expect.any(String), // id (UUID)
       49.258, // lat
       -123.074, // lon
@@ -104,7 +104,7 @@ describe('Title/Description Extraction Fix', () => {
       photos: null, // No photos for this test
       title: null,
       description: null,
-      created_by: null
+      created_by: null,
     };
 
     // Act: Call insertArtwork with null values
@@ -112,7 +112,8 @@ describe('Title/Description Extraction Fix', () => {
 
     // Assert: Verify the SQL was still called properly with first call being artwork insertion
     expect(mockPrepare).toHaveBeenCalled();
-    expect(mockBind).toHaveBeenNthCalledWith(1,
+    expect(mockBind).toHaveBeenNthCalledWith(
+      1,
       expect.any(String), // id
       49.258, // lat
       -123.074, // lon
@@ -123,7 +124,7 @@ describe('Title/Description Extraction Fix', () => {
       null, // photos - null for this test
       null, // title should be null in database
       null, // description should be null in database
-      null  // created_by should be null in database
+      null // created_by should be null in database
     );
   });
 
@@ -134,7 +135,7 @@ describe('Title/Description Extraction Fix', () => {
       description: 'Test artwork description with details',
       artist: 'Test Artist',
       material: 'bronze',
-      height: '3.5'
+      height: '3.5',
     };
 
     const artworkData: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'> = {
@@ -145,7 +146,7 @@ describe('Title/Description Extraction Fix', () => {
       photos: null, // No photos for this test
       title: submissionTags.title,
       description: submissionTags.description,
-      created_by: submissionTags.artist
+      created_by: submissionTags.artist,
     };
 
     // Act
@@ -173,18 +174,19 @@ describe('Title/Description Extraction Fix', () => {
           description: 'Modern sculpture in city center',
           artist: 'Famous Artist',
           material: 'steel',
-          year: '2023'
-        }
-      }
+          year: '2023',
+        },
+      },
     });
 
     // Parse submission like the approval process does
     const noteData = JSON.parse(submissionNote);
     const submissionTags = noteData._submission.tags;
-    
+
     // Extract title, description, created_by like the approval process does
     const title = typeof submissionTags.title === 'string' ? submissionTags.title : null;
-    const description = typeof submissionTags.description === 'string' ? submissionTags.description : null;
+    const description =
+      typeof submissionTags.description === 'string' ? submissionTags.description : null;
     const created_by = typeof submissionTags.artist === 'string' ? submissionTags.artist : null;
 
     // Assert the extraction worked
@@ -201,7 +203,7 @@ describe('Title/Description Extraction Fix', () => {
       status: 'approved' as const,
       title,
       description,
-      created_by
+      created_by,
     };
 
     expect(artworkData).toEqual({
@@ -211,8 +213,8 @@ describe('Title/Description Extraction Fix', () => {
       tags: expect.stringContaining('Public Art Installation'),
       status: 'approved',
       title: 'Public Art Installation',
-      description: 'Modern sculpture in city center', 
-      created_by: 'Famous Artist'
+      description: 'Modern sculpture in city center',
+      created_by: 'Famous Artist',
     });
   });
 });

@@ -1,6 +1,6 @@
 /**
  * Shared Constants for the Cultural Archiver System
- * 
+ *
  * This file contains all known UUIDs and constants used throughout the system
  * for sample data, system users, and other predefined entities.
  */
@@ -56,7 +56,8 @@ export const SAMPLE_SUBMISSION_2_UUID = 'e0000000-1000-4000-8000-000000000302';
 export const SAMPLE_SUBMISSION_3_UUID = 'e0000000-1000-4000-8000-000000000303';
 
 /** Sample Magic Link Token - Used in tests */
-export const SAMPLE_MAGIC_LINK_TOKEN = '00000000000000000000000000000000000000000000000000000000000000001234567890abcdef';
+export const SAMPLE_MAGIC_LINK_TOKEN =
+  '00000000000000000000000000000000000000000000000000000000000000001234567890abcdef';
 
 /** Sample Auth Session 1 - Used in tests */
 export const SAMPLE_AUTH_SESSION_1_UUID = 'f0000000-1000-4000-8000-000000000401';
@@ -93,7 +94,8 @@ export const SAMPLE_USER_ACTIVITY_2_UUID = 'f0000000-1000-4000-8000-000000000802
 // ================================
 
 /** UUID v4 pattern for validation */
-export const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export const UUID_V4_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /** Known UUID pattern for sample data */
 export const KNOWN_SAMPLE_UUID_PATTERN = /^[a-f]0000000-1000-4000-8000-[0-9a-f]{12}$/;
@@ -119,11 +121,11 @@ export function generateUUID(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
     return crypto.randomUUID();
   }
-  
+
   // Fallback for environments without crypto.randomUUID
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
@@ -176,7 +178,7 @@ export const UUID_CHECK_CONSTRAINT_NULLABLE = `CHECK (id IS NULL OR id GLOB '[0-
 export const BANNED_PROFILE_NAMES = [
   // System roles
   'admin',
-  'administrator', 
+  'administrator',
   'moderator',
   'mod',
   'owner',
@@ -192,7 +194,7 @@ export const BANNED_PROFILE_NAMES = [
   'director',
   'officer',
   'agent',
-  
+
   // Organization terms
   'cultural-archiver',
   'culturalarchiver',
@@ -210,7 +212,7 @@ export const BANNED_PROFILE_NAMES = [
   'undefined',
   'none',
   'empty',
-  
+
   // Technical terms
   'www',
   'ftp',
@@ -254,16 +256,14 @@ export const PROFILE_NAME_MAX_LENGTH = 20;
  * Validates if a profile name meets all requirements
  */
 export function isValidProfileName(name: string): boolean {
-  if (!name || 
-      name.length < PROFILE_NAME_MIN_LENGTH || 
-      name.length > PROFILE_NAME_MAX_LENGTH) {
+  if (!name || name.length < PROFILE_NAME_MIN_LENGTH || name.length > PROFILE_NAME_MAX_LENGTH) {
     return false;
   }
-  
+
   if (!PROFILE_NAME_REGEX.test(name)) {
     return false;
   }
-  
+
   // Check against banned names (case-insensitive)
   const lowerName = name.toLowerCase();
   return !BANNED_PROFILE_NAMES.some(banned => banned === lowerName);
@@ -276,26 +276,26 @@ export function getProfileNameValidationError(name: string): string {
   if (!name) {
     return 'Profile name is required';
   }
-  
+
   if (name.length < PROFILE_NAME_MIN_LENGTH) {
     return `Profile name must be at least ${PROFILE_NAME_MIN_LENGTH} characters long`;
   }
-  
+
   if (name.length > PROFILE_NAME_MAX_LENGTH) {
     return `Profile name cannot exceed ${PROFILE_NAME_MAX_LENGTH} characters`;
   }
-  
+
   if (!PROFILE_NAME_REGEX.test(name)) {
     if (name.startsWith('-') || name.endsWith('-')) {
       return 'Profile name cannot start or end with a dash';
     }
     return 'Profile name can only contain letters, numbers, and dashes';
   }
-  
+
   const lowerName = name.toLowerCase();
   if (BANNED_PROFILE_NAMES.some(banned => banned === lowerName)) {
     return 'This profile name is not available';
   }
-  
+
   return 'Profile name is valid';
 }

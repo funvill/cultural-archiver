@@ -41,14 +41,16 @@ const response = await fetch('/api/mass-import/osm', {
   body: JSON.stringify({
     geoJSON: {
       type: 'FeatureCollection',
-      features: [/* OSM artwork features */]
+      features: [
+        /* OSM artwork features */
+      ],
     },
     config: {
       duplicateThreshold: 0.7,
-      preset: 'vancouver'
+      preset: 'vancouver',
     },
-    batchSize: 50
-  })
+    batchSize: 50,
+  }),
 });
 ```
 
@@ -68,42 +70,50 @@ node scripts/osm-import.js data.geojson --batch-size 25
 ## Data Mapping
 
 ### Field Mappings
+
 - `properties.name` → `artwork.title`
 - `properties.artist_name` → `artwork.created_by`
 - `geometry.coordinates` → `artwork.lat/lon`
 - `id` → `External ID` tag
 
 ### Attribution Tags
+
 - `Source`: "OpenStreetMap"
 - `License`: "[ODbL](https://www.openstreetmap.org/copyright)"
 - `Attribution`: "© OpenStreetMap contributors"
 - `External ID`: OSM feature ID
 
 ### Property Mapping
+
 All OSM properties are converted to structured tags:
+
 - `artwork_type` → "Artwork Type"
-- `material` → "Material" 
+- `material` → "Material"
 - `website` → "Website"
 - Custom fields automatically formatted
 
 ## Configuration Presets
 
 ### Default
+
 - Standard validation and duplicate detection (0.7 threshold)
 - Requires name and coordinates
 - Skips incomplete records
 
 ### Vancouver
+
 - Optimized for Vancouver public art dataset
 - Higher duplicate threshold (0.8)
 - Additional metadata tags
 
 ### Strict
+
 - High-quality imports only
 - Requires name, artist, and artwork type
 - Higher duplicate threshold (0.9)
 
 ### Permissive
+
 - Maximum data inclusion
 - Lower duplicate threshold (0.5)
 - Allows incomplete records
@@ -118,6 +128,7 @@ All OSM properties are converted to structured tags:
 ## Testing
 
 Comprehensive test coverage:
+
 - Unit tests for parser logic (`osm-mass-import.test.ts`)
 - API integration tests (`osm-mass-import-api.test.ts`)
 - Edge case handling and validation

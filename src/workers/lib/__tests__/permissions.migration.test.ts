@@ -12,9 +12,11 @@ import type { AuthContext } from '../../types';
 // Minimal mock D1Database that records queries
 interface D1PreparedStatementTest {
   bind: (...values: unknown[]) => D1PreparedStatementTest;
-  all: <T=unknown>() => Promise<{ success: boolean; results: T[] }>;
+  all: <T = unknown>() => Promise<{ success: boolean; results: T[] }>;
 }
-interface D1Database { prepare: (query: string) => D1PreparedStatementTest }
+interface D1Database {
+  prepare: (query: string) => D1PreparedStatementTest;
+}
 
 describe('Migration Integrity: reviewer role removal', () => {
   it("should not surface any 'reviewer' permission rows and set new flags", async () => {
@@ -25,10 +27,10 @@ describe('Migration Integrity: reviewer role removal', () => {
           bind: () => ({
             all: async () => ({
               success: true,
-              results: [ { role: 'moderator' } ],
+              results: [{ role: 'moderator' }],
             }),
           }),
-          all: async () => ({ success: true, results: [ { role: 'moderator' } ]}),
+          all: async () => ({ success: true, results: [{ role: 'moderator' }] }),
         } as unknown as D1PreparedStatementTest;
       },
     };
@@ -52,7 +54,7 @@ describe('Migration Integrity: reviewer role removal', () => {
     // Admin remains false
     expect(enhanced.isAdmin).toBe(false);
     // Permissions array should not include any 'reviewer'
-  // Assert the string 'reviewer' is absent (it is not part of Permission union)
-  expect((enhanced.permissions as unknown as string[])).not.toContain('reviewer');
+    // Assert the string 'reviewer' is absent (it is not part of Permission union)
+    expect(enhanced.permissions as unknown as string[]).not.toContain('reviewer');
   });
 });

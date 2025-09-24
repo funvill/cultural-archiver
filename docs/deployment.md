@@ -14,18 +14,21 @@ This guide covers deploying the Cultural Archiver Worker API to Cloudflare Worke
 The Cultural Archiver consists of two main components deployed on Cloudflare infrastructure:
 
 ### Frontend (Vue 3 Application)
+
 - **Deployment**: Cloudflare Worker with static assets
 - **Configuration**: `src/frontend/wrangler.jsonc`
 - **Domain**: `art.abluestar.com`
 - **Features**: SPA routing, static asset serving
 
 ### Backend (Hono API)
+
 - **Deployment**: Cloudflare Worker
 - **Configuration**: `src/workers/wrangler.toml`
 - **Domain**: `art-api.abluestar.com`
 - **Features**: API endpoints, database operations, business logic
 
 ### Required Cloudflare Services
+
 - **Cloudflare Workers**: Runtime for both frontend and backend
 - **D1 Database**: SQLite-compatible database for artwork and submissions
 - **KV Storage**: Rate limiting, sessions, magic links, and caching
@@ -121,17 +124,16 @@ Update `src/frontend/wrangler.jsonc` for frontend deployment:
   }
 }
 ```
+
 name = "cultural-archiver-api"
 
-[env.staging]
-name = "cultural-archiver-api-staging"
+[env.staging] name = "cultural-archiver-api-staging"
 
 # Variables will be set via CLI
-[vars]
-ENVIRONMENT = "production"
-FRONTEND_URL = "https://art.abluestar.com"
-LOG_LEVEL = "info"
-```
+
+[vars] ENVIRONMENT = "production" FRONTEND_URL = "https://art.abluestar.com" LOG_LEVEL = "info"
+
+````
 
 ## Database Setup (D1)
 
@@ -143,7 +145,7 @@ wrangler d1 create cultural-archiver-db
 
 # Staging (optional)
 wrangler d1 create cultural-archiver-db-staging
-```
+````
 
 ### 2. Update wrangler.toml
 

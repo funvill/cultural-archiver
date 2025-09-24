@@ -7,20 +7,23 @@ The `reset-database.ts` script provides a safe and comprehensive way to reset th
 ## Features
 
 ✅ **Safe Reset Process**
+
 - Interactive confirmation prompts (bypass with `--force`)
 - Automatic backup creation before reset
 - Environment validation
 - Comprehensive error handling with rollback guidance
 
 ✅ **Smart Data Management**
+
 - Preserves essential reference data (artwork_types)
 - Clears all user-generated content
 - Creates default admin user automatically
 - Validates final database state
 
 ✅ **Multi-Environment Support**
+
 - Development (`dev`)
-- Staging (`staging`) 
+- Staging (`staging`)
 - Production (`prod`)
 - Environment-specific configuration
 
@@ -34,7 +37,7 @@ The reset script includes a comprehensive dry-run mode that simulates the entire
 ✅ **Testing New Environments** - Validate configuration before actual reset  
 ✅ **Debugging Issues** - Troubleshoot problems without data loss risk  
 ✅ **Documentation/Training** - Show the reset process safely  
-✅ **CI/CD Pipeline Testing** - Validate automation scripts  
+✅ **CI/CD Pipeline Testing** - Validate automation scripts
 
 ### Dry Run Commands
 
@@ -101,7 +104,7 @@ The dry-run mode provides complete visibility into what the reset would do:
 🛡️ **No Backup Creation** - Skips backup process entirely  
 🛡️ **Mock Responses** - Returns simulated results for validation  
 🛡️ **Full Process Simulation** - Shows exact same steps as real reset  
-🛡️ **Environment Validation** - Still validates configuration and credentials  
+🛡️ **Environment Validation** - Still validates configuration and credentials
 
 ## Usage
 
@@ -111,7 +114,7 @@ The dry-run mode provides complete visibility into what the reset would do:
 # Reset development database
 npm run database:reset:dev
 
-# Reset staging database  
+# Reset staging database
 npm run database:reset:staging
 
 # Reset production database (use with extreme caution!)
@@ -119,7 +122,7 @@ npm run database:reset:prod
 
 # DRY RUN MODES - Test without making changes
 npm run database:reset:dev:dry-run
-npm run database:reset:staging:dry-run  
+npm run database:reset:staging:dry-run
 npm run database:reset:prod:dry-run
 ```
 
@@ -142,8 +145,9 @@ tsx scripts/reset-database.ts --help
 ## What Gets Reset
 
 ### 🧹 **Cleared Tables (User Data)**
+
 - `artwork` - All artwork submissions
-- `logbook` - All logbook entries 
+- `logbook` - All logbook entries
 - `users` - All user accounts
 - `user_permissions` - All user permissions
 - `magic_links` - Authentication tokens
@@ -151,11 +155,13 @@ tsx scripts/reset-database.ts --help
 - `rate_limiting` - Rate limit tracking
 
 ### 🔒 **Preserved Tables (Reference Data)**
+
 - `artwork_types` - Artwork categories (sculpture, mural, etc.)
 - `d1_migrations` - Migration history
 - Database schema and indexes
 
 ### 🆕 **Repopulated Data**
+
 - Default artwork types (4 categories)
 - Admin user: `steven@abluestar.com`
 - Admin permissions: `admin` + `moderator`
@@ -163,17 +169,20 @@ tsx scripts/reset-database.ts --help
 ## Security & Safety
 
 ### 🔐 **Access Control**
+
 - Requires valid environment configuration in `.env`
 - Uses Cloudflare API authentication
 - Environment-specific database targeting
 
 ### 🔒 **Safety Mechanisms**
+
 - **Interactive Confirmation**: Requires explicit "yes" for destructive operations
 - **Automatic Backup**: Creates timestamped backup before reset
 - **State Validation**: Verifies database state after reset
 - **Error Recovery**: Provides troubleshooting guidance on failures
 
 ### ⚠️ **Production Warnings**
+
 - Production resets require manual confirmation
 - Extra confirmation prompts for prod environment
 - Backup creation is mandatory (cannot be skipped)
@@ -181,12 +190,14 @@ tsx scripts/reset-database.ts --help
 ## Backup System
 
 ### 📦 **Automatic Backups**
+
 - Filename: `reset-backup-{env}-{timestamp}.sql`
 - Location: `_backup_database/` directory
 - Format: Complete SQL dump with schema and data
 - Created before any destructive operations
 
 ### 🔄 **Recovery Process**
+
 If reset fails or you need to rollback:
 
 ```powershell
@@ -206,11 +217,12 @@ CLOUDFLARE_API_TOKEN=your_api_token
 
 # Database IDs by Environment
 D1_DATABASE_ID=dev_database_id                    # Development
-D1_DATABASE_ID_STAGING=staging_database_id        # Staging  
+D1_DATABASE_ID_STAGING=staging_database_id        # Staging
 D1_DATABASE_ID_PROD=production_database_id        # Production
 ```
 
 ### 🔧 **Environment Mapping**
+
 - `dev`/`development` → `D1_DATABASE_ID`
 - `staging` → `D1_DATABASE_ID_STAGING` (fallback to `D1_DATABASE_ID`)
 - `prod`/`production` → `D1_DATABASE_ID_PROD` (fallback to `D1_DATABASE_ID`)
@@ -229,6 +241,7 @@ Created: <reset timestamp>
 ```
 
 This user can immediately:
+
 - Review and approve submissions
 - Access admin panel
 - Manage other users
@@ -237,15 +250,17 @@ This user can immediately:
 ## Validation & Testing
 
 ### ✅ **Post-Reset Validation**
+
 The script automatically verifies:
 
 1. **Artwork Types**: At least 4 default types exist
 2. **Admin User**: Single admin user with correct email
-3. **Permissions**: Admin has both admin and moderator permissions  
+3. **Permissions**: Admin has both admin and moderator permissions
 4. **Empty Tables**: All user data tables are properly cleared
 5. **Data Integrity**: No orphaned records or constraint violations
 
 ### 🧪 **Development Workflow**
+
 ```powershell
 # 1. Reset development database
 npm run database:reset:dev
@@ -267,27 +282,35 @@ npm run test
 ### ❌ **Common Errors**
 
 **Environment Configuration**
+
 ```
 Error: Missing required environment variables for dev environment
 ```
+
 → Check `.env` file has `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `D1_DATABASE_ID`
 
-**API Authentication** 
+**API Authentication**
+
 ```
 Error: Database query failed: 401 Unauthorized
 ```
+
 → Verify `CLOUDFLARE_API_TOKEN` has Workers:Edit and D1:Edit permissions
 
 **Database Connection**
+
 ```
 Error: Database query failed: 404 Not Found
 ```
+
 → Check `D1_DATABASE_ID` is correct for target environment
 
 **Backup Failures**
+
 ```
 Warning: Backup creation failed, but continuing with reset
 ```
+
 → Non-fatal; reset continues but manual backup recommended
 
 ### 🔧 **Recovery Steps**
@@ -302,6 +325,7 @@ If reset fails partway through:
 ### 📞 **Support Escalation**
 
 For persistent issues:
+
 1. Include full error output and environment details
 2. Check Cloudflare dashboard for API rate limits
 3. Verify database exists and is accessible
@@ -312,6 +336,7 @@ For persistent issues:
 ### 🔄 **Typical Use Cases**
 
 **Feature Development**
+
 ```powershell
 # Clean slate for new feature branch
 npm run database:reset:dev
@@ -320,14 +345,16 @@ npm run database:reset:dev
 ```
 
 **Testing & QA**
+
 ```powershell
 # Reset staging for QA testing
-npm run database:reset:staging  
+npm run database:reset:staging
 # Load test data
 # Execute test scenarios
 ```
 
 **Demo Preparation**
+
 ```powershell
 # Clean demo environment
 npm run database:reset:staging
@@ -352,17 +379,20 @@ For automated testing pipelines:
 ## Security Considerations
 
 ### 🔐 **Access Control**
+
 - Script requires valid Cloudflare API credentials
 - Environment variables control database access
 - No hardcoded credentials or database IDs
 
 ### 🛡️ **Data Protection**
+
 - Automatic backup creation (cannot be disabled)
 - Interactive confirmations for destructive operations
 - Comprehensive logging of all operations
 - Validation of final state before completion
 
 ### 🚨 **Production Safety**
+
 - Extra confirmation prompts for production environment
 - Detailed warnings about data loss
 - Backup verification before proceeding
@@ -371,13 +401,15 @@ For automated testing pipelines:
 ## Limitations
 
 ### ⚠️ **Current Limitations**
+
 - Cannot selectively preserve specific user data
 - Backup process depends on external npm scripts
 - No automatic rollback on partial failure
 - Limited to Cloudflare D1 databases
 
 ### 🔮 **Future Enhancements**
+
 - Selective data preservation options
-- Integrated rollback mechanism  
+- Integrated rollback mechanism
 - Custom initialization scripts support
 - Support for other database providers

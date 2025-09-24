@@ -2,15 +2,11 @@
 
 ## Executive Summary
 
-Create dedicated artist profile pages that showcase artist information and their
-artworks
+Create dedicated artist profile pages that showcase artist information and their artworks
 
 ## Problem Statement
 
-Currently, artist information is stored only as text fields within individual
-artwork records (artist_name). Users cannot easily discover other works by the
-same artist or learn comprehensive information about artists. There's no
-centralized place to showcase an artist's portfolio within the platform.
+Currently, artist information is stored only as text fields within individual artwork records (artist_name). Users cannot easily discover other works by the same artist or learn comprehensive information about artists. There's no centralized place to showcase an artist's portfolio within the platform.
 
 ## Solution Overview
 
@@ -26,6 +22,7 @@ Implement a dedicated Artist page type with full CRUD operations
 ### Database Schema
 
 **New `artists` table:**
+
 ```sql
 CREATE TABLE artists (
   id TEXT PRIMARY KEY DEFAULT (uuid()), -- UUID
@@ -39,6 +36,7 @@ CREATE TABLE artists (
 ```
 
 **New `artwork_artists` junction table:**
+
 ```sql
 CREATE TABLE artwork_artists (
   id TEXT PRIMARY KEY DEFAULT (uuid()),
@@ -53,6 +51,7 @@ CREATE TABLE artwork_artists (
 ```
 
 **New `artist_edits` table:**
+
 ```sql
 CREATE TABLE artist_edits (
   edit_id TEXT PRIMARY KEY DEFAULT (uuid()),
@@ -82,6 +81,7 @@ The `role` field in the `artwork_artists` junction table allows for flexible att
 - **fabricator** - Person/company who physically built the work
 
 This enables:
+
 1. **Multiple attribution types** - Same artwork can have different people in different roles
 2. **Same person, multiple roles** - An artist can be both creator and fabricator
 3. **Flexible crediting** - Proper attribution for complex public art projects
@@ -90,18 +90,21 @@ This enables:
 ## API Endpoints
 
 Core CRUD Operations:
+
 - GET /api/artists - List artists with search/filter
 - GET /api/artists/:id - Get artist profile with artworks
 - PUT /api/artists/:id - Submit artist profile edits (queued for moderation)
 - POST /api/artists - Create artist profile (authenticated users)
 
 Moderation Endpoints:
+
 - GET /api/admin/artist-edits/pending - Review pending artist edits
 - POST /api/admin/artist-edits/:id/review - Approve/reject artist edits
 
 ## Frontend Components
 
 Artist Profile Page (/artist/:uuid):
+
 - ArtistHeader.vue - Name
 - ArtistBio.vue - Markdown-rendered biography with edit capability
 - ArtistTags.vue - Artist metadata tags (website, birth year, etc.)
@@ -118,12 +121,14 @@ Artist Profile Page (/artist/:uuid):
 ### User Flows
 
 Viewing Artist Profile:
+
 1. User discovers artist through artwork page or search
 2. Clicks artist name → navigates to /artist/:uuid
 3. Views biography, tags, and complete artwork portfolio
 4. Can navigate to individual artworks or discover related artists
 
 Editing Artist Information:
+
 1. Logged-in user visits artist page
 2. Clicks "Edit Artist Info" → opens ArtistEditForm.vue
 3. Modifies name, biography, tags
@@ -136,7 +141,7 @@ Phase 1: Backend Foundation
 
 1. Create new database schema (artists, artwork_artists, artist_edits tables)
 2. Add TypeScript interfaces to src/shared/types.ts
-3. Implement API endpoints for artist CRUD operations  
+3. Implement API endpoints for artist CRUD operations
 4. Set up artist edit moderation system (mirror artwork edit system)
 
 Phase 2: Frontend Pages

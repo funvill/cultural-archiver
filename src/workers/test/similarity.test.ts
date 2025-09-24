@@ -39,7 +39,7 @@ describe('Similarity Scoring System', () => {
       const candidate = createCandidate();
 
       const result = strategy.calculateSimilarity(query, candidate);
-      
+
       // Distance signal should be perfect (1.0) before weighting
       const distanceSignal = result.signals.find(s => s.type === 'distance');
       expect(distanceSignal).toBeDefined();
@@ -49,10 +49,10 @@ describe('Similarity Scoring System', () => {
     it('should calculate decreasing similarity with distance', () => {
       const query = createQuery();
       const nearCandidate = createCandidate({
-        coordinates: { lat: 49.2830, lon: -123.1210 }, // ~50m away
+        coordinates: { lat: 49.283, lon: -123.121 }, // ~50m away
       });
       const farCandidate = createCandidate({
-        coordinates: { lat: 49.2900, lon: -123.1300 }, // ~1km away
+        coordinates: { lat: 49.29, lon: -123.13 }, // ~1km away
       });
 
       const nearResult = strategy.calculateSimilarity(query, nearCandidate);
@@ -72,7 +72,7 @@ describe('Similarity Scoring System', () => {
       const candidate = createCandidate({ title: 'Bronze Sculpture' });
 
       const result = strategy.calculateSimilarity(query, candidate);
-      
+
       const titleSignal = result.signals.find(s => s.type === 'title');
       expect(titleSignal).toBeDefined();
       expect(titleSignal!.rawScore).toBe(1);
@@ -83,7 +83,7 @@ describe('Similarity Scoring System', () => {
       const candidate = createCandidate({ title: 'Bronze Statue' });
 
       const result = strategy.calculateSimilarity(query, candidate);
-      
+
       const titleSignal = result.signals.find(s => s.type === 'title');
       expect(titleSignal).toBeDefined();
       expect(titleSignal!.rawScore).toBeGreaterThan(0.5);
@@ -95,7 +95,7 @@ describe('Similarity Scoring System', () => {
       const candidate = createCandidate({ title: 'bronze sculpture' });
 
       const result = strategy.calculateSimilarity(query, candidate);
-      
+
       const titleSignal = result.signals.find(s => s.type === 'title');
       expect(titleSignal).toBeDefined();
       expect(titleSignal!.rawScore).toBe(1);
@@ -106,7 +106,7 @@ describe('Similarity Scoring System', () => {
       const candidate = createCandidate({ title: 'B' });
 
       const result = strategy.calculateSimilarity(query, candidate);
-      
+
       const titleSignal = result.signals.find(s => s.type === 'title');
       expect(titleSignal).toBeDefined();
       expect(titleSignal!.rawScore).toBe(0);
@@ -117,12 +117,12 @@ describe('Similarity Scoring System', () => {
   describe('Tag Similarity', () => {
     it('should calculate perfect similarity for identical tags', () => {
       const query = createQuery({ tags: ['sculpture', 'bronze'] });
-      const candidate = createCandidate({ 
-        tags: JSON.stringify(['sculpture', 'bronze']) 
+      const candidate = createCandidate({
+        tags: JSON.stringify(['sculpture', 'bronze']),
       });
 
       const result = strategy.calculateSimilarity(query, candidate);
-      
+
       const tagSignal = result.signals.find(s => s.type === 'tags');
       expect(tagSignal).toBeDefined();
       expect(tagSignal!.rawScore).toBe(1);
@@ -130,12 +130,12 @@ describe('Similarity Scoring System', () => {
 
     it('should calculate partial similarity for overlapping tags', () => {
       const query = createQuery({ tags: ['sculpture', 'bronze', 'modern'] });
-      const candidate = createCandidate({ 
-        tags: JSON.stringify(['sculpture', 'stone']) 
+      const candidate = createCandidate({
+        tags: JSON.stringify(['sculpture', 'stone']),
       });
 
       const result = strategy.calculateSimilarity(query, candidate);
-      
+
       const tagSignal = result.signals.find(s => s.type === 'tags');
       expect(tagSignal).toBeDefined();
       // 1 common tag out of 4 unique tags = 1/4 = 0.25
@@ -144,12 +144,12 @@ describe('Similarity Scoring System', () => {
 
     it('should handle structured tags format', () => {
       const query = createQuery({ tags: ['bronze'] });
-      const candidate = createCandidate({ 
-        tags: JSON.stringify({ material: 'bronze', style: 'modern' })
+      const candidate = createCandidate({
+        tags: JSON.stringify({ material: 'bronze', style: 'modern' }),
       });
 
       const result = strategy.calculateSimilarity(query, candidate);
-      
+
       const tagSignal = result.signals.find(s => s.type === 'tags');
       expect(tagSignal).toBeDefined();
       expect(tagSignal!.rawScore).toBeGreaterThan(0);
@@ -214,7 +214,7 @@ describe('Similarity Scoring System', () => {
         tags: ['sculpture'],
       });
       const candidate = createCandidate({
-        coordinates: { lat: 49.2900, lon: -123.1300 }, // ~1km away
+        coordinates: { lat: 49.29, lon: -123.13 }, // ~1km away
         title: 'Abstract Art', // Different title
         tags: JSON.stringify(['art']), // Different tags
       });
@@ -231,9 +231,27 @@ describe('Similarity Scoring System', () => {
   describe('Utility Functions', () => {
     it('should sort results by similarity', () => {
       const results = [
-        { artworkId: '1', overallScore: 0.5, signals: [], threshold: 'none' as const, metadata: {} },
-        { artworkId: '2', overallScore: 0.9, signals: [], threshold: 'high' as const, metadata: {} },
-        { artworkId: '3', overallScore: 0.7, signals: [], threshold: 'warn' as const, metadata: {} },
+        {
+          artworkId: '1',
+          overallScore: 0.5,
+          signals: [],
+          threshold: 'none' as const,
+          metadata: {},
+        },
+        {
+          artworkId: '2',
+          overallScore: 0.9,
+          signals: [],
+          threshold: 'high' as const,
+          metadata: {},
+        },
+        {
+          artworkId: '3',
+          overallScore: 0.7,
+          signals: [],
+          threshold: 'warn' as const,
+          metadata: {},
+        },
       ];
 
       const sorted = sortBySimilarity(results);
@@ -243,9 +261,27 @@ describe('Similarity Scoring System', () => {
 
     it('should filter by threshold', () => {
       const results = [
-        { artworkId: '1', overallScore: 0.5, signals: [], threshold: 'none' as const, metadata: {} },
-        { artworkId: '2', overallScore: 0.9, signals: [], threshold: 'high' as const, metadata: {} },
-        { artworkId: '3', overallScore: 0.7, signals: [], threshold: 'warn' as const, metadata: {} },
+        {
+          artworkId: '1',
+          overallScore: 0.5,
+          signals: [],
+          threshold: 'none' as const,
+          metadata: {},
+        },
+        {
+          artworkId: '2',
+          overallScore: 0.9,
+          signals: [],
+          threshold: 'high' as const,
+          metadata: {},
+        },
+        {
+          artworkId: '3',
+          overallScore: 0.7,
+          signals: [],
+          threshold: 'warn' as const,
+          metadata: {},
+        },
       ];
 
       const warnings = filterByThreshold(results, 'warn');
@@ -268,7 +304,7 @@ describe('Similarity Scoring System', () => {
             type: 'distance' as const,
             rawScore: 0.9,
             weightedScore: 0.45,
-            metadata: { distanceMeters: 45 }
+            metadata: { distanceMeters: 45 },
           },
           {
             type: 'title' as const,
@@ -288,7 +324,8 @@ describe('Similarity Scoring System', () => {
 
   describe('Configuration Constants', () => {
     it('should have valid weight configuration', () => {
-      const totalWeight = SIMILARITY_WEIGHTS.distance + SIMILARITY_WEIGHTS.title + SIMILARITY_WEIGHTS.tags;
+      const totalWeight =
+        SIMILARITY_WEIGHTS.distance + SIMILARITY_WEIGHTS.title + SIMILARITY_WEIGHTS.tags;
       expect(totalWeight).toBeCloseTo(1.0, 2);
     });
 

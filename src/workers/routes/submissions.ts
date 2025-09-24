@@ -1,7 +1,7 @@
 /**
  * Submission route handlers for artwork submissions (POST /api/submissions)
  * Handles artwork submissions with photos, location, and metadata
- * 
+ *
  * UPDATED: Uses consent-first pattern with centralized consent table
  */
 
@@ -48,16 +48,14 @@ interface UserStatsResult {
 /**
  * POST /api/logbook - Create Submission (Updated: Consent-First Pattern)
  * Handles new artwork submissions with photos and metadata
- * 
+ *
  * NEW FLOW:
  * 1. Record consent FIRST
  * 2. Create logbook entry only after consent success
  * 3. Process photos
  * 4. Return response with consent audit trail
  */
-export async function createSubmission(
-  c: Context<{ Bindings: WorkerEnv }>
-): Promise<Response> {
+export async function createSubmission(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const userToken = getUserToken(c);
   const validatedData = getValidatedData<SubmissionRequest>(c, 'body');
   const validatedFiles = getValidatedFiles(c);
@@ -66,19 +64,20 @@ export async function createSubmission(
 
   try {
     // STEP 1: Consent-First Pattern - Record consent BEFORE creating content
-    
+
     // Generate a unique content ID for this submission
     const contentId = crypto.randomUUID(); // This will be used for both consent and logbook
-    const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
-    
+    const clientIP =
+      c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
+
     // Extract consent information from request
     const consentVersion = validatedData.consent_version || CONSENT_VERSION;
     const consentTextHash = await generateConsentTextHash(
       `Cultural Archiver Consent v${consentVersion} - Logbook Submission`
     );
-    
+
     // Determine user identity (authenticated vs anonymous)
-    const isAuthenticated = userToken && userToken.length > 36; // Simple heuristic 
+    const isAuthenticated = userToken && userToken.length > 36; // Simple heuristic
     const consentParams = {
       ...(isAuthenticated ? { userId: userToken } : { anonymousToken: userToken }),
       contentType: 'logbook' as const,
@@ -152,15 +151,19 @@ export async function createSubmission(
 
     // Create the submission entry - it will generate its own ID
     const newEntry = await db.createLogbookEntry(submissionEntry);
-    
+
     // Update our consent record to use the actual logbook entry ID
     try {
-      await c.env.DB.prepare(`
+      await c.env.DB.prepare(
+        `
         UPDATE consent 
         SET content_id = ? 
         WHERE id = ?
-      `).bind(newEntry.id, consentRecord.id).run();
-      
+      `
+      )
+        .bind(newEntry.id, consentRecord.id)
+        .run();
+
       console.info('Updated consent record with actual logbook ID:', {
         consentId: consentRecord.id,
         originalContentId: contentId,
@@ -184,14 +187,14 @@ export async function createSubmission(
     try {
       const badgeService = new BadgeService(c.env.DB);
       const badgeAwards = await badgeService.checkSubmissionBadges(userToken);
-      
+
       if (badgeAwards.length > 0) {
         console.info('Badges awarded for submission:', {
           submissionId: newEntry.id,
           userToken,
           badges: badgeAwards.map(b => ({ key: b.badge_key, title: b.title })),
         });
-        
+
         // Note: Badge notifications would be handled by the frontend
         // when it detects new badges in the user's profile
       }
@@ -204,7 +207,7 @@ export async function createSubmission(
       });
     }
 
-    // STEP 6: Create response 
+    // STEP 6: Create response
     const response: SubmissionResponse = {
       id: newEntry.id,
       status: 'pending',
@@ -226,23 +229,18 @@ export async function createSubmission(
     return c.json(createSuccessResponse(response), 201);
   } catch (error) {
     console.error('Failed to create logbook submission:', error);
-    
+
     // Return appropriate error based on type
     if (error instanceof ApiError) {
       throw error; // Re-throw API errors (including SUBMISSION_BLOCKED)
     }
-    
-    throw new ApiError(
-      'Failed to create submission',
-      'SUBMISSION_FAILED',
-      500,
-      {
-        details: {
-          message: 'An error occurred while processing your submission',
-          error: error instanceof Error ? error.message : 'Unknown error',
-        },
-      }
-    );
+
+    throw new ApiError('Failed to create submission', 'SUBMISSION_FAILED', 500, {
+      details: {
+        message: 'An error occurred while processing your submission',
+        error: error instanceof Error ? error.message : 'Unknown error',
+      },
+    });
   }
 }
 
@@ -413,7 +411,9 @@ export async function createFastArtworkSubmission(
 
   const db = createDatabaseService(c.env.DB);
   const photoDebug = c.env.PHOTO_DEBUG === '1' || c.env.PHOTO_DEBUG === 'true';
-  const dbg = (...args: unknown[]): void => { if (photoDebug) console.info('[PHOTO][FAST]', ...args); };
+  const dbg = (...args: unknown[]): void => {
+    if (photoDebug) console.info('[PHOTO][FAST]', ...args);
+  };
 
   dbg('Incoming fast submission', {
     userToken: userToken.slice(0, 8) + '…',
@@ -422,25 +422,26 @@ export async function createFastArtworkSubmission(
     lon: validatedData.lon,
     title: validatedData.title,
     tagKeys: validatedData.tags ? Object.keys(validatedData.tags) : [],
-  fileCount: validatedFiles.length,
-  fileMeta: validatedFiles.map((f, i) => ({ i, name: f.name, type: f.type, size: f.size })),
+    fileCount: validatedFiles.length,
+    fileMeta: validatedFiles.map((f, i) => ({ i, name: f.name, type: f.type, size: f.size })),
   });
 
   try {
     // STEP 1: Consent-First Pattern - Record consent BEFORE creating content
-    
+
     // Generate a unique content ID for this submission
     const contentId = crypto.randomUUID(); // This will be used for both consent and logbook
-    const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
-    
+    const clientIP =
+      c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
+
     // Extract consent information from request
     const consentVersion = validatedData.consent_version || CONSENT_VERSION;
     const consentTextHash = await generateConsentTextHash(
       `Cultural Archiver Consent v${consentVersion} - Fast Artwork Submission`
     );
-    
+
     // Determine user identity (authenticated vs anonymous)
-    const isAuthenticated = userToken && userToken.length > 36; // Simple heuristic 
+    const isAuthenticated = userToken && userToken.length > 36; // Simple heuristic
     const consentParams = {
       ...(isAuthenticated ? { userId: userToken } : { anonymousToken: userToken }),
       contentType: 'logbook' as const,
@@ -491,17 +492,17 @@ export async function createFastArtworkSubmission(
       similarity_explanation: string;
     }> = [];
 
-  if (validatedData.title) {
+    if (validatedData.title) {
       try {
         const similarityService = createSimilarityService({ includeMetadata: false });
-    dbg('Running similarity pre-check');
+        dbg('Running similarity pre-check');
         const nearbyArtworks = await db.findNearbyArtworks(
           validatedData.lat,
           validatedData.lon,
           DEFAULT_ARTWORK_SEARCH_RADIUS,
           10 // Check up to 10 candidates
         );
-    dbg('Similarity candidates fetched', { count: nearbyArtworks.length });
+        dbg('Similarity candidates fetched', { count: nearbyArtworks.length });
 
         if (nearbyArtworks.length > 0) {
           const query: SimilarityQuery = {
@@ -525,16 +526,21 @@ export async function createFastArtworkSubmission(
             highSimilarity: duplicateCheck.highSimilarityMatches.length,
             warningSimilarity: duplicateCheck.warningSimilarityMatches.length,
           });
-          
+
           // Extract high similarity warnings
           if (duplicateCheck.highSimilarityMatches.length > 0) {
-            const allResults = similarityService.calculateSimilarityScores(query, similarityCandidates);
+            const allResults = similarityService.calculateSimilarityScores(
+              query,
+              similarityCandidates
+            );
             similarityWarnings = duplicateCheck.highSimilarityMatches.map(match => {
               const result = allResults.find(r => r.artworkId === match.artworkId);
               return {
                 artwork_id: match.artworkId,
                 similarity_score: result?.overallScore ?? 0,
-                similarity_explanation: result ? getSimilarityExplanation(result) : 'High similarity detected',
+                similarity_explanation: result
+                  ? getSimilarityExplanation(result)
+                  : 'High similarity detected',
               };
             });
           }
@@ -560,7 +566,7 @@ export async function createFastArtworkSubmission(
           type_name: (validatedData.tags?.artwork_type as string) || 'unknown',
           tags: {
             ...(validatedData.tags || {}),
-            // Include title in tags for approval extraction  
+            // Include title in tags for approval extraction
             ...(validatedData.title && { title: validatedData.title }),
           },
         },
@@ -577,15 +583,19 @@ export async function createFastArtworkSubmission(
       };
 
       const newEntry = await db.createLogbookEntry(submissionEntry);
-      
+
       // Update our consent record to use the actual logbook entry ID
       try {
-        await c.env.DB.prepare(`
+        await c.env.DB.prepare(
+          `
           UPDATE consent 
           SET content_id = ? 
           WHERE id = ?
-        `).bind(newEntry.id, consentRecord.id).run();
-        
+        `
+        )
+          .bind(newEntry.id, consentRecord.id)
+          .run();
+
         console.info('Updated consent record with actual logbook ID:', {
           consentId: consentRecord.id,
           originalContentId: contentId,
@@ -595,20 +605,22 @@ export async function createFastArtworkSubmission(
         console.warn('Failed to update consent record with actual logbook ID:', error);
         // This is not critical - the consent is still valid
       }
-      
+
       dbg('Created new artwork logbook entry (pending)', { submissionId: newEntry.id });
       submissionId = newEntry.id;
       submissionType = 'new_artwork';
     } else {
       // Create logbook entry for existing artwork
       if (!validatedData.existing_artwork_id) {
-        throw new ValidationApiError([{
-          field: 'existing_artwork_id',
-          message: 'existing_artwork_id is required for logbook entries',
-          code: 'REQUIRED'
-        }]);
+        throw new ValidationApiError([
+          {
+            field: 'existing_artwork_id',
+            message: 'existing_artwork_id is required for logbook entries',
+            code: 'REQUIRED',
+          },
+        ]);
       }
-      
+
       const submissionEntry: CreateSubmissionEntryRequest = {
         artwork_id: validatedData.existing_artwork_id,
         user_token: userToken,
@@ -619,15 +631,19 @@ export async function createFastArtworkSubmission(
       };
 
       const newEntry = await db.createLogbookEntry(submissionEntry);
-      
+
       // Update our consent record to use the actual logbook entry ID
       try {
-        await c.env.DB.prepare(`
+        await c.env.DB.prepare(
+          `
           UPDATE consent 
           SET content_id = ? 
           WHERE id = ?
-        `).bind(newEntry.id, consentRecord.id).run();
-        
+        `
+        )
+          .bind(newEntry.id, consentRecord.id)
+          .run();
+
         console.info('Updated consent record with actual logbook ID:', {
           consentId: consentRecord.id,
           originalContentId: contentId,
@@ -637,8 +653,11 @@ export async function createFastArtworkSubmission(
         console.warn('Failed to update consent record with actual logbook ID:', error);
         // This is not critical - the consent is still valid
       }
-      
-      dbg('Created logbook entry for existing artwork', { submissionId: newEntry.id, artworkId: validatedData.existing_artwork_id });
+
+      dbg('Created logbook entry for existing artwork', {
+        submissionId: newEntry.id,
+        artworkId: validatedData.existing_artwork_id,
+      });
       submissionId = newEntry.id;
       artworkId = validatedData.existing_artwork_id;
       submissionType = 'logbook_entry';
@@ -650,7 +669,12 @@ export async function createFastArtworkSubmission(
       const start = Date.now();
       dbg('Beginning photo processing', { submissionId, fileCount: validatedFiles.length });
       photoUrls = await processPhotos(c.env, validatedFiles, submissionId);
-      dbg('Photo processing complete', { submissionId, processed: photoUrls.length, ms: Date.now() - start, urls: photoUrls });
+      dbg('Photo processing complete', {
+        submissionId,
+        processed: photoUrls.length,
+        ms: Date.now() - start,
+        urls: photoUrls,
+      });
       // Update logbook entry with photo URLs
       await db.updateLogbookPhotos(submissionId, photoUrls);
       dbg('Updated logbook entry with photos', { submissionId, photoCount: photoUrls.length });
@@ -662,7 +686,7 @@ export async function createFastArtworkSubmission(
     try {
       const badgeService = new BadgeService(c.env.DB);
       const badgeAwards = await badgeService.checkSubmissionBadges(userToken);
-      
+
       if (badgeAwards.length > 0) {
         console.info('Badges awarded for fast submission:', {
           submissionId,
@@ -693,11 +717,11 @@ export async function createFastArtworkSubmission(
       ...(similarityWarnings.length > 0 && { similarity_warnings: similarityWarnings }),
     };
 
-  dbg('Submission response ready', { submissionId, submissionType, photos: photoUrls.length });
-  return c.json(createSuccessResponse(response), 201);
+    dbg('Submission response ready', { submissionId, submissionType, photos: photoUrls.length });
+    return c.json(createSuccessResponse(response), 201);
   } catch (error) {
     console.error('Failed to create fast artwork submission:', error);
-  dbg('Submission failed', { error: error instanceof Error ? error.message : String(error) });
+    dbg('Submission failed', { error: error instanceof Error ? error.message : String(error) });
     throw error;
   }
 }
@@ -705,11 +729,17 @@ export async function createFastArtworkSubmission(
 /**
  * Helper function to generate similarity explanations for submissions
  */
-interface SimilaritySignalMeta { distanceMeters?: number }
-interface SimilaritySignal { type: string; rawScore: number; metadata?: SimilaritySignalMeta }
-function getSimilarityExplanation(result: { 
-  overallScore: number; 
-  signals: Array<SimilaritySignal> 
+interface SimilaritySignalMeta {
+  distanceMeters?: number;
+}
+interface SimilaritySignal {
+  type: string;
+  rawScore: number;
+  metadata?: SimilaritySignalMeta;
+}
+function getSimilarityExplanation(result: {
+  overallScore: number;
+  signals: Array<SimilaritySignal>;
 }): string {
   const { overallScore, signals } = result;
   const explanations: string[] = [];
@@ -726,7 +756,7 @@ function getSimilarityExplanation(result: {
   }
 
   const scorePercent = Math.round(overallScore * 100);
-  return explanations.length > 0 
+  return explanations.length > 0
     ? `${scorePercent}% similar (${explanations.join(', ')})`
     : `${scorePercent}% similar`;
 }
@@ -763,13 +793,9 @@ export async function createUnifiedSubmission(
     if (error instanceof ApiError || error instanceof ValidationApiError) {
       throw error;
     }
-    
+
     console.error('Unified submission handler error:', error);
-    throw new ApiError(
-      'Submission processing failed',
-      'SUBMISSION_FAILED',
-      500
-    );
+    throw new ApiError('Submission processing failed', 'SUBMISSION_FAILED', 500);
   }
 }
 
@@ -785,7 +811,13 @@ async function handleLogbookSubmission(
   // Validation: artworkId is required for logbook submissions
   if (!data.artworkId) {
     throw new ValidationApiError(
-      [{ field: 'artworkId', message: 'Artwork ID is required for logbook submissions', code: 'REQUIRED' }],
+      [
+        {
+          field: 'artworkId',
+          message: 'Artwork ID is required for logbook submissions',
+          code: 'REQUIRED',
+        },
+      ],
       'Missing required field: artworkId'
     );
   }
@@ -793,7 +825,13 @@ async function handleLogbookSubmission(
   // Validation: at least one photo is required
   if (!files || files.length === 0) {
     throw new ValidationApiError(
-      [{ field: 'photos', message: 'At least one photo is required for logbook submissions', code: 'REQUIRED' }],
+      [
+        {
+          field: 'photos',
+          message: 'At least one photo is required for logbook submissions',
+          code: 'REQUIRED',
+        },
+      ],
       'Photo is required for logbook entries'
     );
   }
@@ -803,9 +841,11 @@ async function handleLogbookSubmission(
   if (cooldownEnabled) {
     const cooldownStatus = await getLogbookCooldownStatus(c.env.DB, data.artworkId, userToken);
     if (cooldownStatus.onCooldown) {
-      const cooldownDate = cooldownStatus.cooldownUntil ? new Date(cooldownStatus.cooldownUntil) : null;
+      const cooldownDate = cooldownStatus.cooldownUntil
+        ? new Date(cooldownStatus.cooldownUntil)
+        : null;
       const dateStr = cooldownDate ? cooldownDate.toLocaleDateString() : 'a later date';
-      
+
       throw new ApiError(
         `You can only submit one logbook entry per artwork every 30 days. Please try again after ${dateStr}.`,
         'COOLDOWN_ACTIVE',
@@ -813,8 +853,10 @@ async function handleLogbookSubmission(
         {
           details: {
             cooldownUntil: cooldownStatus.cooldownUntil,
-            retryAfter: cooldownDate ? Math.ceil((cooldownDate.getTime() - Date.now()) / 1000) : 86400
-          }
+            retryAfter: cooldownDate
+              ? Math.ceil((cooldownDate.getTime() - Date.now()) / 1000)
+              : 86400,
+          },
         }
       );
     }
@@ -833,14 +875,15 @@ async function handleLogbookSubmission(
   try {
     // Generate content ID for consent and submission
     const contentId = crypto.randomUUID();
-    const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
-    
+    const clientIP =
+      c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
+
     // Record consent
     const consentVersion = data.consent_version || CONSENT_VERSION;
     const consentTextHash = await generateConsentTextHash(
       `Cultural Archiver Consent v${consentVersion} - Logbook Submission`
     );
-    
+
     const isAuthenticated = userToken && userToken.length > 36;
     const consentParams = {
       ...(isAuthenticated ? { userId: userToken } : { anonymousToken: userToken }),
@@ -856,17 +899,14 @@ async function handleLogbookSubmission(
 
     // Process photos
     const photoUrls = await processPhotos(c.env, files, contentId);
-    
+
     // Check EXIF location if available and flag mismatch
     let locationMismatch = false;
     try {
       // TODO: Extract EXIF location from photos and check distance
       // For now, use provided coordinates vs artwork coordinates
       if (data.lat && data.lon) {
-        const distance = calculateDistance(
-          data.lat, data.lon,
-          artwork.lat, artwork.lon
-        );
+        const distance = calculateDistance(data.lat, data.lon, artwork.lat, artwork.lon);
         locationMismatch = distance > 1000; // > 1km
       }
     } catch (error) {
@@ -899,7 +939,7 @@ async function handleLogbookSubmission(
     try {
       const badgeService = new BadgeService(c.env.DB);
       const badgeAwards = await badgeService.checkSubmissionBadges(userToken);
-      
+
       if (badgeAwards.length > 0) {
         console.info('Badges awarded for unified submission:', {
           submissionId,
@@ -927,19 +967,14 @@ async function handleLogbookSubmission(
     };
 
     return c.json(createSuccessResponse(response), 201);
-
   } catch (error) {
     console.error('Logbook submission failed:', error);
-    
+
     if (error instanceof ApiError || error instanceof ValidationApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to process logbook submission',
-      'LOGBOOK_SUBMISSION_FAILED',
-      500
-    );
+
+    throw new ApiError('Failed to process logbook submission', 'LOGBOOK_SUBMISSION_FAILED', 500);
   }
 }
 
@@ -948,15 +983,15 @@ async function handleLogbookSubmission(
  */
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371e3; // Earth's radius in meters
-  const φ1 = lat1 * Math.PI/180;
-  const φ2 = lat2 * Math.PI/180;
-  const Δφ = (lat2-lat1) * Math.PI/180;
-  const Δλ = (lon2-lon1) * Math.PI/180;
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
-  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-          Math.cos(φ1) * Math.cos(φ2) *
-          Math.sin(Δλ/2) * Math.sin(Δλ/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c;
 }

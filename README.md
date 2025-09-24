@@ -18,18 +18,21 @@ This ensures that the cultural history of our cities outlives any single platfor
 ✅ **Complete Fast Photo-First Workflow - Production Ready**:
 
 ### **🗄️ Complete Database Infrastructure**
+
 - **Full schema migration system** with 6 migrations applied successfully
 - **Production database operational** with all required entities and relationships
 - **Real photo processing pipeline** with R2 storage integration and EXIF extraction
 - **API endpoints functional** including similarity checking, nearby searches, and uploads
 
 ### **🎨 Revolutionary 3-Screen Fast Photo Workflow**
+
 - **Screen 1**: Smart photo upload with intelligent location detection (EXIF GPS → Browser → IP → Manual)
 - **Screen 2**: Automated nearby artwork search with prominent "Add New Artwork" card
 - **Screen 3**: Streamlined details form with pre-filled data and minimal required fields
 - **Ultra-fast submission times** (≤20s) with duplicate detection reducing submissions by ≥30%
 
 ### **🏗️ Enterprise-Grade Architecture**
+
 - **Frontend**: Vue 3 + TypeScript + Tailwind CSS deployed as Cloudflare Worker
 - **Backend**: Cloudflare Workers + Hono framework with comprehensive API
 - **Database**: SQLite (Cloudflare D1) with spatial indexing and migration system
@@ -37,6 +40,7 @@ This ensures that the cultural history of our cities outlives any single platfor
 - **Quality Assurance**: 539 passing tests (1 skipped) across 30 test suites
 
 ### **🔧 Production Code Quality**
+
 - **Build System**: ✅ Both frontend and backend building successfully
 - **Type Safety**: TypeScript strict mode with proper error handling
 - **Code Standards**: ESLint with 229 issues (43 errors, 186 warnings) - significantly improved from initial state
@@ -412,8 +416,6 @@ Everyone is welcome to contribute to this project. See the CONTRIBUTING.md for g
 
 ### Data import
 
-OSM
-```node src/lib/mass-import-system/dist/cli/index.js import --importer osm src/data-collection/osm/output/merged/merged-artworks.geojson --limit 50```
+OSM `node src/lib/mass-import-system/dist/cli/index.js import --importer osm src/data-collection/osm/output/merged/merged-artworks.geojson --limit 50`
 
-Vancouver
-```node dist/cli/index.js vancouver --limit 50```
+Vancouver `node dist/cli/index.js vancouver --limit 50`

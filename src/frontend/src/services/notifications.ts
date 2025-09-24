@@ -20,7 +20,9 @@ export class NotificationService {
   /**
    * Get user notifications with pagination
    */
-  static async getNotifications(options: NotificationListOptions = {}): Promise<NotificationListResponse> {
+  static async getNotifications(
+    options: NotificationListOptions = {}
+  ): Promise<NotificationListResponse> {
     const response = await apiService.getUserNotifications(options);
     if (!response.success || !response.data) {
       throw new Error(response.error || 'Failed to get notifications');

@@ -71,10 +71,16 @@ describe('Discovery Route - Nearby minimal mode', () => {
     });
 
     const c = createMockContext();
-    const result = await getNearbyArtworks(c) as unknown as {
+    const result = (await getNearbyArtworks(c)) as unknown as {
       success: boolean;
       data: {
-        artworks: Array<{ id: string; lat: number; lon: number; type_name: string; recent_photo: string | null }>;
+        artworks: Array<{
+          id: string;
+          lat: number;
+          lon: number;
+          type_name: string;
+          recent_photo: string | null;
+        }>;
         total: number;
         search_center: { lat: number; lon: number };
         search_radius: number;

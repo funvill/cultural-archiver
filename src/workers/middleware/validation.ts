@@ -10,11 +10,7 @@ import { ValidationApiError } from '../lib/errors';
 import { isValidLatitude, isValidLongitude } from '../lib/spatial';
 import { tagValidationService, convertToValidationApiError } from '../lib/tag-validation';
 import type { StructuredTags } from '../../shared/tag-schema';
-import {
-  MAX_PHOTOS_PER_SUBMISSION,
-  MIN_SEARCH_RADIUS,
-  MAX_SEARCH_RADIUS,
-} from '../types';
+import { MAX_PHOTOS_PER_SUBMISSION, MIN_SEARCH_RADIUS, MAX_SEARCH_RADIUS } from '../types';
 
 // Request size limits for DoS protection
 const MAX_JSON_BODY_SIZE = 1 * 1024 * 1024; // 1MB for JSON requests
@@ -44,15 +40,15 @@ export async function validateRequestSize(
 
   if (contentLength) {
     const size = parseInt(contentLength, 10);
-    
+
     // Check file upload size limits
     if (contentType.includes('multipart/form-data')) {
       if (size > MAX_FILE_UPLOAD_SIZE) {
         throw new ValidationApiError([
-          { 
-            field: 'file', 
-            message: `File upload too large. Maximum size is ${MAX_FILE_UPLOAD_SIZE / 1024 / 1024}MB`, 
-            code: 'FILE_TOO_LARGE' 
+          {
+            field: 'file',
+            message: `File upload too large. Maximum size is ${MAX_FILE_UPLOAD_SIZE / 1024 / 1024}MB`,
+            code: 'FILE_TOO_LARGE',
           },
         ]);
       }
@@ -61,10 +57,10 @@ export async function validateRequestSize(
     else if (contentType.includes('application/json')) {
       if (size > MAX_JSON_BODY_SIZE) {
         throw new ValidationApiError([
-          { 
-            field: 'body', 
-            message: `JSON body too large. Maximum size is ${MAX_JSON_BODY_SIZE / 1024 / 1024}MB`, 
-            code: 'BODY_TOO_LARGE' 
+          {
+            field: 'body',
+            message: `JSON body too large. Maximum size is ${MAX_JSON_BODY_SIZE / 1024 / 1024}MB`,
+            code: 'BODY_TOO_LARGE',
           },
         ]);
       }
@@ -104,9 +100,7 @@ export const submissionSchema = z.object({
     .number()
     .min(-180, 'Longitude must be between -180 and 180')
     .max(180, 'Longitude must be between -180 and 180'),
-  notes: z
-    .string()
-    .optional(),
+  notes: z.string().optional(),
   type: z.string().optional(),
 });
 
@@ -151,20 +145,45 @@ export const profileNameUpdateSchema = z.object({
       /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/,
       'Profile name can only contain letters, numbers, and dashes, and cannot start or end with a dash'
     )
-    .refine(
-      (name) => {
-        // Import the banned names check
-        const bannedNames = [
-          'admin', 'administrator', 'moderator', 'mod', 'owner', 'root', 'system',
-          'support', 'help', 'staff', 'team', 'manager', 'boss', 'supervisor',
-          'director', 'officer', 'agent', 'cultural-archiver', 'culturalarchiver',
-          'archiver', 'official', 'verified', 'api', 'bot', 'service', 'account',
-          'user', 'guest', 'anonymous', 'null', 'undefined', 'none', 'empty'
-        ];
-        return !bannedNames.includes(name.toLowerCase());
-      },
-      'This profile name is not available'
-    ),
+    .refine(name => {
+      // Import the banned names check
+      const bannedNames = [
+        'admin',
+        'administrator',
+        'moderator',
+        'mod',
+        'owner',
+        'root',
+        'system',
+        'support',
+        'help',
+        'staff',
+        'team',
+        'manager',
+        'boss',
+        'supervisor',
+        'director',
+        'officer',
+        'agent',
+        'cultural-archiver',
+        'culturalarchiver',
+        'archiver',
+        'official',
+        'verified',
+        'api',
+        'bot',
+        'service',
+        'account',
+        'user',
+        'guest',
+        'anonymous',
+        'null',
+        'undefined',
+        'none',
+        'empty',
+      ];
+      return !bannedNames.includes(name.toLowerCase());
+    }, 'This profile name is not available'),
 });
 
 export const profileNameCheckSchema = z.object({
@@ -177,17 +196,8 @@ export const userUuidSchema = z.object({
 
 // Notification list query schema (limit, offset, unread_only)
 export const notificationListSchema = z.object({
-  limit: z.coerce
-    .number()
-    .int()
-    .min(1)
-    .max(100)
-    .optional(),
-  offset: z.coerce
-    .number()
-    .int()
-    .min(0)
-    .optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
   unread_only: z.coerce.boolean().optional(),
 });
 
@@ -557,7 +567,10 @@ export async function validateFastArtworkSubmission(
   const contentType = c.req.header('Content-Type') || '';
   try {
     if (contentType.includes('multipart/form-data')) {
-  console.log('[FAST SUBMIT VALIDATOR] Detected multipart/form-data content-type:', contentType);
+      console.log(
+        '[FAST SUBMIT VALIDATOR] Detected multipart/form-data content-type:',
+        contentType
+      );
       const formData = await c.req.formData();
       const build: Record<string, unknown> = {};
       // Accept both lat/lon and latitude/longitude field names
@@ -579,8 +592,8 @@ export async function validateFastArtworkSubmission(
       }
       const title = formData.get('title');
       if (title && title.toString().trim().length > 0) build.title = title.toString().trim();
-  const notes = formData.get('notes') ?? formData.get('note');
-  if (notes) build.notes = notes.toString();
+      const notes = formData.get('notes') ?? formData.get('note');
+      if (notes) build.notes = notes.toString();
       const consentVersion = formData.get('consent_version');
       if (!consentVersion) {
         throw new ValidationApiError([
@@ -610,7 +623,7 @@ export async function validateFastArtworkSubmission(
       }
       c.set('validated_body', result.data);
     } else if (contentType.includes('application/json')) {
-  console.log('[FAST SUBMIT VALIDATOR] Detected application/json content-type');
+      console.log('[FAST SUBMIT VALIDATOR] Detected application/json content-type');
       // Fall back to original JSON parsing behaviour
       try {
         const json = await c.req.json();
@@ -630,20 +643,26 @@ export async function validateFastArtworkSubmission(
         ]);
       }
     } else if (contentType.includes('application/x-www-form-urlencoded')) {
-  console.log('[FAST SUBMIT VALIDATOR] Detected application/x-www-form-urlencoded content-type');
+      console.log(
+        '[FAST SUBMIT VALIDATOR] Detected application/x-www-form-urlencoded content-type'
+      );
       const body = await c.req.parseBody();
       const build: Record<string, unknown> = {
         lat: parseFloat((body.lat ?? body.latitude ?? '').toString()),
         lon: parseFloat((body.lon ?? body.longitude ?? '').toString()),
         consent_version: (body.consent_version ?? '').toString(),
       };
-  if (body.title) build.title = body.title.toString();
-  // Accept both 'notes' and legacy 'note'
-  if (body.notes) build.notes = body.notes.toString();
-  else if (body.note) build.notes = body.note.toString();
+      if (body.title) build.title = body.title.toString();
+      // Accept both 'notes' and legacy 'note'
+      if (body.notes) build.notes = body.notes.toString();
+      else if (body.note) build.notes = body.note.toString();
       if (body.existing_artwork_id) build.existing_artwork_id = body.existing_artwork_id.toString();
       if (body.tags) {
-        try { build.tags = JSON.parse(body.tags.toString()); } catch { /* ignore */ }
+        try {
+          build.tags = JSON.parse(body.tags.toString());
+        } catch {
+          /* ignore */
+        }
       }
       const result = fastArtworkSubmissionSchema.safeParse(build);
       if (!result.success) {
@@ -656,7 +675,10 @@ export async function validateFastArtworkSubmission(
       }
       c.set('validated_body', result.data);
     } else {
-      console.warn('[FAST SUBMIT VALIDATOR] Unsupported Content-Type for fast submission:', contentType);
+      console.warn(
+        '[FAST SUBMIT VALIDATOR] Unsupported Content-Type for fast submission:',
+        contentType
+      );
       throw new ValidationApiError([
         { field: 'content_type', message: 'Unsupported Content-Type', code: 'UNSUPPORTED' },
       ]);
@@ -797,8 +819,8 @@ export async function validateSubmissionFormData(
       const validationErrors = [];
 
       // Extract and validate latitude
-  // Accept both 'latitude' (preferred) and legacy 'lat'
-  const latValue = (formData.get('latitude') ?? formData.get('lat'))?.toString();
+      // Accept both 'latitude' (preferred) and legacy 'lat'
+      const latValue = (formData.get('latitude') ?? formData.get('lat'))?.toString();
       if (!latValue) {
         validationErrors.push({
           field: 'latitude',
@@ -817,8 +839,8 @@ export async function validateSubmissionFormData(
       }
 
       // Extract and validate longitude
-  // Accept both 'longitude' (preferred) and legacy 'lon'
-  const lonValue = (formData.get('longitude') ?? formData.get('lon'))?.toString();
+      // Accept both 'longitude' (preferred) and legacy 'lon'
+      const lonValue = (formData.get('longitude') ?? formData.get('lon'))?.toString();
       if (!lonValue) {
         validationErrors.push({
           field: 'longitude',
@@ -836,8 +858,8 @@ export async function validateSubmissionFormData(
         }
       }
 
-  // Extract optional notes (accept legacy 'note')
-  const note = formData.get('notes')?.toString() ?? formData.get('note')?.toString();
+      // Extract optional notes (accept legacy 'note')
+      const note = formData.get('notes')?.toString() ?? formData.get('note')?.toString();
 
       if (validationErrors.length > 0) {
         throw new ValidationApiError(validationErrors);
@@ -868,7 +890,9 @@ export async function validateSubmissionFormData(
       const validationErrors = [];
 
       // Extract and validate latitude
-  const latValue = (formData.latitude ?? (formData as Record<string, unknown>)['lat'])?.toString();
+      const latValue = (
+        formData.latitude ?? (formData as Record<string, unknown>)['lat']
+      )?.toString();
       if (!latValue) {
         validationErrors.push({
           field: 'latitude',
@@ -887,7 +911,9 @@ export async function validateSubmissionFormData(
       }
 
       // Extract and validate longitude
-  const lonValue = (formData.longitude ?? (formData as Record<string, unknown>)['lon'])?.toString();
+      const lonValue = (
+        formData.longitude ?? (formData as Record<string, unknown>)['lon']
+      )?.toString();
       if (!lonValue) {
         validationErrors.push({
           field: 'longitude',
@@ -905,8 +931,10 @@ export async function validateSubmissionFormData(
         }
       }
 
-  // Extract optional notes (accept legacy 'note')
-  const note = (formData as Record<string, unknown>).notes?.toString() ?? (formData as Record<string, unknown>).note?.toString();
+      // Extract optional notes (accept legacy 'note')
+      const note =
+        (formData as Record<string, unknown>).notes?.toString() ??
+        (formData as Record<string, unknown>).note?.toString();
 
       if (validationErrors.length > 0) {
         throw new ValidationApiError(validationErrors);
@@ -994,7 +1022,7 @@ export async function validateStructuredTags(
   next: Next
 ): Promise<void | Response> {
   const contentType = c.req.header('Content-Type');
-  
+
   if (!contentType?.includes('application/json')) {
     await next();
     return;
@@ -1002,7 +1030,7 @@ export async function validateStructuredTags(
 
   try {
     const body = await c.req.json();
-    
+
     // Check if request contains tags field
     if (!body || typeof body !== 'object' || !('tags' in body)) {
       await next();
@@ -1010,10 +1038,10 @@ export async function validateStructuredTags(
     }
 
     const tags = body.tags as StructuredTags;
-    
+
     // Validate tags using the tag validation service
     const validationResponse = tagValidationService.validateTags(tags);
-    
+
     if (!validationResponse.valid) {
       const validationErrors = convertToValidationApiError(validationResponse);
       throw new ValidationApiError(validationErrors);
@@ -1023,7 +1051,7 @@ export async function validateStructuredTags(
     if (validationResponse.sanitized_tags) {
       c.set('validated_tags', validationResponse.sanitized_tags);
     }
-    
+
     // Also store warnings for logging
     if (validationResponse.warnings.length > 0) {
       c.set('tag_warnings', validationResponse.warnings);
@@ -1049,7 +1077,7 @@ export async function validateArtworkEditRequest(
 ): Promise<void | Response> {
   try {
     const body = await c.req.json();
-    
+
     if (!body || typeof body !== 'object') {
       throw new ValidationApiError([
         { field: 'body', message: 'Request body must be valid JSON object', code: 'INVALID_JSON' },
@@ -1090,14 +1118,15 @@ export async function validateArtworkEditRequest(
       // Special validation for tags field
       if (editObj.field_name === 'tags' && editObj.field_value_new) {
         try {
-          const newTags = typeof editObj.field_value_new === 'string' 
-            ? JSON.parse(editObj.field_value_new as string)
-            : editObj.field_value_new;
+          const newTags =
+            typeof editObj.field_value_new === 'string'
+              ? JSON.parse(editObj.field_value_new as string)
+              : editObj.field_value_new;
 
           const validationResponse = tagValidationService.validateTags(newTags as StructuredTags);
-          
+
           if (!validationResponse.valid) {
-            validationResponse.errors.forEach((error) => {
+            validationResponse.errors.forEach(error => {
               validationErrors.push({
                 field: `edits[${index}].tags.${error.key}`,
                 message: error.message,
@@ -1280,7 +1309,11 @@ export async function validateUnifiedSubmission(
       throw error;
     }
     throw new ValidationApiError([
-      { field: 'body', message: 'Unified submission validation failed', code: 'SUBMISSION_VALIDATION_ERROR' },
+      {
+        field: 'body',
+        message: 'Unified submission validation failed',
+        code: 'SUBMISSION_VALIDATION_ERROR',
+      },
     ]);
   }
 }

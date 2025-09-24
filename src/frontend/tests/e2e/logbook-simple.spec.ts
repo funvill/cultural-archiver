@@ -11,7 +11,7 @@ test.describe('Logbook Submission - Simple Tests', () => {
     });
 
     // Mock artwork API to return a valid artwork
-    await page.route('**/api/artworks/**', async (route) => {
+    await page.route('**/api/artworks/**', async route => {
       await route.fulfill({
         contentType: 'application/json',
         body: JSON.stringify({
@@ -23,9 +23,9 @@ test.describe('Logbook Submission - Simple Tests', () => {
             latitude: 49.2827,
             longitude: -123.1207,
             status: 'approved',
-            photos: ['https://example.com/photo1.jpg']
-          }
-        })
+            photos: ['https://example.com/photo1.jpg'],
+          },
+        }),
       });
     });
 
@@ -37,7 +37,7 @@ test.describe('Logbook Submission - Simple Tests', () => {
   test('should load logbook submission page', async ({ page }) => {
     // Check the main component loads
     await expect(page.locator('[data-testid="logbook-submission-view"]')).toBeVisible();
-    
+
     // Check the header
     await expect(page.locator('[data-testid="submission-header"]')).toBeVisible();
     await expect(page.locator('[data-testid="log-visit-banner"]')).toBeVisible();
@@ -46,14 +46,14 @@ test.describe('Logbook Submission - Simple Tests', () => {
   test('should display the main form when not on cooldown', async ({ page }) => {
     // Check main form is visible
     await expect(page.locator('[data-testid="main-form"]')).toBeVisible();
-    
+
     // Check artwork info is shown
     await expect(page.locator('[data-testid="artwork-info"]')).toBeVisible();
-    
+
     // Check photo upload section
     await expect(page.locator('[data-testid="photo-upload-section"]')).toBeVisible();
     await expect(page.locator('[data-testid="photo-input"]')).toBeVisible();
-    
+
     // Check condition section
     await expect(page.locator('[data-testid="condition-section"]')).toBeVisible();
   });
@@ -63,7 +63,7 @@ test.describe('Logbook Submission - Simple Tests', () => {
     const photoLabel = page.locator('label[for="photo-upload"]');
     await expect(photoLabel).toBeVisible();
     await expect(photoLabel).toContainText('Choose Photo');
-    
+
     // Verify file input exists but is hidden
     const fileInput = page.locator('#photo-upload');
     await expect(fileInput).toBeAttached();
@@ -71,11 +71,11 @@ test.describe('Logbook Submission - Simple Tests', () => {
   });
 
   test('should allow condition selection', async ({ page }) => {
-    // Test clicking on "Good" condition 
+    // Test clicking on "Good" condition
     const goodConditionLabel = page.locator('label').filter({ hasText: 'Good' }).first();
     await expect(goodConditionLabel).toBeVisible();
     await goodConditionLabel.click();
-    
+
     // Test clicking on "Damaged" condition
     const damagedConditionLabel = page.locator('label').filter({ hasText: 'Damaged' }).first();
     await expect(damagedConditionLabel).toBeVisible();
@@ -86,16 +86,16 @@ test.describe('Logbook Submission - Simple Tests', () => {
     // Check cancel and submit buttons exist
     await expect(page.locator('[data-testid="cancel-button"]')).toBeVisible();
     await expect(page.locator('[data-testid="submit-button"]')).toBeVisible();
-    
+
     // Initially submit should be disabled (no photo uploaded)
     await expect(page.locator('[data-testid="submit-button"]')).toBeDisabled();
   });
 
   test('should handle cooldown state', async ({ page }) => {
     // Override the artwork API to simulate cooldown
-    await page.route('**/api/artworks/**', async (route) => {
+    await page.route('**/api/artworks/**', async route => {
       await route.fulfill({
-        contentType: 'application/json',  
+        contentType: 'application/json',
         body: JSON.stringify({
           success: true,
           data: {
@@ -108,10 +108,10 @@ test.describe('Logbook Submission - Simple Tests', () => {
             photos: ['https://example.com/photo1.jpg'],
             userLogbookStatus: {
               onCooldown: true,
-              cooldownUntil: new Date(Date.now() + 25 * 60 * 1000).toISOString() // 25 minutes from now
-            }
-          }
-        })
+              cooldownUntil: new Date(Date.now() + 25 * 60 * 1000).toISOString(), // 25 minutes from now
+            },
+          },
+        }),
       });
     });
 

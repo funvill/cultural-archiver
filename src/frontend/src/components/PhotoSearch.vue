@@ -50,7 +50,7 @@ function handleFileSelect(event: Event) {
 function handleDrop(event: DragEvent) {
   event.preventDefault();
   isDragging.value = false;
-  
+
   const files = event.dataTransfer?.files;
   if (files?.length && files[0]) {
     processPhoto(files[0]);
@@ -75,7 +75,7 @@ function processPhoto(file: File) {
     alert('Please select a valid image file (JPG, PNG, or WebP)');
     return;
   }
-  
+
   if (file.size > 10 * 1024 * 1024) {
     alert('File size must be less than 10MB');
     return;
@@ -83,7 +83,7 @@ function processPhoto(file: File) {
 
   // Create preview URL
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = e => {
     searchPhoto.value = e.target?.result as string;
   };
   reader.readAsDataURL(file);
@@ -100,14 +100,14 @@ function clearPhoto() {
 
 async function performSearch() {
   if (!searchPhoto.value) return;
-  
+
   isSearching.value = true;
   hasSearched.value = true;
-  
+
   try {
     // Note: In real implementation, this would convert photo to file for API
     await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate API delay
-    
+
     // Mock results for demonstration
     searchResults.value = [
       {
@@ -121,17 +121,16 @@ async function performSearch() {
         lon: -123.1207,
       },
       {
-        id: 'mock-2', 
+        id: 'mock-2',
         type_name: 'Abstract Sculpture',
         distance_km: 1.2,
         photo_count: 3,
         recent_photo: 'https://picsum.photos/300/200?random=2',
         similarity_score: 0.72,
-        lat: 49.2820,
-        lon: -123.1200,
+        lat: 49.282,
+        lon: -123.12,
       },
     ] as (ArtworkWithPhotos & SimilarityResult)[];
-    
   } catch (error) {
     console.error('Search failed:', error);
     searchResults.value = [];
@@ -164,26 +163,24 @@ function viewArtwork(result: ArtworkWithPhotos & SimilarityResult) {
 function addToArtwork(result: ArtworkWithPhotos & SimilarityResult) {
   // Navigate to submission with pre-selected artwork
   router.push({
-    path: '/submit',
-    query: { 
-      artwork_id: result.id,
-      photo: searchPhoto.value 
-    }
+    path: `/logbook/${result.id}`,
+    query: {
+      photo: searchPhoto.value,
+    },
   });
 }
 
 function submitNewArtwork() {
   // Navigate to submission with the search photo
   router.push({
-    path: '/submit',
-    query: { 
+    path: '/add',
+    query: {
       photo: searchPhoto.value,
-      new_artwork: 'true'
-    }
+      new_artwork: 'true',
+    },
   });
 }
 </script>
-
 
 <template>
   <div class="photo-search max-w-4xl mx-auto p-6 space-y-6">
@@ -191,24 +188,25 @@ function submitNewArtwork() {
     <div class="text-center">
       <div class="flex items-center justify-center mb-4">
         <CameraIcon class="w-12 h-12 text-blue-600 mr-3" />
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-          Search by Photo
-        </h1>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Search by Photo</h1>
       </div>
       <p class="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-        Upload a photo to find similar artworks in our database. Perfect for identifying existing pieces before adding new submissions.
+        Upload a photo to find similar artworks in our database. Perfect for identifying existing
+        pieces before adding new submissions.
       </p>
     </div>
 
     <!-- Quick Photo Upload -->
-    <div class="photo-upload-card bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+    <div
+      class="photo-upload-card bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700"
+    >
       <div class="p-8">
         <!-- Upload Zone -->
-        <div 
+        <div
           class="upload-zone border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-12 text-center transition-all duration-200 hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"
-          :class="{ 
+          :class="{
             'border-blue-500 bg-blue-50 dark:bg-blue-900/20': isDragging,
-            'cursor-pointer': !isSearching 
+            'cursor-pointer': !isSearching,
           }"
           @drop="handleDrop"
           @dragover="handleDragOver"
@@ -231,11 +229,7 @@ function submitNewArtwork() {
           <!-- Photo Preview -->
           <div v-else class="space-y-4">
             <div class="relative inline-block">
-              <img 
-                :src="searchPhoto" 
-                alt="Search photo"
-                class="max-h-48 rounded-lg shadow-md"
-              />
+              <img :src="searchPhoto" alt="Search photo" class="max-h-48 rounded-lg shadow-md" />
               <button
                 v-if="!isSearching"
                 @click.stop="clearPhoto"
@@ -245,7 +239,11 @@ function submitNewArtwork() {
               </button>
             </div>
             <p class="text-sm text-gray-600 dark:text-gray-300">
-              {{ isSearching ? 'Searching for similar artworks...' : 'Click search to find similar artworks' }}
+              {{
+                isSearching
+                  ? 'Searching for similar artworks...'
+                  : 'Click search to find similar artworks'
+              }}
             </p>
           </div>
         </div>
@@ -261,7 +259,7 @@ function submitNewArtwork() {
             <CameraIcon class="w-5 h-5 inline mr-2" />
             Choose Photo
           </button>
-          
+
           <template v-else>
             <button
               @click="performSearch"
@@ -277,7 +275,7 @@ function submitNewArtwork() {
                 Search Similar
               </span>
             </button>
-            
+
             <button
               @click="clearPhoto"
               :disabled="isSearching"
@@ -293,11 +291,11 @@ function submitNewArtwork() {
     <!-- Search Results -->
     <div v-if="searchResults.length > 0" class="results-section">
       <div class="flex items-center justify-between mb-6">
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">
-          Similar Artworks Found
-        </h2>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Similar Artworks Found</h2>
         <div class="text-sm text-gray-600 dark:text-gray-300">
-          Found {{ searchResults.length }} similar artwork{{ searchResults.length !== 1 ? 's' : '' }}
+          Found {{ searchResults.length }} similar artwork{{
+            searchResults.length !== 1 ? 's' : ''
+          }}
         </div>
       </div>
 
@@ -313,9 +311,9 @@ function submitNewArtwork() {
             <div class="flex space-x-3 mb-4">
               <div class="flex-1">
                 <p class="text-xs text-gray-500 mb-1">Your Photo</p>
-                <img 
+                <img
                   v-if="searchPhoto"
-                  :src="searchPhoto" 
+                  :src="searchPhoto"
                   alt="Your search photo"
                   class="w-full h-24 object-cover rounded-lg"
                 />
@@ -325,8 +323,8 @@ function submitNewArtwork() {
               </div>
               <div class="flex-1">
                 <p class="text-xs text-gray-500 mb-1">Found Artwork</p>
-                <img 
-                  :src="result.recent_photo || '/placeholder-artwork.jpg'" 
+                <img
+                  :src="result.recent_photo || '/placeholder-artwork.jpg'"
                   alt="Similar artwork"
                   class="w-full h-24 object-cover rounded-lg"
                 />
@@ -337,13 +335,16 @@ function submitNewArtwork() {
             <div class="mb-3">
               <div class="flex items-center justify-between mb-1">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Similarity</span>
-                <span class="text-sm font-bold" :class="getSimilarityColor(result.similarity_score)">
+                <span
+                  class="text-sm font-bold"
+                  :class="getSimilarityColor(result.similarity_score)"
+                >
                   {{ Math.round(result.similarity_score * 100) }}%
                 </span>
               </div>
               <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div 
-                  class="h-2 rounded-full transition-all" 
+                <div
+                  class="h-2 rounded-full transition-all"
                   :class="getSimilarityBarColor(result.similarity_score)"
                   :style="{ width: `${result.similarity_score * 100}%` }"
                 ></div>
@@ -357,10 +358,15 @@ function submitNewArtwork() {
               </h3>
               <div class="flex items-center text-sm text-gray-600 dark:text-gray-300">
                 <MapPinIcon class="w-4 h-4 mr-1" />
-                <span>{{ result.distance_km ? `${result.distance_km.toFixed(1)}km away` : 'Distance unknown' }}</span>
+                <span>{{
+                  result.distance_km
+                    ? `${result.distance_km.toFixed(1)}km away`
+                    : 'Distance unknown'
+                }}</span>
               </div>
               <div class="text-sm text-gray-600 dark:text-gray-300">
-                {{ result.photo_count || 0 }} photo{{ result.photo_count !== 1 ? 's' : '' }} available
+                {{ result.photo_count || 0 }} photo{{ result.photo_count !== 1 ? 's' : '' }}
+                available
               </div>
             </div>
           </div>
@@ -368,13 +374,13 @@ function submitNewArtwork() {
           <!-- Action Buttons -->
           <div class="border-t border-gray-200 dark:border-gray-700 p-4">
             <div class="flex space-x-2">
-              <button 
+              <button
                 class="flex-1 px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
                 @click.stop="viewArtwork(result)"
               >
                 View Details
               </button>
-              <button 
+              <button
                 class="px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors"
                 @click.stop="addToArtwork(result)"
               >
@@ -429,7 +435,9 @@ function submitNewArtwork() {
 
 .photo-upload-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 .result-card {
@@ -449,11 +457,11 @@ function submitNewArtwork() {
   .photo-search {
     padding: 1rem;
   }
-  
+
   .photo-upload-card .p-8 {
     padding: 1.5rem;
   }
-  
+
   .upload-zone {
     padding: 2rem;
   }

@@ -55,7 +55,7 @@ const avatarColor = computed(() => {
   // Generate a consistent color based on artist name
   const colors = [
     'bg-blue-500',
-    'bg-green-500', 
+    'bg-green-500',
     'bg-purple-500',
     'bg-red-500',
     'bg-yellow-500',
@@ -63,11 +63,11 @@ const avatarColor = computed(() => {
     'bg-pink-500',
     'bg-teal-500',
   ];
-  
+
   const hash = artistName.value.split('').reduce((acc, char) => {
     return acc + char.charCodeAt(0);
   }, 0);
-  
+
   return colors[hash % colors.length];
 });
 
@@ -97,7 +97,8 @@ function handleKeydown(event: KeyboardEvent): void {
 <template>
   <div
     :class="{
-      'cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200': clickable && !loading,
+      'cursor-pointer hover:shadow-lg hover:scale-105 transition-all duration-200':
+        clickable && !loading,
       'opacity-60': loading,
       'p-3': compact,
       'p-4': !compact,
@@ -121,7 +122,10 @@ function handleKeydown(event: KeyboardEvent): void {
       <div class="mb-3 flex justify-center">
         <div
           v-if="!avatarUrl"
-          :class="[avatarColor, 'w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl']"
+          :class="[
+            avatarColor,
+            'w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl',
+          ]"
         >
           {{ avatarInitial }}
         </div>

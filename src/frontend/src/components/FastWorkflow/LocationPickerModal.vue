@@ -28,17 +28,19 @@ const coordinates = ref({
 // Preset locations for quick selection
 const presetLocations = [
   { name: 'Vancouver Downtown', lat: 49.2827, lon: -123.1207 },
-  { name: 'English Bay', lat: 49.2855, lon: -123.1420 },
+  { name: 'English Bay', lat: 49.2855, lon: -123.142 },
   { name: 'Stanley Park', lat: 49.2916, lon: -123.1419 },
   { name: 'Gastown', lat: 49.2845, lon: -123.1065 },
 ];
 
 // Computed
 const isValidLocation = computed(() => {
-  return !isNaN(coordinates.value.lat) && 
-         !isNaN(coordinates.value.lon) &&
-         Math.abs(coordinates.value.lat) <= 90 &&
-         Math.abs(coordinates.value.lon) <= 180;
+  return (
+    !isNaN(coordinates.value.lat) &&
+    !isNaN(coordinates.value.lon) &&
+    Math.abs(coordinates.value.lat) <= 90 &&
+    Math.abs(coordinates.value.lon) <= 180
+  );
 });
 
 // Methods
@@ -62,7 +64,12 @@ function setPresetLocation(preset: { name: string; lat: number; lon: number }) {
 
 function handleLocationSelect() {
   if (isValidLocation.value) {
-    emit('locationSelected', coordinates.value.lat, coordinates.value.lon, searchQuery.value || undefined);
+    emit(
+      'locationSelected',
+      coordinates.value.lat,
+      coordinates.value.lon,
+      searchQuery.value || undefined
+    );
   }
 }
 </script>
@@ -70,9 +77,7 @@ function handleLocationSelect() {
 <template>
   <div class="location-picker-modal w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg p-6">
     <div class="flex items-center justify-between mb-6">
-      <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
-        Select Artwork Location
-      </h3>
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Select Artwork Location</h3>
       <button
         @click="$emit('close')"
         class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -125,12 +130,12 @@ function handleLocationSelect() {
       </div>
 
       <!-- Map placeholder -->
-      <div class="h-64 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600">
+      <div
+        class="h-64 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-600"
+      >
         <div class="text-center">
           <MapIcon class="w-12 h-12 text-gray-400 mx-auto mb-2" />
-          <p class="text-gray-500 dark:text-gray-400">
-            Interactive map will be implemented here
-          </p>
+          <p class="text-gray-500 dark:text-gray-400">Interactive map will be implemented here</p>
           <p class="text-sm text-gray-400 dark:text-gray-500 mt-1">
             For now, please enter coordinates directly
           </p>

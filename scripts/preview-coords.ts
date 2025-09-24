@@ -20,14 +20,22 @@ function extractCoordinates(filePath: string): Coord[] {
 
   if (parsed && typeof parsed === 'object') {
     // GeoJSON FeatureCollection
-    if ('type' in (parsed as Record<string, unknown>) && (parsed as Record<string, unknown>)['type'] === 'FeatureCollection') {
-      const features = (parsed as Record<string, unknown>)['features'] as unknown[] || [];
+    if (
+      'type' in (parsed as Record<string, unknown>) &&
+      (parsed as Record<string, unknown>)['type'] === 'FeatureCollection'
+    ) {
+      const features = ((parsed as Record<string, unknown>)['features'] as unknown[]) || [];
       for (const f of features) {
         if (typeof f === 'object' && f !== null) {
           const geom = (f as Record<string, unknown>)['geometry'];
-          if (typeof geom === 'object' && geom !== null && (geom as Record<string, unknown>)['type'] === 'Point') {
+          if (
+            typeof geom === 'object' &&
+            geom !== null &&
+            (geom as Record<string, unknown>)['type'] === 'Point'
+          ) {
             const c = (geom as Record<string, unknown>)['coordinates'] as unknown[];
-            if (Array.isArray(c) && typeof c[0] === 'number' && typeof c[1] === 'number') coords.push({ lon: c[0] as number, lat: c[1] as number });
+            if (Array.isArray(c) && typeof c[0] === 'number' && typeof c[1] === 'number')
+              coords.push({ lon: c[0] as number, lat: c[1] as number });
           }
         }
       }
@@ -35,7 +43,7 @@ function extractCoordinates(filePath: string): Coord[] {
     }
 
     // Assume top-level array of records
-    const arr = Array.isArray(parsed) ? parsed as unknown[] : [parsed];
+    const arr = Array.isArray(parsed) ? (parsed as unknown[]) : [parsed];
     for (const r of arr) {
       if (typeof r !== 'object' || r === null) continue;
       const rec = r as Record<string, unknown>;
@@ -51,16 +59,27 @@ function extractCoordinates(filePath: string): Coord[] {
       const maybeGeom = rec['geom'] ?? rec['geometry'];
       if (maybeGeom && typeof maybeGeom === 'object') {
         const inner = (maybeGeom as Record<string, unknown>)['geometry'] ?? maybeGeom;
-        if (inner && typeof inner === 'object' && (inner as Record<string, unknown>)['type'] === 'Point') {
+        if (
+          inner &&
+          typeof inner === 'object' &&
+          (inner as Record<string, unknown>)['type'] === 'Point'
+        ) {
           const c = (inner as Record<string, unknown>)['coordinates'] as unknown[];
-          if (Array.isArray(c) && typeof c[0] === 'number' && typeof c[1] === 'number') coords.push({ lat: c[1] as number, lon: c[0] as number });
+          if (Array.isArray(c) && typeof c[0] === 'number' && typeof c[1] === 'number')
+            coords.push({ lat: c[1] as number, lon: c[0] as number });
           continue;
         }
       }
 
       // fallback lat/lon fields
-      const lat = rec['lat'] ?? rec['latitude'] ?? (rec['location'] && (rec['location'] as Record<string, unknown>)['lat']);
-      const lon = rec['lon'] ?? rec['longitude'] ?? (rec['location'] && (rec['location'] as Record<string, unknown>)['lon']);
+      const lat =
+        rec['lat'] ??
+        rec['latitude'] ??
+        (rec['location'] && (rec['location'] as Record<string, unknown>)['lat']);
+      const lon =
+        rec['lon'] ??
+        rec['longitude'] ??
+        (rec['location'] && (rec['location'] as Record<string, unknown>)['lon']);
       if (typeof lat === 'number' && typeof lon === 'number') coords.push({ lat, lon });
     }
   }

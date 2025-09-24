@@ -122,15 +122,15 @@ export interface UnifiedSubmissionRequest {
   notes?: string;
   photos?: File[];
   consent_version?: string;
-  
+
   // Logbook-specific fields
   artworkId?: string; // Required for logbook submissions
   condition?: string; // Optional condition assessment
-  
-  // New artwork specific fields  
+
+  // New artwork specific fields
   title?: string;
   tags?: Record<string, string | number>;
-  
+
   // Artwork edit specific fields
   artwork_id?: string;
   edits?: Array<{
@@ -145,16 +145,16 @@ export interface FastArtworkSubmissionRequest {
   // Location data
   lat: number;
   lon: number;
-  
+
   // Artwork data
   title: string; // Required for new artworks
   tags?: Record<string, string | number>; // Structured tags (includes artwork_type)
-  
+
   // Submission metadata
   notes?: string;
   photos?: File[];
   consent_version: string; // Required for fast workflow
-  
+
   // For existing artwork submissions (logbook entries)
   existing_artwork_id?: string;
 }
@@ -221,7 +221,7 @@ export interface ArtworkWithPhotos extends ArtworkRecord {
 
 // Removed obsolete ArtworkCreatorInfo - replaced by unified Artist system
 
-// LogbookEntryWithPhotos structure is now defined inline in ArtworkDetailResponse 
+// LogbookEntryWithPhotos structure is now defined inline in ArtworkDetailResponse
 // from shared types for backward compatibility with the submissions system
 
 // User Management Endpoints

@@ -42,7 +42,7 @@ const endItem = computed(() => {
 const pageNumbers = computed(() => {
   const pages: number[] = [];
   const maxVisible = 7; // Show up to 7 page numbers
-  
+
   if (props.totalPages <= maxVisible) {
     // Show all pages if we have few enough
     for (let i = 1; i <= props.totalPages; i++) {
@@ -52,7 +52,7 @@ const pageNumbers = computed(() => {
     // Show pages around current page
     const start = Math.max(1, props.currentPage - 3);
     const end = Math.min(props.totalPages, props.currentPage + 3);
-    
+
     // Always show first page
     if (start > 1) {
       pages.push(1);
@@ -60,12 +60,12 @@ const pageNumbers = computed(() => {
         pages.push(-1); // Ellipsis marker
       }
     }
-    
+
     // Show pages around current
     for (let i = start; i <= end; i++) {
       pages.push(i);
     }
-    
+
     // Always show last page
     if (end < props.totalPages) {
       if (end < props.totalPages - 1) {
@@ -74,7 +74,7 @@ const pageNumbers = computed(() => {
       pages.push(props.totalPages);
     }
   }
-  
+
   return pages;
 });
 
@@ -111,9 +111,7 @@ function changePageSize(newSize: number): void {
       <span v-if="totalItems > 0">
         Showing {{ startItem }} to {{ endItem }} of {{ totalItems }} results
       </span>
-      <span v-else>
-        No results found
-      </span>
+      <span v-else> No results found </span>
     </div>
 
     <!-- Page Size Selector -->
@@ -137,7 +135,7 @@ function changePageSize(newSize: number): void {
     <nav v-if="totalPages > 1" class="flex items-center gap-1">
       <!-- Previous Button -->
       <button
-        :disabled="(!hasPrevious || loading) || false"
+        :disabled="!hasPrevious || loading || false"
         class="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-l-md hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         @click="goToPrevious"
       >
@@ -148,20 +146,16 @@ function changePageSize(newSize: number): void {
       <!-- Page Numbers -->
       <template v-for="(page, index) in pageNumbers" :key="index">
         <!-- Ellipsis -->
-        <span
-          v-if="page === -1"
-          class="px-3 py-2 text-sm font-medium text-gray-500"
-        >
-          ...
-        </span>
-        
+        <span v-if="page === -1" class="px-3 py-2 text-sm font-medium text-gray-500"> ... </span>
+
         <!-- Page Number -->
         <button
           v-else
           :disabled="loading || false"
           :class="{
             'bg-blue-500 border-blue-500 text-white': page === currentPage,
-            'bg-white border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-gray-700': page !== currentPage,
+            'bg-white border-gray-300 text-gray-500 hover:bg-gray-50 hover:text-gray-700':
+              page !== currentPage,
           }"
           class="px-3 py-2 text-sm font-medium border disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           @click="goToPage(page)"
@@ -172,7 +166,7 @@ function changePageSize(newSize: number): void {
 
       <!-- Next Button -->
       <button
-        :disabled="(!hasNext || loading) || false"
+        :disabled="!hasNext || loading || false"
         class="flex items-center px-3 py-2 text-sm font-medium text-gray-500 bg-white border border-gray-300 rounded-r-md hover:bg-gray-50 hover:text-gray-700 disabled:opacity-50 disabled:cursor-not-allowed focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         @click="goToNext"
       >

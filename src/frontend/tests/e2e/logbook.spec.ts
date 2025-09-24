@@ -21,7 +21,11 @@ test.describe('Logbook submission page', () => {
           },
         },
       };
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(res) });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(res),
+      });
     });
 
     await page.goto(`/logbook/${artworkId}`);
@@ -32,29 +36,44 @@ test.describe('Logbook submission page', () => {
 
     // Cooldown state should be visible
     await expect(page.getByTestId('cooldown-state')).toBeVisible();
-    await expect(page.getByTestId('cooldown-state')).toContainText("Recent Visit Recorded");
+    await expect(page.getByTestId('cooldown-state')).toContainText('Recent Visit Recorded');
   });
 
   test('allows photo upload and submission when not on cooldown', async ({ page }) => {
     // Mock artwork details without cooldown
     await page.route('**/api/artworks/**', async route => {
-      const res = { success: true, data: { id: artworkId, title: 'Mocked Artwork', lat: 49.0, lon: -123.0 } };
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(res) });
+      const res = {
+        success: true,
+        data: { id: artworkId, title: 'Mocked Artwork', lat: 49.0, lon: -123.0 },
+      };
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(res),
+      });
     });
 
     // Intercept submission POST to return a created response
     await page.route('**/api/submissions', async route => {
       const body = { id: 'sub-456', status: 'pending', message: 'Submission received for review.' };
-      await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({ success: true, data: body }) });
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: body }),
+      });
     });
 
     await page.goto(`/logbook/${artworkId}`);
 
     await expect(page.getByTestId('main-form')).toBeVisible();
 
-  // Attach a file to the photo input (target by id to avoid ambiguous locators)
-  const fileInput = page.locator('input#photo-upload');
-  await fileInput.setInputFiles({ name: 'photo.jpg', mimeType: 'image/jpeg', buffer: Buffer.from([0xff, 0xd8, 0xff]) });
+    // Attach a file to the photo input (target by id to avoid ambiguous locators)
+    const fileInput = page.locator('input#photo-upload');
+    await fileInput.setInputFiles({
+      name: 'photo.jpg',
+      mimeType: 'image/jpeg',
+      buffer: Buffer.from([0xff, 0xd8, 0xff]),
+    });
 
     // Interact with the consent checkboxes so the parent component sees all consents accepted
     // ConsentSection inputs have ids: consent-cc0, consent-terms, consent-photo-rights
@@ -68,7 +87,9 @@ test.describe('Logbook submission page', () => {
     // Click submit
     await page.getByTestId('submit-button').click();
 
-  // Expect success toast (allow more time for UI update and navigation timer)
-  await expect(page.locator('text=Logbook entry submitted for review!')).toBeVisible({ timeout: 10000 });
+    // Expect success toast (allow more time for UI update and navigation timer)
+    await expect(page.locator('text=Logbook entry submitted for review!')).toBeVisible({
+      timeout: 10000,
+    });
   });
 });

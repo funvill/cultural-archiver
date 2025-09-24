@@ -62,11 +62,17 @@ onMounted(() => {
       let errObj: Error;
       if (event.reason instanceof Error) {
         errObj = event.reason;
-      } else if (typeof event.reason === 'object' && event.reason !== null && 'message' in event.reason) {
+      } else if (
+        typeof event.reason === 'object' &&
+        event.reason !== null &&
+        'message' in event.reason
+      ) {
         errObj = new Error(String(event.reason.message));
         if ('stack' in event.reason) (errObj as any).stack = event.reason.stack;
       } else {
-        errObj = new Error(typeof event.reason === 'string' ? event.reason : JSON.stringify(event.reason));
+        errObj = new Error(
+          typeof event.reason === 'string' ? event.reason : JSON.stringify(event.reason)
+        );
       }
       error.value = errObj;
       errorInfo.value = {
@@ -126,7 +132,9 @@ const buildErrorReportObject = () => {
 
 const reportError = () => {
   const errorReport = buildErrorReportObject();
-  const subject = encodeURIComponent(`Cultural Archiver Error Report (${errorReport.referenceId || 'no-ref'})`);
+  const subject = encodeURIComponent(
+    `Cultural Archiver Error Report (${errorReport.referenceId || 'no-ref'})`
+  );
   const body = encodeURIComponent(
     `Error Report\n\nReference ID: ${errorReport.referenceId}\nMessage: ${errorReport.message}\nComponent: ${errorReport.component}\nURL: ${errorReport.url}\nTime: ${errorReport.timestamp}\nApp Version: ${errorReport.appVersion}\n\nStack:\n${errorReport.stack}\n\nTrace:\n${errorReport.trace}\n\nBrowser: ${errorReport.userAgent}\n\nDescribe what you were doing when this error occurred:\n[Your description here]`
   );
@@ -181,18 +189,26 @@ defineExpose({
 
           <!-- Error Message -->
           <h1 class="text-3xl font-bold text-gray-900 mb-2 tracking-tight">Something went wrong</h1>
-          <p v-if="referenceId" class="text-xs text-gray-500 mb-1">Reference ID: {{ referenceId }}</p>
-          <p v-if="buildErrorReportObject().artworkId" class="text-xs text-gray-500 mb-4">Artwork: {{ buildErrorReportObject().artworkId }}</p>
+          <p v-if="referenceId" class="text-xs text-gray-500 mb-1">
+            Reference ID: {{ referenceId }}
+          </p>
+          <p v-if="buildErrorReportObject().artworkId" class="text-xs text-gray-500 mb-4">
+            Artwork: {{ buildErrorReportObject().artworkId }}
+          </p>
 
           <p class="text-gray-600 mb-6">
             <span v-if="isProduction">
-              An unexpected error occurred. You can reload the page or send the report below to support.
+              An unexpected error occurred. You can reload the page or send the report below to
+              support.
             </span>
             <span v-else>{{ error?.message || 'An unknown error occurred' }}</span>
           </p>
 
           <!-- Always show a concise error summary in production -->
-          <div v-if="isProduction && error" class="mb-6 p-4 bg-red-50 border border-red-200 rounded text-left">
+          <div
+            v-if="isProduction && error"
+            class="mb-6 p-4 bg-red-50 border border-red-200 rounded text-left"
+          >
             <p class="text-sm text-red-700"><strong>Error:</strong> {{ error.message }}</p>
             <p v-if="errorInfo?.componentName" class="text-xs text-red-600 mt-2">
               Component: {{ errorInfo.componentName }}
@@ -217,43 +233,50 @@ defineExpose({
           </div>
 
           <!-- Collapsible full technical report (shown in all modes for advanced diagnostics) -->
-      <div v-if="error" class="mb-8 p-5 bg-gray-50 rounded-lg text-left border border-gray-200">
+          <div v-if="error" class="mb-8 p-5 bg-gray-50 rounded-lg text-left border border-gray-200">
             <details>
-              <summary class="font-medium text-gray-700 cursor-pointer mb-2">Technical Report (JSON)</summary>
-        <pre class="text-xs leading-relaxed text-gray-700 whitespace-pre-wrap overflow-x-auto max-h-96">{{ JSON.stringify(buildErrorReportObject(), null, 2) }}</pre>
+              <summary class="font-medium text-gray-700 cursor-pointer mb-2">
+                Technical Report (JSON)
+              </summary>
+              <pre
+                class="text-xs leading-relaxed text-gray-700 whitespace-pre-wrap overflow-x-auto max-h-96"
+                >{{ JSON.stringify(buildErrorReportObject(), null, 2) }}</pre
+              >
               <button
                 type="button"
                 @click="copyErrorDetails"
                 class="mt-2 inline-flex items-center px-3 py-1.5 text-xs font-medium rounded bg-gray-800 text-white hover:bg-gray-700"
-              >Copy Details</button>
+              >
+                Copy Details
+              </button>
             </details>
           </div>
 
           <!-- Action Buttons -->
-      <div class="flex flex-col sm:flex-row gap-4 justify-center">
+          <div class="flex flex-col sm:flex-row gap-4 justify-center">
             <button
               @click="reload"
-        class="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm font-semibold"
+              class="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 text-sm font-semibold"
             >
               Reload Page
             </button>
 
             <button
               @click="goHome"
-        class="px-8 py-4 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 text-sm font-semibold"
+              class="px-8 py-4 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 text-sm font-semibold"
             >
               Go to Home
             </button>
           </div>
 
           <!-- Report Issue Link -->
-      <div class="mt-10 pt-6 border-t border-gray-200">
+          <div class="mt-10 pt-6 border-t border-gray-200">
             <p class="text-sm text-gray-500 mb-2">
               If this error persists, please report it to help us improve the app.
             </p>
             <button
               @click="reportError"
-        class="text-blue-600 hover:text-blue-700 text-sm font-medium underline decoration-dotted"
+              class="text-blue-600 hover:text-blue-700 text-sm font-medium underline decoration-dotted"
             >
               Report this issue
             </button>

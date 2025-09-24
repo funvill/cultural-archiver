@@ -27,14 +27,17 @@ Manual data entry for thousands of public artworks is time-consuming and error-p
 ## User Stories
 
 ### System Administrator
+
 - Import Vancouver Public Art dataset with structured tags for comprehensive city coverage
 - Run dry-run imports to validate data mapping before production execution
 
-### Content Moderator  
+### Content Moderator
+
 - Bulk approve imported artworks to efficiently process high-quality public data
 - Review imported artworks with structured tags and data source attribution
 
 ### Developer
+
 - Use standardized library to create import scripts without rebuilding common functionality
 - Access detailed import logs and error reporting for troubleshooting
 
@@ -42,42 +45,42 @@ Manual data entry for thousands of public artworks is time-consuming and error-p
 
 ### Core Import Library
 
-**R1: Duplicate Detection**
-The system must identify existing artworks using:
+**R1: Duplicate Detection** The system must identify existing artworks using:
+
 - Geographic proximity matching (configurable radius, default 50m)
 - Fuzzy string matching on titles (80% similarity threshold)
 - External ID tracking for perfect re-import matching
 
-**R2: Data Processing**
-The system must:
+**R2: Data Processing** The system must:
+
 - Support comprehensive dry-run mode with summary reports and error files
 - Continue processing when individual records fail, logging all errors
 - Process photos with error tolerance, retrying failures at import completion
 
-**R3: Structured Tagging**
-The system must:
+**R3: Structured Tagging** The system must:
+
 - Map external data fields to established tag schema
 - Validate all tags against schema before submission
 - Apply data source attribution (source, license, import_date tags)
 - Support import-specific tags (external_id, import_batch_id, data_source_url)
 
-**R4: API Integration**
-The system must:
+**R4: API Integration** The system must:
+
 - Submit data through existing `/api/logbook` endpoints
 - Assign submissions to mass-import user account
 - Respect existing rate limits and validation rules
 
 ### Administrative Functions
 
-**R5: Bulk Approval**
-The system must:
+**R5: Bulk Approval** The system must:
+
 - Provide CLI-only bulk approval (no web interface)
 - Support approval of all imports from specific data sources
 - Require administrator authentication and explicit confirmation
 - Maintain audit trails of all approval actions
 
-**R6: Incremental Imports**
-The system must:
+**R6: Incremental Imports** The system must:
+
 - Track external IDs to prevent duplicate processing on re-imports
 - Detect changes in source data and create edit proposals for existing artworks
 - Support retry mechanisms for failed operations
@@ -95,16 +98,19 @@ The system must:
 ## Non-Functional Requirements
 
 ### Performance
+
 - Sequential processing prioritizing data completeness over speed
 - Configurable batch sizes to prevent API overwhelming
 - Stream processing for large datasets to manage memory usage
 
-### Security  
+### Security
+
 - Input validation and sanitization of all external data
 - Authentication requirements for bulk approval operations
 - Validation of downloaded images for type and size
 
 ### Reliability
+
 - Comprehensive error handling and logging
 - Rollback capabilities for bulk approvals (24-hour window)
 - Retry mechanisms for transient failures
@@ -182,18 +188,21 @@ The system must:
 ## Implementation Plan
 
 ### Phase 1: Core Library (4 weeks)
+
 - Develop duplicate detection algorithms
 - Implement structured tag validation and mapping
 - Create comprehensive dry-run functionality
 - Build basic CLI interface
 
 ### Phase 2: Vancouver Implementation (3 weeks)
+
 - Create Vancouver-specific field mappings
 - Implement photo downloading and processing
 - Add comprehensive error handling and reporting
 - Develop bulk approval commands
 
 ### Phase 3: Production Deployment (2 weeks)
+
 - Execute Vancouver dataset import (~3000 artworks)
 - Establish monitoring and logging infrastructure
 - Create administrator documentation
@@ -219,7 +228,7 @@ The Vancouver import script will use the following field mappings from the sourc
 {
   "title": "title_of_work",
   "description": "descriptionofwork",
-  "notes": "artistprojectstatement", 
+  "notes": "artistprojectstatement",
   "coordinates": {
     "lat": "geo_point_2d.lat",
     "lon": "geo_point_2d.lon"
@@ -250,7 +259,7 @@ The Vancouver import script will use the following field mappings from the sourc
     "access": "yes",
     "fee": "no",
     "subject": {
-      "source_field": "neighbourhood", 
+      "source_field": "neighbourhood",
       "prefix": "neighbourhood_"
     },
     "source": "vancouver_open_data",
@@ -329,7 +338,7 @@ ca-import approve --source vancouver-public-art --all --confirm
     "title": "title_of_work",
     "description": "descriptionofwork",
     "coordinates": {
-      "lat": "geo_point_2d.lat", 
+      "lat": "geo_point_2d.lat",
       "lon": "geo_point_2d.lon"
     }
   },
@@ -365,29 +374,29 @@ import { MassImportLibrary } from '@cultural-archiver/mass-import';
 
 const importer = new MassImportLibrary({
   apiToken: process.env.MASS_IMPORT_TOKEN,
-  baseUrl: 'https://art-api.abluestar.com'
+  baseUrl: 'https://art-api.abluestar.com',
 });
 
 // Dry run process
 const dryRunResults = await importer.dryRun({
   source: 'vancouver-public-art',
   data: vancouverData,
-  config: importConfig
+  config: importConfig,
 });
 
-// Actual import process  
+// Actual import process
 const importResults = await importer.processImport({
   source: 'vancouver-public-art',
   data: vancouverData,
   config: importConfig,
-  dryRun: false
+  dryRun: false,
 });
 
 // Bulk approval
 const approvalResults = await importer.bulkApprove({
   source: 'vancouver-public-art',
   batchSize: 100,
-  confirm: true
+  confirm: true,
 });
 ```
 
@@ -417,6 +426,6 @@ ca-import --source vancouver-public-art --config ./config.json
 # Retry failed photos
 ca-import retry-photos --source vancouver-public-art
 
-# Bulk approve all Vancouver imports  
+# Bulk approve all Vancouver imports
 ca-import approve --source vancouver-public-art --all --confirm
 ```

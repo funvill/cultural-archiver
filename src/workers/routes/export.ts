@@ -15,7 +15,7 @@ import { createExportResponse, generateOSMXMLFile, validateOSMExportData } from 
  */
 export async function bulkExportToOSM(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const query = c.req.query();
-  
+
   // Parse query parameters
   const format = query.format || 'json'; // json, xml
   const bounds = query.bounds; // "north,south,east,west"
@@ -68,7 +68,6 @@ export async function bulkExportToOSM(c: Context<{ Bindings: WorkerEnv }>): Prom
 
       const result = await stmt.bind(...artworkIds).all();
       artworks = result.results as ArtworkRecord[];
-
     } else if (bounds) {
       // Export artworks within geographic bounds
       const boundsArray = bounds.split(',').map(Number);
@@ -83,7 +82,7 @@ export async function bulkExportToOSM(c: Context<{ Bindings: WorkerEnv }>): Prom
       }
 
       const [north, south, east, west] = boundsArray;
-      
+
       // Validate bounds
       if (north! <= south! || east! <= west!) {
         throw new ValidationApiError([
@@ -106,7 +105,6 @@ export async function bulkExportToOSM(c: Context<{ Bindings: WorkerEnv }>): Prom
 
       const result = await stmt.bind(south, north, west, east, limit).all();
       artworks = result.results as ArtworkRecord[];
-
     } else {
       // Export all approved artworks (with limit)
       const stmt = db.db.prepare(`
@@ -124,7 +122,7 @@ export async function bulkExportToOSM(c: Context<{ Bindings: WorkerEnv }>): Prom
     if (format === 'xml') {
       const xmlContent = generateOSMXMLFile(artworks);
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-      
+
       return new Response(xmlContent, {
         status: 200,
         headers: {
@@ -142,16 +140,15 @@ export async function bulkExportToOSM(c: Context<{ Bindings: WorkerEnv }>): Prom
     };
 
     const response = createExportResponse(artworks, exportRequest);
-    
-    return c.json(createSuccessResponse(response));
 
+    return c.json(createSuccessResponse(response));
   } catch (error) {
     console.error('Bulk export error:', error);
-    
+
     if (error instanceof ValidationApiError) {
       throw error;
     }
-    
+
     throw new ValidationApiError([
       {
         field: 'export',
@@ -195,7 +192,7 @@ export async function getExportStats(c: Context<{ Bindings: WorkerEnv }>): Promi
 
     // Get total count
     const countStmt = db.db.prepare(`SELECT COUNT(*) as total FROM artwork ${whereClause}`);
-    const countResult = await countStmt.bind(...bindings).first() as { total: number };
+    const countResult = (await countStmt.bind(...bindings).first()) as { total: number };
 
     // Get sample of artworks for validation statistics
     const sampleStmt = db.db.prepare(`
@@ -215,7 +212,7 @@ export async function getExportStats(c: Context<{ Bindings: WorkerEnv }>): Promi
     // Count common issues
     const allErrors = validationResults.flatMap(r => r.errors);
     const allWarnings = validationResults.flatMap(r => r.warnings);
-    
+
     const errorCounts: Record<string, number> = {};
     const warningCounts: Record<string, number> = {};
 
@@ -238,27 +235,28 @@ export async function getExportStats(c: Context<{ Bindings: WorkerEnv }>): Promi
       },
       common_issues: {
         errors: Object.entries(errorCounts)
-          .sort(([,a], [,b]) => b - a)
+          .sort(([, a], [, b]) => b - a)
           .slice(0, 10),
         warnings: Object.entries(warningCounts)
-          .sort(([,a], [,b]) => b - a)
+          .sort(([, a], [, b]) => b - a)
           .slice(0, 10),
       },
       export_estimates: {
-        estimated_valid_exports: Math.round(countResult.total * (validCount / sampleArtworks.length)),
+        estimated_valid_exports: Math.round(
+          countResult.total * (validCount / sampleArtworks.length)
+        ),
         estimated_file_size_mb: Math.round((countResult.total * 0.5) / 1024), // Rough estimate
       },
     };
 
     return c.json(createSuccessResponse(stats));
-
   } catch (error) {
     console.error('Export stats error:', error);
-    
+
     if (error instanceof ValidationApiError) {
       throw error;
     }
-    
+
     throw new ValidationApiError([
       {
         field: 'stats',

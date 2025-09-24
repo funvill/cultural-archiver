@@ -50,10 +50,10 @@ class MockD1Database {
             if (query.includes('SELECT * FROM consent')) {
               const contentType = bindings[0];
               const contentId = bindings[1];
-              
+
               // Find matching record
-              const record = Object.values(this.data).find((r: any) => 
-                r.content_type === contentType && r.content_id === contentId
+              const record = Object.values(this.data).find(
+                (r: any) => r.content_type === contentType && r.content_id === contentId
               );
               return record || null;
             }
@@ -103,10 +103,10 @@ describe('Centralized Consent System', () => {
       });
 
       expect(result.id).toBeDefined();
-      
+
       const data = mockDb.getData();
       const consentRecord = data[result.id];
-      
+
       expect(consentRecord).toBeDefined();
       expect(consentRecord.user_id).toBe('user-123');
       expect(consentRecord.anonymous_token).toBe(null);
@@ -127,10 +127,10 @@ describe('Centralized Consent System', () => {
       });
 
       expect(result.id).toBeDefined();
-      
+
       const data = mockDb.getData();
       const consentRecord = data[result.id];
-      
+
       expect(consentRecord).toBeDefined();
       expect(consentRecord.user_id).toBe(null);
       expect(consentRecord.anonymous_token).toBe('anon-789');
@@ -139,39 +139,45 @@ describe('Centralized Consent System', () => {
     });
 
     it('should reject when neither userId nor anonymousToken provided', async () => {
-      await expect(recordConsent({
-        contentType: 'artwork',
-        contentId: 'artwork-456',
-        consentVersion: CURRENT_CONSENT_VERSION,
-        ipAddress: '192.168.1.1',
-        consentTextHash: 'hash123',
-        db: mockDb as unknown as D1Database,
-      })).rejects.toThrow('Either userId or anonymousToken must be provided');
+      await expect(
+        recordConsent({
+          contentType: 'artwork',
+          contentId: 'artwork-456',
+          consentVersion: CURRENT_CONSENT_VERSION,
+          ipAddress: '192.168.1.1',
+          consentTextHash: 'hash123',
+          db: mockDb as unknown as D1Database,
+        })
+      ).rejects.toThrow('Either userId or anonymousToken must be provided');
     });
 
     it('should reject when both userId and anonymousToken provided', async () => {
-      await expect(recordConsent({
-        userId: 'user-123',
-        anonymousToken: 'anon-789',
-        contentType: 'artwork',
-        contentId: 'artwork-456',
-        consentVersion: CURRENT_CONSENT_VERSION,
-        ipAddress: '192.168.1.1',
-        consentTextHash: 'hash123',
-        db: mockDb as unknown as D1Database,
-      })).rejects.toThrow('Cannot provide both userId and anonymousToken');
+      await expect(
+        recordConsent({
+          userId: 'user-123',
+          anonymousToken: 'anon-789',
+          contentType: 'artwork',
+          contentId: 'artwork-456',
+          consentVersion: CURRENT_CONSENT_VERSION,
+          ipAddress: '192.168.1.1',
+          consentTextHash: 'hash123',
+          db: mockDb as unknown as D1Database,
+        })
+      ).rejects.toThrow('Cannot provide both userId and anonymousToken');
     });
 
     it('should reject invalid content type', async () => {
-      await expect(recordConsent({
-        userId: 'user-123',
-        contentType: 'invalid' as any,
-        contentId: 'content-456',
-        consentVersion: CURRENT_CONSENT_VERSION,
-        ipAddress: '192.168.1.1',
-        consentTextHash: 'hash123',
-        db: mockDb as unknown as D1Database,
-      })).rejects.toThrow('Invalid content type: invalid');
+      await expect(
+        recordConsent({
+          userId: 'user-123',
+          contentType: 'invalid' as any,
+          contentId: 'content-456',
+          consentVersion: CURRENT_CONSENT_VERSION,
+          ipAddress: '192.168.1.1',
+          consentTextHash: 'hash123',
+          db: mockDb as unknown as D1Database,
+        })
+      ).rejects.toThrow('Invalid content type: invalid');
     });
 
     it('should support mass import with reserved UUID', async () => {
@@ -186,10 +192,10 @@ describe('Centralized Consent System', () => {
       });
 
       expect(result.id).toBeDefined();
-      
+
       const data = mockDb.getData();
       const consentRecord = data[result.id];
-      
+
       expect(consentRecord.user_id).toBe(MASS_IMPORT_USER_UUID);
       expect(consentRecord.content_id).toBe('imported-artwork-1');
     });
@@ -209,27 +215,21 @@ describe('Centralized Consent System', () => {
       });
 
       // Then check if consent exists
-      const hasConsent = await hasConsentForContent(
-        mockDb as unknown as D1Database,
-        {
-          userId: 'user-123',
-          contentType: 'artwork',
-          contentId: 'artwork-456',
-        }
-      );
+      const hasConsent = await hasConsentForContent(mockDb as unknown as D1Database, {
+        userId: 'user-123',
+        contentType: 'artwork',
+        contentId: 'artwork-456',
+      });
 
       expect(hasConsent).toBe(true);
     });
 
     it('should return false when consent does not exist', async () => {
-      const hasConsent = await hasConsentForContent(
-        mockDb as unknown as D1Database,
-        {
-          userId: 'user-123',
-          contentType: 'artwork',
-          contentId: 'nonexistent-artwork',
-        }
-      );
+      const hasConsent = await hasConsentForContent(mockDb as unknown as D1Database, {
+        userId: 'user-123',
+        contentType: 'artwork',
+        contentId: 'nonexistent-artwork',
+      });
 
       expect(hasConsent).toBe(false);
     });
@@ -249,14 +249,11 @@ describe('Centralized Consent System', () => {
       });
 
       // Then retrieve it
-      const consent = await getConsentRecord(
-        mockDb as unknown as D1Database,
-        {
-          anonymousToken: 'anon-token',
-          contentType: 'logbook',
-          contentId: 'logbook-789',
-        }
-      );
+      const consent = await getConsentRecord(mockDb as unknown as D1Database, {
+        anonymousToken: 'anon-token',
+        contentType: 'logbook',
+        contentId: 'logbook-789',
+      });
 
       expect(consent).toBeDefined();
       expect(consent?.id).toBe(recordResult.id);
@@ -266,14 +263,11 @@ describe('Centralized Consent System', () => {
     });
 
     it('should return null when record not found', async () => {
-      const consent = await getConsentRecord(
-        mockDb as unknown as D1Database,
-        {
-          userId: 'nonexistent-user',
-          contentType: 'artwork',
-          contentId: 'nonexistent-artwork',
-        }
-      );
+      const consent = await getConsentRecord(mockDb as unknown as D1Database, {
+        userId: 'nonexistent-user',
+        contentType: 'artwork',
+        contentId: 'nonexistent-artwork',
+      });
 
       expect(consent).toBe(null);
     });
@@ -284,7 +278,7 @@ describe('Centralized Consent System', () => {
       const text = 'This is consent text';
       const hash1 = await generateConsentTextHash(text);
       const hash2 = await generateConsentTextHash(text);
-      
+
       expect(hash1).toBe(hash2);
       expect(hash1).toMatch(/^[a-f0-9]{64}$/); // SHA-256 hex string
     });
@@ -292,7 +286,7 @@ describe('Centralized Consent System', () => {
     it('should generate different hashes for different inputs', async () => {
       const hash1 = await generateConsentTextHash('text1');
       const hash2 = await generateConsentTextHash('text2');
-      
+
       expect(hash1).not.toBe(hash2);
     });
   });
@@ -307,7 +301,7 @@ describe('Centralized Consent System', () => {
       };
 
       const result = validateConsent(consentData);
-      
+
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
       expect(result.missingConsents).toHaveLength(0);
@@ -322,12 +316,14 @@ describe('Centralized Consent System', () => {
       };
 
       const result = validateConsent(consentData);
-      
+
       expect(result.isValid).toBe(false);
       expect(result.missingConsents).toContain('cc0Licensing');
       expect(result.missingConsents).toContain('freedomOfPanorama');
       expect(result.errors).toContain('CC0 public domain dedication consent is required');
-      expect(result.errors).toContain('Freedom of Panorama legal guidance acknowledgment is required');
+      expect(result.errors).toContain(
+        'Freedom of Panorama legal guidance acknowledgment is required'
+      );
     });
 
     it('should identify all missing consents when none provided', () => {
@@ -339,7 +335,7 @@ describe('Centralized Consent System', () => {
       };
 
       const result = validateConsent(consentData);
-      
+
       expect(result.isValid).toBe(false);
       expect(result.missingConsents).toHaveLength(4);
       expect(result.errors).toHaveLength(4);

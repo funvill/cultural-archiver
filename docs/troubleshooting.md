@@ -67,10 +67,12 @@ wrangler secret list
 ### 404 Not Found Errors
 
 **Symptoms:**
+
 - Specific API endpoints returning 404
 - Frontend routes not working
 
 **Common Causes:**
+
 1. **Endpoint not defined in worker routes**
 2. **Frontend SPA routing misconfigured**
 3. **Cloudflare routing issues**
@@ -90,6 +92,7 @@ cat src/frontend/wrangler.jsonc
 ```
 
 **Current API endpoints that should work:**
+
 - `GET /health` - Health check
 - `GET /api/status` - API status with authentication
 - `POST /api/logbook` - Submit photo/artwork
@@ -126,7 +129,7 @@ console.log('Environment check:', {
 ```typescript
 // Verify route registration in src/workers/index.ts
 app.route('/api/submissions', submissionRoutes); // Unified submissions endpoint
-app.route('/api/logbook', submissionRoutes);     // Legacy compatibility
+app.route('/api/logbook', submissionRoutes); // Legacy compatibility
 app.route('/api/artworks', discoveryRoutes);
 app.route('/api/me', userRoutes);
 app.route('/api/auth', authRoutes);
@@ -701,7 +704,8 @@ Use pre-computed hash directly in database storage:
 
 ```typescript
 // Fixed - use the already-computed hash directly
-await db.prepare(insertQuery)
+await db
+  .prepare(insertQuery)
   .bind(
     consentId,
     now,
@@ -721,8 +725,8 @@ await db.prepare(insertQuery)
 **Check consent for specific content:**
 
 ```sql
-SELECT * FROM consent 
-WHERE content_type = 'artwork' 
+SELECT * FROM consent
+WHERE content_type = 'artwork'
 AND content_id = 'your-artwork-id-here';
 ```
 
@@ -732,18 +736,22 @@ AND content_id = 'your-artwork-id-here';
 const crypto = require('crypto');
 const text = 'Cultural Archiver Consent v2025-09-09.v2 - Artwork Submission';
 const hash = await crypto.webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
-console.log(Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join(''));
+console.log(
+  Array.from(new Uint8Array(hash))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+);
 ```
 
 **Monitor consent creation patterns:**
 
 ```sql
-SELECT 
+SELECT
   content_type,
   consent_version,
   COUNT(*) as consent_count,
   DATE(created_at) as consent_date
-FROM consent 
+FROM consent
 GROUP BY content_type, consent_version, DATE(created_at)
 ORDER BY consent_date DESC;
 ```

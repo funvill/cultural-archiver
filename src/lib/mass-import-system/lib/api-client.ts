@@ -1,17 +1,12 @@
 /**
  * Mass Import System - API Integration
- * 
+ *
  * This module handles integration with the existing Cultural Archiver API
  * endpoints for submitting logbook entries and managing photos.
  */
 
 import axios, { type AxiosInstance, AxiosError } from 'axios';
-import type {
-  ProcessedImportData,
-  ImportResult,
-  MassImportConfig,
-  PhotoInfo,
-} from '../types';
+import type { ProcessedImportData, ImportResult, MassImportConfig, PhotoInfo } from '../types';
 import type { ExistingArtwork } from './duplicate-detection.js';
 import { detectDuplicates, checkExternalIdDuplicate } from './duplicate-detection.js';
 
@@ -42,16 +37,21 @@ export class MassImportAPIClient {
    * Submit a single import record
    */
   async submitImportRecord(data: ProcessedImportData): Promise<ImportResult> {
-    const recordId = data.externalId || `import_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    const recordId =
+      data.externalId || `import_${Date.now()}_${Math.random().toString(36).substring(2)}`;
 
     try {
       // Step 1: Check for duplicates
       const existingArtworks = await this.fetchNearbyArtworks(data.lat, data.lon);
-      
+
       // Check external ID first (exact match)
       let duplicateDetection = null;
       if (data.externalId && data.source) {
-        const exactDuplicate = checkExternalIdDuplicate(data.externalId, data.source, existingArtworks);
+        const exactDuplicate = checkExternalIdDuplicate(
+          data.externalId,
+          data.source,
+          existingArtworks
+        );
         if (exactDuplicate) {
           duplicateDetection = {
             isDuplicate: true,
@@ -105,10 +105,9 @@ export class MassImportAPIClient {
       }
 
       return result;
-
     } catch (error) {
       console.error(`Failed to process import record ${recordId}:`, error);
-      
+
       return {
         id: recordId,
         title: data.title || 'Unknown',
@@ -135,11 +134,11 @@ export class MassImportAPIClient {
       // duplicate detection. Keep a fallback request path for any legacy
       // deployments just in case.
       const endpoint = '/api/artworks/nearby';
-      
+
       // Use a larger radius for duplicate detection to ensure we catch nearby artworks
       // The duplicate detection algorithm will filter by precise distance anyway
       const searchRadius = Math.max(this.config.duplicateDetectionRadius, 100); // minimum 100m search
-      
+
       const response = await this.axios.get(endpoint, {
         params: {
           lat,
@@ -148,18 +147,18 @@ export class MassImportAPIClient {
           limit: 50, // Increase limit to catch more potential duplicates
         },
       });
-      
+
       // Worker responses are wrapped with ApiResponse { success, data: { artworks: [...] }}
       const raw: unknown = response.data;
 
-      interface NearbyWrapped { 
-        data?: { artworks?: ExistingArtwork[] }; 
-        artworks?: ExistingArtwork[] 
+      interface NearbyWrapped {
+        data?: { artworks?: ExistingArtwork[] };
+        artworks?: ExistingArtwork[];
       }
-      
+
       const candidate = raw as NearbyWrapped;
       let artworks: ExistingArtwork[] = [];
-      
+
       if (candidate) {
         if (Array.isArray(candidate.artworks)) {
           artworks = candidate.artworks;
@@ -167,7 +166,7 @@ export class MassImportAPIClient {
           artworks = candidate.data.artworks;
         }
       }
-      
+
       return artworks;
     } catch (error) {
       console.warn('Failed to fetch nearby artworks for duplicate detection:', error);
@@ -192,14 +191,18 @@ export class MassImportAPIClient {
         photos: photoUrls.map(url => ({ url })),
       },
       // Create logbook entry with notes and tags
-      logbook: [{
-        note: data.note || `Imported from ${data.source}`,
-        timestamp: new Date().toISOString(),
-        tags: data.tags ? Object.entries(data.tags).map(([label, value]) => ({
-          label,
-          value: String(value),
-        })) : [],
-      }],
+      logbook: [
+        {
+          note: data.note || `Imported from ${data.source}`,
+          timestamp: new Date().toISOString(),
+          tags: data.tags
+            ? Object.entries(data.tags).map(([label, value]) => ({
+                label,
+                value: String(value),
+              }))
+            : [],
+        },
+      ],
     };
 
     const response = await this.axios.post('/api/mass-import', requestBody, {
@@ -210,35 +213,35 @@ export class MassImportAPIClient {
 
     // Parse response matching new endpoint format
     const raw: unknown = response.data;
-    type SubmissionShape = { 
-      success: boolean; 
-      data: { 
-        artwork_id: string; 
-        status: string; 
+    type SubmissionShape = {
+      success: boolean;
+      data: {
+        artwork_id: string;
+        status: string;
         message: string;
         tags_merged?: number;
         duplicate_detected?: boolean;
-      } 
+      };
     };
-    
+
     if (!raw || typeof raw !== 'object' || !('success' in raw)) {
       throw new Error('Unexpected mass import response format');
     }
-    
+
     const submission = raw as SubmissionShape;
     if (!submission.success || !submission.data) {
       throw new Error(`Mass import failed: ${submission.data?.message || 'Unknown error'}`);
     }
-    
+
     const warnings: string[] = [];
-    
+
     // Add informational message about tag merging
     if (submission.data.duplicate_detected && submission.data.tags_merged) {
       warnings.push(`Merged ${submission.data.tags_merged} new tags with existing artwork`);
     } else if (submission.data.duplicate_detected) {
       warnings.push('Duplicate detected - no new tags to merge');
     }
-    
+
     return {
       id: submission.data.artwork_id,
       warnings,
@@ -252,10 +255,10 @@ export class MassImportAPIClient {
     this.axios.interceptors.response.use(
       response => response,
       async (error: AxiosError) => {
-  // Extend axios request config with retry metadata dynamically
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const config = error.config as Record<string, any> | undefined;
-        
+        // Extend axios request config with retry metadata dynamically
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const config = error.config as Record<string, any> | undefined;
+
         if (!config || config.retry === false) {
           return Promise.reject(error);
         }
@@ -264,10 +267,7 @@ export class MassImportAPIClient {
         config.retryCount = config.retryCount || 0;
 
         // Check if we should retry
-        if (
-          config.retryCount >= this.config.maxRetries ||
-          !this.shouldRetry(error)
-        ) {
+        if (config.retryCount >= this.config.maxRetries || !this.shouldRetry(error)) {
           return Promise.reject(error);
         }
 
@@ -306,7 +306,7 @@ export class MassImportAPIClient {
       error.code === 'ENOTFOUND' ||
       error.code === 'ECONNRESET' ||
       error.code === 'ETIMEDOUT' ||
-      (error.response.status >= 500) // Server error
+      error.response.status >= 500 // Server error
     );
   }
 }
@@ -320,15 +320,20 @@ export class MassImportAPIClient {
  */
 export class DryRunAPIClient extends MassImportAPIClient {
   override async submitImportRecord(data: ProcessedImportData): Promise<ImportResult> {
-    const recordId = data.externalId || `dryrun_${Date.now()}_${Math.random().toString(36).substring(2)}`;
+    const recordId =
+      data.externalId || `dryrun_${Date.now()}_${Math.random().toString(36).substring(2)}`;
 
     try {
       // Still do duplicate detection for dry runs
       const existingArtworks = await this.fetchNearbyArtworks(data.lat, data.lon);
-      
+
       let duplicateDetection = null;
       if (data.externalId && data.source) {
-        const exactDuplicate = checkExternalIdDuplicate(data.externalId, data.source, existingArtworks);
+        const exactDuplicate = checkExternalIdDuplicate(
+          data.externalId,
+          data.source,
+          existingArtworks
+        );
         if (exactDuplicate) {
           duplicateDetection = {
             isDuplicate: true,
@@ -354,7 +359,6 @@ export class DryRunAPIClient extends MassImportAPIClient {
         photosProcessed: photoValidation.validPhotos,
         photosFailed: photoValidation.invalidPhotos,
       };
-
     } catch (error) {
       return {
         id: recordId,
@@ -399,7 +403,10 @@ export class DryRunAPIClient extends MassImportAPIClient {
   }
 
   // Override to prevent actual API calls
-  protected override async fetchNearbyArtworks(_lat: number, _lon: number): Promise<ExistingArtwork[]> {
+  protected override async fetchNearbyArtworks(
+    _lat: number,
+    _lon: number
+  ): Promise<ExistingArtwork[]> {
     // In dry-run mode, we could return mock data or fetch from a cached source
     // For now, return empty array to skip duplicate detection
     return [];

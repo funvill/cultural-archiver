@@ -62,8 +62,8 @@ export async function getUserPermissions(
       throw new ApiError('Administrator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
     }
 
-  // Get query parameters
-  const { permission: filterPermission, search } = c.req.query();
+    // Get query parameters
+    const { permission: filterPermission, search } = c.req.query();
 
     // Validate permission filter if provided
     if (filterPermission && !isValidPermission(filterPermission)) {
@@ -96,8 +96,8 @@ export async function getUserPermissions(
       data: {
         users,
         total: users.length,
-  filter: filterPermission || null,
-  search: search || null,
+        filter: filterPermission || null,
+        search: search || null,
         retrieved_at: new Date().toISOString(),
       },
     });
@@ -592,7 +592,11 @@ export async function createAdminBadge(
 
     // Validate required fields
     if (!badge_key || typeof badge_key !== 'string' || badge_key.length < 2) {
-      throw new ApiError('Valid badge_key is required (minimum 2 characters)', 'INVALID_BADGE_KEY', 400);
+      throw new ApiError(
+        'Valid badge_key is required (minimum 2 characters)',
+        'INVALID_BADGE_KEY',
+        400
+      );
     }
 
     if (!title || typeof title !== 'string' || title.length < 2) {
@@ -600,7 +604,11 @@ export async function createAdminBadge(
     }
 
     if (!description || typeof description !== 'string' || description.length < 10) {
-      throw new ApiError('Valid description is required (minimum 10 characters)', 'INVALID_DESCRIPTION', 400);
+      throw new ApiError(
+        'Valid description is required (minimum 10 characters)',
+        'INVALID_DESCRIPTION',
+        400
+      );
     }
 
     if (!icon_emoji || typeof icon_emoji !== 'string' || icon_emoji.length < 1) {
@@ -620,7 +628,12 @@ export async function createAdminBadge(
     }
 
     // Validate threshold_type values
-    const validThresholdTypes = ['email_verified', 'submission_count', 'photo_count', 'account_age'];
+    const validThresholdTypes = [
+      'email_verified',
+      'submission_count',
+      'photo_count',
+      'account_age',
+    ];
     if (!validThresholdTypes.includes(threshold_type)) {
       throw new ApiError(
         `Invalid threshold_type. Must be one of: ${validThresholdTypes.join(', ')}`,
@@ -633,12 +646,20 @@ export async function createAdminBadge(
     if (threshold_type === 'email_verified') {
       // For email_verified, threshold_value should be null
       if (threshold_value !== null && threshold_value !== undefined) {
-        throw new ApiError('threshold_value must be null for email_verified badges', 'INVALID_THRESHOLD_VALUE', 400);
+        throw new ApiError(
+          'threshold_value must be null for email_verified badges',
+          'INVALID_THRESHOLD_VALUE',
+          400
+        );
       }
     } else {
       // For other types, threshold_value must be a positive number
       if (typeof threshold_value !== 'number' || threshold_value < 1) {
-        throw new ApiError('threshold_value must be a positive number for non-verification badges', 'INVALID_THRESHOLD_VALUE', 400);
+        throw new ApiError(
+          'threshold_value must be a positive number for non-verification badges',
+          'INVALID_THRESHOLD_VALUE',
+          400
+        );
       }
     }
 
@@ -723,11 +744,17 @@ export async function updateAdminBadge(
     }
 
     // Validate updates
-    if (updates.title !== undefined && (typeof updates.title !== 'string' || updates.title.length < 2)) {
+    if (
+      updates.title !== undefined &&
+      (typeof updates.title !== 'string' || updates.title.length < 2)
+    ) {
       throw new ApiError('Title must be at least 2 characters', 'INVALID_TITLE', 400);
     }
 
-    if (updates.description !== undefined && (typeof updates.description !== 'string' || updates.description.length < 10)) {
+    if (
+      updates.description !== undefined &&
+      (typeof updates.description !== 'string' || updates.description.length < 10)
+    ) {
       throw new ApiError('Description must be at least 10 characters', 'INVALID_DESCRIPTION', 400);
     }
 
@@ -736,7 +763,12 @@ export async function updateAdminBadge(
     }
 
     if (updates.threshold_type !== undefined) {
-      const validThresholdTypes = ['email_verified', 'submission_count', 'photo_count', 'account_age'];
+      const validThresholdTypes = [
+        'email_verified',
+        'submission_count',
+        'photo_count',
+        'account_age',
+      ];
       if (!validThresholdTypes.includes(updates.threshold_type)) {
         throw new ApiError(
           `Invalid threshold_type. Must be one of: ${validThresholdTypes.join(', ')}`,

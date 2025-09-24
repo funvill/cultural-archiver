@@ -23,7 +23,7 @@ export const useFastUploadSessionStore = defineStore('fastUploadSession', () => 
   const detectedSources = ref<LocationSourcesState | null>(null);
 
   function setSession(data: {
-  photos: FastUploadPhotoMeta[]; // Accept photos including optional file field
+    photos: FastUploadPhotoMeta[]; // Accept photos including optional file field
     location: Coordinates | null;
     detectedSources: LocationSourcesState;
   }): void {
@@ -36,7 +36,9 @@ export const useFastUploadSessionStore = defineStore('fastUploadSession', () => 
     photos.value = [];
     location.value = null;
     detectedSources.value = null;
-    try { sessionStorage.removeItem('fast-upload-session'); } catch {}
+    try {
+      sessionStorage.removeItem('fast-upload-session');
+    } catch {}
   }
 
   const hasPhotos = computed(() => photos.value.length > 0);

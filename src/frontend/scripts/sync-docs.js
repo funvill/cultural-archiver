@@ -16,13 +16,13 @@ const filesToSync = [
   {
     source: '../../../docs/terms-of-service.md',
     destination: './public/docs/terms-of-service.md',
-    name: 'Terms of Service'
+    name: 'Terms of Service',
   },
   {
     source: '../../../docs/privacy-policy.md',
     destination: './public/docs/privacy-policy.md',
-    name: 'Privacy Policy'
-  }
+    name: 'Privacy Policy',
+  },
 ];
 
 console.log('🔄 Syncing legal documents to frontend...\n');
@@ -34,26 +34,25 @@ filesToSync.forEach(({ source, destination, name }) => {
   try {
     const sourcePath = path.resolve(__dirname, source);
     const destPath = path.resolve(__dirname, destination);
-    
+
     // Check if source exists
     if (!fs.existsSync(sourcePath)) {
       console.log(`❌ Source file not found: ${name} (${sourcePath})`);
       errorCount++;
       return;
     }
-    
+
     // Create destination directory if it doesn't exist
     const destDir = path.dirname(destPath);
     if (!fs.existsSync(destDir)) {
       fs.mkdirSync(destDir, { recursive: true });
       console.log(`📁 Created directory: ${destDir}`);
     }
-    
+
     // Copy the file
     fs.copyFileSync(sourcePath, destPath);
     console.log(`✅ Synced: ${name}`);
     successCount++;
-    
   } catch (error) {
     console.log(`❌ Failed to sync ${name}: ${error.message}`);
     errorCount++;

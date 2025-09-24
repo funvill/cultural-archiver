@@ -1,6 +1,6 @@
 /**
  * Location Enhancement Module for Mass Import System
- * 
+ *
  * This module enriches import data with human-readable location names
  * using a cache-first strategy with Nominatim fallback.
  */
@@ -60,8 +60,8 @@ export class LocationEnhancer {
         city: 'location_city',
         suburb: 'location_suburb',
         neighbourhood: 'location_neighbourhood',
-        ...options.tagFields
-      }
+        ...options.tagFields,
+      },
     };
 
     this.locationService = new LocationService(this.options.cacheDbPath);
@@ -83,8 +83,8 @@ export class LocationEnhancer {
           fromApi: 0,
           skippedMissingCoords: 0,
           failed: 0,
-          processingTime: 0
-        }
+          processingTime: 0,
+        },
       };
     }
 
@@ -120,7 +120,9 @@ export class LocationEnhancer {
         let source: 'cache' | 'api';
 
         if (this.locationService.hasLocationInCache(record.lat, record.lon)) {
-          location = await this.locationService.getLocation(record.lat, record.lon, { useCache: true });
+          location = await this.locationService.getLocation(record.lat, record.lon, {
+            useCache: true,
+          });
           source = 'cache';
           fromCache++;
         } else {
@@ -132,7 +134,7 @@ export class LocationEnhancer {
 
           location = await this.locationService.getLocation(record.lat, record.lon, {
             useCache: true,
-            timeout: this.options.requestTimeout
+            timeout: this.options.requestTimeout,
           });
           source = 'api';
           fromApi++;
@@ -144,18 +146,23 @@ export class LocationEnhancer {
 
         // Log progress every 50 items or at the end
         if ((i + 1) % 50 === 0 || i === records.length - 1) {
-          console.log(`📍 Progress: ${i + 1}/${records.length} | Cache: ${fromCache} | API: ${fromApi} | Failed: ${failed}`);
+          console.log(
+            `📍 Progress: ${i + 1}/${records.length} | Cache: ${fromCache} | API: ${fromApi} | Failed: ${failed}`
+          );
         }
-
       } catch (error) {
         failed++;
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        
+
         if (this.options.failOnErrors) {
-          throw new Error(`Location enhancement failed for record ${i + 1} (${record.lat}, ${record.lon}): ${errorMessage}`);
+          throw new Error(
+            `Location enhancement failed for record ${i + 1} (${record.lat}, ${record.lon}): ${errorMessage}`
+          );
         }
 
-        console.warn(`⚠️ Failed to get location for record ${i + 1} (${record.lat}, ${record.lon}): ${errorMessage}`);
+        console.warn(
+          `⚠️ Failed to get location for record ${i + 1} (${record.lat}, ${record.lon}): ${errorMessage}`
+        );
         enhancedRecords.push(record); // Add original record without enhancement
       }
     }
@@ -164,8 +171,12 @@ export class LocationEnhancer {
     const finalStats = this.locationService.getCacheStats();
 
     console.log(`✅ Location enhancement completed!`);
-    console.log(`📊 Final cache: ${finalStats.totalEntries} entries (${finalStats.totalEntries - initialStats.totalEntries} added)`);
-    console.log(`⏱️  Processing time: ${Math.floor(processingTime / 60000)}m ${Math.floor((processingTime % 60000) / 1000)}s`);
+    console.log(
+      `📊 Final cache: ${finalStats.totalEntries} entries (${finalStats.totalEntries - initialStats.totalEntries} added)`
+    );
+    console.log(
+      `⏱️  Processing time: ${Math.floor(processingTime / 60000)}m ${Math.floor((processingTime % 60000) / 1000)}s`
+    );
 
     const result: LocationEnhancementResult = {
       processed,
@@ -173,12 +184,12 @@ export class LocationEnhancer {
       fromApi,
       skippedMissingCoords,
       failed,
-      processingTime
+      processingTime,
     };
 
     return {
       records: enhancedRecords,
-      result
+      result,
     };
   }
 
@@ -187,7 +198,7 @@ export class LocationEnhancer {
    */
   private addLocationToRecord(record: RawImportData, location: any): RawImportData {
     const enhancedRecord = { ...record };
-    
+
     // Ensure tags object exists
     if (!enhancedRecord.tags || typeof enhancedRecord.tags !== 'object') {
       enhancedRecord.tags = {};
@@ -195,27 +206,27 @@ export class LocationEnhancer {
 
     // Add location fields to tags based on configuration
     const tagFields = this.options.tagFields;
-    
+
     if (tagFields.displayName && location.display_name) {
       enhancedRecord.tags[tagFields.displayName] = location.display_name;
     }
-    
+
     if (tagFields.country && location.country) {
       enhancedRecord.tags[tagFields.country] = location.country;
     }
-    
+
     if (tagFields.state && location.state) {
       enhancedRecord.tags[tagFields.state] = location.state;
     }
-    
+
     if (tagFields.city && location.city) {
       enhancedRecord.tags[tagFields.city] = location.city;
     }
-    
+
     if (tagFields.suburb && location.suburb) {
       enhancedRecord.tags[tagFields.suburb] = location.suburb;
     }
-    
+
     if (tagFields.neighbourhood && location.neighbourhood) {
       enhancedRecord.tags[tagFields.neighbourhood] = location.neighbourhood;
     }
@@ -226,7 +237,11 @@ export class LocationEnhancer {
   /**
    * Get current cache statistics
    */
-  getCacheStats(): { totalEntries: number; oldestEntry: string | null; newestEntry: string | null } {
+  getCacheStats(): {
+    totalEntries: number;
+    oldestEntry: string | null;
+    newestEntry: string | null;
+  } {
     return this.locationService.getCacheStats();
   }
 

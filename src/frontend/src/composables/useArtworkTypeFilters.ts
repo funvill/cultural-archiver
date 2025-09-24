@@ -55,31 +55,31 @@ export function useArtworkTypeFilters(): {
   const artworkTypes = ref<ArtworkTypeToggle[]>([...DEFAULT_ARTWORK_TYPES]);
 
   // Computed properties
-  const enabledTypes = computed(() => 
+  const enabledTypes = computed(() =>
     artworkTypes.value.filter(type => type.enabled).map(type => type.key)
   );
 
-  const allTypesEnabled = computed(() => 
-    artworkTypes.value.every(type => type.enabled)
-  );
+  const allTypesEnabled = computed(() => artworkTypes.value.every(type => type.enabled));
 
-  const anyTypeEnabled = computed(() => 
-    artworkTypes.value.some(type => type.enabled)
-  );
+  const anyTypeEnabled = computed(() => artworkTypes.value.some(type => type.enabled));
 
   // Core filter logic
   function isArtworkTypeEnabled(artworkType: string): boolean {
     const normalizedType = artworkType.toLowerCase();
-    const typeToggle = artworkTypes.value.find((toggle: ArtworkTypeToggle) => toggle.key === normalizedType);
-    
+    const typeToggle = artworkTypes.value.find(
+      (toggle: ArtworkTypeToggle) => toggle.key === normalizedType
+    );
+
     // If we find a matching filter, return its enabled state
     if (typeToggle) {
       return typeToggle.enabled;
     }
-    
+
     // For unknown types, treat them as "Other" category
     // Only show unknown types if the "Other" filter is enabled
-    const otherToggle = artworkTypes.value.find((toggle: ArtworkTypeToggle) => toggle.key === 'other');
+    const otherToggle = artworkTypes.value.find(
+      (toggle: ArtworkTypeToggle) => toggle.key === 'other'
+    );
     return otherToggle ? otherToggle.enabled : false;
   }
 
@@ -118,11 +118,11 @@ export function useArtworkTypeFilters(): {
   function getTypeColor(artworkType: string): string {
     const normalizedType = artworkType.toLowerCase();
     const typeToggle = artworkTypes.value.find(type => type.key === normalizedType);
-    
+
     if (typeToggle) {
       return typeToggle.color;
     }
-    
+
     // Fallback to "Other" color for unknown types
     const otherToggle = artworkTypes.value.find(type => type.key === 'other');
     return otherToggle?.color || '#6366f1';
@@ -131,12 +131,12 @@ export function useArtworkTypeFilters(): {
   return {
     // State
     artworkTypes,
-    
+
     // Computed
     enabledTypes,
     allTypesEnabled,
     anyTypeEnabled,
-    
+
     // Methods
     isArtworkTypeEnabled,
     filterArtworks,

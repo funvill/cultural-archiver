@@ -1,6 +1,6 @@
 /**
  * Location Services Module
- * 
+ *
  * This module provides comprehensive location services including:
  * - Reverse geocoding with Nominatim API
  * - Local SQLite caching for performance
@@ -17,5 +17,5 @@ export type {
   LocationCacheRecord,
   NominatimResponse,
   LocationLookupOptions,
-  LocationResult
+  LocationResult,
 } from '../../shared/types.js';

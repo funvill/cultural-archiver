@@ -1,7 +1,7 @@
 /**
  * Submission route handlers - Updated for New Unified Schema
  * Handles all submission types using the new unified submissions table
- * 
+ *
  * UPDATED: Uses new submissions service with unified schema
  */
 
@@ -23,7 +23,7 @@ import {
   createNewArtworkSubmission,
   getSubmissionsByStatus,
   approveSubmission,
-  rejectSubmission
+  rejectSubmission,
 } from '../lib/submissions.js';
 import { recordUserActivity } from '../lib/user-activity.js';
 import { createAuditLog } from '../lib/audit-log.js';
@@ -103,19 +103,18 @@ export async function createLogbookSubmission(
   try {
     // Rate limiting check - only if enabled
     if (isRateLimitingEnabled(c.env)) {
-      await recordUserActivity(
-        c.env.DB, 
-        userToken, 
-        'user_token', 
-        'submission'
-      );
+      await recordUserActivity(c.env.DB, userToken, 'user_token', 'submission');
 
       // Check daily submission limit (10 per day)
-      const dailySubmissions = await c.env.DB.prepare(`
+      const dailySubmissions = await c.env.DB.prepare(
+        `
         SELECT COUNT(*) as count FROM user_activity 
         WHERE identifier = ? AND activity_type = 'submission' 
         AND window_start = date('now', 'start of day')
-      `).bind(userToken).first<{count: number}>();
+      `
+      )
+        .bind(userToken)
+        .first<{ count: number }>();
 
       if (dailySubmissions && dailySubmissions.count >= 10) {
         throw new ApiError(
@@ -128,7 +127,8 @@ export async function createLogbookSubmission(
 
     // Record consent
     const contentId = generateUUID();
-    const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
+    const clientIP =
+      c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
     const consentVersion = validatedData.consent_version || CONSENT_VERSION;
     const consentTextHash = await generateConsentTextHash(
       `Cultural Archiver Consent v${consentVersion} - Logbook Submission`
@@ -168,7 +168,7 @@ export async function createLogbookSubmission(
       artworkId: validatedData.artwork_id || '',
       lat: validatedData.lat,
       lon: validatedData.lon,
-      verificationStatus: 'pending'
+      verificationStatus: 'pending',
     };
 
     // Prefer `notes` field but accept legacy `note`
@@ -201,8 +201,8 @@ export async function createLogbookSubmission(
         submission_type: 'logbook_entry',
         has_photos: photoUrls.length > 0,
         has_artwork_id: !!validatedData.artwork_id,
-        consent_id: consentRecord.id
-      }
+        consent_id: consentRecord.id,
+      },
     });
 
     const response: SubmissionResponse = {
@@ -215,25 +215,21 @@ export async function createLogbookSubmission(
         title: artwork.title || 'Untitled',
         distance_meters: Math.round(artwork.distance_km * 1000),
         lat: artwork.lat,
-        lon: artwork.lon
-      }))
+        lon: artwork.lon,
+      })),
     };
 
     return c.json(createSuccessResponse(response), 201);
-
   } catch (error) {
     console.error('Error creating logbook submission:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to create logbook submission',
-      'SUBMISSION_CREATION_FAILED',
-      500,
-      { details: { error: error instanceof Error ? error.message : 'Unknown error' } }
-    );
+
+    throw new ApiError('Failed to create logbook submission', 'SUBMISSION_CREATION_FAILED', 500, {
+      details: { error: error instanceof Error ? error.message : 'Unknown error' },
+    });
   }
 }
 
@@ -262,7 +258,8 @@ export async function createArtworkEditSubmission(
     }
 
     // Record consent
-    const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
+    const clientIP =
+      c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
     const consentVersion = validatedData.consent_version || CONSENT_VERSION;
     const consentTextHash = await generateConsentTextHash(
       `Cultural Archiver Consent v${consentVersion} - Artwork Edit`
@@ -283,7 +280,7 @@ export async function createArtworkEditSubmission(
       userToken,
       artworkId: validatedData.artwork_id,
       oldData: validatedData.old_data,
-      newData: validatedData.new_data
+      newData: validatedData.new_data,
     };
 
     if (validatedData.notes) {
@@ -306,26 +303,25 @@ export async function createArtworkEditSubmission(
       metadata: {
         submission_type: 'artwork_edit',
         artwork_id: validatedData.artwork_id,
-        consent_id: consentRecord.id
-      }
+        consent_id: consentRecord.id,
+      },
     });
 
     const response: SubmissionResponse = {
       id: submissionId,
       status: 'pending',
       message: 'Artwork edit submitted successfully and is pending review',
-      submission_type: 'artwork_edit'
+      submission_type: 'artwork_edit',
     };
 
     return c.json(createSuccessResponse(response), 201);
-
   } catch (error) {
     console.error('Error creating artwork edit submission:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
+
     throw new ApiError(
       'Failed to create artwork edit submission',
       'SUBMISSION_CREATION_FAILED',
@@ -355,11 +351,15 @@ export async function createNewArtworkSubmissionHandler(
       await recordUserActivity(c.env.DB, userToken, 'user_token', 'submission');
 
       // Check daily submission limit (10 per day)
-      const dailySubmissions = await c.env.DB.prepare(`
+      const dailySubmissions = await c.env.DB.prepare(
+        `
         SELECT COUNT(*) as count FROM user_activity 
         WHERE identifier = ? AND activity_type = 'submission' 
         AND window_start = date('now', 'start of day')
-      `).bind(userToken).first<{count: number}>();
+      `
+      )
+        .bind(userToken)
+        .first<{ count: number }>();
 
       if (dailySubmissions && dailySubmissions.count >= 10) {
         throw new ApiError(
@@ -372,7 +372,8 @@ export async function createNewArtworkSubmissionHandler(
 
     // Record consent
     const contentId = generateUUID();
-    const clientIP = c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
+    const clientIP =
+      c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || '127.0.0.1';
     const consentVersion = validatedData.consent_version || CONSENT_VERSION;
     const consentTextHash = await generateConsentTextHash(
       `Cultural Archiver Consent v${consentVersion} - New Artwork Submission`
@@ -419,7 +420,7 @@ export async function createNewArtworkSubmissionHandler(
       photos: photoUrls.length > 0 ? JSON.stringify(photoUrls) : null,
       tags: validatedData.tags ? JSON.stringify(validatedData.tags) : null,
       source_type: 'user_submission',
-      source_id: contentId
+      source_id: contentId,
     };
 
     // Create new artwork submission
@@ -429,7 +430,7 @@ export async function createNewArtworkSubmissionHandler(
       lon: validatedData.lon,
       notes: `New artwork submission: ${validatedData.title}`,
       photos: photoUrls,
-      newData: newArtworkData
+      newData: newArtworkData,
     };
 
     if (validatedData.tags) {
@@ -451,8 +452,8 @@ export async function createNewArtworkSubmissionHandler(
       metadata: {
         submission_type: 'new_artwork',
         has_photos: photoUrls.length > 0,
-        consent_id: consentRecord.id
-      }
+        consent_id: consentRecord.id,
+      },
     });
 
     const response: SubmissionResponse = {
@@ -465,19 +466,18 @@ export async function createNewArtworkSubmissionHandler(
         title: artwork.title || 'Untitled',
         distance_meters: Math.round(artwork.distance_km * 1000),
         lat: artwork.lat,
-        lon: artwork.lon
-      }))
+        lon: artwork.lon,
+      })),
     };
 
     return c.json(createSuccessResponse(response), 201);
-
   } catch (error) {
     console.error('Error creating new artwork submission:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
+
     throw new ApiError(
       'Failed to create new artwork submission',
       'SUBMISSION_CREATION_FAILED',
@@ -494,11 +494,9 @@ export async function createNewArtworkSubmissionHandler(
 /**
  * GET /api/submissions - List submissions with filtering
  */
-export async function listSubmissions(
-  c: Context<{ Bindings: WorkerEnv }>
-): Promise<Response> {
+export async function listSubmissions(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const userToken = getUserToken(c);
-  
+
   try {
     // Check permissions
     const canReview = await hasPermission(c.env.DB, userToken, 'submissions.view');
@@ -512,7 +510,11 @@ export async function listSubmissions(
 
     // Parse query parameters
     const status = c.req.query('status') as 'pending' | 'approved' | 'rejected' | undefined;
-    const submissionType = c.req.query('type') as 'logbook_entry' | 'artwork_edit' | 'new_artwork' | undefined;
+    const submissionType = c.req.query('type') as
+      | 'logbook_entry'
+      | 'artwork_edit'
+      | 'new_artwork'
+      | undefined;
     const limit = parseInt(c.req.query('limit') || '50');
     const offset = parseInt(c.req.query('offset') || '0');
 
@@ -525,28 +527,26 @@ export async function listSubmissions(
       offset
     );
 
-    return c.json(createSuccessResponse({
-      submissions,
-      pagination: {
-        limit,
-        offset,
-        total: submissions.length
-      }
-    }));
-
+    return c.json(
+      createSuccessResponse({
+        submissions,
+        pagination: {
+          limit,
+          offset,
+          total: submissions.length,
+        },
+      })
+    );
   } catch (error) {
     console.error('Error listing submissions:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to list submissions',
-      'SUBMISSION_LIST_FAILED',
-      500,
-      { details: { error: error instanceof Error ? error.message : 'Unknown error' } }
-    );
+
+    throw new ApiError('Failed to list submissions', 'SUBMISSION_LIST_FAILED', 500, {
+      details: { error: error instanceof Error ? error.message : 'Unknown error' },
+    });
   }
 }
 
@@ -558,7 +558,7 @@ export async function approveSubmissionHandler(
 ): Promise<Response> {
   const userToken = getUserToken(c);
   const submissionId = c.req.param('id');
-  const { review_notes } = await c.req.json() as { review_notes?: string };
+  const { review_notes } = (await c.req.json()) as { review_notes?: string };
 
   try {
     // Check permissions
@@ -572,19 +572,10 @@ export async function approveSubmissionHandler(
     }
 
     // Approve the submission
-    const success = await approveSubmission(
-      c.env.DB,
-      submissionId,
-      userToken,
-      review_notes
-    );
+    const success = await approveSubmission(c.env.DB, submissionId, userToken, review_notes);
 
     if (!success) {
-      throw new ApiError(
-        'Failed to approve submission',
-        'APPROVAL_FAILED',
-        500
-      );
+      throw new ApiError('Failed to approve submission', 'APPROVAL_FAILED', 500);
     }
 
     // Audit log
@@ -595,28 +586,26 @@ export async function approveSubmissionHandler(
       userToken,
       metadata: {
         review_notes,
-        approved_at: new Date().toISOString()
-      }
+        approved_at: new Date().toISOString(),
+      },
     });
 
-    return c.json(createSuccessResponse({
-      message: 'Submission approved successfully',
-      submission_id: submissionId
-    }));
-
+    return c.json(
+      createSuccessResponse({
+        message: 'Submission approved successfully',
+        submission_id: submissionId,
+      })
+    );
   } catch (error) {
     console.error('Error approving submission:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to approve submission',
-      'APPROVAL_FAILED',
-      500,
-      { details: { error: error instanceof Error ? error.message : 'Unknown error' } }
-    );
+
+    throw new ApiError('Failed to approve submission', 'APPROVAL_FAILED', 500, {
+      details: { error: error instanceof Error ? error.message : 'Unknown error' },
+    });
   }
 }
 
@@ -628,7 +617,7 @@ export async function rejectSubmissionHandler(
 ): Promise<Response> {
   const userToken = getUserToken(c);
   const submissionId = c.req.param('id');
-  const { review_notes } = await c.req.json() as { review_notes?: string };
+  const { review_notes } = (await c.req.json()) as { review_notes?: string };
 
   try {
     // Check permissions
@@ -642,19 +631,10 @@ export async function rejectSubmissionHandler(
     }
 
     // Reject the submission
-    const success = await rejectSubmission(
-      c.env.DB,
-      submissionId,
-      userToken,
-      review_notes
-    );
+    const success = await rejectSubmission(c.env.DB, submissionId, userToken, review_notes);
 
     if (!success) {
-      throw new ApiError(
-        'Failed to reject submission',
-        'REJECTION_FAILED',
-        500
-      );
+      throw new ApiError('Failed to reject submission', 'REJECTION_FAILED', 500);
     }
 
     // Audit log
@@ -665,28 +645,26 @@ export async function rejectSubmissionHandler(
       userToken,
       metadata: {
         review_notes,
-        rejected_at: new Date().toISOString()
-      }
+        rejected_at: new Date().toISOString(),
+      },
     });
 
-    return c.json(createSuccessResponse({
-      message: 'Submission rejected successfully',
-      submission_id: submissionId
-    }));
-
+    return c.json(
+      createSuccessResponse({
+        message: 'Submission rejected successfully',
+        submission_id: submissionId,
+      })
+    );
   } catch (error) {
     console.error('Error rejecting submission:', error);
-    
+
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    throw new ApiError(
-      'Failed to reject submission',
-      'REJECTION_FAILED',
-      500,
-      { details: { error: error instanceof Error ? error.message : 'Unknown error' } }
-    );
+
+    throw new ApiError('Failed to reject submission', 'REJECTION_FAILED', 500, {
+      details: { error: error instanceof Error ? error.message : 'Unknown error' },
+    });
   }
 }
 
@@ -699,11 +677,13 @@ async function findNearbyArtworks(
   lat: number,
   lon: number,
   radiusMeters: number = 500
-): Promise<Array<{id: string, title: string, lat: number, lon: number, distance_km: number}>> {
+): Promise<Array<{ id: string; title: string; lat: number; lon: number; distance_km: number }>> {
   const latDelta = radiusMeters / 111320;
-  const lonDelta = radiusMeters / (111320 * Math.cos(lat * Math.PI / 180));
+  const lonDelta = radiusMeters / (111320 * Math.cos((lat * Math.PI) / 180));
 
-  const results = await db.prepare(`
+  const results = await db
+    .prepare(
+      `
     SELECT id, title, lat, lon,
            (6371 * acos(cos(radians(?)) * cos(radians(lat)) * 
            cos(radians(lon) - radians(?)) + sin(radians(?)) * sin(radians(lat)))) as distance_km
@@ -714,12 +694,19 @@ async function findNearbyArtworks(
     HAVING distance_km <= ?
     ORDER BY distance_km
     LIMIT 10
-  `).bind(
-    lat, lon, lat,
-    lat - latDelta, lat + latDelta,
-    lon - lonDelta, lon + lonDelta,
-    radiusMeters / 1000
-  ).all<{id: string, title: string, lat: number, lon: number, distance_km: number}>();
+  `
+    )
+    .bind(
+      lat,
+      lon,
+      lat,
+      lat - latDelta,
+      lat + latDelta,
+      lon - lonDelta,
+      lon + lonDelta,
+      radiusMeters / 1000
+    )
+    .all<{ id: string; title: string; lat: number; lon: number; distance_km: number }>();
 
   return results.results || [];
 }

@@ -4,7 +4,7 @@ This document describes the Notifications UI and testing guidance.
 
 ## Header mark-all behavior
 
-- The notification popup (accessed via the bell in the header) now exposes a "Mark all as read" button in the header when there are unread notifications.  
+- The notification popup (accessed via the bell in the header) now exposes a "Mark all as read" button in the header when there are unread notifications.
 - The list in the popup is sorted with unread notifications at the top, then by newest first. The panel shows up to 10 notifications for quick access.
 
 Clicking the header "Mark all as read" calls the frontend store action which in turn marks each in-memory unread notification as read. The backend currently does not provide a bulk API, so the store calls the per-notification mark-read endpoint in a best-effort loop.
@@ -15,7 +15,7 @@ Clicking the header "Mark all as read" calls the frontend store action which in 
 
 ## Notes for developers
 
-- The popup component is `src/frontend/src/components/NotificationPanel.vue` and is wrapped by `NotificationIcon.vue` in the header.  
+- The popup component is `src/frontend/src/components/NotificationPanel.vue` and is wrapped by `NotificationIcon.vue` in the header.
 - The store is `src/frontend/src/stores/notifications.ts` and provides `markAllRead()` and `markNotificationRead()` functions.
 
 ## Testing

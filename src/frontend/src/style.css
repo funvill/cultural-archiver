@@ -112,4 +112,58 @@
   .glass {
     @apply bg-white/10 backdrop-blur-md border border-white/20;
   }
+
+  /* Material-like CSS variables and global FAB styles */
+  :root {
+    --md-primary: #1e88e5; /* blue 600 */
+    --md-on-primary: #ffffff;
+    --appbar-height: 64px;
+    /* Compute FAB so 30% of it overlaps below the 64px header when top:0 */
+    --fab-size: 92px;
+  }
+
+  /* Floating Action Button base styles (global fallback for non-tailwind contexts) */
+  .fab {
+    width: var(--fab-size);
+    height: var(--fab-size);
+    border-radius: 9999px;
+    background-color: var(--md-primary);
+    color: var(--md-on-primary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow:
+      0 6px 10px rgba(16, 24, 40, 0.12),
+      0 1px 4px rgba(16, 24, 40, 0.08);
+    transition:
+      box-shadow 160ms ease,
+      transform 120ms ease;
+    border: none;
+    cursor: pointer;
+  }
+
+  .fab:hover,
+  .fab:focus {
+    box-shadow:
+      0 14px 30px rgba(16, 24, 40, 0.22),
+      0 6px 12px rgba(16, 24, 40, 0.14);
+    transform: translateX(-50%) translateY(-4px) scale(1.03);
+    outline: none;
+  }
+
+  .fab:active {
+    transform: translateX(-50%) translateY(0) scale(0.99);
+    box-shadow:
+      0 4px 8px rgba(16, 24, 40, 0.12),
+      0 1px 4px rgba(16, 24, 40, 0.08);
+  }
+
+  /* Visible focus ring for keyboard users */
+  .fab:focus-visible {
+    box-shadow:
+      0 14px 30px rgba(16, 24, 40, 0.22),
+      0 6px 12px rgba(16, 24, 40, 0.14),
+      0 0 0 4px rgba(30, 136, 229, 0.18);
+    transform: translateX(-50%) translateY(-4px) scale(1.03);
+  }
 }

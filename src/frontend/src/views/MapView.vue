@@ -15,7 +15,7 @@ const artworks = computed(() => {
   const storeArtworks = artworksStore.artworks;
   console.log('[MARKER DEBUG] MapView artworks computed property triggered:', {
     storeArtworksLength: storeArtworks.length,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
   return storeArtworks;
 });
@@ -44,7 +44,11 @@ onMounted(() => {
     const saved = localStorage.getItem('map:lastState');
     if (saved) {
       const parsed = JSON.parse(saved) as { center: Coordinates; zoom: number };
-      if (parsed?.center?.latitude && parsed?.center?.longitude && typeof parsed.zoom === 'number') {
+      if (
+        parsed?.center?.latitude &&
+        parsed?.center?.longitude &&
+        typeof parsed.zoom === 'number'
+      ) {
         // Set store first so MapComponent receives the props at initial render
         artworksStore.setMapCenter(parsed.center);
         artworksStore.setMapZoom(parsed.zoom);

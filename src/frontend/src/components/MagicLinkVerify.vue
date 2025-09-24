@@ -122,8 +122,8 @@ function redirectToHome(): void {
   router.push('/');
 }
 
-function redirectToSubmit(): void {
-  router.push('/submit');
+function redirectToAdd(): void {
+  router.push('/add');
 }
 </script>
 
@@ -224,7 +224,7 @@ function redirectToSubmit(): void {
               <button
                 type="button"
                 class="flex-1 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-                @click="redirectToSubmit"
+                @click="redirectToAdd"
               >
                 Submit Artwork
               </button>

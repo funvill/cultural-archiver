@@ -8,7 +8,7 @@ These are small changes that I did inline.
 
 - ✅ FIXED - The GitHub Actions workflow had issues with vitest dependency installation. Fixed by:
   - Updated Node.js version from 23.x to 22.x (more stable)
-  - Fixed cache placement to occur before dependency installation  
+  - Fixed cache placement to occur before dependency installation
   - Updated cache action from v3 to v4
   - Simplified workspace dependency installation using npm workspaces correctly
   - Verified that vitest is properly installed in both frontend and workers workspaces
@@ -50,20 +50,18 @@ Artwork Not Found
 Artwork with ID "2d74d47e-af12-45bb-b1a2-295a17839c4d" was not found. It may have been removed or is pending approval.
 ```
 
-- [X] Reorder the artwork submission page . All the information and then gets consent for submitting it. If they don't give consent then don't actually submit the documents to the website. The consent variable needs to be added to the logbook so we know what version of each consent checkbox they accept agreed to.
+- [x] Reorder the artwork submission page . All the information and then gets consent for submitting it. If they don't give consent then don't actually submit the documents to the website. The consent variable needs to be added to the logbook so we know what version of each consent checkbox they accept agreed to.
 
-----
+---
 
 Update the add artwork workflow
 
-  1) Customer uploads a photo first
-  2) The system uses the photo's GPS, and the browsers GPS, and if all else fails, the IP address IP Address to find a list of artworks that are near by. This is shown as a search results page.
-  3) The user can either
-    3A) "Add new artwork" - The user reviews the close by artworks and determins that this is a new artwork.
-    3B) The user clicks one of the existing artworks to add the logbook entry to the existing artwork.
-  4) After they fill in the addtional information. They are asked for consent to use this inforamtion then its submitted to the website.
+1. Customer uploads a photo first
+2. The system uses the photo's GPS, and the browsers GPS, and if all else fails, the IP address IP Address to find a list of artworks that are near by. This is shown as a search results page.
+3. The user can either 3A) "Add new artwork" - The user reviews the close by artworks and determins that this is a new artwork. 3B) The user clicks one of the existing artworks to add the logbook entry to the existing artwork.
+4. After they fill in the addtional information. They are asked for consent to use this inforamtion then its submitted to the website.
 
-----
+---
 
 - [x] The "Change location". Should pop up a model dialog with a map, and a pin in the center. The user drags around the map until the pin in the center is in the right location. Then the customer clicks "update location" to save the location.
 - On the "Add new artwork page"
@@ -77,17 +75,13 @@ Update the add artwork workflow
   - [x] The "Change location" link does not do anything
 - [x] After submitting new artwork, Disable the submit button. Then redirect to the map page.
 
-----
+---
 
-Consent checkboxes
-There are several things we need to check before the user can submit a new artwork for us to use. License, are they above 18, do they have the right to give us the photo, etc...
+Consent checkboxes There are several things we need to check before the user can submit a new artwork for us to use. License, are they above 18, do they have the right to give us the photo, etc...
 
-Add the consent checkboxes above the submit button.
-The customer must agree to all the consent terms of service before they can submit the new artwork. Each one should have its own checkbox.
-Add a button to "Check and agree to all" that automaticly checks all the consent checkboxes. Part of the submission should include the versions of the different consents that they agreed to for our recoreds.
+Add the consent checkboxes above the submit button. The customer must agree to all the consent terms of service before they can submit the new artwork. Each one should have its own checkbox. Add a button to "Check and agree to all" that automaticly checks all the consent checkboxes. Part of the submission should include the versions of the different consents that they agreed to for our recoreds.
 
-Update the consent checklist.
-First one should be "CC0 Public Domain Dedication". Update the note about this license to include mention of
+Update the consent checklist. First one should be "CC0 Public Domain Dedication". Update the note about this license to include mention of
 
 - Text, images, and metadata they submit.
 - Confirmation they own the copyright or have the right to release it under CC0.
@@ -141,7 +135,7 @@ The admin page is a super user that can give moderators permissions to other use
 - [x] All of the users on the admin index page have "Unknown Email", including "6c970b24-f64a-49d9-8c5f-8ae23cc2af47" user that i know has a email address.
 - [x] The search always returns all of the results, regarless of what I search for
 
-----
+---
 
 [x] When I click the link in the header for "admin", I get the following error
 
@@ -183,14 +177,11 @@ Do an audit and list any other user type.
 
 Goal:
 
-1) Export
-I should be able to run `npm run database:export` in the root project directory and it will create an export of the current production database in the `_backup_database/database_YYYY-MMM-DD.sql`
+1. Export I should be able to run `npm run database:export` in the root project directory and it will create an export of the current production database in the `_backup_database/database_YYYY-MMM-DD.sql`
 
-2) Migrate
-I should be able to run `npm run database:migration` in the root project directory and it will use "wrangler" to migrate the production database to the new version using the migrations created by `wrangler migrations create`. The migration files are stored in a `migration` folder either in the root project directory or the `src\workers\migration` folder.
+2. Migrate I should be able to run `npm run database:migration` in the root project directory and it will use "wrangler" to migrate the production database to the new version using the migrations created by `wrangler migrations create`. The migration files are stored in a `migration` folder either in the root project directory or the `src\workers\migration` folder.
 
-3) Import
-I should be able to run `npm run database:import file.sql` in the root project directory. The system will ask me if I am sure and tell me that this is a destructive process. Then it will. A) clear the old database, B) Import a new database `file.sql`.
+3. Import I should be able to run `npm run database:import file.sql` in the root project directory. The system will ask me if I am sure and tell me that this is a destructive process. Then it will. A) clear the old database, B) Import a new database `file.sql`.
 
 Notes:
 
@@ -244,11 +235,7 @@ This is a recored in the Open Data Vancouver data set.
       "mimetype": "image/jpeg",
       "id": "25a422b0cc36381e0c0ab681d38f602d",
       "last_synchronized": "2025-06-09T13:32:37.304150",
-      "color_summary": [
-        "rgba(77, 96, 90, 1.00)",
-        "rgba(118, 120, 100, 1.00)",
-        "rgba(172, 148, 118, 1.00)"
-      ],
+      "color_summary": ["rgba(77, 96, 90, 1.00)", "rgba(118, 120, 100, 1.00)", "rgba(172, 148, 118, 1.00)"],
       "height": 256,
       "url": "https://opendata.vancouver.ca/api/explore/v2.1/catalog/datasets/public-art/files/25a422b0cc36381e0c0ab681d38f602d"
     },
@@ -273,7 +260,7 @@ This is a recored in the Open Data Vancouver data set.
       "lat": 49.293313
     }
   }
-]  
+]
 ```
 
 The title in the open data recored is "title_of_work" and we want to link it to the artwork's title field.
@@ -283,8 +270,8 @@ The title in the open data recored is "title_of_work" and we want to link it to 
 Some fields we want to append strings and multiple fields from the open data to the artwork fileds.
 
 ```txt
-"## Description of work\n": + $.descriptionofwork += artwork.description ; 
-"## Artist Project Statement\n": + $.artistprojectstatement += artwork.description ; 
+"## Description of work\n": + $.descriptionofwork += artwork.description ;
+"## Artist Project Statement\n": + $.artistprojectstatement += artwork.description ;
 "Site Address: " + $.artistprojectstatement += artwork.description ;
 ```
 
@@ -295,8 +282,6 @@ $.type = artwork.tags("tag:artwork_type");
 $.url = artwork.tags("tag:website");
 $.yearofinstallation = artwork.tags("tag:start_date");
 ```
-
-
 
 ## Vancouver import
 
@@ -312,68 +297,54 @@ For example: artwork.value.title = $.title_of_work
 
 The description should summerize all of the other fields in the import file recored.
 
-For example:
-artwork.description = "## Description Of Work\n" + $.descriptionofwork + "\n\n";
-artwork.description += "## Artist statment\n" + $.artistprojectstatement + "\n\n";
-artwork.description += "registryid:\n" + $.registryid + "\n";
-artwork.description += "status:\n" + $.status + "\n";
-artwork.description += "sitename:\n" + $.sitename + "\n";
-artwork.description += "siteaddress:\n" + $.siteaddress + "\n";
-artwork.description += "primarymaterial:\n" + $.primarymaterial + "\n";
-artwork.description += "locationonsite:\n" + $.locationonsite + "\n";
-artwork.description += "artists:\n" + $.artists + "\n";
-artwork.description += "yearofinstallation:\n" + $.yearofinstallation + "\n";
+For example: artwork.description = "## Description Of Work\n" + $.descriptionofwork + "\n\n"; artwork.description += "## Artist statment\n" + $.artistprojectstatement + "\n\n"; artwork.description += "registryid:\n" + $.registryid + "\n"; artwork.description += "status:\n" + $.status + "\n"; artwork.description += "sitename:\n" + $.sitename + "\n"; artwork.description += "siteaddress:\n" + $.siteaddress + "\n"; artwork.description += "primarymaterial:\n" + $.primarymaterial + "\n"; artwork.description += "locationonsite:\n" + $.locationonsite + "\n"; artwork.description += "artists:\n" + $.artists + "\n"; artwork.description += "yearofinstallation:\n" + $.yearofinstallation + "\n";
 
 ```json
 {
-    "registryid": 27,
-    "title_of_work": "Solo",
-    "artistprojectstatement": "\"McHaffie says she means to show movement, but not flight. 'My perception of the world is that very little of it is stable,' she says.\" -Vancouver Sun, July 19,1986                                             The sculpture was installed as one of ten pieces in the City Shapes sculpture symposium in the City's centennial year.",
-    "type": "Sculpture",
-    "status": "In place",
-    "sitename": "Devonian Harbour Park",
-    "siteaddress": "Denman & Georgia Street",
-    "primarymaterial": "Stainless steel, cedar",
-    "url": "https://covapp.vancouver.ca/PublicArtRegistry/ArtworkDetail.aspx?ArtworkId=27",
-    "photourl": {
-      "exif_orientation": 1,
-      "thumbnail": true,
-      "filename": "LAW27-1.jpg",
-      "width": 350,
-      "format": "JPEG",
-      "etag": "\"apIttAiZOiONsoTSEogiJg==\"",
-      "mimetype": "image/jpeg",
-      "id": "25a422b0cc36381e0c0ab681d38f602d",
-      "last_synchronized": "2025-06-09T13:32:37.304150",
-      "color_summary": [
-        "rgba(77, 96, 90, 1.00)",
-        "rgba(118, 120, 100, 1.00)",
-        "rgba(172, 148, 118, 1.00)"
-      ],
-      "height": 256,
-      "url": "https://opendata.vancouver.ca/api/explore/v2.1/catalog/datasets/public-art/files/25a422b0cc36381e0c0ab681d38f602d"
+  "registryid": 27,
+  "title_of_work": "Solo",
+  "artistprojectstatement": "\"McHaffie says she means to show movement, but not flight. 'My perception of the world is that very little of it is stable,' she says.\" -Vancouver Sun, July 19,1986                                             The sculpture was installed as one of ten pieces in the City Shapes sculpture symposium in the City's centennial year.",
+  "type": "Sculpture",
+  "status": "In place",
+  "sitename": "Devonian Harbour Park",
+  "siteaddress": "Denman & Georgia Street",
+  "primarymaterial": "Stainless steel, cedar",
+  "url": "https://covapp.vancouver.ca/PublicArtRegistry/ArtworkDetail.aspx?ArtworkId=27",
+  "photourl": {
+    "exif_orientation": 1,
+    "thumbnail": true,
+    "filename": "LAW27-1.jpg",
+    "width": 350,
+    "format": "JPEG",
+    "etag": "\"apIttAiZOiONsoTSEogiJg==\"",
+    "mimetype": "image/jpeg",
+    "id": "25a422b0cc36381e0c0ab681d38f602d",
+    "last_synchronized": "2025-06-09T13:32:37.304150",
+    "color_summary": ["rgba(77, 96, 90, 1.00)", "rgba(118, 120, 100, 1.00)", "rgba(172, 148, 118, 1.00)"],
+    "height": 256,
+    "url": "https://opendata.vancouver.ca/api/explore/v2.1/catalog/datasets/public-art/files/25a422b0cc36381e0c0ab681d38f602d"
+  },
+  "ownership": "City of Vancouver",
+  "neighbourhood": "Downtown",
+  "locationonsite": "Lawn along Georgia Street",
+  "geom": {
+    "type": "Feature",
+    "geometry": {
+      "coordinates": [-123.133965, 49.293313],
+      "type": "Point"
     },
-    "ownership": "City of Vancouver",
-    "neighbourhood": "Downtown",
-    "locationonsite": "Lawn along Georgia Street",
-    "geom": {
-      "type": "Feature",
-      "geometry": {
-        "coordinates": [-123.133965, 49.293313],
-        "type": "Point"
-      },
-      "properties": {}
-    },
-    "geo_local_area": "Downtown",
-    "descriptionofwork": "An abstract sculpture of stainless steel with carved cedar planks that fan out in a spiral.",
-    "artists": ["103"],
-    "photocredits": "SITE Photography, 2016",
-    "yearofinstallation": "1986",
-    "geo_point_2d": {
-      "lon": -123.133965,
-      "lat": 49.293313
-    }
+    "properties": {}
+  },
+  "geo_local_area": "Downtown",
+  "descriptionofwork": "An abstract sculpture of stainless steel with carved cedar planks that fan out in a spiral.",
+  "artists": ["103"],
+  "photocredits": "SITE Photography, 2016",
+  "yearofinstallation": "1986",
+  "geo_point_2d": {
+    "lon": -123.133965,
+    "lat": 49.293313
   }
+}
 ```
 
 ## Mass import artwork with unknonw tags
@@ -435,15 +406,15 @@ POST https://art-api.abluestar.com/api/artwork/REDACTED/edit - Ok @ 2025-09-09, 
     start_date: { isValid: true, errors: [], warnings: [] },
     operator: { isValid: false, errors: [Array], warnings: [] },
     location: { isValid: false, errors: [Array], warnings: [] },
-    neighbourhood: { isValid: false, errors: [Array], warnings: [] },     
+    neighbourhood: { isValid: false, errors: [Array], warnings: [] },
     source: { isValid: false, errors: [Array], warnings: [] },
     condition: { isValid: true, errors: [], warnings: [] },
     addr_full: { isValid: false, errors: [Array], warnings: [] },
-    source_url: { isValid: false, errors: [Array], warnings: [] },        
-    external_id: { isValid: false, errors: [Array], warnings: [] },       
+    source_url: { isValid: false, errors: [Array], warnings: [] },
+    external_id: { isValid: false, errors: [Array], warnings: [] },
     license: { isValid: false, errors: [Array], warnings: [] },
-    import_date: { isValid: false, errors: [Array], warnings: [] },       
-    import_method: { isValid: false, errors: [Array], warnings: [] }      
+    import_date: { isValid: false, errors: [Array], warnings: [] },
+    import_method: { isValid: false, errors: [Array], warnings: [] }
   }
 }
   (log) [TAG VALIDATION DEBUG] Validation summary: {
@@ -483,14 +454,14 @@ POST https://art-api.abluestar.com/api/artwork/REDACTED/edit - Ok @ 2025-09-09, 
   errors: [
     { key: 'operator', message: 'Unknown tag: operator' },
     { key: 'location', message: 'Unknown tag: location' },
-    { key: 'neighbourhood', message: 'Unknown tag: neighbourhood' },      
+    { key: 'neighbourhood', message: 'Unknown tag: neighbourhood' },
     { key: 'source', message: 'Unknown tag: source' },
     { key: 'addr_full', message: 'Unknown tag: addr_full' },
     { key: 'source_url', message: 'Unknown tag: source_url' },
     { key: 'external_id', message: 'Unknown tag: external_id' },
     { key: 'license', message: 'Unknown tag: license' },
     { key: 'import_date', message: 'Unknown tag: import_date' },
-    { key: 'import_method', message: 'Unknown tag: import_method' }       
+    { key: 'import_method', message: 'Unknown tag: import_method' }
   ]
 }
   (error) Unexpected error in route handler: Error: Invalid tags format: Tag validation failed: Unknown tag: operator, Unknown tag: location, Unknown tag: neighbourhood, Unknown tag: source, Unknown tag: addr_full, Unknown tag: source_url, Unknown tag: external_id, Unknown tag: license, Unknown tag: import_date, Unknown tag: import_method
@@ -512,9 +483,9 @@ POST https://art-api.abluestar.com/api/artwork/REDACTED/edit - Ok @ 2025-09-09, 
   method: 'POST'
 }
   (log) --> POST /api/artwork/5563cf05-90cd-4b1e-9a02-60535b7dac39/edit 500 59ms
-  ```
+```
 
-----
+---
 
 ## Vancouver Mass Import
 
@@ -528,14 +499,14 @@ Example: `[{photourl: {"url": "https://opendata.vancouver.ca/api/explore/v2.1/ca
 
 The mass import should use a special endpoint that suits its needs. replace src\workers\routes\mass-import-photos.ts with a special endpoint specifically for mass import that handles both the images, and the creation of the artwork and the logbooks.
 
-----
+---
 
-While I am testing, I am reseting the production database between tests of the mass-import. using `npm run database:reset:prod`. This script should reset the production database and remove all the data but it shouldn't remove the tables or the schema. But I am finding that I need to migrate the database after each database reset. 
+While I am testing, I am reseting the production database between tests of the mass-import. using `npm run database:reset:prod`. This script should reset the production database and remove all the data but it shouldn't remove the tables or the schema. But I am finding that I need to migrate the database after each database reset.
 
 Review the `database:reset:prod` script with the migration steps in mind. specifically `0009_add_consent_version_tracking.sql`
 
-----
-  
+---
+
 Mass import UUID error
 
 The mass import seems to be generating its own IDs for the artwork, and logbook tables (maybe other tables) instead of using a UUID. This means that the artwork pages urls are `https://art.abluestar.com/artwork/artwork-1757533783575-sz2ucn1` instead of the expected `https://art.abluestar.com/artwork/79e3ab63-2d75-401e-98f8-9c3aa6d001f7`. Because the frontend is expecting UUIDs instead of keywords for the id, the front end is showing the following error "Artwork Not Found - Invalid artwork ID format. Please check the URL and try again."
@@ -544,7 +515,7 @@ The mass import seems to be generating its own IDs for the artwork, and logbook 
 
 The mass import is setting the creator of the artwork as a UUID of the user that is submitting the artwork. `00000000-0000-0000-0000-000000000002`... When it should be using the data sets artist ID.
 
-But better then using the Artist ID would be to use the Artist's name. 
+But better then using the Artist ID would be to use the Artist's name.
 
 The artist ID can be looked up in this file `tasks\public-art-artists.json` or on this page https://opendata.vancouver.ca/explore/dataset/public-art-artists/information/
 
@@ -562,12 +533,7 @@ The check should happen in the mass-import endpoint. Where it rejects (with a go
 
 Use a scoring system to determin if two artworks are the same, then have a threashold that if an artwork is above that threashold it marks it as duplicate.
 
-For example:
-If the title is the same +0.2,
-If the artist is the same +0.2,
-If the location is the same +0.3
-For each tag that is the same +0.05
-etc...
+For example: If the title is the same +0.2, If the artist is the same +0.2, If the location is the same +0.3 For each tag that is the same +0.05 etc...
 
 Then set the threashold to 0.7
 
@@ -575,14 +541,11 @@ The report should list the existing artwork url, a confadence score that its the
 
 ## Artist page
 
-  Executive Summary
+Executive Summary
 
-  Create dedicated artist profile pages that showcase artist information and their
-  artworks, enhancing discoverability and providing comprehensive artist
-  documentation within the Cultural Archiver platform.
+Create dedicated artist profile pages that showcase artist information and their artworks, enhancing discoverability and providing comprehensive artist documentation within the Cultural Archiver platform.
 
-Create a artist page type
-The goal of this page is to tell people about the artist and list their artworks. A prime goal is to show other works by this artist.
+Create a artist page type The goal of this page is to tell people about the artist and list their artworks. A prime goal is to show other works by this artist.
 
 An artist can have many artworks, An artwork can have many artists, An artist can have many tags.
 
@@ -600,20 +563,15 @@ Notes:
 - Don't use the existing creators tables or systems.
 - The URL for the artist page is /artist/{UUID}
 
-
-----
+---
 
 - [x] In src\lib\mass-import\osm-report-1757618334783.json all of the "title" in the "duplicate_records" are "Unknown" instead of the properties.name from the OSM import.
 
-
-
 - [x] Add tag "city", "province/state", and "country" to the "Physical Properties" tag catagory.
 
-----
+---
 
-
-artwork.consent_version
-In table artwork the consent_version field doesn't need to be part of the artwork table. Instead create a new table (consent) to recored all the consent for content from users.
+artwork.consent_version In table artwork the consent_version field doesn't need to be part of the artwork table. Instead create a new table (consent) to recored all the consent for content from users.
 
 The table strucutre could look like thi
 
@@ -628,19 +586,15 @@ The goal is clean up the artwork table. Any content that is provided by the user
 
 Do the same thing for artwork, logbook tables.
 
-----
+---
 
-artwork.type_id
-In the artwork table, the type_id does not need to be part of this table.
-Instead use the tag:artwork_type for the artwork type.
-Then we can drop the artwork_types table.
+artwork.type_id In the artwork table, the type_id does not need to be part of this table. Instead use the tag:artwork_type for the artwork type. Then we can drop the artwork_types table.
 
 The tag:artwork_type should default to "unknow"
 
 The advantage of using the tag:artwork_type is that it can be updated by the users from the normal tag editing.
 
-----
-
+---
 
 ## Index page
 
@@ -657,27 +611,17 @@ Both of these pages use cards and show 30 cards per page. Use ppagination contro
 
 Have a search bar at the top that leads to the search page
 
------
-
+---
 
 There are some standard tags and tag catagories. We want to convert some of the tags from the vancouver-public-art import to these standard tags.
 
-The output is what is sent to the server.
-The imput is what is in the data source.
+The output is what is sent to the server. The imput is what is in the data source.
 
-output.artwork_type = input.content_type
-output.materials = input.primarymaterials
-output.installtion_date = input.yearofinstalltion
-output.website = input.url
+output.artwork_type = input.content_type output.materials = input.primarymaterials output.installtion_date = input.yearofinstalltion output.website = input.url
 
-if input.status=="No longer in place" then output.condition="removed"
-if input.status=="In place" then output.condition="good"
-if input.status=="In progress" then output.condition="unknown"
-if input.status=="Deaccessioned" then output.condition="removed"
+if input.status=="No longer in place" then output.condition="removed" if input.status=="In place" then output.condition="good" if input.status=="In progress" then output.condition="unknown" if input.status=="Deaccessioned" then output.condition="removed"
 
-
------
-
+---
 
 Update the flow of the Fast-Add
 
@@ -687,7 +631,7 @@ If the search page doesn't show any results, and the photo has a GPS location, t
 
 In other words, someone clicks the "add" button in the app header, and uploads a photo, they could be sent directly to the "Add new Artwork" page if the photo has GPS location, and there are no other artworks nearby.
 
------
+---
 
 There seems to be a problem with browsing away form the map then going back to the map and the markers disapearing.
 
@@ -698,6 +642,7 @@ Steps to reproduce
 3. Press "Back" in the browser. The map is shown but there are no markers on the map at the center of the map. As I pan around, i can see other markers loading in but not where the map orginated at.
 
 Here is the browser console log
+
 ```
 piClient.get] API Base URL: https://art-api.abluestar.com/api endpoint: /artworks/nearby params: Object
 api.ts:179 [ApiClient.request] Constructing URL: Object
@@ -748,10 +693,7 @@ MapView.vue:24 Map moved to: Object zoom: 14
 
 I didn't see any errors in the console log
 
-
-
------------
-
+---
 
 Add logbook submission
 
@@ -773,18 +715,15 @@ The "Consent & Legal Requirements" should be the same compoent as the "Add New A
 
 This logbook submission are submitted to the submissions table.
 
-
-----
+---
 
 User profile page
 
-Update the user table to have a "Profile Name" field.
-The user can edit their profile name on their profile page. Their profile name must be unique across the system. Only Allow a-Z0-9 and "-", must not start or end with "-". Also have banned names that sound like system admins, etc.. For Example: Admin, moderator, boss, mod, etc...
+Update the user table to have a "Profile Name" field. The user can edit their profile name on their profile page. Their profile name must be unique across the system. Only Allow a-Z0-9 and "-", must not start or end with "-". Also have banned names that sound like system admins, etc.. For Example: Admin, moderator, boss, mod, etc...
 
 Users should be able to earn "Badges" for compleating tasks. There are lots of different badges. These badges are given out when the user achives a certin goal. For example, If a user submits 10 'mural' logbook entries, they get a "Mural Explorer Level 1" badge. The user gets another badge for level 2 at 25 mural logbook entries, etc...
 
-
-----
+---
 
 When clicking the the "Add" button in the appshell for the 2nd time. it should overwrite the existing image with this new image. As if you are starting the whole process over again.
 

@@ -1,9 +1,9 @@
 /**
  * Database Service Patch - New Schema Compatibility
- * 
+ *
  * This provides replacement functions for the database service that use
  * the new submissions table instead of the legacy logbook table.
- * 
+ *
  * IMPORTANT: This is a compatibility layer - the full database service
  * will be replaced in a future update.
  */
@@ -24,7 +24,7 @@ export async function getLogbookEntriesForArtworkFromSubmissions(
 ): Promise<LogbookRecord[]> {
   // Get submissions that are logbook entries for this artwork
   const submissions = await getSubmissionLogbookEntries(db, artworkId, 'approved', limit, offset);
-  
+
   // Convert submissions to LogbookRecord format for compatibility
   return submissions.map(submission => {
     const logbookRecord: LogbookRecord = {
@@ -33,12 +33,12 @@ export async function getLogbookEntriesForArtworkFromSubmissions(
       user_token: submission.user_token,
       lat: submission.lat || null,
       lon: submission.lon || null,
-       notes: submission.notes, // Fixed: Map from SubmissionRecord.notes to LogbookRecord.notes
+      notes: submission.notes, // Fixed: Map from SubmissionRecord.notes to LogbookRecord.notes
       // submission.photos is already stored as a JSON string in the submissions table.
       // Avoid double-stringifying here; preserve the original JSON string for compatibility.
       photos: submission.photos ? submission.photos : null,
       status: submission.status as 'pending' | 'approved' | 'rejected',
-      created_at: submission.created_at
+      created_at: submission.created_at,
     };
     return logbookRecord;
   });
@@ -54,7 +54,7 @@ export async function getAllLogbookEntriesForArtworkFromSubmissions(
 ): Promise<LogbookRecord[]> {
   // Get all approved submissions for this artwork (no limit)
   const submissions = await getSubmissionLogbookEntries(db, artworkId, 'approved', 1000, 0);
-  
+
   // Convert submissions to LogbookRecord format for compatibility
   return submissions.map(submission => {
     const logbookRecord: LogbookRecord = {
@@ -63,11 +63,11 @@ export async function getAllLogbookEntriesForArtworkFromSubmissions(
       user_token: submission.user_token,
       lat: submission.lat || null,
       lon: submission.lon || null,
-  notes: submission.notes, // Fixed: Map from SubmissionRecord.notes to LogbookRecord.notes
+      notes: submission.notes, // Fixed: Map from SubmissionRecord.notes to LogbookRecord.notes
       // Preserve the JSON string stored in submissions.photos; do not stringify again.
       photos: submission.photos ? submission.photos : null,
       status: submission.status as 'pending' | 'approved' | 'rejected',
-      created_at: submission.created_at
+      created_at: submission.created_at,
     };
     return logbookRecord;
   });

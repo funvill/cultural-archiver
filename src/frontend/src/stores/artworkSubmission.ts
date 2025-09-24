@@ -8,8 +8,8 @@ import { ref, computed } from 'vue';
 import { CONSENT_VERSION } from '../../../shared/consent';
 
 // Remove unused import
-// import type { 
-//   ArtworkWithPhotos 
+// import type {
+//   ArtworkWithPhotos
 // } from '../../../shared/types';
 
 export interface FastArtworkSubmissionResponse {
@@ -62,28 +62,28 @@ export interface SimilarityCandidate {
 export interface SubmissionState {
   // Step 1: Photo Upload
   photos: SubmissionPhoto[];
-  
+
   // Step 2: Location Resolution
   location: LocationData | null;
   locationLoading: boolean;
   locationError: string | null;
-  
+
   // Step 3: Nearby & Similarity
   nearbyArtworks: SimilarityCandidate[];
   similarityWarnings: SimilarityCandidate[];
   similarityLoading: boolean;
-  
+
   // Step 4: Artwork Selection
   selectedArtwork: string | null; // null = create new artwork
-  
+
   // Step 5: Artwork Details (for new artwork)
   title: string;
   tags: Record<string, string | number>;
   note: string;
-  
+
   // Step 6: Consent
   consentVersion: string;
-  
+
   // Submission State
   isSubmitting: boolean;
   submitError: string | null;
@@ -113,16 +113,18 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
   // Computed
   const hasPhotos = computed(() => state.value.photos.length > 0);
   const hasLocation = computed(() => state.value.location !== null);
-  const hasHighSimilarity = computed(() => 
+  const hasHighSimilarity = computed(() =>
     state.value.similarityWarnings.some(w => w.similarity_threshold === 'high')
   );
   const isNewArtwork = computed(() => state.value.selectedArtwork === null);
   const canSubmit = computed(() => {
-    return hasPhotos.value && 
-           hasLocation.value && 
-           !state.value.isSubmitting &&
-           (isNewArtwork.value ? state.value.title.trim().length > 0 : true) &&
-           state.value.consentVersion === CONSENT_VERSION;
+    return (
+      hasPhotos.value &&
+      hasLocation.value &&
+      !state.value.isSubmitting &&
+      (isNewArtwork.value ? state.value.title.trim().length > 0 : true) &&
+      state.value.consentVersion === CONSENT_VERSION
+    );
   });
 
   // Actions
@@ -135,9 +137,9 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
       file,
       url: URL.createObjectURL(file),
     }));
-    
+
     state.value.photos.push(...newPhotos);
-    
+
     // Try to extract location from first photo EXIF
     if (newPhotos.length > 0 && !state.value.location) {
       extractLocationFromPhotos(newPhotos);
@@ -175,7 +177,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
         //   });
         //   break;
         // }
-        
+
         // Placeholder - mark that we attempted EXIF extraction
         photo.exifData = { timestamp: new Date().toISOString() };
       } catch (error) {
@@ -190,7 +192,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
   function setLocation(location: LocationData) {
     state.value.location = location;
     state.value.locationError = null;
-    
+
     // Clear previous similarity results since location changed
     state.value.nearbyArtworks = [];
     state.value.similarityWarnings = [];
@@ -210,7 +212,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
 
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        position => {
           setLocation({
             lat: position.coords.latitude,
             lon: position.coords.longitude,
@@ -220,7 +222,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
           state.value.locationLoading = false;
           resolve();
         },
-        (error) => {
+        error => {
           let errorMessage = 'Failed to get location';
           switch (error.code) {
             case error.PERMISSION_DENIED:
@@ -233,7 +235,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
               errorMessage = 'Location request timed out';
               break;
           }
-          
+
           state.value.locationError = errorMessage;
           state.value.locationLoading = false;
           reject(new Error(errorMessage));
@@ -268,7 +270,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
     }
 
     state.value.similarityLoading = true;
-    
+
     try {
       // API call to check similarity
       const response = await fetch('/api/artworks/check-similarity', {
@@ -290,12 +292,13 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
       }
 
       const result = await response.json();
-      
+
       if (result.success) {
         state.value.nearbyArtworks = result.data.candidates || [];
-        state.value.similarityWarnings = result.data.candidates?.filter(
-          (c: SimilarityCandidate) => c.similarity_threshold === 'high'
-        ) || [];
+        state.value.similarityWarnings =
+          result.data.candidates?.filter(
+            (c: SimilarityCandidate) => c.similarity_threshold === 'high'
+          ) || [];
       } else {
         throw new Error(result.message || 'Similarity check failed');
       }
@@ -351,9 +354,9 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
 
     try {
       const formData = new FormData();
-      
+
       // Add photos
-      state.value.photos.forEach((photo) => {
+      state.value.photos.forEach(photo => {
         formData.append('photos', photo.file);
       });
 
@@ -389,7 +392,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
       }
 
       const result = await response.json();
-      
+
       if (result.success) {
         state.value.submissionResult = result.data;
         return result.data;
@@ -436,14 +439,14 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
   return {
     // State
     state: state.value,
-    
+
     // Computed
     hasPhotos,
     hasLocation,
     hasHighSimilarity,
     isNewArtwork,
     canSubmit,
-    
+
     // Actions
     addPhotos,
     removePhoto,

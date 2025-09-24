@@ -1,9 +1,9 @@
 /**
  * Notification Service
- * 
+ *
  * Handles notification creation, retrieval, and management for the generic notification system.
  * Supports badge notifications, admin messages, review updates, and system notifications.
- * 
+ *
  * Features:
  * - Create notifications with structured metadata
  * - List user notifications with pagination
@@ -15,13 +15,13 @@
 import { z } from 'zod';
 import { generateUUID } from '../../shared/constants.js';
 import type { D1Database } from '@cloudflare/workers-types';
-import type { 
-  NotificationRecord, 
-  NotificationResponse, 
+import type {
+  NotificationRecord,
+  NotificationResponse,
   CreateNotificationInput,
   NotificationListResponse,
   NotificationUnreadCountResponse,
-  NotificationActionResponse
+  NotificationActionResponse,
 } from '../../shared/types.js';
 
 // Zod validation schemas
@@ -60,7 +60,7 @@ export class NotificationService {
   async create(input: CreateNotificationInput): Promise<NotificationResponse> {
     // Validate input
     const validated = CreateNotificationSchema.parse(input);
-    
+
     const id = generateUUID();
     const created_at = new Date().toISOString();
     const metadata_json = validated.metadata ? JSON.stringify(validated.metadata) : null;
@@ -72,17 +72,19 @@ export class NotificationService {
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
     `);
 
-    await stmt.bind(
-      id,
-      validated.user_token,
-      validated.type,
-      validated.type_key ?? null,
-      validated.title,
-      validated.message ?? null,
-      metadata_json,
-      created_at,
-      validated.related_id ?? null
-    ).run();
+    await stmt
+      .bind(
+        id,
+        validated.user_token,
+        validated.type,
+        validated.type_key ?? null,
+        validated.title,
+        validated.message ?? null,
+        metadata_json,
+        created_at,
+        validated.related_id ?? null
+      )
+      .run();
 
     // Return the created notification
     return {
@@ -103,19 +105,19 @@ export class NotificationService {
    * List notifications for a user with pagination
    */
   async listForUser(
-    user_token: string, 
+    user_token: string,
     options: ListNotificationsOptions = {}
   ): Promise<NotificationListResponse> {
     // Validate user token
     z.string().uuid().parse(user_token);
-    
+
     // Validate and set defaults for options
     const validated = ListNotificationsOptionsSchema.parse(options);
 
-  // Build query with optional unread filter
-  let whereClause = 'WHERE user_token = ?';
-  const queryParams: Array<string | number | null> = [user_token];
-    
+    // Build query with optional unread filter
+    let whereClause = 'WHERE user_token = ?';
+    const queryParams: Array<string | number | null> = [user_token];
+
     if (validated.unread_only) {
       whereClause += ' AND is_dismissed = 0';
     }
@@ -135,11 +137,9 @@ export class NotificationService {
       LIMIT ? OFFSET ?
     `);
 
-    const result = await stmt.bind(
-      ...queryParams,
-      validated.limit,
-      validated.offset
-    ).all<NotificationRecord>();
+    const result = await stmt
+      .bind(...queryParams, validated.limit, validated.offset)
+      .all<NotificationRecord>();
 
     // Convert records to API response format
     const notifications: NotificationResponse[] = result.results.map(record => ({
@@ -186,7 +186,7 @@ export class NotificationService {
     `);
 
     const result = await stmt.bind(user_token).first<{ unread_count: number }>();
-    
+
     return {
       unread_count: result?.unread_count || 0,
     };
@@ -207,24 +207,24 @@ export class NotificationService {
       WHERE id = ? AND user_token = ? AND is_dismissed = 0
     `);
 
-     const result = await stmt.bind(notification_id, user_token).run();
-   
-     // Access run() result changes safely — different D1 typings expose this differently
-     const runResult = result as unknown as { changes?: number; meta?: { changes?: number } };
-     const changes = runResult.changes ?? runResult.meta?.changes;
+    const result = await stmt.bind(notification_id, user_token).run();
 
-  if ((changes ?? 0) === 0) {
+    // Access run() result changes safely — different D1 typings expose this differently
+    const runResult = result as unknown as { changes?: number; meta?: { changes?: number } };
+    const changes = runResult.changes ?? runResult.meta?.changes;
+
+    if ((changes ?? 0) === 0) {
       // Either notification doesn't exist, doesn't belong to user, or already dismissed
       const checkStmt = this.db.prepare(`
         SELECT id, is_dismissed FROM notifications 
         WHERE id = ? AND user_token = ?
       `);
       const notification = await checkStmt.bind(notification_id, user_token).first();
-      
+
       if (!notification) {
         throw new Error('Notification not found or access denied');
       }
-      
+
       // Already dismissed - return success for idempotency
       return { success: true, message: 'Notification already dismissed' };
     }
@@ -253,7 +253,7 @@ export class NotificationService {
     `);
 
     const record = await stmt.bind(notification_id, user_token).first<NotificationRecord>();
-    
+
     if (!record) {
       return null;
     }
@@ -286,21 +286,21 @@ export class NotificationService {
 
     for (const user_token of input.user_tokens) {
       // Build the CreateNotificationInput object and only add optional props when defined
-        const createInputPartial: Partial<CreateNotificationInput> = {
-          user_token,
-          type: 'system',
-          type_key: 'admin_broadcast',
-          title: input.title,
-        };
+      const createInputPartial: Partial<CreateNotificationInput> = {
+        user_token,
+        type: 'system',
+        type_key: 'admin_broadcast',
+        title: input.title,
+      };
 
       if (input.message !== undefined) {
-          createInputPartial.message = input.message;
+        createInputPartial.message = input.message;
       }
       if (input.metadata !== undefined) {
-          createInputPartial.metadata = input.metadata;
+        createInputPartial.metadata = input.metadata;
       }
 
-        const notification = await this.create(createInputPartial as CreateNotificationInput);
+      const notification = await this.create(createInputPartial as CreateNotificationInput);
       results.push(notification);
     }
 
@@ -319,19 +319,23 @@ export class NotificationService {
     // Total notifications
     const totalStmt = this.db.prepare('SELECT COUNT(*) as total FROM notifications');
     const totalResult = await totalStmt.first<{ total: number }>();
-    
+
     // Unread notifications
-    const unreadStmt = this.db.prepare('SELECT COUNT(*) as unread FROM notifications WHERE is_dismissed = 0');
+    const unreadStmt = this.db.prepare(
+      'SELECT COUNT(*) as unread FROM notifications WHERE is_dismissed = 0'
+    );
     const unreadResult = await unreadStmt.first<{ unread: number }>();
-    
+
     // Notifications by type
-    const typeStmt = this.db.prepare('SELECT type, COUNT(*) as count FROM notifications GROUP BY type');
+    const typeStmt = this.db.prepare(
+      'SELECT type, COUNT(*) as count FROM notifications GROUP BY type'
+    );
     const typeResults = await typeStmt.all<{ type: string; count: number }>();
     const notifications_by_type: Record<string, number> = {};
     typeResults.results.forEach(row => {
       notifications_by_type[row.type] = row.count;
     });
-    
+
     // Recent notifications (last 7 days)
     const recentStmt = this.db.prepare(`
       SELECT COUNT(*) as recent 

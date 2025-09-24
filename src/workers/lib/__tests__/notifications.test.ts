@@ -24,7 +24,7 @@ const createMockDb = () => {
   const mockResults = new Map<string, any[]>();
   const mockFirst = new Map<string, any>();
   const mockRun = new Map<string, MockDBResult>();
-  
+
   const mockDb = {
     prepare: vi.fn((sql: string) => ({
       bind: vi.fn((...params: any[]) => ({
@@ -42,7 +42,7 @@ const createMockDb = () => {
     })),
     exec: vi.fn(async () => ({ success: true })),
   };
-  
+
   return { mockDb, mockResults, mockFirst, mockRun };
 };
 
@@ -52,7 +52,7 @@ describe('NotificationService', () => {
   let mockResults: Map<string, any[]>;
   let mockFirst: Map<string, any>;
   let mockRun: Map<string, MockDBResult>;
-  
+
   const testUserToken = '123e4567-e89b-12d3-a456-426614174000';
   const testUserToken2 = '123e4567-e89b-12d3-a456-426614174001';
 
@@ -92,7 +92,7 @@ describe('NotificationService', () => {
         is_dismissed: false,
         related_id: 'submission-456',
       });
-      
+
       expect(result.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
       expect(result.metadata).toEqual({
         badge_id: 'badge-123',
@@ -130,9 +130,7 @@ describe('NotificationService', () => {
         title: '',
       };
 
-      await expect(
-        notificationService.create(invalidInput as any)
-      ).rejects.toThrow();
+      await expect(notificationService.create(invalidInput as any)).rejects.toThrow();
     });
 
     it('should reject title that is too long', async () => {
@@ -142,9 +140,7 @@ describe('NotificationService', () => {
         title: 'A'.repeat(201), // Too long
       };
 
-      await expect(
-        notificationService.create(input)
-      ).rejects.toThrow();
+      await expect(notificationService.create(input)).rejects.toThrow();
     });
   });
 
@@ -157,7 +153,7 @@ describe('NotificationService', () => {
       ORDER BY created_at DESC 
       LIMIT ? OFFSET ?
     `;
-      
+
       const countQuery = `
       SELECT COUNT(*) as total FROM notifications WHERE user_token = ?
     `;
@@ -197,7 +193,7 @@ describe('NotificationService', () => {
 
       expect(result.notifications).toHaveLength(2);
       expect(result.notifications.every(n => n.user_token === testUserToken)).toBe(true);
-      expect(result.notifications[0].title).toBe('System Update'); 
+      expect(result.notifications[0].title).toBe('System Update');
       expect(result.notifications[1].title).toBe('First Badge');
       expect(result.notifications[1].metadata).toEqual({ badge_id: 'badge-123' });
     });
@@ -210,7 +206,7 @@ describe('NotificationService', () => {
       ORDER BY created_at DESC 
       LIMIT ? OFFSET ?
     `;
-      
+
       mockResults.set(listQuery, [
         {
           id: 'notification-1',
@@ -247,7 +243,7 @@ describe('NotificationService', () => {
       FROM notifications 
       WHERE user_token = ? AND is_dismissed = 0
     `;
-      
+
       mockFirst.set(unreadQuery, { unread_count: 3 });
 
       const result = await notificationService.unreadCount(testUserToken);
@@ -260,7 +256,7 @@ describe('NotificationService', () => {
       FROM notifications 
       WHERE user_token = ? AND is_dismissed = 0
     `;
-      
+
       mockFirst.set(unreadQuery, { unread_count: 0 });
 
       const result = await notificationService.unreadCount(testUserToken);
@@ -271,13 +267,13 @@ describe('NotificationService', () => {
   describe('dismiss', () => {
     it('should dismiss notification successfully', async () => {
       const notificationId = '123e4567-e89b-12d3-a456-426614174000';
-      
+
       const updateQuery = `
       UPDATE notifications 
       SET is_dismissed = 1 
       WHERE id = ? AND user_token = ? AND is_dismissed = 0
     `;
-      
+
       mockRun.set(updateQuery, { changes: 1 });
 
       const result = await notificationService.dismiss(notificationId, testUserToken);
@@ -286,18 +282,18 @@ describe('NotificationService', () => {
 
     it('should be idempotent - dismissing already dismissed notification succeeds', async () => {
       const notificationId = '123e4567-e89b-12d3-a456-426614174000';
-      
+
       const updateQuery = `
       UPDATE notifications 
       SET is_dismissed = 1 
       WHERE id = ? AND user_token = ? AND is_dismissed = 0
     `;
-      
+
       const checkQuery = `
         SELECT id, is_dismissed FROM notifications 
         WHERE id = ? AND user_token = ?
       `;
-      
+
       mockRun.set(updateQuery, { changes: 0 });
       mockFirst.set(checkQuery, { id: notificationId, is_dismissed: 1 });
 
@@ -308,36 +304,36 @@ describe('NotificationService', () => {
 
     it('should reject dismissing notification that does not belong to user', async () => {
       const notificationId = '123e4567-e89b-12d3-a456-426614174000';
-      
+
       const updateQuery = `
       UPDATE notifications 
       SET is_dismissed = 1 
       WHERE id = ? AND user_token = ? AND is_dismissed = 0
     `;
-      
+
       const checkQuery = `
         SELECT id, is_dismissed FROM notifications 
         WHERE id = ? AND user_token = ?
       `;
-      
+
       mockRun.set(updateQuery, { changes: 0 });
       mockFirst.set(checkQuery, null);
 
-      await expect(
-        notificationService.dismiss(notificationId, testUserToken)
-      ).rejects.toThrow('Notification not found or access denied');
+      await expect(notificationService.dismiss(notificationId, testUserToken)).rejects.toThrow(
+        'Notification not found or access denied'
+      );
     });
   });
 
   describe('getById', () => {
     it('should retrieve notification by ID', async () => {
       const notificationId = '123e4567-e89b-12d3-a456-426614174000';
-      
+
       const getQuery = `
       SELECT * FROM notifications 
       WHERE id = ? AND user_token = ?
     `;
-      
+
       mockFirst.set(getQuery, {
         id: notificationId,
         user_token: testUserToken,
@@ -352,7 +348,7 @@ describe('NotificationService', () => {
       });
 
       const result = await notificationService.getById(notificationId, testUserToken);
-      
+
       expect(result).toMatchObject({
         id: notificationId,
         user_token: testUserToken,
@@ -365,12 +361,12 @@ describe('NotificationService', () => {
 
     it('should return null for non-existent notification', async () => {
       const fakeId = '999e4567-e89b-12d3-a456-426614174999';
-      
+
       const getQuery = `
       SELECT * FROM notifications 
       WHERE id = ? AND user_token = ?
     `;
-      
+
       mockFirst.set(getQuery, null);
 
       const result = await notificationService.getById(fakeId, testUserToken);
@@ -388,7 +384,7 @@ describe('NotificationService', () => {
       });
 
       expect(results).toHaveLength(2);
-      
+
       for (const result of results) {
         expect(result.type).toBe('system');
         expect(result.type_key).toBe('admin_broadcast');
@@ -402,7 +398,9 @@ describe('NotificationService', () => {
     beforeEach(() => {
       // Mock statistics queries - exact match
       mockFirst.set('SELECT COUNT(*) as total FROM notifications', { total: 5 });
-      mockFirst.set('SELECT COUNT(*) as unread FROM notifications WHERE is_dismissed = 0', { unread: 3 });
+      mockFirst.set('SELECT COUNT(*) as unread FROM notifications WHERE is_dismissed = 0', {
+        unread: 3,
+      });
       mockResults.set('SELECT type, COUNT(*) as count FROM notifications GROUP BY type', [
         { type: 'badge', count: 3 },
         { type: 'system', count: 2 },
@@ -412,7 +410,7 @@ describe('NotificationService', () => {
       SELECT COUNT(*) as recent 
       FROM notifications 
       WHERE created_at >= datetime('now', '-7 days')
-    `, 
+    `,
         { recent: 4 }
       );
     });

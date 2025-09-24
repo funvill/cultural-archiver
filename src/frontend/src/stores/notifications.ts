@@ -22,25 +22,25 @@ export const useNotificationsStore = defineStore('notifications', () => {
   const MAX_NOTIFICATIONS_CACHE = 50; // Keep last 50 notifications in memory
 
   // Computed
-  const unreadNotifications = computed(() => 
-    notifications.value.filter(n => !n.is_dismissed)
-  );
+  const unreadNotifications = computed(() => notifications.value.filter(n => !n.is_dismissed));
 
   const hasUnreadNotifications = computed(() => unreadCount.value > 0);
 
-  const recentNotifications = computed(() => 
-    notifications.value.slice(0, 10) // Show last 10 for quick access
+  const recentNotifications = computed(
+    () => notifications.value.slice(0, 10) // Show last 10 for quick access
   );
 
   // Actions
-  async function fetchNotifications(options: { 
-    limit?: number; 
-    offset?: number; 
-    unread_only?: boolean;
-    append?: boolean;
-  } = {}) {
+  async function fetchNotifications(
+    options: {
+      limit?: number;
+      offset?: number;
+      unread_only?: boolean;
+      append?: boolean;
+    } = {}
+  ) {
     if (isLoading.value && !options.append) return;
-    
+
     isLoading.value = true;
     error.value = null;
 
@@ -65,7 +65,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       }
 
       lastFetchTime.value = new Date();
-      
+
       return result;
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
@@ -91,7 +91,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
   async function dismissNotification(notificationId: string) {
     try {
       await NotificationService.dismissNotification(notificationId);
-      
+
       // Update local state
       const notification = notifications.value.find(n => n.id === notificationId);
       if (notification && !notification.is_dismissed) {
@@ -110,7 +110,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
   async function markNotificationRead(notificationId: string) {
     try {
       await NotificationService.markNotificationRead(notificationId);
-      
+
       // Update local state
       const notification = notifications.value.find(n => n.id === notificationId);
       if (notification && !notification.is_dismissed) {
@@ -134,9 +134,11 @@ export const useNotificationsStore = defineStore('notifications', () => {
     const unread = notifications.value.filter(n => !n.is_dismissed).map(n => n.id);
     if (unread.length === 0) return { success: true };
 
-    const promises = unread.map(id => markNotificationRead(id).catch(err => {
-      console.error('Failed to mark notification read in bulk operation for id', id, err);
-    }));
+    const promises = unread.map(id =>
+      markNotificationRead(id).catch(err => {
+        console.error('Failed to mark notification read in bulk operation for id', id, err);
+      })
+    );
 
     await Promise.all(promises);
     return { success: true };
@@ -145,7 +147,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
   function addNotification(notification: NotificationResponse) {
     // Add new notification to the beginning of the list
     notifications.value.unshift(notification);
-    
+
     if (!notification.is_dismissed) {
       unreadCount.value++;
     }
@@ -218,7 +220,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
     fetchUnreadCount,
     dismissNotification,
     markNotificationRead,
-  markAllRead,
+    markAllRead,
     addNotification,
     startPolling,
     stopPolling,

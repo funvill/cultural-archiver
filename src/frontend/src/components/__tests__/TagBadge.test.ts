@@ -63,7 +63,7 @@ describe('TagBadge', () => {
         },
       });
 
-      // The component uses schema definitions, so it shows "Material" not "material" 
+      // The component uses schema definitions, so it shows "Material" not "material"
       const text = wrapper.text().replace(/\s+/g, ' ').trim();
       expect(text).toContain('Material'); // Schema label is capitalized
       expect(text).toContain('bronze');
@@ -161,7 +161,11 @@ describe('TagBadge', () => {
 
       expect(wrapper.emitted('tagClick')).toBeTruthy();
       // The emitted event now contains StructuredTag format with key, value, and definition
-      const emittedEvent = wrapper.emitted('tagClick')?.[0]?.[0] as { key: string; value: string; definition: unknown };
+      const emittedEvent = wrapper.emitted('tagClick')?.[0]?.[0] as {
+        key: string;
+        value: string;
+        definition: unknown;
+      };
       expect(emittedEvent).toBeDefined();
       expect(emittedEvent.key).toBe('material');
       expect(emittedEvent.value).toBe('bronze');

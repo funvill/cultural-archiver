@@ -17,9 +17,9 @@ const mockArtworkWithoutCooldown = {
     photos: ['photo1.jpg', 'photo2.jpg'],
     tags_parsed: {
       material: 'bronze',
-      access: 'public'
-    }
-  }
+      access: 'public',
+    },
+  },
 };
 
 const mockArtworkWithCooldown = {
@@ -29,8 +29,8 @@ const mockArtworkWithCooldown = {
     userLogbookStatus: {
       onCooldown: true,
       cooldownUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-    }
-  }
+    },
+  },
 };
 
 const mockArtworkIncomplete = {
@@ -45,8 +45,8 @@ const mockArtworkIncomplete = {
     description: null,
     created_at: '2023-01-01T00:00:00Z',
     photos: [],
-    tags_parsed: {}
-  }
+    tags_parsed: {},
+  },
 };
 
 const mockSuccessfulSubmissionResponse = {
@@ -54,8 +54,8 @@ const mockSuccessfulSubmissionResponse = {
   data: {
     id: 'submission-789',
     status: 'pending',
-    message: 'Submission received for review.'
-  }
+    message: 'Submission received for review.',
+  },
 };
 
 const mockCooldownErrorResponse = {
@@ -63,19 +63,18 @@ const mockCooldownErrorResponse = {
   error: 'Too many requests',
   message: 'You can submit another logbook entry after 2025-01-15',
   details: {
-    cooldownUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-  }
+    cooldownUntil: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  },
 };
 
 test.describe('Logbook Submission - Comprehensive Flow', () => {
-  
   test.beforeEach(async ({ page }) => {
     // Set up default intercepts that can be overridden in individual tests
     await page.route('**/api/artworks/**', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockArtworkWithoutCooldown)
+        body: JSON.stringify(mockArtworkWithoutCooldown),
       });
     });
   });
@@ -90,15 +89,15 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
           success: true,
           data: {
             artworks: [mockArtworkWithoutCooldown.data],
-            total: 1
-          }
-        })
+            total: 1,
+          },
+        }),
       });
     });
 
     // Go to search page and perform a search
     await page.goto('/search');
-    
+
     // Wait for search form and enter coordinates
     await page.fill('input[placeholder*="latitude"]', '49.2827');
     await page.fill('input[placeholder*="longitude"]', '-123.1207');
@@ -106,7 +105,7 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
 
     // Wait for search results to load
     await expect(page.getByText('Test Sculpture')).toBeVisible();
-    
+
     // Find and click the "Add Report" button on the artwork card
     await page.click('button:has-text("Add Report")');
 
@@ -122,7 +121,7 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockArtworkWithCooldown)
+        body: JSON.stringify(mockArtworkWithCooldown),
       });
     });
 
@@ -132,7 +131,7 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
     await expect(page.getByTestId('cooldown-state')).toBeVisible();
     await expect(page.getByText('Recent Visit Recorded')).toBeVisible();
     await expect(page.getByText(/Come back after/)).toBeVisible();
-    
+
     // Main form should not be visible
     await expect(page.getByTestId('main-form')).not.toBeVisible();
   });
@@ -143,7 +142,7 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockArtworkIncomplete)
+        body: JSON.stringify(mockArtworkIncomplete),
       });
     });
 
@@ -153,10 +152,10 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
 
     // Should show improvement fields since data is missing
     await expect(page.getByText('Help Us Improve This Listing')).toBeVisible();
-    
+
     // Check for conditional fields that should appear
     await expect(page.locator('input[placeholder*="sculpture, mural, statue"]')).toBeVisible(); // Artwork Type
-    await expect(page.locator('select:has(option[value="public"])') ).toBeVisible(); // Access
+    await expect(page.locator('select:has(option[value="public"])')).toBeVisible(); // Access
     await expect(page.locator('input[placeholder="Artist name"]')).toBeVisible(); // Artist
     await expect(page.locator('input[placeholder*="bronze, stone, paint"]')).toBeVisible(); // Material
   });
@@ -177,7 +176,7 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
     await fileInput.setInputFiles({
       name: 'test-photo.jpg',
       mimeType: 'image/jpeg',
-      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]) // JPEG header
+      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]), // JPEG header
     });
 
     // Submit button should now be enabled
@@ -188,14 +187,14 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
     // Mock successful submission
     await page.route('**/api/submissions', async route => {
       const request = route.request();
-      
+
       // Verify the request contains expected form data
       expect(request.method()).toBe('POST');
-      
+
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
-        body: JSON.stringify(mockSuccessfulSubmissionResponse)
+        body: JSON.stringify(mockSuccessfulSubmissionResponse),
       });
     });
 
@@ -206,7 +205,7 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
     await fileInput.setInputFiles({
       name: 'artwork-visit.jpg',
       mimeType: 'image/jpeg',
-      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0])
+      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
     });
 
     // Select condition
@@ -214,26 +213,28 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
 
     // Accept consent
     await page.click('#consent-cc0');
-    await page.click('#consent-terms');  
+    await page.click('#consent-terms');
     await page.click('#consent-photo-rights');
 
     // Submit the form
     await page.click('button[data-testid="submit-button"]');
 
     // Should show success toast
-    await expect(page.locator('text=Logbook entry submitted for review!')).toBeVisible({ timeout: 10000 });
-    
+    await expect(page.locator('text=Logbook entry submitted for review!')).toBeVisible({
+      timeout: 10000,
+    });
+
     // Should navigate to artwork detail page after delay
     await expect(page).toHaveURL(`/artwork/${mockArtworkId}`, { timeout: 5000 });
   });
 
   test('should handle cooldown error during submission', async ({ page }) => {
-    // Mock cooldown error response  
+    // Mock cooldown error response
     await page.route('**/api/submissions', async route => {
       await route.fulfill({
         status: 429,
-        contentType: 'application/json', 
-        body: JSON.stringify(mockCooldownErrorResponse)
+        contentType: 'application/json',
+        body: JSON.stringify(mockCooldownErrorResponse),
       });
     });
 
@@ -243,14 +244,14 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
     const fileInput = page.locator('input#photo-upload');
     await fileInput.setInputFiles({
       name: 'test.jpg',
-      mimeType: 'image/jpeg', 
-      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0])
+      mimeType: 'image/jpeg',
+      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
     });
 
     await page.click('#consent-cc0');
     await page.click('#consent-terms');
     await page.click('#consent-photo-rights');
-    
+
     await page.click('button[data-testid="submit-button"]');
 
     // Should show cooldown error message
@@ -270,18 +271,18 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
     await fileInput.setInputFiles({
       name: 'test.jpg',
       mimeType: 'image/jpeg',
-      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0])
+      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
     });
 
     await page.click('#consent-cc0');
     await page.click('#consent-terms');
     await page.click('#consent-photo-rights');
-    
+
     await page.click('button[data-testid="submit-button"]');
 
     // Should show network error message and preserve form data
     await expect(page.locator('text*=check your connection')).toBeVisible();
-    
+
     // Form data should be preserved
     await expect(page.locator('img[alt="Preview"]')).toBeVisible(); // Photo preview still there
   });
@@ -302,7 +303,7 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
     await fileInput.setInputFiles({
       name: 'test.jpg',
       mimeType: 'image/jpeg',
-      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0])
+      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
     });
 
     // Now submit button should be enabled
@@ -317,7 +318,7 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
     await fileInput.setInputFiles({
       name: 'test.jpg',
       mimeType: 'image/jpeg',
-      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0])
+      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
     });
 
     // Photo preview should be visible
@@ -340,8 +341,8 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
         contentType: 'application/json',
         body: JSON.stringify({
           success: false,
-          error: 'Artwork not found'
-        })
+          error: 'Artwork not found',
+        }),
       });
     });
 
@@ -360,11 +361,11 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
     await page.route('**/api/submissions', async route => {
       const request = route.request();
       submissionData = await request.postData();
-      
+
       await route.fulfill({
         status: 201,
         contentType: 'application/json',
-        body: JSON.stringify(mockSuccessfulSubmissionResponse)
+        body: JSON.stringify(mockSuccessfulSubmissionResponse),
       });
     });
 
@@ -373,7 +374,7 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockArtworkIncomplete)
+        body: JSON.stringify(mockArtworkIncomplete),
       });
     });
 
@@ -384,7 +385,7 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
     await fileInput.setInputFiles({
       name: 'test.jpg',
       mimeType: 'image/jpeg',
-      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0])
+      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
     });
 
     // Select condition
@@ -400,11 +401,13 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
     await page.click('#consent-cc0');
     await page.click('#consent-terms');
     await page.click('#consent-photo-rights');
-    
+
     await page.click('button[data-testid="submit-button"]');
 
     // Wait for submission
-    await expect(page.locator('text=Logbook entry submitted for review!')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('text=Logbook entry submitted for review!')).toBeVisible({
+      timeout: 10000,
+    });
 
     // Verify submission data was captured
     expect(submissionData).toBeTruthy();
@@ -423,14 +426,13 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
 });
 
 test.describe('Logbook Submission - Error Scenarios', () => {
-  
   test('should handle malformed API responses', async ({ page }) => {
     // Mock malformed response
     await page.route('**/api/artworks/**', async route => {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: 'invalid json'
+        body: 'invalid json',
       });
     });
 
@@ -447,8 +449,8 @@ test.describe('Logbook Submission - Error Scenarios', () => {
         contentType: 'application/json',
         body: JSON.stringify({
           success: false,
-          error: 'Internal server error'
-        })
+          error: 'Internal server error',
+        }),
       });
     });
 
@@ -459,13 +461,13 @@ test.describe('Logbook Submission - Error Scenarios', () => {
     await fileInput.setInputFiles({
       name: 'test.jpg',
       mimeType: 'image/jpeg',
-      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0])
+      buffer: Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
     });
 
     await page.click('#consent-cc0');
     await page.click('#consent-terms');
     await page.click('#consent-photo-rights');
-    
+
     await page.click('button[data-testid="submit-button"]');
 
     // Should show error message

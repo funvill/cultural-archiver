@@ -30,7 +30,7 @@ describe('mapCache', () => {
     // Manually age the entries by overwriting cachedAt
     const all = MAP_CACHE_INTERNALS.loadAll();
     const old = Date.now() - MAP_CACHE_INTERNALS.DEFAULT_TTL_MS - 1000;
-  (Object.values(all) as CachedPin[]).forEach((p) => (p.cachedAt = old));
+    (Object.values(all) as CachedPin[]).forEach(p => (p.cachedAt = old));
     MAP_CACHE_INTERNALS.saveAll(all);
 
     mapCache.prune();

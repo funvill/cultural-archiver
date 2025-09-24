@@ -1,6 +1,6 @@
 /**
  * Test script for Mass Import System
- * 
+ *
  * This script tests the core functionality with Vancouver sample data
  */
 
@@ -21,7 +21,7 @@ async function testMassImport() {
     console.log('📄 Loading Vancouver sample data...');
     const sampleDataPath = path.join(__dirname, '../../../../tasks/public-art.json');
     const sampleData = JSON.parse(await fs.readFile(sampleDataPath, 'utf-8'));
-    
+
     console.log(`✅ Loaded ${sampleData.length} Vancouver artwork records`);
 
     // Create configuration for dry-run testing
@@ -55,7 +55,9 @@ async function testMassImport() {
     console.log(`Successful: ${results.summary.successfulImports}`);
     console.log(`Failed: ${results.summary.failedImports}`);
     console.log(`Skipped (duplicates): ${results.summary.skippedDuplicates}`);
-    console.log(`Photos processed: ${results.summary.successfulPhotos}/${results.summary.totalPhotos}`);
+    console.log(
+      `Photos processed: ${results.summary.successfulPhotos}/${results.summary.totalPhotos}`
+    );
 
     // Show detailed results for first few records
     console.log('\n📝 Detailed Results:');
@@ -85,7 +87,6 @@ async function testMassImport() {
       console.log('\n⚠️ Mass Import System test had issues');
       console.log('Some records failed validation - this may be expected for test data');
     }
-
   } catch (error) {
     console.error('\n❌ Test failed:', error);
     process.exit(1);

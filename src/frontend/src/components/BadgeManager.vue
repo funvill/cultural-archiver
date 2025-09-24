@@ -91,7 +91,7 @@ async function loadBadges(): Promise<void> {
 async function createBadge(): Promise<void> {
   try {
     createErrors.value = {};
-    
+
     // Validate form
     if (!validateCreateForm()) {
       return;
@@ -99,17 +99,18 @@ async function createBadge(): Promise<void> {
 
     const badgeData = {
       ...createForm.value,
-      threshold_value: createForm.value.threshold_type === 'email_verified' 
-        ? null 
-        : createForm.value.threshold_value,
+      threshold_value:
+        createForm.value.threshold_type === 'email_verified'
+          ? null
+          : createForm.value.threshold_value,
     };
 
     await adminService.createBadge(badgeData);
-    
+
     // Reset form and close modal
     resetCreateForm();
     showCreateModal.value = false;
-    
+
     // Reload badges
     await loadBadges();
   } catch (err) {
@@ -138,21 +139,21 @@ function openEditModal(badge: BadgeRecord & { award_count: number }): void {
 // Update badge
 async function updateBadge(): Promise<void> {
   if (!editingBadge.value) return;
-  
+
   try {
     editErrors.value = {};
-    
+
     // Validate form
     if (!validateEditForm()) {
       return;
     }
 
     await adminService.updateBadge(editingBadge.value.id, editForm.value);
-    
+
     // Close modal
     showEditModal.value = false;
     editingBadge.value = null;
-    
+
     // Reload badges
     await loadBadges();
   } catch (err) {
@@ -166,7 +167,7 @@ async function deactivateBadge(badge: BadgeRecord & { award_count: number }): Pr
   if (!confirm(`Are you sure you want to deactivate the badge "${badge.title}"?`)) {
     return;
   }
-  
+
   try {
     await adminService.deactivateBadge(badge.id);
     await loadBadges();
@@ -179,50 +180,53 @@ async function deactivateBadge(badge: BadgeRecord & { award_count: number }): Pr
 // Form validation
 function validateCreateForm(): boolean {
   const errors: Record<string, string> = {};
-  
+
   if (!createForm.value.badge_key.trim() || createForm.value.badge_key.length < 2) {
     errors.badge_key = 'Badge key must be at least 2 characters';
   }
-  
+
   if (!createForm.value.title.trim() || createForm.value.title.length < 2) {
     errors.title = 'Title must be at least 2 characters';
   }
-  
+
   if (!createForm.value.description.trim() || createForm.value.description.length < 10) {
     errors.description = 'Description must be at least 10 characters';
   }
-  
+
   if (!createForm.value.icon_emoji.trim()) {
     errors.icon_emoji = 'Icon emoji is required';
   }
-  
+
   if (createForm.value.level < 1) {
     errors.level = 'Level must be at least 1';
   }
-  
-  if (createForm.value.threshold_type !== 'email_verified' && createForm.value.threshold_value < 1) {
+
+  if (
+    createForm.value.threshold_type !== 'email_verified' &&
+    createForm.value.threshold_value < 1
+  ) {
     errors.threshold_value = 'Threshold value must be at least 1';
   }
-  
+
   createErrors.value = errors;
   return Object.keys(errors).length === 0;
 }
 
 function validateEditForm(): boolean {
   const errors: Record<string, string> = {};
-  
+
   if (!editForm.value.title.trim() || editForm.value.title.length < 2) {
     errors.title = 'Title must be at least 2 characters';
   }
-  
+
   if (!editForm.value.description.trim() || editForm.value.description.length < 10) {
     errors.description = 'Description must be at least 10 characters';
   }
-  
+
   if (editForm.value.level < 1) {
     errors.level = 'Level must be at least 1';
   }
-  
+
   editErrors.value = errors;
   return Object.keys(errors).length === 0;
 }
@@ -278,7 +282,12 @@ onMounted(async () => {
         class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
       >
         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M12 4v16m8-8H4"
+          />
         </svg>
         Create Badge
       </button>
@@ -298,7 +307,11 @@ onMounted(async () => {
       <div class="flex">
         <div class="flex-shrink-0">
           <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            <path
+              fill-rule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+              clip-rule="evenodd"
+            />
           </svg>
         </div>
         <div class="ml-3">
@@ -314,14 +327,28 @@ onMounted(async () => {
         <div class="p-5">
           <div class="flex items-center">
             <div class="flex-shrink-0">
-              <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg
+                class="h-6 w-6 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
               </svg>
             </div>
             <div class="ml-5 w-0 flex-1">
               <dl>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Badges</dt>
-                <dd class="text-lg font-medium text-gray-900 dark:text-white">{{ badges.length }}</dd>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                  Total Badges
+                </dt>
+                <dd class="text-lg font-medium text-gray-900 dark:text-white">
+                  {{ badges.length }}
+                </dd>
               </dl>
             </div>
           </div>
@@ -332,14 +359,28 @@ onMounted(async () => {
         <div class="p-5">
           <div class="flex items-center">
             <div class="flex-shrink-0">
-              <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              <svg
+                class="h-6 w-6 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                />
               </svg>
             </div>
             <div class="ml-5 w-0 flex-1">
               <dl>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Active Badges</dt>
-                <dd class="text-lg font-medium text-gray-900 dark:text-white">{{ activeBadges.length }}</dd>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                  Active Badges
+                </dt>
+                <dd class="text-lg font-medium text-gray-900 dark:text-white">
+                  {{ activeBadges.length }}
+                </dd>
               </dl>
             </div>
           </div>
@@ -350,14 +391,28 @@ onMounted(async () => {
         <div class="p-5">
           <div class="flex items-center">
             <div class="flex-shrink-0">
-              <svg class="h-6 w-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+              <svg
+                class="h-6 w-6 text-gray-400"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+                />
               </svg>
             </div>
             <div class="ml-5 w-0 flex-1">
               <dl>
-                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">Total Awarded</dt>
-                <dd class="text-lg font-medium text-gray-900 dark:text-white">{{ totalBadgesAwarded.toLocaleString() }}</dd>
+                <dt class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">
+                  Total Awarded
+                </dt>
+                <dd class="text-lg font-medium text-gray-900 dark:text-white">
+                  {{ totalBadgesAwarded.toLocaleString() }}
+                </dd>
               </dl>
             </div>
           </div>
@@ -367,9 +422,15 @@ onMounted(async () => {
 
     <!-- Badge Groups by Category -->
     <div v-if="!isLoading && !error" class="space-y-6">
-      <div v-for="(categoryBadges, category) in badgesByCategory" :key="category" class="bg-white dark:bg-gray-800 shadow rounded-lg">
+      <div
+        v-for="(categoryBadges, category) in badgesByCategory"
+        :key="category"
+        class="bg-white dark:bg-gray-800 shadow rounded-lg"
+      >
         <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-          <h3 class="text-lg font-medium text-gray-900 dark:text-white capitalize">{{ category }} Badges</h3>
+          <h3 class="text-lg font-medium text-gray-900 dark:text-white capitalize">
+            {{ category }} Badges
+          </h3>
         </div>
         <div class="p-6">
           <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -394,7 +455,12 @@ onMounted(async () => {
                     title="Edit badge"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                      />
                     </svg>
                   </button>
                   <button
@@ -404,17 +470,26 @@ onMounted(async () => {
                     title="Deactivate badge"
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      <path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                      />
                     </svg>
                   </button>
                 </div>
               </div>
-              
+
               <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">{{ badge.description }}</p>
-              
+
               <div class="mt-3 flex items-center justify-between text-sm">
                 <span class="text-gray-500 dark:text-gray-400">
-                  {{ badge.threshold_type === 'email_verified' ? 'Email verification' : `${badge.threshold_value} ${badge.threshold_type.replace('_', ' ')}` }}
+                  {{
+                    badge.threshold_type === 'email_verified'
+                      ? 'Email verification'
+                      : `${badge.threshold_value} ${badge.threshold_type.replace('_', ' ')}`
+                  }}
                 </span>
                 <span class="font-medium text-blue-600 dark:text-blue-400">
                   {{ badge.award_count }} awarded
@@ -427,14 +502,21 @@ onMounted(async () => {
     </div>
 
     <!-- Create Badge Modal -->
-    <div v-if="showCreateModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+    <div
+      v-if="showCreateModal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+    >
+      <div
+        class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800"
+      >
         <div class="mt-3">
           <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Create New Badge</h3>
-          
+
           <form @submit.prevent="createBadge" class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Badge Key</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >Badge Key</label
+              >
               <input
                 v-model="createForm.badge_key"
                 type="text"
@@ -442,45 +524,61 @@ onMounted(async () => {
                 placeholder="unique-badge-key"
                 :class="{ 'border-red-500': createErrors.badge_key }"
               />
-              <p v-if="createErrors.badge_key" class="mt-1 text-sm text-red-600">{{ createErrors.badge_key }}</p>
+              <p v-if="createErrors.badge_key" class="mt-1 text-sm text-red-600">
+                {{ createErrors.badge_key }}
+              </p>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Title</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >Title</label
+              >
               <input
                 v-model="createForm.title"
                 type="text"
                 class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 :class="{ 'border-red-500': createErrors.title }"
               />
-              <p v-if="createErrors.title" class="mt-1 text-sm text-red-600">{{ createErrors.title }}</p>
+              <p v-if="createErrors.title" class="mt-1 text-sm text-red-600">
+                {{ createErrors.title }}
+              </p>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >Description</label
+              >
               <textarea
                 v-model="createForm.description"
                 rows="3"
                 class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 :class="{ 'border-red-500': createErrors.description }"
               ></textarea>
-              <p v-if="createErrors.description" class="mt-1 text-sm text-red-600">{{ createErrors.description }}</p>
+              <p v-if="createErrors.description" class="mt-1 text-sm text-red-600">
+                {{ createErrors.description }}
+              </p>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Icon Emoji</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >Icon Emoji</label
+              >
               <input
                 v-model="createForm.icon_emoji"
                 type="text"
                 class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 :class="{ 'border-red-500': createErrors.icon_emoji }"
               />
-              <p v-if="createErrors.icon_emoji" class="mt-1 text-sm text-red-600">{{ createErrors.icon_emoji }}</p>
+              <p v-if="createErrors.icon_emoji" class="mt-1 text-sm text-red-600">
+                {{ createErrors.icon_emoji }}
+              </p>
             </div>
 
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Category</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >Category</label
+                >
                 <input
                   v-model="createForm.category"
                   type="text"
@@ -489,7 +587,9 @@ onMounted(async () => {
               </div>
 
               <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Level</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >Level</label
+                >
                 <input
                   v-model.number="createForm.level"
                   type="number"
@@ -497,12 +597,16 @@ onMounted(async () => {
                   class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   :class="{ 'border-red-500': createErrors.level }"
                 />
-                <p v-if="createErrors.level" class="mt-1 text-sm text-red-600">{{ createErrors.level }}</p>
+                <p v-if="createErrors.level" class="mt-1 text-sm text-red-600">
+                  {{ createErrors.level }}
+                </p>
               </div>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Threshold Type</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >Threshold Type</label
+              >
               <select
                 v-model="createForm.threshold_type"
                 class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
@@ -514,7 +618,9 @@ onMounted(async () => {
             </div>
 
             <div v-if="createForm.threshold_type !== 'email_verified'">
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Threshold Value</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >Threshold Value</label
+              >
               <input
                 v-model.number="createForm.threshold_value"
                 type="number"
@@ -522,17 +628,25 @@ onMounted(async () => {
                 class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 :class="{ 'border-red-500': createErrors.threshold_value }"
               />
-              <p v-if="createErrors.threshold_value" class="mt-1 text-sm text-red-600">{{ createErrors.threshold_value }}</p>
+              <p v-if="createErrors.threshold_value" class="mt-1 text-sm text-red-600">
+                {{ createErrors.threshold_value }}
+              </p>
             </div>
 
-            <div v-if="createErrors.general" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3">
+            <div
+              v-if="createErrors.general"
+              class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3"
+            >
               <p class="text-sm text-red-700 dark:text-red-300">{{ createErrors.general }}</p>
             </div>
 
             <div class="flex justify-end space-x-3 pt-4">
               <button
                 type="button"
-                @click="showCreateModal = false; resetCreateForm()"
+                @click="
+                  showCreateModal = false;
+                  resetCreateForm();
+                "
                 class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-md"
               >
                 Cancel
@@ -550,36 +664,51 @@ onMounted(async () => {
     </div>
 
     <!-- Edit Badge Modal -->
-    <div v-if="showEditModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-      <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
+    <div
+      v-if="showEditModal"
+      class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50"
+    >
+      <div
+        class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800"
+      >
         <div class="mt-3">
           <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Edit Badge</h3>
-          
+
           <form @submit.prevent="updateBadge" class="space-y-4">
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Title</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >Title</label
+              >
               <input
                 v-model="editForm.title"
                 type="text"
                 class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 :class="{ 'border-red-500': editErrors.title }"
               />
-              <p v-if="editErrors.title" class="mt-1 text-sm text-red-600">{{ editErrors.title }}</p>
+              <p v-if="editErrors.title" class="mt-1 text-sm text-red-600">
+                {{ editErrors.title }}
+              </p>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Description</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >Description</label
+              >
               <textarea
                 v-model="editForm.description"
                 rows="3"
                 class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                 :class="{ 'border-red-500': editErrors.description }"
               ></textarea>
-              <p v-if="editErrors.description" class="mt-1 text-sm text-red-600">{{ editErrors.description }}</p>
+              <p v-if="editErrors.description" class="mt-1 text-sm text-red-600">
+                {{ editErrors.description }}
+              </p>
             </div>
 
             <div>
-              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Icon Emoji</label>
+              <label class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                >Icon Emoji</label
+              >
               <input
                 v-model="editForm.icon_emoji"
                 type="text"
@@ -589,7 +718,9 @@ onMounted(async () => {
 
             <div class="grid grid-cols-2 gap-4">
               <div>
-                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">Level</label>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300"
+                  >Level</label
+                >
                 <input
                   v-model.number="editForm.level"
                   type="number"
@@ -597,7 +728,9 @@ onMounted(async () => {
                   class="mt-1 block w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white"
                   :class="{ 'border-red-500': editErrors.level }"
                 />
-                <p v-if="editErrors.level" class="mt-1 text-sm text-red-600">{{ editErrors.level }}</p>
+                <p v-if="editErrors.level" class="mt-1 text-sm text-red-600">
+                  {{ editErrors.level }}
+                </p>
               </div>
 
               <div>
@@ -612,14 +745,20 @@ onMounted(async () => {
               </div>
             </div>
 
-            <div v-if="editErrors.general" class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3">
+            <div
+              v-if="editErrors.general"
+              class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-3"
+            >
               <p class="text-sm text-red-700 dark:text-red-300">{{ editErrors.general }}</p>
             </div>
 
             <div class="flex justify-end space-x-3 pt-4">
               <button
                 type="button"
-                @click="showEditModal = false; resetEditForm()"
+                @click="
+                  showEditModal = false;
+                  resetEditForm();
+                "
                 class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500 rounded-md"
               >
                 Cancel

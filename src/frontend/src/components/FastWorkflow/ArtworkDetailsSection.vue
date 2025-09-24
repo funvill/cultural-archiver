@@ -21,12 +21,14 @@ interface CustomTag {
 
 const props = defineProps<Props>();
 const emit = defineEmits<{
-  'update': [details: {
-    title?: string;
-    artworkType?: string;
-    tags?: Record<string, string | number>;
-    note?: string;
-  }];
+  update: [
+    details: {
+      title?: string;
+      artworkType?: string;
+      tags?: Record<string, string | number>;
+      note?: string;
+    },
+  ];
 }>();
 
 // Local state for custom tags
@@ -60,15 +62,16 @@ function updateNote(event: Event) {
 
 function updateTag(key: string, event: Event) {
   const target = event.target as HTMLInputElement;
-  const value = key === 'year_created' ? (target.value ? parseInt(target.value, 10) : '') : target.value;
-  
+  const value =
+    key === 'year_created' ? (target.value ? parseInt(target.value, 10) : '') : target.value;
+
   const newTags = { ...props.tags };
   if (target.value.trim() === '') {
     delete newTags[key];
   } else {
     newTags[key] = value;
   }
-  
+
   emit('update', { tags: newTags });
 }
 
@@ -80,7 +83,7 @@ function removeCustomTag(index: number) {
   const tag = customTags.value[index];
   if (tag) {
     customTags.value.splice(index, 1);
-    
+
     // Remove from tags if it exists
     if (tag.key) {
       const newTags = { ...props.tags };
@@ -94,10 +97,10 @@ function updateCustomTagKey(index: number, event: Event) {
   const target = event.target as HTMLInputElement;
   const tag = customTags.value[index];
   if (!tag) return;
-  
+
   const oldKey = tag.key;
   tag.key = target.value;
-  
+
   // Update tags object
   const newTags = { ...props.tags };
   if (oldKey && oldKey !== target.value) {
@@ -106,7 +109,7 @@ function updateCustomTagKey(index: number, event: Event) {
   if (target.value && tag.value) {
     newTags[target.value] = tag.value;
   }
-  
+
   emit('update', { tags: newTags });
 }
 
@@ -114,9 +117,9 @@ function updateCustomTagValue(index: number, event: Event) {
   const target = event.target as HTMLInputElement;
   const tag = customTags.value[index];
   if (!tag) return;
-  
+
   tag.value = target.value;
-  
+
   // Update tags object
   const key = tag.key;
   if (key) {
@@ -134,9 +137,7 @@ function updateCustomTagValue(index: number, event: Event) {
 <template>
   <div class="artwork-details-section">
     <div class="mb-6">
-      <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
-        New Artwork Details
-      </h4>
+      <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-2">New Artwork Details</h4>
       <p class="text-sm text-gray-600 dark:text-gray-300">
         Provide basic information about the cultural artwork. Only the title is required.
       </p>
@@ -145,7 +146,10 @@ function updateCustomTagValue(index: number, event: Event) {
     <div class="space-y-6">
       <!-- Title (Required) -->
       <div>
-        <label for="artwork-title" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label
+          for="artwork-title"
+          class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+        >
           Title *
         </label>
         <input
@@ -164,7 +168,10 @@ function updateCustomTagValue(index: number, event: Event) {
 
       <!-- Artwork Type -->
       <div>
-        <label for="artwork-type" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label
+          for="artwork-type"
+          class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+        >
           Artwork Type
         </label>
         <select
@@ -192,7 +199,10 @@ function updateCustomTagValue(index: number, event: Event) {
           <!-- Common Tag Inputs -->
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label for="tag-material" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <label
+                for="tag-material"
+                class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1"
+              >
                 Material
               </label>
               <input
@@ -206,7 +216,10 @@ function updateCustomTagValue(index: number, event: Event) {
             </div>
 
             <div>
-              <label for="tag-artist" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <label
+                for="tag-artist"
+                class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1"
+              >
                 Artist/Creator
               </label>
               <input
@@ -220,7 +233,10 @@ function updateCustomTagValue(index: number, event: Event) {
             </div>
 
             <div>
-              <label for="tag-year" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <label
+                for="tag-year"
+                class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1"
+              >
                 Year Created
               </label>
               <input
@@ -236,7 +252,10 @@ function updateCustomTagValue(index: number, event: Event) {
             </div>
 
             <div>
-              <label for="tag-style" class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
+              <label
+                for="tag-style"
+                class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1"
+              >
                 Style/Theme
               </label>
               <input
@@ -302,7 +321,10 @@ function updateCustomTagValue(index: number, event: Event) {
 
       <!-- Notes -->
       <div>
-        <label for="artwork-note" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+        <label
+          for="artwork-note"
+          class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+        >
           Additional Notes (Optional)
         </label>
         <textarea
@@ -317,15 +339,15 @@ function updateCustomTagValue(index: number, event: Event) {
           <p class="text-sm text-gray-500 dark:text-gray-400">
             Share any context that would help others understand or locate the artwork
           </p>
-          <span class="text-sm text-gray-400">
-            {{ note.length }}/500
-          </span>
+          <span class="text-sm text-gray-400"> {{ note.length }}/500 </span>
         </div>
       </div>
     </div>
 
     <!-- Quick Fill Tips -->
-    <div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+    <div
+      class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
+    >
       <h5 class="flex items-center font-medium text-blue-900 dark:text-blue-100 mb-2">
         <InformationCircleIcon class="w-5 h-5 mr-2" />
         Quick Tips

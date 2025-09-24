@@ -10,7 +10,7 @@ test.describe('Logbook Submission - Full Flow Tests', () => {
     });
 
     // Mock artwork API
-    await page.route('**/api/artworks/**', async (route) => {
+    await page.route('**/api/artworks/**', async route => {
       await route.fulfill({
         contentType: 'application/json',
         body: JSON.stringify({
@@ -22,9 +22,9 @@ test.describe('Logbook Submission - Full Flow Tests', () => {
             latitude: 49.2827,
             longitude: -123.1207,
             status: 'approved',
-            photos: ['https://example.com/photo1.jpg']
-          }
-        })
+            photos: ['https://example.com/photo1.jpg'],
+          },
+        }),
       });
     });
 
@@ -35,15 +35,15 @@ test.describe('Logbook Submission - Full Flow Tests', () => {
 
   test('should complete a full submission with photo and condition', async ({ page }) => {
     // Mock successful submission
-    await page.route('**/api/logbook', async (route) => {
+    await page.route('**/api/logbook', async route => {
       if (route.request().method() === 'POST') {
         await route.fulfill({
           status: 200,
           contentType: 'application/json',
           body: JSON.stringify({
             success: true,
-            data: { id: 'submission-123' }
-          })
+            data: { id: 'submission-123' },
+          }),
         });
       }
     });
@@ -53,7 +53,7 @@ test.describe('Logbook Submission - Full Flow Tests', () => {
     await fileInput.setInputFiles({
       name: 'test-photo.jpg',
       mimeType: 'image/jpeg',
-      buffer: Buffer.from('fake image data')
+      buffer: Buffer.from('fake image data'),
     });
 
     // Wait for photo preview to appear - this indicates the file was processed
@@ -92,29 +92,29 @@ test.describe('Logbook Submission - Full Flow Tests', () => {
     await fileInput.setInputFiles({
       name: 'test-photo.jpg',
       mimeType: 'image/jpeg',
-      buffer: Buffer.from('fake image data')
+      buffer: Buffer.from('fake image data'),
     });
 
     await expect(page.locator('[data-testid="photo-preview"]')).toBeVisible();
-    
+
     // Still disabled because consent checkboxes aren't checked
     await expect(submitButton).toBeDisabled();
-    
+
     // Check all required consent checkboxes
     await page.locator('#consent-cc0').check();
-    await page.locator('#consent-terms').check(); 
+    await page.locator('#consent-terms').check();
     await page.locator('#consent-photo-rights').check();
 
     // Wait for component to update
     await page.waitForTimeout(500);
-    
+
     // Now it should be enabled
     await expect(submitButton).toBeEnabled();
   });
 
   test('should handle network errors gracefully', async ({ page }) => {
     // Mock network error
-    await page.route('**/api/logbook', async (route) => {
+    await page.route('**/api/logbook', async route => {
       if (route.request().method() === 'POST') {
         await route.abort('failed');
       }
@@ -123,9 +123,9 @@ test.describe('Logbook Submission - Full Flow Tests', () => {
     // Upload photo and select condition
     const fileInput = page.locator('#photo-upload');
     await fileInput.setInputFiles({
-      name: 'test-photo.jpg', 
+      name: 'test-photo.jpg',
       mimeType: 'image/jpeg',
-      buffer: Buffer.from('fake image data')
+      buffer: Buffer.from('fake image data'),
     });
 
     await expect(page.locator('[data-testid="photo-preview"]')).toBeVisible();

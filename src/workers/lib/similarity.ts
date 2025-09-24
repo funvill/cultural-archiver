@@ -3,7 +3,7 @@
  * Integrates with discovery endpoints to provide similarity-enhanced results
  */
 
-import type { 
+import type {
   SimilarityStrategy,
   SimilarityResult,
   SimilarityQuery,
@@ -45,11 +45,13 @@ export interface EnhancedArtworkResult {
   // Similarity enhancements
   similarity_score?: number | undefined;
   similarity_threshold?: 'none' | 'warn' | 'high' | undefined;
-  similarity_signals?: Array<{
-    type: string;
-    score: number;
-    metadata?: Record<string, unknown> | undefined;
-  }> | undefined;
+  similarity_signals?:
+    | Array<{
+        type: string;
+        score: number;
+        metadata?: Record<string, unknown> | undefined;
+      }>
+    | undefined;
 }
 
 // ================================
@@ -68,7 +70,7 @@ export class SimilarityService {
       const config = options.config || createSimilarityConfig();
       this.strategy = new DefaultSimilarityStrategy(config);
     }
-    
+
     this.includeMetadata = options.includeMetadata ?? false;
   }
 
@@ -92,7 +94,7 @@ export class SimilarityService {
           error instanceof Error ? error : new Error(String(error)),
           { query: this.sanitizeQueryForLogging(query) }
         );
-        
+
         console.error('Similarity calculation failed:', similarityError.toJSON());
         // Continue with other candidates - don't let one failure break everything
       }
@@ -137,9 +139,12 @@ export class SimilarityService {
         error instanceof Error ? error : new Error(String(error)),
         { candidateCount: candidates.length, query: this.sanitizeQueryForLogging(query) }
       );
-      
-      console.error('Similarity service failed, falling back to distance-only results:', serviceError.toJSON());
-      
+
+      console.error(
+        'Similarity service failed, falling back to distance-only results:',
+        serviceError.toJSON()
+      );
+
       // Graceful degradation - return original results without similarity scores
       return nearbyArtworks.map(artwork => ({
         ...artwork,
@@ -156,7 +161,7 @@ export class SimilarityService {
     // Enhance original results
     const enhancedResults: EnhancedArtworkResult[] = nearbyArtworks.map(artwork => {
       const similarity = similarityMap.get(artwork.id);
-      
+
       const enhanced: EnhancedArtworkResult = {
         ...artwork,
         distance_meters: Math.round(artwork.distance_km * 1000),
@@ -183,11 +188,12 @@ export class SimilarityService {
       // If both have similarity scores, sort by similarity first
       if (a.similarity_score !== undefined && b.similarity_score !== undefined) {
         const scoreDiff = b.similarity_score - a.similarity_score;
-        if (Math.abs(scoreDiff) > 0.01) { // Significant difference
+        if (Math.abs(scoreDiff) > 0.01) {
+          // Significant difference
           return scoreDiff;
         }
       }
-      
+
       // Fall back to distance sorting
       return a.distance_meters - b.distance_meters;
     });
@@ -245,9 +251,9 @@ export class SimilarityService {
         this.sanitizeQueryForLogging(query),
         error instanceof Error ? error : new Error(String(error))
       );
-      
+
       console.error('Duplicate check failed:', duplicateError.toJSON());
-      
+
       // Graceful degradation
       return {
         hasHighSimilarity: false,
@@ -339,17 +345,17 @@ export function artworkToCandidate(artwork: {
  */
 export function parseTagsForSimilarity(tagsJson: string | null): string[] {
   if (!tagsJson) return [];
-  
+
   try {
     const parsed = JSON.parse(tagsJson);
-    
+
     if (Array.isArray(parsed)) {
       return parsed.filter(tag => typeof tag === 'string');
     }
-    
+
     if (typeof parsed === 'object' && parsed !== null) {
       const values: string[] = [];
-      
+
       // Handle different tag formats
       if ('tags' in parsed && typeof parsed.tags === 'object') {
         // Structured format: { tags: { material: 'bronze' } }
@@ -366,10 +372,10 @@ export function parseTagsForSimilarity(tagsJson: string | null): string[] {
           }
         }
       }
-      
+
       return values;
     }
-    
+
     return [];
   } catch {
     return [];

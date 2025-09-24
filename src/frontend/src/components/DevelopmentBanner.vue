@@ -22,8 +22,8 @@ checkDismissed();
 </script>
 
 <template>
-  <div 
-    v-if="!isDismissed" 
+  <div
+    v-if="!isDismissed"
     class="relative bg-yellow-400 text-black py-3 px-4 sm:px-6"
     role="alert"
     aria-live="polite"
@@ -31,14 +31,13 @@ checkDismissed();
     <div class="max-w-7xl mx-auto flex items-center justify-between">
       <div class="flex-1 text-center sm:text-left">
         <p class="text-sm font-medium">
-          ⚠️ <strong>Under Development:</strong> 
-          This website is still in development. Data is cleared regularly while we work on it. 
-          Don't submit new data as it will be erased. 
-          This webpage will be moved to a new domain shortly.
+          ⚠️ <strong>Under Development:</strong>
+          This website is still in development. Data is cleared regularly while we work on it. Don't
+          submit new data as it will be erased. This webpage will be moved to a new domain shortly.
           <span class="ml-2">
-            Questions? Contact us at 
-            <a 
-              href="mailto:support@art.abluestar.com" 
+            Questions? Contact us at
+            <a
+              href="mailto:support@art.abluestar.com"
               class="underline hover:no-underline font-semibold"
             >
               support@art.abluestar.com

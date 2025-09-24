@@ -97,7 +97,7 @@ export class AdminService {
     if (!result.success || !result.data) {
       throw new Error(result.error || 'Failed to get audit logs');
     }
-  const raw: unknown = result.data;
+    const raw: unknown = result.data;
 
     // If the backend already returns the expected shape (future-proof), pass through
     if (
@@ -126,24 +126,28 @@ export class AdminService {
     const logs: AuditLogEntry[] = records.map(rec => {
       const r = rec as Record<string, unknown>;
       // Parse metadata if it's a JSON string
-    let metadata: AuditLogEntry['metadata'];
+      let metadata: AuditLogEntry['metadata'];
       const metaVal = r.metadata as unknown;
       if (metaVal) {
         try {
-      metadata = typeof metaVal === 'string' ? (JSON.parse(metaVal) as AuditLogEntry['metadata']) : (metaVal as AuditLogEntry['metadata']);
+          metadata =
+            typeof metaVal === 'string'
+              ? (JSON.parse(metaVal) as AuditLogEntry['metadata'])
+              : (metaVal as AuditLogEntry['metadata']);
         } catch {
           metadata = undefined;
         }
       }
 
       if (r.type === 'moderation') {
-        return ({
+        return {
           id: String(r.id),
           type: 'moderation',
           actor_uuid: String(r.moderator_uuid || r.actor_uuid || 'unknown'),
           // actor_email intentionally omitted (backend not providing yet)
           action: String(r.decision || 'decision'),
-          target: (r.submission_id || r.artwork_id ? String(r.submission_id || r.artwork_id) : undefined),
+          target:
+            r.submission_id || r.artwork_id ? String(r.submission_id || r.artwork_id) : undefined,
           details: {
             decision: r.decision as unknown,
             reason: r.reason || null,
@@ -152,11 +156,11 @@ export class AdminService {
           },
           metadata,
           created_at: String(r.created_at || new Date().toISOString()),
-        }) as unknown as AuditLogEntry;
+        } as unknown as AuditLogEntry;
       }
 
       // Admin action record
-      return ({
+      return {
         id: String(r.id),
         type: 'admin',
         actor_uuid: String(r.admin_uuid || r.actor_uuid || 'unknown'),
@@ -172,7 +176,7 @@ export class AdminService {
         },
         metadata,
         created_at: String(r.created_at || new Date().toISOString()),
-      }) as unknown as AuditLogEntry;
+      } as unknown as AuditLogEntry;
     });
 
     return {
@@ -205,7 +209,7 @@ export class AdminService {
     // }
     // But the frontend (and tests) expect the flattened AuditStatistics shape defined in shared/types.ts.
     // In production this mismatch caused undefined numeric fields and a runtime error when calling toLocaleString().
-  const raw: unknown = result.data;
+    const raw: unknown = result.data;
 
     // If the response is already flattened (future-proof), return directly.
     if (typeof raw === 'object' && raw !== null) {
@@ -218,10 +222,10 @@ export class AdminService {
     // Safely derive flattened statistics from wrapped response.
     const auditWrapper: Record<string, unknown> =
       typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
-  const auditSection = (auditWrapper.audit as Record<string, unknown>) || {};
-  const moderation = (auditSection.moderation as Record<string, unknown>) || {};
-  const admin = (auditSection.admin as Record<string, unknown>) || {};
-  const permissions = (auditWrapper.permissions as Record<string, unknown>) || {};
+    const auditSection = (auditWrapper.audit as Record<string, unknown>) || {};
+    const moderation = (auditSection.moderation as Record<string, unknown>) || {};
+    const admin = (auditSection.admin as Record<string, unknown>) || {};
+    const permissions = (auditWrapper.permissions as Record<string, unknown>) || {};
 
     const totalDecisions =
       Number(moderation.totalDecisions) ||
@@ -230,7 +234,8 @@ export class AdminService {
         (Number(moderation.skipped) || 0);
     const totalAdminActions =
       Number(admin.totalActions) ||
-      (Number(admin.permissionGrants) || 0) + (Number(admin.permissionRevokes) || 0) +
+      (Number(admin.permissionGrants) || 0) +
+        (Number(admin.permissionRevokes) || 0) +
         // Derive view_audit_logs as any remaining actions (cannot be negative)
         Math.max(
           0,
@@ -304,16 +309,19 @@ export class AdminService {
   /**
    * Update an existing badge
    */
-  async updateBadge(badgeId: string, updates: {
-    title?: string;
-    description?: string;
-    icon_emoji?: string;
-    category?: string;
-    level?: number;
-    threshold_type?: string;
-    threshold_value?: number | null;
-    is_active?: boolean;
-  }): Promise<BadgeRecord> {
+  async updateBadge(
+    badgeId: string,
+    updates: {
+      title?: string;
+      description?: string;
+      icon_emoji?: string;
+      category?: string;
+      level?: number;
+      threshold_type?: string;
+      threshold_value?: number | null;
+      is_active?: boolean;
+    }
+  ): Promise<BadgeRecord> {
     const result = await apiService.updateAdminBadge(badgeId, updates);
     if (!result.success) {
       throw new Error(result.error || 'Failed to update badge');

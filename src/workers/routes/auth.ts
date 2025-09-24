@@ -220,10 +220,12 @@ export async function verifyMagicLink(
     try {
       const badgeService = new BadgeService(c.env.DB);
       const awardedBadges = await badgeService.checkEmailVerificationBadge(userUUID);
-      
+
       if (awardedBadges.length > 0) {
-        console.log(`User ${userUUID} earned ${awardedBadges.length} badges from email verification:`, 
-          awardedBadges.map(b => b.badge_key));
+        console.log(
+          `User ${userUUID} earned ${awardedBadges.length} badges from email verification:`,
+          awardedBadges.map(b => b.badge_key)
+        );
       }
     } catch (badgeError) {
       // Log badge errors but don't fail the verification
@@ -390,7 +392,8 @@ export async function getAuthStatus(
       ...(authContext && {
         is_reviewer: authContext.isReviewer || authContext.isModerator || false,
         is_moderator: authContext.isModerator || authContext.isReviewer || false,
-        can_review: authContext.canReview || authContext.isModerator || authContext.isReviewer || false,
+        can_review:
+          authContext.canReview || authContext.isModerator || authContext.isReviewer || false,
         is_admin: !!authContext.isAdmin,
         is_email_verified: !!authContext.isVerifiedEmail,
       }),
@@ -432,8 +435,6 @@ export async function getAuthStatus(
     throw new ApiError('Failed to get authentication status', 'AUTH_STATUS_ERROR', 500);
   }
 }
-
-
 
 /**
  * Development helper: Get magic link for email when Resend fails

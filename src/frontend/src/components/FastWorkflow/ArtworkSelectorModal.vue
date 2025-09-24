@@ -34,9 +34,7 @@ function confirmSelection() {
 <template>
   <div class="artwork-selector-modal w-full max-w-2xl bg-white dark:bg-gray-800 rounded-lg p-6">
     <div class="flex items-center justify-between mb-6">
-      <h3 class="text-xl font-semibold text-gray-900 dark:text-white">
-        Select Existing Artwork
-      </h3>
+      <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Select Existing Artwork</h3>
       <button
         @click="$emit('close')"
         class="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
@@ -50,7 +48,9 @@ function confirmSelection() {
         v-for="artwork in nearbyArtworks"
         :key="artwork.id"
         class="p-4 border-2 border-gray-200 dark:border-gray-700 rounded-lg hover:border-blue-300 dark:hover:border-blue-600 cursor-pointer transition-colors"
-        :class="selectedArtwork === artwork.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : ''"
+        :class="
+          selectedArtwork === artwork.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : ''
+        "
         @click="selectArtwork(artwork.id)"
       >
         <div class="flex items-center space-x-4">
@@ -60,10 +60,13 @@ function confirmSelection() {
             :alt="artwork.type_name"
             class="w-16 h-16 object-cover rounded-lg"
           />
-          <div v-else class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+          <div
+            v-else
+            class="w-16 h-16 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center"
+          >
             <PhotoIcon class="w-8 h-8 text-gray-400" />
           </div>
-          
+
           <div class="flex-1">
             <h6 class="font-medium text-gray-900 dark:text-white mb-1">
               {{ artwork.type_name }}
@@ -71,7 +74,10 @@ function confirmSelection() {
             <p class="text-sm text-gray-600 dark:text-gray-300">
               {{ artwork.distance_meters }}m away
             </p>
-            <p v-if="artwork.similarity_explanation" class="text-sm text-blue-600 dark:text-blue-400">
+            <p
+              v-if="artwork.similarity_explanation"
+              class="text-sm text-blue-600 dark:text-blue-400"
+            >
               {{ artwork.similarity_explanation }}
             </p>
           </div>

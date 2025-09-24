@@ -19,7 +19,7 @@
       "skipIncomplete": true
     }
   },
-    "presets": {
+  "presets": {
     "vancouver": {
       "description": "Configuration for Vancouver public art imports",
       "user_uuid": "a0000000-1000-4000-8000-000000000002",
@@ -47,7 +47,7 @@
     },
     "strict": {
       "description": "Strict validation for high-quality imports",
-      "user_uuid": "a0000000-1000-4000-8000-000000000002", 
+      "user_uuid": "a0000000-1000-4000-8000-000000000002",
       "duplicateThreshold": 0.9,
       "attribution": {
         "source": "OpenStreetMap",
@@ -72,7 +72,7 @@
       "user_uuid": "a0000000-1000-4000-8000-000000000002",
       "duplicateThreshold": 0.5,
       "attribution": {
-        "source": "OpenStreetMap", 
+        "source": "OpenStreetMap",
         "license": "[ODbL](https://www.openstreetmap.org/copyright)",
         "attribution_text": "© OpenStreetMap contributors"
       },
@@ -99,7 +99,7 @@
   },
   "fieldMappingReference": {
     "title": "Artwork title/name - mapped from OSM 'name' tag",
-    "artist": "Artist name - mapped from OSM 'artist_name' tag", 
+    "artist": "Artist name - mapped from OSM 'artist_name' tag",
     "description": "Artwork description - mapped from OSM 'description' tag",
     "coordinates": "Latitude/longitude - extracted from GeoJSON geometry",
     "external_id": "OSM feature ID - used for duplicate detection",
@@ -116,7 +116,7 @@
         "label": "Artwork Type"
       },
       "material": {
-        "transform": "title_case", 
+        "transform": "title_case",
         "label": "Material"
       },
       "website": {

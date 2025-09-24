@@ -9,7 +9,7 @@ The Cultural Archiver includes a comprehensive location services system that pro
 The location system consists of three main components:
 
 - **Location Services** (`src/lib/location/`) - Core functionality for geocoding and caching
-- **Mass Import Integration** - Automatic location enhancement during data imports  
+- **Mass Import Integration** - Automatic location enhancement during data imports
 - **Cache Warming Tools** - Scripts to pre-populate the cache database
 
 ### Key Features
@@ -45,6 +45,7 @@ npx tsx scripts/test-location-cache.ts
 ```
 
 Expected output:
+
 ```
 🧪 Testing Location Cache System...
 📊 Initial cache stats: { totalEntries: 0, oldestEntry: null, newestEntry: null }
@@ -61,6 +62,7 @@ Testing Downtown Vancouver (49.2827, -123.1207):
 Before running mass imports, warm the cache with your data files:
 
 **For OSM data:**
+
 ```bash
 # Vancouver OSM artwork data
 npm run warm-location-cache src/lib/data-collection/osm-vancouver-art.json
@@ -70,11 +72,13 @@ npm run warm-location-cache src/lib/data-collection/osm-public-art-bc.json
 ```
 
 **For Vancouver Public Art data:**
+
 ```bash
 npm run warm-location-cache src/lib/data-collection/vancouver-public-art.json
 ```
 
 **For custom data files:**
+
 ```bash
 npm run warm-location-cache path/to/your/data.json
 npm run warm-location-cache path/to/your/data.csv
@@ -89,6 +93,7 @@ npm run location-cache:stats
 ```
 
 Example output:
+
 ```json
 {
   "totalEntries": 1247,
@@ -111,18 +116,19 @@ src/lib/data-collection/osm/output/merged/
 ### Cache Warming Process
 
 **Step 1: Identify your data file**
+
 ```bash
 ls "src/lib/data-collection/osm/output/merged/*.geojson"
 ```
 
 **Step 2: Run cache warming**
+
 ```bash
 # Start cache warming with OSM data (this will take ~24 minutes!)
 npm run warm-location-cache "src/lib/data-collection/osm/output/merged/merged-artworks.geojson"
 ```
 
-**Step 3: Monitor progress**
-The script provides detailed progress information:
+**Step 3: Monitor progress** The script provides detailed progress information:
 
 ```
 🌟 Starting cache warming from: osm-vancouver-art.json
@@ -140,17 +146,17 @@ Progress: 200/622 (32.1%) | Rate: 0.99/sec | ETA: 7m 05s | Errors: 2 | Skipped: 
 📊 Final cache: 856 entries (622 added)
 ⏱️  Total time: 10m 23s
 ✅ Processed: 620
-❌ Errors: 2  
+❌ Errors: 2
 ⏭️  Skipped: 5
 ```
 
 ### Performance Estimates for OSM Data
 
-| Dataset | Actual Size | Cache Warming Time |
-|---------|-------------|-------------------|
-| OSM Merged Artworks | 1,412 locations | ~24 minutes |
+| Dataset             | Actual Size     | Cache Warming Time |
+| ------------------- | --------------- | ------------------ |
+| OSM Merged Artworks | 1,412 locations | ~24 minutes        |
 
-*Note: Times assume no existing cache. Subsequent runs only process new coordinates.*
+_Note: Times assume no existing cache. Subsequent runs only process new coordinates._
 
 ## Mass Import Integration
 
@@ -159,6 +165,7 @@ Progress: 200/622 (32.1%) | Rate: 0.99/sec | ETA: 7m 05s | Errors: 2 | Skipped: 
 Location enhancement is automatically enabled in mass imports. Coordinates are enhanced with human-readable location names:
 
 **Before Enhancement:**
+
 ```json
 {
   "lat": 49.2827,
@@ -172,11 +179,12 @@ Location enhancement is automatically enabled in mass imports. Coordinates are e
 ```
 
 **After Enhancement:**
+
 ```json
 {
   "lat": 49.2827,
   "lon": -123.1207,
-  "title": "Sample Artwork", 
+  "title": "Sample Artwork",
   "tags": {
     "material": "bronze",
     "artist": "Example Artist",
@@ -215,10 +223,10 @@ const result = await pipeline.process(inputData, {
     requestTimeout: 15000,
     tagFields: {
       displayName: 'address_full',
-      city: 'address_city', 
-      country: 'address_country'
-    }
-  }
+      city: 'address_city',
+      country: 'address_country',
+    },
+  },
 });
 ```
 
@@ -285,7 +293,7 @@ The system strictly follows Nominatim's usage policy:
 The system gracefully handles:
 
 - **Network timeouts**: Configurable timeout with retry logic
-- **API errors**: 4xx/5xx responses logged but don't stop processing  
+- **API errors**: 4xx/5xx responses logged but don't stop processing
 - **Invalid coordinates**: Out-of-range values skipped with warnings
 - **Rate limiting**: Automatic delay enforcement
 - **Database corruption**: Automatic database recreation
@@ -309,11 +317,11 @@ For very large datasets, process in batches:
 # Process first 1000 records
 npm run warm-location-cache large-dataset.json --limit 1000 --offset 0
 
-# Process next 1000 records  
+# Process next 1000 records
 npm run warm-location-cache large-dataset.json --limit 1000 --offset 1000
 ```
 
-*Note: The --limit and --offset flags may need to be implemented depending on your script structure.*
+_Note: The --limit and --offset flags may need to be implemented depending on your script structure._
 
 ### Monitoring and Debugging
 
@@ -351,7 +359,7 @@ npm rebuild better-sqlite3
 - The system automatically handles this
 - If you see persistent errors, wait 5-10 minutes before retrying
 
-**"Permission denied" on _data directory**
+**"Permission denied" on \_data directory**
 
 ```bash
 # Ensure directory exists and is writable
@@ -398,7 +406,7 @@ This attribution should be visible wherever location-enhanced data is displayed.
 - **Alternative Providers**: Support additional geocoding services
 - **Performance Monitoring**: Built-in metrics and monitoring
 
-### Integration Opportunities  
+### Integration Opportunities
 
 - **Frontend Integration**: Real-time location lookup for user submissions
 - **API Endpoints**: Expose location services via REST API
@@ -408,7 +416,7 @@ This attribution should be visible wherever location-enhanced data is displayed.
 ## Related Documentation
 
 - **[Mass Import System](../src/lib/mass-import-system/README.md)** - Import pipeline integration
-- **[API Documentation](./api.md)** - REST API specifications  
+- **[API Documentation](./api.md)** - REST API specifications
 - **[Database Schema](./database.md)** - Complete database documentation
 - **[Location Services Technical Docs](../src/lib/location/README.md)** - Developer documentation
 
@@ -422,17 +430,18 @@ This attribution should be visible wherever location-enhanced data is displayed.
 
 ```typescript
 interface LocationEnhancementOptions {
-  enabled?: boolean;           // Enable/disable enhancement (default: true)
-  cacheDbPath?: string;        // Custom cache database path
-  requestTimeout?: number;     // API timeout in ms (default: 10000)
-  failOnErrors?: boolean;      // Fail on lookup errors (default: false)
-  tagFields?: {               // Custom tag field names
-    displayName?: string;     // Field for full address (default: 'location_display_name')
-    country?: string;         // Field for country (default: 'location_country') 
-    state?: string;           // Field for state/province (default: 'location_state')
-    city?: string;            // Field for city (default: 'location_city')
-    suburb?: string;          // Field for suburb (default: 'location_suburb')
-    neighbourhood?: string;   // Field for neighbourhood (default: 'location_neighbourhood')
+  enabled?: boolean; // Enable/disable enhancement (default: true)
+  cacheDbPath?: string; // Custom cache database path
+  requestTimeout?: number; // API timeout in ms (default: 10000)
+  failOnErrors?: boolean; // Fail on lookup errors (default: false)
+  tagFields?: {
+    // Custom tag field names
+    displayName?: string; // Field for full address (default: 'location_display_name')
+    country?: string; // Field for country (default: 'location_country')
+    state?: string; // Field for state/province (default: 'location_state')
+    city?: string; // Field for city (default: 'location_city')
+    suburb?: string; // Field for suburb (default: 'location_suburb')
+    neighbourhood?: string; // Field for neighbourhood (default: 'location_neighbourhood')
   };
 }
 ```
@@ -444,7 +453,7 @@ The cache uses a single SQLite table with the following structure:
 ```sql
 CREATE TABLE location_cache (
   lat REAL NOT NULL,                 -- Latitude (6 decimal places)
-  lon REAL NOT NULL,                 -- Longitude (6 decimal places) 
+  lon REAL NOT NULL,                 -- Longitude (6 decimal places)
   version TEXT NOT NULL DEFAULT '1.0', -- Schema version
   display_name TEXT NOT NULL,        -- Full address string
   country_code TEXT,                 -- Two-letter country code
@@ -486,11 +495,13 @@ As required by OpenStreetMap and Nominatim terms of service, any UI displaying l
 ## Performance
 
 **Cache Warming Estimates:**
+
 - 1,000 unique coordinates: ~17 minutes
-- 10,000 unique coordinates: ~2.8 hours  
+- 10,000 unique coordinates: ~2.8 hours
 - 50,000 unique coordinates: ~14 hours
 
 **Typical Usage:**
+
 - Vancouver Public Art dataset: ~500 locations = ~8.5 minutes to warm
 - Cache hits are instantaneous (< 1ms)
 - API misses respect 1-second rate limit
@@ -518,19 +529,23 @@ This local cache system is designed to be easily portable to cloud infrastructur
 ### Common Issues
 
 **"Module compilation error" for better-sqlite3:**
+
 ```bash
 npm rebuild better-sqlite3
 ```
 
 **"Permission denied" on database file:**
+
 - Ensure `_data/` directory exists and is writable
 - Check that database file isn't locked by another process
 
 **Rate limit exceeded:**
+
 - The system automatically handles rate limiting
 - If you see 429 errors, wait and retry
 
 **Out of memory during cache warming:**
+
 - Process large datasets in smaller batches
 - Use the `--limit` option to process incrementally
 

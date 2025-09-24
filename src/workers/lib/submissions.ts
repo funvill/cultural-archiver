@@ -32,45 +32,52 @@ export async function createSubmission(
 ): Promise<string> {
   const id = generateUUID();
   const now = new Date().toISOString();
-  
-  await db.prepare(`
+
+  await db
+    .prepare(
+      `
     INSERT INTO submissions (
       id, submission_type, user_token, email, submitter_name,
       artwork_id, artist_id, lat, lon, notes, photos, tags,
       old_data, new_data, verification_status, status,
       created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    id,
-    submissionData.submissionType,
-    submissionData.userToken,
-    submissionData.email || null,
-    submissionData.submitterName || null,
-    submissionData.artworkId || null,
-    submissionData.artistId || null,
-    submissionData.lat || null,
-    submissionData.lon || null,
-    submissionData.notes || null,
-    submissionData.photos ? JSON.stringify(submissionData.photos) : null,
-    submissionData.tags ? JSON.stringify(submissionData.tags) : null,
-    submissionData.oldData ? JSON.stringify(submissionData.oldData) : null,
-    submissionData.newData ? JSON.stringify(submissionData.newData) : null,
-    submissionData.verificationStatus || 'pending',
-    'pending',
-    now,
-    now
-  ).run();
+  `
+    )
+    .bind(
+      id,
+      submissionData.submissionType,
+      submissionData.userToken,
+      submissionData.email || null,
+      submissionData.submitterName || null,
+      submissionData.artworkId || null,
+      submissionData.artistId || null,
+      submissionData.lat || null,
+      submissionData.lon || null,
+      submissionData.notes || null,
+      submissionData.photos ? JSON.stringify(submissionData.photos) : null,
+      submissionData.tags ? JSON.stringify(submissionData.tags) : null,
+      submissionData.oldData ? JSON.stringify(submissionData.oldData) : null,
+      submissionData.newData ? JSON.stringify(submissionData.newData) : null,
+      submissionData.verificationStatus || 'pending',
+      'pending',
+      now,
+      now
+    )
+    .run();
 
   return id;
 }
 
-export async function getSubmission(
-  db: D1Database,
-  id: string
-): Promise<SubmissionRecord | null> {
-  const result = await db.prepare(`
+export async function getSubmission(db: D1Database, id: string): Promise<SubmissionRecord | null> {
+  const result = await db
+    .prepare(
+      `
     SELECT * FROM submissions WHERE id = ?
-  `).bind(id).first<SubmissionRecord>();
+  `
+    )
+    .bind(id)
+    .first<SubmissionRecord>();
 
   return result || null;
 }
@@ -83,25 +90,32 @@ export async function updateSubmission(
   const setClause = Object.keys(updates)
     .map(key => `${key} = ?`)
     .join(', ');
-  
+
   const values = Object.values(updates);
-  
-  const result = await db.prepare(`
+
+  const result = await db
+    .prepare(
+      `
     UPDATE submissions 
     SET ${setClause}, updated_at = datetime('now')
     WHERE id = ?
-  `).bind(...values, id).run();
+  `
+    )
+    .bind(...values, id)
+    .run();
 
   return result.success;
 }
 
-export async function deleteSubmission(
-  db: D1Database,
-  id: string
-): Promise<boolean> {
-  const result = await db.prepare(`
+export async function deleteSubmission(db: D1Database, id: string): Promise<boolean> {
+  const result = await db
+    .prepare(
+      `
     DELETE FROM submissions WHERE id = ?
-  `).bind(id).run();
+  `
+    )
+    .bind(id)
+    .run();
 
   return result.success;
 }
@@ -127,7 +141,7 @@ export async function createLogbookEntry(
 ): Promise<string> {
   return createSubmission(db, {
     submissionType: 'logbook_entry',
-    ...entryData
+    ...entryData,
   });
 }
 
@@ -143,16 +157,19 @@ export async function getLogbookEntries(
     WHERE submission_type = 'logbook_entry' AND artwork_id = ?
   `;
   const params: (string | number)[] = [artworkId];
-  
+
   if (status) {
     query += ` AND status = ?`;
     params.push(status);
   }
-  
+
   query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
-  
-  const results = await db.prepare(query).bind(...params).all<SubmissionRecord>();
+
+  const results = await db
+    .prepare(query)
+    .bind(...params)
+    .all<SubmissionRecord>();
   return results.results || [];
 }
 
@@ -168,16 +185,19 @@ export async function getLogbookEntriesByUser(
     WHERE submission_type = 'logbook_entry' AND user_token = ?
   `;
   const params: (string | number)[] = [userToken];
-  
+
   if (status) {
     query += ` AND status = ?`;
     params.push(status);
   }
-  
+
   query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
-  
-  const results = await db.prepare(query).bind(...params).all<SubmissionRecord>();
+
+  const results = await db
+    .prepare(query)
+    .bind(...params)
+    .all<SubmissionRecord>();
   return results.results || [];
 }
 
@@ -199,7 +219,7 @@ export async function createArtworkEdit(
 ): Promise<string> {
   return createSubmission(db, {
     submissionType: 'artwork_edit',
-    ...editData
+    ...editData,
   });
 }
 
@@ -215,16 +235,19 @@ export async function getArtworkEdits(
     WHERE submission_type = 'artwork_edit' AND artwork_id = ?
   `;
   const params: (string | number)[] = [artworkId];
-  
+
   if (status) {
     query += ` AND status = ?`;
     params.push(status);
   }
-  
+
   query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
-  
-  const results = await db.prepare(query).bind(...params).all<SubmissionRecord>();
+
+  const results = await db
+    .prepare(query)
+    .bind(...params)
+    .all<SubmissionRecord>();
   return results.results || [];
 }
 
@@ -246,7 +269,7 @@ export async function createArtistEdit(
 ): Promise<string> {
   return createSubmission(db, {
     submissionType: 'artist_edit',
-    ...editData
+    ...editData,
   });
 }
 
@@ -262,16 +285,19 @@ export async function getArtistEdits(
     WHERE submission_type = 'artist_edit' AND artist_id = ?
   `;
   const params: (string | number)[] = [artistId];
-  
+
   if (status) {
     query += ` AND status = ?`;
     params.push(status);
   }
-  
+
   query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
-  
-  const results = await db.prepare(query).bind(...params).all<SubmissionRecord>();
+
+  const results = await db
+    .prepare(query)
+    .bind(...params)
+    .all<SubmissionRecord>();
   return results.results || [];
 }
 
@@ -295,7 +321,7 @@ export async function createNewArtworkSubmission(
 ): Promise<string> {
   return createSubmission(db, {
     submissionType: 'new_artwork',
-    ...submissionData
+    ...submissionData,
   });
 }
 
@@ -311,7 +337,7 @@ export async function createNewArtistSubmission(
 ): Promise<string> {
   return createSubmission(db, {
     submissionType: 'new_artist',
-    ...submissionData
+    ...submissionData,
   });
 }
 
@@ -333,7 +359,7 @@ export async function approveSubmission(
     status: 'approved',
     reviewer_token: reviewerToken || null,
     review_notes: reviewNotes || null,
-    reviewed_at: new Date().toISOString()
+    reviewed_at: new Date().toISOString(),
   });
 
   if (!updateSuccess) return false;
@@ -352,7 +378,7 @@ export async function rejectSubmission(
     status: 'rejected',
     reviewer_token: reviewerToken || null,
     review_notes: reviewNotes || null,
-    reviewed_at: new Date().toISOString()
+    reviewed_at: new Date().toISOString(),
   });
 }
 
@@ -369,11 +395,19 @@ async function applySubmissionChanges(
 
       case 'artwork_edit':
         if (!submission.artwork_id || !submission.new_data) return false;
-        return await applyArtworkChanges(db, submission.artwork_id, JSON.parse(submission.new_data as string));
+        return await applyArtworkChanges(
+          db,
+          submission.artwork_id,
+          JSON.parse(submission.new_data as string)
+        );
 
       case 'artist_edit':
         if (!submission.artist_id || !submission.new_data) return false;
-        return await applyArtistChanges(db, submission.artist_id, JSON.parse(submission.new_data as string));
+        return await applyArtistChanges(
+          db,
+          submission.artist_id,
+          JSON.parse(submission.new_data as string)
+        );
 
       case 'new_artist':
         if (!submission.new_data) return false;
@@ -397,16 +431,21 @@ async function applyArtworkChanges(
     .filter(key => key !== 'id') // Don't allow ID changes
     .map(key => `${key} = ?`)
     .join(', ');
-  
+
   const values = Object.keys(newData)
     .filter(key => key !== 'id')
     .map(key => newData[key]);
-  
-  const result = await db.prepare(`
+
+  const result = await db
+    .prepare(
+      `
     UPDATE artwork 
     SET ${setClause}, updated_at = datetime('now')
     WHERE id = ?
-  `).bind(...values, artworkId).run();
+  `
+    )
+    .bind(...values, artworkId)
+    .run();
 
   return result.success;
 }
@@ -420,16 +459,21 @@ async function applyArtistChanges(
     .filter(key => key !== 'id')
     .map(key => `${key} = ?`)
     .join(', ');
-  
+
   const values = Object.keys(newData)
     .filter(key => key !== 'id')
     .map(key => newData[key]);
-  
-  const result = await db.prepare(`
+
+  const result = await db
+    .prepare(
+      `
     UPDATE artists 
     SET ${setClause}, updated_at = datetime('now')
     WHERE id = ?
-  `).bind(...values, artistId).run();
+  `
+    )
+    .bind(...values, artistId)
+    .run();
 
   return result.success;
 }
@@ -441,36 +485,41 @@ async function createArtworkFromSubmission(
   const newData = JSON.parse(submission.new_data as string) as Partial<NewArtworkRecord>;
   const artworkId = generateUUID();
   const now = new Date().toISOString();
-  
-  const result = await db.prepare(`
+
+  const result = await db
+    .prepare(
+      `
     INSERT INTO artwork (
       id, title, year_created, medium, dimensions,
       lat, lon, neighborhood, city, region, country,
       photos, tags, description, status, source_type, source_id,
       created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    artworkId,
-    newData.title || 'Untitled',
-    newData.year_created || null,
-    newData.medium || null,
-    newData.dimensions || null,
-    submission.lat || newData.lat || null,
-    submission.lon || newData.lon || null,
-    newData.neighborhood || null,
-    newData.city || null,
-    newData.region || null,
-    newData.country || null,
-    submission.photos || newData.photos || null,
-    submission.tags || newData.tags || null,
-  newData.description || submission.notes || null, // Fixed: was submission.note, should be submission.notes  
-    newData.description || submission.notes || null, // Fixed: was submission.note, should be submission.notes  
-    'approved',
-    'user_submission',
-    submission.id,
-    now,
-    now
-  ).run();
+  `
+    )
+    .bind(
+      artworkId,
+      newData.title || 'Untitled',
+      newData.year_created || null,
+      newData.medium || null,
+      newData.dimensions || null,
+      submission.lat || newData.lat || null,
+      submission.lon || newData.lon || null,
+      newData.neighborhood || null,
+      newData.city || null,
+      newData.region || null,
+      newData.country || null,
+      submission.photos || newData.photos || null,
+      submission.tags || newData.tags || null,
+      newData.description || submission.notes || null, // Fixed: was submission.note, should be submission.notes
+      newData.description || submission.notes || null, // Fixed: was submission.note, should be submission.notes
+      'approved',
+      'user_submission',
+      submission.id,
+      now,
+      now
+    )
+    .run();
 
   // Update submission with the created artwork ID
   if (result.success) {
@@ -487,29 +536,34 @@ async function createArtistFromSubmission(
   const newData = JSON.parse(submission.new_data as string) as Partial<NewArtistRecord>;
   const artistId = generateUUID();
   const now = new Date().toISOString();
-  
-  const result = await db.prepare(`
+
+  const result = await db
+    .prepare(
+      `
     INSERT INTO artists (
       id, name, description, birth_year, death_year, nationality,
       social_media, notes, tags, status, source_type, source_id,
       created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    artistId,
-    newData.name || 'Unknown Artist',
-    newData.description || null,
-    newData.birth_year || null,
-    newData.death_year || null,
-    newData.nationality || null,
-    newData.social_media || null,
-  newData.notes || submission.notes || null, // Fixed: was submission.note, should be submission.notes        
-    '{}', // tags as empty JSON object
-    'approved',
-    'user_submission',
-    submission.id,
-    now,
-    now
-  ).run();
+  `
+    )
+    .bind(
+      artistId,
+      newData.name || 'Unknown Artist',
+      newData.description || null,
+      newData.birth_year || null,
+      newData.death_year || null,
+      newData.nationality || null,
+      newData.social_media || null,
+      newData.notes || submission.notes || null, // Fixed: was submission.note, should be submission.notes
+      '{}', // tags as empty JSON object
+      'approved',
+      'user_submission',
+      submission.id,
+      now,
+      now
+    )
+    .run();
 
   // Update submission with the created artist ID
   if (result.success) {
@@ -532,16 +586,19 @@ export async function getSubmissionsByStatus(
 ): Promise<SubmissionRecord[]> {
   let query = `SELECT * FROM submissions WHERE status = ?`;
   const params: (string | number)[] = [status];
-  
+
   if (submissionType) {
     query += ` AND submission_type = ?`;
     params.push(submissionType);
   }
-  
+
   query += ` ORDER BY created_at DESC LIMIT ? OFFSET ?`;
   params.push(limit, offset);
-  
-  const results = await db.prepare(query).bind(...params).all<SubmissionRecord>();
+
+  const results = await db
+    .prepare(query)
+    .bind(...params)
+    .all<SubmissionRecord>();
   return results.results || [];
 }
 
@@ -557,31 +614,34 @@ export async function getSubmissionStats(
 }> {
   let query = `SELECT status, submission_type, COUNT(*) as count FROM submissions`;
   const params: string[] = [];
-  
+
   if (dateRange) {
     query += ` WHERE created_at BETWEEN ? AND ?`;
     params.push(dateRange.start, dateRange.end);
   }
-  
+
   query += ` GROUP BY status, submission_type`;
-  
-  const results = await db.prepare(query).bind(...params).all<{
-    status: string;
-    submission_type: string;
-    count: number;
-  }>();
+
+  const results = await db
+    .prepare(query)
+    .bind(...params)
+    .all<{
+      status: string;
+      submission_type: string;
+      count: number;
+    }>();
 
   const stats = {
     totalSubmissions: 0,
     pendingSubmissions: 0,
     approvedSubmissions: 0,
     rejectedSubmissions: 0,
-    submissionsByType: {} as Record<string, number>
+    submissionsByType: {} as Record<string, number>,
   };
 
   for (const row of results.results || []) {
     stats.totalSubmissions += row.count;
-    
+
     switch (row.status) {
       case 'pending':
         stats.pendingSubmissions += row.count;
@@ -593,8 +653,8 @@ export async function getSubmissionStats(
         stats.rejectedSubmissions += row.count;
         break;
     }
-    
-    stats.submissionsByType[row.submission_type] = 
+
+    stats.submissionsByType[row.submission_type] =
       (stats.submissionsByType[row.submission_type] || 0) + row.count;
   }
 
@@ -609,12 +669,17 @@ export async function getUserPendingArtworkEdits(
   userToken: string,
   artworkId: string
 ): Promise<SubmissionRecord[]> {
-  const results = await db.prepare(`
+  const results = await db
+    .prepare(
+      `
     SELECT * FROM submissions 
     WHERE user_token = ? AND artwork_id = ? AND submission_type = 'artwork_edit' AND status = 'pending'
     ORDER BY created_at DESC
-  `).bind(userToken, artworkId).all<SubmissionRecord>();
-  
+  `
+    )
+    .bind(userToken, artworkId)
+    .all<SubmissionRecord>();
+
   return results.results || [];
 }
 
@@ -640,7 +705,10 @@ export async function getUserSubmissionCount(
     params.push(submissionType);
   }
 
-  const result = await db.prepare(query).bind(...params).first<{ count: number }>();
+  const result = await db
+    .prepare(query)
+    .bind(...params)
+    .first<{ count: number }>();
   return result?.count || 0;
 }
 
@@ -661,9 +729,14 @@ export async function createArtworkEditFromFields(
   }
 ): Promise<string> {
   // Get current artwork data to build oldData
-  const artwork = await db.prepare(`
+  const artwork = await db
+    .prepare(
+      `
     SELECT * FROM artwork WHERE id = ?
-  `).bind(editData.artworkId).first();
+  `
+    )
+    .bind(editData.artworkId)
+    .first();
 
   if (!artwork) {
     throw new Error('Artwork not found');
@@ -682,6 +755,6 @@ export async function createArtworkEditFromFields(
     userToken: editData.userToken,
     artworkId: editData.artworkId,
     oldData,
-    newData
+    newData,
   });
 }

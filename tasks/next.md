@@ -1,48 +1,20 @@
 # Known things to do
 
-## Find partners
-
-Find people that would be willing to partner with me on this project. Be specific and say that you are NOT looking for monetary support but are looking for in-kind support. Advertisement, recommendations, etc.
-
-- Burrard Arts Foundation, Centre for Digital Media students. They spondered a simlare project in the past. https://intergalactic.com/content/muse-public-art-app?utm_source=chatgpt.com
-- Canada Council - They prefer events over resources. The event could be a mass hunt for new art.
-
-- https://www.art-bc.com/
-
-### Art walk / festivals
-
-These are groups doing "Art walks" or festvials. They might be good groups to partner with. Give them the tools that they need then they use our service.
-
-- https://vancouverartwalk.com/
-
 ## General
 
 - `support@art.abluestar.com` currently errors out when sending an email to this address. This address should forward to my personal address.
 - Check to make sure that the only email address that is public is `support@art.abluestar.com`
 
-
 - In artwork edit mode, make the description text box 3 times as tall.
 - Create a script to remove the deployed recoreds on cloudflare for the frontend and backend workers. These are piling up for no reason.
 
-- Add an artwork for NULL island https://en.wikipedia.org/wiki/Null_Island 
+- Add an artwork for NULL island https://en.wikipedia.org/wiki/Null_Island
 
-----
+---
 
 - Need to spend some more time on the mobile and experience. I found it difficult to change and edit the tags.
 
-----
-
-## Prior Art research
-
-- **School Of Cities** - Vancouver public Art
-  - https://github.com/schoolofcities/vancouver-public-art
-  - The data is just Vancouver public art database
-  - I like the way they put a box on the left hand side when you click on an icon instead of just going direct to the artwork page
-  - Contact them and say hello, maybe we could do something together.
-  - I like how the markers on the map are small and stay the same reliative size as the map scales up and down.
-  - The markers are colored making it easy at a glance to see what each marker repersents.
-
-- https://artmap.ca using public data for artworks.
+---
 
 ## Marketing and gameafication
 
@@ -81,41 +53,50 @@ The admin page is a super user that can give moderators permissions to other use
 
 - [ ] After uploading artwork, If no artworks are detected nearby the search results. Go straight to add art details page. No reason to show a page that doesn't have any actions.
 
-
-----
+---
 
 ## Mass Import merge tags
 
 - Update the "source_url" value to be clickable as a link. This means it shouldn't search that tag, that link should be clickable.
   - Tags that have urls in them, should be clickable
 
-----
+---
 
 The "Nearby Artworks" results in the FastAdd Artwork. The thumbnails for the artworks are not showing. For example this artwork https://art.abluestar.com/artwork/969b3394-e3a0-4dbb-8d62-87a42b382b1e?action=add-logbook&from=fast-upload as a photo but it the photo isn't showing up on the "Nearby Artworks" results.
 
-
-----
+---
 
 We are going to update the user profile page
 
 Add a username to the user table. The users can change their username on the user settings page. The username must be unique across the whole system.
 
-
-Badges
-Users can earn badges by doing tasks for the system. A user can have the same badge multiple times. 
-
-
+Badges Users can earn badges by doing tasks for the system. A user can have the same badge multiple times.
 
 ## Top row
-- Total points card. Show zero right now 
+
+- Total points card. Show zero right now
 - Cards for: Total submitted Artworks, Approved Artworks, Approved edits... Do not show rejected count
 
 ## Second row
-Badges
-Show a list of badges that this user has been awarded.
+
+Badges Show a list of badges that this user has been awarded.
 
 ## Next row
-Submissions
-Show the submission cards
 
-----
+Submissions Show the submission cards
+
+---
+
+Cultural archive project note
+
+- [x] It asks for location even when location is provided by the browser
+- [x] The map markers are too small when fully zoomed in
+- [x] The current location blue circle marker on the map isn't clear that it's your location rather than a piece of art. Change it to a icon person
+- Artist Pages need to be created
+- [x] Add log book entry button to artwork details page
+- The photo checkbox in the search results does not work because it's searching the tags for photos instead of the photos field
+
+---- 
+
+Downloadable QR code "Sign" for the artwork page. 
+This allows people to print the sign for their own artworks to link to this page.

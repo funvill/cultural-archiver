@@ -24,36 +24,43 @@ export async function createUserRole(
 ): Promise<string> {
   const id = generateUUID();
   const now = new Date().toISOString();
-  
-  await db.prepare(`
+
+  await db
+    .prepare(
+      `
     INSERT INTO user_roles (
       id, user_token, role, permissions, granted_by, granted_at,
       expires_at, metadata, status, created_at, updated_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).bind(
-    id,
-    roleData.userToken,
-    roleData.role,
-    JSON.stringify(roleData.permissions),
-    roleData.grantedBy,
-    now,
-    roleData.expiresAt || null,
-    roleData.metadata ? JSON.stringify(roleData.metadata) : null,
-    'active',
-    now,
-    now
-  ).run();
+  `
+    )
+    .bind(
+      id,
+      roleData.userToken,
+      roleData.role,
+      JSON.stringify(roleData.permissions),
+      roleData.grantedBy,
+      now,
+      roleData.expiresAt || null,
+      roleData.metadata ? JSON.stringify(roleData.metadata) : null,
+      'active',
+      now,
+      now
+    )
+    .run();
 
   return id;
 }
 
-export async function getUserRole(
-  db: D1Database,
-  id: string
-): Promise<UserRoleRecord | null> {
-  const result = await db.prepare(`
+export async function getUserRole(db: D1Database, id: string): Promise<UserRoleRecord | null> {
+  const result = await db
+    .prepare(
+      `
     SELECT * FROM user_roles WHERE id = ?
-  `).bind(id).first<UserRoleRecord>();
+  `
+    )
+    .bind(id)
+    .first<UserRoleRecord>();
 
   return result || null;
 }
@@ -67,13 +74,13 @@ export async function getUserRolesByToken(
     SELECT * FROM user_roles 
     WHERE user_token = ? AND status = 'active'
   `;
-  
+
   if (!includeExpired) {
     query += ` AND (expires_at IS NULL OR expires_at > datetime('now'))`;
   }
-  
+
   query += ` ORDER BY granted_at DESC`;
-  
+
   const results = await db.prepare(query).bind(userToken).all<UserRoleRecord>();
   return results.results || [];
 }
@@ -86,14 +93,19 @@ export async function updateUserRole(
   const setClause = Object.keys(updates)
     .map(key => `${key} = ?`)
     .join(', ');
-  
+
   const values = Object.values(updates);
-  
-  const result = await db.prepare(`
+
+  const result = await db
+    .prepare(
+      `
     UPDATE user_roles 
     SET ${setClause}, updated_at = datetime('now')
     WHERE id = ?
-  `).bind(...values, id).run();
+  `
+    )
+    .bind(...values, id)
+    .run();
 
   return result.success;
 }
@@ -104,16 +116,17 @@ export async function revokeUserRole(
   revokedBy: string,
   reason?: string
 ): Promise<boolean> {
-  const result = await db.prepare(`
+  const result = await db
+    .prepare(
+      `
     UPDATE user_roles 
     SET status = 'revoked', revoked_by = ?, revoked_at = datetime('now'),
         metadata = json_patch(COALESCE(metadata, '{}'), ?)
     WHERE id = ?
-  `).bind(
-    revokedBy,
-    JSON.stringify({ revokeReason: reason || 'No reason provided' }),
-    id
-  ).run();
+  `
+    )
+    .bind(revokedBy, JSON.stringify({ revokeReason: reason || 'No reason provided' }), id)
+    .run();
 
   return result.success;
 }
@@ -128,7 +141,7 @@ export async function hasPermission(
   requiredPermission: string
 ): Promise<boolean> {
   const roles = await getUserRolesByToken(db, userToken, false);
-  
+
   for (const role of roles) {
     try {
       if (!role.permissions) continue; // Skip roles without permissions
@@ -140,7 +153,7 @@ export async function hasPermission(
       console.error('Error parsing permissions for role:', role.id, error);
     }
   }
-  
+
   return false;
 }
 
@@ -178,10 +191,10 @@ export async function getUserPermissions(
   canReview: boolean;
 }> {
   const roles = await getUserRolesByToken(db, userToken, false);
-  
+
   const allPermissions = new Set<string>();
   const userRoles = new Set<string>();
-  
+
   for (const role of roles) {
     userRoles.add(role.role);
     try {
@@ -192,14 +205,14 @@ export async function getUserPermissions(
       console.error('Error parsing permissions for role:', role.id, error);
     }
   }
-  
+
   return {
     roles: Array.from(userRoles),
     permissions: Array.from(allPermissions),
     isAdmin: userRoles.has('admin'),
     canModerate: userRoles.has('admin') || userRoles.has('moderator'),
     canCurate: userRoles.has('admin') || userRoles.has('curator'),
-    canReview: userRoles.has('admin') || userRoles.has('moderator') || userRoles.has('reviewer')
+    canReview: userRoles.has('admin') || userRoles.has('moderator') || userRoles.has('reviewer'),
   };
 }
 
@@ -220,43 +233,44 @@ export async function getAllRoles(
 ): Promise<UserRoleRecord[]> {
   let query = `SELECT * FROM user_roles WHERE 1=1`;
   const params: (string | number)[] = [];
-  
+
   if (filters.role) {
     query += ` AND role = ?`;
     params.push(filters.role);
   }
-  
+
   if (filters.status) {
     query += ` AND status = ?`;
     params.push(filters.status);
   } else if (!filters.includeExpired) {
     query += ` AND (expires_at IS NULL OR expires_at > datetime('now'))`;
   }
-  
+
   if (filters.grantedBy) {
     query += ` AND granted_by = ?`;
     params.push(filters.grantedBy);
   }
-  
+
   query += ` ORDER BY granted_at DESC`;
-  
+
   if (filters.limit) {
     query += ` LIMIT ?`;
     params.push(filters.limit);
-    
+
     if (filters.offset) {
       query += ` OFFSET ?`;
       params.push(filters.offset);
     }
   }
-  
-  const results = await db.prepare(query).bind(...params).all<UserRoleRecord>();
+
+  const results = await db
+    .prepare(query)
+    .bind(...params)
+    .all<UserRoleRecord>();
   return results.results || [];
 }
 
-export async function getRoleStatistics(
-  db: D1Database
-): Promise<{
+export async function getRoleStatistics(db: D1Database): Promise<{
   totalRoles: number;
   activeRoles: number;
   revokedRoles: number;
@@ -264,7 +278,9 @@ export async function getRoleStatistics(
   rolesByType: Record<string, number>;
   rolesByGranter: Record<string, number>;
 }> {
-  const results = await db.prepare(`
+  const results = await db
+    .prepare(
+      `
     SELECT 
       role,
       status,
@@ -276,13 +292,15 @@ export async function getRoleStatistics(
       COUNT(*) as count
     FROM user_roles 
     GROUP BY role, status, granted_by
-  `).all<{
-    role: string;
-    status: string;
-    granted_by: string;
-    effective_status: string;
-    count: number;
-  }>();
+  `
+    )
+    .all<{
+      role: string;
+      status: string;
+      granted_by: string;
+      effective_status: string;
+      count: number;
+    }>();
 
   const stats = {
     totalRoles: 0,
@@ -290,12 +308,12 @@ export async function getRoleStatistics(
     revokedRoles: 0,
     expiredRoles: 0,
     rolesByType: {} as Record<string, number>,
-    rolesByGranter: {} as Record<string, number>
+    rolesByGranter: {} as Record<string, number>,
   };
 
   for (const row of results.results || []) {
     stats.totalRoles += row.count;
-    
+
     switch (row.effective_status) {
       case 'active':
         stats.activeRoles += row.count;
@@ -307,7 +325,7 @@ export async function getRoleStatistics(
         stats.expiredRoles += row.count;
         break;
     }
-    
+
     stats.rolesByType[row.role] = (stats.rolesByType[row.role] || 0) + row.count;
     stats.rolesByGranter[row.granted_by] = (stats.rolesByGranter[row.granted_by] || 0) + row.count;
   }
@@ -331,7 +349,7 @@ export const ROLE_PERMISSIONS = {
     'artwork.approve',
     'logbook.moderate',
     'users.view',
-    'audit.view'
+    'audit.view',
   ],
   curator: [
     'artwork.create',
@@ -340,15 +358,15 @@ export const ROLE_PERMISSIONS = {
     'artist.edit',
     'submissions.review',
     'tags.edit',
-    'metadata.edit'
+    'metadata.edit',
   ],
   reviewer: [
     'submissions.view',
     'submissions.review',
     'artwork.view',
     'artist.view',
-    'logbook.view'
-  ]
+    'logbook.view',
+  ],
 } as const;
 
 export async function createRoleFromTemplate(
@@ -363,17 +381,17 @@ export async function createRoleFromTemplate(
   } = {}
 ): Promise<string> {
   const basePermissions = [...ROLE_PERMISSIONS[role]];
-  const permissions = options.additionalPermissions 
+  const permissions = options.additionalPermissions
     ? [...basePermissions, ...options.additionalPermissions]
     : basePermissions;
-  
+
   return createUserRole(db, {
     userToken,
     role,
     permissions,
     grantedBy,
     ...(options.expiresAt && { expiresAt: options.expiresAt }),
-    ...(options.metadata && { metadata: options.metadata })
+    ...(options.metadata && { metadata: options.metadata }),
   });
 }
 
@@ -381,16 +399,18 @@ export async function createRoleFromTemplate(
 // Cleanup and Maintenance Functions
 // ================================
 
-export async function cleanExpiredRoles(
-  db: D1Database
-): Promise<number> {
-  const result = await db.prepare(`
+export async function cleanExpiredRoles(db: D1Database): Promise<number> {
+  const result = await db
+    .prepare(
+      `
     UPDATE user_roles 
     SET status = 'expired', updated_at = datetime('now')
     WHERE expires_at IS NOT NULL 
     AND expires_at < datetime('now') 
     AND status = 'active'
-  `).run();
+  `
+    )
+    .run();
 
   return result.meta.changes || 0;
 }
@@ -401,20 +421,25 @@ export async function extendRoleExpiry(
   newExpiryDate: string,
   extendedBy: string
 ): Promise<boolean> {
-  const result = await db.prepare(`
+  const result = await db
+    .prepare(
+      `
     UPDATE user_roles 
     SET expires_at = ?, updated_at = datetime('now'),
         metadata = json_patch(COALESCE(metadata, '{}'), ?)
     WHERE id = ? AND status = 'active'
-  `).bind(
-    newExpiryDate,
-    JSON.stringify({ 
-      extendedBy, 
-      extendedAt: new Date().toISOString(),
-      previousExpiry: null // Will be filled by trigger if needed
-    }),
-    id
-  ).run();
+  `
+    )
+    .bind(
+      newExpiryDate,
+      JSON.stringify({
+        extendedBy,
+        extendedAt: new Date().toISOString(),
+        previousExpiry: null, // Will be filled by trigger if needed
+      }),
+      id
+    )
+    .run();
 
   return result.success;
 }
@@ -439,7 +464,7 @@ export async function auditRoleChanges(
     performedBy,
     targetUser,
     details,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 }
 
@@ -453,31 +478,31 @@ export async function validateRoleTransition(
   if (grantedByRoles.includes('admin')) {
     return { valid: true };
   }
-  
+
   // Moderators can only grant reviewer and curator roles
   if (grantedByRoles.includes('moderator')) {
     if (newRole === 'reviewer' || newRole === 'curator') {
       return { valid: true };
     }
-    return { 
-      valid: false, 
-      reason: 'Moderators can only grant reviewer and curator roles' 
+    return {
+      valid: false,
+      reason: 'Moderators can only grant reviewer and curator roles',
     };
   }
-  
+
   // Curators can only grant reviewer roles
   if (grantedByRoles.includes('curator')) {
     if (newRole === 'reviewer') {
       return { valid: true };
     }
-    return { 
-      valid: false, 
-      reason: 'Curators can only grant reviewer roles' 
+    return {
+      valid: false,
+      reason: 'Curators can only grant reviewer roles',
     };
   }
-  
-  return { 
-    valid: false, 
-    reason: 'Insufficient permissions to grant roles' 
+
+  return {
+    valid: false,
+    reason: 'Insufficient permissions to grant roles',
   };
 }

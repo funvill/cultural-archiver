@@ -33,17 +33,25 @@ test.describe('Notification panel', () => {
               user_token: 'test-user',
               type_key: null,
               related_id: null,
-            }
+            },
           ],
           total: 2,
-        }
+        },
       };
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      });
     });
 
     await page.route('**/api/notifications/unread_count*', async route => {
       const body = { success: true, data: { unread_count: 1 } };
-      await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      });
     });
 
     // Navigate to the app

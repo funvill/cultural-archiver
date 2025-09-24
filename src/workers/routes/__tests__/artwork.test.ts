@@ -85,8 +85,9 @@ describe('Artwork Editing Routes', () => {
 
   describe('submitArtworkEdit', () => {
     test('should submit artwork edits successfully', async () => {
-      const { getUserSubmissionCount, getUserPendingArtworkEdits, createArtworkEditFromFields } = await import('../../lib/submissions');
-      
+      const { getUserSubmissionCount, getUserPendingArtworkEdits, createArtworkEditFromFields } =
+        await import('../../lib/submissions');
+
       (getUserSubmissionCount as any).mockResolvedValue(5);
       (getUserPendingArtworkEdits as any).mockResolvedValue([]);
       (createArtworkEditFromFields as any).mockResolvedValue('submission-123');
@@ -192,32 +193,36 @@ describe('Artwork Editing Routes', () => {
 
     test('should reject request when user has pending edits', async () => {
       // Mock rate limit check to pass (under limit)
-      const { getUserSubmissionCount, getUserPendingArtworkEdits } = await import('../../lib/submissions');
+      const { getUserSubmissionCount, getUserPendingArtworkEdits } = await import(
+        '../../lib/submissions'
+      );
       vi.mocked(getUserSubmissionCount).mockResolvedValue(10); // Under rate limit
-      
+
       // Mock user having pending edits for this artwork
-      vi.mocked(getUserPendingArtworkEdits).mockResolvedValue([{
-        id: 'existing-edit',
-        artwork_id: 'artwork-123',
-        artist_id: null,
-        user_token: 'test-user-token',
-        submission_type: 'artwork_edit' as const,
-        field_changes: '{"title": {"old": "Old", "new": "New"}}',
-        photos: null,
-        notes: null,
-        lat: null,
-        lon: null,
-        consent_version: '1.0.0',
-        consent_text_hash: 'hash',
-        ip_address: '127.0.0.1',
-        user_agent: null,
-        created_at: '2023-01-01T00:00:00Z',
-        submitted_at: '2023-01-01T00:00:00Z',
-        status: 'pending' as const,
-        review_notes: null,
-        reviewed_at: null,
-        reviewer_token: null
-      }]);
+      vi.mocked(getUserPendingArtworkEdits).mockResolvedValue([
+        {
+          id: 'existing-edit',
+          artwork_id: 'artwork-123',
+          artist_id: null,
+          user_token: 'test-user-token',
+          submission_type: 'artwork_edit' as const,
+          field_changes: '{"title": {"old": "Old", "new": "New"}}',
+          photos: null,
+          notes: null,
+          lat: null,
+          lon: null,
+          consent_version: '1.0.0',
+          consent_text_hash: 'hash',
+          ip_address: '127.0.0.1',
+          user_agent: null,
+          created_at: '2023-01-01T00:00:00Z',
+          submitted_at: '2023-01-01T00:00:00Z',
+          status: 'pending' as const,
+          review_notes: null,
+          reviewed_at: null,
+          reviewer_token: null,
+        },
+      ]);
 
       const requestBody = {
         edits: [
@@ -241,8 +246,9 @@ describe('Artwork Editing Routes', () => {
 
       for (const field of allowedFields) {
         // Mock successful submissions system calls
-        const { getUserSubmissionCount, getUserPendingArtworkEdits, createArtworkEditFromFields } = await import('../../lib/submissions');
-        
+        const { getUserSubmissionCount, getUserPendingArtworkEdits, createArtworkEditFromFields } =
+          await import('../../lib/submissions');
+
         vi.mocked(getUserSubmissionCount).mockResolvedValue(5); // Below rate limit
         vi.mocked(getUserPendingArtworkEdits).mockResolvedValue([]); // No pending edits
         vi.mocked(createArtworkEditFromFields).mockResolvedValue('edit-1'); // Successful submission
@@ -290,7 +296,7 @@ describe('Artwork Editing Routes', () => {
           status: 'pending' as const,
           review_notes: null,
           reviewed_at: null,
-          reviewer_token: null
+          reviewer_token: null,
         },
       ];
 
@@ -302,7 +308,11 @@ describe('Artwork Editing Routes', () => {
 
       await getUserPendingEdits(c);
 
-      expect(getUserPendingArtworkEdits).toHaveBeenCalledWith(mockDb, 'test-user-token', 'artwork-123');
+      expect(getUserPendingArtworkEdits).toHaveBeenCalledWith(
+        mockDb,
+        'test-user-token',
+        'artwork-123'
+      );
       expect(c.json).toHaveBeenCalledWith({
         success: true,
         data: {
@@ -322,7 +332,11 @@ describe('Artwork Editing Routes', () => {
 
       await getUserPendingEdits(c);
 
-      expect(getUserPendingArtworkEdits).toHaveBeenCalledWith(mockDb, 'test-user-token', 'artwork-123');
+      expect(getUserPendingArtworkEdits).toHaveBeenCalledWith(
+        mockDb,
+        'test-user-token',
+        'artwork-123'
+      );
       expect(c.json).toHaveBeenCalledWith({
         success: true,
         data: {
@@ -426,7 +440,7 @@ describe('Artwork Editing Routes', () => {
     test('should show rate limiting disabled when RATE_LIMITING_ENABLED is false', async () => {
       // Override mock env to disable rate limiting
       const mockEnvDisabled = { ...mockEnv, RATE_LIMITING_ENABLED: 'false' };
-      
+
       const { getUserSubmissionCount } = await import('../../lib/submissions');
       vi.mocked(getUserSubmissionCount).mockResolvedValue(10);
 

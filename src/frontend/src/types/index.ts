@@ -228,7 +228,7 @@ export interface ArtworkDetails extends ArtworkDetailResponse {
   // No additional frontend-specific fields needed
 }
 
-// LogbookEntryWithPhotos is now defined inline in ArtworkWithLogbookEntries 
+// LogbookEntryWithPhotos is now defined inline in ArtworkWithLogbookEntries
 // from shared types for backward compatibility with the submissions system
 
 export interface UserSubmission {
@@ -291,8 +291,8 @@ export interface UserProfile {
     auth_context: {
       user_token: string;
       is_reviewer: boolean;
-  // Newly added moderator flag (backend may add later). Optional for backward compatibility.
-  is_moderator?: boolean;
+      // Newly added moderator flag (backend may add later). Optional for backward compatibility.
+      is_moderator?: boolean;
       is_admin: boolean;
       is_verified_email: boolean;
       is_authenticated: boolean;

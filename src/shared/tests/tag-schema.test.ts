@@ -26,7 +26,7 @@ describe('Tag Schema', () => {
     it('should have all 15 essential tags defined', () => {
       const tagKeys = getValidTagKeys();
       expect(tagKeys).toHaveLength(15);
-      
+
       // Check for required tags
       expect(tagKeys).toContain('tourism');
       expect(tagKeys).toContain('artwork_type');
@@ -68,7 +68,7 @@ describe('Tag Schema', () => {
 
     it('should group tags by category correctly', () => {
       const tagsByCategory = getTagsByCategory();
-      
+
       // Check that each category has tags
       Object.values(tagsByCategory).forEach(categoryTags => {
         expect(categoryTags.length).toBeGreaterThan(0);
@@ -123,7 +123,7 @@ describe('Tag Validation', () => {
       const definition = TAG_DEFINITIONS.artwork_type;
       if (!definition) throw new Error('Definition not found');
       const result = validateTagValue('statue', definition);
-      
+
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
@@ -132,7 +132,7 @@ describe('Tag Validation', () => {
       const definition = TAG_DEFINITIONS.artwork_type;
       if (!definition) throw new Error('Definition not found');
       const result = validateTagValue('invalid_type', definition);
-      
+
       expect(result.isValid).toBe(false);
       expect(result.errors).toHaveLength(1);
       expect(result.errors[0]).toContain('Invalid value');
@@ -144,7 +144,7 @@ describe('Tag Validation', () => {
       const definition = TAG_DEFINITIONS.name;
       if (!definition) throw new Error('Definition not found');
       const result = validateTagValue('Test Artwork Name', definition);
-      
+
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
@@ -154,7 +154,7 @@ describe('Tag Validation', () => {
       if (!definition) throw new Error('Definition not found');
       const longText = 'A'.repeat(300); // Exceeds 200 char limit
       const result = validateTagValue(longText, definition);
-      
+
       expect(result.isValid).toBe(false);
       expect(result.errors[0]).toContain('characters or less');
     });
@@ -165,7 +165,7 @@ describe('Tag Validation', () => {
       const definition = TAG_DEFINITIONS.height;
       if (!definition) throw new Error('Definition not found');
       const result = validateTagValue(5.5, definition);
-      
+
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
@@ -174,7 +174,7 @@ describe('Tag Validation', () => {
       const definition = TAG_DEFINITIONS.height;
       if (!definition) throw new Error('Definition not found');
       const result = validateTagValue(-1, definition);
-      
+
       expect(result.isValid).toBe(false);
       expect(result.errors[0]).toContain('at least');
     });
@@ -183,7 +183,7 @@ describe('Tag Validation', () => {
       const definition = TAG_DEFINITIONS.height;
       if (!definition) throw new Error('Definition not found');
       const result = validateTagValue('not a number', definition);
-      
+
       expect(result.isValid).toBe(false);
       expect(result.errors[0]).toContain('valid number');
     });
@@ -193,7 +193,7 @@ describe('Tag Validation', () => {
     it('should validate various date formats', () => {
       const definition = TAG_DEFINITIONS.start_date;
       if (!definition) throw new Error('Definition not found');
-      
+
       expect(validateTagValue('2023', definition).isValid).toBe(true);
       expect(validateTagValue('2023-07', definition).isValid).toBe(true);
       expect(validateTagValue('2023-07-15', definition).isValid).toBe(true);
@@ -202,7 +202,7 @@ describe('Tag Validation', () => {
     it('should reject invalid date formats', () => {
       const definition = TAG_DEFINITIONS.start_date;
       if (!definition) throw new Error('Definition not found');
-      
+
       expect(validateTagValue('23', definition).isValid).toBe(false);
       expect(validateTagValue('2023-13', definition).isValid).toBe(false);
       expect(validateTagValue('2023-07-32', definition).isValid).toBe(false);
@@ -213,7 +213,7 @@ describe('Tag Validation', () => {
     it('should validate valid URLs', () => {
       const definition = TAG_DEFINITIONS.website;
       if (!definition) throw new Error('Definition not found');
-      
+
       expect(validateTagValue('https://example.com', definition).isValid).toBe(true);
       expect(validateTagValue('http://example.org', definition).isValid).toBe(true);
     });
@@ -221,7 +221,7 @@ describe('Tag Validation', () => {
     it('should reject invalid URLs', () => {
       const definition = TAG_DEFINITIONS.website;
       if (!definition) throw new Error('Definition not found');
-      
+
       expect(validateTagValue('not-a-url', definition).isValid).toBe(false);
       expect(validateTagValue('ftp://example.com', definition).isValid).toBe(false);
     });
@@ -230,7 +230,7 @@ describe('Tag Validation', () => {
       const definition = TAG_DEFINITIONS.website;
       if (!definition) throw new Error('Definition not found');
       const result = validateTagValue('http://example.com', definition);
-      
+
       expect(result.isValid).toBe(true);
       expect(result.warnings.length).toBeGreaterThan(0);
       expect(result.warnings[0]).toContain('HTTP instead of HTTPS');
@@ -241,7 +241,7 @@ describe('Tag Validation', () => {
     it('should validate yes/no values', () => {
       const definition = TAG_DEFINITIONS.fee;
       if (!definition) throw new Error('Definition not found');
-      
+
       expect(validateTagValue('yes', definition).isValid).toBe(true);
       expect(validateTagValue('no', definition).isValid).toBe(true);
     });
@@ -249,7 +249,7 @@ describe('Tag Validation', () => {
     it('should reject invalid yes/no values', () => {
       const definition = TAG_DEFINITIONS.fee;
       if (!definition) throw new Error('Definition not found');
-      
+
       expect(validateTagValue('maybe', definition).isValid).toBe(false);
       expect(validateTagValue('true', definition).isValid).toBe(false);
     });
@@ -265,7 +265,7 @@ describe('Tag Validation', () => {
       };
 
       const results = validateStructuredTags(tags, TAG_DEFINITIONS);
-      
+
       expect(Object.keys(results)).toHaveLength(4);
       Object.values(results).forEach(result => {
         expect(result.isValid).toBe(true);
@@ -280,7 +280,7 @@ describe('Tag Validation', () => {
       };
 
       const results = validateStructuredTags(tags, TAG_DEFINITIONS);
-      
+
       expect(results.tourism?.isValid).toBe(false);
       expect(results.height?.isValid).toBe(false);
       expect(results.unknown_tag?.isValid).toBe(false);
@@ -294,7 +294,7 @@ describe('Tag Validation', () => {
       };
 
       const summary = getValidationSummary(validationResults);
-      
+
       expect(summary.isValid).toBe(false);
       expect(summary.totalErrors).toBe(1);
       expect(summary.totalWarnings).toBe(1);
@@ -323,7 +323,7 @@ describe('Tag Validation', () => {
       };
 
       const sanitized = sanitizeStructuredTags(tags, TAG_DEFINITIONS);
-      
+
       expect(sanitized.name).toBe('Test Name');
       expect(sanitized.artwork_type).toBe('statue');
       expect(sanitized.height).toBe(5.5);

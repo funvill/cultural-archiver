@@ -21,14 +21,14 @@ import {
 
 export interface SimilaritySignal {
   type: 'distance' | 'title' | 'tags';
-  rawScore: number;      // 0-1 before weighting
+  rawScore: number; // 0-1 before weighting
   weightedScore: number; // 0-1 after applying weight
   metadata?: Record<string, unknown>;
 }
 
 export interface SimilarityResult {
   artworkId: string;
-  overallScore: number;  // 0-1 composite score
+  overallScore: number; // 0-1 composite score
   signals: SimilaritySignal[];
   threshold: 'none' | 'warn' | 'high';
   metadata: {
@@ -125,12 +125,28 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
   }
 
   private validateInputs(query: SimilarityQuery, candidate: CandidateArtwork): void {
-    if (!query.coordinates || typeof query.coordinates.lat !== 'number' || typeof query.coordinates.lon !== 'number') {
-      throw new SimilarityInputError('query.coordinates', query.coordinates, 'Must provide valid lat/lon coordinates');
+    if (
+      !query.coordinates ||
+      typeof query.coordinates.lat !== 'number' ||
+      typeof query.coordinates.lon !== 'number'
+    ) {
+      throw new SimilarityInputError(
+        'query.coordinates',
+        query.coordinates,
+        'Must provide valid lat/lon coordinates'
+      );
     }
 
-    if (!candidate.coordinates || typeof candidate.coordinates.lat !== 'number' || typeof candidate.coordinates.lon !== 'number') {
-      throw new SimilarityInputError('candidate.coordinates', candidate.coordinates, 'Must provide valid lat/lon coordinates');
+    if (
+      !candidate.coordinates ||
+      typeof candidate.coordinates.lat !== 'number' ||
+      typeof candidate.coordinates.lon !== 'number'
+    ) {
+      throw new SimilarityInputError(
+        'candidate.coordinates',
+        candidate.coordinates,
+        'Must provide valid lat/lon coordinates'
+      );
     }
 
     if (!candidate.id || typeof candidate.id !== 'string') {
@@ -138,17 +154,22 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
     }
   }
 
-  private calculateDistanceSignal(queryCoords: Coordinates, candidateCoords: Coordinates): SimilaritySignal {
+  private calculateDistanceSignal(
+    queryCoords: Coordinates,
+    candidateCoords: Coordinates
+  ): SimilaritySignal {
     try {
       const distance = calculateDistance(queryCoords, candidateCoords);
-      
+
       // Normalize distance to 0-1 score (closer = higher score)
       let rawScore = 0;
       if (distance <= this.config.distance.optimalDistanceMeters) {
         rawScore = 1;
       } else if (distance <= this.config.distance.maxDistanceMeters) {
-        rawScore = 1 - (distance - this.config.distance.optimalDistanceMeters) / 
-                       (this.config.distance.maxDistanceMeters - this.config.distance.optimalDistanceMeters);
+        rawScore =
+          1 -
+          (distance - this.config.distance.optimalDistanceMeters) /
+            (this.config.distance.maxDistanceMeters - this.config.distance.optimalDistanceMeters);
       }
 
       return {
@@ -158,7 +179,11 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
         metadata: { distanceMeters: distance },
       };
     } catch (error) {
-      throw new DistanceCalculationError(queryCoords, candidateCoords, error instanceof Error ? error : new Error(String(error)));
+      throw new DistanceCalculationError(
+        queryCoords,
+        candidateCoords,
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
   }
 
@@ -168,8 +193,10 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
       const normalizedCandidate = this.normalizeTitle(candidateTitle);
 
       // Skip if either title is too short after normalization
-      if (normalizedQuery.length < this.config.title.minTitleLength || 
-          normalizedCandidate.length < this.config.title.minTitleLength) {
+      if (
+        normalizedQuery.length < this.config.title.minTitleLength ||
+        normalizedCandidate.length < this.config.title.minTitleLength
+      ) {
         return {
           type: 'title',
           rawScore: 0,
@@ -191,7 +218,11 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
         },
       };
     } catch (error) {
-      throw new TitleSimilarityError(queryTitle, candidateTitle, error instanceof Error ? error : new Error(String(error)));
+      throw new TitleSimilarityError(
+        queryTitle,
+        candidateTitle,
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
   }
 
@@ -209,10 +240,10 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
       // Calculate Jaccard similarity (intersection / union)
       const querySet = new Set(queryTags.map(tag => tag.toLowerCase()));
       const candidateSet = new Set(candidateTags.map(tag => tag.toLowerCase()));
-      
+
       const intersection = new Set([...querySet].filter(tag => candidateSet.has(tag)));
       const union = new Set([...querySet, ...candidateSet]);
-      
+
       const rawScore = intersection.size / union.size;
 
       return {
@@ -228,7 +259,11 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
         },
       };
     } catch (error) {
-      throw new TagSimilarityError(queryTags, candidateTags, error instanceof Error ? error : new Error(String(error)));
+      throw new TagSimilarityError(
+        queryTags,
+        candidateTags,
+        error instanceof Error ? error : new Error(String(error))
+      );
     }
   }
 
@@ -239,7 +274,7 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
 
     for (const signal of signals) {
       totalScore += signal.weightedScore;
-      
+
       // Add the weight that was actually applied
       if (signal.type === 'distance') totalWeight += this.config.weights.distance;
       else if (signal.type === 'title') totalWeight += this.config.weights.title;
@@ -268,10 +303,10 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
 
   private parseTags(tagsJson: string): string[] {
     if (!tagsJson) return [];
-    
+
     try {
       const parsed = JSON.parse(tagsJson);
-      
+
       // Handle different tag formats
       if (Array.isArray(parsed)) {
         return parsed.filter(tag => typeof tag === 'string');
@@ -292,7 +327,7 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
         }
         return values;
       }
-      
+
       return [];
     } catch {
       return [];
@@ -335,8 +370,8 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
       k++;
     }
 
-    const jaro = (matches / s1.length + matches / s2.length + 
-                  (matches - transpositions / 2) / matches) / 3;
+    const jaro =
+      (matches / s1.length + matches / s2.length + (matches - transpositions / 2) / matches) / 3;
 
     // Winkler modification (give bonus for common prefix)
     let prefix = 0;
@@ -345,7 +380,7 @@ export class DefaultSimilarityStrategy implements SimilarityStrategy {
       else break;
     }
 
-    return jaro + (0.1 * prefix * (1 - jaro));
+    return jaro + 0.1 * prefix * (1 - jaro);
   }
 }
 
@@ -369,7 +404,7 @@ export function createDefaultSimilarityStrategy(config?: SimilarityConfig): Simi
  * Filter similarity results by threshold
  */
 export function filterByThreshold(
-  results: SimilarityResult[], 
+  results: SimilarityResult[],
   threshold: 'warn' | 'high'
 ): SimilarityResult[] {
   return results.filter(result => {
@@ -406,7 +441,7 @@ export function getSimilarityExplanation(result: SimilarityResult): string {
   }
 
   const scorePercent = Math.round(overallScore * 100);
-  return explanations.length > 0 
+  return explanations.length > 0
     ? `${scorePercent}% similar (${explanations.join(', ')})`
     : `${scorePercent}% similar`;
 }

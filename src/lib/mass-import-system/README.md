@@ -174,7 +174,7 @@ node dist/cli/cli-entry.js import \
 
 Create environment-specific configuration files:
 
-*api-config.json* (Development):
+_api-config.json_ (Development):
 
 ```json
 {
@@ -198,7 +198,7 @@ Create environment-specific configuration files:
 }
 ```
 
-*production-api-config.json* (Production):
+_production-api-config.json_ (Production):
 
 ```json
 {
@@ -266,7 +266,7 @@ const pipeline = new DataPipeline(importer, exporter);
 const result = await pipeline.process(inputData, {
   batchSize: 50,
   generateReport: true,
-  outputPath: './output.json'
+  outputPath: './output.json',
 });
 ```
 
@@ -274,18 +274,18 @@ const result = await pipeline.process(inputData, {
 
 ### Importers
 
-| Plugin | Description | Version | Data Source |
-|--------|-------------|---------|-------------|
-| `vancouver-public-art` | Vancouver Open Data public art dataset | 1.0.0 | JSON API |
-| `osm-artwork` | OpenStreetMap artwork and monuments | 1.0.0 | GeoJSON |
+| Plugin                 | Description                            | Version | Data Source |
+| ---------------------- | -------------------------------------- | ------- | ----------- |
+| `vancouver-public-art` | Vancouver Open Data public art dataset | 1.0.0   | JSON API    |
+| `osm-artwork`          | OpenStreetMap artwork and monuments    | 1.0.0   | GeoJSON     |
 
 ### Exporters
 
-| Plugin | Description | Version | Output Type |
-|--------|-------------|---------|-------------|
-| `json` | JSON file export with configurable formatting | 1.0.0 | File |
-| `console` | Console output with table/JSON formatting | 1.0.0 | Console |
-| `api` | REST API export to Cultural Archiver database | 1.0.0 | HTTP API |
+| Plugin    | Description                                   | Version | Output Type |
+| --------- | --------------------------------------------- | ------- | ----------- |
+| `json`    | JSON file export with configurable formatting | 1.0.0   | File        |
+| `console` | Console output with table/JSON formatting     | 1.0.0   | Console     |
+| `api`     | REST API export to Cultural Archiver database | 1.0.0   | HTTP API    |
 
 ## 🛠️ Plugin Development
 
@@ -311,16 +311,16 @@ const result = await pipeline.process(inputData, {
      metadata: {
        version: '1.0.0',
        description: 'Imports data from my custom source',
-       author: 'Your Name'
+       author: 'Your Name',
      },
-     
+
      async validateData(data: unknown): Promise<ValidationResult> {
        // Validate input data structure
      },
-     
+
      async mapData(data: unknown, config: ImporterConfig): Promise<UnifiedArtwork[]> {
        // Transform data to unified format
-     }
+     },
    };
    ```
 
@@ -329,7 +329,7 @@ const result = await pipeline.process(inputData, {
    ```typescript
    // In importers/index.ts
    import { myImporter } from './my-importer.js';
-   
+
    export function registerCoreImporters(registry: PluginRegistry): void {
      registry.registerImporter(myImporter);
      // ... other registrations
@@ -352,16 +352,16 @@ const result = await pipeline.process(inputData, {
      metadata: {
        version: '1.0.0',
        description: 'Exports data to my custom destination',
-       author: 'Your Name'
+       author: 'Your Name',
      },
-     
+
      async configure(options: Record<string, unknown>): Promise<void> {
        // Configure exporter
      },
-     
+
      async exportData(data: UnifiedArtwork[], config: ExporterConfig): Promise<ExportResult> {
        // Export data to destination
-     }
+     },
    };
    ```
 
@@ -442,6 +442,7 @@ npm run warm-location-cache path/to/your/data.json
 Location enhancement is enabled by default but can be configured:
 
 **Basic Usage (CLI):**
+
 ```bash
 # Location enhancement enabled by default
 npm run mass-import -- osm json example-vancouver-data.json --out processed-art.json
@@ -451,6 +452,7 @@ npm run mass-import -- osm json example-vancouver-data.json --out processed-art.
 ```
 
 **Programmatic Usage:**
+
 ```typescript
 import { DataPipeline } from './lib/data-pipeline.js';
 
@@ -464,9 +466,9 @@ const result = await pipeline.process(inputData, {
       displayName: 'location_display_name',
       city: 'location_city',
       country: 'location_country',
-      state: 'location_state'
-    }
-  }
+      state: 'location_state',
+    },
+  },
 });
 ```
 
@@ -474,17 +476,18 @@ const result = await pipeline.process(inputData, {
 
 ```typescript
 interface LocationEnhancementOptions {
-  enabled?: boolean;           // Enable/disable enhancement (default: true)
-  cacheDbPath?: string;        // Custom cache database path
-  requestTimeout?: number;     // API timeout in ms (default: 10000)
-  failOnErrors?: boolean;      // Fail on lookup errors (default: false)
-  tagFields?: {               // Custom tag field names
-    displayName?: string;     // Field for full address
-    country?: string;         // Field for country
-    state?: string;           // Field for state/province
-    city?: string;            // Field for city
-    suburb?: string;          // Field for suburb
-    neighbourhood?: string;   // Field for neighbourhood
+  enabled?: boolean; // Enable/disable enhancement (default: true)
+  cacheDbPath?: string; // Custom cache database path
+  requestTimeout?: number; // API timeout in ms (default: 10000)
+  failOnErrors?: boolean; // Fail on lookup errors (default: false)
+  tagFields?: {
+    // Custom tag field names
+    displayName?: string; // Field for full address
+    country?: string; // Field for country
+    state?: string; // Field for state/province
+    city?: string; // Field for city
+    suburb?: string; // Field for suburb
+    neighbourhood?: string; // Field for neighbourhood
   };
 }
 ```
@@ -492,11 +495,13 @@ interface LocationEnhancementOptions {
 ### Cache Management
 
 **Check Cache Statistics:**
+
 ```bash
 npm run location-cache:stats
 ```
 
 **Cache Performance:**
+
 - Cache hits: < 1ms response time
 - API requests: ~500ms + 1 second rate limit delay
 - Database size: ~1KB per cached location
@@ -513,7 +518,7 @@ Location enhancement adds the following fields to artwork records:
   "tags": {
     "location_display_name": "Downtown Vancouver, BC, Canada",
     "location_country": "Canada",
-    "location_state": "British Columbia", 
+    "location_state": "British Columbia",
     "location_city": "Vancouver",
     "location_suburb": "Downtown",
     "material": "bronze",
@@ -524,24 +529,27 @@ Location enhancement adds the following fields to artwork records:
 
 ### Performance Estimates
 
-| Dataset Size | Cache Warming Time |
-|-------------|-------------------|
-| 100 locations | ~2 minutes |
-| 500 locations | ~9 minutes |
-| 1,000 locations | ~17 minutes |
-| 5,000 locations | ~1.4 hours |
+| Dataset Size    | Cache Warming Time |
+| --------------- | ------------------ |
+| 100 locations   | ~2 minutes         |
+| 500 locations   | ~9 minutes         |
+| 1,000 locations | ~17 minutes        |
+| 5,000 locations | ~1.4 hours         |
 
 ### Troubleshooting
 
 **Rate limit exceeded:**
+
 - The system automatically handles rate limiting
 - Pre-warm the cache to avoid API calls during imports
 
 **Database locked:**
+
 - Ensure no other processes are accessing the cache
 - Check that `_data/location-cache.sqlite` isn't open elsewhere
 
 **Module compilation error:**
+
 ```bash
 # Rebuild better-sqlite3 for your Node.js version
 npm rebuild better-sqlite3
@@ -573,28 +581,28 @@ For detailed testing information, see [TESTING.md](./TESTING.md).
 
 ### Main Commands
 
-| Command | Description | Example |
-|---------|-------------|---------|
-| `import` | Import data using specified plugins | `import --importer osm --exporter json` |
-| `list-plugins` | List all available plugins | `list-plugins` |
-| `validate-config` | Validate plugin configuration files | `validate-config --config my-config.json` |
-| `plugin-info` | Show detailed plugin information | `plugin-info --plugin vancouver-public-art` |
+| Command           | Description                         | Example                                     |
+| ----------------- | ----------------------------------- | ------------------------------------------- |
+| `import`          | Import data using specified plugins | `import --importer osm --exporter json`     |
+| `list-plugins`    | List all available plugins          | `list-plugins`                              |
+| `validate-config` | Validate plugin configuration files | `validate-config --config my-config.json`   |
+| `plugin-info`     | Show detailed plugin information    | `plugin-info --plugin vancouver-public-art` |
 
 ### Import Command Options
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--importer` | Importer plugin name | Required |
-| `--exporter` | Exporter plugin name (use `api` for database import) | Required |
-| `--input` | Input file path | stdin |
-| `--output` | Output file path (not used for `api` exporter) | stdout |
-| `--config` | Configuration file path or JSON string | auto-detect |
-| `--batch-size` | Processing batch size | 50 |
-| `--limit` | Limit number of records to process | unlimited |
-| `--offset` | Skip first N records before processing | 0 |
-| `--dry-run` | Validate without processing (test mode) | false |
-| `--verbose` | Enable verbose logging | false |
-| `--generate-report` | Generate processing report | false |
+| Option              | Description                                          | Default     |
+| ------------------- | ---------------------------------------------------- | ----------- |
+| `--importer`        | Importer plugin name                                 | Required    |
+| `--exporter`        | Exporter plugin name (use `api` for database import) | Required    |
+| `--input`           | Input file path                                      | stdin       |
+| `--output`          | Output file path (not used for `api` exporter)       | stdout      |
+| `--config`          | Configuration file path or JSON string               | auto-detect |
+| `--batch-size`      | Processing batch size                                | 50          |
+| `--limit`           | Limit number of records to process                   | unlimited   |
+| `--offset`          | Skip first N records before processing               | 0           |
+| `--dry-run`         | Validate without processing (test mode)              | false       |
+| `--verbose`         | Enable verbose logging                               | false       |
+| `--generate-report` | Generate processing report                           | false       |
 
 ## 🔄 Data Flow
 
@@ -606,7 +614,7 @@ graph LR
     D --> E[Unified Format]
     E --> F[Exporter Plugin]
     F --> G[Output Destination]
-    
+
     H[Configuration] --> B
     H --> F
     I[Report Tracker] --> J[Processing Report]

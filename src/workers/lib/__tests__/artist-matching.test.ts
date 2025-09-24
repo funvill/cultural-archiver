@@ -1,6 +1,6 @@
 /**
  * Tests for Artist Matching Service
- * 
+ *
  * Tests the artist name normalization, matching algorithms, and Vancouver
  * artist creation functionality for the mass import system.
  */
@@ -10,33 +10,34 @@ import { ArtistMatchingService, type VancouverArtistData } from '../artist-match
 import type { DatabaseService } from '../database';
 
 // Mock database service
-const createMockDatabaseService = (): DatabaseService => ({
-  searchArtistsByNormalizedName: vi.fn(),
-  searchArtistsByTokens: vi.fn(),
-  createArtistFromMassImport: vi.fn(),
-  linkArtworkToArtist: vi.fn(),
-  // Add other required methods
-  db: {} as any,
-  createArtwork: vi.fn(),
-  getArtworkById: vi.fn(),
-  getArtworkWithDetails: vi.fn(),
-  getNearbyArtworkByDistance: vi.fn(),
-  getNearbyArtworkByCoordinates: vi.fn(),
-  getLogbookEntriesForArtwork: vi.fn(),
-  createLogbookEntry: vi.fn(),
-  getLogbookEntryById: vi.fn(),
-  updateLogbookEntryStatus: vi.fn(),
-  deleteLogbookEntry: vi.fn(),
-  createTag: vi.fn(),
-  getTagsForLogbook: vi.fn(),
-  updateTag: vi.fn(),
-  deleteTag: vi.fn(),
-  getArtworkTypes: vi.fn(),
-  getArtworkTypeByName: vi.fn(),
-  // Legacy creator functions removed
-  getCreatorsForArtwork: vi.fn(),
-  getArtistsForArtwork: vi.fn(),
-} as any);
+const createMockDatabaseService = (): DatabaseService =>
+  ({
+    searchArtistsByNormalizedName: vi.fn(),
+    searchArtistsByTokens: vi.fn(),
+    createArtistFromMassImport: vi.fn(),
+    linkArtworkToArtist: vi.fn(),
+    // Add other required methods
+    db: {} as any,
+    createArtwork: vi.fn(),
+    getArtworkById: vi.fn(),
+    getArtworkWithDetails: vi.fn(),
+    getNearbyArtworkByDistance: vi.fn(),
+    getNearbyArtworkByCoordinates: vi.fn(),
+    getLogbookEntriesForArtwork: vi.fn(),
+    createLogbookEntry: vi.fn(),
+    getLogbookEntryById: vi.fn(),
+    updateLogbookEntryStatus: vi.fn(),
+    deleteLogbookEntry: vi.fn(),
+    createTag: vi.fn(),
+    getTagsForLogbook: vi.fn(),
+    updateTag: vi.fn(),
+    deleteTag: vi.fn(),
+    getArtworkTypes: vi.fn(),
+    getArtworkTypeByName: vi.fn(),
+    // Legacy creator functions removed
+    getCreatorsForArtwork: vi.fn(),
+    getArtistsForArtwork: vi.fn(),
+  }) as any;
 
 describe('ArtistMatchingService', () => {
   let mockDb: DatabaseService;
@@ -61,7 +62,7 @@ describe('ArtistMatchingService', () => {
     });
 
     it('should remove punctuation except hyphens', () => {
-      expect(service.normalizeArtistName('Mary-Jane O\'Connor')).toBe('mary-jane oconnor');
+      expect(service.normalizeArtistName("Mary-Jane O'Connor")).toBe('mary-jane oconnor');
       expect(service.normalizeArtistName('Dr. Smith Jr.')).toBe('dr smith jr');
       expect(service.normalizeArtistName('J.R.R. Tolkien')).toBe('jrr tolkien');
     });
@@ -90,7 +91,7 @@ describe('ArtistMatchingService', () => {
     it('should detect ambiguous matches', async () => {
       const mockArtists = [
         { id: 'artist-1', name: 'John Doe' },
-        { id: 'artist-2', name: 'John Doe' }
+        { id: 'artist-2', name: 'John Doe' },
       ];
       vi.mocked(mockDb.searchArtistsByNormalizedName).mockResolvedValue(mockArtists);
 
@@ -102,9 +103,7 @@ describe('ArtistMatchingService', () => {
     });
 
     it('should try token matching when no exact match', async () => {
-      const mockTokenMatches = [
-        { id: 'artist-1', name: 'John Smith Doe', score: 0.8 }
-      ];
+      const mockTokenMatches = [{ id: 'artist-1', name: 'John Smith Doe', score: 0.8 }];
       vi.mocked(mockDb.searchArtistsByNormalizedName).mockResolvedValue([]);
       vi.mocked(mockDb.searchArtistsByTokens).mockResolvedValue(mockTokenMatches);
 
@@ -119,7 +118,7 @@ describe('ArtistMatchingService', () => {
     it('should filter out low-confidence token matches', async () => {
       const mockTokenMatches = [
         { id: 'artist-1', name: 'John Smith', score: 0.6 }, // Below threshold
-        { id: 'artist-2', name: 'Jane Doe', score: 0.8 }   // Above threshold
+        { id: 'artist-2', name: 'Jane Doe', score: 0.8 }, // Above threshold
       ];
       vi.mocked(mockDb.searchArtistsByNormalizedName).mockResolvedValue([]);
       vi.mocked(mockDb.searchArtistsByTokens).mockResolvedValue(mockTokenMatches);
@@ -150,7 +149,7 @@ describe('ArtistMatchingService', () => {
         country: 'Canada',
         website: 'https://johndoe.art',
         artisturl: 'https://vancouver.ca/artist/123',
-        photo: 'https://vancouver.ca/photo.jpg'
+        photo: 'https://vancouver.ca/photo.jpg',
       };
 
       vi.mocked(mockDb.createArtistFromMassImport).mockResolvedValue('new-artist-id');
@@ -165,13 +164,13 @@ describe('ArtistMatchingService', () => {
           country: 'Canada',
           website: 'https://johndoe.art',
           vancouver_url: 'https://vancouver.ca/artist/123',
-          photo_url: 'https://vancouver.ca/photo.jpg'
+          photo_url: 'https://vancouver.ca/photo.jpg',
         },
         source: 'vancouver-mass-import',
         sourceData: {
           artistid: 123,
-          original_name: 'John Doe'
-        }
+          original_name: 'John Doe',
+        },
       });
     });
 
@@ -179,7 +178,7 @@ describe('ArtistMatchingService', () => {
       const vancouverData: VancouverArtistData = {
         artistid: 456,
         firstname: 'Jane',
-        lastname: 'Smith'
+        lastname: 'Smith',
       };
 
       vi.mocked(mockDb.createArtistFromMassImport).mockResolvedValue('new-artist-id-2');
@@ -193,8 +192,8 @@ describe('ArtistMatchingService', () => {
         source: 'vancouver-mass-import',
         sourceData: {
           artistid: 456,
-          original_name: 'Jane Smith'
-        }
+          original_name: 'Jane Smith',
+        },
       });
     });
   });
@@ -204,7 +203,7 @@ describe('ArtistMatchingService', () => {
       { artistid: 1, firstname: 'John', lastname: 'Doe' },
       { artistid: 2, firstname: 'Jane', lastname: 'Smith' },
       { artistid: 3, firstname: 'G. L. T.', lastname: 'Sharp' },
-      { artistid: 4, firstname: 'Mary-Jane', lastname: 'O\'Connor' }
+      { artistid: 4, firstname: 'Mary-Jane', lastname: "O'Connor" },
     ];
 
     it('should find exact name matches', () => {
@@ -232,7 +231,7 @@ describe('ArtistMatchingService', () => {
       const result = service.findVancouverArtistByName('John', vancouverData);
       // This should not match because we need both first and last name matches
       expect(result).toBeNull();
-      
+
       // Test a case that should work - "Jane Smith" should match "Jane" + "Smith"
       const result2 = service.findVancouverArtistByName('Jane Smith', vancouverData);
       expect(result2).not.toBeNull();
@@ -252,14 +251,15 @@ describe('ArtistMatchingService', () => {
 
   describe('generateArtistSearchUrl', () => {
     it('should generate proper search URLs', () => {
-      expect(service.generateArtistSearchUrl('John Doe'))
-        .toBe('/search?artist=John%20Doe');
-      
-      expect(service.generateArtistSearchUrl('Artist with special & characters'))
-        .toBe('/search?artist=Artist%20with%20special%20%26%20characters');
-      
-      expect(service.generateArtistSearchUrl('  Trimmed Name  '))
-        .toBe('/search?artist=Trimmed%20Name');
+      expect(service.generateArtistSearchUrl('John Doe')).toBe('/search?artist=John%20Doe');
+
+      expect(service.generateArtistSearchUrl('Artist with special & characters')).toBe(
+        '/search?artist=Artist%20with%20special%20%26%20characters'
+      );
+
+      expect(service.generateArtistSearchUrl('  Trimmed Name  ')).toBe(
+        '/search?artist=Trimmed%20Name'
+      );
     });
   });
 });

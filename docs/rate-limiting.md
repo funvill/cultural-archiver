@@ -18,14 +18,14 @@ Rate limiting is implemented using Cloudflare KV storage with per-user-token tra
 ```typescript
 // Production rate limits
 const RATE_LIMITS = {
-  SUBMISSIONS_PER_DAY: 10,      // Photo submissions and content edits
-  QUERIES_PER_HOUR: 60,         // API queries and searches
-  MAGIC_LINKS_PER_HOUR: 5,      // Email authentication requests
-  
+  SUBMISSIONS_PER_DAY: 10, // Photo submissions and content edits
+  QUERIES_PER_HOUR: 60, // API queries and searches
+  MAGIC_LINKS_PER_HOUR: 5, // Email authentication requests
+
   // Special cases
-  MASS_IMPORT: 'unlimited',     // Admin-only operations
-  HEALTH_CHECK: 'unlimited',    // System monitoring
-  STATIC_ASSETS: 'unlimited'    // Frontend assets
+  MASS_IMPORT: 'unlimited', // Admin-only operations
+  HEALTH_CHECK: 'unlimited', // System monitoring
+  STATIC_ASSETS: 'unlimited', // Frontend assets
 };
 ```
 
@@ -36,11 +36,11 @@ const RATE_LIMITS = {
 Rate limits use Cloudflare KV with structured keys:
 
 ```typescript
-// KV Key Patterns  
+// KV Key Patterns
 const RATE_LIMIT_KEYS = {
   submissions: `rate:submit:${userToken}:${date}`, // YYYY-MM-DD format (daily)
-  queries: `rate:query:${userToken}:${hour}`,      // YYYY-MM-DD-HH format (hourly)
-  magicLinks: `rate:magic:${email}:${hour}`,       // YYYY-MM-DD-HH format (hourly)
+  queries: `rate:query:${userToken}:${hour}`, // YYYY-MM-DD-HH format (hourly)
+  magicLinks: `rate:magic:${email}:${hour}`, // YYYY-MM-DD-HH format (hourly)
 };
 ```
 
@@ -50,9 +50,9 @@ const RATE_LIMIT_KEYS = {
 interface RateLimitCounter {
   count: number;
   firstRequest: number; // Unix timestamp
-  lastRequest: number;  // Unix timestamp
-  window: string;       // Time window identifier
-  resetTime: number;    // When counter resets
+  lastRequest: number; // Unix timestamp
+  window: string; // Time window identifier
+  resetTime: number; // When counter resets
 }
 ```
 

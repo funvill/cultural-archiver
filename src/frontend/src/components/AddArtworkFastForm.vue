@@ -10,13 +10,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { useArtworkSubmissionStore } from '../stores/artworkSubmission';
-import {
-  CheckIcon,
-  CheckCircleIcon,
-  ExclamationTriangleIcon,
-} from '@heroicons/vue/24/outline';
+import { CheckIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
 
 // Components (these would be imported from separate files)
 import StepHeader from './FastWorkflow/StepHeader.vue';
@@ -31,6 +27,7 @@ import LoadingSpinner from './LoadingSpinner.vue';
 // Store
 const submission = useArtworkSubmissionStore();
 const router = useRouter();
+const route = useRoute();
 
 // Local State
 const currentStep = ref<string>('photos');
@@ -52,29 +49,29 @@ const allConsentsAccepted = computed(() => {
 
 // Steps Configuration
 const steps = computed(() => [
-  { 
-    id: 'photos', 
+  {
+    id: 'photos',
     title: 'Photos',
     completed: submission.hasPhotos,
   },
-  { 
-    id: 'location', 
+  {
+    id: 'location',
     title: 'Location',
     completed: submission.hasLocation,
   },
-  { 
-    id: 'selection', 
+  {
+    id: 'selection',
     title: 'Select/Create',
     completed: submission.state.selectedArtwork !== null || submission.state.title.length > 0,
   },
-  { 
-    id: 'details', 
+  {
+    id: 'details',
     title: 'Details',
     completed: !submission.isNewArtwork || submission.state.title.length > 0,
     hidden: !submission.isNewArtwork,
   },
-  { 
-    id: 'consent', 
+  {
+    id: 'consent',
     title: 'Submit',
     completed: false,
   },
@@ -84,7 +81,7 @@ const steps = computed(() => [
 function getStepClass(stepId: string) {
   const step = steps.value.find(s => s.id === stepId);
   if (!step) return '';
-  
+
   if (step.completed) {
     return 'bg-green-500 text-white';
   } else if (currentStep.value === stepId) {
@@ -155,10 +152,10 @@ async function handleSubmit() {
       consentVersion: submission.state.consentVersion,
       consentedAt: new Date().toISOString(),
     };
-    
+
     // Log consent data for audit trail (would be included in actual submission)
     console.log('Submitting with consent data:', consentData);
-    
+
     await submission.submitArtwork();
     submissionComplete.value = true;
     // Redirect to map page immediately after successful submission
@@ -185,6 +182,19 @@ function handleSubmitAnother() {
 onMounted(() => {
   // Start with photos step
   currentStep.value = 'photos';
+  // If the route includes an existing artwork id, pre-select it for a logbook entry
+  try {
+    const existing =
+      route.query.existing || route.query.existingArtwork || route.query.existing_artwork;
+    if (existing && typeof existing === 'string') {
+      submission.selectArtwork(existing as string);
+      showWorkflow.value = true;
+      // If no photos yet, keep the photos step active; otherwise, move to selection
+      currentStep.value = submission.hasPhotos ? 'selection' : 'photos';
+    }
+  } catch (e) {
+    // ignore
+  }
 });
 
 onBeforeUnmount(() => {
@@ -197,16 +207,15 @@ onBeforeUnmount(() => {
   <div class="fast-artwork-form max-w-4xl mx-auto p-6 space-y-8">
     <!-- Enhanced Header with Workflow Options -->
     <header class="text-center">
-      <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-        Add Cultural Artwork
-      </h1>
-      
+      <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-4">Add Cultural Artwork</h1>
+
       <!-- Quick Workflow Choice -->
       <div class="max-w-2xl mx-auto mb-8">
         <p class="text-gray-600 dark:text-gray-300 mb-6">
-          Choose your approach: search first to avoid duplicates, or skip ahead if you know this is new
+          Choose your approach: search first to avoid duplicates, or skip ahead if you know this is
+          new
         </p>
-        
+
         <div class="flex flex-col sm:flex-row gap-3 justify-center">
           <button
             type="button"
@@ -224,230 +233,259 @@ onBeforeUnmount(() => {
             📸 Skip to Submit
           </button>
         </div>
-        
+
         <div v-if="!showWorkflow" class="mt-4 text-sm text-gray-500">
-          💡 Searching first helps avoid duplicate submissions and finds existing artworks you can add photos to
+          💡 Searching first helps avoid duplicate submissions and finds existing artworks you can
+          add photos to
         </div>
       </div>
     </header>
 
     <!-- Workflow Steps (shown when user chooses to submit) -->
     <div v-if="showWorkflow" class="workflow-container">
-      <div class="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+      <div
+        class="mb-8 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg"
+      >
         <div class="flex items-center">
           <svg class="w-5 h-5 text-blue-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+            <path
+              fill-rule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+              clip-rule="evenodd"
+            />
           </svg>
           <div>
-            <p class="text-blue-900 dark:text-blue-100 font-medium">Smart Duplicate Detection Active</p>
-            <p class="text-sm text-blue-700 dark:text-blue-300">We'll automatically check for similar artworks as you upload</p>
+            <p class="text-blue-900 dark:text-blue-100 font-medium">
+              Smart Duplicate Detection Active
+            </p>
+            <p class="text-sm text-blue-700 dark:text-blue-300">
+              We'll automatically check for similar artworks as you upload
+            </p>
           </div>
         </div>
       </div>
 
-    <!-- Progress Indicator -->
-    <div class="progress-steps flex justify-between items-center mb-8">
-      <div 
-        v-for="(step, index) in steps" 
-        :key="step.id"
-        class="flex items-center"
-        :class="index < steps.length - 1 ? 'flex-1' : ''"
-      >
-        <div 
-          class="step-indicator flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-colors"
-          :class="getStepClass(step.id)"
+      <!-- Progress Indicator -->
+      <div class="progress-steps flex justify-between items-center mb-8">
+        <div
+          v-for="(step, index) in steps"
+          :key="step.id"
+          class="flex items-center"
+          :class="index < steps.length - 1 ? 'flex-1' : ''"
         >
-          <CheckIcon v-if="step.completed" class="w-5 h-5" />
-          <span v-else>{{ index + 1 }}</span>
+          <div
+            class="step-indicator flex items-center justify-center w-10 h-10 rounded-full text-sm font-medium transition-colors"
+            :class="getStepClass(step.id)"
+          >
+            <CheckIcon v-if="step.completed" class="w-5 h-5" />
+            <span v-else>{{ index + 1 }}</span>
+          </div>
+          <span class="ml-2 text-sm font-medium hidden sm:inline">{{ step.title }}</span>
+          <div
+            v-if="index < steps.length - 1"
+            class="flex-1 h-0.5 mx-4 bg-gray-200 dark:bg-gray-700"
+            :class="step.completed ? 'bg-blue-500' : ''"
+          />
         </div>
-        <span class="ml-2 text-sm font-medium hidden sm:inline">{{ step.title }}</span>
-        <div 
-          v-if="index < steps.length - 1"
-          class="flex-1 h-0.5 mx-4 bg-gray-200 dark:bg-gray-700"
-          :class="step.completed ? 'bg-blue-500' : ''"
-        />
       </div>
-    </div>
 
-    <form @submit.prevent="handleSubmit" class="space-y-8">
-      <!-- Step 1: Upload Photos -->
-      <section class="step-section">
-        <StepHeader
-          title="Upload Photos"
-          :completed="submission.hasPhotos"
-          :active="currentStep === 'photos'"
-          @toggle="toggleStep('photos')"
-        />
-        
-        <Transition name="step-content">
-          <div v-if="currentStep === 'photos' || submission.hasPhotos" class="step-content">
-            <PhotoUploadSection
-              :photos="submission.state.photos"
-              @photosAdded="handlePhotosAdded"
-              @photoRemoved="handlePhotoRemoved"
-            />
-          </div>
-        </Transition>
-      </section>
+      <form @submit.prevent="handleSubmit" class="space-y-8">
+        <!-- Step 1: Upload Photos -->
+        <section class="step-section">
+          <StepHeader
+            title="Upload Photos"
+            :completed="submission.hasPhotos"
+            :active="currentStep === 'photos'"
+            @toggle="toggleStep('photos')"
+          />
 
-      <!-- Step 2: Location & Nearby -->
-      <section class="step-section" v-if="submission.hasPhotos">
-        <StepHeader
-          title="Location & Nearby Artworks"
-          :completed="submission.hasLocation"
-          :active="currentStep === 'location'"
-          @toggle="toggleStep('location')"
-        />
-        
-        <Transition name="step-content">
-          <div v-if="currentStep === 'location' || submission.hasLocation" class="step-content">
-            <LocationSection
-              :location="submission.state.location"
-              :loading="submission.state.locationLoading"
-              :error="submission.state.locationError"
-              :nearby-artworks="submission.state.nearbyArtworks"
-              :similarity-loading="submission.state.similarityLoading"
-              @locationDetected="handleLocationDetected"
-              @locationManual="handleLocationManual"
-              @checkSimilarity="handleCheckSimilarity"
-            />
-          </div>
-        </Transition>
-      </section>
+          <Transition name="step-content">
+            <div v-if="currentStep === 'photos' || submission.hasPhotos" class="step-content">
+              <PhotoUploadSection
+                :photos="submission.state.photos"
+                @photosAdded="handlePhotosAdded"
+                @photoRemoved="handlePhotoRemoved"
+              />
+            </div>
+          </Transition>
+        </section>
 
-      <!-- Step 3: Select/Create Artwork -->
-      <section class="step-section" v-if="submission.hasLocation">
-        <StepHeader
-          title="Select or Create Artwork"
-          :completed="submission.state.selectedArtwork !== null || submission.state.title.length > 0"
-          :active="currentStep === 'selection'"
-          @toggle="toggleStep('selection')"
-        />
-        
-        <Transition name="step-content">
-          <div v-if="currentStep === 'selection' || submission.state.selectedArtwork !== null" class="step-content">
-            <ArtworkSelectionSection
-              :nearby-artworks="submission.state.nearbyArtworks"
-              :selected-artwork="submission.state.selectedArtwork"
-              :similarity-warnings="submission.state.similarityWarnings"
-              @selectArtwork="submission.selectArtwork"
-              @selectNew="submission.selectNewArtwork"
-            />
-          </div>
-        </Transition>
-      </section>
+        <!-- Step 2: Location & Nearby -->
+        <section class="step-section" v-if="submission.hasPhotos">
+          <StepHeader
+            title="Location & Nearby Artworks"
+            :completed="submission.hasLocation"
+            :active="currentStep === 'location'"
+            @toggle="toggleStep('location')"
+          />
 
-      <!-- Step 4: Artwork Details (for new artwork) -->
-      <section class="step-section" v-if="submission.isNewArtwork && (currentStep === 'details' || submission.state.title)">
-        <StepHeader
-          title="Artwork Details"
-          :completed="submission.state.title.length > 0"
-          :active="currentStep === 'details'"
-          @toggle="toggleStep('details')"
-        />
-        
-        <Transition name="step-content">
-          <div v-if="currentStep === 'details' || submission.state.title" class="step-content">
-            <ArtworkDetailsSection
-              :title="submission.state.title"
-              :artwork-type="(submission.state.tags.artwork_type || 'public_art').toString()"
-              :tags="submission.state.tags"
-              :note="submission.state.note"
-              @update="submission.updateArtworkDetails"
-            />
-          </div>
-        </Transition>
-      </section>
+          <Transition name="step-content">
+            <div v-if="currentStep === 'location' || submission.hasLocation" class="step-content">
+              <LocationSection
+                :location="submission.state.location"
+                :loading="submission.state.locationLoading"
+                :error="submission.state.locationError"
+                :nearby-artworks="submission.state.nearbyArtworks"
+                :similarity-loading="submission.state.similarityLoading"
+                @locationDetected="handleLocationDetected"
+                @locationManual="handleLocationManual"
+                @checkSimilarity="handleCheckSimilarity"
+              />
+            </div>
+          </Transition>
+        </section>
 
-      <!-- Step 5: Consent & Submit -->
-      <section class="step-section" v-if="submission.canSubmit || currentStep === 'consent'">
-        <StepHeader
-          title="Consent & Submit"
-          :completed="false"
-          :active="currentStep === 'consent'"
-          @toggle="toggleStep('consent')"
-        />
-        
-        <Transition name="step-content">
-          <div v-if="currentStep === 'consent'" class="step-content">
-            <ConsentSection
-              :consent-version="submission.state.consentVersion"
-              @consent-updated="handleConsentUpdated"
-              @consentChanged="handleConsentChanged"
-            />
-            
-            <!-- Submission Summary -->
-            <div class="mt-8 p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
-              <h3 class="text-lg font-medium mb-4">Submission Summary</h3>
-              <div class="space-y-2 text-sm">
-                <div><strong>Photos:</strong> {{ submission.state.photos.length }} uploaded</div>
-                <div v-if="submission.state.location">
-                  <strong>Location:</strong> 
-                  {{ submission.state.location.lat.toFixed(6) }}, {{ submission.state.location.lon.toFixed(6) }}
-                  ({{ submission.state.location.source }})
-                </div>
-                <div v-if="submission.isNewArtwork">
-                  <strong>New Artwork:</strong> {{ submission.state.title }}
-                </div>
-                <div v-else-if="submission.state.selectedArtwork">
-                  <strong>Existing Artwork:</strong> Adding logbook entry
-                </div>
-                <div v-if="submission.hasHighSimilarity" class="text-orange-600 dark:text-orange-400">
-                  ⚠️ High similarity detected - please review before submitting
+        <!-- Step 3: Select/Create Artwork -->
+        <section class="step-section" v-if="submission.hasLocation">
+          <StepHeader
+            title="Select or Create Artwork"
+            :completed="
+              submission.state.selectedArtwork !== null || submission.state.title.length > 0
+            "
+            :active="currentStep === 'selection'"
+            @toggle="toggleStep('selection')"
+          />
+
+          <Transition name="step-content">
+            <div
+              v-if="currentStep === 'selection' || submission.state.selectedArtwork !== null"
+              class="step-content"
+            >
+              <ArtworkSelectionSection
+                :nearby-artworks="submission.state.nearbyArtworks"
+                :selected-artwork="submission.state.selectedArtwork"
+                :similarity-warnings="submission.state.similarityWarnings"
+                @selectArtwork="submission.selectArtwork"
+                @selectNew="submission.selectNewArtwork"
+              />
+            </div>
+          </Transition>
+        </section>
+
+        <!-- Step 4: Artwork Details (for new artwork) -->
+        <section
+          class="step-section"
+          v-if="submission.isNewArtwork && (currentStep === 'details' || submission.state.title)"
+        >
+          <StepHeader
+            title="Artwork Details"
+            :completed="submission.state.title.length > 0"
+            :active="currentStep === 'details'"
+            @toggle="toggleStep('details')"
+          />
+
+          <Transition name="step-content">
+            <div v-if="currentStep === 'details' || submission.state.title" class="step-content">
+              <ArtworkDetailsSection
+                :title="submission.state.title"
+                :artwork-type="(submission.state.tags.artwork_type || 'public_art').toString()"
+                :tags="submission.state.tags"
+                :note="submission.state.note"
+                @update="submission.updateArtworkDetails"
+              />
+            </div>
+          </Transition>
+        </section>
+
+        <!-- Step 5: Consent & Submit -->
+        <section class="step-section" v-if="submission.canSubmit || currentStep === 'consent'">
+          <StepHeader
+            title="Consent & Submit"
+            :completed="false"
+            :active="currentStep === 'consent'"
+            @toggle="toggleStep('consent')"
+          />
+
+          <Transition name="step-content">
+            <div v-if="currentStep === 'consent'" class="step-content">
+              <ConsentSection
+                :consent-version="submission.state.consentVersion"
+                @consent-updated="handleConsentUpdated"
+                @consentChanged="handleConsentChanged"
+              />
+
+              <!-- Submission Summary -->
+              <div class="mt-8 p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <h3 class="text-lg font-medium mb-4">Submission Summary</h3>
+                <div class="space-y-2 text-sm">
+                  <div><strong>Photos:</strong> {{ submission.state.photos.length }} uploaded</div>
+                  <div v-if="submission.state.location">
+                    <strong>Location:</strong>
+                    {{ submission.state.location.lat.toFixed(6) }},
+                    {{ submission.state.location.lon.toFixed(6) }} ({{
+                      submission.state.location.source
+                    }})
+                  </div>
+                  <div v-if="submission.isNewArtwork">
+                    <strong>New Artwork:</strong> {{ submission.state.title }}
+                  </div>
+                  <div v-else-if="submission.state.selectedArtwork">
+                    <strong>Existing Artwork:</strong> Adding logbook entry
+                  </div>
+                  <div
+                    v-if="submission.hasHighSimilarity"
+                    class="text-orange-600 dark:text-orange-400"
+                  >
+                    ⚠️ High similarity detected - please review before submitting
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <!-- Submit Button -->
-            <div class="mt-8 flex justify-center">
-              <button
-                type="submit"
-                :disabled="!submission.canSubmit || !allConsentsAccepted || submission.state.isSubmitting || submissionComplete"
-                class="px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              <!-- Submit Button -->
+              <div class="mt-8 flex justify-center">
+                <button
+                  type="submit"
+                  :disabled="
+                    !submission.canSubmit ||
+                    !allConsentsAccepted ||
+                    submission.state.isSubmitting ||
+                    submissionComplete
+                  "
+                  class="px-8 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <span v-if="submission.state.isSubmitting" class="flex items-center">
+                    <LoadingSpinner class="w-5 h-5 mr-2" />
+                    Submitting...
+                  </span>
+                  <span v-else-if="submissionComplete" class="flex items-center">
+                    <CheckIcon class="w-5 h-5 mr-2" />
+                    Submitted Successfully
+                  </span>
+                  <span v-else>
+                    {{ submission.isNewArtwork ? 'Submit New Artwork' : 'Add Logbook Entry' }}
+                  </span>
+                </button>
+              </div>
+
+              <!-- Error Display -->
+              <div
+                v-if="submission.state.submitError"
+                class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg"
               >
-                <span v-if="submission.state.isSubmitting" class="flex items-center">
-                  <LoadingSpinner class="w-5 h-5 mr-2" />
-                  Submitting...
-                </span>
-                <span v-else-if="submissionComplete" class="flex items-center">
-                  <CheckIcon class="w-5 h-5 mr-2" />
-                  Submitted Successfully
-                </span>
-                <span v-else>
-                  {{ submission.isNewArtwork ? 'Submit New Artwork' : 'Add Logbook Entry' }}
-                </span>
-              </button>
-            </div>
-
-            <!-- Error Display -->
-            <div v-if="submission.state.submitError" class="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div class="flex items-center">
-                <ExclamationTriangleIcon class="w-5 h-5 text-red-500 mr-2" />
-                <p class="text-red-700">{{ submission.state.submitError }}</p>
+                <div class="flex items-center">
+                  <ExclamationTriangleIcon class="w-5 h-5 text-red-500 mr-2" />
+                  <p class="text-red-700">{{ submission.state.submitError }}</p>
+                </div>
               </div>
             </div>
-          </div>
-        </Transition>
-      </section>
-    </form>
-    
-    </div> <!-- Close workflow container -->
+          </Transition>
+        </section>
+      </form>
+    </div>
+    <!-- Close workflow container -->
 
     <!-- Success Modal -->
-    <Modal 
-      v-if="submissionComplete" 
-      :isOpen="submissionComplete" 
-      @close="handleCloseModal"
-    >
+    <Modal v-if="submissionComplete" :isOpen="submissionComplete" @close="handleCloseModal">
       <div class="text-center py-8">
         <CheckCircleIcon class="w-16 h-16 text-green-500 mx-auto mb-4" />
         <h2 class="text-2xl font-bold text-gray-900 mb-4">Submission Complete!</h2>
         <p class="text-gray-600 mb-4">
-          {{ submission.state.submissionResult?.message || 'Your submission has been received and is pending review.' }}
+          {{
+            submission.state.submissionResult?.message ||
+            'Your submission has been received and is pending review.'
+          }}
         </p>
-        <p class="text-sm text-gray-500 mb-6">
-          Redirecting you to the map page...
-        </p>
+        <p class="text-sm text-gray-500 mb-6">Redirecting you to the map page...</p>
         <div class="flex justify-center space-x-4">
           <button
             @click="router.push('/')"
@@ -492,8 +530,9 @@ onBeforeUnmount(() => {
     flex-direction: column;
     gap: 1rem;
   }
-  
+
   .progress-steps .flex-1 {
     display: none;
   }
-}</style>
+}
+</style>
