@@ -17,6 +17,7 @@ const ReviewView = (): Promise<Component> => import('../views/ReviewView.vue');
 const AdminView = (): Promise<Component> => import('../views/AdminView.vue');
 const VerifyView = (): Promise<Component> => import('../views/VerifyView.vue');
 const SearchView = (): Promise<Component> => import('../views/SearchView.vue');
+const SearchResultsView = (): Promise<Component> => import('../views/SearchResultsView.vue');
 const FastPhotoUploadView = (): Promise<Component> => import('../views/FastPhotoUploadView.vue');
 const LogbookSubmissionView = (): Promise<Component> =>
   import('../views/LogbookSubmissionView.vue');
@@ -73,6 +74,14 @@ const router = createRouter({
       props: true,
       meta: {
         title: 'Search Artworks - Cultural Archiver',
+      },
+    },
+    {
+      path: '/search/results',
+      name: 'SearchResults',
+      component: SearchResultsView,
+      meta: {
+        title: 'Search Results - Cultural Archiver',
       },
     },
     {
