@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Bars3Icon, BellIcon, PlusIcon, UserIcon, ArrowRightOnRectangleIcon, MapIcon } from '@heroicons/vue/24/outline';
+import { Bars3Icon, BellIcon, CameraIcon, UserIcon, ArrowRightOnRectangleIcon, MapIcon } from '@heroicons/vue/24/outline';
 
 interface Props {
   orientation?: 'horizontal' | 'vertical';
@@ -57,10 +57,10 @@ const handleMapClick = () => emit('mapClick');
     <div class="relative">
       <button
         @click="handleFabClick"
-        class="fab flex items-center justify-center w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transform hover:scale-105 active:scale-95 transition-all duration-200"
+        class="fab flex items-center justify-center w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         aria-label="Submit new artwork"
       >
-        <PlusIcon class="w-7 h-7" aria-hidden="true" />
+        <CameraIcon class="w-7 h-7" aria-hidden="true" />
       </button>
     </div>
 
@@ -153,6 +153,8 @@ const handleMapClick = () => emit('mapClick');
     0px 6px 10px 0px rgba(0, 0, 0, 0.14),
     0px 1px 18px 0px rgba(0, 0, 0, 0.12),
     0px 3px 5px -1px rgba(0, 0, 0, 0.20);
+  /* Explicitly control transitions - only colors and box-shadow, NO transform */
+  transition: background-color 0.2s ease, box-shadow 0.16s ease;
 }
 
 .fab:hover {
@@ -160,5 +162,7 @@ const handleMapClick = () => emit('mapClick');
     0px 8px 14px 0px rgba(0, 0, 0, 0.16),
     0px 2px 24px 0px rgba(0, 0, 0, 0.14),
     0px 4px 8px -1px rgba(0, 0, 0, 0.24);
+  /* Ensure no transform is applied on hover */
+  transform: none !important;
 }
 </style>

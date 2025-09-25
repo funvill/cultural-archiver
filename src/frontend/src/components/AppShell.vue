@@ -94,6 +94,13 @@ function triggerFastAdd(): void {
   if (fastHasNavigated.value) {
     resetFastAddState();
   }
+  // Navigate to the add page immediately so the FAB click always takes the user to the add flow.
+  // Keep the file input click to open file chooser for quick photo-first additions when available.
+  try {
+    router.push('/add');
+  } catch (e) {
+    // ignore routing failures (shouldn't happen)
+  }
   fastFileInput.value?.click();
 }
 
