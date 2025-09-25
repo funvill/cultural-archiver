@@ -44,6 +44,12 @@ const navExpanded = ref(true);
 
 function handleToggleRail(): void {
   navExpanded.value = !navExpanded.value;
+  // Notify other components that the nav rail changed width so they can react (e.g., map resize)
+  try {
+    window.dispatchEvent(new CustomEvent('nav-rail-toggle', { detail: { expanded: navExpanded.value } }));
+  } catch (e) {
+    // ignore in non-browser/test environments
+  }
 }
 
 

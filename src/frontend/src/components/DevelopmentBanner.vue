@@ -24,7 +24,7 @@ checkDismissed();
 <template>
   <div
     v-if="!isDismissed"
-    class="relative bg-yellow-400 text-black py-3 px-4 sm:px-6"
+    class="dev-banner relative bg-yellow-400 text-black py-3 px-4 sm:px-6"
     role="alert"
     aria-live="polite"
   >
@@ -57,8 +57,9 @@ checkDismissed();
 </template>
 
 <style scoped>
-/* Ensure the banner appears above other content */
-.relative {
-  z-index: 40;
+/* Ensure the banner appears above other content (above the navigation rail z-40) */
+.dev-banner {
+  z-index: 50;
+  position: relative; /* keep positioning behavior consistent */
 }
 </style>

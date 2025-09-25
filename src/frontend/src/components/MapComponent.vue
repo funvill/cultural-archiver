@@ -1242,6 +1242,22 @@ const handleResize = () => {
   }
 };
 
+// When the nav rail toggles, Leaflet sometimes needs a few invalidateSize attempts
+// to properly reflow. Try a few times spaced out to handle CSS transitions.
+function handleNavRailToggle(_evt?: Event) {
+  if (!map.value) return;
+  const attempts = [0, 50, 150, 350];
+  for (const t of attempts) {
+    setTimeout(() => {
+      try {
+        map.value?.invalidateSize();
+      } catch (e) {
+        // ignore
+      }
+    }, t);
+  }
+}
+
 // Watch for container size changes
 watch(
   () => mapContainer.value,
@@ -1263,6 +1279,8 @@ onMounted(async () => {
   // Add window resize listener (guarded for non-browser envs)
   if (typeof window !== 'undefined') {
     window.addEventListener('resize', handleResize);
+    // Listen for navigation rail toggle events so the map can reflow to the new width
+    window.addEventListener('nav-rail-toggle', handleNavRailToggle as EventListener);
   }
 });
 
@@ -1270,6 +1288,7 @@ onUnmounted(() => {
   // Remove window resize listener (guarded)
   if (typeof window !== 'undefined') {
     window.removeEventListener('resize', handleResize);
+    window.removeEventListener('nav-rail-toggle', handleNavRailToggle as EventListener);
   }
 
   if (map.value) {
