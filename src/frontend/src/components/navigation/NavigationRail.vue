@@ -131,7 +131,7 @@ const handleLogoutClick = () => emit('logoutClick');
 <template>
   <!-- Desktop: left-side Navigation Rail -->
   <aside
-    class="hidden lg:flex flex-col bg-white border-r border-gray-200 shadow-lg h-screen fixed left-0 top-0 z-40 transition-all"
+    class="hidden lg:flex flex-col bg-white border-r border-gray-200 shadow-lg h-screen fixed left-0 top-0 z-40 transition-all mr-4"
     :class="props.isExpanded ? 'w-80' : 'w-16'"
     role="navigation"
     aria-label="Navigation rail"

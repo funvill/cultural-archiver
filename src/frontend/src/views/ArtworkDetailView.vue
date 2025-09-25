@@ -218,8 +218,14 @@ const tagEditorRef = ref<any | null>(null);
 
 const artworkPhotos = computed(() => {
   if (!artwork.value?.photos) return [] as string[];
-  // Deduplicate photos (same URL may appear from logbook + artwork-level merge)
-  return Array.from(new Set(artwork.value.photos));
+  // Photos may be strings or objects; normalize to URL strings and deduplicate
+  const urls: string[] = (artwork.value.photos || []).map((p: any) => {
+    if (!p) return '';
+    if (typeof p === 'string') return p;
+    // Known shape: { url, thumbnail_url }
+    return p.url || p.thumbnail_url || '';
+  });
+  return Array.from(new Set(urls)).filter((u: string) => !!u && u.length > 0);
 });
 
 // const logbookEntries = computed(() => {
@@ -227,8 +233,9 @@ const artworkPhotos = computed(() => {
 // });
 
 // Computed for authentication and editing permissions
+// UI-only: surface Edit button to any authenticated user per PRD (server still enforces permissions)
 const canEdit = computed(() => {
-  return authStore.isAuthenticated && artwork.value?.status === 'approved';
+  return authStore.isAuthenticated;
 });
 
 const displayTitle = computed(() => {
@@ -592,49 +599,27 @@ async function checkPendingEdits(): Promise<void> {
 </script>
 
 <template>
-  <div class="artwork-detail-view min-h-screen bg-gray-50">
+  <div class="artwork-detail-view bg-gray-50">
     <!-- Loading State -->
-    <div v-if="loading" class="min-h-screen flex items-center justify-center">
+    <div v-if="loading" class="flex items-center justify-center py-20">
       <div class="text-center">
-        <svg
-          class="animate-spin h-12 w-12 mx-auto mb-4 text-blue-600"
-          xmlns="http://www.w3.org/2000/svg"
-          fill="none"
-          viewBox="0 0 24 24"
-        >
-          <circle
-            class="opacity-25"
-            cx="12"
-            cy="12"
-            r="10"
-            stroke="currentColor"
-            stroke-width="4"
-          ></circle>
-          <path
-            class="opacity-75"
-            fill="currentColor"
-            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-          ></path>
+        <svg class="animate-spin h-12 w-12 mx-auto mb-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none"
+          viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor"
+            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+          </path>
         </svg>
         <p class="text-gray-600">Loading artwork details...</p>
       </div>
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="min-h-screen flex items-center justify-center">
+    <div v-else-if="error" class="flex items-center justify-center py-20">
       <div class="text-center max-w-md mx-auto px-4">
-        <svg
-          class="h-16 w-16 mx-auto mb-4 text-red-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-          />
+        <svg class="h-16 w-16 mx-auto mb-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
         </svg>
         <h1 class="text-2xl font-bold text-gray-900 mb-2">
           <template v-if="authStore?.canReview && error?.includes('pending approval')">
@@ -643,38 +628,26 @@ async function checkPendingEdits(): Promise<void> {
           <template v-else> Artwork Not Found </template>
         </h1>
         <p class="text-gray-600 mb-6">{{ error }}</p>
-        <div
-          v-if="authStore?.canReview && originatingSubmissionId"
-          class="mb-4 text-sm text-gray-700"
-        >
+        <div v-if="authStore?.canReview && originatingSubmissionId" class="mb-4 text-sm text-gray-700">
           <p class="mb-1">Originating submission ID:</p>
           <code class="px-2 py-1 bg-gray-100 rounded text-gray-800 text-xs">{{
             originatingSubmissionId
           }}</code>
         </div>
         <!-- Moderator deep link: only show if user has reviewer permissions -->
-        <div
-          v-if="authStore?.canReview && props.id && error?.includes('pending approval')"
-          class="mb-6"
-        >
+        <div v-if="authStore?.canReview && props.id && error?.includes('pending approval')" class="mb-6">
           <p class="text-sm text-gray-700 mb-2">
             If this artwork was just submitted it may still be pending. You can review it now:
           </p>
-          <router-link
-            :to="{ path: '/review', query: { searchId: originatingSubmissionId || props.id } }"
-            class="inline-block px-3 py-2 text-sm bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-500"
-          >
-            <template v-if="originatingSubmissionId"
-              >Open Review Queue (submission
-              {{ originatingSubmissionId.substring(0, 8) }}…)</template
-            >
+          <router-link :to="{ path: '/review', query: { searchId: originatingSubmissionId || props.id } }"
+            class="inline-block px-3 py-2 text-sm bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+            <template v-if="originatingSubmissionId">Open Review Queue (submission
+              {{ originatingSubmissionId.substring(0, 8) }}…)</template>
             <template v-else>Open Review Queue for {{ props.id.substring(0, 8) }}…</template>
           </router-link>
         </div>
-        <button
-          @click="goToMap"
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
+        <button @click="goToMap"
+          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
           ← Back to Map
         </button>
       </div>
@@ -682,103 +655,95 @@ async function checkPendingEdits(): Promise<void> {
 
     <!-- Artwork Content -->
     <div v-else-if="artwork" class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">
-      <!-- Breadcrumb Navigation and Edit Button -->
-      <div class="flex items-center justify-between mb-4">
-        <nav aria-label="Breadcrumb">
-          <ol class="flex items-center space-x-2 text-sm text-gray-500">
-            <li>
-              <button
-                @click="goToMap"
-                class="hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 rounded"
-              >
-                ← Back to Map
-              </button>
-            </li>
-            <li>
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M9 5l7 7-7 7"
-                />
+      <!-- Photo Gallery - Full width at top -->
+      <section aria-labelledby="photos-heading" :class="{ 'opacity-60': isEditMode }" class="mb-6 lg:mb-8">
+        <h2 id="photos-heading" class="sr-only">Photo Gallery</h2>
+        <div class="relative">
+          <PhotoCarousel :photos="artworkPhotos" v-model:currentIndex="currentPhotoIndex"
+            :alt-text-prefix="artworkTitle" @fullscreen="handlePhotoFullscreen" />
+
+          <!-- Edit mode overlay for photos -->
+          <div v-if="isEditMode"
+            class="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center rounded-lg">
+            <div class="text-center p-4">
+              <svg class="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-            </li>
-            <li class="text-gray-900 font-medium" aria-current="page">
-              {{ artworkTitle }}
-            </li>
-          </ol>
-        </nav>
-
-        <!-- Edit button for authenticated users -->
-        <div v-if="canEdit && !isEditMode" class="flex items-center gap-3">
-          <!-- Pending edits indicator -->
-          <div
-            v-if="hasPendingEdits"
-            class="px-3 py-1 text-sm font-medium text-amber-700 bg-amber-100 rounded-full"
-          >
-            Changes pending review
+              <p class="text-sm font-medium text-gray-600">Photos cannot be edited</p>
+              <p class="text-xs text-gray-500 mt-1">
+                Photo editing is not available in this version
+              </p>
+            </div>
           </div>
-
-          <!-- Edit button - larger and prominent -->
-          <button
-            @click="enterEditMode"
-            :disabled="hasPendingEdits"
-            aria-label="Edit artwork details"
-            class="inline-flex items-center px-6 py-3 text-base font-medium rounded-lg transition-colors focus:outline-none focus:ring-2"
-            :class="
-              hasPendingEdits
-                ? 'text-gray-500 bg-gray-100 cursor-not-allowed'
-                : 'text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 shadow-sm'
-            "
-          >
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-              />
-            </svg>
-            {{ hasPendingEdits ? 'Edit Disabled' : 'Edit Artwork' }}
-          </button>
-          <!-- Add Logbook Entry button - opens the fast submit workflow with this artwork pre-selected -->
-          <button
-            @click="router.push({ path: `/logbook/${props.id}` })"
-            aria-label="Add logbook entry"
-            class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700"
-          >
-            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Add log
-          </button>
         </div>
-      </div>
+      </section>
 
-      <!-- Header with artwork info (icon/type row removed as requested) -->
-      <div class="mb-6">
+      <!-- Artwork Details - Title, Artist, and Description -->
+      <section aria-labelledby="artwork-details-heading" class="mb-6 bg-white rounded-lg border border-gray-200 p-6">
+        <h2 id="artwork-details-heading" class="sr-only">Artwork Details</h2>
+        
         <!-- Title (editable in edit mode) -->
         <div v-if="!isEditMode">
-          <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2 leading-tight">
-            {{ displayTitle }}
-          </h1>
+          <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-2">
+            <div class="flex items-center gap-3">
+              <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 leading-tight">
+                {{ displayTitle }}
+              </h1>
+              <!-- View count badge (anonymized metric) -->
+              <div v-if="artwork && artwork.view_count != null" class="ml-2">
+                <span
+                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                  title="Anonymized view count">
+                  <svg class="w-3 h-3 mr-1 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  {{ artwork?.view_count ?? 0 }}
+                </span>
+              </div>
+            </div>
+
+            <!-- Edit buttons inline with title -->
+            <div v-if="canEdit" class="flex items-center gap-3 mt-1 sm:mt-0">
+              <!-- Pending edits indicator -->
+              <div v-if="hasPendingEdits"
+                class="px-3 py-1 text-sm font-medium text-amber-700 bg-amber-100 rounded-full">
+                Changes pending review
+              </div>
+
+              <!-- Edit button -->
+              <button @click="enterEditMode" :disabled="hasPendingEdits" aria-label="Edit artwork details"
+                class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2"
+                :class="hasPendingEdits
+                    ? 'text-gray-500 bg-gray-100 cursor-not-allowed'
+                    : 'text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 shadow-sm'
+                  ">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                {{ hasPendingEdits ? 'Edit Disabled' : 'Edit' }}
+              </button>
+
+              <!-- Add Logbook Entry button -->
+              <button @click="router.push({ path: `/logbook/${props.id}` })" aria-label="Add logbook entry"
+                class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                </svg>
+                Add log
+              </button>
+            </div>
+          </div>
         </div>
-        <div v-else class="mb-4">
+        <div v-else class="mb-4 ">
           <label for="edit-title" class="block text-sm font-medium text-gray-700 mb-1">Title</label>
-          <input
-            id="edit-title"
-            v-model="editData.title"
-            type="text"
-            maxlength="512"
+          <input id="edit-title" v-model="editData.title" type="text" maxlength="512"
             class="block w-full text-2xl sm:text-3xl font-bold text-gray-900 bg-white border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Enter artwork title..."
-          />
+            placeholder="Enter artwork title..." />
           <p class="mt-1 text-sm text-gray-500">{{ editData.title.length }}/512 characters</p>
         </div>
 
@@ -788,10 +753,8 @@ async function checkPendingEdits(): Promise<void> {
           <div v-if="hasArtistLinks" class="space-y-1">
             <div v-for="artist in artworkArtists" :key="artist.id" class="flex items-center gap-2">
               <span>by</span>
-              <button
-                @click="navigateToArtist(artist.id)"
-                class="text-blue-600 hover:text-blue-700 hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded"
-              >
+              <button @click="navigateToArtist(artist.id)"
+                class="text-blue-600 hover:text-blue-700 hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded">
                 {{ artist.name }}
               </button>
               <span v-if="artist.role && artist.role !== 'artist'" class="text-sm text-gray-500">
@@ -802,10 +765,8 @@ async function checkPendingEdits(): Promise<void> {
             <div v-if="hasDisplayableCreators" class="text-sm text-gray-500 italic">
               Legacy:
               <span v-for="(creatorName, index) in displayCreatorsList" :key="creatorName">
-                <button
-                  @click="navigateToArtistSearch(creatorName)"
-                  class="text-blue-600 hover:text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded"
-                >
+                <button @click="navigateToArtistSearch(creatorName)"
+                  class="text-blue-600 hover:text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded">
                   {{ creatorName }}
                 </button>
                 <span v-if="index < displayCreatorsList.length - 1">, </span>
@@ -816,10 +777,8 @@ async function checkPendingEdits(): Promise<void> {
           <div v-else-if="hasDisplayableCreators" class="flex items-center gap-1 flex-wrap">
             <span>by</span>
             <span v-for="(creatorName, index) in displayCreatorsList" :key="creatorName">
-              <button
-                @click="navigateToArtistSearch(creatorName)"
-                class="text-blue-600 hover:text-blue-700 hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded"
-              >
+              <button @click="navigateToArtistSearch(creatorName)"
+                class="text-blue-600 hover:text-blue-700 hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded">
                 {{ creatorName }}
               </button>
               <span v-if="index < displayCreatorsList.length - 1">, </span>
@@ -828,79 +787,73 @@ async function checkPendingEdits(): Promise<void> {
           <div v-else class="text-gray-500 italic">Artist unknown</div>
         </div>
         <div v-else-if="isEditMode" class="mb-4">
-          <label for="edit-creators" class="block text-sm font-medium text-gray-700 mb-1"
-            >Created by</label
-          >
-          <input
-            id="edit-creators"
-            v-model="editData.creators"
-            type="text"
+          <label for="edit-creators" class="block text-sm font-medium text-gray-700 mb-1">Created by</label>
+          <input id="edit-creators" v-model="editData.creators" type="text"
             class="block w-full text-base sm:text-lg text-gray-600 bg-white border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            placeholder="Enter creators (comma separated)..."
-          />
+            placeholder="Enter creators (comma separated)..." />
+        </div>
+
+        <!-- Description (combined with title and artist) -->
+        <div v-if="!isEditMode" class="mt-6 pt-6 border-t border-gray-200">
+          <h3 class="text-lg font-medium text-gray-900 mb-3">Description</h3>
+          
+          <!-- Display mode -->
+          <!-- eslint-disable-next-line vue/no-v-html -->
+          <div v-if="displayDescription"
+            class="prose prose-gray max-w-none text-gray-700 leading-relaxed" v-html="renderedDescription"></div>
+
+          <!-- Empty description in display mode -->
+          <div v-else class="text-gray-500 italic bg-gray-100 p-4 rounded-lg">
+            Add description - No description available for this artwork yet.
+          </div>
+        </div>
+        
+        <!-- Description edit mode -->
+        <div v-else class="mt-6 pt-6 border-t border-gray-200">
+          <label for="edit-description" class="block text-sm font-medium text-gray-700 mb-1">Description</label>
+          <textarea id="edit-description" v-model="editData.description" rows="4"
+            class="block w-full bg-white border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
+            placeholder="Enter artwork description..."></textarea>
+          <div class="text-xs text-gray-500 space-y-1 mt-2">
+            <p class="font-medium">Markdown tips:</p>
+            <ul class="list-disc ml-4 space-y-0.5">
+              <li><code>**bold**</code> → <strong>bold</strong></li>
+              <li><code># Heading 1</code>, <code>## Heading 2</code></li>
+              <li><code>* item</code> for bullet lists</li>
+              <li><code>[text](https://link)</code> for links</li>
+              <li><code>_italic_</code> → <em>italic</em></li>
+            </ul>
+          </div>
         </div>
 
         <!-- Edit mode controls -->
         <div v-if="isEditMode" class="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-          <div
-            class="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between sm:gap-3"
-          >
+          <div class="flex flex-col space-y-3 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
             <div class="flex items-center gap-2 text-blue-700">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
               <span class="font-medium">Edit Mode</span>
             </div>
 
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-              <button
-                @click="cancelEdit"
-                :disabled="editLoading"
-                aria-label="Cancel editing"
-                class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
+              <button @click="cancelEdit" :disabled="editLoading" aria-label="Cancel editing"
+                class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed">
                 Cancel
               </button>
 
-              <button
-                @click="saveEdit"
-                :disabled="editLoading || !editData.title.trim()"
-                aria-label="Save changes"
-                class="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <svg
-                  v-if="editLoading"
-                  class="w-4 h-4 mr-1.5 animate-spin"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                >
-                  <circle
-                    class="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    stroke-width="4"
-                  ></circle>
-                  <path
-                    class="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  ></path>
+              <button @click="saveEdit" :disabled="editLoading || !editData.title.trim()" aria-label="Save changes"
+                class="inline-flex items-center justify-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg v-if="editLoading" class="w-4 h-4 mr-1.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                  </path>
                 </svg>
                 <span v-else>
                   <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M5 13l4 4L19 7"
-                    />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                   </svg>
                 </span>
                 {{ editLoading ? 'Saving...' : 'Save Changes' }}
@@ -909,102 +862,16 @@ async function checkPendingEdits(): Promise<void> {
           </div>
 
           <!-- Edit error message -->
-          <div
-            v-if="editError"
-            class="mt-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700"
-          >
+          <div v-if="editError" class="mt-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
             {{ editError }}
           </div>
         </div>
-      </div>
+      </section>
 
-      <!-- Main content grid -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-        <!-- Left column - Main content -->
-        <div class="lg:col-span-2 space-y-6 lg:space-y-8">
-          <!-- Photo Gallery -->
-          <section aria-labelledby="photos-heading" :class="{ 'opacity-60': isEditMode }">
-            <h2 id="photos-heading" class="sr-only">Photo Gallery</h2>
-            <div class="relative">
-              <PhotoCarousel
-                :photos="artworkPhotos"
-                v-model:currentIndex="currentPhotoIndex"
-                :alt-text-prefix="artworkTitle"
-                @fullscreen="handlePhotoFullscreen"
-              />
-
-              <!-- Edit mode overlay for photos -->
-              <div
-                v-if="isEditMode"
-                class="absolute inset-0 bg-gray-100 bg-opacity-75 flex items-center justify-center rounded-lg"
-              >
-                <div class="text-center p-4">
-                  <svg
-                    class="w-12 h-12 mx-auto mb-2 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      stroke-width="2"
-                      d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                    />
-                  </svg>
-                  <p class="text-sm font-medium text-gray-600">Photos cannot be edited</p>
-                  <p class="text-xs text-gray-500 mt-1">
-                    Photo editing is not available in this version
-                  </p>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <!-- Description -->
-          <section aria-labelledby="description-heading">
-            <h2 id="description-heading" class="text-xl font-semibold text-gray-900 mb-3">
-              Description
-            </h2>
-
-            <!-- Display mode -->
-            <!-- eslint-disable-next-line vue/no-v-html -->
-            <div
-              v-if="!isEditMode && displayDescription"
-              class="prose prose-gray max-w-none text-gray-700 leading-relaxed"
-              v-html="renderedDescription"
-            ></div>
-
-            <!-- Empty description in display mode -->
-            <div v-else-if="!isEditMode" class="text-gray-500 italic bg-gray-100 p-4 rounded-lg">
-              Add description - No description available for this artwork yet.
-            </div>
-
-            <!-- Edit mode -->
-            <div v-else class="space-y-2">
-              <label for="edit-description" class="sr-only">Description</label>
-              <textarea
-                id="edit-description"
-                v-model="editData.description"
-                rows="4"
-                class="block w-full bg-white border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-vertical"
-                placeholder="Enter artwork description..."
-              ></textarea>
-              <div class="text-xs text-gray-500 space-y-1">
-                <p class="font-medium">Markdown tips:</p>
-                <ul class="list-disc ml-4 space-y-0.5">
-                  <li><code>**bold**</code> → <strong>bold</strong></li>
-                  <li><code># Heading 1</code>, <code>## Heading 2</code></li>
-                  <li><code>* item</code> for bullet lists</li>
-                  <li><code>[text](https://link)</code> for links</li>
-                  <li><code>_italic_</code> → <em>italic</em></li>
-                </ul>
-              </div>
-            </div>
-          </section>
-
-          <!-- Journal Timeline -->
-          <!--
+      <!-- Main content - Single column layout -->
+      <div class="space-y-6 lg:space-y-8 ">
+        <!-- Journal Timeline -->
+        <!--
           <section aria-labelledby="journal-heading">
             <LogbookTimeline
               :entries="logbookEntries"
@@ -1016,219 +883,145 @@ async function checkPendingEdits(): Promise<void> {
             />
           </section>
           -->
-        </div>
 
-        <!-- Right column - Sidebar -->
-        <div class="lg:col-span-1">
-          <div class="space-y-6 lg:sticky lg:top-8">
-            <!-- Location -->
-            <section
-              aria-labelledby="location-heading"
-              class="bg-white rounded-lg border border-gray-200 p-6"
-              :class="{ 'opacity-60': isEditMode }"
-            >
-              <h2 id="location-heading" class="text-lg font-semibold text-gray-900 mb-4">
-                Location
-              </h2>
-              <div class="relative">
-                <MiniMap
-                  v-if="artwork.lat != null && artwork.lon != null"
-                  :latitude="artwork.lat"
-                  :longitude="artwork.lon"
-                  :title="artworkTitle"
-                  height="200px"
-                  :zoom="16"
-                />
-                <div v-else class="text-gray-500 text-sm">Location information not available</div>
+        <!-- Location -->
+        <section aria-labelledby="location-heading" class="bg-white rounded-lg border border-gray-200 p-6"
+          :class="{ 'opacity-60': isEditMode }">
+          <h2 id="location-heading" class="text-lg font-semibold text-gray-900 mb-4">
+            Location
+          </h2>
+          <div class="relative">
+            <MiniMap v-if="artwork && artwork.lat != null && artwork.lon != null" :latitude="artwork?.lat"
+              :longitude="artwork?.lon" :title="artworkTitle" height="200px" :zoom="16" />
+            <!-- Directions button -->
+            <div v-if="artwork && artwork.lat != null && artwork.lon != null" class="mt-3">
+              <a :href="`https://www.google.com/maps/dir/?api=1&destination=${artwork?.lat},${artwork?.lon}`"
+                target="_blank" rel="noopener noreferrer"
+                class="inline-flex items-center px-3 py-2 bg-white border border-gray-200 rounded text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h4l3-8 4 18 3-8h4" />
+                </svg>
+                Directions
+              </a>
+            </div>
+            <div v-else class="text-gray-500 text-sm">Location information not available</div>
 
-                <!-- Edit mode overlay for location -->
-                <div
-                  v-if="isEditMode"
-                  class="absolute inset-0 bg-gray-100 bg-opacity-90 flex items-center justify-center rounded"
-                >
-                  <div class="text-center p-2">
-                    <svg
-                      class="w-8 h-8 mx-auto mb-1 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                      />
-                    </svg>
-                    <p class="text-xs font-medium text-gray-600">Location cannot be edited</p>
-                  </div>
-                </div>
+            <!-- Edit mode overlay for location -->
+            <div v-if="isEditMode"
+              class="absolute inset-0 bg-gray-100 bg-opacity-90 flex items-center justify-center rounded">
+              <div class="text-center p-2">
+                <svg class="w-8 h-8 mx-auto mb-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                    d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+                <p class="text-xs font-medium text-gray-600">Location cannot be edited</p>
               </div>
-            </section>
-
-            <!-- Combined Info + Details Section -->
-            <section
-              aria-labelledby="info-details-heading"
-              class="bg-white rounded-lg border border-gray-200 p-6"
-            >
-              <h2 id="info-details-heading" class="text-lg font-semibold text-gray-900 mb-4">
-                Information & Details
-              </h2>
-
-              <!-- Always show Added first -->
-              <div class="mb-4">
-                <dt class="text-sm font-medium text-gray-600">Added</dt>
-                <dd class="text-sm text-gray-900">
-                  {{
-                    new Date(artwork.created_at).toLocaleDateString('en-US', {
-                      year: 'numeric',
-                      month: 'long',
-                      day: 'numeric',
-                    })
-                  }}
-                </dd>
-              </div>
-
-              <!-- Keywords separate row -->
-              <div v-if="!isEditMode && keywordList.length" class="mb-4">
-                <div class="text-sm font-medium text-gray-600 mb-1">Keywords</div>
-                <div class="flex flex-wrap gap-1">
-                  <button
-                    v-for="kw in keywordList"
-                    :key="kw"
-                    class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    @click="router.push(`/search/${encodeURIComponent(kw)}`)"
-                  >
-                    {{ kw }}
-                  </button>
-                </div>
-              </div>
-
-              <!-- Display mode tags (excluding keywords) -->
-              <div v-if="!isEditMode && Object.keys(displayTags).length > 0">
-                <TagBadge
-                  :tags="displayTags"
-                  :max-visible="8"
-                  color-scheme="blue"
-                  variant="compact"
-                  :show-categories="true"
-                  :collapsible="false"
-                  @tag-click="handleTagClick"
-                />
-              </div>
-              <div v-else-if="!isEditMode" class="text-gray-500 italic text-sm">
-                No additional details available.
-              </div>
-
-              <!-- Edit mode -->
-              <div v-else class="space-y-4">
-                <!-- Keywords editor (simple textarea) -->
-                <div>
-                  <label for="edit-keywords" class="block text-sm font-medium text-gray-700 mb-1"
-                    >Keywords (comma separated)</label
-                  >
-                  <textarea
-                    id="edit-keywords"
-                    v-model="keywordsField"
-                    maxlength="500"
-                    rows="2"
-                    class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="outdoor, landmark, bronze, abstract"
-                  ></textarea>
-                  <p class="text-xs text-gray-500 mt-1">
-                    {{ (editData.tags.keywords || '').length }}/500 characters. Separate with
-                    commas.
-                  </p>
-                </div>
-                <TagEditor
-                  ref="tagEditorRef"
-                  v-model="editData.tags"
-                  :disabled="editLoading"
-                  :max-tags="30"
-                  @tagAdded="key => announceSuccess(`Tag '${key}' added`)"
-                  @tagRemoved="key => announceSuccess(`Tag '${key}' removed`)"
-                />
-              </div>
-            </section>
-
-            <!-- CC0 License Information -->
-            <section
-              aria-labelledby="license-heading"
-              class="bg-blue-50 rounded-lg border border-blue-200 p-6"
-            >
-              <h2 id="license-heading" class="text-lg font-semibold text-gray-900 mb-3">License</h2>
-              <div class="text-sm text-gray-600 space-y-2">
-                <p>
-                  <strong>CC0 Public Domain:</strong> All user-contributed content is released under
-                  CC0 license.
-                </p>
-                <p class="text-xs text-gray-500">
-                  Note: Underlying artworks may still be copyrighted. This license only applies to
-                  user submissions.
-                </p>
-              </div>
-            </section>
+            </div>
           </div>
-        </div>
+        </section>
+
+        <!-- Combined Info + Details Section -->
+        <section aria-labelledby="info-details-heading" class="bg-white rounded-lg border border-gray-200 p-6">
+          <h2 id="info-details-heading" class="text-lg font-semibold text-gray-900 mb-4">
+            Information & Details
+          </h2>
+
+          <!-- Always show Added first -->
+          <div class="mb-4">
+            <dt class="text-sm font-medium text-gray-600">Added</dt>
+            <dd class="text-sm text-gray-900">
+              {{
+                new Date(artwork?.created_at || '').toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })
+              }}
+            </dd>
+          </div>
+
+          <!-- Keywords separate row -->
+          <div v-if="!isEditMode && keywordList.length" class="mb-4">
+            <div class="text-sm font-medium text-gray-600 mb-1">Keywords</div>
+            <div class="flex flex-wrap gap-1">
+              <button v-for="kw in keywordList" :key="kw"
+                class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                @click="router.push(`/search/${encodeURIComponent(kw)}`)">
+                {{ kw }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Display mode tags (excluding keywords) -->
+          <div v-if="!isEditMode && Object.keys(displayTags).length > 0">
+            <TagBadge :tags="displayTags" :max-visible="8" color-scheme="blue" variant="compact" :show-categories="true"
+              :collapsible="false" @tag-click="handleTagClick"
+              @tagSearch="(tag) => { router.push(`/search/${encodeURIComponent(tag.value)}`); }" />
+          </div>
+          <div v-else-if="!isEditMode" class="text-gray-500 italic text-sm">
+            No additional details available.
+          </div>
+
+          <!-- Edit mode -->
+          <div v-else class="space-y-4">
+            <!-- Keywords editor (simple textarea) -->
+            <div>
+              <label for="edit-keywords" class="block text-sm font-medium text-gray-700 mb-1">Keywords (comma
+                separated)</label>
+              <textarea id="edit-keywords" v-model="keywordsField" maxlength="500" rows="2"
+                class="w-full border border-gray-300 rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="outdoor, landmark, bronze, abstract"></textarea>
+              <p class="text-xs text-gray-500 mt-1">
+                {{ (editData.tags.keywords || '').length }}/500 characters. Separate with
+                commas.
+              </p>
+            </div>
+            <TagEditor ref="tagEditorRef" v-model="editData.tags" :disabled="editLoading" :max-tags="30"
+              @tagAdded="key => announceSuccess(`Tag '${key}' added`)"
+              @tagRemoved="key => announceSuccess(`Tag '${key}' removed`)" />
+          </div>
+        </section>
+
+        <!-- CC0 License Information -->
+        <section aria-labelledby="license-heading" class="bg-blue-50 rounded-lg border border-blue-200 p-6">
+          <h2 id="license-heading" class="text-lg font-semibold text-gray-900 mb-3">License</h2>
+          <div class="text-sm text-gray-600 space-y-2">
+            <p>
+              <strong>CC0 Public Domain:</strong> All user-contributed content is released under
+              CC0 license.
+            </p>
+            <p class="text-xs text-gray-500">
+              Note: Underlying artworks may still be copyrighted. This license only applies to
+              user submissions.
+            </p>
+          </div>
+        </section>
       </div>
     </div>
 
     <!-- Fullscreen Photo Modal -->
-    <div
-      v-if="showFullscreenPhoto"
-      class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50"
-      @click="closeFullscreenPhoto"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Fullscreen photo view"
-    >
-      <button
-        @click="closeFullscreenPhoto"
+    <div v-if="showFullscreenPhoto" class="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50"
+      @click="closeFullscreenPhoto" role="dialog" aria-modal="true" aria-label="Fullscreen photo view">
+      <button @click="closeFullscreenPhoto"
         class="absolute top-4 right-4 text-white hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-white rounded z-10"
-        aria-label="Close fullscreen photo"
-      >
+        aria-label="Close fullscreen photo">
         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M6 18L18 6M6 6l12 12"
-          />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
 
-      <img
-        :src="fullscreenPhotoUrl"
-        :alt="`Fullscreen view of ${artworkTitle}`"
-        class="max-w-full max-h-full object-contain"
-        @click.stop
-      />
+      <img :src="fullscreenPhotoUrl" :alt="`Fullscreen view of ${artworkTitle}`"
+        class="max-w-full max-h-full object-contain" @click.stop />
     </div>
 
     <!-- Success Modal -->
-    <div
-      v-if="showSuccessModal"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="success-modal-title"
-      @click.self="showSuccessModal = false"
-    >
+    <div v-if="showSuccessModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+      role="dialog" aria-modal="true" aria-labelledby="success-modal-title" @click.self="showSuccessModal = false">
       <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl">
         <div class="flex items-center justify-center mb-4">
           <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
-            <svg
-              class="w-8 h-8 text-green-600"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M5 13l4 4L19 7"
-              />
+            <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
             </svg>
           </div>
         </div>
@@ -1243,10 +1036,8 @@ async function checkPendingEdits(): Promise<void> {
         </p>
 
         <div class="flex justify-center">
-          <button
-            @click="showSuccessModal = false"
-            class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
+          <button @click="showSuccessModal = false"
+            class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500">
             Got it!
           </button>
         </div>
@@ -1254,28 +1045,15 @@ async function checkPendingEdits(): Promise<void> {
     </div>
 
     <!-- Cancel confirmation dialog -->
-    <div
-      v-if="showCancelDialog"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="cancel-dialog-title"
-    >
+    <div v-if="showCancelDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+      role="dialog" aria-modal="true" aria-labelledby="cancel-dialog-title">
       <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
         <div class="p-4 sm:p-6">
           <div class="flex items-center mb-4">
-            <svg
-              class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"
-              />
+            <svg class="w-6 h-6 text-amber-500 mr-3 flex-shrink-0" fill="none" stroke="currentColor"
+              viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
             <h3 id="cancel-dialog-title" class="text-lg font-medium text-gray-900">
               Discard Changes?
@@ -1287,16 +1065,12 @@ async function checkPendingEdits(): Promise<void> {
           </p>
 
           <div class="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
-            <button
-              @click="showCancelDialog = false"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 order-2 sm:order-1"
-            >
+            <button @click="showCancelDialog = false"
+              class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 order-2 sm:order-1">
               Keep Editing
             </button>
-            <button
-              @click="confirmCancel"
-              class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 order-1 sm:order-2"
-            >
+            <button @click="confirmCancel"
+              class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 order-1 sm:order-2">
               Discard Changes
             </button>
           </div>
@@ -1306,19 +1080,14 @@ async function checkPendingEdits(): Promise<void> {
   </div>
 
   <!-- Success Toast -->
-  <div
-    v-if="showToast"
-    data-testid="success-toast"
+  <div v-if="showToast" data-testid="success-toast"
     class="fixed bottom-4 left-1/2 transform -translate-x-1/2 transition-transform duration-300 ease-in-out z-50"
-    :class="{ 'translate-y-0': showToast, 'translate-y-full': !showToast }"
-  >
+    :class="{ 'translate-y-0': showToast, 'translate-y-full': !showToast }">
     <div class="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center">
       <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-        <path
-          fill-rule="evenodd"
+        <path fill-rule="evenodd"
           d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-          clip-rule="evenodd"
-        ></path>
+          clip-rule="evenodd"></path>
       </svg>
       <span>{{ toastMessage }}</span>
     </div>
@@ -1348,6 +1117,7 @@ async function checkPendingEdits(): Promise<void> {
   from {
     transform: rotate(0deg);
   }
+
   to {
     transform: rotate(360deg);
   }

@@ -171,6 +171,35 @@ describe('TagBadge', () => {
       expect(emittedEvent.value).toBe('bronze');
       expect(emittedEvent.definition).toBeDefined();
     });
+
+    it('emits tagSearch event when tag search button is clicked', async () => {
+      const wrapper = mount(TagBadge, {
+        props: {
+          tags: mockTagsRecord,
+        },
+      });
+
+      // Find a tag search button (span with role="button" containing search SVG)
+      const tagSearchButtons = wrapper.findAll('span[role="button"]').filter(el => 
+        el.html().includes('M21 21l-4.35-4.35')
+      );
+      expect(tagSearchButtons.length).toBeGreaterThan(0);
+
+      const firstButton = tagSearchButtons[0];
+      expect(firstButton).toBeDefined();
+      if (!firstButton) return; // Type guard
+      await firstButton.trigger('click');
+
+      expect(wrapper.emitted('tagSearch')).toBeTruthy();
+      const emittedEvent = wrapper.emitted('tagSearch')?.[0]?.[0] as {
+        key: string;
+        value: string;
+        definition: unknown;
+      };
+      expect(emittedEvent).toBeDefined();
+      expect(emittedEvent.key).toBe('material');
+      expect(emittedEvent.value).toBe('bronze');
+    });
   });
 
   describe('Styling', () => {

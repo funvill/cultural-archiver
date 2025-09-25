@@ -35,11 +35,12 @@ const carouselRef = ref<HTMLElement>();
 const touchStartX = ref(0);
 const touchStartY = ref(0);
 const isDragging = ref(false);
+const preloaded = ref(new Set<string>());
 
 // Computed
-const currentPhotoIndex = computed({
-  get: () => props.currentIndex,
-  set: value => emit('update:currentIndex', value),
+const currentPhotoIndex = computed<number>({
+  get: () => props.currentIndex || 0,
+  set: (value: number) => emit('update:currentIndex', value),
 });
 
 const hasMultiplePhotos = computed(() => props.photos.length > 1);
@@ -91,6 +92,36 @@ function openFullscreen(): void {
     announceInfo('Opened photo in fullscreen view');
   }
 }
+
+// Prefetch neighboring slides to reduce flicker
+function prefetchImage(url?: string) {
+  if (!url) return;
+  if (preloaded.value.has(url)) return;
+  try {
+    const img = new Image();
+    img.src = url;
+    // Mark preloaded once the browser starts loading
+    preloaded.value.add(url);
+  } catch (e) {
+    // ignore
+  }
+}
+
+// Watch active index and prefetch next/previous images
+watch(
+  () => currentPhotoIndex.value,
+  (idx: number) => {
+    const len = props.photos.length;
+    if (!len) return;
+    const next = (idx + 1) % len;
+    const prev = (idx - 1 + len) % len;
+    prefetchImage(props.photos[next]);
+    prefetchImage(props.photos[prev]);
+    // also prefetch the slide after next
+    prefetchImage(props.photos[(next + 1) % len]);
+  },
+  { immediate: true }
+);
 
 // Touch/swipe handlers
 function handleTouchStart(event: TouchEvent): void {
@@ -189,23 +220,28 @@ onMounted(() => {
     <div
       v-if="currentPhoto"
       ref="carouselRef"
-      class="relative bg-gray-900 rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500"
-      tabindex="0"
-      role="img"
+        class="relative bg-gray-900 rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500"
+        tabindex="0"
+        role="img"
       :aria-label="photoAltText"
       :aria-describedby="hasMultiplePhotos ? 'photo-navigation-help' : ''"
-      @keydown="handleKeydown"
-      @touchstart="handleTouchStart"
-      @touchend="handleTouchEnd"
-      @click="openFullscreen"
+        @keydown="handleKeydown"
+        @touchstart="handleTouchStart"
+        @touchend="handleTouchEnd"
+        @click="openFullscreen"
     >
-      <!-- Photo -->
+      <!-- Photo (center-cropped, responsive height) -->
       <img
         :src="currentPhoto"
         :alt="photoAltText"
-        class="w-full h-64 md:h-96 object-cover cursor-pointer"
+        class="w-full h-80 sm:h-96 md:h-[520px] lg:h-[600px] object-cover cursor-pointer"
         loading="lazy"
+        @click="openFullscreen"
       />
+
+      <!-- Hidden prefetch images (neighbors) so browsers can lazy-load them -- keeps DOM minimal but allows fetching) -->
+  <img v-if="props.photos.length>1" :src="props.photos[(currentPhotoIndex+1)%props.photos.length] || ''" alt="" style="display:none" loading="lazy" />
+  <img v-if="props.photos.length>2" :src="props.photos[(currentPhotoIndex+2)%props.photos.length] || ''" alt="" style="display:none" loading="lazy" />
 
       <!-- Navigation arrows (only shown if multiple photos) -->
       <div

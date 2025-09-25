@@ -34,6 +34,7 @@ interface Props {
 // Emits interface
 interface Emits {
   (e: 'tagClick', tag: Tag | StructuredTag): void;
+  (e: 'tagSearch', tag: Tag | StructuredTag): void;
   (e: 'expandToggle', expanded: boolean): void;
   (e: 'categoryToggle', category: string, expanded: boolean): void;
 }
@@ -139,6 +140,14 @@ function handleTagClick(tag: StructuredTag): void {
   emit('tagClick', tag);
 }
 
+function handleTagSearch(tag: StructuredTag, event?: Event): void {
+  // Prevent parent click handlers when clicking the search icon (works for mouse and keyboard)
+  event?.stopPropagation();
+  // Prevent default for keyboard events
+  if (event instanceof KeyboardEvent) event.preventDefault();
+  emit('tagSearch', tag);
+}
+
 function toggleExpanded(): void {
   isExpanded.value = !isExpanded.value;
   emit('expandToggle', isExpanded.value);
@@ -238,9 +247,11 @@ if (props.collapsible) {
             <div
               v-for="(tag, index) in categoryTags"
               :key="`${tag.key}-${tag.value}-${index}`"
-              class="text-sm"
+              class="text-sm cursor-pointer"
               @click="handleTagClick(tag)"
               :aria-label="`Tag: ${formatTagDisplay(tag)}`"
+              role="button"
+              tabindex="0"
             >
               <span class="font-bold">{{ tag.definition?.label || tag.key }}:</span>
               <span class="ml-1"> {{ formatTagValueForDisplay(tag.key, tag.value) }}</span>
@@ -253,15 +264,35 @@ if (props.collapsible) {
     <!-- Simple list display (original behavior) -->
     <div v-else class="space-y-1">
       <!-- Visible tags -->
-      <div
-        v-for="(tag, index) in visibleTags"
-        :key="`${tag.key}-${tag.value}-${index}`"
-        class="text-sm cursor-pointer hover:bg-gray-50 p-1 rounded"
-        @click="handleTagClick(tag)"
-        :aria-label="`Tag: ${formatTagDisplay(tag)}`"
-      >
-        <span class="font-bold">{{ tag.definition?.label || tag.key }}:</span>
-        <span class="ml-1"> {{ formatTagValueForDisplay(tag.key, tag.value) }}</span>
+            <div
+              v-for="(tag, index) in visibleTags"
+              :key="`${tag.key}-${tag.value}-${index}`"
+              class="text-sm p-1 rounded flex items-center justify-between hover:bg-gray-50 cursor-pointer"
+              @click="handleTagClick(tag)"
+              :aria-label="`Tag: ${formatTagDisplay(tag)}`"
+              role="button"
+              tabindex="0"
+            >
+              <div class="text-left w-full flex items-center gap-2">
+                <span class="font-bold">{{ tag.definition?.label || tag.key }}:</span>
+                <span class="ml-1"> {{ formatTagValueForDisplay(tag.key, tag.value) }}</span>
+              </div>
+
+        <!-- Small search icon that navigates to search while allowing text selection -->
+        <span
+          @click.stop="handleTagSearch(tag, $event)"
+          @keydown.enter.stop.prevent="handleTagSearch(tag, $event)"
+          @keydown.space.stop.prevent="handleTagSearch(tag, $event)"
+          class="ml-2 p-1 rounded hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          :title="`Search for ${tag.value}`"
+          role="button"
+          tabindex="0"
+          :aria-label="`Search for ${tag.value}`"
+        >
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z" />
+          </svg>
+        </span>
       </div>
 
       <!-- Show more/less toggle -->

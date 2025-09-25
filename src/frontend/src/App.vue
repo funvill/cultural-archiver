@@ -122,6 +122,7 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
+  overflow: hidden; /* Prevent double scrollbars - AppShell handles all scrolling */
 }
 
 /* Override any default margins */

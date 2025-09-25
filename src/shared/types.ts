@@ -25,7 +25,7 @@ export interface ArtworkApiResponse {
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null;
-  photos: string[] | null; // Already parsed as array
+  photos: ArtworkPhotoInput[] | null; // Already parsed as array with optional metadata
   type_name?: string;
   tags_parsed?: Record<string, unknown>;
   title?: string | null; // Artwork title (editable field)
@@ -37,6 +37,18 @@ export interface ArtworkApiResponse {
   artist_name?: string | null; // Primary artist name for display
   updated_at?: string | null; // For sorting by last updated
 }
+
+export interface ArtworkPhoto {
+  url: string;
+  thumbnail_url?: string | null;
+  alt_text?: string | null;
+  caption?: string | null;
+  credit?: string | null;
+  width?: number | null;
+  height?: number | null;
+}
+
+export type ArtworkPhotoInput = string | ArtworkPhoto;
 
 // Removed obsolete LogbookRecord - replaced by SubmissionRecord in unified schema
 // Removed obsolete TagRecord - tags are now JSON in artwork/artist records
@@ -338,13 +350,14 @@ export interface ArtworkWithPhotos extends ArtworkRecord {
 }
 
 export interface ArtworkDetailResponse {
+  view_count?: number | null;
   id: string;
   lat: number;
   lon: number;
   created_at: string;
   status: 'pending' | 'approved' | 'removed';
   tags: string | null;
-  photos: string[]; // Parsed photo URLs
+  photos: ArtworkPhotoInput[]; // Parsed photo URLs (string or metadata objects)
   type_name: string;
   logbook_entries: Array<{
     id: string;

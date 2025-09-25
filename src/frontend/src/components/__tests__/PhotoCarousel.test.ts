@@ -217,6 +217,83 @@ describe('PhotoCarousel', () => {
     });
   });
 
+  describe('Keyboard Navigation', () => {
+    it('navigates to next photo on ArrowRight', async () => {
+      const wrapper = mount(PhotoCarousel, {
+        props: {
+          photos: mockPhotos,
+          currentIndex: 0,
+        },
+      });
+
+      const carousel = wrapper.find('[role="img"]');
+      expect(carousel.exists()).toBe(true);
+
+      await carousel.trigger('keydown', { key: 'ArrowRight' });
+
+      expect(wrapper.emitted('update:currentIndex')).toBeTruthy();
+      expect(wrapper.emitted('update:currentIndex')?.[0]).toEqual([1]);
+    });
+
+    it('navigates to previous photo on ArrowLeft', async () => {
+      const wrapper = mount(PhotoCarousel, {
+        props: {
+          photos: mockPhotos,
+          currentIndex: 1,
+        },
+      });
+
+      const carousel = wrapper.find('[role="img"]');
+      await carousel.trigger('keydown', { key: 'ArrowLeft' });
+
+      expect(wrapper.emitted('update:currentIndex')).toBeTruthy();
+      expect(wrapper.emitted('update:currentIndex')?.[0]).toEqual([0]);
+    });
+
+    it('jumps to first photo on Home key', async () => {
+      const wrapper = mount(PhotoCarousel, {
+        props: {
+          photos: mockPhotos,
+          currentIndex: 2,
+        },
+      });
+
+      const carousel = wrapper.find('[role="img"]');
+      await carousel.trigger('keydown', { key: 'Home' });
+
+      expect(wrapper.emitted('update:currentIndex')?.[0]).toEqual([0]);
+    });
+
+    it('jumps to last photo on End key', async () => {
+      const wrapper = mount(PhotoCarousel, {
+        props: {
+          photos: mockPhotos,
+          currentIndex: 0,
+        },
+      });
+
+      const carousel = wrapper.find('[role="img"]');
+      await carousel.trigger('keydown', { key: 'End' });
+
+      expect(wrapper.emitted('update:currentIndex')?.[0]).toEqual([2]);
+    });
+
+    it('opens fullscreen on Enter key', async () => {
+      const wrapper = mount(PhotoCarousel, {
+        props: {
+          photos: mockPhotos,
+          currentIndex: 0,
+        },
+      });
+
+      const carousel = wrapper.find('[role="img"]');
+      await carousel.trigger('keydown', { key: 'Enter' });
+
+      expect(wrapper.emitted('fullscreen')).toBeTruthy();
+      expect(wrapper.emitted('fullscreen')?.[0]).toEqual([mockPhotos[0]]);
+    });
+  });
+
   describe('License Display', () => {
     it('shows CC0 license by default', () => {
       const wrapper = mount(PhotoCarousel, {
