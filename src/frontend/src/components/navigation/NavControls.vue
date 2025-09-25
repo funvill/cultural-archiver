@@ -93,24 +93,7 @@ const handleMapClick = () => emit('mapClick');
         <MapIcon class="w-6 h-6 text-gray-700" aria-hidden="true" />
       </button>
 
-      <!-- Profile / Login (hidden on mobile) -->
-      <button
-        v-if="props.isAuthenticated"
-        @click="handleProfileClick"
-        class="hidden lg:flex items-center justify-center w-12 h-12 rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-        :title="props.userDisplayName || 'Profile'"
-      >
-        <UserIcon class="w-6 h-6 text-gray-700" aria-hidden="true" />
-      </button>
-
-      <button
-        v-else
-        @click="handleLoginClick"
-        class="hidden lg:flex items-center justify-center w-12 h-12 rounded-full hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-        title="Login"
-      >
-        <ArrowRightOnRectangleIcon class="w-6 h-6 text-gray-700" aria-hidden="true" />
-      </button>
+      <!-- Profile / Login removed from bottom bar (kept in vertical navigation rail) -->
     </div>
   </div>
 
