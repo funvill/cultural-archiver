@@ -13,14 +13,16 @@ export interface UseBreakpointReturn {
 export function useBreakpoint(): UseBreakpointReturn {
   const width = ref(0)
   
-  // Responsive breakpoints based on Material Design guidelines
-  const isMobile = computed(() => width.value < 600)
-  const isTablet = computed(() => width.value >= 600 && width.value < 1024)
+  // Responsive breakpoints aligned with Tailwind's defaults (md = 768px)
+  const isMobile = computed(() => width.value < 768)
+  const isTablet = computed(() => width.value >= 768 && width.value < 1024)
   const isDesktop = computed(() => width.value >= 1024)
-  
+
   // Specific to our navigation design
-  const showNavigationRail = computed(() => width.value >= 600)
-  const showBottomNavigation = computed(() => width.value < 600)
+  // Navigation rail only shows on large screens (lg = 1024px+)
+  // Bottom navigation shows on all screen sizes
+  const showNavigationRail = computed(() => width.value >= 1024)
+  const showBottomNavigation = computed(() => true) // Always show bottom navigation
   
   const updateWidth = (): void => {
     width.value = window.innerWidth

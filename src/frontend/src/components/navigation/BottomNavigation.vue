@@ -1,28 +1,34 @@
 <script setup lang="ts">
-import { computed } from 'vue';
-import {
-  Bars3Icon,
-  BellIcon,
-  PlusIcon,
-} from '@heroicons/vue/24/outline';
+import { toRefs } from 'vue';
+import NavControls from './NavControls.vue';
 
 // Props
 interface Props {
   currentRoute: string;
   notificationCount?: number;
   showNotifications?: boolean;
+  isAuthenticated?: boolean;
+  userDisplayName?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   notificationCount: 0,
   showNotifications: true,
+  isAuthenticated: false,
+  userDisplayName: '',
 });
+
+// expose individual refs for template convenience
+const { notificationCount, showNotifications } = toRefs(props);
 
 // Events
 interface Emits {
   'menuToggle': [];
   'notificationClick': [];
   'fabClick': [];
+  'profileClick': [];
+  'loginClick': [];
+  'mapClick': [];
 }
 
 const emit = defineEmits<Emits>();
@@ -40,8 +46,15 @@ const handleFabClick = (): void => {
   emit('fabClick');
 };
 
-// Computed
-const hasNotifications = computed(() => props.notificationCount > 0);
+const handleProfileClick = (): void => {
+  emit('profileClick');
+};
+
+const handleLoginClick = (): void => {
+  emit('loginClick');
+};
+
+// (removed unused hasNotifications)
 </script>
 
 <template>
@@ -50,49 +63,19 @@ const hasNotifications = computed(() => props.notificationCount > 0);
     role="navigation"
     aria-label="Bottom navigation"
   >
-    <div class="flex items-center justify-between h-16 px-4">
-      <!-- Left: Menu Button -->
-      <button
-        @click="handleMenuToggle"
-        class="flex items-center justify-center w-12 h-12 rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-        aria-label="Open navigation menu"
-        aria-expanded="false"
-      >
-        <Bars3Icon class="w-6 h-6 text-gray-700" aria-hidden="true" />
-      </button>
-
-      <!-- Center: FAB (Floating Action Button) -->
-      <div class="relative">
-        <button
-          @click="handleFabClick"
-          class="fab flex items-center justify-center w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transform hover:scale-105 active:scale-95 transition-all duration-200"
-          aria-label="Submit new artwork"
-        >
-          <PlusIcon class="w-7 h-7" aria-hidden="true" />
-        </button>
-      </div>
-
-      <!-- Right: Notifications Button -->
-      <button
-        v-if="showNotifications"
-        @click="handleNotificationClick"
-        class="relative flex items-center justify-center w-12 h-12 rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-        aria-label="View notifications"
-      >
-        <BellIcon class="w-6 h-6 text-gray-700" aria-hidden="true" />
-        <!-- Notification Badge -->
-        <span
-          v-if="hasNotifications"
-          class="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full min-w-[18px] h-[18px] shadow-sm"
-          :aria-label="`${notificationCount ?? 0} unread notifications`"
-        >
-          {{ (notificationCount ?? 0) > 99 ? '99+' : (notificationCount ?? 0) }}
-        </span>
-      </button>
-
-      <!-- Spacer if notifications are hidden -->
-      <div v-else class="w-12 h-12"></div>
-    </div>
+    <NavControls
+      orientation="horizontal"
+      :notification-count="notificationCount"
+      :show-notifications="showNotifications"
+      :is-authenticated="props.isAuthenticated"
+      :user-display-name="props.userDisplayName"
+      @menuToggle="handleMenuToggle"
+      @fabClick="handleFabClick"
+      @notificationClick="handleNotificationClick"
+      @mapClick="$emit('mapClick')"
+      @profileClick="handleProfileClick"
+      @loginClick="handleLoginClick"
+    />
   </nav>
 </template>
 

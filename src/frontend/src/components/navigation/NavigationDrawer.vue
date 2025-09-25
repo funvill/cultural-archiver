@@ -7,6 +7,7 @@ import {
   PhotoIcon,
   UserGroupIcon,
   MagnifyingGlassIcon,
+  QuestionMarkCircleIcon,
   UserIcon,
   ArrowLeftOnRectangleIcon,
   ShieldCheckIcon,
@@ -69,7 +70,7 @@ const navigationItems = computed(() => [
   },{
     name: 'Help',
     path: '/help',
-    icon: MagnifyingGlassIcon,
+    icon: QuestionMarkCircleIcon,
     description: 'Help',
   },
 ]);

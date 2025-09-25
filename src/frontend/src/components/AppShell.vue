@@ -15,6 +15,7 @@ import LiveRegion from './LiveRegion.vue';
 
 // Import new navigation components
 import BottomNavigation from './navigation/BottomNavigation.vue';
+import NavigationRail from './navigation/NavigationRail.vue';
 import NavigationDrawer from './navigation/NavigationDrawer.vue';
 import AboutModal from './navigation/AboutModal.vue';
 
@@ -36,7 +37,14 @@ const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
 const notificationsStore = useNotificationsStore();
-const { showBottomNavigation } = useBreakpoint();
+const { showNavigationRail } = useBreakpoint();
+
+// Local state for navigation rail expanded/collapsed on desktop
+const navExpanded = ref(true);
+
+function handleToggleRail(): void {
+  navExpanded.value = !navExpanded.value;
+}
 
 
 // Fast Add Implementation - keeping existing functionality
@@ -268,6 +276,10 @@ function handleNotificationClick(): void {
   router.push('/profile/notifications');
 }
 
+function handleMapClick(): void {
+  router.push('/');
+}
+
 // Previously used to toggle a left navigation rail; no longer needed with a single bottom nav.
 
 
@@ -365,25 +377,35 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
     <!-- Development Warning Banner -->
     <DevelopmentBanner />
 
-    <!-- Global Bottom Navigation (used for both desktop and mobile) -->
-    <BottomNavigation
-      :current-route="route.path"
+    <!-- Desktop Navigation Rail (md+ screens) -->
+    <NavigationRail
+      v-if="showNavigationRail"
+      :is-expanded="navExpanded"
       :notification-count="notificationsStore.unreadCount"
       :show-notifications="authStore.isAuthenticated"
-      @menuToggle="handleDrawerToggle"
-      @fabClick="triggerFastAdd"
+      :is-authenticated="authStore.isAuthenticated"
+      :user-display-name="authStore.user?.email ?? ''"
+      :user-role="authStore.isAdmin ? 'admin' : (authStore.canReview ? 'moderator' : 'user')"
+      @toggleExpanded="handleToggleRail"
       @notificationClick="handleNotificationClick"
+      @profileClick="() => router.push('/profile')"
+      @loginClick="() => openAuthModal('login')"
+      @logoutClick="handleLogout"
     />
 
-    <!-- Mobile Bottom Navigation (shown on screens <600px) -->
+    <!-- Bottom Navigation (always shown) -->
     <BottomNavigation
-      v-if="showBottomNavigation"
       :current-route="route.path"
       :notification-count="notificationsStore.unreadCount"
       :show-notifications="authStore.isAuthenticated"
+      :is-authenticated="authStore.isAuthenticated"
+      :user-display-name="authStore.user?.email ?? ''"
       @menuToggle="handleDrawerToggle"
       @fabClick="triggerFastAdd"
+      @mapClick="handleMapClick"
       @notificationClick="handleNotificationClick"
+      @profileClick="() => router.push('/profile')"
+      @loginClick="() => openAuthModal('login')"
     />
 
     <!-- Mobile Navigation Drawer -->
@@ -405,7 +427,9 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
       class="app-main" 
       role="main"
       :class="{
-        'pb-16': true
+        'pb-16': true,
+        'lg:ml-80': showNavigationRail && navExpanded,
+        'lg:ml-16': showNavigationRail && !navExpanded
       }"
     >
       <RouterView />
@@ -456,8 +480,15 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
 }
 
 /* Desktop layout - main content with left margin for navigation rail */
-/* Desktop previously used a left navigation rail; desktop now uses a bottom navigation so
-   main content no longer needs left margin reserved. */
+@media (min-width: 1024px) {
+  .app-main.lg\:ml-80 {
+    margin-left: 20rem; /* 320px - expanded rail width */
+  }
+  
+  .app-main.lg\:ml-16 {
+    margin-left: 4rem; /* 64px - collapsed rail width */
+  }
+}
 
 /* Mobile layout - main content with bottom padding for bottom navigation */
 @media (max-width: 599px) {
