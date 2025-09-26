@@ -31,8 +31,19 @@ vi.mock('leaflet', () => ({
       removeLayer: vi.fn(),
       clearLayers: vi.fn(),
     })),
+    markerClusterGroup: vi.fn(() => ({
+      addTo: vi.fn(),
+      addLayer: vi.fn(),
+      removeLayer: vi.fn(),
+      clearLayers: vi.fn(),
+      on: vi.fn(),
+      off: vi.fn(),
+    })),
   },
 }));
+
+// Mock leaflet.markercluster
+vi.mock('leaflet.markercluster', () => ({}));
 
 // Mock vue-leaflet
 vi.mock('@vue-leaflet/vue-leaflet', () => ({

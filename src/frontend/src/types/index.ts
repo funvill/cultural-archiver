@@ -53,6 +53,15 @@ export interface ArtworkPin {
   photos: string[];
 }
 
+export interface MapPreview {
+  id: string;
+  title: string;
+  description: string;
+  thumbnailUrl?: string;
+  lat: number;
+  lon: number;
+}
+
 // Photo and upload types
 export interface PhotoFile {
   id: string;

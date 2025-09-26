@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
+import { ref, onMounted, onUnmounted, watch, nextTick, defineEmits } from 'vue';
 import {
   ExclamationTriangleIcon,
   ExclamationCircleIcon,
@@ -11,7 +11,10 @@ import {
 } from '@heroicons/vue/24/outline';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import type { Coordinates, ArtworkPin, MapComponentProps } from '../types';
+import 'leaflet.markercluster';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+import type { Coordinates, ArtworkPin, MapComponentProps } from '../types/index';
 import { useArtworksStore } from '../stores/artworks';
 import {
   useArtworkTypeFilters,
@@ -25,14 +28,14 @@ const props = withDefaults(defineProps<MapComponentProps>(), {
   showUserLocation: true,
 });
 
-// Emits
-interface Emits {
-  (e: 'artworkClick', artwork: ArtworkPin): void;
-  (e: 'mapMove', data: { center: Coordinates; zoom: number }): void;
-  (e: 'locationFound', location: Coordinates): void;
-}
-
-const emit = defineEmits<Emits>();
+// Emits - using runtime declaration to avoid TypeScript compilation issues
+const emit = defineEmits([
+  'artworkClick',
+  'previewArtwork', 
+  'dismissPreview',
+  'mapMove',
+  'locationFound'
+]);
 
 // State
 const mapContainer = ref<HTMLDivElement>();
@@ -412,7 +415,10 @@ async function initializeMap() {
       if (zoomStyleTimeout.value) clearTimeout(zoomStyleTimeout.value);
       zoomStyleTimeout.value = setTimeout(() => {
         try {
-          updateMarkerStyles();
+          // Guard against calling updateMarkerStyles after map destruction
+          if (map.value) {
+            updateMarkerStyles();
+          }
         } catch (e) {
           /* ignore */
         }
@@ -716,7 +722,10 @@ function updateArtworkMarkersDebounced(delay: number = 0) {
   }
 
   markerUpdateTimeout.value = setTimeout(() => {
-    updateArtworkMarkers();
+    // Guard against running after component unmount
+    if (map.value) {
+      updateArtworkMarkers();
+    }
   }, delay);
 }
 
@@ -864,23 +873,7 @@ function updateArtworkMarkers() {
 
     marker.bindPopup(popupContent);
 
-    // Add event handlers
-    marker.on('click', (e: L.LeafletMouseEvent) => {
-      e.originalEvent?.stopPropagation();
-      router.push(`/artwork/${artwork.id}`);
-      emit('artworkClick', artwork);
-    });
-
-    // Add hover effects
-    marker.on('mouseover', () => {
-      marker.setStyle({ fillOpacity: 1.0, weight: 2 });
-    });
-
-    marker.on('mouseout', () => {
-      marker.setStyle({ fillOpacity: 0.9, weight: 1 });
-    });
-
-    // Add to cluster group and tracking array
+    // Add to cluster group first
     if (markerClusterGroup.value) {
       console.log('[MARKER DEBUG] Adding marker to cluster group:', {
         markerId: artwork.id,
@@ -892,12 +885,48 @@ function updateArtworkMarkers() {
     } else {
       console.log('[MARKER DEBUG] No cluster group available for marker:', artwork.id);
     }
+
+    // Add event handlers AFTER adding to cluster group to avoid conflicts
+    marker.on('click', (e: L.LeafletMouseEvent) => {
+      console.log('[MARKER DEBUG] Leaflet marker click event fired for artwork:', artwork.id);
+      e.originalEvent?.stopPropagation();
+      
+      // Create preview data from artwork
+      const previewData = {
+        id: artwork.id,
+        title: artwork.title || 'Untitled Artwork',
+        description: artwork.type || 'Public artwork',
+        thumbnailUrl: artwork.photos && artwork.photos.length > 0 ? artwork.photos[0] : undefined,
+        lat: artwork.latitude,
+        lon: artwork.longitude,
+      };
+      
+      console.log('[MARKER DEBUG] Emitting previewArtwork event:', previewData);
+      
+      // Only emit preview event - let MapPreviewCard handle navigation
+      emit('previewArtwork', previewData);
+    });
+
+    // Add hover effects
+    marker.on('mouseover', () => {
+      marker.setStyle({ fillOpacity: 1.0, weight: 2 });
+    });
+
+    marker.on('mouseout', () => {
+      marker.setStyle({ fillOpacity: 0.9, weight: 1 });
+    });
+
     artworkMarkers.value.push(marker);
   });
 }
 
 // Update styles (radius/color/etc) for all existing markers to react to zoom changes
 function updateMarkerStyles() {
+  // Guard against accessing map during destruction
+  if (!map.value) {
+    return;
+  }
+
   try {
     // Recompute style for each marker and apply via setStyle
     artworkMarkers.value.forEach((marker: any) => {
@@ -948,20 +977,6 @@ function updateMarkerStyles() {
   }
 }
 
-// Ensure marker cluster plugin is loaded when needed
-async function ensureMarkerClusterPluginLoaded() {
-  if (typeof window === 'undefined') return;
-  try {
-    if (!(L as any).markerClusterGroup) {
-      await import('leaflet.markercluster');
-      await import('leaflet.markercluster/dist/MarkerCluster.css');
-      await import('leaflet.markercluster/dist/MarkerCluster.Default.css');
-    }
-  } catch (e) {
-    console.warn('MarkerCluster plugin not available, using simple layer group', e);
-  }
-}
-
 // Configure marker layer group according to clusterEnabled
 async function configureMarkerGroup() {
   if (!map.value) return;
@@ -977,7 +992,6 @@ async function configureMarkerGroup() {
 
   // Create new group
   if (clusterEnabled.value) {
-    await ensureMarkerClusterPluginLoaded();
     if ((L as any).markerClusterGroup) {
       markerClusterGroup.value = (L as any).markerClusterGroup({
         showCoverageOnHover: false,
@@ -1028,6 +1042,9 @@ function handleMapMove() {
 
   // Emit map move event
   emit('mapMove', { center: coordinates, zoom });
+  
+  // Dismiss preview on pan according to PRD
+  emit('dismissPreview');
 
   // Persist map state
   try {
@@ -1061,12 +1078,15 @@ function debounceLoadArtworks() {
 
   // Set a shorter delay for more responsive loading
   loadArtworksTimeout = setTimeout(() => {
-    loadArtworks();
+    // Guard against running after component unmount
+    if (map.value) {
+      loadArtworks();
+    }
   }, 250); // Reduced from 500ms to 250ms for better responsiveness
 
   // Show loading state after a brief delay to avoid flicker
   loadingTimeout.value = setTimeout(() => {
-    if (!isLoadingViewport.value) {
+    if (!isLoadingViewport.value && map.value) {
       isLoadingViewport.value = true;
     }
   }, 100);
@@ -1285,6 +1305,24 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  // Clear any pending timeouts to prevent callbacks on destroyed map
+  if (loadingTimeout.value) {
+    clearTimeout(loadingTimeout.value);
+    loadingTimeout.value = null;
+  }
+  if (markerUpdateTimeout.value) {
+    clearTimeout(markerUpdateTimeout.value);
+    markerUpdateTimeout.value = null;
+  }
+  if (zoomStyleTimeout.value) {
+    clearTimeout(zoomStyleTimeout.value);
+    zoomStyleTimeout.value = null;
+  }
+  if (loadArtworksTimeout) {
+    clearTimeout(loadArtworksTimeout);
+    loadArtworksTimeout = null;
+  }
+
   // Remove window resize listener (guarded)
   if (typeof window !== 'undefined') {
     window.removeEventListener('resize', handleResize);
@@ -1292,7 +1330,34 @@ onUnmounted(() => {
   }
 
   if (map.value) {
-    map.value.remove();
+    // Remove all event listeners before destroying the map
+    try {
+      map.value.off('moveend');
+      map.value.off('zoomend');
+      map.value.off('zoom');
+      map.value.off('locationfound');
+      map.value.off('locationerror');
+    } catch (e) {
+      console.warn('Error removing map event listeners:', e);
+    }
+    
+    // Clean up marker cluster group
+    if (markerClusterGroup.value) {
+      try {
+        markerClusterGroup.value.clearLayers();
+      } catch (e) {
+        console.warn('Error clearing cluster group:', e);
+      }
+    }
+    
+    // Remove the map instance
+    try {
+      map.value.remove();
+    } catch (e) {
+      console.warn('Error removing map:', e);
+    }
+    
+    map.value = undefined;
   }
 });
 

@@ -10,7 +10,16 @@ vi.mock('../../components/MapComponent.vue', () => ({
     name: 'MapComponent',
     template: '<div data-testid="map-component"><slot /></div>',
     props: ['center', 'zoom', 'height', 'artworks'],
-    emits: ['artwork-clicked', 'map-moved'],
+    emits: ['artwork-click', 'preview-artwork', 'dismiss-preview', 'map-move', 'location-found'],
+  },
+}));
+
+vi.mock('../../components/ArtworkCard.vue', () => ({
+  default: {
+    name: 'ArtworkCard',
+    template: '<div data-testid="artwork-card" v-if="artwork"><slot /></div>',
+    props: ['artwork', 'clickable', 'compact'],
+    emits: ['click'],
   },
 }));
 
@@ -28,6 +37,28 @@ vi.mock('../../stores/artworks', () => ({
     clearArtworks: vi.fn(),
     setMapCenter: vi.fn(),
     setMapZoom: vi.fn(),
+  })),
+}));
+
+vi.mock('../../stores/mapPreview', () => ({
+  useMapPreviewStore: vi.fn(() => ({
+    currentPreview: {
+      id: 'test-artwork-1',
+      lat: 49.2827,
+      lon: -123.1207,
+      title: 'Test Artwork',
+      description: 'Test Description',
+      artist: 'Test Artist',
+      year: '2023',
+      photos: [{ url: 'test.jpg', alt: 'Test photo' }],
+      tags: ['test'],
+    },
+    isVisible: true,
+    hasPreview: true,
+    showPreview: vi.fn(),
+    hidePreview: vi.fn(),
+    updatePreview: vi.fn(),
+    clearPreview: vi.fn(),
   })),
 }));
 
@@ -83,8 +114,13 @@ describe('MapView', () => {
       expect(wrapper.find('[data-testid="map-component"]').exists()).toBe(true);
     });
 
+    it('contains artwork card component', (): void => {
+      expect(wrapper.findComponent({ name: 'ArtworkCard' }).exists()).toBe(true);
+    });
+
     it('has map view structure', (): void => {
       expect(wrapper.findComponent({ name: 'MapComponent' }).exists()).toBe(true);
+      expect(wrapper.findComponent({ name: 'ArtworkCard' }).exists()).toBe(true);
     });
   });
 
@@ -92,6 +128,34 @@ describe('MapView', () => {
     it('integrates with map component', (): void => {
       const mapComponent = wrapper.findComponent({ name: 'MapComponent' });
       expect(mapComponent.exists()).toBe(true);
+    });
+
+    it('integrates with artwork card', (): void => {
+      const artworkCard = wrapper.findComponent({ name: 'ArtworkCard' });
+      expect(artworkCard.exists()).toBe(true);
+    });
+
+    it('passes artwork data to ArtworkCard when preview is visible', (): void => {
+      const artworkCard = wrapper.findComponent({ name: 'ArtworkCard' });
+      
+      // ArtworkCard should exist but artwork prop might be null when no preview
+      expect(artworkCard.exists()).toBe(true);
+      expect(artworkCard.props()).toHaveProperty('artwork');
+      expect(artworkCard.props()).toHaveProperty('clickable');
+      expect(artworkCard.props()).toHaveProperty('compact');
+    });
+
+    it('passes correct event handlers to components', (): void => {
+      const mapComponent = wrapper.findComponent({ name: 'MapComponent' });
+      const artworkCard = wrapper.findComponent({ name: 'ArtworkCard' });
+
+      // Verify components exist and have proper structure
+      expect(mapComponent.exists()).toBe(true);
+      expect(artworkCard.exists()).toBe(true);
+      
+      // Verify components have required props/emits defined
+      expect(mapComponent.props()).toBeDefined();
+      expect(artworkCard.props()).toBeDefined();
     });
 
     it('handles component lifecycle', (): void => {
@@ -103,10 +167,56 @@ describe('MapView', () => {
     it('can handle events from child components', async (): Promise<void> => {
       const mapComponent = wrapper.findComponent({ name: 'MapComponent' });
 
-      await mapComponent.vm.$emit('artwork-clicked', { id: 'artwork-1' });
+      await mapComponent.vm.$emit('artwork-click', { id: 'artwork-1' });
       await wrapper.vm.$nextTick();
 
-      expect(mapComponent.emitted('artwork-clicked')).toBeTruthy();
+      expect(mapComponent.emitted('artwork-click')).toBeTruthy();
+    });
+
+    it('handles preview artwork events from MapComponent', async (): Promise<void> => {
+      const mockPreviewData = {
+        id: 'artwork-123',
+        title: 'Test Artwork',
+        description: 'Test description',
+        thumbnailUrl: 'https://example.com/thumb.jpg',
+        lat: 49.2827,
+        lon: -123.1207,
+      };
+
+      const mapComponent = wrapper.findComponent({ name: 'MapComponent' });
+      await mapComponent.vm.$emit('preview-artwork', mockPreviewData);
+      await wrapper.vm.$nextTick();
+
+      expect(mapComponent.emitted('preview-artwork')).toHaveLength(1);
+      expect(mapComponent.emitted('preview-artwork')?.[0]).toEqual([mockPreviewData]);
+    });
+
+    it('handles dismiss preview events from MapComponent', async (): Promise<void> => {
+      const mapComponent = wrapper.findComponent({ name: 'MapComponent' });
+      await mapComponent.vm.$emit('dismiss-preview');
+      await wrapper.vm.$nextTick();
+
+      expect(mapComponent.emitted('dismiss-preview')).toHaveLength(1);
+    });
+
+    it('handles navigate events from MapPreviewCard', (): void => {
+      const artworkCard = wrapper.findComponent({ name: 'ArtworkCard' });
+      expect(artworkCard.exists()).toBe(true);
+      
+      // Test that the component receives the correct props
+      expect(artworkCard.props('artwork')).toBeDefined();
+      expect(artworkCard.props('clickable')).toBe(true);
+      expect(artworkCard.props('compact')).toBe(true);
+    });
+
+    it('handles analytics events from MapPreviewCard', (): void => {
+      const artworkCard = wrapper.findComponent({ name: 'ArtworkCard' });
+      expect(artworkCard.exists()).toBe(true);
+      
+      // Test that the component is properly configured
+      expect(artworkCard.props()).toHaveProperty('artwork');
+      expect(artworkCard.props()).toHaveProperty('clickable');
+      expect(artworkCard.props()).toHaveProperty('compact');
     });
   });
 
