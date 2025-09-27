@@ -364,8 +364,8 @@ onUnmounted(() => {
     <div class="bg-gray-50 border-b border-gray-200">
       <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div class="text-center">
-          <h1 class="text-3xl font-bold text-gray-900 mb-2">System Status</h1>
-          <p class="text-lg text-gray-600">
+          <h1 class="text-3xl font-bold theme-on-background mb-2">System Status</h1>
+          <p class="text-lg theme-on-surface-variant">
             Current status and health information for Cultural Archiver
           </p>
         </div>
@@ -378,7 +378,7 @@ onUnmounted(() => {
         <div class="p-6">
           <h2 class="text-lg font-semibold mb-4 flex items-center">
             <svg
-              :class="['w-5 h-5 mr-2', error ? 'text-red-600' : 'text-green-600']"
+              :class="['w-5 h-5 mr-2', error ? 'theme-error' : 'theme-success']"
               fill="currentColor"
               viewBox="0 0 20 20"
             >
@@ -398,7 +398,7 @@ onUnmounted(() => {
             API Status
           </h2>
 
-          <div v-if="isLoading" class="text-gray-600 flex items-center">
+          <div v-if="isLoading" class="theme-on-surface-variant flex items-center">
             <svg
               class="animate-spin -ml-1 mr-2 h-4 w-4"
               xmlns="http://www.w3.org/2000/svg"
@@ -423,15 +423,15 @@ onUnmounted(() => {
           </div>
 
           <div v-else>
-            <p :class="['text-lg mb-4', error ? 'text-red-700' : 'text-green-700']">
+            <p :class="['text-lg mb-4', error ? 'theme-error' : 'theme-success']">
               {{ status }}
             </p>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
               <div class="space-y-2">
                 <div class="flex justify-between">
-                  <span class="font-medium text-gray-600">API Connected:</span>
-                  <span :class="[healthData?.apiConnected ? 'text-green-600' : 'text-red-600']">
+                  <span class="font-medium theme-on-surface-variant">API Connected:</span>
+                  <span :class="[healthData?.apiConnected ? 'theme-success' : 'theme-error']">
                     {{ healthData?.apiConnected ? 'Yes' : 'No' }}
                   </span>
                 </div>
@@ -466,7 +466,7 @@ onUnmounted(() => {
       <div v-if="stats" class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
         <div class="p-6">
           <h2 class="text-lg font-semibold mb-4 flex items-center">
-            <svg class="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
+            <svg class="w-5 h-5 mr-2" style="color: rgb(var(--md-primary))" fill="currentColor" viewBox="0 0 20 20">
               <path
                 d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z"
               />
@@ -476,17 +476,17 @@ onUnmounted(() => {
 
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div class="text-center p-4 bg-blue-50 rounded-lg">
-              <div class="text-2xl font-bold text-blue-600">{{ stats.totalSubmissions || 0 }}</div>
+              <div class="text-2xl font-bold" style="color: rgb(var(--md-primary));">{{ stats.totalSubmissions || 0 }}</div>
               <div class="text-sm text-gray-600">Total Submissions</div>
             </div>
             <div class="text-center p-4 bg-green-50 rounded-lg">
-              <div class="text-2xl font-bold text-green-600">
+              <div class="text-2xl font-bold" style="color: rgb(var(--md-success));">
                 {{ stats.approvedSubmissions || 0 }}
               </div>
               <div class="text-sm text-gray-600">Approved Submissions</div>
             </div>
             <div class="text-center p-4 bg-yellow-50 rounded-lg">
-              <div class="text-2xl font-bold text-yellow-600">
+              <div class="text-2xl font-bold theme-warning">
                 {{ stats.pendingSubmissions || 0 }}
               </div>
               <div class="text-sm text-gray-600">Pending Review</div>
@@ -531,7 +531,7 @@ onUnmounted(() => {
               </div>
               <button
                 @click="triggerTestNotification"
-                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-yellow-600 hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md theme-warning theme-on-warning"
               >
                 🔔 Test Notification
               </button>
@@ -555,7 +555,7 @@ onUnmounted(() => {
 
                 <div v-else>
                   <div v-if="geoLoading" class="text-sm text-gray-600">Acquiring location…</div>
-                  <div v-if="geoError" class="text-sm text-red-600">{{ geoError }}</div>
+                  <div v-if="geoError" class="text-sm theme-error">{{ geoError }}</div>
 
                   <div v-if="position" class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                     <div class="flex justify-between">
@@ -590,14 +590,16 @@ onUnmounted(() => {
 
                     <button
                       @click="startGeoWatch"
-                      class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                      class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md theme-success theme-on-success focus:outline-none focus:ring-2 focus:ring-offset-2"
+                      style="--tw-ring-color: var(--md-sys-color-success);"
                     >
                       👀 Start Watching
                     </button>
 
                     <button
                       @click="clearGeoWatch"
-                      class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
+                      class="inline-flex items-center px-3 py-2 border theme-secondary theme-on-secondary text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2"
+                      style="border-color: var(--md-sys-color-outline); --tw-ring-color: var(--md-sys-color-secondary);"
                     >
                       ✖️ Stop
                     </button>
@@ -614,7 +616,8 @@ onUnmounted(() => {
         <button
           @click="checkSystemHealth"
           :disabled="isLoading"
-          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm theme-primary theme-on-primary focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          style="--tw-ring-color: var(--md-sys-color-primary);"
         >
           <svg
             :class="['w-4 h-4 mr-2', isLoading ? 'animate-spin' : '']"
@@ -664,6 +667,6 @@ onUnmounted(() => {
 <style scoped>
 .status-view {
   min-height: 100vh;
-  background-color: #f9fafb;
+  background-color: var(--md-content-background, #f9fafb);
 }
 </style>

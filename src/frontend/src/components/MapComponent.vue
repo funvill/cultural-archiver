@@ -2112,7 +2112,7 @@ watch(
       <div class="relative">
         <button
           @click="showOptionsPanel = !showOptionsPanel"
-          class="bg-white shadow-md rounded-full p-3 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+          class="theme-surface shadow-md rounded-full p-3 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
           title="Map options"
           aria-label="Open map options"
           :aria-expanded="showOptionsPanel"
@@ -2228,7 +2228,7 @@ watch(
         v-if="hasGeolocation"
         @click="centerOnUserLocation"
         :disabled="isLocating"
-        class="bg-white shadow-md rounded-full p-3 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+        class="theme-surface shadow-md rounded-full p-3 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
         :title="isLocating ? 'Getting location...' : 'Center on current location'"
         :aria-label="isLocating ? 'Getting current location...' : 'Center map on current location'"
       >
@@ -2240,10 +2240,10 @@ watch(
       </button>
 
       <!-- Zoom Controls -->
-      <div class="bg-white shadow-md rounded-lg overflow-hidden">
+      <div class="theme-surface shadow-md rounded-lg overflow-hidden">
         <button
           @click="zoomIn"
-          class="block w-full px-3 py-2 text-gray-700 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors border-b border-gray-200"
+          class="block w-full px-3 py-2 text-gray-700 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors border-b border-gray-200"
           title="Zoom in"
           aria-label="Zoom in on map"
         >
@@ -2251,7 +2251,7 @@ watch(
         </button>
         <button
           @click="zoomOut"
-          class="block w-full px-3 py-2 text-gray-700 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
+          class="block w-full px-3 py-2 text-gray-700 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
           title="Zoom out"
           aria-label="Zoom out on map"
         >

@@ -362,13 +362,13 @@ function getLocationMethodStyle(detectedSources: any): string {
 
   switch (method) {
     case 'Photo EXIF data':
-      return 'bg-green-100 text-green-800 border border-green-200';
+      return 'px-2 py-1 rounded-full' ;
     case 'Device GPS':
-      return 'bg-blue-100 text-blue-800 border border-blue-200';
+      return 'px-2 py-1 rounded-full';
     case 'IP location':
-      return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+      return 'px-2 py-1 rounded-full';
     case 'Manual entry':
-      return 'bg-purple-100 text-purple-800 border border-purple-200';
+      return 'px-2 py-1 rounded-full';
     default:
       return 'bg-gray-100 text-gray-800 border border-gray-200';
   }
@@ -393,53 +393,49 @@ function getLocationMethodDescription(detectedSources: any): string {
 </script>
 
 <template>
-  <div class="new-artwork-view min-h-screen bg-gray-50 py-8 px-4">
+  <div class="new-artwork-view min-h-screen theme-background py-8 px-4">
     <div class="max-w-4xl mx-auto">
       <!-- Header -->
       <div class="flex items-center mb-8">
         <button
           @click="goBack"
-          class="mr-4 p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+          class="mr-4 p-2 rounded-lg transition-colors group"
           aria-label="Go back"
+          :style="{ color: 'rgb(var(--md-on-background))' }"
         >
-          <ArrowLeftIcon class="w-5 h-5" />
+          <ArrowLeftIcon class="w-5 h-5 theme-icon-hover" />
         </button>
         <div>
-          <h1 class="text-3xl font-bold text-gray-900">Add New Artwork</h1>
-          <p class="text-gray-600 mt-1">Fill in the details for your new artwork submission</p>
+          <h1 class="text-3xl font-bold" style="color: rgb(var(--md-on-background))">Add New Artwork</h1>
+          <p style="color: rgba(var(--md-on-background), 0.8)" class="mt-1">Fill in the details for your new artwork submission</p>
         </div>
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <!-- Main Form -->
         <div class="lg:col-span-2">
-          <div class="bg-white rounded-lg shadow-md p-6">
+          <div class="rounded-lg shadow-md p-6 theme-surface">
             <!-- Success Message -->
-            <div
-              v-if="submitSuccess"
-              class="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg"
-            >
+            <div v-if="submitSuccess" class="mb-6 p-4 rounded-lg" :style="{ background: 'rgba(var(--md-success), 0.08)', border: '1px solid rgba(var(--md-success), 0.16)' }">
               <div class="flex items-center">
-                <CheckCircleIcon class="w-5 h-5 text-green-500 mr-2" />
-                <span class="text-green-800 font-medium">Artwork submitted successfully!</span>
+                <CheckCircleIcon class="w-5 h-5 mr-2" :style="{ color: 'rgb(var(--md-success))' }" />
+                <span class="font-medium" :style="{ color: 'rgb(var(--md-on-success))' }">Artwork submitted successfully!</span>
               </div>
-              <p class="text-green-600 text-sm mt-1">
+              <p class="text-sm mt-1" :style="{ color: 'rgb(var(--md-success))' }">
                 Submission received and pending review.
-                <span class="font-medium"
-                  >Redirecting to map in {{ redirectCountdown }} seconds...</span
-                >
+                <span class="font-medium">Redirecting to map in {{ redirectCountdown }} seconds...</span>
               </p>
             </div>
 
             <!-- Error Message -->
-            <div v-if="submitError" class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-              <div class="text-red-800"><strong>Submission failed:</strong> {{ submitError }}</div>
+            <div v-if="submitError" class="mb-6 p-4 rounded-lg" :style="{ background: 'rgba(var(--md-error), 0.08)', border: '1px solid rgba(var(--md-error), 0.16)' }">
+              <div :style="{ color: 'rgb(var(--md-on-error))' }"><strong>Submission failed:</strong> {{ submitError }}</div>
             </div>
 
             <form @submit.prevent="handleSubmit" class="space-y-6">
               <!-- Required Fields -->
               <div>
-                <h3 class="text-lg font-medium text-gray-900 mb-4">Basic Information</h3>
+                <h3 class="text-lg font-medium mb-4" :style="{ color: 'rgb(var(--md-on-surface))' }">Basic Information</h3>
 
                 <!-- Title (Optional) -->
                 <div class="mb-4">
@@ -451,7 +447,8 @@ function getLocationMethodDescription(detectedSources: any): string {
                     v-model="formData.title"
                     type="text"
                     placeholder="Enter artwork title"
-                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none"
+                    style="outline-color: rgb(var(--md-primary));"
                   />
                 </div>
 
@@ -472,7 +469,7 @@ function getLocationMethodDescription(detectedSources: any): string {
 
               <!-- Optional Details -->
               <div>
-                <h3 class="text-lg font-medium text-gray-900 mb-4">
+                <h3 class="text-lg font-medium mb-4" :style="{ color: 'rgb(var(--md-on-surface))' }">
                   Additional Details (Optional)
                 </h3>
 
@@ -614,10 +611,10 @@ function getLocationMethodDescription(detectedSources: any): string {
             <h3 class="text-lg font-medium text-gray-900 mb-4">Location</h3>
 
             <div v-if="formData.location" class="space-y-3">
-              <div class="flex items-center text-green-600">
-                <CheckCircleIcon class="w-5 h-5 mr-2" />
-                <span class="text-sm font-medium">Location set</span>
-              </div>
+                <div class="flex items-center">
+                  <CheckCircleIcon class="w-5 h-5 mr-2" :style="{ color: 'rgb(var(--md-success))' }" />
+                  <span class="text-sm font-medium" :style="{ color: 'rgb(var(--md-on-success))' }">Location set</span>
+                </div>
               <div class="text-sm text-gray-600 space-y-2">
                 <div>
                   <div>Lat: {{ formData.location.latitude.toFixed(6) }}</div>
@@ -641,16 +638,17 @@ function getLocationMethodDescription(detectedSources: any): string {
               <button
                 @click="openLocationPicker"
                 type="button"
-                class="text-sm text-blue-600 hover:text-blue-700"
+                class="text-sm"
+                :style="{ color: 'rgb(var(--md-primary))' }"
               >
                 Change location
               </button>
             </div>
 
             <div v-else class="space-y-3">
-              <div class="flex items-center text-red-600">
-                <MapPinIcon class="w-5 h-5 mr-2" />
-                <span class="text-sm font-medium">Location required</span>
+              <div class="flex items-center">
+                <MapPinIcon class="w-5 h-5 mr-2" :style="{ color: 'rgb(var(--md-error))' }" />
+                <span class="text-sm font-medium" :style="{ color: 'rgb(var(--md-on-error))' }">Location required</span>
               </div>
               <button
                 @click="openLocationPicker"
@@ -663,9 +661,9 @@ function getLocationMethodDescription(detectedSources: any): string {
           </div>
 
           <!-- Help -->
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h3 class="text-sm font-medium text-blue-900 mb-2">Tips for Better Submissions</h3>
-            <ul class="text-xs text-blue-700 space-y-1">
+            <div class="rounded-lg p-4" :style="{ background: 'rgba(var(--md-primary), 0.06)', border: '1px solid rgba(var(--md-primary), 0.12)' }">
+              <h3 class="text-sm font-medium mb-2" :style="{ color: 'rgb(var(--md-on-primary))' }">Tips for Better Submissions</h3>
+              <ul class="text-xs space-y-1" :style="{ color: 'rgba(var(--md-on-primary), 0.9)' }">
               <li>• A title helps but is optional</li>
               <li>• Include artist information if known</li>
               <li>• Describe unique features or context</li>
@@ -682,8 +680,8 @@ function getLocationMethodDescription(detectedSources: any): string {
       <div class="relative bg-white w-full max-w-xl rounded-lg shadow-xl overflow-hidden">
         <div class="flex items-center justify-between px-4 py-3 border-b">
           <h3 class="text-lg font-semibold text-gray-900">Select Location</h3>
-          <button @click="cancelLocationModal" class="p-2 rounded hover:bg-gray-100">
-            <XMarkIcon class="w-5 h-5" />
+          <button @click="cancelLocationModal" class="p-2 rounded hover:bg-gray-100 group">
+            <XMarkIcon class="w-5 h-5 theme-icon-hover" />
           </button>
         </div>
         <div class="relative">

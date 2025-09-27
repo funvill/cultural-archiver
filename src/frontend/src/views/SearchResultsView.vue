@@ -78,11 +78,11 @@ onMounted(() => {
 <template>
   <div class="search-results-view">
     <!-- Search Header -->
-    <div class="bg-white shadow-sm border-b border-gray-200">
+  <div class="bg-white shadow-sm border-b border-gray-200 theme-surface">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <div class="flex items-center justify-between">
-          <h1 class="text-2xl font-bold text-gray-900">Search Results</h1>
-          <div class="text-sm text-gray-600">
+          <h1 class="text-2xl font-bold theme-on-background">Search Results</h1>
+          <div class="text-sm theme-muted">
             {{ totalResults }} results{{ query ? ` for "${query}"` : '' }}
           </div>
         </div>
@@ -93,8 +93,8 @@ onMounted(() => {
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <!-- Loading State -->
       <div v-if="isLoading" class="flex justify-center items-center py-8">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span class="ml-3 text-gray-600">Searching...</span>
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2" style="border-color: rgb(var(--md-primary));"></div>
+        <span class="ml-3 theme-muted">Searching...</span>
       </div>
 
       <!-- Empty State -->
@@ -143,7 +143,7 @@ onMounted(() => {
                 <span 
                   v-for="tag in item.tags.slice(0, 3)" 
                   :key="tag"
-                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium theme-primary-container theme-on-primary-container"
                 >
                   {{ tag }}
                 </span>
@@ -163,7 +163,8 @@ onMounted(() => {
       <div v-if="hasMore && !isLoading" class="text-center mt-8">
         <button 
           @click="loadMore"
-          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm theme-primary theme-on-primary focus:outline-none focus:ring-2 focus:ring-offset-2"
+          style="--tw-ring-color: var(--md-sys-color-primary);"
         >
           Load More
         </button>
@@ -175,6 +176,6 @@ onMounted(() => {
 <style scoped>
 .search-results-view {
   min-height: 100vh;
-  background-color: #f9fafb;
+  background-color: var(--md-content-background, #f9fafb);
 }
 </style>
