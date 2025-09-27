@@ -13,6 +13,7 @@ interface Props {
   size?: 'sm' | 'md' | 'lg';
   ariaLabel?: string;
   showLabel?: boolean;
+  showSuccessAnimation?: boolean;
 }
 
 // Emits interface
@@ -24,6 +25,7 @@ const props = withDefaults(defineProps<Props>(), {
   variant: 'outlined',
   size: 'md',
   showLabel: false,
+  showSuccessAnimation: false,
 });
 
 const emit = defineEmits<Emits>();
@@ -68,10 +70,11 @@ const iconClasses = computed(() => {
     lg: 'w-6 h-6',
   };
 
-  // Add animation class for hover/focus effects
+  // Add animation classes for hover/focus and success effects
   const animationClass = !props.disabled && !props.loading ? 'group-hover:animate-pulse group-focus:animate-pulse' : '';
+  const successClass = props.showSuccessAnimation ? 'animate-bounce' : '';
   
-  return [base, sizeClasses[props.size], animationClass].join(' ');
+  return [base, sizeClasses[props.size], animationClass, successClass].join(' ');
 });
 
 const shouldShowLabel = computed(() => {
@@ -118,6 +121,7 @@ const ariaPressed = computed(() => {
     :aria-label="effectiveAriaLabel"
     :aria-pressed="ariaPressed"
     class="group"
+    v-bind="$attrs"
     @click="handleClick"
   >
     <!-- Loading spinner -->
@@ -218,16 +222,29 @@ const ariaPressed = computed(() => {
   100% { transform: scale(1); }
 }
 
+/* Success pop animation */
+@keyframes success-pop {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.2); }
+  50% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+
 .group:hover .group-hover\:animate-pulse,
 .group:focus .group-focus\:animate-pulse {
   animation: twitch 0.3s ease-in-out;
+}
+
+.animate-bounce {
+  animation: success-pop 0.5s ease-out;
 }
 
 /* Reduced motion support */
 @media (prefers-reduced-motion: reduce) {
   .group:hover .group-hover\:animate-pulse,
   .group:focus .group-focus\:animate-pulse,
-  .animate-spin {
+  .animate-spin,
+  .animate-bounce {
     animation: none !important;
   }
   

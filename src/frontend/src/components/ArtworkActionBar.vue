@@ -60,6 +60,13 @@ const publicCounts = ref({
   wantToSee: 0,
 });
 
+// Success animation states
+const successAnimations = ref({
+  loved: false,
+  beenHere: false,
+  wantToSee: false,
+});
+
 const initialLoading = ref(true);
 const showAddToListDialog = ref(false);
 
@@ -78,6 +85,7 @@ const chipData = computed(() => [
     active: listStates.value.loved,
     loading: loadingStates.value.loved,
     count: publicCounts.value.loved > 0 ? publicCounts.value.loved : undefined,
+    showSuccessAnimation: successAnimations.value.loved,
     ariaLabel: listStates.value.loved 
       ? 'Remove from Loved list - currently in list' 
       : 'Add to Loved list - not in list',
@@ -90,6 +98,7 @@ const chipData = computed(() => [
     active: listStates.value.beenHere,
     loading: loadingStates.value.beenHere,
     count: publicCounts.value.beenHere > 0 ? publicCounts.value.beenHere : undefined,
+    showSuccessAnimation: successAnimations.value.beenHere,
     ariaLabel: listStates.value.beenHere 
       ? 'Remove from Been Here list - currently in list' 
       : 'Add to Been Here list - not in list',
@@ -102,6 +111,7 @@ const chipData = computed(() => [
     active: listStates.value.wantToSee,
     loading: loadingStates.value.wantToSee,
     count: publicCounts.value.wantToSee > 0 ? publicCounts.value.wantToSee : undefined,
+    showSuccessAnimation: successAnimations.value.wantToSee,
     ariaLabel: listStates.value.wantToSee 
       ? 'Remove from Want to See list - currently in list' 
       : 'Add to Want to See list - not in list',
@@ -274,6 +284,9 @@ async function toggleListMembership(listType: 'loved' | 'beenHere' | 'wantToSee'
         : `Added to ${getListDisplayName(listType)} list`
     );
     
+    // Trigger success animation
+    triggerSuccessAnimation(listType);
+    
     // Refresh public counts after successful action
     await fetchPublicCounts();
     
@@ -301,6 +314,16 @@ function getListDisplayName(listType: string): string {
     wantToSee: 'Want to See',
   };
   return names[listType] || listType;
+}
+
+// Trigger success animation for a specific chip
+function triggerSuccessAnimation(listType: 'loved' | 'beenHere' | 'wantToSee'): void {
+  successAnimations.value[listType] = true;
+  
+  // Reset animation after it completes
+  setTimeout(() => {
+    successAnimations.value[listType] = false;
+  }, 500);
 }
 
 function openAddToListDialog(): void {
@@ -377,7 +400,7 @@ async function handleShare(): Promise<void> {
 </script>
 
 <template>
-  <div class="artwork-action-bar">
+  <div class="artwork-action-bar" data-testid="artwork-action-bar">
     <!-- Divider above -->
     <hr class="border-t border-gray-200 my-4" />
 
@@ -390,10 +413,13 @@ async function handleShare(): Promise<void> {
         :label="chip.label"
         :active="chip.active"
         :loading="initialLoading || chip.loading"
+        :count="chip.count"
+        :show-success-animation="chip.showSuccessAnimation"
         :aria-label="chip.ariaLabel"
         :show-label="false"
         variant="outlined"
         size="md"
+        :data-testid="`chip-${chip.id}`"
         @click="chip.action"
         class="min-w-0"
       />
@@ -407,6 +433,7 @@ async function handleShare(): Promise<void> {
       v-if="showAddToListDialog && isAuthenticated"
       :model-value="showAddToListDialog"
       :artwork-id="artworkId"
+      data-testid="add-to-list-dialog"
       @update:model-value="showAddToListDialog = $event"
       @added-to-list="handleAddedToList"
     />
