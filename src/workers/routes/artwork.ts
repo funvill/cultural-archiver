@@ -635,16 +635,16 @@ export async function getArtworkCounts(c: Context<{ Bindings: WorkerEnv }>): Pro
     // Get public counts for each special list type
     const countsQuery = `
       SELECT 
-        l.special_list_name,
+        l.list_name,
         COUNT(li.artwork_id) as count
       FROM (
-        SELECT 'loved' as special_list_name
-        UNION SELECT 'beenHere' as special_list_name  
-        UNION SELECT 'wantToSee' as special_list_name
+        SELECT 'loved' as list_name
+        UNION SELECT 'beenHere' as list_name  
+        UNION SELECT 'wantToSee' as list_name
       ) l
-      LEFT JOIN lists ls ON ls.special_list_name = l.special_list_name
-      LEFT JOIN list_items li ON li.list_id = ls.list_id AND li.artwork_id = ?
-      GROUP BY l.special_list_name
+      LEFT JOIN lists ls ON ls.name = l.list_name AND ls.is_system_list = 1
+      LEFT JOIN list_items li ON li.list_id = ls.id AND li.artwork_id = ?
+      GROUP BY l.list_name
     `;
 
     const countsResults = await db.prepare(countsQuery)
@@ -653,9 +653,9 @@ export async function getArtworkCounts(c: Context<{ Bindings: WorkerEnv }>): Pro
 
     // Get total unique users who have this artwork in any list
     const totalUsersQuery = `
-      SELECT COUNT(DISTINCT l.user_token) as total_users
+      SELECT COUNT(DISTINCT ls.owner_user_id) as total_users
       FROM list_items li
-      JOIN lists l ON l.list_id = li.list_id
+      JOIN lists ls ON ls.id = li.list_id
       WHERE li.artwork_id = ?
     `;
 
