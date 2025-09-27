@@ -23,7 +23,7 @@ The goal is to understand the **"what"** and **"why"** of the feature, not the *
 
 For each cycle:
 
-1. Ask **5 clarifying questions** on a single theme that helps define the feature.  
+1. Ask **20 clarifying questions** on a single theme that helps define the feature.  
    Examples of themes:
    - Goals & High-Level Vision
    - Functional Requirements
