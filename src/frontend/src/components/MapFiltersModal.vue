@@ -23,10 +23,33 @@ const authStore = useAuthStore();
 
 // Local state
 const isLoadingData = ref(false);
+const searchQuery = ref(''); // Advanced Feature: Search functionality
 
 // Computed properties
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 const hasUserLists = computed(() => mapFilters.availableUserLists.value.length > 0);
+
+// Advanced Feature: Filtered lists based on search query
+const filteredUserLists = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return mapFilters.availableUserLists.value;
+  }
+  
+  const query = searchQuery.value.toLowerCase().trim();
+  return mapFilters.availableUserLists.value.filter(list => 
+    list.name.toLowerCase().includes(query) ||
+    (list.description && list.description.toLowerCase().includes(query))
+  );
+});
+
+// Advanced Feature: Quick access to recently used filters
+const recentlyUsedLists = computed(() => {
+  // Get lists that are currently active
+  const activeLists = mapFilters.availableUserLists.value.filter(list => 
+    mapFilters.isFilterEnabled('userList', list.id)
+  );
+  return activeLists.slice(0, 3); // Show top 3 recently used
+});
 
 // Methods
 const closeModal = () => {
@@ -178,16 +201,54 @@ onMounted(() => {
           <div v-if="hasUserLists || mapFilters.isLoadingLists.value">
             <h3 class="text-sm font-medium text-gray-900 mb-3">Your Lists</h3>
             
+            <!-- Advanced Feature: Search Bar for Lists -->
+            <div v-if="hasUserLists && mapFilters.availableUserLists.value.length > 3" class="mb-3">
+              <div class="relative">
+                <input
+                  v-model="searchQuery"
+                  type="text"
+                  placeholder="Search your lists..."
+                  class="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <svg class="absolute left-2.5 top-2.5 h-3 w-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-6-6m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/>
+                </svg>
+              </div>
+            </div>
+            
             <!-- Loading User Lists -->
             <div v-if="mapFilters.isLoadingLists.value" class="text-center py-4">
               <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mx-auto"></div>
               <p class="text-xs text-gray-500 mt-1">Loading lists...</p>
             </div>
 
+            <!-- Recently Used Lists (if any) -->
+            <div v-else-if="recentlyUsedLists.length > 0 && !searchQuery" class="mb-4">
+              <p class="text-xs text-gray-500 mb-2">Recently Used</p>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="list in recentlyUsedLists"
+                  :key="`recent-${list.id}`"
+                  @click="() => handleToggleUserList(list.id)"
+                  class="px-3 py-1 text-xs rounded-full border transition-colors"
+                  :class="mapFilters.isFilterEnabled('userList', list.id) 
+                    ? 'bg-blue-100 text-blue-800 border-blue-200' 
+                    : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'"
+                >
+                  {{ list.name }}
+                </button>
+              </div>
+            </div>
+
             <!-- User Lists -->
             <div v-else-if="hasUserLists" class="space-y-3 max-h-48 overflow-y-auto">
+              <!-- Show filtered results -->
+              <div v-if="searchQuery && filteredUserLists.length === 0" class="text-center py-4 bg-gray-50 rounded-lg">
+                <p class="text-sm text-gray-600">No lists found matching "{{ searchQuery }}"</p>
+              </div>
+              
               <div
-                v-for="list in mapFilters.availableUserLists.value"
+                v-for="list in searchQuery ? filteredUserLists : mapFilters.availableUserLists.value"
                 :key="list.id"
                 class="flex items-start space-x-3"
               >
@@ -221,6 +282,9 @@ onMounted(() => {
                   </div>
                   <p class="text-xs mt-1 text-gray-600">
                     {{ list.item_count || 0 }} item{{ (list.item_count || 0) !== 1 ? 's' : '' }}
+                  </p>
+                  <p v-if="list.description" class="text-xs mt-0.5 text-gray-500">
+                    {{ list.description }}
                   </p>
                 </div>
               </div>

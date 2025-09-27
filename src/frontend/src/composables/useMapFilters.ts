@@ -1,12 +1,27 @@
 /**
  * Composable for managing map filtering functionality
  * Implements requirements from tasks/prd-map-filtering.md
+ * Enhanced with advanced features and performance optimizations
  */
 
 import { ref, computed, watch, type Ref } from 'vue';
 import type { ArtworkPin, ListApiResponse } from '../types';
 import { apiService } from '../services/api';
 import { SPECIAL_LIST_NAMES } from '../../../shared/types';
+
+// Advanced Feature: Filter usage analytics
+interface FilterAnalytics {
+  filterUsageCount: Map<string, number>;
+  lastUsedFilters: string[];
+  filterCombinations: Map<string, number>;
+}
+
+// Performance cache for API results
+interface ListCache {
+  data: any[];
+  timestamp: number;
+  ttl: number; // Time to live in milliseconds
+}
 
 export interface MapFilter {
   key: string;
@@ -38,6 +53,61 @@ export function useMapFilters() {
   const availableUserLists = ref<ListApiResponse[]>([]);
   const isLoadingLists = ref(false);
   const systemLists = ref<Map<string, string>>(new Map()); // listName -> listId mapping
+  
+  // Advanced Features: Performance and analytics
+  const listCache = ref<Map<string, ListCache>>(new Map());
+  const analytics = ref<FilterAnalytics>({
+    filterUsageCount: new Map(),
+    lastUsedFilters: [],
+    filterCombinations: new Map(),
+  });
+  
+  // Cache TTL: 5 minutes
+  const CACHE_TTL = 5 * 60 * 1000;
+
+  // Advanced Feature: Smart caching for list details
+  const getCachedListDetails = async (listId: string): Promise<any[]> => {
+    const cacheKey = `list-${listId}`;
+    const cached = listCache.value.get(cacheKey);
+    
+    // Check if cache is still valid
+    if (cached && Date.now() - cached.timestamp < cached.ttl) {
+      console.log('[MAP FILTERS] Using cached list data for:', listId);
+      return cached.data;
+    }
+    
+    // Fetch fresh data
+    try {
+      const listDetails = await apiService.getListDetails(listId);
+      const items = listDetails.data?.items || [];
+      
+      // Cache the result
+      listCache.value.set(cacheKey, {
+        data: items,
+        timestamp: Date.now(),
+        ttl: CACHE_TTL,
+      });
+      
+      return items;
+    } catch (error) {
+      console.error('[MAP FILTERS] Failed to fetch list details:', listId, error);
+      return [];
+    }
+  };
+
+  // Advanced Feature: Track filter usage for analytics
+  const trackFilterUsage = (filterId: string) => {
+    const currentCount = analytics.value.filterUsageCount.get(filterId) || 0;
+    analytics.value.filterUsageCount.set(filterId, currentCount + 1);
+    
+    // Update recently used
+    const recentIndex = analytics.value.lastUsedFilters.indexOf(filterId);
+    if (recentIndex !== -1) {
+      analytics.value.lastUsedFilters.splice(recentIndex, 1);
+    }
+    analytics.value.lastUsedFilters.unshift(filterId);
+    analytics.value.lastUsedFilters = analytics.value.lastUsedFilters.slice(0, 10); // Keep only 10 recent
+  };
 
   // Load filter state from localStorage on initialization
   const loadPersistedState = () => {
@@ -47,15 +117,34 @@ export function useMapFilters() {
         const parsedState = JSON.parse(saved);
         filterState.value = { ...filterState.value, ...parsedState };
       }
+      
+      // Load analytics data
+      const analyticsData = localStorage.getItem('mapFilters:analytics');
+      if (analyticsData) {
+        const parsedAnalytics = JSON.parse(analyticsData);
+        analytics.value = {
+          filterUsageCount: new Map(parsedAnalytics.filterUsageCount || []),
+          lastUsedFilters: parsedAnalytics.lastUsedFilters || [],
+          filterCombinations: new Map(parsedAnalytics.filterCombinations || []),
+        };
+      }
     } catch (error) {
-      console.warn('[MAP FILTERS] Failed to load persisted state:', error);
+      console.error('[MAP FILTERS] Failed to load persisted state:', error);
     }
   };
 
-  // Save filter state to localStorage
+  // Save filter state to localStorage with analytics
   const persistState = () => {
     try {
       localStorage.setItem('mapFilters:state', JSON.stringify(filterState.value));
+      
+      // Save analytics data
+      const analyticsData = {
+        filterUsageCount: Array.from(analytics.value.filterUsageCount.entries()),
+        lastUsedFilters: analytics.value.lastUsedFilters,
+        filterCombinations: Array.from(analytics.value.filterCombinations.entries()),
+      };
+      localStorage.setItem('mapFilters:analytics', JSON.stringify(analyticsData));
     } catch (error) {
       console.warn('[MAP FILTERS] Failed to persist state:', error);
     }
@@ -99,6 +188,35 @@ export function useMapFilters() {
     return `Filters active: ${summary.join(', ')}`;
   });
 
+  // Advanced Feature: Smart filter recommendations based on usage
+  const getFilterRecommendations = computed(() => {
+    const recommendations: string[] = [];
+    
+    // Recommend frequently used filters
+    const sortedFilters = Array.from(analytics.value.filterUsageCount.entries())
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 3);
+    
+    sortedFilters.forEach(([filterId]) => {
+      if (!isCurrentlyActive(filterId)) {
+        recommendations.push(filterId);
+      }
+    });
+    
+    return recommendations;
+  });
+
+  // Helper function to check if a filter is currently active
+  const isCurrentlyActive = (filterId: string): boolean => {
+    if (filterId === 'wantToSee') return filterState.value.wantToSee;
+    if (filterId === 'notSeenByMe') return filterState.value.notSeenByMe;
+    if (filterId.startsWith('userList:')) {
+      const listId = filterId.replace('userList:', '');
+      return filterState.value.userLists.includes(listId);
+    }
+    return false;
+  };
+
   // Load available user lists from API
   const loadUserLists = async () => {
     try {
@@ -134,6 +252,7 @@ export function useMapFilters() {
   // Toggle Want to See filter
   const toggleWantToSee = () => {
     filterState.value.wantToSee = !filterState.value.wantToSee;
+    trackFilterUsage('wantToSee');
   };
 
   // Toggle user list filter
@@ -144,11 +263,13 @@ export function useMapFilters() {
     } else {
       filterState.value.userLists.splice(index, 1);
     }
+    trackFilterUsage(`userList:${listId}`);
   };
 
   // Toggle "Not Seen by Me" filter
   const toggleNotSeenByMe = () => {
     filterState.value.notSeenByMe = !filterState.value.notSeenByMe;
+    trackFilterUsage('notSeenByMe');
   };
 
   // Check if a specific filter is enabled
@@ -196,8 +317,7 @@ export function useMapFilters() {
         try {
           const wantToSeeListId = systemLists.value.get(SPECIAL_LIST_NAMES.WANT_TO_SEE);
           if (wantToSeeListId) {
-            const listDetails = await apiService.getListDetails(wantToSeeListId);
-            const listArtworks = listDetails.data?.items || [];
+            const listArtworks = await getCachedListDetails(wantToSeeListId);
             
             // Convert API response artworks to include in filter
             listArtworks.forEach((artwork: any) => {
@@ -214,8 +334,7 @@ export function useMapFilters() {
       // Add artworks from enabled user lists
       for (const listId of filterState.value.userLists) {
         try {
-          const listDetails = await apiService.getListDetails(listId);
-          const listArtworks = listDetails.data?.items || [];
+          const listArtworks = await getCachedListDetails(listId);
           
           // Convert API response artworks to ArtworkPin format
           listArtworks.forEach((artwork: any) => {
@@ -243,8 +362,7 @@ export function useMapFilters() {
         // Load "Been Here" (Have seen) list
         const beenHereListId = systemLists.value.get(SPECIAL_LIST_NAMES.HAVE_SEEN);
         if (beenHereListId) {
-          const listDetails = await apiService.getListDetails(beenHereListId);
-          const listArtworks = listDetails.data?.items || [];
+          const listArtworks = await getCachedListDetails(beenHereListId);
           
           listArtworks.forEach((artwork: any) => {
             excludeSet.add(artwork.id);
@@ -288,6 +406,7 @@ export function useMapFilters() {
     hasActiveFilters,
     activeFilterSummary,
     activeFilterDescription,
+    getFilterRecommendations, // Advanced Feature
     
     // Methods
     loadUserLists,
@@ -297,5 +416,10 @@ export function useMapFilters() {
     isFilterEnabled,
     resetFilters,
     applyFilters,
+    
+    // Advanced Features
+    getCachedListDetails,
+    trackFilterUsage,
+    analytics: analytics as Ref<Readonly<FilterAnalytics>>,
   };
 }

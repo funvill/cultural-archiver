@@ -180,6 +180,13 @@ const handleFiltersChanged = async () => {
   await updateDisplayedArtworks();
 };
 
+// Advanced Feature: Quick filter reset from banner
+const handleQuickResetFilters = async () => {
+  console.log('[MAP FILTERS] Quick reset triggered from banner');
+  mapFilters.resetFilters();
+  await updateDisplayedArtworks();
+};
+
 function handlePreviewArtwork(preview: MapPreview) {
   console.log('[MAPVIEW DEBUG] handlePreviewArtwork called with:', preview);
   
@@ -308,16 +315,26 @@ watch(
 
 <template>
   <div class="map-view h-full w-full relative">
-    <!-- Map Filters Banner -->
+    <!-- Map Filters Banner with Enhanced Features -->
     <div 
       v-if="mapFilters.hasActiveFilters.value && !listFilterActive"
       class="absolute top-4 left-4 right-16 z-40 bg-amber-50 border border-amber-200 rounded-lg p-3 shadow-sm"
     >
-      <div class="flex items-center">
-        <AdjustmentsHorizontalIcon class="w-5 h-5 text-amber-600 mr-2 flex-shrink-0" />
-        <span class="text-sm font-medium text-amber-900">
-          {{ mapFilters.activeFilterDescription.value }}
-        </span>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center">
+          <AdjustmentsHorizontalIcon class="w-5 h-5 text-amber-600 mr-2 flex-shrink-0" />
+          <span class="text-sm font-medium text-amber-900">
+            {{ mapFilters.activeFilterDescription.value }}
+          </span>
+        </div>
+        <!-- Advanced Feature: Reset Button in Banner -->
+        <button
+          @click="handleQuickResetFilters"
+          class="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded hover:bg-amber-200 transition-colors"
+          title="Reset all filters"
+        >
+          Reset
+        </button>
       </div>
     </div>
 
