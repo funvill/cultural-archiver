@@ -743,6 +743,74 @@ export interface PhotoMetadata {
 }
 
 // ================================
+// User Lists Types
+// ================================
+
+export interface ListRecord {
+  id: string;
+  owner_user_id: string;
+  name: string;
+  visibility: 'unlisted' | 'private';
+  is_readonly: number; // 0 or 1 (SQLite boolean)
+  is_system_list: number; // 0 or 1 (SQLite boolean)
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ListItemRecord {
+  id: string;
+  list_id: string;
+  artwork_id: string;
+  added_by_user_id: string | null; // NULL for system additions
+  created_at: string;
+}
+
+export interface ListApiResponse {
+  id: string;
+  owner_user_id: string;
+  name: string;
+  visibility: 'unlisted' | 'private';
+  is_readonly: boolean;
+  is_system_list: boolean;
+  created_at: string;
+  updated_at: string;
+  item_count?: number;
+  items?: ArtworkApiResponse[]; // Populated when requesting list details
+}
+
+export interface CreateListRequest {
+  name: string;
+}
+
+export interface CreateListResponse {
+  id: string;
+  name: string;
+  created_at: string;
+}
+
+export interface AddToListRequest {
+  artwork_id: string;
+}
+
+export interface RemoveFromListRequest {
+  artwork_ids: string[];
+}
+
+export interface ListItemsResponse extends PaginatedResponse<ArtworkApiResponse> {
+  list: ListApiResponse;
+}
+
+// Special list names as constants
+export const SPECIAL_LIST_NAMES = {
+  WANT_TO_SEE: 'Want to see',
+  HAVE_SEEN: 'Have seen', 
+  LOVED: 'Loved',
+  VALIDATED: 'Validated'
+} as const;
+
+export type SpecialListName = typeof SPECIAL_LIST_NAMES[keyof typeof SPECIAL_LIST_NAMES];
+
+// ================================
 // File Upload Types
 // ================================
 

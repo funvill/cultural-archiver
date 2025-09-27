@@ -1,23 +1,43 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
-import { useRouter } from 'vue-router';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import MapComponent from '../components/MapComponent.vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
 import { useArtworksStore } from '../stores/artworks';
 import { useMapPreviewStore } from '../stores/mapPreview';
+import { apiService } from '../services/api';
 import type { ArtworkPin, Coordinates, MapPreview, SearchResult } from '../types';
 
 const router = useRouter();
+const route = useRoute();
 const artworksStore = useArtworksStore();
 const mapPreviewStore = useMapPreviewStore();
+
+// List filtering state
+const currentListId = ref<string | null>(null);
+const listArtworks = ref<ArtworkPin[]>([]);
+const listInfo = ref<any>(null);
+const listFilterActive = ref(false);
 
 // Computed properties
 const mapCenter = computed(() => artworksStore.mapCenter);
 const mapZoom = computed(() => artworksStore.mapZoom);
 const artworks = computed(() => {
+  // Use filtered list artworks if list filtering is active
+  if (listFilterActive.value && listArtworks.value.length > 0) {
+    console.log('[MARKER DEBUG] MapView using list-filtered artworks:', {
+      listArtworksLength: listArtworks.value.length,
+      listId: currentListId.value,
+      timestamp: new Date().toISOString(),
+    });
+    return listArtworks.value;
+  }
+
+  // Default behavior - use all artworks
   const storeArtworks = artworksStore.artworks;
-  console.log('[MARKER DEBUG] MapView artworks computed property triggered:', {
+  console.log('[MARKER DEBUG] MapView using all artworks:', {
     storeArtworksLength: storeArtworks.length,
+    listFilterActive: listFilterActive.value,
     timestamp: new Date().toISOString(),
   });
   return storeArtworks;
@@ -64,6 +84,69 @@ const previewAsSearchResult = computed((): SearchResult | null => {
 function handleArtworkClick(artwork: ArtworkPin) {
   // Navigate to artwork details page
   router.push(`/artwork/${artwork.id}`);
+}
+
+// List filtering functions
+async function loadListArtworks(listId: string) {
+  try {
+    listFilterActive.value = true;
+    // Page through list items using per-page limit 100 (server enforces max 100)
+    const pageSize = 100;
+    let page = 1;
+    let accumulated: any[] = [];
+    let listMeta: any = null;
+
+    while (true) {
+      const resp = await apiService.getListDetails(listId, page, pageSize);
+      if (!resp || !resp.success || !resp.data) {
+        // Stop on failure
+        console.error('Failed to load list page:', page, resp?.error);
+        listFilterActive.value = false;
+        listArtworks.value = [];
+        listInfo.value = null;
+        return;
+      }
+
+      if (!listMeta) listMeta = resp.data.list;
+      const items = resp.data.items || [];
+      accumulated.push(...items);
+
+      if (!resp.data.has_more) break;
+      page += 1;
+    }
+
+    listInfo.value = listMeta;
+    // Convert accumulated items to ArtworkPin format
+    listArtworks.value = accumulated.map((artwork: any) => ({
+      id: artwork.id,
+      latitude: artwork.lat,
+      longitude: artwork.lon,
+      type: artwork.type_name || 'other',
+      title: artwork.title,
+      artist_name: null,
+      photos: artwork.photos,
+      recent_photo: artwork.photos?.[0]?.url || null,
+      photo_count: artwork.photos?.length || 0,
+    }));
+
+    console.log('[MAP DEBUG] Loaded list artworks:', {
+      listId,
+      listName: listInfo.value?.name,
+      artworkCount: listArtworks.value.length,
+    });
+  } catch (error) {
+    console.error('Error loading list artworks:', error);
+    listFilterActive.value = false;
+    listArtworks.value = [];
+    listInfo.value = null;
+  }
+}
+
+function clearListFilter() {
+  currentListId.value = null;
+  listFilterActive.value = false;
+  listArtworks.value = [];
+  listInfo.value = null;
 }
 
 function handlePreviewArtwork(preview: MapPreview) {
@@ -156,10 +239,48 @@ onMounted(() => {
     window.removeEventListener('beforeunload', persist);
   });
 });
+
+// Watch for URL parameter changes to enable/disable list filtering
+watch(
+  () => route.query.list,
+  async (newListId: unknown) => {
+    if (newListId && typeof newListId === 'string') {
+      currentListId.value = newListId;
+      await loadListArtworks(newListId);
+    } else {
+      clearListFilter();
+    }
+  },
+  { immediate: true }
+);
 </script>
 
 <template>
   <div class="map-view h-full w-full relative">
+    <!-- List Filter Indicator -->
+    <div 
+      v-if="listFilterActive && listInfo"
+      class="absolute top-4 left-4 right-4 z-40 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-sm"
+    >
+      <div class="flex items-center justify-between">
+        <div class="flex items-center">
+          <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v0a2 2 0 01-2 2H10a2 2 0 01-2-2v0z" />
+          </svg>
+          <span class="text-sm font-medium text-blue-900">
+            Showing list: {{ listInfo.name }} ({{ listArtworks.length }} artworks)
+          </span>
+        </div>
+        <button 
+          @click="clearListFilter(); $router.push('/')"
+          class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+        >
+          Show All
+        </button>
+      </div>
+    </div>
+
     <MapComponent
       :center="mapCenter"
       :zoom="mapZoom"

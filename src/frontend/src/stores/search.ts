@@ -2,6 +2,7 @@ import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
 import type { SearchResult } from '../types';
 import { apiService, getErrorMessage, isNetworkError } from '../services/api';
+import { parseListFilters, type ListFilter } from '../utils/listFilters';
 
 /**
  * Search state management store
@@ -20,6 +21,10 @@ export const useSearchStore = defineStore('search', () => {
   const error = ref<string | null>(null);
   const suggestions = ref<string[]>([]);
   const recentQueries = ref<string[]>([]);
+
+  // List filtering state
+  const currentListFilters = ref<ListFilter[]>([]);
+  const baseQuery = ref('');
 
   // Search results cache: query -> { results, total, page }
   const searchCache = ref<
@@ -200,6 +205,112 @@ export const useSearchStore = defineStore('search', () => {
     }
   }
 
+  // List-based search functionality for MVP
+  // Local types for list items and response shape
+  type ListItemLike = {
+    id: string;
+    title?: string | null;
+    description?: string | null;
+    tags?: string | Record<string, unknown> | null;
+    lat?: number | null;
+    lon?: number | null;
+    [key: string]: unknown;
+  };
+
+  type ListSearchResponse =
+    | { success: true; data: { artworks: ListItemLike[]; pagination: { page: number; per_page: number; total: number; total_pages: number; has_more: boolean }; query: { original: string; processed: string } } }
+    | { success: false; error: string };
+
+  async function searchInList(
+    listId: string,
+    searchQuery: string,
+    pageNum: number,
+    limit: number
+  ): Promise<ListSearchResponse> {
+    try {
+      // Page through list items (server enforces max limit per page, use 100)
+      const pageSize = 100;
+      let page = 1;
+      let accumulated: ListItemLike[] = [];
+      let listMeta: unknown = null;
+
+      while (true) {
+        const resp = await apiService.getListDetails(listId, page, pageSize);
+        if (!resp || !resp.success || !resp.data) {
+          throw new Error('List not found or inaccessible');
+        }
+
+        if (!listMeta) listMeta = resp.data.list;
+        const items = (resp.data.items || []) as ListItemLike[];
+        accumulated.push(...items);
+
+        if (!resp.data.has_more) break;
+        page += 1;
+      }
+
+      let artworks: ListItemLike[] = accumulated;
+
+      // If there's a search query, filter artworks by title, description, or tags
+      if (searchQuery.trim().length > 0) {
+        const queryLower = searchQuery.toLowerCase();
+        artworks = artworks.filter((artwork: ListItemLike) => {
+          const title = (artwork.title || '').toString().toLowerCase();
+          const description = (artwork.description || '').toString().toLowerCase();
+
+          let tagsObj: Record<string, unknown> = {};
+          if (typeof artwork.tags === 'string') {
+            try {
+              tagsObj = JSON.parse(artwork.tags || '{}');
+            } catch {
+              tagsObj = {};
+            }
+          } else if (typeof artwork.tags === 'object' && artwork.tags !== null) {
+            tagsObj = artwork.tags as Record<string, unknown>;
+          }
+
+          const tagString = Object.entries(tagsObj)
+            .map(([key, value]) => `${key}:${String(value)}`)
+            .join(' ')
+            .toLowerCase();
+
+          return (
+            title.includes(queryLower) || description.includes(queryLower) || tagString.includes(queryLower)
+          );
+        });
+      }
+
+      // Simple pagination of the accumulated list items
+      const total = artworks.length;
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      const offset = (pageNum - 1) * limit;
+      const paginatedArtworks = artworks.slice(offset, offset + limit);
+
+      return {
+        success: true,
+        data: {
+          artworks: paginatedArtworks,
+          pagination: {
+            page: pageNum,
+            per_page: limit,
+            total: total,
+            total_pages: totalPages,
+            has_more: pageNum < totalPages,
+          },
+          query: {
+            original: searchQuery,
+            processed: searchQuery,
+          },
+        },
+      };
+    } catch (error) {
+      console.error('Error searching in list:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to search in list',
+      };
+    }
+  }
+
   // Search functionality
   async function performSearch(
     searchQuery: string,
@@ -207,6 +318,11 @@ export const useSearchStore = defineStore('search', () => {
     append: boolean = false
   ): Promise<void> {
     const trimmedQuery = searchQuery.trim();
+
+    // Parse list filters from the query
+    const { listFilters, remainingQuery } = parseListFilters(trimmedQuery);
+    currentListFilters.value = listFilters;
+    baseQuery.value = remainingQuery;
 
     if (trimmedQuery.length === 0) {
       setResults([]);
@@ -242,9 +358,37 @@ export const useSearchStore = defineStore('search', () => {
     clearError();
 
     try {
-      const response = await apiService.searchArtworks(trimmedQuery, pageNum, perPage.value);
+      let response;
 
-      if (response.data) {
+      // If there are list filters, use list-based search
+      if (listFilters.length > 0) {
+        // For MVP, use the first list filter (multiple list filtering can be added later)
+        const listFilter = listFilters[0];
+        response = await searchInList(listFilter?.listId || '', remainingQuery, pageNum, perPage.value);
+      } else {
+        // Regular search
+        response = await apiService.searchArtworks(trimmedQuery, pageNum, perPage.value);
+      }
+
+          if (response && 'data' in response && response.data) {
+            // Response may come from apiService.searchArtworks or the local searchInList helper.
+            // Define a shared shape to safely access data.pagination and data.artworks without using `any`.
+            type ApiSearchResponseShape = {
+              data: {
+                artworks: unknown[];
+                pagination: {
+                  page: number;
+                  per_page: number;
+                  total: number;
+                  total_pages: number;
+                  has_more: boolean;
+                };
+                query?: Record<string, unknown>;
+              };
+            };
+
+            const responseWithData = response as ApiSearchResponseShape;
+
         type ArtworkLike = {
           id: string;
           lat: number;
@@ -259,7 +403,7 @@ export const useSearchStore = defineStore('search', () => {
           title?: string | null;
           artist_name?: string | null;
         };
-        const artworksArray = response.data.artworks as ArtworkLike[];
+            const artworksArray = responseWithData.data.artworks as ArtworkLike[];
         const searchResults: SearchResult[] = artworksArray.map(artwork => {
           let parsedTags: Record<string, unknown> | null = null;
           if (artwork.tags) {
@@ -320,11 +464,11 @@ export const useSearchStore = defineStore('search', () => {
         });
 
         // Cache the results
-        cacheResults(trimmedQuery, pageNum, {
-          results: searchResults,
-          total: response.data.pagination.total,
-          page: response.data.pagination.page,
-        });
+            cacheResults(trimmedQuery, pageNum, {
+              results: searchResults,
+              total: responseWithData.data.pagination.total,
+              page: responseWithData.data.pagination.page,
+            });
 
         if (append) {
           appendResults(searchResults);
@@ -332,7 +476,7 @@ export const useSearchStore = defineStore('search', () => {
           setResults(searchResults);
         }
 
-        setPagination(response.data.pagination);
+            setPagination(responseWithData.data.pagination);
 
         // Add to recent queries if this is a new search (not pagination)
         if (pageNum === 1) {
@@ -551,6 +695,10 @@ export const useSearchStore = defineStore('search', () => {
     error: computed(() => error.value),
     suggestions: computed(() => suggestions.value),
     recentQueries: computed(() => recentQueries.value),
+
+    // List filtering state
+    currentListFilters: computed(() => currentListFilters.value),
+    baseQuery: computed(() => baseQuery.value),
 
     // Computed
     hasResults,
