@@ -56,7 +56,7 @@ describe('AddToListDialog', () => {
     
     wrapper = mount(AddToListDialog, {
       props: {
-        isOpen: true,
+        modelValue: true,
         artworkId: testArtworkId,
       },
       global: {
@@ -216,7 +216,7 @@ describe('AddToListDialog', () => {
     // Re-mount to trigger fresh API call
     wrapper = mount(AddToListDialog, {
       props: {
-        isOpen: true,
+        modelValue: true,
         artworkId: testArtworkId,
       },
       global: {
@@ -236,7 +236,7 @@ describe('AddToListDialog', () => {
   it('should show authentication requirement for unauthenticated users', async () => {
     wrapper = mount(AddToListDialog, {
       props: {
-        isOpen: true,
+        modelValue: true,
         artworkId: testArtworkId,
       },
       global: {
@@ -314,7 +314,7 @@ describe('AddToListDialog', () => {
     // Re-mount to get fresh data
     wrapper = mount(AddToListDialog, {
       props: {
-        isOpen: true,
+        modelValue: true,
         artworkId: testArtworkId,
       },
       global: {

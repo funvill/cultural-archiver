@@ -1038,21 +1038,21 @@ export const apiService = {
    * Get user's lists
    */
   async getUserLists(): Promise<ApiResponse<any[]>> {
-    return client.get('/api/me/lists');
+    return client.get('/me/lists');
   },
 
   /**
    * Create a new list
    */
   async createList(name: string): Promise<ApiResponse<{ id: string; name: string; created_at: string }>> {
-    return client.post('/api/lists', { name });
+    return client.post('/lists', { name });
   },
 
   /**
    * Get list details with items
    */
   async getListDetails(listId: string, page = 1, limit = 50): Promise<ApiResponse<any>> {
-    return client.get(`/api/lists/${listId}`, { 
+    return client.get(`/lists/${listId}`, { 
       page: page.toString(), 
       limit: limit.toString() 
     });
@@ -1062,21 +1062,21 @@ export const apiService = {
    * Add artwork to list
    */
   async addArtworkToList(listId: string, artworkId: string): Promise<ApiResponse<{ message: string; item_id: string }>> {
-    return client.post(`/api/lists/${listId}/items`, { artwork_id: artworkId });
+    return client.post(`/lists/${listId}/items`, { artwork_id: artworkId });
   },
 
   /**
    * Remove artworks from list (bulk operation)
    */
   async removeArtworksFromList(listId: string, artworkIds: string[]): Promise<ApiResponse<{ message: string; removed_count: number }>> {
-    return client.delete(`/api/lists/${listId}/items`, { artwork_ids: artworkIds });
+    return client.delete(`/lists/${listId}/items`, { artwork_ids: artworkIds });
   },
 
   /**
    * Delete list
    */
   async deleteList(listId: string): Promise<ApiResponse<{ message: string }>> {
-    return client.delete(`/api/lists/${listId}`);
+    return client.delete(`/lists/${listId}`);
   },
 };
 

@@ -326,7 +326,7 @@ export const useSearchStore = defineStore('search', () => {
       if (listFilters.length > 0) {
         // For MVP, use the first list filter (multiple list filtering can be added later)
         const listFilter = listFilters[0];
-        response = await searchInList(listFilter.listId, remainingQuery, pageNum, perPage.value);
+        response = await searchInList(listFilter?.listId || '', remainingQuery, pageNum, perPage.value);
       } else {
         // Regular search
         response = await apiService.searchArtworks(trimmedQuery, pageNum, perPage.value);

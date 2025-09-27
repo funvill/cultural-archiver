@@ -784,7 +784,7 @@ onUnmounted(() => {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v0a2 2 0 01-2 2H10a2 2 0 01-2-2v0z" />
               </svg>
               <span class="text-sm font-medium text-blue-900">
-                Filtering by {{ formatListFilter(currentListFilters[0]) }}
+                Filtering by {{ currentListFilters[0] ? formatListFilter(currentListFilters[0]) : 'Unknown List' }}
                 <span v-if="baseQuery" class="text-blue-700"> · Search: "{{ baseQuery }}"</span>
               </span>
             </div>

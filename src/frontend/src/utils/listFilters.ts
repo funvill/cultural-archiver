@@ -24,7 +24,7 @@ export function parseListFilters(query: string): {
 
   while ((match = listTokenRegex.exec(query)) !== null) {
     listFilters.push({
-      listId: match[1],
+      listId: match[1] || '',
     });
   }
 

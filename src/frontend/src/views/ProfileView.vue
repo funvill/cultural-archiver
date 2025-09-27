@@ -5,7 +5,7 @@ import ArtworkCard from '../components/ArtworkCard.vue';
 import BadgeGrid from '../components/BadgeGrid.vue';
 import ProfileNameEditor from '../components/ProfileNameEditor.vue';
 import { apiService } from '../services/api';
-import type { SubmissionRecord, UserBadgeResponse, ListRecord } from '../../../shared/types';
+import type { SubmissionRecord, UserBadgeResponse, ListApiResponse } from '../../../shared/types';
 import type {
   UserProfile,
   SearchResult,
@@ -39,7 +39,7 @@ const badgesLoading = ref(false);
 const currentProfileName = ref<string | null>(null);
 
 // Lists management state  
-const userLists = ref<ListRecord[]>([]);
+const userLists = ref<ListApiResponse[]>([]);
 const listsLoading = ref(false);
 const listsError = ref<string | null>(null);
 
@@ -319,16 +319,10 @@ async function fetchUserLists() {
   }
 }
 
-function handleListClick(list: ListRecord) {
+function handleListClick(list: ListApiResponse) {
   router.push(`/lists/${list.id}`);
 }
 
-function getListTypeLabel(list: ListRecord): string {
-  if (list.is_system) {
-    return 'System List';
-  }
-  return 'Custom List';
-}
 
 onMounted(() => {
   fetchUserProfile();
@@ -450,7 +444,7 @@ onMounted(() => {
               <div class="flex items-start justify-between mb-3">
                 <h3 class="font-semibold text-gray-900 truncate pr-2">{{ list.name }}</h3>
                 <span 
-                  v-if="list.is_system"
+                  v-if="list.is_system_list"
                   class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 flex-shrink-0"
                 >
                   System

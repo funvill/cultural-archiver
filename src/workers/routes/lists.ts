@@ -346,7 +346,7 @@ export async function removeArtworksFromList(c: Context<{ Bindings: WorkerEnv }>
   const updateListStmt = db.db.prepare('UPDATE lists SET updated_at = ? WHERE id = ?');
   await updateListStmt.bind(now, listId).run();
 
-  const removedCount = result.changes || 0;
+  const removedCount = result.meta?.changes || 0;
 
   return c.json(createSuccessResponse({ 
     message: `${removedCount} artwork(s) removed from list`,
