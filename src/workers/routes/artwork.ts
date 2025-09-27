@@ -611,3 +611,87 @@ export async function toggleArtworkListMembership(c: Context<{ Bindings: WorkerE
     throw error;
   }
 }
+
+/**
+ * GET /api/artwork/:id/counts - Get public engagement counts for an artwork
+ * Returns public counts for loved, beenHere, wantToSee without requiring authentication
+ */
+export async function getArtworkCounts(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  const artworkId = c.req.param('id');
+
+  if (!artworkId) {
+    throw new ValidationApiError([
+      {
+        field: 'artwork_id',
+        message: 'Artwork ID is required',
+        code: 'REQUIRED_FIELD',
+      },
+    ]);
+  }
+
+  try {
+    const db = c.env.DB;
+
+    // Get public counts for each special list type
+    const countsQuery = `
+      SELECT 
+        l.special_list_name,
+        COUNT(li.artwork_id) as count
+      FROM (
+        SELECT 'loved' as special_list_name
+        UNION SELECT 'beenHere' as special_list_name  
+        UNION SELECT 'wantToSee' as special_list_name
+      ) l
+      LEFT JOIN lists ls ON ls.special_list_name = l.special_list_name
+      LEFT JOIN list_items li ON li.list_id = ls.list_id AND li.artwork_id = ?
+      GROUP BY l.special_list_name
+    `;
+
+    const countsResults = await db.prepare(countsQuery)
+      .bind(artworkId)
+      .all();
+
+    // Get total unique users who have this artwork in any list
+    const totalUsersQuery = `
+      SELECT COUNT(DISTINCT l.user_token) as total_users
+      FROM list_items li
+      JOIN lists l ON l.list_id = li.list_id
+      WHERE li.artwork_id = ?
+    `;
+
+    const totalUsersResult = await db.prepare(totalUsersQuery)
+      .bind(artworkId)
+      .first();
+
+    // Build response
+    const counts = {
+      loved: 0,
+      beenHere: 0,
+      wantToSee: 0,
+      totalUsers: 0,
+    };
+
+    // Process special list counts
+    if (countsResults.success && countsResults.results) {
+      for (const row of countsResults.results) {
+        const listName = (row as any).special_list_name;
+        const count = (row as any).count || 0;
+        
+        if (listName === 'loved') counts.loved = count;
+        else if (listName === 'beenHere') counts.beenHere = count;
+        else if (listName === 'wantToSee') counts.wantToSee = count;
+      }
+    }
+
+    // Set total users count
+    if (totalUsersResult) {
+      counts.totalUsers = (totalUsersResult as any).total_users || 0;
+    }
+
+    return c.json(createSuccessResponse(counts));
+
+  } catch (error) {
+    console.error('Failed to get artwork counts:', error);
+    throw error;
+  }
+}

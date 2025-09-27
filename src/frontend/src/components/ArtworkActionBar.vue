@@ -53,6 +53,13 @@ const loadingStates = ref({
   share: false,
 });
 
+// Public counts for each action (visible to all users)
+const publicCounts = ref({
+  loved: 0,
+  beenHere: 0,
+  wantToSee: 0,
+});
+
 const initialLoading = ref(true);
 const showAddToListDialog = ref(false);
 
@@ -70,6 +77,7 @@ const chipData = computed(() => [
     label: 'Loved',
     active: listStates.value.loved,
     loading: loadingStates.value.loved,
+    count: publicCounts.value.loved > 0 ? publicCounts.value.loved : undefined,
     ariaLabel: listStates.value.loved 
       ? 'Remove from Loved list - currently in list' 
       : 'Add to Loved list - not in list',
@@ -81,6 +89,7 @@ const chipData = computed(() => [
     label: 'Been Here',
     active: listStates.value.beenHere,
     loading: loadingStates.value.beenHere,
+    count: publicCounts.value.beenHere > 0 ? publicCounts.value.beenHere : undefined,
     ariaLabel: listStates.value.beenHere 
       ? 'Remove from Been Here list - currently in list' 
       : 'Add to Been Here list - not in list',
@@ -92,6 +101,7 @@ const chipData = computed(() => [
     label: 'Want to See',
     active: listStates.value.wantToSee,
     loading: loadingStates.value.wantToSee,
+    count: publicCounts.value.wantToSee > 0 ? publicCounts.value.wantToSee : undefined,
     ariaLabel: listStates.value.wantToSee 
       ? 'Remove from Want to See list - currently in list' 
       : 'Add to Want to See list - not in list',
@@ -137,6 +147,9 @@ const chipData = computed(() => [
 
 // Lifecycle
 onMounted(async () => {
+  // Always fetch public counts (available to everyone)
+  await fetchPublicCounts();
+  
   // Use initial states if provided, otherwise fetch from API
   if (props.initialListStates) {
     listStates.value = { ...listStates.value, ...props.initialListStates };
@@ -191,6 +204,31 @@ async function fetchMembershipStates(): Promise<void> {
   }
 }
 
+// Fetch public counts for the artwork (available to all users)
+async function fetchPublicCounts() {
+  try {
+    const response = await apiService.get<{
+      success: boolean;
+      data?: {
+        loved?: number;
+        beenHere?: number;
+        wantToSee?: number;
+      };
+    }>(`/artwork/${props.artworkId}/counts`);
+    
+    if (response.success && response.data) {
+      publicCounts.value = {
+        loved: response.data.loved || 0,
+        beenHere: response.data.beenHere || 0,
+        wantToSee: response.data.wantToSee || 0,
+      };
+    }
+  } catch (error) {
+    console.error('Failed to fetch public counts:', error);
+    // Keep default counts (0) - not critical for functionality
+  }
+}
+
 async function toggleListMembership(listType: 'loved' | 'beenHere' | 'wantToSee'): Promise<void> {
   // Check authentication
   if (!isAuthenticated.value) {
@@ -235,6 +273,14 @@ async function toggleListMembership(listType: 'loved' | 'beenHere' | 'wantToSee'
         ? `Removed from ${getListDisplayName(listType)} list`
         : `Added to ${getListDisplayName(listType)} list`
     );
+    
+    // Refresh public counts after successful action
+    await fetchPublicCounts();
+    
+    // Also refresh membership states to ensure consistency
+    if (isAuthenticated.value) {
+      await fetchMembershipStates();
+    }
   } catch (error) {
     console.error(`Failed to toggle ${listType}:`, error);
     

@@ -64,6 +64,7 @@ import {
   exportArtworkToOSM,
   getArtworkMembership,
   toggleArtworkListMembership,
+  getArtworkCounts,
 } from './routes/artwork';
 import {
   getArtistsList,
@@ -468,6 +469,7 @@ app.get('/health', async c => {
       'GET /api/artwork/:id/export/osm',
       'GET /api/artwork/:id/membership',
       'POST /api/artwork/:id/lists/:listType',
+      'GET /api/artwork/:id/counts',
       'GET /api/export/osm',
       'GET /api/export/osm/stats',
       'GET /api/search',
@@ -834,6 +836,13 @@ app.post(
   ensureUserToken,
   checkEmailVerification,
   withErrorHandling(toggleArtworkListMembership)
+);
+
+app.get(
+  '/api/artwork/:id/counts',
+  rateLimitQueries,
+  validateUUID('id'),
+  withErrorHandling(getArtworkCounts)
 );
 
 // ================================
@@ -1265,6 +1274,7 @@ app.notFound(c => {
         'GET /api/artwork/:id/export/osm',
         'GET /api/artwork/:id/membership',
         'POST /api/artwork/:id/lists/:listType',
+        'GET /api/artwork/:id/counts',
         'GET /api/artists',
         'GET /api/artists/:id',
         'POST /api/artists',
