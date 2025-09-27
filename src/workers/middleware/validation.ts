@@ -1331,3 +1331,85 @@ export function getValidatedTags(c: Context): StructuredTags | undefined {
 export function getTagWarnings(c: Context): Array<{ key: string; message: string }> {
   return c.get('tag_warnings') || [];
 }
+
+// ================================
+// Lists Validation Schemas
+// ================================
+
+export const createListSchema = z.object({
+  name: z.string()
+    .min(1, 'List name is required')
+    .max(255, 'List name must be 255 characters or less')
+    .transform(str => str.trim()),
+});
+
+export const addToListSchema = z.object({
+  artwork_id: z.string()
+    .uuid('Invalid artwork ID format'),
+});
+
+export const removeFromListSchema = z.object({
+  artwork_ids: z.array(z.string().uuid('Invalid artwork ID format'))
+    .min(1, 'At least one artwork ID is required')
+    .max(100, 'Cannot remove more than 100 items at once'),
+});
+
+export const listQuerySchema = z.object({
+  page: z.coerce.number().min(1, 'Page must be at least 1').default(1),
+  limit: z.coerce.number().min(1, 'Limit must be at least 1').max(100, 'Limit cannot exceed 100').default(50),
+});
+
+export const listIdSchema = z.object({
+  id: z.string()
+    .uuid('Invalid list ID format'),
+});
+
+/**
+ * Validate create list request
+ */
+export async function validateCreateList(
+  c: Context,
+  next: () => Promise<void>
+): Promise<void> {
+  await validateSchema(createListSchema)(c, next);
+}
+
+/**
+ * Validate add to list request
+ */
+export async function validateAddToList(
+  c: Context,
+  next: () => Promise<void>
+): Promise<void> {
+  await validateSchema(addToListSchema)(c, next);
+}
+
+/**
+ * Validate remove from list request
+ */
+export async function validateRemoveFromList(
+  c: Context,
+  next: () => Promise<void>
+): Promise<void> {
+  await validateSchema(removeFromListSchema)(c, next);
+}
+
+/**
+ * Validate list query parameters
+ */
+export async function validateListQuery(
+  c: Context,
+  next: () => Promise<void>
+): Promise<void> {
+  await validateSchema(listQuerySchema, 'query')(c, next);
+}
+
+/**
+ * Validate list ID parameter
+ */
+export async function validateListId(
+  c: Context,
+  next: () => Promise<void>
+): Promise<void> {
+  await validateSchema(listIdSchema, 'params')(c, next);
+}

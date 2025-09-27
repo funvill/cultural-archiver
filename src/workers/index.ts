@@ -35,6 +35,11 @@ import {
   profileNameCheckSchema,
   userUuidSchema,
   notificationListSchema,
+  validateCreateList,
+  validateAddToList,
+  validateRemoveFromList,
+  validateListQuery,
+  validateListId,
 } from './middleware/validation';
 import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
@@ -80,6 +85,14 @@ import {
   dismissUserNotification,
   markUserNotificationRead,
 } from './routes/user';
+import {
+  createList,
+  getListDetails,
+  addArtworkToList,
+  removeArtworksFromList,
+  deleteList,
+  getUserLists,
+} from './routes/lists';
 import { handleSearchRequest, handleSearchSuggestions } from './routes/search';
 import { processMassImportPhotos } from './routes/mass-import-photos';
 import { processMassImport } from './routes/mass-import';
@@ -879,6 +892,54 @@ app.get(
   addRateLimitStatus,
   addUserTokenToResponse,
   withErrorHandling(getUserProfile)
+);
+
+// ================================
+// User Lists Endpoints (MVP)
+// ================================
+
+app.post(
+  '/api/lists',
+  validateCreateList,
+  addUserTokenToResponse,
+  withErrorHandling(createList)
+);
+
+app.get(
+  '/api/lists/:id',
+  validateListId,
+  validateListQuery,
+  addUserTokenToResponse,
+  withErrorHandling(getListDetails)
+);
+
+app.post(
+  '/api/lists/:id/items',
+  validateListId,
+  validateAddToList,
+  addUserTokenToResponse,
+  withErrorHandling(addArtworkToList)
+);
+
+app.delete(
+  '/api/lists/:id/items',
+  validateListId,
+  validateRemoveFromList,
+  addUserTokenToResponse,
+  withErrorHandling(removeArtworksFromList)
+);
+
+app.delete(
+  '/api/lists/:id',
+  validateListId,
+  addUserTokenToResponse,
+  withErrorHandling(deleteList)
+);
+
+app.get(
+  '/api/me/lists',
+  addUserTokenToResponse,
+  withErrorHandling(getUserLists)
 );
 
 // Badge System Endpoints

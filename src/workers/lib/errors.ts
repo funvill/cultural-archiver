@@ -124,6 +124,15 @@ export class InternalServerError extends ApiError {
 }
 
 /**
+ * Conflict error for resource conflicts (e.g., duplicate names, full lists)
+ */
+export class ConflictError extends ApiError {
+  constructor(message = 'Conflict occurred') {
+    super('CONFLICT_ERROR', message, 409, { showDetails: true });
+  }
+}
+
+/**
  * Create validation error for a single field
  */
 export function createFieldError(
