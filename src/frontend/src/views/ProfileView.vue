@@ -551,7 +551,7 @@ onMounted(() => {
 <style scoped>
 .profile-view {
   min-height: 100vh;
-  background-color: #f9fafb;
+  background-color: var(--md-content-background, #f9fafb);
 }
 
 /* Text clamping for multiline truncation */

@@ -393,10 +393,10 @@ textarea:focus {
 
 /* Error state styling */
 .border-red-500 {
-  border-color: #ef4444;
+  border-color: var(--md-error, #ef4444);
 }
 
 .border-red-500:focus {
-  --tw-ring-color: #ef4444;
+  --tw-ring-color: var(--md-error, #ef4444);
 }
 </style>

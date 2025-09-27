@@ -130,6 +130,42 @@
     --md-on-background: #111827;
     --md-on-surface: #111827;
     --md-on-error: #ffffff;
+    
+    /* Navigation-specific variables */
+    --md-nav-link: #1e88e5;
+    --md-nav-link-hover: #1565c0;
+    --md-nav-border: rgba(17, 24, 39, 0.12);
+    --md-nav-active: #1e88e5;
+    --md-nav-active-background: rgba(30, 136, 229, 0.1);
+    
+    /* Utility variables */
+    --md-text-muted: rgba(17, 24, 39, 0.6);
+    --md-text-subtle: rgba(17, 24, 39, 0.7);
+    --md-hover-background: rgba(17, 24, 39, 0.04);
+
+    /* Content area variables */
+    --md-content-background: #f9fafb;
+    --md-card-background: #ffffff;
+    --md-card-border: rgba(17, 24, 39, 0.12);
+    --md-section-border: rgba(17, 24, 39, 0.08);
+
+    /* Form and input variables */
+    --md-input-background: #ffffff;
+    --md-input-border: rgba(17, 24, 39, 0.3);
+    --md-input-text: #111827;
+    --md-placeholder-text: rgba(17, 24, 39, 0.5);
+
+    /* Button variant variables */
+    --md-button-secondary: #f3f4f6;
+    --md-button-secondary-hover: #e5e7eb;
+    --md-button-outline: transparent;
+    --md-button-outline-hover: #f3f4f6;
+
+    /* Badge and tag variables */
+    --md-tag-background: #f3f4f6;
+    --md-tag-text: #374151;
+    --md-badge-background: #dbeafe;
+    --md-badge-text: #1e40af;
 
     --appbar-height: 64px;
     /* Compute FAB so 30% of it overlaps below the 64px header when top:0 */
@@ -180,24 +216,87 @@
 .theme-muted { color: rgba(var(--md-on-surface), 0.7); }
 .theme-border { border-color: rgba(var(--md-on-surface), 0.12); }
 
+/* Navigation-specific theme utilities */
+.theme-nav-link { color: var(--md-nav-link, var(--md-primary)); }
+.theme-nav-link-hover { color: var(--md-nav-link-hover, var(--md-primary-variant)); }
+.theme-nav-border { border-color: var(--md-nav-border, rgba(var(--md-on-surface), 0.12)); }
+.theme-nav-active { color: var(--md-nav-active, var(--md-primary)); }
+.theme-nav-active-background { background-color: var(--md-nav-active-background, rgba(var(--md-primary), 0.1)); }
+.theme-text-muted { color: var(--md-text-muted, rgba(var(--md-on-surface), 0.6)); }
+.theme-text-subtle { color: var(--md-text-subtle, rgba(var(--md-on-surface), 0.7)); }
+.theme-hover-background { background-color: var(--md-hover-background, rgba(var(--md-on-surface), 0.04)); }
+
+/* Content area theme utilities */
+.theme-content-background { background-color: var(--md-content-background, #f9fafb); }
+.theme-card-background { background-color: var(--md-card-background, #ffffff); }
+.theme-card-border { border-color: var(--md-card-border, rgba(var(--md-on-surface), 0.12)); }
+.theme-section-border { border-color: var(--md-section-border, rgba(var(--md-on-surface), 0.08)); }
+
+/* Form and input theme utilities */
+.theme-input-background { background-color: var(--md-input-background, #ffffff); }
+.theme-input-border { border-color: var(--md-input-border, rgba(var(--md-on-surface), 0.3)); }
+.theme-input-text { color: var(--md-input-text, var(--md-on-surface)); }
+.theme-placeholder-text { color: var(--md-placeholder-text, rgba(var(--md-on-surface), 0.5)); }
+
+/* Button variant theme utilities */
+.theme-button-secondary { background-color: var(--md-button-secondary, #f3f4f6); }
+.theme-button-secondary-hover { background-color: var(--md-button-secondary-hover, #e5e7eb); }
+.theme-button-outline { background-color: var(--md-button-outline, transparent); }
+.theme-button-outline-hover { background-color: var(--md-button-outline-hover, #f3f4f6); }
+
+/* Badge and tag theme utilities */
+.theme-tag-background { background-color: var(--md-tag-background, #f3f4f6); }
+.theme-tag-text { color: var(--md-tag-text, #374151); }
+.theme-badge-background { background-color: var(--md-badge-background, #dbeafe); }
+.theme-badge-text { color: var(--md-badge-text, #1e40af); }
+.theme-text-muted { color: var(--md-text-muted, rgba(var(--md-on-surface), 0.6)); }
+.theme-text-subtle { color: var(--md-text-subtle, rgba(var(--md-on-surface), 0.7)); }
+.theme-hover-bg { background-color: var(--md-hover-background, rgba(var(--md-on-surface), 0.04)); }
+
+/* Hover state utilities that use new variables */
+.hover\:theme-nav-link-hover:hover { color: var(--md-nav-link-hover, var(--md-primary-variant)); }
+.hover\:theme-hover-bg:hover { background-color: var(--md-hover-background, rgba(var(--md-on-surface), 0.04)); }
+
 /* Compatibility mappings for common Tailwind color utility classes
   These let existing templates that still use Tailwind color utilities pick up
   the active runtime theme until we finish replacing all instances. */
 .text-gray-900 { color: var(--md-on-background) !important; }
 .text-gray-800 { color: var(--md-on-surface) !important; }
 .text-gray-700 { color: var(--md-on-surface) !important; opacity: 0.85; }
-.text-gray-600 { color: var(--md-on-surface) !important; opacity: 0.7; }
+.text-gray-600 { color: var(--md-text-muted, rgba(var(--md-on-surface), 0.6)) !important; }
 .text-gray-500 { color: var(--md-on-surface) !important; opacity: 0.6; }
 .text-gray-400 { color: var(--md-on-surface) !important; opacity: 0.5; }
 
 .bg-white { background-color: var(--md-surface) !important; }
-.bg-gray-50 { background-color: var(--md-background) !important; }
+.bg-gray-50 { background-color: var(--md-hover-background, rgba(var(--md-on-surface), 0.04)) !important; }
+.bg-gray-100 { background-color: var(--md-content-background, #f9fafb) !important; }
+
+/* Card and content area mappings */
+.bg-gray-200 { background-color: var(--md-card-background, #ffffff) !important; }
+
+/* Border color mappings */
+.border-gray-200 { border-color: var(--md-nav-border, rgba(var(--md-on-surface), 0.12)) !important; }
+.border-gray-300 { border-color: var(--md-card-border, rgba(var(--md-on-surface), 0.2)) !important; }
+
+/* Navigation link color mappings */
+.text-blue-600 { color: var(--md-nav-link, var(--md-primary)) !important; }
+.text-blue-800 { color: var(--md-nav-link-hover, var(--md-primary-variant)) !important; }
+
+/* Button color mappings */
+.bg-gray-300 { background-color: var(--md-button-secondary, #f3f4f6) !important; }
+.hover\:bg-gray-300:hover { background-color: var(--md-button-secondary-hover, #e5e7eb) !important; }
+
+/* Input field mappings */
+.bg-gray-50 { background-color: var(--md-input-background, #ffffff) !important; }
+
+/* Hover state mappings */
+.hover\:bg-gray-50:hover { background-color: var(--md-hover-background, rgba(var(--md-on-surface), 0.04)) !important; }
+.hover\:text-blue-800:hover { color: var(--md-nav-link-hover, var(--md-primary-variant)) !important; }
 
 /* Accent colors - map common tailwind utility names to theme variables where it makes sense.
   We keep the original hue variants for granular cases; these mappings are opinionated. */
-.text-blue-600 { color: rgb(var(--md-primary)) !important; }
-.bg-blue-600 { background-color: rgb(var(--md-primary)) !important; }
-.text-green-600 { color: rgb(var(--md-success)) !important; }
+.bg-blue-600 { background-color: var(--md-primary) !important; }
+.text-green-600 { color: var(--md-success) !important; }
 .bg-green-600 { background-color: rgb(var(--md-success)) !important; }
 .text-yellow-600 { color: rgb(var(--md-warning)) !important; }
 .bg-yellow-600 { background-color: rgb(var(--md-warning)) !important; }

@@ -37,7 +37,7 @@ onMounted(async () => {
 <style scoped>
 .submit-view {
   min-height: 100vh;
-  background-color: #f9fafb;
+  background-color: var(--md-content-background, #f9fafb);
 }
 
 /* Mobile responsive adjustments */

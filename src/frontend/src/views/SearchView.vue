@@ -869,7 +869,7 @@ onUnmounted(() => {
 @media (min-width: 1024px) {
   .search-view {
     scrollbar-width: thin;
-    scrollbar-color: #cbd5e0 #f7fafc;
+    scrollbar-color: var(--md-outline, #cbd5e0) var(--md-surface-variant, #f7fafc);
   }
 
   .search-view::-webkit-scrollbar {
@@ -877,16 +877,16 @@ onUnmounted(() => {
   }
 
   .search-view::-webkit-scrollbar-track {
-    background: #f7fafc;
+    background: var(--md-surface-variant, #f7fafc);
   }
 
   .search-view::-webkit-scrollbar-thumb {
-    background-color: #cbd5e0;
+    background-color: var(--md-outline, #cbd5e0);
     border-radius: 4px;
   }
 
   .search-view::-webkit-scrollbar-thumb:hover {
-    background-color: #a0aec0;
+    background-color: var(--md-outline-variant, #a0aec0);
   }
 }
 </style>

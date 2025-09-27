@@ -667,6 +667,6 @@ onUnmounted(() => {
 <style scoped>
 .status-view {
   min-height: 100vh;
-  background-color: #f9fafb;
+  background-color: var(--md-content-background, #f9fafb);
 }
 </style>

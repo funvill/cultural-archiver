@@ -351,8 +351,8 @@ import('leaflet/dist/leaflet.css');
 }
 
 .mini-map :deep(.leaflet-control-zoom a) {
-  background-color: white;
-  color: #374151;
+  background-color: var(--md-surface, white);
+  color: var(--md-on-surface, #374151);
   border: none;
   width: 32px;
   height: 32px;
@@ -362,8 +362,8 @@ import('leaflet/dist/leaflet.css');
 }
 
 .mini-map :deep(.leaflet-control-zoom a:hover) {
-  background-color: #f3f4f6;
-  color: #1f2937;
+  background-color: var(--md-surface-variant, #f3f4f6);
+  color: var(--md-on-surface-variant, #1f2937);
 }
 
 .mini-map :deep(.leaflet-control-zoom a:focus) {
