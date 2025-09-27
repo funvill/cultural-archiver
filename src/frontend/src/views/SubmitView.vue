@@ -16,11 +16,11 @@ onMounted(async () => {
 <template>
   <div class="submit-view">
     <!-- Page Header -->
-    <div class="bg-white border-b border-gray-200 py-4 sm:py-6">
+    <div class="py-4 sm:py-6" :style="{ background: 'rgb(var(--md-surface))', borderBottom: '1px solid rgba(var(--md-on-surface), 0.06)' }">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="text-center">
-          <h1 class="text-2xl sm:text-3xl font-bold text-gray-900">Submit Artwork</h1>
-          <p class="mt-2 text-base sm:text-lg text-gray-600">
+          <h1 class="text-2xl sm:text-3xl font-bold" :style="{ color: 'rgb(var(--md-on-surface))' }">Submit Artwork</h1>
+          <p class="mt-2 text-base sm:text-lg" :style="{ color: 'rgba(var(--md-on-surface), 0.8)' }">
             Fast photo-first workflow with intelligent duplicate detection
           </p>
         </div>
@@ -37,7 +37,7 @@ onMounted(async () => {
 <style scoped>
 .submit-view {
   min-height: 100vh;
-  background-color: #f9fafb;
+  background-color: var(--md-content-background, #f9fafb);
 }
 
 /* Mobile responsive adjustments */

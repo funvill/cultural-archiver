@@ -2,8 +2,8 @@
   <div class="profile-notifications-view p-4 sm:p-6 lg:p-8">
     <!-- Header -->
     <header class="mb-8">
-      <h1 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Notifications</h1>
-      <p class="mt-2 text-lg text-gray-600 dark:text-gray-400">
+      <h1 class="text-3xl font-bold tracking-tight" :style="{ color: 'rgb(var(--md-on-background))' }">Notifications</h1>
+      <p class="mt-2 text-lg" :style="{ color: 'rgba(var(--md-on-background), 0.8)' }">
         View and manage your notification history
       </p>
     </header>
@@ -16,7 +16,7 @@
           :class="[
             'px-3 py-2 rounded-md text-sm font-medium transition-colors',
             filterType === 'all'
-              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+              ? 'theme-primary-container theme-on-primary-container'
               : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
           ]"
         >
@@ -27,7 +27,7 @@
           :class="[
             'px-3 py-2 rounded-md text-sm font-medium transition-colors',
             filterType === 'unread'
-              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+              ? 'theme-primary-container theme-on-primary-container'
               : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
           ]"
         >
@@ -38,7 +38,7 @@
           :class="[
             'px-3 py-2 rounded-md text-sm font-medium transition-colors',
             filterType === 'badge'
-              ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300'
+              ? 'theme-primary-container theme-on-primary-container'
               : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200',
           ]"
         >
@@ -50,8 +50,9 @@
         <button
           v-if="unreadCount > 0"
           @click="markAllAsRead"
-          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+          class="px-4 py-2 rounded-md text-sm font-medium transition-colors"
           :disabled="isMarkingAllRead"
+          :style="{ background: 'rgb(var(--md-primary))', color: 'rgb(var(--md-on-primary))' }"
         >
           <span v-if="isMarkingAllRead" class="inline-flex items-center">
             <svg class="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">
@@ -73,12 +74,13 @@
           </span>
           <span v-else>Mark all as read</span>
         </button>
-        <button
-          @click="refreshNotifications"
-          class="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-          :disabled="isLoading"
-          aria-label="Refresh notifications"
-        >
+          <button
+            @click="refreshNotifications"
+            class="p-2 transition-colors"
+            :disabled="isLoading"
+            aria-label="Refresh notifications"
+            :style="{ color: 'rgb(var(--md-on-background))' }"
+          >
           <svg
             :class="['w-5 h-5', { 'animate-spin': isLoading }]"
             fill="none"
@@ -117,10 +119,10 @@
     <!-- Error State -->
     <div
       v-else-if="error"
-      class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6"
+      class="theme-error-container border border-red-200 dark:border-red-800 rounded-lg p-6"
     >
       <div class="flex">
-        <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+        <svg class="h-5 w-5 theme-error" fill="currentColor" viewBox="0 0 20 20">
           <path
             fill-rule="evenodd"
             d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
@@ -128,16 +130,16 @@
           />
         </svg>
         <div class="ml-3">
-          <h3 class="text-sm font-medium text-red-800 dark:text-red-200">
+          <h3 class="text-sm font-medium theme-on-error-container">
             Error loading notifications
           </h3>
-          <p class="mt-1 text-sm text-red-700 dark:text-red-300">
+          <p class="mt-1 text-sm theme-on-error-container">
             {{ error }}
           </p>
           <div class="mt-4">
             <button
               @click="refreshNotifications"
-              class="text-sm bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-200 px-3 py-2 rounded-md hover:bg-red-200 dark:hover:bg-red-700 transition-colors"
+              class="text-sm theme-error theme-on-error px-3 py-2 rounded-md transition-colors"
             >
               Try again
             </button>
@@ -182,7 +184,7 @@
           'bg-white dark:bg-gray-800 rounded-lg p-6 shadow border transition-colors cursor-pointer',
           notification.is_dismissed
             ? 'border-gray-200 dark:border-gray-700'
-            : 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20',
+            : 'theme-primary-container border-blue-200 dark:border-blue-800',
         ]"
         @click="handleNotificationClick(notification)"
       >
@@ -191,7 +193,7 @@
           <div class="flex-shrink-0">
             <div
               v-if="notification.type === 'badge'"
-              class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center"
+              class="w-12 h-12 theme-warning-container rounded-full flex items-center justify-center"
             >
               <span class="text-2xl">
                 {{ getBadgeEmoji(notification) }}
@@ -199,10 +201,10 @@
             </div>
             <div
               v-else-if="notification.type === 'system'"
-              class="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center"
+              class="w-12 h-12 theme-primary-container rounded-full flex items-center justify-center"
             >
               <svg
-                class="w-6 h-6 text-blue-600 dark:text-blue-400"
+                class="w-6 h-6 theme-on-primary-container"
                 fill="currentColor"
                 viewBox="0 0 20 20"
               >
@@ -259,7 +261,7 @@
                 <!-- Unread indicator -->
                 <div
                   v-if="!notification.is_dismissed"
-                  class="w-3 h-3 bg-blue-500 rounded-full"
+                  class="w-3 h-3 theme-primary rounded-full"
                   aria-label="Unread"
                 ></div>
                 <!-- Dismiss button -->

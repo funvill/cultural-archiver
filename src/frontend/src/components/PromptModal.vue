@@ -251,10 +251,10 @@ onUnmounted(() => {
               <button
                 v-if="showCloseButton"
                 @click="cancel"
-                class="text-gray-400 hover:text-gray-600 focus:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md p-1"
+                class="text-gray-400 hover:text-gray-600 focus:text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md p-1 group"
                 aria-label="Close modal"
               >
-                <XMarkIcon class="w-6 h-6" aria-hidden="true" />
+                <XMarkIcon class="w-6 h-6 theme-icon-hover" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -393,10 +393,10 @@ textarea:focus {
 
 /* Error state styling */
 .border-red-500 {
-  border-color: #ef4444;
+  border-color: var(--md-error, #ef4444);
 }
 
 .border-red-500:focus {
-  --tw-ring-color: #ef4444;
+  --tw-ring-color: var(--md-error, #ef4444);
 }
 </style>

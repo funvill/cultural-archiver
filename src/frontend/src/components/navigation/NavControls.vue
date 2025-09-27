@@ -44,10 +44,10 @@ const handleMapClick = () => emit('mapClick');
     <!-- Left: Menu Button (hidden on large screens) -->
     <button
       @click="handleMenuToggle"
-      class="lg:hidden flex items-center justify-center w-12 h-12 rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+      class="lg:hidden flex items-center justify-center w-12 h-12 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
       aria-label="Open navigation menu"
     >
-      <Bars3Icon class="w-6 h-6 text-gray-700" aria-hidden="true" />
+      <Bars3Icon class="w-6 h-6 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
     </button>
     
     <!-- Left spacer for large screens to keep FAB centered -->
@@ -57,10 +57,10 @@ const handleMapClick = () => emit('mapClick');
     <div class="relative">
       <button
         @click="handleFabClick"
-        class="fab flex items-center justify-center w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        class="fab flex items-center justify-center w-14 h-14 theme-primary theme-on-primary rounded-full shadow-lg hover:theme-primary-hover hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-300 hover:scale-105"
         aria-label="Submit new artwork"
       >
-        <CameraIcon class="w-7 h-7" aria-hidden="true" />
+        <CameraIcon class="w-7 h-7 transition-transform duration-200 hover:scale-110" aria-hidden="true" />
       </button>
     </div>
 
@@ -70,13 +70,13 @@ const handleMapClick = () => emit('mapClick');
       <button
         v-if="props.showNotifications"
         @click="handleNotificationClick"
-        class="relative flex items-center justify-center w-12 h-12 rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+        class="relative flex items-center justify-center w-12 h-12 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors group"
         aria-label="View notifications"
       >
-        <BellIcon class="w-6 h-6 text-gray-700" aria-hidden="true" />
+        <BellIcon class="w-6 h-6 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
         <span
           v-if="hasNotifications"
-          class="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full min-w-[18px] h-[18px] shadow-sm"
+          class="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none theme-on-error theme-error rounded-full min-w-[18px] h-[18px] shadow-sm"
           :aria-label="`${props.notificationCount ?? 0} unread notifications`"
         >
           {{ (props.notificationCount ?? 0) > 99 ? '99+' : (props.notificationCount ?? 0) }}
@@ -86,11 +86,11 @@ const handleMapClick = () => emit('mapClick');
       <!-- Map Button -->
       <button
         @click="handleMapClick"
-        class="flex items-center justify-center w-12 h-12 rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+        class="flex items-center justify-center w-12 h-12 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors group"
         aria-label="Open map"
         title="Map"
       >
-        <MapIcon class="w-6 h-6 text-gray-700" aria-hidden="true" />
+        <MapIcon class="w-6 h-6 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
       </button>
 
       <!-- Profile / Login removed from bottom bar (kept in vertical navigation rail) -->
@@ -101,23 +101,23 @@ const handleMapClick = () => emit('mapClick');
     <!-- Top: Menu / Toggle (vertical) -->
     <button
       @click="handleMenuToggle"
-      class="flex items-center justify-center w-12 h-12 rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+      class="flex items-center justify-center w-12 h-12 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors group"
       aria-label="Open navigation menu"
     >
-      <Bars3Icon class="w-6 h-6 text-gray-700" aria-hidden="true" />
+      <Bars3Icon class="w-6 h-6 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
     </button>
 
     <!-- Notifications -->
     <button
       v-if="props.showNotifications"
       @click="handleNotificationClick"
-      class="relative flex items-center justify-center w-12 h-12 rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+      class="relative flex items-center justify-center w-12 h-12 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors group"
       aria-label="View notifications"
     >
-      <BellIcon class="w-6 h-6 text-gray-700" aria-hidden="true" />
+      <BellIcon class="w-6 h-6 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
       <span
         v-if="hasNotifications"
-        class="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white bg-red-500 rounded-full min-w-[18px] h-[18px] shadow-sm"
+        class="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none theme-on-error theme-error rounded-full min-w-[18px] h-[18px] shadow-sm"
         :aria-label="`${props.notificationCount ?? 0} unread notifications`"
       >
         {{ (props.notificationCount ?? 0) > 99 ? '99+' : (props.notificationCount ?? 0) }}
@@ -128,19 +128,19 @@ const handleMapClick = () => emit('mapClick');
     <button
       v-if="props.isAuthenticated"
       @click="handleProfileClick"
-      class="flex items-center justify-center w-12 h-12 rounded-full hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+      class="flex items-center justify-center w-12 h-12 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors group"
       :title="props.userDisplayName || 'Profile'"
     >
-      <UserIcon class="w-6 h-6 text-gray-700" aria-hidden="true" />
+      <UserIcon class="w-6 h-6 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
     </button>
 
     <button
       v-else
       @click="handleLoginClick"
-      class="flex items-center justify-center w-12 h-12 rounded-full hover:bg-blue-50 hover:text-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+      class="flex items-center justify-center w-12 h-12 rounded-full hover:theme-nav-link-hover hover:theme-nav-link focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors group"
       title="Login"
     >
-      <ArrowRightOnRectangleIcon class="w-6 h-6 text-gray-700" aria-hidden="true" />
+      <ArrowRightOnRectangleIcon class="w-6 h-6 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
     </button>
 
     <!-- FAB removed from vertical (navigation rail) mode - should only appear in bottom navigation -->

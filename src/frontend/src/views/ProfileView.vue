@@ -5,6 +5,7 @@ import ArtworkCard from '../components/ArtworkCard.vue';
 import BadgeGrid from '../components/BadgeGrid.vue';
 import ProfileNameEditor from '../components/ProfileNameEditor.vue';
 import { apiService } from '../services/api';
+import ThemeToggle from '../components/ThemeToggle.vue';
 import type { SubmissionRecord, UserBadgeResponse, ListApiResponse } from '../../../shared/types';
 import type {
   UserProfile,
@@ -260,13 +261,13 @@ async function fetchLinkedArtworks() {
 function getStatusClass(status: string) {
   switch (status) {
     case 'approved':
-      return 'bg-green-100 text-green-800';
+      return 'theme-success theme-on-success';
     case 'pending':
-      return 'bg-yellow-100 text-yellow-800';
+      return 'theme-warning theme-on-warning';
     case 'rejected':
-      return 'bg-red-100 text-red-800';
+      return 'theme-error theme-on-error';
     default:
-      return 'bg-gray-100 text-gray-800';
+      return 'theme-surface-variant theme-on-surface-variant';
   }
 }
 
@@ -299,6 +300,8 @@ function onProfileUpdated(newProfileName: string) {
   // fetchUserProfile();
 }
 
+// Theme persistence and application moved into `ThemeToggle` component
+
 // Lists management methods
 async function fetchUserLists() {
   try {
@@ -327,6 +330,7 @@ function handleListClick(list: ListApiResponse) {
 onMounted(() => {
   fetchUserProfile();
   fetchUserLists();
+  // Theme initialization moved to main.ts (applies saved localStorage theme on startup)
 });
 </script>
 
@@ -335,14 +339,14 @@ onMounted(() => {
     <div v-if="isLoading" class="text-center">
       <p>Loading profile...</p>
     </div>
-    <div v-if="error" class="text-center text-red-500">
+    <div v-if="error" class="text-center theme-error">
       <p>{{ error }}</p>
     </div>
 
     <div v-if="!isLoading && !error && profile">
       <header class="mb-8">
-        <h1 class="text-3xl font-bold tracking-tight text-gray-900">My Profile</h1>
-        <p class="mt-2 text-lg text-gray-600">
+        <h1 class="text-3xl font-bold tracking-tight theme-on-background">My Profile</h1>
+        <p class="mt-2 text-lg theme-muted">
           Welcome back,
           <span class="font-semibold">{{ profile.debug?.user_info?.email || 'Contributor' }}</span
           >.
@@ -351,54 +355,59 @@ onMounted(() => {
 
       <!-- Stats Section -->
       <section class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4 mb-8">
-        <div class="bg-white p-6 rounded-lg shadow">
-          <h3 class="text-sm font-medium text-gray-500">Total Submissions</h3>
-          <p class="mt-2 text-3xl font-bold">{{ submissionStats.total }}</p>
+        <div class="p-6 rounded-lg shadow theme-surface">
+          <h3 class="text-sm font-medium theme-muted">Total Submissions</h3>
+          <p class="mt-2 text-3xl font-bold theme-on-surface">{{ submissionStats.total }}</p>
         </div>
-        <div class="bg-white p-6 rounded-lg shadow">
-          <h3 class="text-sm font-medium text-gray-500">Approved</h3>
-          <p class="mt-2 text-3xl font-bold text-green-600">{{ submissionStats.approved }}</p>
+        <div class="p-6 rounded-lg shadow theme-surface">
+          <h3 class="text-sm font-medium theme-muted">Approved</h3>
+          <p class="mt-2 text-3xl font-bold theme-on-success">{{ submissionStats.approved }}</p>
         </div>
-        <div class="bg-white p-6 rounded-lg shadow">
-          <h3 class="text-sm font-medium text-gray-500">Pending</h3>
-          <p class="mt-2 text-3xl font-bold text-yellow-600">{{ submissionStats.pending }}</p>
+        <div class="p-6 rounded-lg shadow theme-surface">
+          <h3 class="text-sm font-medium theme-muted">Pending</h3>
+          <p class="mt-2 text-3xl font-bold theme-on-warning">{{ submissionStats.pending }}</p>
         </div>
-        <div class="bg-white p-6 rounded-lg shadow">
-          <h3 class="text-sm font-medium text-gray-500">Rejected</h3>
-          <p class="mt-2 text-3xl font-bold text-red-600">{{ submissionStats.rejected }}</p>
+        <div class="p-6 rounded-lg shadow theme-surface">
+          <h3 class="text-sm font-medium theme-muted">Rejected</h3>
+          <p class="mt-2 text-3xl font-bold theme-on-error">{{ submissionStats.rejected }}</p>
         </div>
       </section>
 
       <!-- Profile Name Section -->
       <section class="mb-8">
-        <div class="bg-white p-6 rounded-lg shadow">
-          <h2 class="text-xl font-semibold text-gray-900 mb-4">Profile Settings</h2>
+        <div class="p-6 rounded-lg shadow theme-surface">
+          <h2 class="text-xl font-semibold theme-on-surface mb-4">Profile Settings</h2>
           <ProfileNameEditor
             :currentProfileName="currentProfileName"
             @profile-updated="onProfileUpdated"
           />
+
+          <!-- Theme selector -->
+          <div class="mt-6">
+            <ThemeToggle />
+          </div>
         </div>
       </section>
 
       <!-- Badges Section -->
       <section class="mb-8">
-        <div class="bg-white p-6 rounded-lg shadow">
+        <div class="p-6 rounded-lg shadow theme-surface">
           <BadgeGrid :badges="userBadges" :loading="badgesLoading" />
         </div>
       </section>
 
       <!-- My Lists Section -->
       <section class="mb-8">
-        <div class="bg-white p-6 rounded-lg shadow">
+        <div class="p-6 rounded-lg shadow theme-surface">
           <div class="flex items-center justify-between mb-6">
-            <h2 class="text-2xl font-bold text-gray-900">My Lists</h2>
-            <p class="text-sm text-gray-500">{{ userLists.length }} lists</p>
+            <h2 class="text-2xl font-bold theme-on-surface">My Lists</h2>
+            <p class="text-sm theme-muted">{{ userLists.length }} lists</p>
           </div>
 
           <!-- Loading State -->
           <div v-if="listsLoading" class="text-center py-8">
             <div class="inline-flex items-center">
-              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 theme-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
@@ -408,10 +417,11 @@ onMounted(() => {
 
           <!-- Error State -->
           <div v-else-if="listsError" class="text-center py-8">
-            <p class="text-red-600">{{ listsError }}</p>
+            <p class="theme-error">{{ listsError }}</p>
             <button 
               @click="fetchUserLists"
-              class="mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
+              class="mt-2 text-sm font-medium theme-primary"
+              :style="{ color: 'var(--md-primary, #2563eb)' }"
             >
               Try Again
             </button>
@@ -419,15 +429,15 @@ onMounted(() => {
 
           <!-- Empty State -->
           <div v-else-if="userLists.length === 0" class="text-center py-8">
-            <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg class="mx-auto h-12 w-12 mb-4 theme-outline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v0a2 2 0 01-2 2H10a2 2 0 01-2-2v0z" />
             </svg>
-            <h3 class="text-lg font-medium text-gray-900 mb-2">No Lists Yet</h3>
-            <p class="text-gray-600 mb-4">Create your first list by visiting an artwork page and clicking "Add to List".</p>
+            <h3 class="text-lg font-medium theme-on-surface mb-2">No Lists Yet</h3>
+            <p class="theme-on-surface-variant mb-4">Create your first list by visiting an artwork page and clicking "Add to List".</p>
             <button 
               @click="$router.push('/')"
-              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md theme-primary theme-on-primary"
             >
               Explore Artworks
             </button>
@@ -439,24 +449,24 @@ onMounted(() => {
               v-for="list in userLists" 
               :key="list.id"
               @click="handleListClick(list)"
-              class="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-colors"
+              class="rounded-lg p-4 border theme-border hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-colors"
             >
               <div class="flex items-start justify-between mb-3">
-                <h3 class="font-semibold text-gray-900 truncate pr-2">{{ list.name }}</h3>
+                <h3 class="font-semibold theme-on-surface truncate pr-2">{{ list.name }}</h3>
                 <span 
                   v-if="list.is_system_list"
-                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 flex-shrink-0"
+                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 theme-primary-container theme-on-primary-container"
                 >
                   System
                 </span>
               </div>
               
-              <div class="flex items-center justify-between text-sm text-gray-600">
+              <div class="flex items-center justify-between text-sm theme-on-surface-variant">
                 <span>{{ list.item_count || 0 }} artworks</span>
                 <span>{{ formatDateSafe(list.updated_at, list.created_at) }}</span>
               </div>
               
-              <div class="mt-2 flex items-center text-xs text-gray-500">
+              <div class="mt-2 flex items-center text-xs theme-muted">
                 <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
                 </svg>
@@ -521,10 +531,10 @@ onMounted(() => {
 
             <!-- Meta below the card -->
             <div class="mt-2 flex items-center justify-between">
-              <span class="text-xs text-gray-500">
+              <span class="text-xs theme-outline">
                 {{ submission.submission_type.replace(/_/g, ' ') }}
               </span>
-              <span class="text-xs text-gray-500">
+              <span class="text-xs theme-outline">
                 {{ formatDateSafe(submission.submitted_at, submission.created_at) }}
                 <span v-if="submission.lat && submission.lon">
                   • {{ submission.lat.toFixed(4) }}, {{ submission.lon.toFixed(4) }}
@@ -541,7 +551,7 @@ onMounted(() => {
 <style scoped>
 .profile-view {
   min-height: 100vh;
-  background-color: #f9fafb;
+  background-color: var(--md-content-background, #f9fafb);
 }
 
 /* Text clamping for multiline truncation */

@@ -374,7 +374,7 @@ onMounted(() => {
 <style scoped>
 .about-view {
   min-height: 100vh;
-  background-color: #ffffff;
+  background-color: var(--md-content-background, #ffffff);
 }
 
 /* Loading animations */
