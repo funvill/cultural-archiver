@@ -22,6 +22,7 @@ const FastPhotoUploadView = (): Promise<Component> => import('../views/FastPhoto
 const LogbookSubmissionView = (): Promise<Component> =>
   import('../views/LogbookSubmissionView.vue');
 const PublicProfileView = (): Promise<Component> => import('../views/PublicProfileView.vue');
+const ListView = (): Promise<Component> => import('../views/ListView.vue');
 
 const router = createRouter({
   history: createWebHistory(),
@@ -108,6 +109,15 @@ const router = createRouter({
       props: true,
       meta: {
         title: 'Log a Visit - Cultural Archiver',
+      },
+    },
+    {
+      path: '/lists/:id',
+      name: 'ListView',
+      component: ListView,
+      props: true,
+      meta: {
+        title: 'List - Cultural Archiver',
       },
     },
     {

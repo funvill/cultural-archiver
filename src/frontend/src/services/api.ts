@@ -301,10 +301,12 @@ class ApiClient {
   /**
    * DELETE request
    */
-  async delete<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: 'DELETE',
-    });
+  async delete<T>(endpoint: string, data?: unknown): Promise<T> {
+    const options: RequestInit = { method: 'DELETE' };
+    if (data) {
+      options.body = JSON.stringify(data);
+    }
+    return this.request<T>(endpoint, options);
   }
 }
 
@@ -1026,6 +1028,55 @@ export const apiService = {
     notificationId: string
   ): Promise<ApiResponse<NotificationActionResponse>> {
     return client.post(`/me/notifications/${notificationId}/read`);
+  },
+
+  // ================================
+  // Lists Management
+  // ================================
+
+  /**
+   * Get user's lists
+   */
+  async getUserLists(): Promise<ApiResponse<any[]>> {
+    return client.get('/api/me/lists');
+  },
+
+  /**
+   * Create a new list
+   */
+  async createList(name: string): Promise<ApiResponse<{ id: string; name: string; created_at: string }>> {
+    return client.post('/api/lists', { name });
+  },
+
+  /**
+   * Get list details with items
+   */
+  async getListDetails(listId: string, page = 1, limit = 50): Promise<ApiResponse<any>> {
+    return client.get(`/api/lists/${listId}`, { 
+      page: page.toString(), 
+      limit: limit.toString() 
+    });
+  },
+
+  /**
+   * Add artwork to list
+   */
+  async addArtworkToList(listId: string, artworkId: string): Promise<ApiResponse<{ message: string; item_id: string }>> {
+    return client.post(`/api/lists/${listId}/items`, { artwork_id: artworkId });
+  },
+
+  /**
+   * Remove artworks from list (bulk operation)
+   */
+  async removeArtworksFromList(listId: string, artworkIds: string[]): Promise<ApiResponse<{ message: string; removed_count: number }>> {
+    return client.delete(`/api/lists/${listId}/items`, { artwork_ids: artworkIds });
+  },
+
+  /**
+   * Delete list
+   */
+  async deleteList(listId: string): Promise<ApiResponse<{ message: string }>> {
+    return client.delete(`/api/lists/${listId}`);
   },
 };
 

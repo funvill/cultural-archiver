@@ -8,6 +8,7 @@ import PhotoCarousel from '../components/PhotoCarousel.vue';
 import MiniMap from '../components/MiniMap.vue';
 import TagBadge from '../components/TagBadge.vue';
 import TagEditor from '../components/TagEditor.vue';
+import AddToListDialog from '../components/AddToListDialog.vue';
 // import LogbookTimeline from '../components/LogbookTimeline.vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { apiService } from '../services/api';
@@ -31,6 +32,9 @@ const { announceError, announceSuccess } = useAnnouncer();
 // Toast state for submission success
 const showToast = ref(false);
 const toastMessage = ref('');
+
+// Add to list dialog state
+const showAddToListDialog = ref(false);
 
 // State
 const loading = ref(true);
@@ -467,6 +471,19 @@ function goToMap(): void {
   router.push('/');
 }
 
+// Add to list methods
+function openAddToListDialog(): void {
+  showAddToListDialog.value = true;
+}
+
+function handleAddedToList(listNames: string): void {
+  showToast.value = true;
+  toastMessage.value = `Added to list: ${listNames}`;
+  setTimeout(() => {
+    showToast.value = false;
+  }, 3000);
+}
+
 // Edit mode methods
 function enterEditMode(): void {
   if (!artwork.value || hasPendingEdits.value) return;
@@ -735,6 +752,15 @@ async function checkPendingEdits(): Promise<void> {
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
                 Add log
+              </button>
+
+              <!-- Add to List button -->
+              <button @click="openAddToListDialog" aria-label="Add to list"
+                class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                </svg>
+                Add to List
               </button>
             </div>
           </div>
@@ -1090,6 +1116,25 @@ async function checkPendingEdits(): Promise<void> {
           clip-rule="evenodd"></path>
       </svg>
       <span>{{ toastMessage }}</span>
+    </div>
+  </div>
+
+  <!-- Add to List Dialog -->
+  <AddToListDialog 
+    v-if="artwork"
+    v-model="showAddToListDialog"
+    :artwork-id="props.id"
+    @added-to-list="handleAddedToList"
+  />
+
+  <!-- Add to List Success Toast -->
+  <div v-if="showToast"
+    class="fixed bottom-4 left-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 max-w-sm">
+    <div class="flex items-center">
+      <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+      </svg>
+      {{ toastMessage }}
     </div>
   </div>
 </template>
