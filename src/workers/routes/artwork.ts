@@ -448,15 +448,15 @@ export async function getArtworkMembership(c: Context<{ Bindings: WorkerEnv }>):
     // Check membership in special lists
     const membershipQuery = `
       SELECT 
-        l.special_list_name,
+        l.list_name,
         CASE WHEN li.artwork_id IS NOT NULL THEN 1 ELSE 0 END as is_member
       FROM (
-        SELECT 'loved' as special_list_name
-        UNION SELECT 'beenHere' as special_list_name  
-        UNION SELECT 'wantToSee' as special_list_name
+        SELECT 'loved' as list_name
+        UNION SELECT 'beenHere' as list_name  
+        UNION SELECT 'wantToSee' as list_name
       ) l
-      LEFT JOIN lists ls ON ls.user_token = ? AND ls.special_list_name = l.special_list_name
-      LEFT JOIN list_items li ON li.list_id = ls.list_id AND li.artwork_id = ?
+      LEFT JOIN lists ls ON ls.owner_user_id = ? AND ls.name = l.list_name AND ls.is_system_list = 1
+      LEFT JOIN list_items li ON li.list_id = ls.id AND li.artwork_id = ?
     `;
 
     const membershipResults = await db.prepare(membershipQuery)
@@ -467,8 +467,8 @@ export async function getArtworkMembership(c: Context<{ Bindings: WorkerEnv }>):
     const customListQuery = `
       SELECT COUNT(*) as count
       FROM list_items li
-      JOIN lists l ON l.list_id = li.list_id
-      WHERE l.user_token = ? AND li.artwork_id = ? AND l.special_list_name IS NULL
+      JOIN lists ls ON ls.id = li.list_id
+      WHERE ls.owner_user_id = ? AND li.artwork_id = ? AND ls.is_system_list = 0
     `;
 
     const customListResult = await db.prepare(customListQuery)
@@ -486,7 +486,7 @@ export async function getArtworkMembership(c: Context<{ Bindings: WorkerEnv }>):
     // Process special list memberships
     if (membershipResults.success && membershipResults.results) {
       for (const row of membershipResults.results) {
-        const listName = (row as any).special_list_name;
+        const listName = (row as any).list_name;
         const isMember = (row as any).is_member === 1;
         
         if (listName === 'loved') membership.loved = isMember;
@@ -562,30 +562,47 @@ export async function toggleArtworkListMembership(c: Context<{ Bindings: WorkerE
 
     // First, ensure the user has the special list
     const ensureListQuery = `
-      INSERT OR IGNORE INTO lists (list_id, user_token, name, special_list_name, created_at)
-      VALUES (?, ?, ?, ?, datetime('now'))
+      INSERT OR IGNORE INTO lists (id, owner_user_id, name, is_system_list, created_at)
+      VALUES (?, ?, ?, 1, datetime('now'))
     `;
 
-    const listId = `${userToken}-${listType}`;
+    const listId = crypto.randomUUID();
     const listNames = {
       loved: 'Loved',
       beenHere: 'Been Here', 
       wantToSee: 'Want to See'
     };
 
-    await db.prepare(ensureListQuery)
-      .bind(listId, userToken, listNames[listType as keyof typeof listNames], listType)
-      .run();
+    // Check if list already exists for this user
+    const existingListQuery = `
+      SELECT id FROM lists 
+      WHERE owner_user_id = ? AND name = ? AND is_system_list = 1
+    `;
+    
+    let existingList = await db.prepare(existingListQuery)
+      .bind(userToken, listNames[listType as keyof typeof listNames])
+      .first();
+
+    let actualListId: string;
+    if (existingList) {
+      actualListId = (existingList as any).id;
+    } else {
+      // Create the list
+      await db.prepare(ensureListQuery)
+        .bind(listId, userToken, listNames[listType as keyof typeof listNames])
+        .run();
+      actualListId = listId;
+    }
 
     if (action === 'add') {
       // Add artwork to list
       const addQuery = `
-        INSERT OR IGNORE INTO list_items (list_id, artwork_id, added_at)
-        VALUES (?, ?, datetime('now'))
+        INSERT OR IGNORE INTO list_items (id, list_id, artwork_id, added_by_user_id, created_at)
+        VALUES (?, ?, ?, ?, datetime('now'))
       `;
       
       await db.prepare(addQuery)
-        .bind(listId, artworkId)
+        .bind(crypto.randomUUID(), actualListId, artworkId, userToken)
         .run();
 
     } else {
@@ -596,7 +613,7 @@ export async function toggleArtworkListMembership(c: Context<{ Bindings: WorkerE
       `;
       
       await db.prepare(removeQuery)
-        .bind(listId, artworkId)
+        .bind(actualListId, artworkId)
         .run();
     }
 
@@ -674,7 +691,7 @@ export async function getArtworkCounts(c: Context<{ Bindings: WorkerEnv }>): Pro
     // Process special list counts
     if (countsResults.success && countsResults.results) {
       for (const row of countsResults.results) {
-        const listName = (row as any).special_list_name;
+        const listName = (row as any).list_name;
         const count = (row as any).count || 0;
         
         if (listName === 'loved') counts.loved = count;
