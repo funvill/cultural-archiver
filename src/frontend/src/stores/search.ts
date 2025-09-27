@@ -2,6 +2,7 @@ import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
 import type { SearchResult } from '../types';
 import { apiService, getErrorMessage, isNetworkError } from '../services/api';
+import { parseListFilters, type ListFilter } from '../utils/listFilters';
 
 /**
  * Search state management store
@@ -20,6 +21,10 @@ export const useSearchStore = defineStore('search', () => {
   const error = ref<string | null>(null);
   const suggestions = ref<string[]>([]);
   const recentQueries = ref<string[]>([]);
+
+  // List filtering state
+  const currentListFilters = ref<ListFilter[]>([]);
+  const baseQuery = ref('');
 
   // Search results cache: query -> { results, total, page }
   const searchCache = ref<
@@ -200,6 +205,74 @@ export const useSearchStore = defineStore('search', () => {
     }
   }
 
+  // List-based search functionality for MVP
+  async function searchInList(
+    listId: string, 
+    searchQuery: string, 
+    pageNum: number, 
+    limit: number
+  ): Promise<any> {
+    try {
+      // Get list details with all items (for MVP - can be optimized later)
+      const listResponse = await apiService.getListDetails(listId, 1, 1000);
+      
+      if (!listResponse.success || !listResponse.data) {
+        throw new Error('List not found or inaccessible');
+      }
+
+      let artworks = listResponse.data.items;
+
+      // If there's a search query, filter artworks by title, description, or tags
+      if (searchQuery.trim().length > 0) {
+        const queryLower = searchQuery.toLowerCase();
+        artworks = artworks.filter((artwork: any) => {
+          const title = artwork.title?.toLowerCase() || '';
+          const description = artwork.description?.toLowerCase() || '';
+          const tags = typeof artwork.tags === 'string' ? JSON.parse(artwork.tags || '{}') : artwork.tags || {};
+          
+          const tagString = Object.entries(tags)
+            .map(([key, value]) => `${key}:${value}`)
+            .join(' ')
+            .toLowerCase();
+
+          return title.includes(queryLower) || 
+                 description.includes(queryLower) || 
+                 tagString.includes(queryLower);
+        });
+      }
+
+      // Simple pagination
+      const total = artworks.length;
+      const totalPages = Math.ceil(total / limit);
+      const offset = (pageNum - 1) * limit;
+      const paginatedArtworks = artworks.slice(offset, offset + limit);
+
+      return {
+        success: true,
+        data: {
+          artworks: paginatedArtworks,
+          pagination: {
+            page: pageNum,
+            per_page: limit,
+            total: total,
+            total_pages: totalPages,
+            has_more: pageNum < totalPages,
+          },
+          query: {
+            original: searchQuery,
+            processed: searchQuery,
+          },
+        },
+      };
+    } catch (error) {
+      console.error('Error searching in list:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to search in list',
+      };
+    }
+  }
+
   // Search functionality
   async function performSearch(
     searchQuery: string,
@@ -207,6 +280,11 @@ export const useSearchStore = defineStore('search', () => {
     append: boolean = false
   ): Promise<void> {
     const trimmedQuery = searchQuery.trim();
+
+    // Parse list filters from the query
+    const { listFilters, remainingQuery } = parseListFilters(trimmedQuery);
+    currentListFilters.value = listFilters;
+    baseQuery.value = remainingQuery;
 
     if (trimmedQuery.length === 0) {
       setResults([]);
@@ -242,7 +320,17 @@ export const useSearchStore = defineStore('search', () => {
     clearError();
 
     try {
-      const response = await apiService.searchArtworks(trimmedQuery, pageNum, perPage.value);
+      let response;
+
+      // If there are list filters, use list-based search
+      if (listFilters.length > 0) {
+        // For MVP, use the first list filter (multiple list filtering can be added later)
+        const listFilter = listFilters[0];
+        response = await searchInList(listFilter.listId, remainingQuery, pageNum, perPage.value);
+      } else {
+        // Regular search
+        response = await apiService.searchArtworks(trimmedQuery, pageNum, perPage.value);
+      }
 
       if (response.data) {
         type ArtworkLike = {
@@ -551,6 +639,10 @@ export const useSearchStore = defineStore('search', () => {
     error: computed(() => error.value),
     suggestions: computed(() => suggestions.value),
     recentQueries: computed(() => recentQueries.value),
+
+    // List filtering state
+    currentListFilters: computed(() => currentListFilters.value),
+    baseQuery: computed(() => baseQuery.value),
 
     // Computed
     hasResults,

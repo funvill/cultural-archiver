@@ -11,6 +11,7 @@ import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 import { useInfiniteScroll } from '../composables/useInfiniteScroll';
 import { useArtworkTypeFilters } from '../composables/useArtworkTypeFilters';
 import type { SearchResult, Coordinates } from '../types/index';
+import { formatListFilter } from '../utils/listFilters';
 
 const route = useRoute();
 const router = useRouter();
@@ -45,6 +46,10 @@ const isLoading = computed(() => searchStore.isLoading);
 const error = computed(() => searchStore.error);
 const suggestions = computed(() => searchStore.suggestions);
 const recentQueries = computed(() => searchStore.recentQueries);
+
+// List filtering state
+const currentListFilters = computed(() => searchStore.currentListFilters);
+const baseQuery = computed(() => searchStore.baseQuery);
 
 // Artwork type filtering
 const { filterArtworks } = useArtworkTypeFilters();
@@ -771,6 +776,20 @@ onUnmounted(() => {
 
         <!-- Search Results -->
         <div v-if="hasResults" class="space-y-6">
+          <!-- List Filter Indicator -->
+          <div v-if="currentListFilters.length > 0" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <div class="flex items-center">
+              <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v0a2 2 0 01-2 2H10a2 2 0 01-2-2v0z" />
+              </svg>
+              <span class="text-sm font-medium text-blue-900">
+                Filtering by {{ formatListFilter(currentListFilters[0]) }}
+                <span v-if="baseQuery" class="text-blue-700"> · Search: "{{ baseQuery }}"</span>
+              </span>
+            </div>
+          </div>
+
           <!-- Results Header -->
           <div class="flex items-center justify-between">
             <h2 class="text-lg font-medium text-gray-900">
