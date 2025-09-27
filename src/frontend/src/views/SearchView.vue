@@ -376,11 +376,11 @@ function getLocationMethodStyle(detectedSources: any): string {
 
   switch (method) {
     case 'Photo EXIF data':
-      return 'bg-green-100 text-green-800 border border-green-200';
+      return 'theme-success-container theme-on-success-container border border-green-200';
     case 'Device GPS':
-      return 'bg-blue-100 text-blue-800 border border-blue-200';
+      return 'theme-primary-container theme-on-primary-container border border-blue-200';
     case 'IP location':
-      return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+      return 'theme-warning-container theme-on-warning-container border border-yellow-200';
     case 'Manual entry':
       return 'bg-purple-100 text-purple-800 border border-purple-200';
     default:
@@ -515,7 +515,7 @@ onUnmounted(() => {
           <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
             <div class="flex items-start">
               <div class="flex-shrink-0">
-                <svg class="w-5 h-5 text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <svg class="w-5 h-5 theme-primary mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                   <path
                     fill-rule="evenodd"
                     d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
@@ -524,8 +524,8 @@ onUnmounted(() => {
                 </svg>
               </div>
               <div class="ml-3">
-                <h3 class="text-sm font-medium text-blue-900">What would you like to do?</h3>
-                <div class="mt-2 text-sm text-blue-700">
+                <h3 class="text-sm font-medium theme-primary">What would you like to do?</h3>
+                <div class="mt-2 text-sm theme-primary">
                   <p>
                     <strong>Add to existing artwork:</strong> Click on any artwork card below to add
                     your photos as a new logbook entry
@@ -549,7 +549,7 @@ onUnmounted(() => {
           >
             <div class="flex items-center justify-center space-x-4">
               <div class="flex-shrink-0">
-                <div class="w-12 h-12 bg-green-600 rounded-lg flex items-center justify-center">
+                <div class="w-12 h-12 theme-success rounded-lg flex items-center justify-center">
                   <PlusIcon class="w-6 h-6 text-white" />
                 </div>
               </div>
@@ -651,8 +651,8 @@ onUnmounted(() => {
 
             <!-- Tag Search Help -->
             <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-              <h3 class="text-sm font-medium text-blue-900 mb-2">🏷️ Advanced Tag Search</h3>
-              <div class="text-xs text-blue-700 space-y-1">
+              <h3 class="text-sm font-medium theme-primary mb-2">🏷️ Advanced Tag Search</h3>
+              <div class="text-xs theme-primary space-y-1">
                 <div>
                   <strong>tag:key</strong> - Find artworks with a specific tag (e.g.,
                   <em>tag:material</em>)
@@ -673,7 +673,7 @@ onUnmounted(() => {
               <p class="font-medium text-gray-700 mb-3">Try searching for:</p>
               <div v-for="tip in searchTips" :key="tip" class="text-left">
                 <button
-                  class="text-blue-600 hover:text-blue-700 hover:underline focus:outline-none focus:underline"
+                  class="theme-primary hover:underline focus:outline-none focus:underline"
                   @click="handleSearch(getTipSearchTerm(tip))"
                 >
                   {{ tip }}
@@ -712,7 +712,7 @@ onUnmounted(() => {
         <div v-if="error" class="text-center py-12">
           <div class="mx-auto max-w-md">
             <svg
-              class="mx-auto h-12 w-12 text-red-400 mb-4"
+              class="mx-auto h-12 w-12 theme-error mb-4"
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -732,7 +732,8 @@ onUnmounted(() => {
             </p>
 
             <button
-              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md theme-primary theme-on-primary focus:outline-none focus:ring-2 focus:ring-offset-2"
+              style="--tw-ring-color: var(--md-sys-color-primary);"
               @click="performSearch(searchStore.query)"
             >
               Try Again
@@ -779,13 +780,13 @@ onUnmounted(() => {
           <!-- List Filter Indicator -->
           <div v-if="currentListFilters.length > 0" class="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <div class="flex items-center">
-              <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg class="w-5 h-5 theme-primary mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v0a2 2 0 01-2 2H10a2 2 0 01-2-2v0z" />
               </svg>
-              <span class="text-sm font-medium text-blue-900">
+              <span class="text-sm font-medium theme-primary">
                 Filtering by {{ currentListFilters[0] ? formatListFilter(currentListFilters[0]) : 'Unknown List' }}
-                <span v-if="baseQuery" class="text-blue-700"> · Search: "{{ baseQuery }}"</span>
+                <span v-if="baseQuery" class="theme-primary"> · Search: "{{ baseQuery }}"</span>
               </span>
             </div>
           </div>

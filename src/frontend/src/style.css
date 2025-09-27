@@ -115,8 +115,22 @@
 
   /* Material-like CSS variables and global FAB styles */
   :root {
-    --md-primary: #1e88e5; /* blue 600 */
+    /* Themeable Material CSS variables. These are populated at runtime by `applyTheme()`
+       in `src/theme/theme.ts`. They also include sensible fallbacks for build-time CSS.
+    */
+    --md-primary: #1e88e5; /* fallback blue 600 */
+    --md-primary-variant: #1565c0;
+    --md-secondary: #8e24aa;
+    --md-secondary-variant: #6a1b9a;
+    --md-background: #f8fafc;
+    --md-surface: #ffffff;
+    --md-error: #b00020;
     --md-on-primary: #ffffff;
+    --md-on-secondary: #ffffff;
+    --md-on-background: #111827;
+    --md-on-surface: #111827;
+    --md-on-error: #ffffff;
+
     --appbar-height: 64px;
     /* Compute FAB so 30% of it overlaps below the 64px header when top:0 */
     --fab-size: 92px;
@@ -127,8 +141,8 @@
     width: var(--fab-size);
     height: var(--fab-size);
     border-radius: 9999px;
-    background-color: var(--md-primary);
-    color: var(--md-on-primary);
+    background-color: var(--md-primary, #1e88e5);
+    color: var(--md-on-primary, #ffffff);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -141,6 +155,71 @@
     border: none;
     cursor: pointer;
   }
+
+/* Theme semantic utility classes -------------------------------------------------- */
+/* These map to the runtime theme CSS variables defined by `theme.ts`.
+   Use these in templates instead of hard-coded Tailwind color utilities. */
+.theme-background { background-color: rgb(var(--md-background)); }
+.theme-on-background { color: rgb(var(--md-on-background)); }
+.theme-surface { background-color: rgb(var(--md-surface)); }
+.theme-on-surface { color: rgb(var(--md-on-surface)); }
+.theme-primary { background-color: rgb(var(--md-primary)); color: rgb(var(--md-on-primary)); }
+.theme-on-primary { color: rgb(var(--md-on-primary)); }
+.theme-secondary { background-color: rgb(var(--md-secondary)); color: rgb(var(--md-on-secondary)); }
+.theme-on-secondary { color: rgb(var(--md-on-secondary)); }
+.theme-error { background-color: rgb(var(--md-error)); color: rgb(var(--md-on-error)); }
+.theme-on-error { color: rgb(var(--md-on-error)); }
+
+/* Success / Warning semantic utilities */
+.theme-success { background-color: rgb(var(--md-success)); color: rgb(var(--md-on-success)); }
+.theme-on-success { color: rgb(var(--md-on-success)); }
+.theme-warning { background-color: rgb(var(--md-warning)); color: rgb(var(--md-on-warning)); }
+.theme-on-warning { color: rgb(var(--md-on-warning)); }
+
+/* Small helpers for borders or muted text that use on-surface with opacity */
+.theme-muted { color: rgba(var(--md-on-surface), 0.7); }
+.theme-border { border-color: rgba(var(--md-on-surface), 0.12); }
+
+/* Compatibility mappings for common Tailwind color utility classes
+  These let existing templates that still use Tailwind color utilities pick up
+  the active runtime theme until we finish replacing all instances. */
+.text-gray-900 { color: rgb(var(--md-on-background)) !important; }
+.text-gray-800 { color: rgb(var(--md-on-surface)) !important; }
+.text-gray-700 { color: rgba(var(--md-on-surface), 0.85) !important; }
+.text-gray-600 { color: rgba(var(--md-on-surface), 0.7) !important; }
+.text-gray-500 { color: rgba(var(--md-on-surface), 0.6) !important; }
+.text-gray-400 { color: rgba(var(--md-on-surface), 0.5) !important; }
+
+.bg-white { background-color: rgb(var(--md-surface)) !important; }
+.bg-gray-50 { background-color: rgb(var(--md-background)) !important; }
+.bg-gray-100 { background-color: rgba(var(--md-on-surface), 0.04) !important; }
+
+/* Accent colors - map common tailwind utility names to theme variables where it makes sense.
+  We keep the original hue variants for granular cases; these mappings are opinionated. */
+.text-blue-600 { color: rgb(var(--md-primary)) !important; }
+.bg-blue-600 { background-color: rgb(var(--md-primary)) !important; }
+.text-green-600 { color: rgb(var(--md-success)) !important; }
+.bg-green-600 { background-color: rgb(var(--md-success)) !important; }
+.text-yellow-600 { color: rgb(var(--md-warning)) !important; }
+.bg-yellow-600 { background-color: rgb(var(--md-warning)) !important; }
+.text-red-600 { color: rgb(var(--md-error)) !important; }
+.bg-red-600 { background-color: rgb(var(--md-error)) !important; }
+
+/* Status badges fallback - a few commonly used utility combos */
+.bg-green-100 { background-color: rgba(var(--md-secondary), 0.12) !important; }
+.text-green-800 { color: rgba(var(--md-secondary), 0.95) !important; }
+.bg-yellow-100 { background-color: rgba(var(--md-error), 0.12) !important; }
+.text-yellow-800 { color: rgba(var(--md-error), 0.95) !important; }
+.bg-red-100 { background-color: rgba(var(--md-error), 0.12) !important; }
+.text-red-800 { color: rgba(var(--md-error), 0.95) !important; }
+
+/* Map status badge fallbacks to semantic success/warning/error vars where appropriate */
+.bg-green-100 { background-color: rgba(var(--md-success), 0.12) !important; }
+.text-green-800 { color: rgba(var(--md-success), 0.95) !important; }
+.bg-yellow-100 { background-color: rgba(var(--md-warning), 0.12) !important; }
+.text-yellow-800 { color: rgba(var(--md-warning), 0.95) !important; }
+.bg-red-100 { background-color: rgba(var(--md-error), 0.12) !important; }
+.text-red-800 { color: rgba(var(--md-error), 0.95) !important; }
 
   .fab:hover,
   .fab:focus {

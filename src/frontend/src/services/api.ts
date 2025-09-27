@@ -603,6 +603,13 @@ export const apiService = {
     return client.get('/me/profile');
   },
 
+  /**
+   * Update user preferences (stored server-side in KV)
+   */
+  async updateUserPreferences(preferences: Record<string, unknown>): Promise<ApiResponse<{ preferences: Record<string, unknown> }>> {
+    return client.put('/me/preferences', preferences);
+  },
+
   // ================================
   // Badge System Endpoints
   // ================================

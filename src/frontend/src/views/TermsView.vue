@@ -39,19 +39,20 @@ onMounted(async () => {
       <!-- Loading State -->
       <div v-if="isLoading" class="text-center py-8">
         <div
-          class="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"
+          class="inline-block animate-spin rounded-full h-8 w-8 border-b-2"
+          style="border-color: rgb(var(--md-primary));"
         ></div>
-        <p class="mt-2 text-gray-600">Loading terms of service...</p>
+        <p class="mt-2 theme-muted">Loading terms of service...</p>
       </div>
 
       <!-- Error State -->
       <div v-else-if="error" class="text-center py-8">
         <div class="bg-red-50 border border-red-200 rounded-lg p-6">
-          <h2 class="text-xl font-semibold text-red-800 mb-2">Unable to Load Terms of Service</h2>
-          <p class="text-red-600">{{ error }}</p>
+          <h2 class="text-xl font-semibold theme-on-error mb-2">Unable to Load Terms of Service</h2>
+          <p class="theme-on-error">{{ error }}</p>
           <button
             @click="$router.go(0)"
-            class="mt-4 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+            class="mt-4 px-4 py-2 theme-error rounded hover:opacity-95 transition-colors"
           >
             Retry
           </button>
@@ -61,7 +62,7 @@ onMounted(async () => {
       <!-- Content -->
       <div
         v-else
-        class="prose prose-blue max-w-none prose-headings:text-gray-900 prose-a:text-blue-600 prose-a:hover:text-blue-800"
+        class="prose prose-blue max-w-none theme-on-surface"
         v-html="termsContent"
       ></div>
     </div>
@@ -69,68 +70,105 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-/* Additional styling for markdown content */
+/* Additional styling for markdown content using theme variables */
 :deep(.prose) {
-  @apply text-gray-700;
+  color: var(--md-on-surface, #374151);
 }
 
 :deep(.prose h1) {
-  @apply text-3xl font-bold mb-6;
+  font-size: 1.875rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  color: var(--md-on-background, #111827);
 }
 
 :deep(.prose h2) {
-  @apply text-2xl font-semibold mt-8 mb-4;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  color: var(--md-on-background, #111827);
 }
 
 :deep(.prose h3) {
-  @apply text-xl font-semibold mt-6 mb-3;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+  color: var(--md-on-background, #111827);
 }
 
 :deep(.prose p) {
-  @apply mb-4 leading-relaxed;
+  margin-bottom: 1rem;
+  line-height: 1.625;
 }
 
 :deep(.prose ul) {
-  @apply mb-4;
+  margin-bottom: 1rem;
 }
 
 :deep(.prose li) {
-  @apply mb-1;
+  margin-bottom: 0.25rem;
 }
 
 :deep(.prose a) {
-  @apply underline transition-colors;
+  text-decoration: underline;
+  transition: color 0.15s ease-in-out;
+  color: var(--md-primary, #2563eb);
+}
+
+:deep(.prose a:hover) {
+  color: var(--md-primary, #1d4ed8);
 }
 
 :deep(.prose strong) {
-  @apply font-semibold text-gray-900;
+  font-weight: 600;
+  color: var(--md-on-background, #111827);
 }
 
 :deep(.prose code) {
-  @apply bg-gray-100 px-1 py-0.5 rounded text-sm font-mono;
+  background-color: var(--md-surface-variant, #f3f4f6);
+  padding: 0.125rem 0.25rem;
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  font-family: ui-monospace, monospace;
 }
 
 :deep(.prose pre) {
-  @apply bg-gray-100 p-4 rounded-lg overflow-x-auto;
+  background-color: var(--md-surface-variant, #f3f4f6);
+  padding: 1rem;
+  border-radius: 0.5rem;
+  overflow-x: auto;
 }
 
 :deep(.prose blockquote) {
-  @apply border-l-4 border-blue-200 pl-4 italic text-gray-600;
+  border-left: 4px solid var(--md-primary-container, #dbeafe);
+  padding-left: 1rem;
+  font-style: italic;
+  color: var(--md-on-surface-variant, #6b7280);
 }
 
 :deep(.prose hr) {
-  @apply my-8 border-gray-300;
+  margin: 2rem 0;
+  border-color: var(--md-outline, #d1d5db);
 }
 
 :deep(.prose table) {
-  @apply w-full border-collapse border border-gray-300;
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--md-outline, #d1d5db);
 }
 
 :deep(.prose th) {
-  @apply bg-gray-50 p-2 border border-gray-300 font-semibold text-left;
+  background-color: var(--md-surface-variant, #f9fafb);
+  padding: 0.5rem;
+  border: 1px solid var(--md-outline, #d1d5db);
+  font-weight: 600;
+  text-align: left;
 }
 
 :deep(.prose td) {
-  @apply p-2 border border-gray-300;
+  padding: 0.5rem;
+  border: 1px solid var(--md-outline, #d1d5db);
 }
 </style>

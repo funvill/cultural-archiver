@@ -148,7 +148,8 @@ function handleKeydown(event: KeyboardEvent): void {
 
 <template>
   <article
-    class="artwork-card bg-white rounded-xl shadow-sm border-1 border-gray transition-all duration-300 ease-in-out hover:shadow-2xl focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 transform-gpu overflow-hidden"
+    class="artwork-card rounded-xl shadow-sm border-1 transition-all duration-300 ease-in-out hover:shadow-2xl transform-gpu overflow-hidden"
+    :style="{ background: 'var(--md-surface, white)', borderColor: 'var(--md-outline, rgba(0,0,0,0.08))' }"
     :class="{
       'cursor-pointer': clickable && !loading,
       'cursor-default': !clickable || loading,
@@ -165,7 +166,7 @@ function handleKeydown(event: KeyboardEvent): void {
     <!-- Compact Layout -->
     <div v-if="compact" class="flex h-full">
       <!-- Photo Thumbnail -->
-  <div class="flex-shrink-0 w-32 h-full relative overflow-hidden rounded-l-lg bg-gray-100">
+  <div class="flex-shrink-0 w-32 h-full relative overflow-hidden rounded-l-lg" :style="{ background: 'var(--md-surface-variant, #f3f4f6)' }">
         <img
           v-if="hasPhoto && photoUrl"
           :src="photoUrl"
@@ -176,10 +177,11 @@ function handleKeydown(event: KeyboardEvent): void {
         />
         <div
           v-else
-    class="w-full h-full flex items-center justify-center bg-gray-50"
+    class="w-full h-full flex items-center justify-center"
+          :style="{ background: 'var(--md-surface-variant, #fafafa)' }"
           aria-hidden="true"
         >
-          <svg class="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" :style="{ color: 'var(--md-outline, #9ca3af)' }">
             <path
               stroke-linecap="round"
               stroke-linejoin="round"
@@ -197,9 +199,10 @@ function handleKeydown(event: KeyboardEvent): void {
         <!-- Loading overlay -->
         <div
           v-if="loading"
-          class="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center"
+          class="absolute inset-0 flex items-center justify-center"
+          :style="{ background: 'color-mix(in srgb, var(--md-surface, white) 75%, transparent)' }"
         >
-          <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+          <div class="animate-spin rounded-full h-4 w-4" :style="{ borderBottomColor: 'var(--md-primary, #2563eb)', borderWidth: '2px', borderStyle: 'solid' }"></div>
         </div>
       </div>
 
@@ -266,7 +269,8 @@ function handleKeydown(event: KeyboardEvent): void {
         <!-- Photo count badge (top-right) - show human readable text so tests can assert '3 photos' -->
         <div
           v-if="artwork.photo_count && artwork.photo_count > 1"
-          class="photo-count-overlay absolute top-2 right-2 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded z-10 flex items-center gap-1"
+          class="photo-count-overlay absolute top-2 right-2 text-xs px-2 py-1 rounded z-10 flex items-center gap-1"
+          :style="{ background: 'color-mix(in srgb, var(--md-on-surface, #000) 0.6, transparent)', color: 'var(--md-on-surface, #fff)' }"
         >
           <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -277,17 +281,17 @@ function handleKeydown(event: KeyboardEvent): void {
 
         <!-- Type badge (top-right) -->
         <div class="type-badge-overlay absolute top-2 left-12 z-10">
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-800 bg-opacity-60 text-white">{{ artworkType }}</span>
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" :style="{ background: 'var(--md-primary-container, rgba(37,99,235,0.12))', color: 'var(--md-on-primary-container, #0f172a)' }">{{ artworkType }}</span>
         </div>
 
         <!-- Bottom overlay with title + artist -->
-        <div class="text-overlay absolute left-0 right-0 bottom-0 p-3 bg-gradient-to-t from-black/70 to-transparent text-white z-10">
-          <h3 class="text-base font-semibold leading-tight line-clamp-2">{{ artworkTitle }}</h3>
-          <p v-if="artistName" class="text-xs text-gray-200 mt-1 truncate">{{ artistName }}</p>
+          <div class="text-overlay absolute left-0 right-0 bottom-0 p-3 text-white z-10" :style="{ background: 'linear-gradient(180deg, transparent, color-mix(in srgb, var(--md-surface, black) 80%))' }">
+          <h3 class="text-base font-semibold leading-tight line-clamp-2" :style="{ color: 'var(--md-on-surface, #fff)' }">{{ artworkTitle }}</h3>
+          <p v-if="artistName" class="text-xs mt-1 truncate" :style="{ color: 'var(--md-on-surface-variant, #e5e7eb)' }">{{ artistName }}</p>
           <!-- Always show distance if requested (even when artist exists) -->
-          <p v-if="showDistance && distanceText" class="text-xs text-gray-200 mt-1">{{ distanceText }}</p>
+          <p v-if="showDistance && distanceText" class="text-xs mt-1" :style="{ color: 'var(--md-on-surface-variant, #e5e7eb)' }">{{ distanceText }}</p>
           <!-- Show material/year if available as secondary meta -->
-          <p v-if="materialYear" class="text-xs text-gray-300 mt-1">{{ materialYear }}</p>
+          <p v-if="materialYear" class="text-xs mt-1" :style="{ color: 'var(--md-on-surface-variant, #cbd5e1)' }">{{ materialYear }}</p>
         </div>
       </div>
 
@@ -296,7 +300,8 @@ function handleKeydown(event: KeyboardEvent): void {
         <button
           @click="handleAddReport"
           :disabled="!!loading"
-          class="w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+          class="w-full px-4 py-2 text-sm font-medium rounded-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+          :style="{ background: 'var(--md-primary, #2563eb)', color: 'var(--md-on-primary, #fff)', border: '1px solid transparent' }"
         >
           <svg
             class="w-4 h-4 inline-block mr-2"
