@@ -3,27 +3,37 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import MapComponent from '../components/MapComponent.vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
+import MapFiltersModal from '../components/MapFiltersModal.vue';
 import { useArtworksStore } from '../stores/artworks';
 import { useMapPreviewStore } from '../stores/mapPreview';
+import { useMapFilters } from '../composables/useMapFilters';
 import { apiService } from '../services/api';
 import type { ArtworkPin, Coordinates, MapPreview, SearchResult } from '../types';
+import { AdjustmentsHorizontalIcon } from '@heroicons/vue/24/outline';
 
 const router = useRouter();
 const route = useRoute();
 const artworksStore = useArtworksStore();
 const mapPreviewStore = useMapPreviewStore();
+const mapFilters = useMapFilters();
 
-// List filtering state
+// List filtering state (legacy support for URL params)
 const currentListId = ref<string | null>(null);
 const listArtworks = ref<ArtworkPin[]>([]);
 const listInfo = ref<any>(null);
 const listFilterActive = ref(false);
 
+// Map filters modal state
+const showFiltersModal = ref(false);
+
+// Filtered artworks for display
+const displayedArtworks = ref<ArtworkPin[]>([]);
+
 // Computed properties
 const mapCenter = computed(() => artworksStore.mapCenter);
 const mapZoom = computed(() => artworksStore.mapZoom);
 const artworks = computed(() => {
-  // Use filtered list artworks if list filtering is active
+  // Use filtered list artworks if legacy list filtering is active
   if (listFilterActive.value && listArtworks.value.length > 0) {
     console.log('[MARKER DEBUG] MapView using list-filtered artworks:', {
       listArtworksLength: listArtworks.value.length,
@@ -33,15 +43,22 @@ const artworks = computed(() => {
     return listArtworks.value;
   }
 
-  // Default behavior - use all artworks
-  const storeArtworks = artworksStore.artworks;
-  console.log('[MARKER DEBUG] MapView using all artworks:', {
-    storeArtworksLength: storeArtworks.length,
-    listFilterActive: listFilterActive.value,
-    timestamp: new Date().toISOString(),
-  });
-  return storeArtworks;
+  // Use displayedArtworks which may be filtered by map filters
+  return displayedArtworks.value;
 });
+
+// Update displayed artworks when store or filters change
+const updateDisplayedArtworks = async () => {
+  const storeArtworks = artworksStore.artworks;
+  
+  // Apply map filters if any are active
+  if (mapFilters.hasActiveFilters.value) {
+    console.log('[MAP FILTERS] Applying filters to store artworks');
+    displayedArtworks.value = await mapFilters.applyFilters(storeArtworks);
+  } else {
+    displayedArtworks.value = storeArtworks;
+  }
+};
 
 // Preview state
 const currentPreview = computed(() => mapPreviewStore.currentPreview);
@@ -149,6 +166,20 @@ function clearListFilter() {
   listInfo.value = null;
 }
 
+// Map filters handlers
+const handleOpenFilters = () => {
+  showFiltersModal.value = true;
+};
+
+const handleCloseFilters = () => {
+  showFiltersModal.value = false;
+};
+
+const handleFiltersChanged = async () => {
+  console.log('[MAP FILTERS] Filters changed, updating displayed artworks');
+  await updateDisplayedArtworks();
+};
+
 function handlePreviewArtwork(preview: MapPreview) {
   console.log('[MAPVIEW DEBUG] handlePreviewArtwork called with:', preview);
   
@@ -238,7 +269,27 @@ onMounted(() => {
     clearInterval(interval);
     window.removeEventListener('beforeunload', persist);
   });
+
+  // Initialize displayed artworks
+  updateDisplayedArtworks();
 });
+
+// Watch for artwork store changes to update display
+watch(
+  () => artworksStore.artworks,
+  async () => {
+    await updateDisplayedArtworks();
+  },
+  { deep: true }
+);
+
+// Watch for filter changes
+watch(
+  () => mapFilters.hasActiveFilters.value,
+  async () => {
+    await updateDisplayedArtworks();
+  }
+);
 
 // Watch for URL parameter changes to enable/disable list filtering
 watch(
@@ -257,10 +308,23 @@ watch(
 
 <template>
   <div class="map-view h-full w-full relative">
-    <!-- List Filter Indicator -->
+    <!-- Map Filters Banner -->
+    <div 
+      v-if="mapFilters.hasActiveFilters.value && !listFilterActive"
+      class="absolute top-4 left-4 right-16 z-40 bg-amber-50 border border-amber-200 rounded-lg p-3 shadow-sm"
+    >
+      <div class="flex items-center">
+        <AdjustmentsHorizontalIcon class="w-5 h-5 text-amber-600 mr-2 flex-shrink-0" />
+        <span class="text-sm font-medium text-amber-900">
+          {{ mapFilters.activeFilterDescription.value }}
+        </span>
+      </div>
+    </div>
+
+    <!-- Legacy List Filter Indicator -->
     <div 
       v-if="listFilterActive && listInfo"
-      class="absolute top-4 left-4 right-4 z-40 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-sm"
+      class="absolute top-4 left-4 right-16 z-40 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-sm"
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center">
@@ -279,6 +343,26 @@ watch(
           Show All
         </button>
       </div>
+    </div>
+
+    <!-- Map Filters Button -->
+    <div class="absolute top-4 right-4 z-30">
+      <button
+        @click="handleOpenFilters"
+        class="bg-white shadow-md rounded-full p-3 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+        title="Map filters"
+        aria-label="Open map filters"
+      >
+        <AdjustmentsHorizontalIcon 
+          class="w-5 h-5"
+          :class="mapFilters.hasActiveFilters.value ? 'text-amber-600' : 'text-gray-700'"
+        />
+        <!-- Active indicator -->
+        <div 
+          v-if="mapFilters.hasActiveFilters.value" 
+          class="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full border-2 border-white"
+        ></div>
+      </button>
     </div>
 
     <MapComponent
@@ -307,6 +391,13 @@ watch(
         @click="handlePreviewClick"
       />
     </div>
+
+    <!-- Map Filters Modal -->
+    <MapFiltersModal
+      :is-open="showFiltersModal"
+      @update:is-open="handleCloseFilters"
+      @filters-changed="handleFiltersChanged"
+    />
   </div>
 </template>
 
