@@ -25,9 +25,22 @@ const currentPage = ref(1);
 const totalPages = ref(1);
 const hasMore = ref(false);
 
+// Bulk operations state
+const selectedArtworks = ref<Set<string>>(new Set());
+const isSelectionMode = ref(false);
+const bulkRemoveLoading = ref(false);
+
 // Computed
 const isOwner = computed(() => {
   return authStore.token && list.value && list.value.owner_user_id === authStore.token;
+});
+
+const canBulkRemove = computed(() => {
+  return isOwner.value && !list.value?.is_readonly && selectedArtworks.value.size > 0;
+});
+
+const allSelected = computed(() => {
+  return artworks.value.length > 0 && artworks.value.every(artwork => selectedArtworks.value.has(artwork.id));
 });
 
 // Load list data
@@ -75,6 +88,60 @@ const loadMore = async () => {
 // Go back
 const goBack = () => {
   router.go(-1);
+};
+
+// Bulk operations
+const toggleSelectionMode = () => {
+  isSelectionMode.value = !isSelectionMode.value;
+  if (!isSelectionMode.value) {
+    selectedArtworks.value.clear();
+  }
+};
+
+const toggleArtworkSelection = (artworkId: string) => {
+  if (selectedArtworks.value.has(artworkId)) {
+    selectedArtworks.value.delete(artworkId);
+  } else {
+    selectedArtworks.value.add(artworkId);
+  }
+};
+
+const toggleSelectAll = () => {
+  if (allSelected.value) {
+    selectedArtworks.value.clear();
+  } else {
+    artworks.value.forEach(artwork => selectedArtworks.value.add(artwork.id));
+  }
+};
+
+const bulkRemoveItems = async () => {
+  if (!canBulkRemove.value || selectedArtworks.value.size === 0) return;
+  
+  bulkRemoveLoading.value = true;
+  error.value = null;
+  
+  try {
+    const artworkIds = Array.from(selectedArtworks.value);
+    const response = await apiService.removeArtworksFromList(props.id, artworkIds);
+    
+    if (response.success) {
+      // Remove items from local state
+      artworks.value = artworks.value.filter(artwork => !selectedArtworks.value.has(artwork.id));
+      selectedArtworks.value.clear();
+      isSelectionMode.value = false;
+      
+      // Update list item count
+      if (list.value) {
+        list.value.item_count -= artworkIds.length;
+      }
+    } else {
+      error.value = response.error || 'Failed to remove items';
+    }
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : 'Failed to remove items';
+  } finally {
+    bulkRemoveLoading.value = false;
+  }
 };
 
 // Initialize
@@ -129,6 +196,9 @@ onMounted(() => {
             <h1 class="text-3xl font-bold text-gray-900 mb-2">{{ list.name }}</h1>
             <p class="text-gray-600">
               {{ list.item_count }} artwork{{ list.item_count === 1 ? '' : 's' }}
+              <span v-if="isSelectionMode && selectedArtworks.size > 0" class="ml-2">
+                ({{ selectedArtworks.size }} selected)
+              </span>
             </p>
             
             <!-- System list indicator -->
@@ -141,8 +211,52 @@ onMounted(() => {
 
           <!-- Actions for list owner -->
           <div v-if="isOwner" class="flex items-center space-x-2">
-            <!-- Future: Edit, Delete, Share buttons could go here -->
-            <span class="text-sm text-gray-500">Owner</span>
+            <!-- Bulk operations -->
+            <div v-if="artworks.length > 0 && !list.is_readonly">
+              <button 
+                v-if="!isSelectionMode"
+                @click="toggleSelectionMode"
+                class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                        d="M4.7 9.3l4.8 4.8 10.4-10.4" />
+                </svg>
+                Select Items
+              </button>
+              
+              <!-- Selection mode controls -->
+              <div v-else class="flex items-center space-x-2">
+                <button 
+                  @click="toggleSelectAll"
+                  class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {{ allSelected ? 'Deselect All' : 'Select All' }}
+                </button>
+                
+                <button 
+                  @click="bulkRemoveItems"
+                  :disabled="!canBulkRemove || bulkRemoveLoading"
+                  class="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
+                >
+                  <svg v-if="bulkRemoveLoading" class="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <svg v-else class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Remove Selected ({{ selectedArtworks.size }})
+                </button>
+                
+                <button 
+                  @click="toggleSelectionMode"
+                  class="inline-flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -162,12 +276,37 @@ onMounted(() => {
       <!-- Artworks grid -->
       <div v-else>
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          <ArtworkCard 
+          <!-- Selectable artwork cards -->
+          <div 
             v-for="artwork in artworks" 
             :key="artwork.id"
-            :artwork="artwork"
-            :show-distance="false"
-          />
+            :class="[
+              'relative group cursor-pointer',
+              isSelectionMode && selectedArtworks.has(artwork.id) ? 'ring-2 ring-blue-500' : ''
+            ]"
+            @click="isSelectionMode ? toggleArtworkSelection(artwork.id) : $router.push(`/artwork/${artwork.id}`)"
+          >
+            <!-- Selection checkbox overlay (only visible in selection mode) -->
+            <div 
+              v-if="isSelectionMode" 
+              class="absolute top-2 left-2 z-10"
+            >
+              <input 
+                type="checkbox"
+                :checked="selectedArtworks.has(artwork.id)"
+                @click.stop
+                @change="toggleArtworkSelection(artwork.id)"
+                class="w-5 h-5 text-blue-600 bg-white border-2 border-gray-300 rounded focus:ring-blue-500"
+              />
+            </div>
+            
+            <!-- Use existing ArtworkCard but make it non-interactive when in selection mode -->
+            <ArtworkCard 
+              :artwork="artwork"
+              :show-distance="false"
+              :class="isSelectionMode ? 'pointer-events-none' : ''"
+            />
+          </div>
         </div>
 
         <!-- Load more button -->

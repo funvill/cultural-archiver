@@ -13,7 +13,8 @@ import type {
   AddToListRequest,
   ListItemsResponse,
   ArtworkApiResponse,
-  ValidationError
+  ValidationError,
+  SpecialListName
 } from '../types';
 import { createDatabaseService } from '../lib/database';
 import {
@@ -25,6 +26,7 @@ import {
 } from '../lib/errors';
 import { getUserToken } from '../middleware/auth';
 import { generateUUID } from '../../shared/constants';
+import { SPECIAL_LIST_NAMES } from '../types';
 
 const MAX_LIST_ITEMS = 1000; // Per PRD requirements
 
@@ -281,8 +283,74 @@ export async function removeArtworksFromList(c: Context<{ Bindings: WorkerEnv }>
     throw new UnauthorizedError('Authentication required to remove items from lists');
   }
 
+  const listId = c.req.param('id');
+  if (!listId) {
+    const error: ValidationError = {
+      field: 'id',
+      message: 'List ID is required',
+      code: 'REQUIRED'
+    };
+    throw new ValidationApiError([error]);
+  }
+
+  const db = createDatabaseService(c.env.DB);
+  const request = await c.req.json() as { artwork_ids: string[] };
+
+  if (!request.artwork_ids || !Array.isArray(request.artwork_ids) || request.artwork_ids.length === 0) {
+    const error: ValidationError = {
+      field: 'artwork_ids',
+      message: 'At least one artwork ID is required',
+      code: 'REQUIRED'
+    };
+    throw new ValidationApiError([error]);
+  }
+
+  // Validate all artwork IDs are strings
+  if (!request.artwork_ids.every(id => typeof id === 'string')) {
+    const error: ValidationError = {
+      field: 'artwork_ids',
+      message: 'All artwork IDs must be strings',
+      code: 'INVALID'
+    };
+    throw new ValidationApiError([error]);
+  }
+
+  // Verify list exists and user owns it
+  const listStmt = db.db.prepare('SELECT * FROM lists WHERE id = ?');
+  const list = await listStmt.bind(listId).first<ListRecord>();
+
+  if (!list) {
+    throw new NotFoundError('List not found');
+  }
+
+  if (list.owner_user_id !== userToken) {
+    throw new UnauthorizedError('You do not have permission to remove items from this list');
+  }
+
+  if (list.is_readonly) {
+    throw new UnauthorizedError('Cannot remove items from read-only list');
+  }
+
+  // Remove the items (use IN clause for bulk removal)
+  const placeholders = request.artwork_ids.map(() => '?').join(',');
+  const removeQuery = `
+    DELETE FROM list_items 
+    WHERE list_id = ? AND artwork_id IN (${placeholders})
+  `;
+
+  const removeStmt = db.db.prepare(removeQuery);
+  const result = await removeStmt.bind(listId, ...request.artwork_ids).run();
+
+  // Update list's updated_at timestamp
+  const now = new Date().toISOString();
+  const updateListStmt = db.db.prepare('UPDATE lists SET updated_at = ? WHERE id = ?');
+  await updateListStmt.bind(now, listId).run();
+
+  const removedCount = result.changes || 0;
+
   return c.json(createSuccessResponse({ 
-    message: 'Lists feature in development'
+    message: `${removedCount} artwork(s) removed from list`,
+    removed_count: removedCount
   }));
 }
 
@@ -295,9 +363,45 @@ export async function deleteList(c: Context<{ Bindings: WorkerEnv }>): Promise<R
     throw new UnauthorizedError('Authentication required to delete lists');
   }
 
-  return c.json(createSuccessResponse({ 
-    message: 'Lists feature in development'
-  }));
+  const listId = c.req.param('id');
+  if (!listId) {
+    const error: ValidationError = {
+      field: 'id',
+      message: 'List ID is required',
+      code: 'REQUIRED'
+    };
+    throw new ValidationApiError([error]);
+  }
+
+  const db = createDatabaseService(c.env.DB);
+
+  // Verify list exists and user owns it
+  const listStmt = db.db.prepare('SELECT * FROM lists WHERE id = ?');
+  const list = await listStmt.bind(listId).first<ListRecord>();
+
+  if (!list) {
+    throw new NotFoundError('List not found');
+  }
+
+  if (list.owner_user_id !== userToken) {
+    throw new UnauthorizedError('You do not have permission to delete this list');
+  }
+
+  // Block deletion of system lists (reserved lists)
+  if (list.is_system_list) {
+    const error: ValidationError = {
+      field: 'list_type',
+      message: 'Cannot delete reserved system lists',
+      code: 'INVALID'
+    };
+    throw new ValidationApiError([error]);
+  }
+
+  // Delete the list (CASCADE will handle list_items)
+  const deleteStmt = db.db.prepare('DELETE FROM lists WHERE id = ?');
+  await deleteStmt.bind(listId).run();
+
+  return c.json(createSuccessResponse({ message: 'List deleted successfully' }));
 }
 
 /**
@@ -310,6 +414,14 @@ export async function getUserLists(c: Context<{ Bindings: WorkerEnv }>): Promise
   }
 
   const db = createDatabaseService(c.env.DB);
+
+  // Ensure all system lists exist (auto-create if missing)
+  const systemListNames = Object.values(SPECIAL_LIST_NAMES);
+  await Promise.all(
+    systemListNames.map(listName => 
+      getOrCreateSystemList(c, userToken, listName)
+    )
+  );
 
   // Get user's lists with item counts, ordered by updated_at DESC per PRD
   const listsQuery = `
@@ -339,4 +451,57 @@ export async function getUserLists(c: Context<{ Bindings: WorkerEnv }>): Promise
   }));
 
   return c.json(createSuccessResponse(lists));
+}
+
+/**
+ * Internal function to create or get system list
+ * Used to ensure system lists exist when needed
+ */
+export async function getOrCreateSystemList(
+  c: Context<{ Bindings: WorkerEnv }>, 
+  userToken: string, 
+  listName: SpecialListName
+): Promise<ListRecord> {
+  const db = createDatabaseService(c.env.DB);
+
+  // Check if system list already exists
+  const existingListStmt = db.db.prepare(
+    'SELECT * FROM lists WHERE owner_user_id = ? AND name = ? AND is_system_list = 1'
+  );
+  const existingList = await existingListStmt.bind(userToken, listName).first<ListRecord>();
+
+  if (existingList) {
+    return existingList;
+  }
+
+  // Create the system list
+  const listId = generateUUID();
+  const now = new Date().toISOString();
+  const isValidated = listName === SPECIAL_LIST_NAMES.VALIDATED;
+
+  const insertStmt = db.db.prepare(`
+    INSERT INTO lists (id, owner_user_id, name, visibility, is_readonly, is_system_list, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+  `);
+  
+  await insertStmt.bind(
+    listId, 
+    userToken, 
+    listName, 
+    isValidated ? 'private' : 'unlisted',  // "Validated" list is private per PRD
+    isValidated ? 1 : 0,  // "Validated" list is readonly per PRD
+    now, 
+    now
+  ).run();
+
+  return {
+    id: listId,
+    owner_user_id: userToken,
+    name: listName,
+    visibility: isValidated ? 'private' : 'unlisted',
+    is_readonly: isValidated ? 1 : 0,
+    is_system_list: 1,
+    created_at: now,
+    updated_at: now,
+  };
 }
