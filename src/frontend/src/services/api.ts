@@ -1085,6 +1085,38 @@ export const apiService = {
   async deleteList(listId: string): Promise<ApiResponse<{ message: string }>> {
     return client.delete(`/lists/${listId}`);
   },
+
+  // ================================
+  // Generic HTTP Methods (for extensibility)
+  // ================================
+
+  /**
+   * Generic GET request
+   */
+  async get<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
+    return client.get<T>(endpoint, params);
+  },
+
+  /**
+   * Generic POST request
+   */
+  async post<T>(endpoint: string, data?: unknown): Promise<T> {
+    return client.post<T>(endpoint, data);
+  },
+
+  /**
+   * Generic PUT request
+   */
+  async put<T>(endpoint: string, data?: unknown): Promise<T> {
+    return client.put<T>(endpoint, data);
+  },
+
+  /**
+   * Generic DELETE request
+   */
+  async delete<T>(endpoint: string, data?: unknown): Promise<T> {
+    return client.delete<T>(endpoint, data);
+  },
 };
 
 // Utility functions for error handling

@@ -9,6 +9,7 @@ import MiniMap from '../components/MiniMap.vue';
 import TagBadge from '../components/TagBadge.vue';
 import TagEditor from '../components/TagEditor.vue';
 import AddToListDialog from '../components/AddToListDialog.vue';
+import ArtworkActionBar from '../components/ArtworkActionBar.vue';
 // import LogbookTimeline from '../components/LogbookTimeline.vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { apiService } from '../services/api';
@@ -612,6 +613,32 @@ async function checkPendingEdits(): Promise<void> {
   }
 }
 
+// Action Bar Methods
+function handleActionBarAuthRequired(): void {
+  // This could trigger a global auth modal
+  console.log('Authentication required for action');
+  // The action bar will handle showing auth flow
+}
+
+function handleActionBarEditArtwork(): void {
+  enterEditMode();
+}
+
+function handleActionBarAddLog(): void {
+  if (!authStore.isAuthenticated) {
+    handleActionBarAuthRequired();
+    return;
+  }
+  
+  // Navigate to add log page
+  router.push(`/artwork/${props.id}/logbook/add`);
+}
+
+function handleActionBarShare(): void {
+  // Action bar handles the sharing logic
+  announceSuccess('Artwork shared');
+}
+
 // (Previously had getArtworkTypeEmoji() for icon display above title; removed per product request.)
 </script>
 
@@ -696,6 +723,17 @@ async function checkPendingEdits(): Promise<void> {
           </div>
         </div>
       </section>
+
+      <!-- Action Bar - Social actions below photo -->
+      <ArtworkActionBar
+        :artwork-id="props.id"
+        :user-id="authStore.user?.id || null"
+        :permissions="{ canEdit: authStore.isAuthenticated }"
+        @auth-required="handleActionBarAuthRequired"
+        @edit-artwork="handleActionBarEditArtwork"
+        @add-log="handleActionBarAddLog"
+        @share-artwork="handleActionBarShare"
+      />
 
       <!-- Artwork Details - Title, Artist, and Description -->
   <section aria-labelledby="artwork-details-heading" class="mb-6 theme-surface rounded-lg border theme-border p-6">
