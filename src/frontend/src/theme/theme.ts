@@ -25,6 +25,11 @@ export type Theme = {
   textMuted?: string;
   textSubtle?: string;
   hoverBackground?: string;
+  // Icon hover effects
+  iconHover?: string;
+  iconHoverBackground?: string;
+  navIconHover?: string;
+  navIconHoverBackground?: string;
   // Content area colors
   contentBackground?: string;
   cardBackground?: string;
@@ -87,6 +92,12 @@ export function applyTheme(theme: Theme): void {
   setCssVar('--md-text-subtle', theme.textSubtle);
   setCssVar('--md-hover-background', theme.hoverBackground);
 
+  // Icon hover variables
+  setCssVar('--md-icon-hover', theme.iconHover);
+  setCssVar('--md-icon-hover-background', theme.iconHoverBackground);
+  setCssVar('--md-nav-icon-hover', theme.navIconHover);
+  setCssVar('--md-nav-icon-hover-background', theme.navIconHoverBackground);
+
   // Content area variables
   setCssVar('--md-content-background', theme.contentBackground);
   setCssVar('--md-card-background', theme.cardBackground);
@@ -147,7 +158,12 @@ export const defaultMaterialTheme: Theme = {
   // Utility colors
   textMuted: '#6b7280',
   textSubtle: '#9ca3af',
-  hoverBackground: '#f9fafb',
+  hoverBackground: 'rgba(255, 255, 255, 0.1)', // Semi-transparent white for better contrast on primary
+  // Icon hover effects
+  iconHover: '#1e88e5', // Blue fill on hover
+  iconHoverBackground: 'rgba(30, 136, 229, 0.1)', // Light blue background
+  navIconHover: '#FF0000', 
+  navIconHoverBackground: 'rgba(255, 255, 255, 0.15)', // Semi-transparent white background
   // Content area colors
   contentBackground: '#f9fafb',
   cardBackground: '#ffffff',
@@ -204,6 +220,11 @@ export const bauhausTheme: Theme = {
   textMuted: '#6b7280',
   textSubtle: '#9ca3af',
   hoverBackground: '#fef2f2',
+  // Icon hover effects
+  iconHover: '#e63946', // Deep red fill on hover
+  iconHoverBackground: 'rgba(230, 57, 70, 0.1)', // Light red background
+  navIconHover: '#ffffff', // White fill for nav icons
+  navIconHoverBackground: 'rgba(255, 255, 255, 0.15)', // Semi-transparent white background
   // Content area colors
   contentBackground: '#fffbeb',
   cardBackground: '#ffffff',
@@ -256,6 +277,11 @@ export const VancouverTheme: Theme = {
   textMuted: '#64748b',
   textSubtle: '#94a3b8',
   hoverBackground: '#f0f9ff',
+  // Icon hover effects
+  iconHover: '#0284c7', // Sky blue fill on hover
+  iconHoverBackground: 'rgba(2, 132, 199, 0.1)', // Light sky blue background
+  navIconHover: '#ffffff', // White fill for nav icons
+  navIconHoverBackground: 'rgba(255, 255, 255, 0.15)', // Semi-transparent white background
   // Content area colors
   contentBackground: '#f0f9ff',
   cardBackground: '#ffffff',
@@ -308,6 +334,11 @@ export const DarkGalleryTheme: Theme = {
   textMuted: '#9ca3af',
   textSubtle: '#6b7280',
   hoverBackground: '#374151',
+  // Icon hover effects
+  iconHover: '#6366f1', // Indigo fill on hover
+  iconHoverBackground: 'rgba(99, 102, 241, 0.1)', // Light indigo background
+  navIconHover: '#ffffff', // White fill for nav icons
+  navIconHoverBackground: 'rgba(255, 255, 255, 0.1)', // Semi-transparent white background
   // Content area colors
   contentBackground: '#0f172a',
   cardBackground: '#1f2937',
@@ -360,6 +391,11 @@ export const EarthyCulturalTheme: Theme =
   textMuted: '#78716c',
   textSubtle: '#a8a29e',
   hoverBackground: '#fef7ed',
+  // Icon hover effects
+  iconHover: '#d97706', // Amber fill on hover
+  iconHoverBackground: 'rgba(217, 119, 6, 0.1)', // Light amber background
+  navIconHover: '#ffffff', // White fill for nav icons
+  navIconHoverBackground: 'rgba(255, 255, 255, 0.15)', // Semi-transparent white background
   // Content area colors
   contentBackground: '#fefcf9',
   cardBackground: '#ffffff',
@@ -411,6 +447,11 @@ export const HighContrastDebugTheme: Theme = {
   "textMuted": "#8b008b",        // dark magenta for muted text
   "textSubtle": "#9370db",       // medium slate blue for subtle text
   "hoverBackground": "#e6e6fa",  // lavender for hover backgrounds
+  // Icon hover effects
+  "iconHover": "#ff1493",        // Hot pink fill on hover
+  "iconHoverBackground": "rgba(255, 20, 147, 0.2)", // Light hot pink background
+  "navIconHover": "#ffff00",     // Bright yellow fill for nav icons
+  "navIconHoverBackground": "rgba(255, 255, 0, 0.2)", // Light yellow background
   // Content area colors
   "contentBackground": "#f0e68c", // khaki - distinct content area
   "cardBackground": "#87ceeb",   // sky blue - cards stand out

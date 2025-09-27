@@ -226,6 +226,41 @@
 .theme-text-subtle { color: var(--md-text-subtle, rgba(var(--md-on-surface), 0.7)); }
 .theme-hover-background { background-color: var(--md-hover-background, rgba(var(--md-on-surface), 0.04)); }
 
+/* Icon hover effect utilities */
+.theme-icon-hover { 
+  transition: all 0.2s ease-in-out;
+}
+.theme-icon-hover:hover { 
+  color: var(--md-icon-hover, var(--md-primary)); 
+  background-color: var(--md-icon-hover-background, rgba(var(--md-primary), 0.1));
+  transform: scale(1.05);
+}
+
+/* Navigation icon hover effects - more emphasized for nav icons */
+.theme-nav-icon-hover { 
+  transition: all 0.2s ease-in-out;
+  border-radius: 0.375rem; /* rounded-md */
+  padding: 0.25rem; /* p-1 */
+}
+.theme-nav-icon-hover:hover { 
+  color: var(--md-nav-icon-hover, var(--md-primary)); 
+  background-color: var(--md-nav-icon-hover-background, rgba(var(--md-primary), 0.15));
+  transform: scale(1.1);
+}
+
+/* Special handling for icons inside buttons */
+.group:hover .theme-icon-hover,
+.group:focus .theme-icon-hover { 
+  color: var(--md-icon-hover, var(--md-primary)); 
+  transform: scale(1.05);
+}
+
+.group:hover .theme-nav-icon-hover,
+.group:focus .theme-nav-icon-hover { 
+  color: var(--md-nav-icon-hover, var(--md-primary)); 
+  transform: scale(1.1);
+}
+
 /* Content area theme utilities */
 .theme-content-background { background-color: var(--md-content-background, #f9fafb); }
 .theme-card-background { background-color: var(--md-card-background, #ffffff); }

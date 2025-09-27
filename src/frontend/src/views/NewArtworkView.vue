@@ -400,11 +400,11 @@ function getLocationMethodDescription(detectedSources: any): string {
       <div class="flex items-center mb-8">
         <button
           @click="goBack"
-          class="mr-4 p-2 rounded-lg transition-colors"
+          class="mr-4 p-2 rounded-lg transition-colors group"
           aria-label="Go back"
           :style="{ color: 'rgb(var(--md-on-background))' }"
         >
-          <ArrowLeftIcon class="w-5 h-5" />
+          <ArrowLeftIcon class="w-5 h-5 theme-icon-hover" />
         </button>
         <div>
           <h1 class="text-3xl font-bold" style="color: rgb(var(--md-on-background))">Add New Artwork</h1>
@@ -681,8 +681,8 @@ function getLocationMethodDescription(detectedSources: any): string {
       <div class="relative bg-white w-full max-w-xl rounded-lg shadow-xl overflow-hidden">
         <div class="flex items-center justify-between px-4 py-3 border-b">
           <h3 class="text-lg font-semibold text-gray-900">Select Location</h3>
-          <button @click="cancelLocationModal" class="p-2 rounded hover:bg-gray-100">
-            <XMarkIcon class="w-5 h-5" />
+          <button @click="cancelLocationModal" class="p-2 rounded hover:bg-gray-100 group">
+            <XMarkIcon class="w-5 h-5 theme-icon-hover" />
           </button>
         </div>
         <div class="relative">

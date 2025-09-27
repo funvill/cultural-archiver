@@ -144,7 +144,7 @@ const handleLogoutClick = () => emit('logoutClick');
       </div>
       <button
         @click="handleToggleExpanded"
-        class="flex items-center justify-center w-10 h-10 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
+        class="flex items-center justify-center w-10 h-10 rounded-full focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors theme-nav-icon-hover"
         aria-label="Collapse navigation"
         title="Collapse navigation"
       >
@@ -156,7 +156,7 @@ const handleLogoutClick = () => emit('logoutClick');
     <div v-else class="flex items-center justify-center px-3 py-3 theme-nav-border">
       <button
         @click="handleToggleExpanded"
-        class="flex items-center justify-center w-12 h-12 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+        class="flex items-center justify-center w-12 h-12 rounded-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors theme-nav-icon-hover"
         aria-label="Open navigation menu"
         title="Open navigation menu"
       >
@@ -197,12 +197,12 @@ const handleLogoutClick = () => emit('logoutClick');
             >
               <component 
                 :is="item.icon" 
-                class="flex-shrink-0 w-6 h-6"
+                class="flex-shrink-0 w-6 h-6 theme-nav-icon-hover"
                 :class="[
                   props.isExpanded ? 'mr-3' : '',
                   isRouteActive(item.path) 
                     ? 'theme-nav-active' 
-                    : 'theme-text-subtle group-hover:theme-text-muted'
+                    : 'theme-text-subtle'
                 ]"
                 aria-hidden="true" 
               />
@@ -233,12 +233,12 @@ const handleLogoutClick = () => emit('logoutClick');
             >
               <component
                 :is="item.icon"
-                class="flex-shrink-0 w-6 h-6"
+                class="flex-shrink-0 w-6 h-6 theme-nav-icon-hover"
                 :class="[
                   props.isExpanded ? 'mr-3' : '',
                   isRouteActive(item.path) 
                     ? 'theme-on-error' 
-                    : 'theme-text-subtle group-hover:theme-text-muted'
+                    : 'theme-text-subtle'
                 ]"
                 aria-hidden="true"
               />
@@ -256,12 +256,12 @@ const handleLogoutClick = () => emit('logoutClick');
         <button
           v-if="props.showNotifications"
           @click="handleNotificationClick"
-          class="w-full flex items-center text-sm font-medium theme-text-muted rounded-lg theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
+          class="w-full flex items-center text-sm font-medium theme-text-muted rounded-lg theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 group"
           :class="props.isExpanded ? 'px-4 py-3' : 'px-2 py-2 justify-center'"
           aria-label="View notifications"
         >
           <div class="relative flex-shrink-0">
-            <BellIcon class="w-6 h-6 theme-text-subtle" :class="props.isExpanded ? 'mr-3' : ''" />
+            <BellIcon class="w-6 h-6 theme-text-subtle theme-nav-icon-hover" :class="props.isExpanded ? 'mr-3' : ''" />
             <span
               v-if="props.notificationCount > 0"
               class="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none theme-on-error theme-error rounded-full min-w-[18px] h-[18px] shadow-sm"
@@ -277,10 +277,10 @@ const handleLogoutClick = () => emit('logoutClick');
         <button
           v-if="props.isAuthenticated"
           @click="handleProfileClick"
-          class="w-full flex items-center text-sm font-medium theme-text-muted rounded-lg theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
+          class="w-full flex items-center text-sm font-medium theme-text-muted rounded-lg theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 group"
           :class="props.isExpanded ? 'px-4 py-3' : 'px-2 py-2 justify-center'"
         >
-          <UserIcon class="flex-shrink-0 w-6 h-6 theme-text-subtle" :class="props.isExpanded ? 'mr-3' : ''" aria-hidden="true" />
+          <UserIcon class="flex-shrink-0 w-6 h-6 theme-text-subtle theme-nav-icon-hover" :class="props.isExpanded ? 'mr-3' : ''" aria-hidden="true" />
           <span v-if="props.isExpanded" class="truncate">Profile</span>
         </button>
 
@@ -288,11 +288,11 @@ const handleLogoutClick = () => emit('logoutClick');
         <button
           v-else
           @click="handleLoginClick"
-          class="w-full flex items-center text-sm font-medium theme-text-muted rounded-lg theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
+          class="w-full flex items-center text-sm font-medium theme-text-muted rounded-lg theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 group"
           :class="props.isExpanded ? 'px-4 py-3' : 'px-2 py-2 justify-center'"
           title="Login"
         >
-          <ArrowRightOnRectangleIcon class="flex-shrink-0 w-6 h-6 theme-text-subtle" :class="props.isExpanded ? 'mr-3' : ''" aria-hidden="true" />
+          <ArrowRightOnRectangleIcon class="flex-shrink-0 w-6 h-6 theme-text-subtle theme-nav-icon-hover" :class="props.isExpanded ? 'mr-3' : ''" aria-hidden="true" />
           <span v-if="props.isExpanded" class="truncate">Login</span>
         </button>
 
@@ -300,10 +300,10 @@ const handleLogoutClick = () => emit('logoutClick');
         <button
           v-if="props.isAuthenticated"
           @click="handleLogoutClick"
-          class="w-full flex items-center text-sm font-medium theme-text-muted rounded-lg hover:theme-error hover:theme-on-error focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200"
+          class="w-full flex items-center text-sm font-medium theme-text-muted rounded-lg hover:theme-error hover:theme-on-error focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 group"
           :class="props.isExpanded ? 'px-4 py-3' : 'px-2 py-2 justify-center'"
         >
-          <ArrowLeftOnRectangleIcon class="flex-shrink-0 w-6 h-6 theme-text-subtle" :class="props.isExpanded ? 'mr-3' : ''" aria-hidden="true" />
+          <ArrowLeftOnRectangleIcon class="flex-shrink-0 w-6 h-6 theme-text-subtle theme-nav-icon-hover" :class="props.isExpanded ? 'mr-3' : ''" aria-hidden="true" />
           <span v-if="props.isExpanded" class="truncate">Logout</span>
         </button>
       </div>
