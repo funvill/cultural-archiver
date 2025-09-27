@@ -20,6 +20,7 @@ import {
   useArtworkTypeFilters,
   type ArtworkTypeToggle,
 } from '../composables/useArtworkTypeFilters';
+import { useMapFilters } from '../composables/useMapFilters';
 import { useRouter } from 'vue-router';
 
 // Props
@@ -79,6 +80,31 @@ const clearingCache = ref(false);
 const { artworkTypes, isArtworkTypeEnabled, getTypeColor, enableAllTypes, disableAllTypes } =
   useArtworkTypeFilters();
 
+// Map filters for list membership checking
+const mapFilters = useMapFilters();
+
+// Cache for artwork list memberships to avoid repeated API calls
+const artworkListMembership = ref<Map<string, { beenHere: boolean, wantToSee: boolean }>>(new Map());
+
+// Function to check artwork list membership
+async function checkArtworkListMembership(artworkId: string): Promise<{ beenHere: boolean, wantToSee: boolean }> {
+  // Check cache first
+  if (artworkListMembership.value.has(artworkId)) {
+    return artworkListMembership.value.get(artworkId)!;
+  }
+
+  // Default membership
+  const membership = { beenHere: false, wantToSee: false };
+
+  // For now, we'll implement a placeholder system since the full list membership 
+  // checking would require additional API endpoints. This can be enhanced later.
+  // TODO: Implement proper API calls to check if artwork is in user's lists
+  
+  // Cache the result
+  artworkListMembership.value.set(artworkId, membership);
+  return membership;
+}
+
 // Debug ring layer (only immediate 100m ring)
 let debugImmediateRing: L.Circle | null = null;
 // Saved map state presence
@@ -135,56 +161,69 @@ const router = useRouter();
 // Default coordinates (Vancouver - near sample data for testing)
 const DEFAULT_CENTER = { latitude: 49.265, longitude: -123.25 };
 
-// Create circle marker style for artworks (replaces emoji icons for better performance)
-const createArtworkStyle = (type: string) => {
-  const normalized = (type || 'other').toLowerCase();
-
-  // Calculate dynamic radius based on zoom level
-  // Note: Leaflet zoom increases when you zoom in (higher = closer). We want radius to grow as zoom increases.
+// Create circle marker style for artworks with priority-based icons
+// Implements PRD section 3.5 - Map Marker & Icon Updates
+const createArtworkStyle = (artwork: ArtworkPin, listMembership?: { 
+  beenHere: boolean, 
+  wantToSee: boolean 
+}) => {
   const currentZoom = map.value?.getZoom() ?? 15;
-  // Set base min/max for the raw radius (before applying the 2x multiplier)
-  const minRadius = 3; // smallest marker at lower zoom levels
-  const maxRadius = 10; // largest marker at higher zoom levels
-
-  // Effective zoom range for interpolation (adjustable)
-  // 10 = metropolitan area, 16 = Street, 18 = buildings/trees
+  const minRadius = 3;
+  const maxRadius = 10;
   const minZoom = 12;
   const maxZoom = 18;
+  
   let dynamicRadius: number;
-
   if (currentZoom <= minZoom) {
     dynamicRadius = minRadius;
   } else if (currentZoom >= maxZoom) {
     dynamicRadius = maxRadius;
   } else {
-    // t = 0 at minZoom (smallest), t = 1 at maxZoom (largest)
     const t = (currentZoom - minZoom) / (maxZoom - minZoom);
     dynamicRadius = minRadius + t * (maxRadius - minRadius);
   }
-
-  // Apply the user's requested unconditional doubling of marker sizes across all zooms.
-  // Clamp to a reasonable maximum to avoid excessively large markers.
+  
   dynamicRadius = Math.min(dynamicRadius * 2, maxRadius * 2);
-  console.log('Zoom:', currentZoom, 'Dynamic radius:', dynamicRadius);
 
-  // Use shared color logic from composable
-  const fillColor = getTypeColor(normalized);
-
-  const baseStyle = {
-    radius: dynamicRadius, // Use zoom-scaled radius
-    fillColor: fillColor,
-    color: '#ffffff', // white border
-    weight: 1,
-    fillOpacity: 0.9,
-    opacity: 1,
-    // Ensure proper interaction settings
-    interactive: true,
-    bubblingMouseEvents: false,
-    className: 'artwork-circle-marker', // Add CSS class for styling
-  };
-
-  // Don't add renderer - let Leaflet handle canvas rendering automatically
-  return baseStyle;
+  // Priority-based icon system per PRD 3.5
+  if (listMembership?.beenHere) {
+    // Priority 1: "Been Here" / "Logged" - Flag icon in gray circle
+    return {
+      radius: dynamicRadius,
+      fillColor: '#9CA3AF', // gray-400
+      color: '#6B7280', // gray-500 border
+      weight: 2,
+      fillOpacity: 0.9,
+      opacity: 1,
+      className: 'artwork-marker-visited'
+    };
+  } else if (listMembership?.wantToSee) {
+    // Priority 2: "Want to See" - Gold star icon in circle
+    return {
+      radius: dynamicRadius,
+      fillColor: '#F59E0B', // amber-500 (gold)
+      color: '#D97706', // amber-600 border
+      weight: 2,
+      fillOpacity: 0.9,
+      opacity: 1,
+      className: 'artwork-marker-want-to-see'
+    };
+  } else {
+    // Priority 3: Default - Question mark icon
+    // Use type-based coloring for default markers
+    const normalized = (artwork.type || 'other').toLowerCase();
+    const fillColor = getTypeColor(normalized);
+    
+    return {
+      radius: dynamicRadius,
+      fillColor: fillColor,
+      color: '#ffffff',
+      weight: 1,
+      fillOpacity: 0.7,
+      opacity: 1,
+      className: 'artwork-marker-default'
+    };
+  }
 };
 
 // Custom icon for user location - use a person icon so it's clearly the user, not an artwork
@@ -620,7 +659,7 @@ async function loadArtworks() {
     // Check if we already have data for this area (smart caching)
     if (lastLoadedBounds.value && boundsContain(lastLoadedBounds.value, expandedBounds)) {
       // We already have data for this viewport, just update markers
-      updateArtworkMarkers();
+      updateArtworkMarkers().catch(console.error);
       return;
     }
 
@@ -648,7 +687,7 @@ async function loadArtworks() {
     await nextTick();
 
     console.log('[MARKER DEBUG] After nextTick, props length now:', props.artworks?.length || 0);
-    updateArtworkMarkers();
+    updateArtworkMarkers().catch(console.error);
   } catch (err) {
     console.error('Error loading artworks:', err);
   } finally {
@@ -692,7 +731,7 @@ async function loadArtworksProgressively(bounds: {
 
         // Update markers incrementally for each batch
         nextTick(() => {
-          updateArtworkMarkers();
+          updateArtworkMarkers().catch(console.error);
         });
       }
     );
@@ -724,13 +763,14 @@ function updateArtworkMarkersDebounced(delay: number = 0) {
   markerUpdateTimeout.value = setTimeout(() => {
     // Guard against running after component unmount
     if (map.value) {
-      updateArtworkMarkers();
+      // Fire and forget async call
+      updateArtworkMarkers().catch(console.error);
     }
   }, delay);
 }
 
 // Update artwork markers with efficient viewport-based rendering
-function updateArtworkMarkers() {
+async function updateArtworkMarkers() {
   console.log('[MARKER DEBUG] updateArtworkMarkers() called:', {
     mapExists: !!map.value,
     clusterGroupExists: !!markerClusterGroup.value,
@@ -759,7 +799,7 @@ function updateArtworkMarkers() {
       console.log('[MARKER DEBUG] Map container has zero dimensions - triggering resize');
       setTimeout(() => {
         map.value?.invalidateSize();
-        updateArtworkMarkers();
+        updateArtworkMarkers().catch(console.error);
       }, 100);
       return;
     }
@@ -767,7 +807,7 @@ function updateArtworkMarkers() {
     // Additional stability check - ensure map is actually rendered and interactive
     if (map.value && !map.value.getContainer()) {
       console.log('[MARKER DEBUG] Map container not yet attached - delaying marker update');
-      setTimeout(() => updateArtworkMarkers(), 100);
+      setTimeout(() => updateArtworkMarkers().catch(console.error), 100);
       return;
     }
   }
@@ -840,15 +880,18 @@ function updateArtworkMarkers() {
   });
 
   // Add new markers for artworks that entered the viewport
-  artworksInViewport.forEach((artwork: ArtworkPin) => {
+  for (const artwork of artworksInViewport) {
     // Skip if marker already exists
     if (currentArtworkIds.has(artwork.id)) {
-      return;
+      continue;
     }
+
+    // Check list membership for priority-based icons
+    const listMembership = await checkArtworkListMembership(artwork.id);
 
     // Create new marker with optimized options
     const markerOptions = {
-      ...createArtworkStyle(artwork.type || 'other'),
+      ...createArtworkStyle(artwork, listMembership),
       interactive: true,
       bubblingMouseEvents: false,
       pane: 'markerPane',
@@ -917,7 +960,7 @@ function updateArtworkMarkers() {
     });
 
     artworkMarkers.value.push(marker);
-  });
+  }
 }
 
 // Update styles (radius/color/etc) for all existing markers to react to zoom changes
@@ -927,30 +970,42 @@ function updateMarkerStyles() {
     return;
   }
 
-  try {
-    // Recompute style for each marker and apply via setStyle
-    artworkMarkers.value.forEach((marker: any) => {
-      try {
-        const artworkType = marker._artworkType || 'other';
-        const newStyle = createArtworkStyle(artworkType as string);
-        // circleMarker supports setStyle; markerCluster may wrap markers but setStyle should still work
-        if (typeof marker.setStyle === 'function') {
-          marker.setStyle(newStyle);
-        }
-        // Also attempt to setRadius on circle markers which sometimes don't update via setStyle
-        if (typeof marker.setRadius === 'function' && typeof newStyle.radius === 'number') {
-          try {
-            marker.setRadius(newStyle.radius);
-          } catch {
-            /* ignore */
+  // Run async updates without blocking UI
+  (async () => {
+    try {
+      // Recompute style for each marker and apply via setStyle
+      for (const marker of artworkMarkers.value) {
+        try {
+          const artworkId = (marker as any)._artworkId;
+          const artworkType = (marker as any)._artworkType || 'other';
+          
+          if (!artworkId) continue;
+          
+          // Get list membership for the artwork
+          const listMembership = await checkArtworkListMembership(artworkId);
+          
+          // Create artwork object for the style function
+          const artwork = { id: artworkId, type: artworkType } as ArtworkPin;
+          const newStyle = createArtworkStyle(artwork, listMembership);
+          
+          // circleMarker supports setStyle; markerCluster may wrap markers but setStyle should still work
+          if (typeof (marker as any).setStyle === 'function') {
+            (marker as any).setStyle(newStyle);
           }
-        }
+          // Also attempt to setRadius on circle markers which sometimes don't update via setStyle
+          if (typeof (marker as any).setRadius === 'function' && typeof newStyle.radius === 'number') {
+            try {
+              (marker as any).setRadius(newStyle.radius);
+            } catch {
+              /* ignore */
+            }
+          }
 
-        // If this is a group/cluster wrapper, try to update inner layers as well
-        if (marker.getLayers && typeof marker.getLayers === 'function') {
-          const layers = marker.getLayers();
-          layers.forEach((inner: any) => {
-            if (!inner) return;
+          // If this is a group/cluster wrapper, try to update inner layers as well
+          if ((marker as any).getLayers && typeof (marker as any).getLayers === 'function') {
+            const layers = (marker as any).getLayers();
+            layers.forEach((inner: any) => {
+              if (!inner) return;
             if (typeof inner.setStyle === 'function') {
               try {
                 inner.setStyle(newStyle);
@@ -965,16 +1020,17 @@ function updateMarkerStyles() {
                 /* ignore */
               }
             }
-          });
+            });
+          }
+        } catch (err) {
+          // ignore per-marker failures
+          // console.debug('Failed to update marker style for marker', marker, err);
         }
-      } catch (err) {
-        // ignore per-marker failures
-        // console.debug('Failed to update marker style for marker', marker, err);
       }
-    });
-  } catch (err) {
-    console.warn('updateMarkerStyles failed:', err);
-  }
+    } catch (err) {
+      console.warn('updateMarkerStyles failed:', err);
+    }
+  })();
 }
 
 // Configure marker layer group according to clusterEnabled
@@ -1011,7 +1067,7 @@ async function configureMarkerGroup() {
   // Clear existing marker references since they belong to the old cluster group
   artworkMarkers.value = [];
 
-  updateArtworkMarkers();
+  updateArtworkMarkers().catch(console.error);
 
   // Ensure styles applied to any markers added during updateArtworkMarkers
   updateMarkerStyles();
@@ -1056,7 +1112,7 @@ function handleMapMove() {
   // Debounced artwork loading to prevent infinite loops
   debounceLoadArtworks();
   // Also update marker styles immediately for zoom changes (better responsiveness)
-  updateArtworkMarkers();
+  updateArtworkMarkers().catch(console.error);
   // Ensure existing markers update their style (radius/color) when zoom changes
   updateMarkerStyles();
   // Move debug rings to new center
@@ -1138,7 +1194,7 @@ async function clearMapCacheAndReload() {
     // Clear current in-memory pins; they will refill on next fetch
     artworksStore.setArtworks([]);
     await nextTick();
-    updateArtworkMarkers();
+    updateArtworkMarkers().catch(console.error);
     await loadArtworks();
   } finally {
     clearingCache.value = false;
@@ -1148,19 +1204,19 @@ async function clearMapCacheAndReload() {
 // Handle artwork type filter toggles
 function handleArtworkTypeToggle(_artworkType: ArtworkTypeToggle) {
   // Immediately update markers to show/hide based on the new filter state
-  updateArtworkMarkers();
+  updateArtworkMarkers().catch(console.error);
 }
 
 // Enable all artwork type filters
 function enableAllArtworkTypes() {
   enableAllTypes();
-  updateArtworkMarkers();
+  updateArtworkMarkers().catch(console.error);
 }
 
 // Disable all artwork type filters
 function disableAllArtworkTypes() {
   disableAllTypes();
-  updateArtworkMarkers();
+  updateArtworkMarkers().catch(console.error);
 }
 
 // =====================
@@ -1706,6 +1762,23 @@ watch(
 
 .artwork-marker:hover {
   transform: scale(1.1);
+}
+
+/* Priority-based marker styles */
+.artwork-marker-visited {
+  /* Visited artworks - gray flag style */
+  position: relative;
+}
+
+.artwork-marker-want-to-see {
+  /* Want to See artworks - gold star style */
+  position: relative;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+
+.artwork-marker-default {
+  /* Default artworks - question mark style */
+  position: relative;
 }
 
 .user-location-marker {
