@@ -137,28 +137,31 @@
         <div class="action-bar">
             <hr>
             <div class="chips-container">
-                <!-- Loved (Heart) - Active -->
+                <!-- Loved (Heart) - Active with count -->
                 <button class="chip active" title="Remove from Loved list">
                     <svg fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
                     </svg>
                     <span class="chip-label">Loved</span>
+                    <span class="ml-1 px-1.5 py-0.5 text-xs font-medium bg-red-100 text-red-800 rounded-full">42</span>
                 </button>
                 
-                <!-- Been Here (Flag) -->
+                <!-- Been Here (Flag) with count -->
                 <button class="chip" title="Add to Been Here list">
                     <svg fill="currentColor" viewBox="0 0 24 24">
                         <path d="M5 21V4h9l.4 2h5.6v7h-5.6l-.4-2H7v10H5zm2-12h7.6l.4 2h3V8h-3l-.4-2H7v3z"/>
                     </svg>
                     <span class="chip-label">Been Here</span>
+                    <span class="ml-1 px-1.5 py-0.5 text-xs font-medium bg-gray-200 text-gray-800 rounded-full">127</span>
                 </button>
                 
-                <!-- Want to See (Star) -->
+                <!-- Want to See (Star) with count -->
                 <button class="chip" title="Add to Want to See list">
                     <svg fill="currentColor" viewBox="0 0 24 24">
                         <path d="M22 9.24l-7.19-.62L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.27 18.18 21zM12 15.4l-3.76 2.27 1-4.28-3.32-2.88 4.38-.38L12 6.1l1.71 4.04 4.38.38-3.32 2.88 1 4.28z"/>
                     </svg>
                     <span class="chip-label">Want to See</span>
+                    <span class="ml-1 px-1.5 py-0.5 text-xs font-medium bg-gray-200 text-gray-800 rounded-full">89</span>
                 </button>
                 
                 <!-- Add to List (Bookmark) - Active -->
@@ -212,12 +215,14 @@
             <li>✅ Touch-friendly 44px minimum target size for mobile</li>
             <li>✅ All icon states (heart, flag, star, bookmark, document-add, share, pencil)</li>
             <li>✅ Active/inactive visual states with red accent colors</li>
+            <li>✅ <strong>NEW: Public engagement counts</strong> showing social proof (42 loves, 127 been here, 89 want to see)</li>
             <li>✅ Hover animations with "twitch" effect</li>
             <li>✅ Responsive design - labels hidden on mobile, shown on desktop</li>
             <li>✅ Proper visual separation with horizontal dividers</li>
             <li>✅ Accessibility features (ARIA labels, keyboard navigation)</li>
             <li>✅ Authentication gating and optimistic UI updates</li>
             <li>✅ Web Share API with clipboard fallback</li>
+            <li>✅ Complete backend API with membership and counts endpoints</li>
         </ul>
     </div>
     
