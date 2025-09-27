@@ -137,14 +137,14 @@ const handleLogoutClick = () => emit('logoutClick');
     aria-label="Navigation rail"
   >
     <!-- Top: Header with project title and expand/collapse controls -->
-    <div v-if="props.isExpanded" class="flex-shrink-0 h-16 px-4 bg-blue-600 text-white flex items-center justify-between">
+    <div v-if="props.isExpanded" class="flex-shrink-0 h-16 px-4 theme-primary text-white flex items-center justify-between">
       <div class="flex items-center space-x-3">
         <div class="text-2xl flex-shrink-0" role="img" aria-label="Public Art Registry logo">🎨</div>
         <h2 class="text-lg font-semibold truncate">Public Art Registry</h2>
       </div>
       <button
         @click="handleToggleExpanded"
-        class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
+        class="flex items-center justify-center w-10 h-10 rounded-full hover:theme-primary-hover focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
         aria-label="Collapse navigation"
         title="Collapse navigation"
       >

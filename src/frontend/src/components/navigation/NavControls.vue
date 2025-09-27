@@ -57,7 +57,7 @@ const handleMapClick = () => emit('mapClick');
     <div class="relative">
       <button
         @click="handleFabClick"
-        class="fab flex items-center justify-center w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+        class="fab flex items-center justify-center w-14 h-14 theme-primary text-white rounded-full shadow-lg hover:theme-primary-hover hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
         aria-label="Submit new artwork"
       >
         <CameraIcon class="w-7 h-7" aria-hidden="true" />

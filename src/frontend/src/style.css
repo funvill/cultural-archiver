@@ -159,22 +159,22 @@
 /* Theme semantic utility classes -------------------------------------------------- */
 /* These map to the runtime theme CSS variables defined by `theme.ts`.
    Use these in templates instead of hard-coded Tailwind color utilities. */
-.theme-background { background-color: rgb(var(--md-background)); }
-.theme-on-background { color: rgb(var(--md-on-background)); }
-.theme-surface { background-color: rgb(var(--md-surface)); }
-.theme-on-surface { color: rgb(var(--md-on-surface)); }
-.theme-primary { background-color: rgb(var(--md-primary)); color: rgb(var(--md-on-primary)); }
-.theme-on-primary { color: rgb(var(--md-on-primary)); }
-.theme-secondary { background-color: rgb(var(--md-secondary)); color: rgb(var(--md-on-secondary)); }
-.theme-on-secondary { color: rgb(var(--md-on-secondary)); }
-.theme-error { background-color: rgb(var(--md-error)); color: rgb(var(--md-on-error)); }
-.theme-on-error { color: rgb(var(--md-on-error)); }
+.theme-background { background-color: var(--md-background); }
+.theme-on-background { color: var(--md-on-background); }
+.theme-surface { background-color: var(--md-surface); }
+.theme-on-surface { color: var(--md-on-surface); }
+.theme-primary { background-color: var(--md-primary); color: var(--md-on-primary); }
+.theme-on-primary { color: var(--md-on-primary); }
+.theme-secondary { background-color: var(--md-secondary); color: var(--md-on-secondary); }
+.theme-on-secondary { color: var(--md-on-secondary); }
+.theme-error { background-color: var(--md-error); color: var(--md-on-error); }
+.theme-on-error { color: var(--md-on-error); }
 
 /* Success / Warning semantic utilities */
-.theme-success { background-color: rgb(var(--md-success)); color: rgb(var(--md-on-success)); }
-.theme-on-success { color: rgb(var(--md-on-success)); }
-.theme-warning { background-color: rgb(var(--md-warning)); color: rgb(var(--md-on-warning)); }
-.theme-on-warning { color: rgb(var(--md-on-warning)); }
+.theme-success { background-color: var(--md-success); color: var(--md-on-success); }
+.theme-on-success { color: var(--md-on-success); }
+.theme-warning { background-color: var(--md-warning); color: var(--md-on-warning); }
+.theme-on-warning { color: var(--md-on-warning); }
 
 /* Small helpers for borders or muted text that use on-surface with opacity */
 .theme-muted { color: rgba(var(--md-on-surface), 0.7); }
@@ -183,16 +183,15 @@
 /* Compatibility mappings for common Tailwind color utility classes
   These let existing templates that still use Tailwind color utilities pick up
   the active runtime theme until we finish replacing all instances. */
-.text-gray-900 { color: rgb(var(--md-on-background)) !important; }
-.text-gray-800 { color: rgb(var(--md-on-surface)) !important; }
-.text-gray-700 { color: rgba(var(--md-on-surface), 0.85) !important; }
-.text-gray-600 { color: rgba(var(--md-on-surface), 0.7) !important; }
-.text-gray-500 { color: rgba(var(--md-on-surface), 0.6) !important; }
-.text-gray-400 { color: rgba(var(--md-on-surface), 0.5) !important; }
+.text-gray-900 { color: var(--md-on-background) !important; }
+.text-gray-800 { color: var(--md-on-surface) !important; }
+.text-gray-700 { color: var(--md-on-surface) !important; opacity: 0.85; }
+.text-gray-600 { color: var(--md-on-surface) !important; opacity: 0.7; }
+.text-gray-500 { color: var(--md-on-surface) !important; opacity: 0.6; }
+.text-gray-400 { color: var(--md-on-surface) !important; opacity: 0.5; }
 
-.bg-white { background-color: rgb(var(--md-surface)) !important; }
-.bg-gray-50 { background-color: rgb(var(--md-background)) !important; }
-.bg-gray-100 { background-color: rgba(var(--md-on-surface), 0.04) !important; }
+.bg-white { background-color: var(--md-surface) !important; }
+.bg-gray-50 { background-color: var(--md-background) !important; }
 
 /* Accent colors - map common tailwind utility names to theme variables where it makes sense.
   We keep the original hue variants for granular cases; these mappings are opinionated. */

@@ -261,7 +261,7 @@
                 <!-- Unread indicator -->
                 <div
                   v-if="!notification.is_dismissed"
-                  class="w-3 h-3 bg-blue-500 rounded-full"
+                  class="w-3 h-3 theme-primary rounded-full"
                   aria-label="Unread"
                 ></div>
                 <!-- Dismiss button -->

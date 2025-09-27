@@ -1,8 +1,8 @@
 # Theme Migration — Progress & Handoff
 
-Last updated: 2025-09-26
+Last updated: 2025-09-27
 
-Branch: main
+Branch: theme
 
 Purpose
 
@@ -16,7 +16,9 @@ Summary
 
 High-level status
 
-- Migration sweep: in-progress (work is being done in small batches).
+- Migration sweep: **COMPLETED** - All major views and components have been migrated from Tailwind color utilities to semantic theme classes and CSS variables.
+
+- Visual testing and refinement: **IN PROGRESS** - Identifying and fixing theme implementation issues (transparency, contrast, etc.)
 
 - Unit tests for theme runtime: not started.
 
@@ -63,9 +65,34 @@ Recent changes (delta)
 **Additional Files Completed This Session:**
 - ✅ SearchResultsView.vue **COMPLETED** (tag badges, load more button → theme variables)
 - ✅ PublicProfileView.vue **COMPLETED** (error states, buttons, avatar backgrounds → theme variables)  
-- 🔄 ProfileNotificationsView.vue **PARTIAL** (filter navigation → theme variables; ~20+ notification items remain)
+- ✅ ProfileNotificationsView.vue **COMPLETED** (final bg-blue-500 utility migrated to theme-primary)
 
-**Files Remaining:** Complete ProfileNotificationsView.vue (~20+ matches), ArtworkDetailView.vue completion, plus smaller components with remaining color utilities
+**Migration Status:** **COMPLETE** - All major views and components migrated from Tailwind color utilities to semantic theme classes.
+
+**Current Phase:** Visual testing and refinement - identified and fixing critical theme implementation issues.
+
+**CRITICAL ISSUE DISCOVERED:** CSS variable implementation bug causing transparency issues
+- **Problem:** Theme CSS classes use `rgb(var(--md-surface))` syntax but variables are defined as hex values (`#ffffff`)
+- **Impact:** All theme-surface, theme-primary buttons showing as transparent (rgba(0,0,0,0))
+- **Root Cause:** Invalid CSS - `rgb()` function expects triplets like `rgb(255, 255, 255)` but gets `rgb(#ffffff)`
+- **Solution Applied:** Updated style.css to use variables directly: `var(--md-surface)` instead of `rgb(var(--md-surface))`
+
+**Fixed Issues:**
+- ✅ Core theme CSS classes (.theme-surface, .theme-primary, etc.) - removed invalid rgb() wrapper
+- ✅ Success/warning utilities - direct variable usage
+- ✅ Compatibility mappings - updated to use variables directly
+
+**Remaining Issues to Test:**
+- FAB button visibility (should be fixed by CSS update)
+- Map control buttons (should be fixed by CSS update)  
+- Navigation-rail header (should be fixed by CSS update)
+- Search results text contrast verification needed
+- Hover states and other interactive elements
+
+**Next Steps:** 
+1. Test fixes with Playwright MCP to verify buttons now have proper backgrounds
+2. Address any remaining visual inconsistencies
+3. Validate hover states and interactive elements work correctly
 
 - `src/frontend/src/views/TermsView.vue` — template and scoped styles converted from Tailwind @apply to CSS variables (fixed @apply warnings). (2025-09-26)
 

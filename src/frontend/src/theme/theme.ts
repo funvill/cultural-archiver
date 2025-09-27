@@ -77,6 +77,9 @@ export const defaultMaterialTheme: Theme = {
 export default defaultMaterialTheme;
 
 // -- Multiple theme support -------------------------------------------------
+
+// -- Bauhaus theme -------------------------------------------------
+
 export const bauhausTheme: Theme = {
   // Bauhaus-inspired bold primary colors
   primary: '#e63946', // deep red
@@ -97,9 +100,81 @@ export const bauhausTheme: Theme = {
   onError: '#ffffff',
 };
 
+
+// -- Vancouver theme -------------------------------------------------
+
+export const VancouverTheme: Theme = {
+  "primary": "#0284c7",          // sky-600
+  "primaryVariant": "#0369a1",
+  "secondary": "#10b981",        // emerald-500
+  "secondaryVariant": "#047857",
+  "background": "#f0fdfa",       // teal-50
+  "surface": "#ffffff",
+  "error": "#dc2626",            // red-600
+  "success": "#16a34a",          // green-600
+  "warning": "#f97316",          // orange-500
+  "onPrimary": "#ffffff",
+  "onSecondary": "#ffffff",
+  "onSuccess": "#ffffff",
+  "onWarning": "#111827",
+  "onBackground": "#0f172a",     // slate-900
+  "onSurface": "#0f172a",
+  "onError": "#ffffff"
+};
+
+
+// -- DarkGallery theme -------------------------------------------------
+
+export const DarkGalleryTheme: Theme = {
+  "primary": "#6366f1",          // indigo-500
+  "primaryVariant": "#4338ca",
+  "secondary": "#f43f5e",        // rose-500
+  "secondaryVariant": "#9f1239",
+  "background": "#111827",       // gray-900
+  "surface": "#1f2937",          // gray-800
+  "error": "#ef4444",            // red-500
+  "success": "#22c55e",          // green-500
+  "warning": "#eab308",          // yellow-500
+  "onPrimary": "#ffffff",
+  "onSecondary": "#ffffff",
+  "onSuccess": "#111827",
+  "onWarning": "#111827",
+  "onBackground": "#f9fafb",     // gray-50
+  "onSurface": "#f9fafb",
+  "onError": "#ffffff"
+};
+
+// -- EarthyCultural theme -------------------------------------------------
+
+export const EarthyCulturalTheme: Theme = 
+{
+  "primary": "#d97706",          // amber-700
+  "primaryVariant": "#92400e",  
+  "secondary": "#065f46",        // emerald-800
+  "secondaryVariant": "#064e3b",
+  "background": "#fdfcf9",       // warm off-white
+  "surface": "#ffffff",
+  "error": "#b91c1c",            // red-700
+  "success": "#15803d",          // green-700
+  "warning": "#facc15",          // yellow-400
+  "onPrimary": "#ffffff",
+  "onSecondary": "#ffffff",
+  "onSuccess": "#ffffff",
+  "onWarning": "#111827",
+  "onBackground": "#1f2937",     // gray-800
+  "onSurface": "#1f2937",
+  "onError": "#ffffff"
+}
+
+
+
+
 export const themes: Record<string, Theme> = {
   material: defaultMaterialTheme,
   bauhaus: bauhausTheme,
+  Vancouver: VancouverTheme,
+  DarkGallery: DarkGalleryTheme,
+  EarthyCultural: EarthyCulturalTheme,
 };
 
 export type ThemeName = keyof typeof themes;

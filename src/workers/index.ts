@@ -74,6 +74,7 @@ import { bulkExportToOSM, getExportStats } from './routes/export';
 import {
   getUserSubmissions,
   getUserProfile,
+  updateUserPreferences,
   sendTestEmail,
   getAllBadges,
   getUserBadges,
@@ -894,6 +895,13 @@ app.get(
   withErrorHandling(getUserProfile)
 );
 
+app.put(
+  '/api/me/preferences',
+  ensureUserToken,
+  addUserTokenToResponse,
+  withErrorHandling(updateUserPreferences)
+);
+
 // ================================
 // User Lists Endpoints (MVP)
 // ================================
@@ -1246,6 +1254,7 @@ app.notFound(c => {
         'GET /api/search/suggestions',
         'GET /api/me/submissions',
         'GET /api/me/profile',
+        'PUT /api/me/preferences',
         'POST /api/consent',
         'GET /api/consent',
         'GET /api/consent/form-data',
@@ -1287,3 +1296,4 @@ app.onError((err, c) => {
 
 // Export for Cloudflare Workers
 export default app;
+
