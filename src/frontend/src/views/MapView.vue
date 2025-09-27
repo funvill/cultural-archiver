@@ -90,35 +90,50 @@ function handleArtworkClick(artwork: ArtworkPin) {
 async function loadListArtworks(listId: string) {
   try {
     listFilterActive.value = true;
-    const response = await apiService.getListDetails(listId, 1, 1000); // Get all items for MVP
-    
-    if (response.success && response.data) {
-      listInfo.value = response.data.list;
-      
-      // Convert list items to ArtworkPin format
-      listArtworks.value = response.data.items.map((artwork: any) => ({
-        id: artwork.id,
-        latitude: artwork.lat,
-        longitude: artwork.lon,
-        type: artwork.type_name || 'other',
-        title: artwork.title,
-        artist_name: null, // Will be parsed from tags if available
-        photos: artwork.photos,
-        recent_photo: artwork.photos?.[0]?.url || null,
-        photo_count: artwork.photos?.length || 0,
-      }));
-      
-      console.log('[MAP DEBUG] Loaded list artworks:', {
-        listId,
-        listName: listInfo.value.name,
-        artworkCount: listArtworks.value.length,
-      });
-    } else {
-      console.error('Failed to load list:', response.error);
-      listFilterActive.value = false;
-      listArtworks.value = [];
-      listInfo.value = null;
+    // Page through list items using per-page limit 100 (server enforces max 100)
+    const pageSize = 100;
+    let page = 1;
+    let accumulated: any[] = [];
+    let listMeta: any = null;
+
+    while (true) {
+      const resp = await apiService.getListDetails(listId, page, pageSize);
+      if (!resp || !resp.success || !resp.data) {
+        // Stop on failure
+        console.error('Failed to load list page:', page, resp?.error);
+        listFilterActive.value = false;
+        listArtworks.value = [];
+        listInfo.value = null;
+        return;
+      }
+
+      if (!listMeta) listMeta = resp.data.list;
+      const items = resp.data.items || [];
+      accumulated.push(...items);
+
+      if (!resp.data.has_more) break;
+      page += 1;
     }
+
+    listInfo.value = listMeta;
+    // Convert accumulated items to ArtworkPin format
+    listArtworks.value = accumulated.map((artwork: any) => ({
+      id: artwork.id,
+      latitude: artwork.lat,
+      longitude: artwork.lon,
+      type: artwork.type_name || 'other',
+      title: artwork.title,
+      artist_name: null,
+      photos: artwork.photos,
+      recent_photo: artwork.photos?.[0]?.url || null,
+      photo_count: artwork.photos?.length || 0,
+    }));
+
+    console.log('[MAP DEBUG] Loaded list artworks:', {
+      listId,
+      listName: listInfo.value?.name,
+      artworkCount: listArtworks.value.length,
+    });
   } catch (error) {
     console.error('Error loading list artworks:', error);
     listFilterActive.value = false;
@@ -228,7 +243,7 @@ onMounted(() => {
 // Watch for URL parameter changes to enable/disable list filtering
 watch(
   () => route.query.list,
-  async (newListId) => {
+  async (newListId: unknown) => {
     if (newListId && typeof newListId === 'string') {
       currentListId.value = newListId;
       await loadListArtworks(newListId);

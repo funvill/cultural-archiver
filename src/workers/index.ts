@@ -900,6 +900,7 @@ app.get(
 
 app.post(
   '/api/lists',
+  ensureUserToken,
   validateCreateList,
   addUserTokenToResponse,
   withErrorHandling(createList)
@@ -907,6 +908,7 @@ app.post(
 
 app.get(
   '/api/lists/:id',
+  ensureUserToken,
   validateListId,
   validateListQuery,
   addUserTokenToResponse,
@@ -915,6 +917,7 @@ app.get(
 
 app.post(
   '/api/lists/:id/items',
+  ensureUserToken,
   validateListId,
   validateAddToList,
   addUserTokenToResponse,
@@ -923,6 +926,7 @@ app.post(
 
 app.delete(
   '/api/lists/:id/items',
+  ensureUserToken,
   validateListId,
   validateRemoveFromList,
   addUserTokenToResponse,
@@ -931,6 +935,7 @@ app.delete(
 
 app.delete(
   '/api/lists/:id',
+  ensureUserToken,
   validateListId,
   addUserTokenToResponse,
   withErrorHandling(deleteList)
@@ -938,6 +943,7 @@ app.delete(
 
 app.get(
   '/api/me/lists',
+  ensureUserToken,
   addUserTokenToResponse,
   withErrorHandling(getUserLists)
 );

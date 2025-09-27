@@ -27,6 +27,7 @@ import {
 import { getUserToken } from '../middleware/auth';
 import { generateUUID } from '../../shared/constants';
 import { SPECIAL_LIST_NAMES } from '../types';
+import { safeJsonParse } from '../lib/errors';
 
 const MAX_LIST_ITEMS = 1000; // Per PRD requirements
 
@@ -136,7 +137,7 @@ export async function getListDetails(c: Context<{ Bindings: WorkerEnv }>): Promi
   const itemsQuery = `
     SELECT 
       a.id, a.lat, a.lon, a.created_at, a.status, a.tags, a.photos,
-      a.title, a.description, a.type_name
+      a.title, a.description, COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name
     FROM list_items li
     JOIN artwork a ON li.artwork_id = a.id
     WHERE li.list_id = ?
@@ -150,10 +151,53 @@ export async function getListDetails(c: Context<{ Bindings: WorkerEnv }>): Promi
   const artworks = artworkResults.results || [];
 
   // Parse photos for each artwork
-  const artworksWithPhotos = artworks.map((artwork: any) => ({
-    ...artwork,
-    photos: artwork.photos ? JSON.parse(artwork.photos) : null,
-  }));
+  const artworksWithPhotos = (artworks as any[]).map((artwork: any) => {
+    // Parse photos stored either in photos column or inside tags
+    const photosFromColumn = artwork.photos ? (() => {
+      try { return JSON.parse(artwork.photos); } catch { return null; }
+    })() : null;
+
+    const tagsParsed = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
+
+    const photosFromTags = Array.isArray(tagsParsed._photos) ? tagsParsed._photos : (Array.isArray(tagsParsed.photos) ? tagsParsed.photos : null);
+
+    const allPhotos = photosFromColumn || photosFromTags || [];
+
+    // Derive a usable title: prefer explicit title, then tags.title or tags.name
+    let derivedTitle: string | null = null;
+    if (typeof artwork.title === 'string' && artwork.title.trim().length > 0) {
+      derivedTitle = artwork.title;
+    } else if (tagsParsed && typeof (tagsParsed as any).title === 'string' && (tagsParsed as any).title.trim().length > 0) {
+      derivedTitle = (tagsParsed as any).title;
+    } else if (tagsParsed && typeof (tagsParsed as any).name === 'string' && (tagsParsed as any).name.trim().length > 0) {
+      derivedTitle = (tagsParsed as any).name;
+    } else {
+      // Fallback to a human-friendly type name when no title is present
+      const rawTypeName = artwork.type_name || 'unknown';
+      derivedTitle = String(rawTypeName)
+        .replace(/_/g, ' ')
+        .replace(/\b\w/g, (l: string) => l.toUpperCase());
+    }
+
+    // Recent photo logic (first photo if present)
+    const recentPhoto = ((): string | null => {
+      if (allPhotos && allPhotos.length > 0) {
+        const p = allPhotos[0];
+        if (p && typeof p === 'string') return (p.startsWith('http') || p.startsWith('/photos/')) ? p : `/photos/${p}`;
+      }
+      return null;
+    })();
+
+    return {
+      ...artwork,
+      // Expose normalized fields expected by frontend
+      photos: allPhotos,
+      tags_parsed: tagsParsed,
+      title: derivedTitle,
+      recent_photo: recentPhoto,
+      photo_count: Array.isArray(allPhotos) ? allPhotos.length : 0,
+    } as ArtworkApiResponse;
+  });
 
   const totalPages = Math.ceil(totalItems / limit);
   const hasMore = page < totalPages;

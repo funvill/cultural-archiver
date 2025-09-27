@@ -1126,17 +1126,6 @@ async function checkPendingEdits(): Promise<void> {
     :artwork-id="props.id"
     @added-to-list="handleAddedToList"
   />
-
-  <!-- Add to List Success Toast -->
-  <div v-if="showToast"
-    class="fixed bottom-4 left-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50 max-w-sm">
-    <div class="flex items-center">
-      <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-      </svg>
-      {{ toastMessage }}
-    </div>
-  </div>
 </template>
 
 <style scoped>

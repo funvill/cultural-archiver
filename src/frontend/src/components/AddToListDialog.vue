@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import { apiService } from '../services/api';
 
@@ -147,10 +147,16 @@ const closeDialog = () => {
 };
 
 // Load lists when dialog opens
+// Load lists when dialog opens (watch v-model) so lists appear whenever the
+// dialog is toggled open. Also load once on mount in case it's already open.
 onMounted(() => {
   if (isOpen.value) {
     loadUserLists();
   }
+});
+
+watch(isOpen, (val) => {
+  if (val) loadUserLists();
 });
 </script>
 
