@@ -771,7 +771,7 @@ function handleActionBarShare(): void {
               </div>
 
               <!-- Edit button -->
-              <button @click="enterEditMode" :disabled="hasPendingEdits" aria-label="Edit artwork details"
+              <button @click="enterEditMode" v-bind="{ 'data-has-pending-edits': hasPendingEdits ? 'true' : undefined }" :disabled="Boolean(hasPendingEdits)" :aria-disabled="hasPendingEdits ? 'true' : 'false'" aria-label="Edit artwork details"
                 class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2"
                 :class="hasPendingEdits
                     ? 'text-gray-500 bg-gray-100 cursor-not-allowed'

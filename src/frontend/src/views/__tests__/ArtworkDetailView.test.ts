@@ -543,7 +543,11 @@ describe('ArtworkDetailView', () => {
       wrapper.vm.hasPendingEdits = true;
       await wrapper.vm.$nextTick();
 
-      const editButton = wrapper.find('button[aria-label*="Edit"]');
+  // Target the inline title edit button specifically. There are multiple
+  // buttons with "Edit" in the aria-label (action bar + title). The
+  // title button uses the exact aria-label "Edit artwork details".
+  const editButton = wrapper.find('button[aria-label="Edit artwork details"]');
+      // Debug logs removed - selector updated to target inline title edit button
       if (editButton.exists()) {
         expect(editButton.attributes('disabled')).toBeDefined();
       }
