@@ -421,6 +421,9 @@ export async function exportArtworkToOSM(c: Context<{ Bindings: WorkerEnv }>): P
 export async function getArtworkMembership(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   const userToken = getUserToken(c);
   const artworkId = c.req.param('id');
+  
+  // DEBUG: Log incoming request
+  console.log('[getArtworkMembership] userToken:', userToken, 'artworkId:', artworkId);
 
   if (!artworkId) {
     throw new ValidationApiError([
@@ -445,15 +448,22 @@ export async function getArtworkMembership(c: Context<{ Bindings: WorkerEnv }>):
   try {
     const db = c.env.DB;
 
-    // Check membership in special lists
+    // Use display names for system lists
+    const displayNames = {
+      loved: 'Loved',
+      beenHere: 'Been Here',
+      wantToSee: 'Want to See',
+    };
+
+    // Check membership in special lists (use display names)
     const membershipQuery = `
       SELECT 
         l.list_name,
         CASE WHEN li.artwork_id IS NOT NULL THEN 1 ELSE 0 END as is_member
       FROM (
-        SELECT 'loved' as list_name
-        UNION SELECT 'beenHere' as list_name  
-        UNION SELECT 'wantToSee' as list_name
+        SELECT '${displayNames.loved}' as list_name
+        UNION SELECT '${displayNames.beenHere}' as list_name  
+        UNION SELECT '${displayNames.wantToSee}' as list_name
       ) l
       LEFT JOIN lists ls ON ls.owner_user_id = ? AND ls.name = l.list_name AND ls.is_system_list = 1
       LEFT JOIN list_items li ON li.list_id = ls.id AND li.artwork_id = ?
@@ -462,6 +472,9 @@ export async function getArtworkMembership(c: Context<{ Bindings: WorkerEnv }>):
     const membershipResults = await db.prepare(membershipQuery)
       .bind(userToken, artworkId)
       .all();
+
+    // DEBUG: Log membership query results
+    console.log('[getArtworkMembership] membershipResults:', JSON.stringify(membershipResults));
 
     // Check if artwork is in any custom lists
     const customListQuery = `
@@ -475,35 +488,56 @@ export async function getArtworkMembership(c: Context<{ Bindings: WorkerEnv }>):
       .bind(userToken, artworkId)
       .first();
 
+    // DEBUG: Log custom list result
+    console.log('[getArtworkMembership] customListResult:', JSON.stringify(customListResult));
+
     // Build response
-    const membership = {
+    // Add index signature for dynamic assignment
+    const membership: Record<string, boolean> = {
       loved: false,
       beenHere: false,
       wantToSee: false,
       inAnyList: false,
     };
 
+    // Map display names back to internal keys
+    const displayNameToKey: Record<string, string> = {
+      [displayNames.loved]: 'loved',
+      [displayNames.beenHere]: 'beenHere',
+      [displayNames.wantToSee]: 'wantToSee',
+    };
+
     // Process special list memberships
+    type MembershipRow = { list_name: string; is_member: number };
     if (membershipResults.success && membershipResults.results) {
-      for (const row of membershipResults.results) {
-        const listName = (row as any).list_name;
-        const isMember = (row as any).is_member === 1;
-        
-        if (listName === 'loved') membership.loved = isMember;
-        else if (listName === 'beenHere') membership.beenHere = isMember;
-        else if (listName === 'wantToSee') membership.wantToSee = isMember;
+      for (const row of membershipResults.results as MembershipRow[]) {
+        const listName = row.list_name;
+        const isMember = row.is_member === 1;
+        const key = displayNameToKey[listName];
+        if (key !== undefined) membership[key] = isMember;
+        // DEBUG: Log each row processed
+        console.log('[getArtworkMembership] row:', row, 'key:', key, 'isMember:', isMember);
       }
     }
 
     // Check custom lists
-    if (customListResult && (customListResult as any).count > 0) {
+    type CustomListResult = { count: number };
+    if (customListResult && (customListResult as CustomListResult).count > 0) {
       membership.inAnyList = true;
     } else {
       // Also true if in any special list
-      membership.inAnyList = membership.loved || membership.beenHere || membership.wantToSee;
+      membership.inAnyList = Boolean(membership.loved) || Boolean(membership.beenHere) || Boolean(membership.wantToSee);
     }
 
-    return c.json(createSuccessResponse(membership));
+    // DEBUG: Log final membership object
+    console.log('[getArtworkMembership] FINAL membership:', JSON.stringify(membership));
+
+    return c.json(createSuccessResponse(membership as {
+      loved: boolean;
+      beenHere: boolean;
+      wantToSee: boolean;
+      inAnyList: boolean;
+    }));
 
   } catch (error) {
     console.error('Failed to get artwork membership:', error);
@@ -579,13 +613,14 @@ export async function toggleArtworkListMembership(c: Context<{ Bindings: WorkerE
       WHERE owner_user_id = ? AND name = ? AND is_system_list = 1
     `;
     
+    type ListRow = { id: string };
     let existingList = await db.prepare(existingListQuery)
       .bind(userToken, listNames[listType as keyof typeof listNames])
-      .first();
+      .first() as ListRow | undefined;
 
     let actualListId: string;
-    if (existingList) {
-      actualListId = (existingList as any).id;
+    if (existingList && existingList.id) {
+      actualListId = existingList.id;
     } else {
       // Create the list
       await db.prepare(ensureListQuery)
@@ -689,11 +724,11 @@ export async function getArtworkCounts(c: Context<{ Bindings: WorkerEnv }>): Pro
     };
 
     // Process special list counts
+    type CountRow = { list_name: string; count: number };
     if (countsResults.success && countsResults.results) {
-      for (const row of countsResults.results) {
-        const listName = (row as any).list_name;
-        const count = (row as any).count || 0;
-        
+      for (const row of countsResults.results as CountRow[]) {
+        const listName = row.list_name;
+        const count = row.count || 0;
         if (listName === 'loved') counts.loved = count;
         else if (listName === 'beenHere') counts.beenHere = count;
         else if (listName === 'wantToSee') counts.wantToSee = count;
@@ -701,8 +736,10 @@ export async function getArtworkCounts(c: Context<{ Bindings: WorkerEnv }>): Pro
     }
 
     // Set total users count
+    type TotalUsersRow = { total_users: number };
     if (totalUsersResult) {
-      counts.totalUsers = (totalUsersResult as any).total_users || 0;
+      const totalUsers = (totalUsersResult as TotalUsersRow).total_users;
+      counts.totalUsers = totalUsers || 0;
     }
 
     return c.json(createSuccessResponse(counts));

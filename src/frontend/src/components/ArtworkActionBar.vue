@@ -159,7 +159,15 @@ const chipData = computed(() => [
 onMounted(async () => {
   // Use initial states if provided, set them first
   if (props.initialListStates) {
-    listStates.value = { ...listStates.value, ...props.initialListStates };
+    // Update each property individually to preserve reactivity
+    if ('loved' in props.initialListStates)
+      listStates.value.loved = !!props.initialListStates.loved;
+    if ('beenHere' in props.initialListStates)
+      listStates.value.beenHere = !!props.initialListStates.beenHere;
+    if ('wantToSee' in props.initialListStates)
+      listStates.value.wantToSee = !!props.initialListStates.wantToSee;
+    if ('inAnyList' in props.initialListStates)
+      listStates.value.inAnyList = !!props.initialListStates.inAnyList;
     initialLoading.value = false;
   }
   
@@ -210,14 +218,14 @@ async function fetchMembershipStates(): Promise<void> {
         inAnyList?: boolean;
       };
     }>(`/artwork/${props.artworkId}/membership`);
-    
     if (response.success && response.data) {
-      listStates.value = {
-        loved: response.data.loved || false,
-        beenHere: response.data.beenHere || false,
-        wantToSee: response.data.wantToSee || false,
-        inAnyList: response.data.inAnyList || false,
-      };
+      // Update each property individually to preserve reactivity
+      console.debug('[ArtworkActionBar] fetchMembershipStates response', response.data);
+      listStates.value.loved = response.data.loved || false;
+      listStates.value.beenHere = response.data.beenHere || false;
+      listStates.value.wantToSee = response.data.wantToSee || false;
+      listStates.value.inAnyList = response.data.inAnyList || false;
+      console.debug('[ArtworkActionBar] After fetchMembershipStates: listStates', JSON.parse(JSON.stringify(listStates.value)));
     }
   } catch (error) {
     console.error('Failed to fetch membership states:', error);
@@ -270,9 +278,10 @@ async function toggleListMembership(listType: 'loved' | 'beenHere' | 'wantToSee'
 
   // Store original state for potential revert
   const originalState = listStates.value[listType];
-  
+  console.debug(`[ArtworkActionBar] Before optimistic update: listStates.${listType} =`, originalState);
   // Optimistic update
   listStates.value[listType] = !originalState;
+  console.debug(`[ArtworkActionBar] After optimistic update: listStates.${listType} =`, listStates.value[listType]);
 
   try {
     // This endpoint would need to be implemented in the backend

@@ -826,6 +826,7 @@ app.get(
   '/api/artwork/:id/membership',
   rateLimitQueries,
   validateUUID('id'),
+  ensureUserToken,
   withErrorHandling(getArtworkMembership)
 );
 

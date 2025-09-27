@@ -111,6 +111,19 @@ const isDisabled = computed(() => {
 const ariaPressed = computed(() => {
   return props.active ? 'true' : 'false';
 });
+
+// Expose prop values as top-level template-accessible refs/values.
+// When defineProps is assigned to a variable, the individual prop names
+// are not automatically available as top-level variables in the template.
+// Create lightweight computed wrappers so the template can reference
+// `active`, `loading`, `icon`, `label`, `count`, `showLabel` and
+// `showSuccessAnimation` directly.
+const icon = computed(() => props.icon);
+const active = computed(() => !!props.active);
+const loading = computed(() => !!props.loading);
+const label = computed(() => props.label);
+const count = computed(() => props.count);
+// note: `shouldShowLabel` is used by the template; no separate `showLabel` wrapper needed.
 </script>
 
 <template>
