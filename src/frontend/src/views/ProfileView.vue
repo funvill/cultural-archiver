@@ -5,7 +5,7 @@ import ArtworkCard from '../components/ArtworkCard.vue';
 import BadgeGrid from '../components/BadgeGrid.vue';
 import ProfileNameEditor from '../components/ProfileNameEditor.vue';
 import { apiService } from '../services/api';
-import type { SubmissionRecord, UserBadgeResponse } from '../../../shared/types';
+import type { SubmissionRecord, UserBadgeResponse, ListRecord } from '../../../shared/types';
 import type {
   UserProfile,
   SearchResult,
@@ -37,6 +37,11 @@ const artworksById = ref<Record<string, ArtworkDetails>>({});
 const userBadges = ref<UserBadgeResponse['user_badges']>([]);
 const badgesLoading = ref(false);
 const currentProfileName = ref<string | null>(null);
+
+// Lists management state  
+const userLists = ref<ListRecord[]>([]);
+const listsLoading = ref(false);
+const listsError = ref<string | null>(null);
 
 function toSearchResult(submission: SubmissionWithData): SearchResult {
   // If this submission is linked to an artwork, prefer the artwork details for card display
@@ -294,7 +299,41 @@ function onProfileUpdated(newProfileName: string) {
   // fetchUserProfile();
 }
 
-onMounted(fetchUserProfile);
+// Lists management methods
+async function fetchUserLists() {
+  try {
+    listsLoading.value = true;
+    listsError.value = null;
+    const response = await apiService.getUserLists();
+    if (response.success && response.data) {
+      // Filter out private lists (like Validated) from profile display
+      userLists.value = response.data.filter(list => !list.is_private);
+    } else {
+      listsError.value = response.error || 'Failed to load lists';
+    }
+  } catch (err) {
+    console.error('Failed to fetch user lists:', err);
+    listsError.value = 'Failed to load lists';
+  } finally {
+    listsLoading.value = false;
+  }
+}
+
+function handleListClick(list: ListRecord) {
+  router.push(`/lists/${list.id}`);
+}
+
+function getListTypeLabel(list: ListRecord): string {
+  if (list.is_system) {
+    return 'System List';
+  }
+  return 'Custom List';
+}
+
+onMounted(() => {
+  fetchUserProfile();
+  fetchUserLists();
+});
 </script>
 
 <template>
@@ -351,6 +390,86 @@ onMounted(fetchUserProfile);
       <section class="mb-8">
         <div class="bg-white p-6 rounded-lg shadow">
           <BadgeGrid :badges="userBadges" :loading="badgesLoading" />
+        </div>
+      </section>
+
+      <!-- My Lists Section -->
+      <section class="mb-8">
+        <div class="bg-white p-6 rounded-lg shadow">
+          <div class="flex items-center justify-between mb-6">
+            <h2 class="text-2xl font-bold text-gray-900">My Lists</h2>
+            <p class="text-sm text-gray-500">{{ userLists.length }} lists</p>
+          </div>
+
+          <!-- Loading State -->
+          <div v-if="listsLoading" class="text-center py-8">
+            <div class="inline-flex items-center">
+              <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Loading lists...
+            </div>
+          </div>
+
+          <!-- Error State -->
+          <div v-else-if="listsError" class="text-center py-8">
+            <p class="text-red-600">{{ listsError }}</p>
+            <button 
+              @click="fetchUserLists"
+              class="mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium"
+            >
+              Try Again
+            </button>
+          </div>
+
+          <!-- Empty State -->
+          <div v-else-if="userLists.length === 0" class="text-center py-8">
+            <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v0a2 2 0 01-2 2H10a2 2 0 01-2-2v0z" />
+            </svg>
+            <h3 class="text-lg font-medium text-gray-900 mb-2">No Lists Yet</h3>
+            <p class="text-gray-600 mb-4">Create your first list by visiting an artwork page and clicking "Add to List".</p>
+            <button 
+              @click="$router.push('/')"
+              class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
+            >
+              Explore Artworks
+            </button>
+          </div>
+
+          <!-- Lists Grid -->
+          <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div 
+              v-for="list in userLists" 
+              :key="list.id"
+              @click="handleListClick(list)"
+              class="bg-gray-50 rounded-lg p-4 border border-gray-200 hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-colors"
+            >
+              <div class="flex items-start justify-between mb-3">
+                <h3 class="font-semibold text-gray-900 truncate pr-2">{{ list.name }}</h3>
+                <span 
+                  v-if="list.is_system"
+                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 flex-shrink-0"
+                >
+                  System
+                </span>
+              </div>
+              
+              <div class="flex items-center justify-between text-sm text-gray-600">
+                <span>{{ list.item_count || 0 }} artworks</span>
+                <span>{{ formatDateSafe(list.updated_at, list.created_at) }}</span>
+              </div>
+              
+              <div class="mt-2 flex items-center text-xs text-gray-500">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+                </svg>
+                {{ list.visibility === 'private' ? 'Private' : 'Unlisted' }}
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

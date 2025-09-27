@@ -1,0 +1,531 @@
+/**
+ * @jest-environment miniflare
+ */
+
+import { describe, it, expect, beforeEach } from '@jest/globals';
+import { getTestEnvironment } from '../../test/test-env';
+import type { WorkerEnv } from '../../index';
+
+const TEST_USER_UUID = '123e4567-e89b-12d3-a456-426614174000';
+const TEST_ARTWORK_ID = 'artwork_123e4567-e89b-12d3-a456-426614174001';
+const TEST_LIST_ID = '123e4567-e89b-12d3-a456-426614174002';
+
+describe('Lists API Endpoints', () => {
+  let env: WorkerEnv;
+  let request: (url: string, options?: RequestInit) => Promise<Response>;
+
+  beforeEach(async () => {
+    const testEnv = await getTestEnvironment();
+    env = testEnv.env;
+    request = testEnv.request;
+
+    // Set up test data - create a test user and artwork
+    await env.DB.prepare(`
+      INSERT OR REPLACE INTO users (uuid, email, is_reviewer, created_at, updated_at)
+      VALUES (?, 'test@example.com', 0, datetime('now'), datetime('now'))
+    `).bind(TEST_USER_UUID).run();
+
+    await env.DB.prepare(`
+      INSERT OR REPLACE INTO artworks (id, lat, lon, title, description, status, type_name, photos, tags, created_at, updated_at)
+      VALUES (?, 49.2827, -123.1207, 'Test Artwork', 'Test artwork for lists', 'approved', 'sculpture', 
+              '[]', '{"artist": "Test Artist"}', datetime('now'), datetime('now'))
+    `).bind(TEST_ARTWORK_ID).run();
+  });
+
+  describe('POST /api/lists - Create List', () => {
+    it('should create a new list successfully', async () => {
+      const response = await request('/api/lists', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+        body: JSON.stringify({ name: 'My Test List' }),
+      });
+
+      expect(response.status).toBe(201);
+      const data = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.data.list.name).toBe('My Test List');
+      expect(data.data.list.owner_user_uuid).toBe(TEST_USER_UUID);
+      expect(data.data.list.visibility).toBe('unlisted');
+    });
+
+    it('should return 409 for duplicate list names', async () => {
+      // Create first list
+      await request('/api/lists', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+        body: JSON.stringify({ name: 'Duplicate Name' }),
+      });
+
+      // Try to create second list with same name
+      const response = await request('/api/lists', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+        body: JSON.stringify({ name: 'Duplicate Name' }),
+      });
+
+      expect(response.status).toBe(409);
+      const data = await response.json();
+      expect(data.success).toBe(false);
+      expect(data.error).toContain('already exists');
+    });
+
+    it('should return 400 for invalid input', async () => {
+      const response = await request('/api/lists', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+        body: JSON.stringify({ name: '' }),
+      });
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.success).toBe(false);
+    });
+
+    it('should return 401 for unauthenticated requests', async () => {
+      const response = await request('/api/lists', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ name: 'Test List' }),
+      });
+
+      expect(response.status).toBe(401);
+    });
+
+    it('should enforce 255 character name limit', async () => {
+      const longName = 'A'.repeat(256);
+      const response = await request('/api/lists', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+        body: JSON.stringify({ name: longName }),
+      });
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.success).toBe(false);
+    });
+  });
+
+  describe('GET /api/me/lists - Get User Lists', () => {
+    beforeEach(async () => {
+      // Create test lists
+      await env.DB.prepare(`
+        INSERT INTO lists (id, owner_user_uuid, name, visibility, is_system, is_readonly, created_at, updated_at)
+        VALUES 
+          (?, ?, 'My Custom List', 'unlisted', 0, 0, datetime('now'), datetime('now')),
+          (?, ?, 'Want to see', 'unlisted', 1, 0, datetime('now'), datetime('now')),
+          (?, ?, 'Validated', 'private', 1, 1, datetime('now'), datetime('now'))
+      `).bind(
+        TEST_LIST_ID,
+        TEST_USER_UUID,
+        '123e4567-e89b-12d3-a456-426614174003',
+        TEST_USER_UUID,
+        '123e4567-e89b-12d3-a456-426614174004', 
+        TEST_USER_UUID
+      ).run();
+    });
+
+    it('should return user lists with metadata', async () => {
+      const response = await request('/api/me/lists', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+      });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.data).toHaveLength(3);
+      expect(data.data.some((list: any) => list.name === 'My Custom List')).toBe(true);
+      expect(data.data.some((list: any) => list.name === 'Want to see')).toBe(true);
+      expect(data.data.some((list: any) => list.name === 'Validated')).toBe(true);
+    });
+
+    it('should include item counts', async () => {
+      // Add items to list
+      await env.DB.prepare(`
+        INSERT INTO list_items (list_id, artwork_id, created_at)
+        VALUES (?, ?, datetime('now'))
+      `).bind(TEST_LIST_ID, TEST_ARTWORK_ID).run();
+
+      const response = await request('/api/me/lists', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+      });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.success).toBe(true);
+      const customList = data.data.find((list: any) => list.name === 'My Custom List');
+      expect(customList.item_count).toBe(1);
+    });
+
+    it('should return 401 for unauthenticated requests', async () => {
+      const response = await request('/api/me/lists', {
+        method: 'GET',
+      });
+
+      expect(response.status).toBe(401);
+    });
+  });
+
+  describe('GET /api/lists/:id - Get List Details', () => {
+    beforeEach(async () => {
+      // Create test list and add artwork
+      await env.DB.prepare(`
+        INSERT INTO lists (id, owner_user_uuid, name, visibility, is_system, is_readonly, created_at, updated_at)
+        VALUES (?, ?, 'Test List', 'unlisted', 0, 0, datetime('now'), datetime('now'))
+      `).bind(TEST_LIST_ID, TEST_USER_UUID).run();
+
+      await env.DB.prepare(`
+        INSERT INTO list_items (list_id, artwork_id, created_at)
+        VALUES (?, ?, datetime('now'))
+      `).bind(TEST_LIST_ID, TEST_ARTWORK_ID).run();
+    });
+
+    it('should return list details with paginated items', async () => {
+      const response = await request(`/api/lists/${TEST_LIST_ID}`, {
+        method: 'GET',
+      });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.data.list.name).toBe('Test List');
+      expect(data.data.items).toHaveLength(1);
+      expect(data.data.items[0].id).toBe(TEST_ARTWORK_ID);
+      expect(data.data.pagination.total).toBe(1);
+    });
+
+    it('should return 404 for non-existent list', async () => {
+      const response = await request('/api/lists/non-existent-id', {
+        method: 'GET',
+      });
+
+      expect(response.status).toBe(404);
+      const data = await response.json();
+      expect(data.success).toBe(false);
+    });
+
+    it('should respect pagination parameters', async () => {
+      const response = await request(`/api/lists/${TEST_LIST_ID}?page=1&limit=1`, {
+        method: 'GET',
+      });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.data.pagination.page).toBe(1);
+      expect(data.data.pagination.limit).toBe(1);
+    });
+
+    it('should hide private lists from non-owners', async () => {
+      // Create private list
+      const privateListId = '123e4567-e89b-12d3-a456-426614174005';
+      await env.DB.prepare(`
+        INSERT INTO lists (id, owner_user_uuid, name, visibility, is_system, is_readonly, created_at, updated_at)
+        VALUES (?, ?, 'Private List', 'private', 0, 0, datetime('now'), datetime('now'))
+      `).bind(privateListId, TEST_USER_UUID).run();
+
+      // Try to access without auth
+      const response = await request(`/api/lists/${privateListId}`, {
+        method: 'GET',
+      });
+
+      expect(response.status).toBe(404);
+    });
+  });
+
+  describe('POST /api/lists/:id/items - Add Artwork to List', () => {
+    beforeEach(async () => {
+      await env.DB.prepare(`
+        INSERT INTO lists (id, owner_user_uuid, name, visibility, is_system, is_readonly, created_at, updated_at)
+        VALUES (?, ?, 'Test List', 'unlisted', 0, 0, datetime('now'), datetime('now'))
+      `).bind(TEST_LIST_ID, TEST_USER_UUID).run();
+    });
+
+    it('should add artwork to list successfully', async () => {
+      const response = await request(`/api/lists/${TEST_LIST_ID}/items`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+        body: JSON.stringify({ artwork_id: TEST_ARTWORK_ID }),
+      });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.message).toContain('added to list');
+    });
+
+    it('should be no-op for duplicate additions', async () => {
+      // Add artwork first time
+      await request(`/api/lists/${TEST_LIST_ID}/items`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+        body: JSON.stringify({ artwork_id: TEST_ARTWORK_ID }),
+      });
+
+      // Add same artwork again
+      const response = await request(`/api/lists/${TEST_LIST_ID}/items`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+        body: JSON.stringify({ artwork_id: TEST_ARTWORK_ID }),
+      });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.message).toContain('already in list');
+    });
+
+    it('should enforce 1000-item limit', async () => {
+      // Mock a full list by directly inserting 1000 items
+      const insertPromises = [];
+      for (let i = 0; i < 1000; i++) {
+        const mockArtworkId = `artwork_${i.toString().padStart(10, '0')}`;
+        insertPromises.push(
+          env.DB.prepare(`
+            INSERT OR IGNORE INTO artworks (id, lat, lon, title, description, status, type_name, photos, tags, created_at, updated_at)
+            VALUES (?, 49.2827, -123.1207, 'Mock Artwork ${i}', 'Mock artwork', 'approved', 'sculpture', 
+                    '[]', '{}', datetime('now'), datetime('now'))
+          `).bind(mockArtworkId).run()
+        );
+        insertPromises.push(
+          env.DB.prepare(`
+            INSERT INTO list_items (list_id, artwork_id, created_at)
+            VALUES (?, ?, datetime('now'))
+          `).bind(TEST_LIST_ID, mockArtworkId).run()
+        );
+      }
+      await Promise.all(insertPromises);
+
+      // Try to add one more
+      const response = await request(`/api/lists/${TEST_LIST_ID}/items`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+        body: JSON.stringify({ artwork_id: TEST_ARTWORK_ID }),
+      });
+
+      expect(response.status).toBe(400);
+      const data = await response.json();
+      expect(data.success).toBe(false);
+      expect(data.error).toContain('1000');
+    });
+
+    it('should return 403 for non-owners', async () => {
+      const otherUserUuid = '123e4567-e89b-12d3-a456-426614174999';
+      const response = await request(`/api/lists/${TEST_LIST_ID}/items`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${otherUserUuid}`,
+        },
+        body: JSON.stringify({ artwork_id: TEST_ARTWORK_ID }),
+      });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 for readonly lists', async () => {
+      // Create readonly list
+      const readonlyListId = '123e4567-e89b-12d3-a456-426614174006';
+      await env.DB.prepare(`
+        INSERT INTO lists (id, owner_user_uuid, name, visibility, is_system, is_readonly, created_at, updated_at)
+        VALUES (?, ?, 'Readonly List', 'unlisted', 1, 1, datetime('now'), datetime('now'))
+      `).bind(readonlyListId, TEST_USER_UUID).run();
+
+      const response = await request(`/api/lists/${readonlyListId}/items`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+        body: JSON.stringify({ artwork_id: TEST_ARTWORK_ID }),
+      });
+
+      expect(response.status).toBe(403);
+      const data = await response.json();
+      expect(data.error).toContain('read-only');
+    });
+  });
+
+  describe('DELETE /api/lists/:id/items - Remove Artworks from List', () => {
+    beforeEach(async () => {
+      await env.DB.prepare(`
+        INSERT INTO lists (id, owner_user_uuid, name, visibility, is_system, is_readonly, created_at, updated_at)
+        VALUES (?, ?, 'Test List', 'unlisted', 0, 0, datetime('now'), datetime('now'))
+      `).bind(TEST_LIST_ID, TEST_USER_UUID).run();
+
+      await env.DB.prepare(`
+        INSERT INTO list_items (list_id, artwork_id, created_at)
+        VALUES (?, ?, datetime('now'))
+      `).bind(TEST_LIST_ID, TEST_ARTWORK_ID).run();
+    });
+
+    it('should remove artworks successfully', async () => {
+      const response = await request(`/api/lists/${TEST_LIST_ID}/items`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+        body: JSON.stringify({ artwork_ids: [TEST_ARTWORK_ID] }),
+      });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.data.removed_count).toBe(1);
+    });
+
+    it('should return 403 for non-owners', async () => {
+      const otherUserUuid = '123e4567-e89b-12d3-a456-426614174999';
+      const response = await request(`/api/lists/${TEST_LIST_ID}/items`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${otherUserUuid}`,
+        },
+        body: JSON.stringify({ artwork_ids: [TEST_ARTWORK_ID] }),
+      });
+
+      expect(response.status).toBe(403);
+    });
+
+    it('should return 403 for readonly lists', async () => {
+      // Create readonly list
+      const readonlyListId = '123e4567-e89b-12d3-a456-426614174007';
+      await env.DB.prepare(`
+        INSERT INTO lists (id, owner_user_uuid, name, visibility, is_system, is_readonly, created_at, updated_at)
+        VALUES (?, ?, 'Readonly List', 'unlisted', 1, 1, datetime('now'), datetime('now'))
+      `).bind(readonlyListId, TEST_USER_UUID).run();
+
+      const response = await request(`/api/lists/${readonlyListId}/items`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+        body: JSON.stringify({ artwork_ids: [TEST_ARTWORK_ID] }),
+      });
+
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe('DELETE /api/lists/:id - Delete List', () => {
+    beforeEach(async () => {
+      await env.DB.prepare(`
+        INSERT INTO lists (id, owner_user_uuid, name, visibility, is_system, is_readonly, created_at, updated_at)
+        VALUES (?, ?, 'Test List', 'unlisted', 0, 0, datetime('now'), datetime('now'))
+      `).bind(TEST_LIST_ID, TEST_USER_UUID).run();
+    });
+
+    it('should delete list successfully', async () => {
+      const response = await request(`/api/lists/${TEST_LIST_ID}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+      });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.message).toContain('deleted');
+    });
+
+    it('should return 403 for system lists', async () => {
+      // Create system list
+      const systemListId = '123e4567-e89b-12d3-a456-426614174008';
+      await env.DB.prepare(`
+        INSERT INTO lists (id, owner_user_uuid, name, visibility, is_system, is_readonly, created_at, updated_at)
+        VALUES (?, ?, 'Want to see', 'unlisted', 1, 0, datetime('now'), datetime('now'))
+      `).bind(systemListId, TEST_USER_UUID).run();
+
+      const response = await request(`/api/lists/${systemListId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+      });
+
+      expect(response.status).toBe(403);
+      const data = await response.json();
+      expect(data.error).toContain('system list');
+    });
+
+    it('should return 403 for non-owners', async () => {
+      const otherUserUuid = '123e4567-e89b-12d3-a456-426614174999';
+      const response = await request(`/api/lists/${TEST_LIST_ID}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${otherUserUuid}`,
+        },
+      });
+
+      expect(response.status).toBe(403);
+    });
+  });
+
+  describe('System Lists Auto-Creation', () => {
+    it('should auto-create system lists on first access', async () => {
+      // First request should trigger system list creation
+      const response = await request('/api/me/lists', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${TEST_USER_UUID}`,
+        },
+      });
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.success).toBe(true);
+      
+      const systemLists = data.data.filter((list: any) => list.is_system);
+      expect(systemLists).toHaveLength(4);
+      
+      const listNames = systemLists.map((list: any) => list.name);
+      expect(listNames).toContain('Want to see');
+      expect(listNames).toContain('Have seen');  
+      expect(listNames).toContain('Loved');
+      expect(listNames).toContain('Validated');
+      
+      // Check that Validated list is private
+      const validatedList = systemLists.find((list: any) => list.name === 'Validated');
+      expect(validatedList.is_private).toBe(true);
+      expect(validatedList.is_readonly).toBe(true);
+    });
+  });
+});
