@@ -16,7 +16,7 @@ import {
   getUserSubmissionCount,
   createArtworkEditFromFields,
 } from '../lib/submissions';
-import { createSuccessResponse, ValidationApiError, NotFoundError } from '../lib/errors';
+import { createSuccessResponse, ValidationApiError, NotFoundError, UnauthorizedError } from '../lib/errors';
 import { getUserToken } from '../middleware/auth';
 import { validateOSMExportData, createExportResponse, generateOSMXMLFile } from '../lib/osm-export';
 
@@ -412,4 +412,202 @@ export async function exportArtworkToOSM(c: Context<{ Bindings: WorkerEnv }>): P
   const response = createExportResponse([artwork], exportRequest);
 
   return c.json(createSuccessResponse(response));
+}
+
+/**
+ * GET /api/artwork/:id/membership - Get user's list membership status for an artwork
+ * Returns which special lists (loved, beenHere, wantToSee) the artwork is in for the current user
+ */
+export async function getArtworkMembership(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  const userToken = getUserToken(c);
+  const artworkId = c.req.param('id');
+
+  if (!artworkId) {
+    throw new ValidationApiError([
+      {
+        field: 'artwork_id',
+        message: 'Artwork ID is required',
+        code: 'REQUIRED_FIELD',
+      },
+    ]);
+  }
+
+  if (!userToken) {
+    // Return default states for unauthenticated users
+    return c.json(createSuccessResponse({
+      loved: false,
+      beenHere: false,
+      wantToSee: false,
+      inAnyList: false,
+    }));
+  }
+
+  try {
+    const db = c.env.DB;
+
+    // Check membership in special lists
+    const membershipQuery = `
+      SELECT 
+        l.special_list_name,
+        CASE WHEN li.artwork_id IS NOT NULL THEN 1 ELSE 0 END as is_member
+      FROM (
+        SELECT 'loved' as special_list_name
+        UNION SELECT 'beenHere' as special_list_name  
+        UNION SELECT 'wantToSee' as special_list_name
+      ) l
+      LEFT JOIN lists ls ON ls.user_token = ? AND ls.special_list_name = l.special_list_name
+      LEFT JOIN list_items li ON li.list_id = ls.list_id AND li.artwork_id = ?
+    `;
+
+    const membershipResults = await db.prepare(membershipQuery)
+      .bind(userToken, artworkId)
+      .all();
+
+    // Check if artwork is in any custom lists
+    const customListQuery = `
+      SELECT COUNT(*) as count
+      FROM list_items li
+      JOIN lists l ON l.list_id = li.list_id
+      WHERE l.user_token = ? AND li.artwork_id = ? AND l.special_list_name IS NULL
+    `;
+
+    const customListResult = await db.prepare(customListQuery)
+      .bind(userToken, artworkId)
+      .first();
+
+    // Build response
+    const membership = {
+      loved: false,
+      beenHere: false,
+      wantToSee: false,
+      inAnyList: false,
+    };
+
+    // Process special list memberships
+    if (membershipResults.success && membershipResults.results) {
+      for (const row of membershipResults.results) {
+        const listName = (row as any).special_list_name;
+        const isMember = (row as any).is_member === 1;
+        
+        if (listName === 'loved') membership.loved = isMember;
+        else if (listName === 'beenHere') membership.beenHere = isMember;
+        else if (listName === 'wantToSee') membership.wantToSee = isMember;
+      }
+    }
+
+    // Check custom lists
+    if (customListResult && (customListResult as any).count > 0) {
+      membership.inAnyList = true;
+    } else {
+      // Also true if in any special list
+      membership.inAnyList = membership.loved || membership.beenHere || membership.wantToSee;
+    }
+
+    return c.json(createSuccessResponse(membership));
+
+  } catch (error) {
+    console.error('Failed to get artwork membership:', error);
+    throw error;
+  }
+}
+
+/**
+ * POST /api/artwork/:id/lists/:listType - Toggle artwork in a specific special list
+ * Supports: loved, beenHere, wantToSee
+ */
+export async function toggleArtworkListMembership(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  const userToken = getUserToken(c);
+  const artworkId = c.req.param('id');
+  const listType = c.req.param('listType');
+
+  if (!userToken) {
+    throw new UnauthorizedError('Authentication required to manage lists');
+  }
+
+  if (!artworkId) {
+    throw new ValidationApiError([
+      {
+        field: 'artwork_id',
+        message: 'Artwork ID is required',
+        code: 'REQUIRED_FIELD',
+      },
+    ]);
+  }
+
+  if (!listType || !['loved', 'beenHere', 'wantToSee'].includes(listType)) {
+    throw new ValidationApiError([
+      {
+        field: 'listType',
+        message: 'List type must be one of: loved, beenHere, wantToSee',
+        code: 'INVALID_VALUE',
+      },
+    ]);
+  }
+
+  const requestBody = await c.req.json().catch(() => ({}));
+  const action = requestBody.action; // 'add' or 'remove'
+
+  if (!action || !['add', 'remove'].includes(action)) {
+    throw new ValidationApiError([
+      {
+        field: 'action',
+        message: 'Action must be either "add" or "remove"',
+        code: 'INVALID_VALUE',
+      },
+    ]);
+  }
+
+  try {
+    const db = c.env.DB;
+
+    // First, ensure the user has the special list
+    const ensureListQuery = `
+      INSERT OR IGNORE INTO lists (list_id, user_token, name, special_list_name, created_at)
+      VALUES (?, ?, ?, ?, datetime('now'))
+    `;
+
+    const listId = `${userToken}-${listType}`;
+    const listNames = {
+      loved: 'Loved',
+      beenHere: 'Been Here', 
+      wantToSee: 'Want to See'
+    };
+
+    await db.prepare(ensureListQuery)
+      .bind(listId, userToken, listNames[listType as keyof typeof listNames], listType)
+      .run();
+
+    if (action === 'add') {
+      // Add artwork to list
+      const addQuery = `
+        INSERT OR IGNORE INTO list_items (list_id, artwork_id, added_at)
+        VALUES (?, ?, datetime('now'))
+      `;
+      
+      await db.prepare(addQuery)
+        .bind(listId, artworkId)
+        .run();
+
+    } else {
+      // Remove artwork from list
+      const removeQuery = `
+        DELETE FROM list_items 
+        WHERE list_id = ? AND artwork_id = ?
+      `;
+      
+      await db.prepare(removeQuery)
+        .bind(listId, artworkId)
+        .run();
+    }
+
+    return c.json(createSuccessResponse({ 
+      message: `Artwork ${action === 'add' ? 'added to' : 'removed from'} ${listType} list`,
+      action,
+      listType 
+    }));
+
+  } catch (error) {
+    console.error(`Failed to ${action} artwork to ${listType} list:`, error);
+    throw error;
+  }
 }
