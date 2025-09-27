@@ -16,11 +16,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import type { Coordinates, ArtworkPin, MapComponentProps } from '../types/index';
 import { useArtworksStore } from '../stores/artworks';
-import {
-  useArtworkTypeFilters,
-  type ArtworkTypeToggle,
-} from '../composables/useArtworkTypeFilters';
-import { useMapFilters } from '../composables/useMapFilters';
+import { useArtworkTypeFilters, type ArtworkTypeToggle } from '../composables/useArtworkTypeFilters';
 import { useRouter } from 'vue-router';
 
 // Props
@@ -79,9 +75,6 @@ const clearingCache = ref(false);
 // Artwork type filters - using shared composable
 const { artworkTypes, isArtworkTypeEnabled, getTypeColor, enableAllTypes, disableAllTypes } =
   useArtworkTypeFilters();
-
-// Map filters for list membership checking
-const mapFilters = useMapFilters();
 
 // Cache for artwork list memberships to avoid repeated API calls
 const artworkListMembership = ref<Map<string, { beenHere: boolean, wantToSee: boolean }>>(new Map());

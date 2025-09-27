@@ -187,6 +187,13 @@ const handleQuickResetFilters = async () => {
   await updateDisplayedArtworks();
 };
 
+// Handle cluster setting change from filters modal
+const handleClusterChanged = (enabled: boolean) => {
+  console.log('[MAP FILTERS] Cluster setting changed:', enabled);
+  // The MapComponent will automatically pick up the change from localStorage
+  // No additional action needed here as the MapComponent watches localStorage
+};
+
 function handlePreviewArtwork(preview: MapPreview) {
   console.log('[MAPVIEW DEBUG] handlePreviewArtwork called with:', preview);
   
@@ -318,7 +325,7 @@ watch(
     <!-- Map Filters Banner with Enhanced Features -->
     <div 
       v-if="mapFilters.hasActiveFilters.value && !listFilterActive"
-      class="absolute top-4 left-4 right-16 z-40 bg-amber-50 border border-amber-200 rounded-lg p-3 shadow-sm"
+      class="absolute top-4 left-20 right-16 z-40 bg-amber-50 border border-amber-200 rounded-lg p-3 shadow-sm"
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center">
@@ -341,7 +348,7 @@ watch(
     <!-- Legacy List Filter Indicator -->
     <div 
       v-if="listFilterActive && listInfo"
-      class="absolute top-4 left-4 right-16 z-40 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-sm"
+      class="absolute top-4 left-20 right-16 z-40 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-sm"
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center">
@@ -362,8 +369,8 @@ watch(
       </div>
     </div>
 
-    <!-- Map Filters Button -->
-    <div class="absolute top-4 right-4 z-30">
+    <!-- Map Filters Button - Position to avoid collision with MapComponent options -->
+    <div class="absolute top-4 left-4 z-30">
       <button
         @click="handleOpenFilters"
         class="bg-white shadow-md rounded-full p-3 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
@@ -414,6 +421,7 @@ watch(
       :is-open="showFiltersModal"
       @update:is-open="handleCloseFilters"
       @filters-changed="handleFiltersChanged"
+      @cluster-changed="handleClusterChanged"
     />
   </div>
 </template>

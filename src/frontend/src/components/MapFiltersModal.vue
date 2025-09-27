@@ -12,6 +12,7 @@ interface Props {
 interface Emits {
   (e: 'update:isOpen', value: boolean): void;
   (e: 'filtersChanged'): void;
+  (e: 'clusterChanged', value: boolean): void;
 }
 
 const props = defineProps<Props>();
@@ -24,6 +25,15 @@ const authStore = useAuthStore();
 // Local state
 const isLoadingData = ref(false);
 const searchQuery = ref(''); // Advanced Feature: Search functionality
+const clusterEnabled = ref(true); // Cluster markers toggle
+
+// Load cluster setting from localStorage
+onMounted(() => {
+  const saved = localStorage.getItem('map:clusterEnabled');
+  if (saved !== null) {
+    clusterEnabled.value = saved === 'true';
+  }
+});
 
 // Computed properties
 const isAuthenticated = computed(() => authStore.isAuthenticated);
@@ -37,8 +47,7 @@ const filteredUserLists = computed(() => {
   
   const query = searchQuery.value.toLowerCase().trim();
   return mapFilters.availableUserLists.value.filter(list => 
-    list.name.toLowerCase().includes(query) ||
-    (list.description && list.description.toLowerCase().includes(query))
+    list.name.toLowerCase().includes(query)
   );
 });
 
@@ -74,6 +83,14 @@ const handleToggleUserList = (listId: string) => {
 const handleToggleNotSeenByMe = () => {
   mapFilters.toggleNotSeenByMe();
   emit('filtersChanged');
+};
+
+const handleToggleCluster = () => {
+  clusterEnabled.value = !clusterEnabled.value;
+  // Save to localStorage for persistence
+  localStorage.setItem('map:clusterEnabled', String(clusterEnabled.value));
+  // Emit event to trigger map component update
+  emit('clusterChanged', clusterEnabled.value);
 };
 
 // Load data when modal opens
@@ -283,9 +300,6 @@ onMounted(() => {
                   <p class="text-xs mt-1 text-gray-600">
                     {{ list.item_count || 0 }} item{{ (list.item_count || 0) !== 1 ? 's' : '' }}
                   </p>
-                  <p v-if="list.description" class="text-xs mt-0.5 text-gray-500">
-                    {{ list.description }}
-                  </p>
                 </div>
               </div>
             </div>
@@ -294,6 +308,47 @@ onMounted(() => {
             <div v-else class="text-center py-6 bg-gray-50 rounded-lg">
               <p class="text-sm text-gray-600">You haven't created any lists yet.</p>
               <p class="text-xs text-gray-500 mt-1">Create lists from artwork detail pages to organize your favorites.</p>
+            </div>
+          </div>
+
+          <!-- Map Display Options Section -->
+          <div>
+            <h3 class="text-sm font-medium text-gray-900 mb-3">Map Display</h3>
+            
+            <!-- Cluster Markers Toggle -->
+            <div class="flex items-start space-x-3 mb-4">
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  :checked="clusterEnabled"
+                  @change="handleToggleCluster"
+                  class="sr-only"
+                />
+                <div
+                  class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-green-500 transition-colors"
+                  :class="clusterEnabled ? 'bg-green-600' : 'bg-gray-200'"
+                >
+                  <div
+                    class="dot absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform"
+                    :class="clusterEnabled ? 'translate-x-5' : 'translate-x-0'"
+                  ></div>
+                </div>
+              </label>
+              
+              <div class="flex-1">
+                <div class="flex items-center">
+                  <h4 class="text-sm font-medium text-gray-900">Cluster Markers</h4>
+                  <span
+                    v-if="clusterEnabled"
+                    class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                  >
+                    Active
+                  </span>
+                </div>
+                <p class="text-xs mt-1 text-gray-600">
+                  Group nearby artworks together for cleaner map display
+                </p>
+              </div>
             </div>
           </div>
 
