@@ -3,8 +3,8 @@
  * Implements requirements from tasks/prd-map-filtering.md
  */
 
-import { ref, computed, watch, type Ref, type ComputedRef } from 'vue';
-import type { ArtworkPin, ListApiResponse, ArtworkApiResponse } from '../types';
+import { ref, computed, watch, type Ref } from 'vue';
+import type { ArtworkPin, ListApiResponse } from '../types';
 import { apiService } from '../services/api';
 import { SPECIAL_LIST_NAMES } from '../../../shared/types';
 
@@ -200,7 +200,7 @@ export function useMapFilters() {
             const listArtworks = listDetails.data?.items || [];
             
             // Convert API response artworks to include in filter
-            listArtworks.forEach((artwork) => {
+            listArtworks.forEach((artwork: any) => {
               includeSet.add(artwork.id);
             });
           } else {
@@ -218,7 +218,7 @@ export function useMapFilters() {
           const listArtworks = listDetails.data?.items || [];
           
           // Convert API response artworks to ArtworkPin format
-          listArtworks.forEach((artwork) => {
+          listArtworks.forEach((artwork: any) => {
             includeSet.add(artwork.id);
           });
         } catch (error) {
@@ -246,7 +246,7 @@ export function useMapFilters() {
           const listDetails = await apiService.getListDetails(beenHereListId);
           const listArtworks = listDetails.data?.items || [];
           
-          listArtworks.forEach((artwork) => {
+          listArtworks.forEach((artwork: any) => {
             excludeSet.add(artwork.id);
           });
         } else {
