@@ -84,7 +84,7 @@ const chipData = computed(() => [
     label: 'Loved',
     active: listStates.value.loved,
     loading: loadingStates.value.loved,
-    count: publicCounts.value.loved > 0 ? publicCounts.value.loved : undefined,
+    ...(publicCounts.value.loved > 0 && { count: publicCounts.value.loved }),
     showSuccessAnimation: successAnimations.value.loved,
     ariaLabel: listStates.value.loved 
       ? 'Remove from Loved list - currently in list' 
@@ -97,7 +97,7 @@ const chipData = computed(() => [
     label: 'Been Here',
     active: listStates.value.beenHere,
     loading: loadingStates.value.beenHere,
-    count: publicCounts.value.beenHere > 0 ? publicCounts.value.beenHere : undefined,
+    ...(publicCounts.value.beenHere > 0 && { count: publicCounts.value.beenHere }),
     showSuccessAnimation: successAnimations.value.beenHere,
     ariaLabel: listStates.value.beenHere 
       ? 'Remove from Been Here list - currently in list' 
@@ -110,7 +110,7 @@ const chipData = computed(() => [
     label: 'Want to See',
     active: listStates.value.wantToSee,
     loading: loadingStates.value.wantToSee,
-    count: publicCounts.value.wantToSee > 0 ? publicCounts.value.wantToSee : undefined,
+    ...(publicCounts.value.wantToSee > 0 && { count: publicCounts.value.wantToSee }),
     showSuccessAnimation: successAnimations.value.wantToSee,
     ariaLabel: listStates.value.wantToSee 
       ? 'Remove from Want to See list - currently in list' 
@@ -157,16 +157,29 @@ const chipData = computed(() => [
 
 // Lifecycle
 onMounted(async () => {
-  // Always fetch public counts (available to everyone)
-  await fetchPublicCounts();
-  
-  // Use initial states if provided, otherwise fetch from API
+  // Use initial states if provided, set them first
   if (props.initialListStates) {
     listStates.value = { ...listStates.value, ...props.initialListStates };
     initialLoading.value = false;
-  } else if (isAuthenticated.value) {
-    await fetchMembershipStates();
-  } else {
+  }
+  
+  // Always fetch public counts (available to everyone)
+  try {
+    await fetchPublicCounts();
+  } catch (error) {
+    // Don't fail the component if counts fail
+    console.error('Failed to fetch public counts:', error);
+  }
+  
+  // Fetch membership states if needed
+  if (!props.initialListStates && isAuthenticated.value) {
+    try {
+      await fetchMembershipStates();
+    } catch (error) {
+      console.error('Failed to fetch membership states:', error);
+      initialLoading.value = false;
+    }
+  } else if (!props.initialListStates) {
     initialLoading.value = false;
   }
 });
@@ -413,13 +426,13 @@ async function handleShare(): Promise<void> {
         :label="chip.label"
         :active="chip.active"
         :loading="initialLoading || chip.loading"
-        :count="chip.count"
-        :show-success-animation="chip.showSuccessAnimation"
+        :show-success-animation="'showSuccessAnimation' in chip ? chip.showSuccessAnimation : false"
         :aria-label="chip.ariaLabel"
         :show-label="false"
         variant="outlined"
         size="md"
         :data-testid="`chip-${chip.id}`"
+        v-bind="'count' in chip && chip.count > 0 ? { count: chip.count } : {}"
         @click="chip.action"
         class="min-w-0"
       />
