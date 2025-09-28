@@ -24,6 +24,7 @@ const authStore = useAuthStore();
 
 // Local state
 const isLoadingData = ref(false);
+const searchQuery = ref(''); // Advanced Feature: Search functionality
 const clusterEnabled = ref(true); // Cluster markers toggle
 
 // Load cluster setting from localStorage
@@ -37,6 +38,24 @@ onMounted(() => {
 // Computed properties
 const isAuthenticated = computed(() => authStore.isAuthenticated);
 const hasUserLists = computed(() => mapFilters.availableUserLists.value.length > 0);
+const hasAdvancedFeatures = computed(() => isAuthenticated.value && mapFilters.analytics.value.filterUsageCount.size > 0);
+const recentFilters = computed(() => {
+  // Get recently used filters from analytics
+  const recent = mapFilters.analytics.value.recentlyUsed || [];
+  return recent.slice(0, 5); // Show last 5
+});
+
+// Advanced Feature: Filtered lists based on search query
+const filteredUserLists = computed(() => {
+  if (!searchQuery.value.trim()) {
+    return mapFilters.availableUserLists.value;
+  }
+  
+  const query = searchQuery.value.toLowerCase().trim();
+  return mapFilters.availableUserLists.value.filter(list => 
+    list.name.toLowerCase().includes(query)
+  );
+});
 
 // Methods
 function closeModal() {
@@ -72,6 +91,25 @@ function handleApplyFilters() {
   // Emit filters changed and close modal
   emit('filtersChanged');
   closeModal();
+}
+
+function handleApplyRecentFilter(filter: any) {
+  // Apply a recently used filter configuration
+  // This would restore a saved filter state
+  console.log('Applying recent filter:', filter);
+}
+
+function formatDate(dateString: string): string {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      year: date.getFullYear() === new Date().getFullYear() ? undefined : 'numeric'
+    });
+  } catch {
+    return 'Recently';
+  }
 }
 
 // Load data when modal opens
@@ -394,10 +432,223 @@ onUnmounted(() => {
     </div>
   </div>
 </template>
+            
+            <!-- Advanced Feature: Search Bar for Lists -->
+            <div v-if="hasUserLists && mapFilters.availableUserLists.value.length > 3" class="mb-3">
+              <div class="relative">
+                <input
+                  v-model="searchQuery"
+                  type="text"
+                  placeholder="Search your lists..."
+                  class="w-full pl-8 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                />
+                <svg class="absolute left-2.5 top-2.5 h-3 w-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m21 21-6-6m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0Z"/>
+                </svg>
+              </div>
+            </div>
+            
+            <!-- Loading User Lists -->
+            <div v-if="mapFilters.isLoadingLists.value" class="text-center py-4">
+              <div class="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600 mx-auto"></div>
+              <p class="text-xs text-gray-500 mt-1">Loading lists...</p>
+            </div>
+
+            <!-- Recently Used Lists (if any) -->
+            <div v-else-if="recentlyUsedLists.length > 0 && !searchQuery" class="mb-4">
+              <p class="text-xs text-gray-500 mb-2">Recently Used</p>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="list in recentlyUsedLists"
+                  :key="`recent-${list.id}`"
+                  @click="() => handleToggleUserList(list.id)"
+                  class="px-3 py-1 text-xs rounded-full border transition-colors"
+                  :class="mapFilters.isFilterEnabled('userList', list.id) 
+                    ? 'bg-blue-100 text-blue-800 border-blue-200' 
+                    : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'"
+                >
+                  {{ list.name }}
+                </button>
+              </div>
+            </div>
+
+            <!-- User Lists -->
+            <div v-else-if="hasUserLists" class="space-y-3 max-h-48 overflow-y-auto">
+              <!-- Show filtered results -->
+              <div v-if="searchQuery && filteredUserLists.length === 0" class="text-center py-4 bg-gray-50 rounded-lg">
+                <p class="text-sm text-gray-600">No lists found matching "{{ searchQuery }}"</p>
+              </div>
+              
+              <div
+                v-for="list in searchQuery ? filteredUserLists : mapFilters.availableUserLists.value"
+                :key="list.id"
+                class="flex items-start space-x-3"
+              >
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    :checked="mapFilters.isFilterEnabled('userList', list.id)"
+                    @change="() => handleToggleUserList(list.id)"
+                    class="sr-only"
+                  />
+                  <div
+                    class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors"
+                    :class="mapFilters.isFilterEnabled('userList', list.id) ? 'bg-blue-600' : 'bg-gray-200'"
+                  >
+                    <div
+                      class="dot absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform"
+                      :class="mapFilters.isFilterEnabled('userList', list.id) ? 'translate-x-5' : 'translate-x-0'"
+                    ></div>
+                  </div>
+                </label>
+                
+                <div class="flex-1">
+                  <div class="flex items-center">
+                    <h4 class="text-sm font-medium text-gray-900">{{ list.name }}</h4>
+                    <span
+                      v-if="mapFilters.isFilterEnabled('userList', list.id)"
+                      class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                    >
+                      Active
+                    </span>
+                  </div>
+                  <p class="text-xs mt-1 text-gray-600">
+                    {{ list.item_count || 0 }} item{{ (list.item_count || 0) !== 1 ? 's' : '' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- No User Lists -->
+            <div v-else class="text-center py-6 bg-gray-50 rounded-lg">
+              <p class="text-sm text-gray-600">You haven't created any lists yet.</p>
+              <p class="text-xs text-gray-500 mt-1">Create lists from artwork detail pages to organize your favorites.</p>
+            </div>
+          </div>
+
+          <!-- Map Display Options Section -->
+          <div>
+            <h3 class="text-sm font-medium text-gray-900 mb-3">Map Display</h3>
+            
+            <!-- Cluster Markers Toggle -->
+            <div class="flex items-start space-x-3 mb-4">
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  :checked="clusterEnabled"
+                  @change="handleToggleCluster"
+                  class="sr-only"
+                />
+                <div
+                  class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-green-500 transition-colors"
+                  :class="clusterEnabled ? 'bg-green-600' : 'bg-gray-200'"
+                >
+                  <div
+                    class="dot absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform"
+                    :class="clusterEnabled ? 'translate-x-5' : 'translate-x-0'"
+                  ></div>
+                </div>
+              </label>
+              
+              <div class="flex-1">
+                <div class="flex items-center">
+                  <h4 class="text-sm font-medium text-gray-900">Cluster Markers</h4>
+                  <span
+                    v-if="clusterEnabled"
+                    class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                  >
+                    Active
+                  </span>
+                </div>
+                <p class="text-xs mt-1 text-gray-600">
+                  Group nearby artworks together for cleaner map display
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Subtractive Filters Section -->
+          <div>
+            <h3 class="text-sm font-medium text-gray-900 mb-3">Advanced Filters</h3>
+            
+            <!-- Not Seen by Me Filter -->
+            <div class="flex items-start space-x-3">
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  :checked="mapFilters.isFilterEnabled('notSeenByMe')"
+                  @change="handleToggleNotSeenByMe"
+                  class="sr-only"
+                />
+                <div
+                  class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-orange-500 transition-colors"
+                  :class="mapFilters.isFilterEnabled('notSeenByMe') ? 'bg-orange-600' : 'bg-gray-200'"
+                >
+                  <div
+                    class="dot absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform"
+                    :class="mapFilters.isFilterEnabled('notSeenByMe') ? 'translate-x-5' : 'translate-x-0'"
+                  ></div>
+                </div>
+              </label>
+              
+              <div class="flex-1">
+                <div class="flex items-center">
+                  <h4 class="text-sm font-medium text-gray-900">Not Seen by Me</h4>
+                  <span
+                    v-if="mapFilters.isFilterEnabled('notSeenByMe')"
+                    class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800"
+                  >
+                    Active
+                  </span>
+                </div>
+                <p class="text-xs mt-1 text-gray-600">
+                  Hide artworks you've already visited or logged
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="px-6 py-4 bg-gray-50 border-t border-gray-200">
+        <button
+          @click="closeModal"
+          class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-colors"
+        >
+          Apply Filters
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
 
 <style scoped>
 /* Custom toggle switch styles */
 .dot {
   transition: transform 0.2s ease-in-out;
+}
+
+/* Smooth scrolling for lists */
+.overflow-y-auto {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e0 transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background-color: #cbd5e0;
+  border-radius: 3px;
+}
+
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background-color: #a0aec0;
 }
 </style>
