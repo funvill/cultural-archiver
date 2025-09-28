@@ -241,10 +241,20 @@ export function useMapFilters() {
     }
   }
 
+  // Force refresh trigger for immediate updates
+  const refreshTrigger = ref(0);
+  
+  function forceRefresh() {
+    refreshTrigger.value++;
+    console.log('[MAP FILTERS] Force refresh triggered:', refreshTrigger.value);
+  }
+
   function toggleWantToSee() {
     filterState.value.wantToSee = !filterState.value.wantToSee;
+    console.log('[MAP FILTERS] Toggled Want to See:', filterState.value.wantToSee);
     trackFilterUsage('wantToSee');
     saveStateToStorage();
+    forceRefresh();
   }
 
   function toggleUserList(listId: string) {
@@ -254,14 +264,18 @@ export function useMapFilters() {
     } else {
       filterState.value.userLists.splice(index, 1);
     }
+    console.log('[MAP FILTERS] Toggled User List:', listId, 'Active lists:', filterState.value.userLists);
     trackFilterUsage(`list:${listId}`);
     saveStateToStorage();
+    forceRefresh();
   }
 
   function toggleNotSeenByMe() {
     filterState.value.notSeenByMe = !filterState.value.notSeenByMe;
+    console.log('[MAP FILTERS] Toggled Not Seen by Me:', filterState.value.notSeenByMe);
     trackFilterUsage('notSeenByMe');
     saveStateToStorage();
+    forceRefresh();
   }
 
   function isFilterEnabled(filterId: string): boolean {
@@ -597,6 +611,7 @@ export function useMapFilters() {
     filterState: filterState as Ref<Readonly<MapFilterState>>,
     availableUserLists: availableUserLists as Ref<Readonly<ListApiResponse[]>>,
     isLoadingLists: isLoadingLists as Ref<boolean>,
+    refreshTrigger,
     
     // Computed
     hasActiveFilters,
@@ -616,6 +631,7 @@ export function useMapFilters() {
     isFilterEnabled,
     resetFilters,
     applyFilters,
+    forceRefresh,
     
     // Advanced Features Methods
     getCachedListDetails,

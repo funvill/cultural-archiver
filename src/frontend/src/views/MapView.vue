@@ -26,7 +26,7 @@ const listFilterActive = ref(false);
 // Map filters modal state
 const showFiltersModal = ref(false);
 
-// Filtered artworks for display
+// Displayed artworks with reactive filtering
 const displayedArtworks = ref<ArtworkPin[]>([]);
 
 // Computed properties
@@ -37,6 +37,7 @@ const artworks = computed(() => {
     listFilterActive: listFilterActive.value,
     listArtworksLength: listArtworks.value.length,
     displayedArtworksLength: displayedArtworks.value.length,
+    storeArtworksLength: artworksStore.artworks.length,
     hasMapFilters: mapFilters.hasActiveFilters.value
   });
   
@@ -50,8 +51,12 @@ const artworks = computed(() => {
     return listArtworks.value;
   }
 
-  // Use displayedArtworks which may be filtered by map filters
-  console.log('[ARTWORKS COMPUTED] Returning displayedArtworks:', displayedArtworks.value.length);
+  // Use the displayedArtworks ref that gets updated by the watchers
+  console.log('[ARTWORKS COMPUTED] Using displayedArtworks:', {
+    displayedCount: displayedArtworks.value.length,
+    hasActiveFilters: mapFilters.hasActiveFilters.value,
+    timestamp: new Date().toISOString(),
+  });
   return displayedArtworks.value;
 });
 
@@ -295,6 +300,9 @@ onMounted(() => {
   if (artworksStore.currentLocation) {
     artworksStore.fetchNearbyArtworks();
   }
+
+  // Initialize displayed artworks
+  displayedArtworks.value = artworksStore.artworks;
 
   // Watch for changes to persist (simple interval to avoid adding watchers here)
   const persist = () => {
