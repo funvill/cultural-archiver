@@ -26,6 +26,12 @@ const authStore = useAuthStore();
 const isLoadingData = ref(false);
 const clusterEnabled = ref(true); // Cluster markers toggle
 
+// Advanced Features state
+const showAdvancedFeatures = ref(false);
+const showMetrics = ref(false);
+const newPresetName = ref('');
+const importFileInput = ref<HTMLInputElement | null>(null);
+
 // Load cluster setting from localStorage
 onMounted(() => {
   const saved = localStorage.getItem('map:clusterEnabled');
@@ -49,22 +55,22 @@ function handleClusterToggle() {
 }
 
 function handleToggleWantToSee() {
-  mapFilters.toggleFilter('wantToSee');
+  mapFilters.toggleWantToSee();
   emit('filtersChanged');
 }
 
 function handleToggleNotSeenByMe() {
-  mapFilters.toggleFilter('notSeenByMe');
+  mapFilters.toggleNotSeenByMe();
   emit('filtersChanged');
 }
 
 function handleToggleUserList(listId: string) {
-  mapFilters.toggleFilter(`list:${listId}`);
+  mapFilters.toggleUserList(listId);
   emit('filtersChanged');
 }
 
 function handleResetFilters() {
-  mapFilters.resetAllFilters();
+  mapFilters.resetFilters();
   emit('filtersChanged');
 }
 
@@ -72,6 +78,69 @@ function handleApplyFilters() {
   // Emit filters changed and close modal
   emit('filtersChanged');
   closeModal();
+}
+
+// Advanced Features Methods
+function applyQuickFilter(filterId: string) {
+  if (filterId === 'wantToSee') {
+    handleToggleWantToSee();
+  } else if (filterId === 'notSeenByMe') {
+    handleToggleNotSeenByMe();
+  } else if (filterId.startsWith('list:')) {
+    const listId = filterId.replace('list:', '');
+    handleToggleUserList(listId);
+  }
+}
+
+function createNewPreset() {
+  if (!newPresetName.value.trim()) return;
+  
+  mapFilters.createPreset(newPresetName.value.trim(), 'Created from current filter settings');
+  newPresetName.value = '';
+}
+
+function exportConfiguration() {
+  const configData = mapFilters.exportFilters();
+  const blob = new Blob([configData], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `map-filters-export-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function handleImportFile(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const content = e.target?.result as string;
+      const success = mapFilters.importFilters(content);
+      if (success) {
+        alert('Filter configuration imported successfully!');
+      } else {
+        alert('Failed to import filter configuration. Please check the file format.');
+      }
+    } catch (error) {
+      alert('Failed to read import file.');
+    }
+  };
+  reader.readAsText(file);
+  target.value = ''; // Reset input
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}m ${remainingSeconds}s`;
 }
 
 // Load data when modal opens
@@ -364,6 +433,157 @@ onUnmounted(() => {
                 <p class="text-xs text-gray-500 mb-4">Create custom lists to organize artworks by theme, location, or any criteria that matters to you.</p>
                 <p class="text-xs text-gray-400">Visit artwork detail pages to add items to lists, or create new lists from your profile.</p>
               </div>
+            </div>
+
+            <!-- Advanced Features: Filter Presets -->
+            <div v-if="showAdvancedFeatures">
+              <h3 class="text-base font-semibold text-gray-900 mb-4">Filter Presets</h3>
+              
+              <!-- Recently Used Filters -->
+              <div v-if="mapFilters.recentlyUsedFilters.value?.length > 0" class="mb-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-2">Recently Used</h4>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="recent in mapFilters.recentlyUsedFilters.value.slice(0, 3)"
+                    :key="recent.filterId"
+                    @click="applyQuickFilter(recent.filterId)"
+                    class="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
+                  >
+                    {{ recent.label }} ({{ recent.count }})
+                  </button>
+                </div>
+              </div>
+
+              <!-- Saved Presets -->
+              <div v-if="mapFilters.filterPresets.value?.length > 0" class="mb-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-2">Saved Presets</h4>
+                <div class="space-y-2">
+                  <div
+                    v-for="preset in mapFilters.filterPresets.value"
+                    :key="preset.id"
+                    class="flex items-center justify-between p-2 bg-gray-50 rounded-md"
+                  >
+                    <div class="flex-1">
+                      <div class="text-sm font-medium text-gray-900">{{ preset.name }}</div>
+                      <div class="text-xs text-gray-500">{{ preset.description }}</div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                      <button
+                        @click="mapFilters.applyPreset(preset.id)"
+                        class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        Apply
+                      </button>
+                      <button
+                        @click="mapFilters.deletePreset(preset.id)"
+                        class="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Create Preset -->
+              <div class="space-y-3">
+                <div class="flex items-center space-x-2">
+                  <input
+                    v-model="newPresetName"
+                    type="text"
+                    placeholder="Preset name..."
+                    class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    @click="createNewPreset"
+                    :disabled="!newPresetName.trim()"
+                    class="px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Save Current
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Advanced Features: Export/Import -->
+            <div v-if="showAdvancedFeatures">
+              <h3 class="text-base font-semibold text-gray-900 mb-4">Export/Import</h3>
+              <div class="space-y-3">
+                <div class="flex items-center space-x-2">
+                  <button
+                    @click="exportConfiguration"
+                    class="px-3 py-2 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                  >
+                    Export Config
+                  </button>
+                  <input
+                    ref="importFileInput"
+                    type="file"
+                    accept=".json"
+                    @change="handleImportFile"
+                    class="hidden"
+                  />
+                  <button
+                    @click="importFileInput?.click()"
+                    class="px-3 py-2 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                  >
+                    Import Config
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Advanced Features: Performance Metrics -->
+            <div v-if="showAdvancedFeatures && showMetrics">
+              <h3 class="text-base font-semibold text-gray-900 mb-4">Performance Metrics</h3>
+              <div class="bg-gray-50 p-3 rounded-md space-y-2">
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">Session Duration:</span>
+                  <span class="font-medium">{{ formatDuration(mapFilters.getFilterMetrics.value.sessionDuration) }}</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">Filter Applications:</span>
+                  <span class="font-medium">{{ mapFilters.getFilterMetrics.value.totalFilterApplications }}</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">Cache Hit Rate:</span>
+                  <span class="font-medium">{{ Math.round(mapFilters.getFilterMetrics.value.cacheHitRate * 100) }}%</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">Most Used Filter:</span>
+                  <span class="font-medium">{{ mapFilters.getFilterMetrics.value.mostUsedFilter }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Advanced Features Toggle -->
+          <div v-if="isAuthenticated" class="border-t border-gray-200 pt-4">
+            <button
+              @click="showAdvancedFeatures = !showAdvancedFeatures"
+              class="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+            >
+              <span>Advanced Features</span>
+              <svg
+                :class="{ 'rotate-180': showAdvancedFeatures }"
+                class="w-4 h-4 transition-transform"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            <div v-if="showAdvancedFeatures" class="mt-2 pl-4">
+              <label class="flex items-center text-xs text-gray-600">
+                <input
+                  v-model="showMetrics"
+                  type="checkbox"
+                  class="mr-2"
+                />
+                Show performance metrics
+              </label>
             </div>
           </div>
         </div>
