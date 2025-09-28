@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import MapComponent from '../components/MapComponent.vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
@@ -33,6 +33,13 @@ const displayedArtworks = ref<ArtworkPin[]>([]);
 const mapCenter = computed(() => artworksStore.mapCenter);
 const mapZoom = computed(() => artworksStore.mapZoom);
 const artworks = computed(() => {
+  console.log('[ARTWORKS COMPUTED] Recomputing artworks:', {
+    listFilterActive: listFilterActive.value,
+    listArtworksLength: listArtworks.value.length,
+    displayedArtworksLength: displayedArtworks.value.length,
+    hasMapFilters: mapFilters.hasActiveFilters.value
+  });
+  
   // Use filtered list artworks if legacy list filtering is active
   if (listFilterActive.value && listArtworks.value.length > 0) {
     console.log('[MARKER DEBUG] MapView using list-filtered artworks:', {
@@ -44,6 +51,7 @@ const artworks = computed(() => {
   }
 
   // Use displayedArtworks which may be filtered by map filters
+  console.log('[ARTWORKS COMPUTED] Returning displayedArtworks:', displayedArtworks.value.length);
   return displayedArtworks.value;
 });
 
@@ -51,13 +59,32 @@ const artworks = computed(() => {
 const updateDisplayedArtworks = async () => {
   const storeArtworks = artworksStore.artworks;
   
+  console.log('[MAP FILTERS] updateDisplayedArtworks called:', {
+    storeArtworksLength: storeArtworks.length,
+    hasActiveFilters: mapFilters.hasActiveFilters.value,
+    currentDisplayedLength: displayedArtworks.value.length
+  });
+  
   // Apply map filters if any are active
   if (mapFilters.hasActiveFilters.value) {
     console.log('[MAP FILTERS] Applying filters to store artworks');
-    displayedArtworks.value = await mapFilters.applyFilters(storeArtworks);
+    const filtered = await mapFilters.applyFilters(storeArtworks);
+    console.log('[MAP FILTERS] Filtered artworks:', {
+      originalCount: storeArtworks.length,
+      filteredCount: filtered.length
+    });
+    displayedArtworks.value = filtered;
   } else {
+    console.log('[MAP FILTERS] No active filters, using all store artworks');
     displayedArtworks.value = storeArtworks;
   }
+  
+  // Ensure Vue reactivity system picks up the change
+  await nextTick();
+  console.log('[MAP FILTERS] Display artworks updated:', {
+    finalCount: displayedArtworks.value.length,
+    firstFew: displayedArtworks.value.slice(0, 3).map(a => ({ id: a.id, title: a.title }))
+  });
 };
 
 // Preview state
@@ -176,7 +203,13 @@ const handleCloseFilters = () => {
 };
 
 const handleFiltersChanged = async () => {
-  console.log('[MAP FILTERS] Filters changed, updating displayed artworks');
+  console.log('[MAP FILTERS] Filters changed event received, updating displayed artworks');
+  console.log('[MAP FILTERS] Current filter state:', {
+    hasActiveFilters: mapFilters.hasActiveFilters.value,
+    wantToSee: mapFilters.filterState.value.wantToSee,
+    notSeenByMe: mapFilters.filterState.value.notSeenByMe,
+    userListsCount: Object.keys(mapFilters.filterState.value.userLists).length
+  });
   await updateDisplayedArtworks();
 };
 
@@ -297,12 +330,19 @@ watch(
   { deep: true }
 );
 
-// Watch for filter changes
+// Watch for filter changes - including specific filter state changes
 watch(
-  () => mapFilters.hasActiveFilters.value,
+  [
+    () => mapFilters.hasActiveFilters.value,
+    () => mapFilters.filterState.value.wantToSee,
+    () => mapFilters.filterState.value.notSeenByMe,
+    () => mapFilters.filterState.value.userLists,
+  ],
   async () => {
+    console.log('[MAP FILTERS] Filter state changed, updating displayed artworks');
     await updateDisplayedArtworks();
-  }
+  },
+  { deep: true }
 );
 
 // Watch for URL parameter changes to enable/disable list filtering

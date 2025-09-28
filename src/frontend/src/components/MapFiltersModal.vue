@@ -55,17 +55,23 @@ function handleClusterToggle() {
 }
 
 function handleToggleWantToSee() {
+  console.log('[FILTERS DEBUG] handleToggleWantToSee called');
   mapFilters.toggleWantToSee();
+  console.log('[FILTERS DEBUG] emitting filtersChanged');
   emit('filtersChanged');
 }
 
 function handleToggleNotSeenByMe() {
+  console.log('[FILTERS DEBUG] handleToggleNotSeenByMe called');
   mapFilters.toggleNotSeenByMe();
+  console.log('[FILTERS DEBUG] emitting filtersChanged');
   emit('filtersChanged');
 }
 
 function handleToggleUserList(listId: string) {
+  console.log('[FILTERS DEBUG] handleToggleUserList called with:', listId);
   mapFilters.toggleUserList(listId);
+  console.log('[FILTERS DEBUG] emitting filtersChanged');
   emit('filtersChanged');
 }
 
