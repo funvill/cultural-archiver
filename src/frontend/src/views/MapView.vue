@@ -102,6 +102,39 @@ function stopTelemetryPolling() {
   }
 }
 
+// BroadcastChannel for cross-tab telemetry sync
+let bc: BroadcastChannel | null = null;
+onMounted(() => {
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      bc = new BroadcastChannel('map-cache');
+      bc.onmessage = (ev: MessageEvent) => {
+        try {
+          const msg = ev.data || {};
+          if (msg && msg.type === 'telemetry' && msg.payload) {
+            cacheTelemetryRef.value = {
+              userListsHit: msg.payload.userListsHit || 0,
+              userListsMiss: msg.payload.userListsMiss || 0,
+              listDetailsHit: msg.payload.listDetailsHit || 0,
+              listDetailsMiss: msg.payload.listDetailsMiss || 0,
+            };
+          } else if (msg && msg.type === 'clearCaches') {
+            cacheTelemetryRef.value = { userListsHit: 0, userListsMiss: 0, listDetailsHit: 0, listDetailsMiss: 0 };
+          }
+        } catch (e) {
+          /* ignore */
+        }
+      };
+    }
+  } catch (e) {
+    /* ignore */
+  }
+});
+
+onUnmounted(() => {
+  try { if (bc) { bc.close(); bc = null; } } catch (e) {}
+});
+
 // Ref for MapComponent so we can call exposed methods
 const mapComponentRef = ref<InstanceType<typeof MapComponent> | null>(null);
 

@@ -1,3 +1,180 @@
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue';
+import { apiService } from '../services/api';
+import type { ProfileUpdateRequest } from '../types';
+
+interface Props {
+  currentProfileName?: string | null;
+}
+
+interface Emits {
+  (e: 'profileUpdated', profileName: string): void;
+}
+
+const props = defineProps<Props>();
+const emit = defineEmits<Emits>();
+
+// State
+const isEditing = ref(false);
+const profileNameInput = ref('');
+const isLoading = ref(false);
+const isCheckingAvailability = ref(false);
+const validationError = ref('');
+const availabilityMessage = ref('');
+const isAvailable = ref(false);
+const successMessage = ref('');
+let debounceTimeout: NodeJS.Timeout;
+
+// Computed
+const canSave = computed(() => {
+  return (
+    profileNameInput.value.length >= 3 &&
+    profileNameInput.value.length <= 20 &&
+    isAvailable.value &&
+    !validationError.value &&
+    profileNameInput.value !== props.currentProfileName
+  );
+});
+
+// Methods
+const startEditing = () => {
+  isEditing.value = true;
+  profileNameInput.value = props.currentProfileName || '';
+  successMessage.value = '';
+};
+
+const cancelEditing = () => {
+  isEditing.value = false;
+  profileNameInput.value = '';
+  validationError.value = '';
+  availabilityMessage.value = '';
+  isAvailable.value = false;
+};
+
+const validateProfileName = (name: string): string | null => {
+  if (name.length < 3) {
+    return 'Profile name must be at least 3 characters long';
+  }
+  if (name.length > 20) {
+    return 'Profile name cannot exceed 20 characters';
+  }
+  if (!/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(name)) {
+    if (name.startsWith('-') || name.endsWith('-')) {
+      return 'Profile name cannot start or end with a dash';
+    }
+    return 'Profile name can only contain letters, numbers, and dashes';
+  }
+  return null;
+};
+
+const onInput = () => {
+  validationError.value = '';
+  availabilityMessage.value = '';
+  isAvailable.value = false;
+
+  // Clear existing debounce
+  if (debounceTimeout) {
+    clearTimeout(debounceTimeout);
+  }
+
+  // Validate format first
+  const error = validateProfileName(profileNameInput.value);
+  if (error) {
+    validationError.value = error;
+    return;
+  }
+
+  // Debounce availability check
+  debounceTimeout = setTimeout(() => {
+    if (profileNameInput.value.length >= 3) {
+      checkAvailability();
+    }
+  }, 500);
+};
+
+const checkAvailability = async () => {
+  if (profileNameInput.value.length < 3 || validationError.value) {
+    return;
+  }
+
+  // Don't check if it's the current profile name
+  if (profileNameInput.value === props.currentProfileName) {
+    isAvailable.value = true;
+    availabilityMessage.value = 'Current profile name';
+    return;
+  }
+
+  isCheckingAvailability.value = true;
+  availabilityMessage.value = '';
+
+  try {
+    const response = await apiService.checkProfileNameAvailability(profileNameInput.value);
+
+    if (response.success && response.data) {
+      isAvailable.value = response.data.available;
+      availabilityMessage.value = response.data.message;
+    }
+  } catch (error) {
+    console.error('Failed to check profile name availability:', error);
+    availabilityMessage.value = 'Unable to check availability';
+    isAvailable.value = false;
+  } finally {
+    isCheckingAvailability.value = false;
+  }
+};
+
+const saveProfileName = async () => {
+  if (!canSave.value) return;
+
+  isLoading.value = true;
+
+  try {
+    const request: ProfileUpdateRequest = {
+      profile_name: profileNameInput.value,
+    };
+
+    const response = await apiService.updateProfileName(request);
+
+    if (response.success && response.data) {
+      successMessage.value = response.data.message || 'Profile name updated successfully';
+      emit('profileUpdated', profileNameInput.value);
+
+      // Close editor after a brief delay
+      setTimeout(() => {
+        isEditing.value = false;
+        successMessage.value = '';
+      }, 2000);
+    }
+  } catch (error: any) {
+    console.error('Failed to update profile name:', error);
+
+    // Handle API error responses
+    if (error.response?.data?.validationErrors) {
+      const profileNameError = error.response.data.validationErrors.find(
+        (err: any) => err.field === 'profile_name'
+      );
+      if (profileNameError) {
+        validationError.value = profileNameError.message;
+      }
+    } else {
+      validationError.value = error.message || 'Failed to update profile name';
+    }
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+// Watch for external profile name changes
+watch(
+  () => props.currentProfileName,
+  newValue => {
+    if (!isEditing.value && newValue) {
+      profileNameInput.value = newValue;
+    }
+  }
+);
+</script>
+
 <template>
   <div class="profile-name-editor">
     <!-- Current Profile Name Display -->
@@ -184,182 +361,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed, watch } from 'vue';
-import { apiService } from '../services/api';
-import type { ProfileUpdateRequest } from '../types';
-
-interface Props {
-  currentProfileName?: string | null;
-}
-
-interface Emits {
-  (e: 'profile-updated', profileName: string): void;
-}
-
-const props = defineProps<Props>();
-const emit = defineEmits<Emits>();
-
-// State
-const isEditing = ref(false);
-const profileNameInput = ref('');
-const isLoading = ref(false);
-const isCheckingAvailability = ref(false);
-const validationError = ref('');
-const availabilityMessage = ref('');
-const isAvailable = ref(false);
-const successMessage = ref('');
-let debounceTimeout: NodeJS.Timeout;
-
-// Computed
-const canSave = computed(() => {
-  return (
-    profileNameInput.value.length >= 3 &&
-    profileNameInput.value.length <= 20 &&
-    isAvailable.value &&
-    !validationError.value &&
-    profileNameInput.value !== props.currentProfileName
-  );
-});
-
-// Methods
-const startEditing = () => {
-  isEditing.value = true;
-  profileNameInput.value = props.currentProfileName || '';
-  successMessage.value = '';
-};
-
-const cancelEditing = () => {
-  isEditing.value = false;
-  profileNameInput.value = '';
-  validationError.value = '';
-  availabilityMessage.value = '';
-  isAvailable.value = false;
-};
-
-const validateProfileName = (name: string): string | null => {
-  if (name.length < 3) {
-    return 'Profile name must be at least 3 characters long';
-  }
-  if (name.length > 20) {
-    return 'Profile name cannot exceed 20 characters';
-  }
-  if (!/^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?$/.test(name)) {
-    if (name.startsWith('-') || name.endsWith('-')) {
-      return 'Profile name cannot start or end with a dash';
-    }
-    return 'Profile name can only contain letters, numbers, and dashes';
-  }
-  return null;
-};
-
-const onInput = () => {
-  validationError.value = '';
-  availabilityMessage.value = '';
-  isAvailable.value = false;
-
-  // Clear existing debounce
-  if (debounceTimeout) {
-    clearTimeout(debounceTimeout);
-  }
-
-  // Validate format first
-  const error = validateProfileName(profileNameInput.value);
-  if (error) {
-    validationError.value = error;
-    return;
-  }
-
-  // Debounce availability check
-  debounceTimeout = setTimeout(() => {
-    if (profileNameInput.value.length >= 3) {
-      checkAvailability();
-    }
-  }, 500);
-};
-
-const checkAvailability = async () => {
-  if (profileNameInput.value.length < 3 || validationError.value) {
-    return;
-  }
-
-  // Don't check if it's the current profile name
-  if (profileNameInput.value === props.currentProfileName) {
-    isAvailable.value = true;
-    availabilityMessage.value = 'Current profile name';
-    return;
-  }
-
-  isCheckingAvailability.value = true;
-  availabilityMessage.value = '';
-
-  try {
-    const response = await apiService.checkProfileNameAvailability(profileNameInput.value);
-
-    if (response.success && response.data) {
-      isAvailable.value = response.data.available;
-      availabilityMessage.value = response.data.message;
-    }
-  } catch (error) {
-    console.error('Failed to check profile name availability:', error);
-    availabilityMessage.value = 'Unable to check availability';
-    isAvailable.value = false;
-  } finally {
-    isCheckingAvailability.value = false;
-  }
-};
-
-const saveProfileName = async () => {
-  if (!canSave.value) return;
-
-  isLoading.value = true;
-
-  try {
-    const request: ProfileUpdateRequest = {
-      profile_name: profileNameInput.value,
-    };
-
-    const response = await apiService.updateProfileName(request);
-
-    if (response.success && response.data) {
-      successMessage.value = response.data.message || 'Profile name updated successfully';
-      emit('profile-updated', profileNameInput.value);
-
-      // Close editor after a brief delay
-      setTimeout(() => {
-        isEditing.value = false;
-        successMessage.value = '';
-      }, 2000);
-    }
-  } catch (error: any) {
-    console.error('Failed to update profile name:', error);
-
-    // Handle API error responses
-    if (error.response?.data?.validationErrors) {
-      const profileNameError = error.response.data.validationErrors.find(
-        (err: any) => err.field === 'profile_name'
-      );
-      if (profileNameError) {
-        validationError.value = profileNameError.message;
-      }
-    } else {
-      validationError.value = error.message || 'Failed to update profile name';
-    }
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-// Watch for external profile name changes
-watch(
-  () => props.currentProfileName,
-  newValue => {
-    if (!isEditing.value && newValue) {
-      profileNameInput.value = newValue;
-    }
-  }
-);
-</script>
+<!-- script moved above template to satisfy component-tags-order rule and emit renamed to profileUpdated -->
 
 <style scoped>
 .profile-name-editor {

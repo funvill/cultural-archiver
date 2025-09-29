@@ -1,13 +1,36 @@
 import { ref, nextTick } from 'vue';
+import type { Ref } from 'vue';
 
 export interface FocusableElement {
   focus(): void;
   blur(): void;
   tabIndex?: number;
 }
+export interface UseFocusManagementReturn {
+  previouslyFocused: Ref<HTMLElement | null>;
+  saveFocus: () => void;
+  restoreFocus: () => void;
+  focusFirstElement: (container: HTMLElement | null) => boolean;
+  focusLastElement: (container: HTMLElement | null) => boolean;
+  getFocusableElements: (container: HTMLElement) => HTMLElement[];
+  trapFocus: (container: HTMLElement, event: KeyboardEvent) => boolean;
+  focusElement: (element: HTMLElement | null, selectText?: boolean) => boolean;
+  createFocusGuard: (container: HTMLElement) => () => void;
+  handleKeyboardNavigation: (
+    event: KeyboardEvent,
+    options?: {
+      container?: HTMLElement | null;
+      allowEscape?: boolean;
+      onEscape?: () => void;
+      trapFocus?: boolean;
+    }
+  ) => boolean;
+  disableBodyScroll: () => void;
+  enableBodyScroll: () => void;
+  announceToScreenReader: (message: string, priority?: 'polite' | 'assertive') => void;
+}
 
-export function useFocusManagement() {
-  // eslint-disable-line @typescript-eslint/explicit-function-return-type
+export function useFocusManagement(): UseFocusManagementReturn {
   const previouslyFocused = ref<HTMLElement | null>(null);
 
   /**

@@ -1,3 +1,16 @@
+<script setup lang="ts">
+import { defineProps } from 'vue';
+import BadgeCard from './BadgeCard.vue';
+import type { UserBadgeResponse } from '../types';
+
+interface Props {
+  badges: UserBadgeResponse['user_badges'];
+  loading?: boolean;
+}
+
+defineProps<Props>();
+</script>
+
 <template>
   <div class="badge-grid">
     <!-- Header -->
@@ -50,18 +63,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { defineProps } from 'vue';
-import BadgeCard from './BadgeCard.vue';
-import type { UserBadgeResponse } from '../types';
-
-interface Props {
-  badges: UserBadgeResponse['user_badges'];
-  loading?: boolean;
-}
-
-defineProps<Props>();
-</script>
+<!-- script moved above template to satisfy component-tags-order rule -->
 
 <style scoped>
 .badge-grid {

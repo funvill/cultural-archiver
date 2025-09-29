@@ -3,10 +3,29 @@
  */
 
 import { ref, computed } from 'vue';
+import type { Ref } from 'vue';
 import type { Coordinates } from '../types';
 
-export function useGeolocation() {
-  // eslint-disable-line @typescript-eslint/explicit-function-return-type
+export interface UseGeolocationReturn {
+  position: Ref<Coordinates | null>;
+  error: Ref<string | null>;
+  isLoading: Ref<boolean>;
+  isWatching: Ref<boolean>;
+  hasLocation: Ref<boolean>;
+  hasPermission: Ref<boolean>;
+  isSupported: Ref<boolean>;
+  FALLBACK_COORDINATES: Coordinates;
+  getCurrentPosition: () => Promise<Coordinates>;
+  watchPosition: () => void;
+  stopWatching: () => void;
+  getLocationWithFallback: () => Promise<Coordinates>;
+  clearError: () => void;
+  calculateDistance: (coord1: Coordinates, coord2: Coordinates) => number;
+  isWithinRadius: (center: Coordinates, point: Coordinates, radiusMeters: number) => boolean;
+  formatCoordinates: (coords: Coordinates) => string;
+}
+
+export function useGeolocation(): UseGeolocationReturn {
   const position = ref<Coordinates | null>(null);
   const error = ref<string | null>(null);
   const isLoading = ref(false);

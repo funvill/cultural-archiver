@@ -21,7 +21,6 @@ const authStore = useAuthStore();
 // Prefer in-memory Pinia store (contains previews) but fallback to sessionStorage
 import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 // Lazy-load Leaflet when opening modal (dynamic import); CSS here so Vite bundles it once
-// eslint-disable-next-line import/no-unresolved
 import 'leaflet/dist/leaflet.css';
 const fastStore = useFastUploadSessionStore();
 const fastUploadSession = ref<{

@@ -110,7 +110,7 @@ export function useInfiniteScroll(
   // Watch for target changes
   function watchTarget(): void {
     // Use a MutationObserver to watch for when targetRef becomes available
-    const checkTarget = () => {
+    const checkTarget = (): boolean => {
       if (targetRef.value && observer.value) {
         startObserving();
         return true;
@@ -122,9 +122,9 @@ export function useInfiniteScroll(
     if (checkTarget()) return;
 
     // If not available, watch for it
-    const interval = setInterval(() => {
+    const interval = setInterval((): void => {
       if (checkTarget()) {
-        clearInterval(interval);
+        clearInterval(interval as unknown as number);
       }
     }, 100);
 

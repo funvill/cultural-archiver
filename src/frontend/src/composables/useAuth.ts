@@ -4,10 +4,33 @@
  */
 
 import { computed, watch } from 'vue';
+import type { ComputedRef, WritableComputedRef } from 'vue';
 import { useAuthStore } from '../stores/auth';
+import type { User } from '../types';
 
-export function useAuth() {
-  // eslint-disable-line @typescript-eslint/explicit-function-return-type
+export interface UseAuthReturn {
+  isAuthenticated: ComputedRef<boolean> | WritableComputedRef<boolean>;
+  isAnonymous: ComputedRef<boolean> | WritableComputedRef<boolean>;
+  isModerator: ComputedRef<boolean> | WritableComputedRef<boolean>;
+  canReview: ComputedRef<boolean> | WritableComputedRef<boolean>;
+  isEmailVerified: ComputedRef<boolean> | WritableComputedRef<boolean>;
+  user: ComputedRef<User | null> | WritableComputedRef<User | null>;
+  token: ComputedRef<string | null> | WritableComputedRef<string | null>;
+  isLoading: ComputedRef<boolean> | WritableComputedRef<boolean>;
+  error: ComputedRef<string | null> | WritableComputedRef<string | null>;
+  canPerformAuthenticatedActions: ComputedRef<boolean> | WritableComputedRef<boolean>;
+  userDisplayName: ComputedRef<string> | WritableComputedRef<string>;
+  initAuth: () => Promise<void>;
+  requestMagicLink: (email: string) => Promise<{ success: boolean; message: string; isSignup?: boolean }>;
+  verifyMagicLink: (magicToken: string) => Promise<{ success: boolean; message: string; isNewAccount?: boolean }>;
+  signOut: () => Promise<void>;
+  getUserToken: () => string;
+  ensureUserToken: () => Promise<string>;
+  refreshAuthStatus: () => Promise<void>;
+  clearError: () => void;
+}
+
+export function useAuth(): UseAuthReturn {
   const authStore = useAuthStore();
 
   // Reactive auth state

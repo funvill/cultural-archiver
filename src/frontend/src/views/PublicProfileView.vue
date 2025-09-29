@@ -1,5 +1,79 @@
+<script setup lang="ts">
+import { ref, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
+import AppShell from '../components/AppShell.vue';
+import BadgeGrid from '../components/BadgeGrid.vue';
+import { apiService } from '../services/api';
+
+interface PublicProfile {
+  uuid: string;
+  profile_name: string;
+  badges: Array<{
+    badge: any;
+    awarded_at: string;
+    award_reason: string;
+    metadata?: Record<string, unknown>;
+  }>;
+  member_since: string;
+}
+
+const route = useRoute();
+
+const profile = ref<PublicProfile | null>(null);
+const isLoading = ref(true);
+const error = ref('');
+
+const formatDate = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  } catch (error) {
+    return 'Unknown date';
+  }
+};
+
+const loadProfile = async () => {
+  const uuid = route.params.uuid as string;
+
+  if (!uuid) {
+    error.value = 'Invalid profile URL';
+    isLoading.value = false;
+    return;
+  }
+
+  try {
+    isLoading.value = true;
+    const response = await apiService.getPublicUserProfile(uuid);
+
+    if (response.success && response.data) {
+      profile.value = response.data;
+    } else {
+      error.value = response.error || 'Failed to load profile';
+    }
+  } catch (err: any) {
+    console.error('Failed to load public profile:', err);
+
+    if (err.status === 404) {
+      error.value = 'This user profile is not available or does not exist.';
+    } else {
+      error.value = err.message || 'Failed to load profile';
+    }
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+onMounted(() => {
+  loadProfile();
+});
+
+</script>
+
 <template>
-  <div class="public-profile-view">
     <!-- Page Header -->
     <AppShell>
       <template #header>
@@ -115,79 +189,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, onMounted } from 'vue';
-import { useRoute } from 'vue-router';
-import AppShell from '../components/AppShell.vue';
-import BadgeGrid from '../components/BadgeGrid.vue';
-import { apiService } from '../services/api';
 
-interface PublicProfile {
-  uuid: string;
-  profile_name: string;
-  badges: Array<{
-    badge: any;
-    awarded_at: string;
-    award_reason: string;
-    metadata?: Record<string, unknown>;
-  }>;
-  member_since: string;
-}
-
-const route = useRoute();
-
-const profile = ref<PublicProfile | null>(null);
-const isLoading = ref(true);
-const error = ref('');
-
-const formatDate = (dateString: string): string => {
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  } catch (error) {
-    return 'Unknown date';
-  }
-};
-
-const loadProfile = async () => {
-  const uuid = route.params.uuid as string;
-
-  if (!uuid) {
-    error.value = 'Invalid profile URL';
-    isLoading.value = false;
-    return;
-  }
-
-  try {
-    isLoading.value = true;
-    const response = await apiService.getPublicUserProfile(uuid);
-
-    if (response.success && response.data) {
-      profile.value = response.data;
-    } else {
-      error.value = response.error || 'Failed to load profile';
-    }
-  } catch (err: any) {
-    console.error('Failed to load public profile:', err);
-
-    if (err.status === 404) {
-      error.value = 'This user profile is not available or does not exist.';
-    } else {
-      error.value = err.message || 'Failed to load profile';
-    }
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-onMounted(() => {
-  loadProfile();
-});
-</script>
 
 <style scoped>
 .public-profile-view {

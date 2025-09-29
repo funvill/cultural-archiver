@@ -1,7 +1,19 @@
 import { ref, onMounted, watch } from 'vue';
+import type { Ref } from 'vue';
 
 interface NavigationState {
   isRailExpanded: boolean;
+}
+
+export interface UseNavigationReturn {
+  isRailExpanded: Ref<boolean>;
+  showMobileDrawer: Ref<boolean>;
+  toggleRail: () => void;
+  expandRail: () => void;
+  collapseRail: () => void;
+  toggleMobileDrawer: () => void;
+  openMobileDrawer: () => void;
+  closeMobileDrawer: () => void;
 }
 
 /**
@@ -9,7 +21,7 @@ interface NavigationState {
  * Handles expand/collapse state and mobile drawer visibility
  * Persists rail state to localStorage
  */
-export const useNavigation = () => {
+export const useNavigation = (): UseNavigationReturn => {
   const isRailExpanded = ref(true);
   const showMobileDrawer = ref(false);
 
@@ -29,7 +41,7 @@ export const useNavigation = () => {
   });
 
   // Save state changes to localStorage
-  watch(isRailExpanded, (newValue) => {
+  watch(isRailExpanded, (newValue: boolean) => {
     try {
       const state: NavigationState = {
         isRailExpanded: newValue,

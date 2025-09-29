@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { marked } from 'marked';
+import { sanitizeHtml } from '../utils/sanitizeHtml';
 
 const privacyContent = ref<string>('');
 const isLoading = ref<boolean>(true);
@@ -22,8 +23,8 @@ onMounted(async () => {
       gfm: true,
     });
 
-    // Parse markdown to HTML
-    privacyContent.value = await marked(markdownContent);
+  // Parse markdown to HTML and sanitize before binding
+  privacyContent.value = sanitizeHtml(await marked(markdownContent));
   } catch (err) {
     console.error('Error loading privacy policy:', err);
     error.value = 'Failed to load privacy policy. Please try again later.';
@@ -59,6 +60,7 @@ onMounted(async () => {
       </div>
 
       <!-- Content -->
+      <!-- eslint-disable-next-line vue/no-v-html -- TODO: sanitize privacy markdown content before binding -->
       <div
         v-else
         class="prose prose-blue max-w-none prose-headings:text-gray-900 prose-a:text-blue-600 prose-a:hover:text-blue-800"

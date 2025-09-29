@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { marked } from 'marked';
+import { sanitizeHtml } from '../utils/sanitizeHtml';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import PhotoCarousel from '../components/PhotoCarousel.vue';
@@ -54,11 +55,26 @@ const originalData = ref({
   tags: {} as Record<string, unknown>,
 });
 
-// Computed properties
-const renderedBio = computed(() => {
-  if (!artist.value?.description) return '';
-  return marked(artist.value.description);
-});
+// Rendered bio (sanitized). marked may be async depending on configuration,
+// so compute this reactively and support async parsing.
+const renderedBio = ref<string>('');
+watch(
+  () => artist.value?.description,
+  async (desc) => {
+    if (!desc) {
+      renderedBio.value = '';
+      return;
+    }
+    try {
+      const parsed = await marked(desc as string);
+      renderedBio.value = sanitizeHtml(parsed as string);
+    } catch (err) {
+      console.error('Failed to render artist bio markdown:', err);
+      renderedBio.value = '';
+    }
+  },
+  { immediate: true }
+);
 
 const hasUnsavedChanges = computed(() => {
   return (
@@ -254,6 +270,11 @@ onMounted(() => {
   loadArtist();
   checkPendingEdits();
 });
+
+function focusValueInput(): void {
+  const el = valueInput.value as HTMLInputElement | undefined;
+  if (el) el.focus();
+}
 </script>
 
 <template>
@@ -372,6 +393,7 @@ onMounted(() => {
             <h2 class="text-xl font-semibold text-gray-900 mb-4">Biography</h2>
 
             <div v-if="!isEditMode">
+              <!-- eslint-disable-next-line vue/no-v-html -- TODO: sanitize rendered markdown before binding -->
               <div
                 v-if="artist.description"
                 class="prose prose-gray max-w-none"
@@ -439,7 +461,7 @@ onMounted(() => {
                   type="text"
                   placeholder="Key (e.g., website)"
                   class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  @keydown.enter="($refs.valueInput as HTMLInputElement)?.focus()"
+                  @keydown.enter="focusValueInput"
                 />
                 <input
                   ref="valueInput"

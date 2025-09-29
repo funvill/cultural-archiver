@@ -865,7 +865,7 @@ function handleActionBarShare(): void {
           <h3 class="text-lg font-medium theme-on-surface mb-3">Description</h3>
           
           <!-- Display mode -->
-          <!-- eslint-disable-next-line vue/no-v-html -->
+          <!-- eslint-disable-next-line vue/no-v-html -- TODO: sanitize rendered markdown before binding -->
           <div v-if="displayDescription"
             class="prose prose-gray max-w-none theme-on-surface leading-relaxed" v-html="renderedDescription"></div>
 

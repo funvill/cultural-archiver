@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick, defineEmits } from 'vue';
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
+
+// Provide local declarations for Vue SFC macros so the TypeScript language
+// server recognizes them in <script setup> without needing @ts-ignore.
+declare function defineEmits<T extends Record<string, (...args: unknown[]) => void>>(emits?: T): (...args: unknown[]) => void;
+declare function defineEmits(emits?: string[]): (event: string, ...args: unknown[]) => void;
+declare function defineExpose<T = Record<string, unknown>>(exposed?: T): void;
 import {
   ExclamationTriangleIcon,
   ExclamationCircleIcon,
@@ -131,15 +137,106 @@ function persistTelemetry() {
     }
     // Emit telemetry update so parent components can pick up changes immediately
     try {
-      // Use Vue runtime `emit` - defineEmits is available at top of file
       emit && typeof emit === 'function' && emit('telemetryUpdate', getCacheTelemetry());
     } catch (e) {
       // ignore
+    }
+
+    // Broadcast to other tabs using BroadcastChannel if available
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          const ch = new BroadcastChannel('map-cache');
+          ch.postMessage({ type: 'telemetry', payload: getCacheTelemetry() });
+          ch.close();
+        } catch (e) {
+          // ignore
+        }
+      } else {
+        // Fallback: also write to localStorage (already done) so other tabs can read storage events
+      }
+    } catch (e) {
+      /* ignore */
     }
   } catch (e) {
     /* ignore */
   }
 }
+
+// Debounce support for telemetry persistence to avoid frequent sync I/O
+let telemetryFlushTimeout: ReturnType<typeof setTimeout> | null = null;
+const TELEMETRY_DEBOUNCE_MS = 1000;
+
+function schedulePersistTelemetry() {
+  // Clear existing and schedule a new flush
+  if (telemetryFlushTimeout) clearTimeout(telemetryFlushTimeout as any);
+  telemetryFlushTimeout = setTimeout(() => {
+    try {
+      persistTelemetry();
+    } finally {
+      telemetryFlushTimeout = null;
+    }
+  }, TELEMETRY_DEBOUNCE_MS);
+}
+
+function flushTelemetryNow() {
+  if (telemetryFlushTimeout) {
+    clearTimeout(telemetryFlushTimeout as any);
+    telemetryFlushTimeout = null;
+  }
+  try {
+    persistTelemetry();
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+// BroadcastChannel for cross-tab sync (created lazily in browser)
+let bc: BroadcastChannel | null = null;
+
+onMounted(() => {
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      bc = new BroadcastChannel('map-cache');
+      bc.onmessage = (ev: MessageEvent) => {
+        try {
+          const msg = ev.data || {};
+          if (msg && msg.type === 'telemetry' && msg.payload) {
+            // Merge counters (adopt payload as current snapshot)
+            try {
+              cacheTelemetry.userListsHit = msg.payload.userListsHit || 0;
+              cacheTelemetry.userListsMiss = msg.payload.userListsMiss || 0;
+              cacheTelemetry.listDetailsHit = msg.payload.listDetailsHit || 0;
+              cacheTelemetry.listDetailsMiss = msg.payload.listDetailsMiss || 0;
+              // Emit locally so parent updates immediately
+              try { emit('telemetryUpdate', getCacheTelemetry()); } catch (e) {}
+            } catch (e) {}
+          } else if (msg && msg.type === 'clearCaches') {
+            try {
+              userListsCache.data = null;
+              userListsCache.ts = 0;
+              listDetailsCache.clear();
+              artworkListMembership.value.clear();
+              try { localStorage.removeItem(PERSIST_USER_LISTS_KEY); localStorage.removeItem(PERSIST_LIST_DETAILS_KEY); } catch (e) {}
+              try { emit('telemetryUpdate', getCacheTelemetry()); } catch (e) {}
+            } catch (e) {}
+          }
+        } catch (e) {
+          // ignore
+        }
+      };
+    }
+  } catch (e) {
+    /* ignore */
+  }
+  // Ensure we flush telemetry before unload to persist the latest counters
+  try { window.addEventListener('beforeunload', flushTelemetryNow); } catch (e) {}
+});
+
+onUnmounted(() => {
+  try { window.removeEventListener('beforeunload', flushTelemetryNow); } catch (e) {}
+  try { if (bc) { bc.close(); bc = null; } } catch (e) {}
+});
 
 function getCacheTelemetry() {
   return { ...cacheTelemetry };
@@ -150,7 +247,12 @@ function resetCacheTelemetry() {
   cacheTelemetry.userListsMiss = 0;
   cacheTelemetry.listDetailsHit = 0;
   cacheTelemetry.listDetailsMiss = 0;
-  persistTelemetry();
+  // Persist immediately when resetting
+  try {
+    flushTelemetryNow();
+  } catch (e) {
+    /* ignore */
+  }
 }
 
 // Load persisted caches from localStorage if present
@@ -200,6 +302,18 @@ function clearListCaches() {
     // Also clear per-artwork membership cache
     artworkListMembership.value.clear();
     console.log('MapComponent: list caches cleared');
+    try {
+      // Broadcast cache clear to other tabs
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          const ch = new BroadcastChannel('map-cache');
+          ch.postMessage({ type: 'clearCaches' });
+          ch.close();
+        } catch (e) {}
+      }
+    } catch (e) {}
+    // Flush telemetry too
+    try { flushTelemetryNow(); } catch (e) {}
   } catch (e) {
     console.warn('Failed to clear list caches', e);
   }
@@ -240,7 +354,8 @@ async function checkArtworkListMembership(artworkId: string): Promise<{ beenHere
             try {
               console.debug('telemetry: userListsHit ->', cacheTelemetry.userListsHit);
             } catch (e) {}
-            persistTelemetry();
+            // Schedule a debounced persist instead of writing immediately
+            schedulePersistTelemetry();
       } catch (e) {
         /* ignore */
       }
@@ -256,7 +371,7 @@ async function checkArtworkListMembership(artworkId: string): Promise<{ beenHere
           try {
             console.debug('telemetry: userListsMiss ->', cacheTelemetry.userListsMiss);
           } catch (e) {}
-          persistTelemetry();
+          schedulePersistTelemetry();
         } catch (e) {
           /* ignore */
         }
@@ -293,7 +408,7 @@ async function checkArtworkListMembership(artworkId: string): Promise<{ beenHere
             try {
               console.debug('telemetry: listDetailsHit ->', cacheTelemetry.listDetailsHit);
             } catch (e) {}
-            persistTelemetry();
+            schedulePersistTelemetry();
           } catch (e) {
             /* ignore */
           }
@@ -316,7 +431,7 @@ async function checkArtworkListMembership(artworkId: string): Promise<{ beenHere
               try {
                 console.debug('telemetry: listDetailsMiss ->', cacheTelemetry.listDetailsMiss);
               } catch (e) {}
-              persistTelemetry();
+              schedulePersistTelemetry();
             } catch (e) {
               /* ignore */
             }

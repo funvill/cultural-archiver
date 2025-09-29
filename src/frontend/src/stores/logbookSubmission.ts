@@ -98,7 +98,7 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
 
     // Create preview
     const reader = new FileReader();
-    reader.onload = e => {
+    reader.onload = (e: ProgressEvent<FileReader>): void => {
       photoPreview.value = e.target?.result as string;
     };
     reader.readAsDataURL(file);

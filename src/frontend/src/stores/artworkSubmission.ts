@@ -132,7 +132,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
   /**
    * Add photos to submission
    */
-  function addPhotos(files: File[]) {
+  function addPhotos(files: File[]): void {
     const newPhotos: SubmissionPhoto[] = files.map(file => ({
       file,
       url: URL.createObjectURL(file),
@@ -149,7 +149,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
   /**
    * Remove photo from submission
    */
-  function removePhoto(index: number) {
+  function removePhoto(index: number): void {
     const photo = state.value.photos[index];
     if (photo) {
       URL.revokeObjectURL(photo.url);
@@ -160,7 +160,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
   /**
    * Extract location from photo EXIF data
    */
-  async function extractLocationFromPhotos(photos: SubmissionPhoto[]) {
+  async function extractLocationFromPhotos(photos: SubmissionPhoto[]): Promise<void> {
     // This is a simplified version - in the real implementation,
     // you would use a library like 'exif-js' or 'piexifjs'
     // For now, we'll just set a flag that we attempted EXIF extraction
@@ -189,7 +189,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
   /**
    * Set location data
    */
-  function setLocation(location: LocationData) {
+  function setLocation(location: LocationData): void {
     state.value.location = location;
     state.value.locationError = null;
 
@@ -252,7 +252,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
   /**
    * Set location manually (from map picker)
    */
-  function setManualLocation(lat: number, lon: number, address?: string) {
+  function setManualLocation(lat: number, lon: number, address?: string): void {
     setLocation({
       lat,
       lon,
@@ -264,7 +264,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
   /**
    * Check for similar nearby artworks
    */
-  async function checkSimilarity() {
+  async function checkSimilarity(): Promise<void> {
     if (!state.value.location) {
       throw new Error('Location is required for similarity checking');
     }
@@ -315,14 +315,14 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
   /**
    * Select an existing artwork for logbook entry
    */
-  function selectArtwork(artworkId: string) {
+  function selectArtwork(artworkId: string): void {
     state.value.selectedArtwork = artworkId;
   }
 
   /**
    * Select to create a new artwork
    */
-  function selectNewArtwork() {
+  function selectNewArtwork(): void {
     state.value.selectedArtwork = null;
   }
 
@@ -334,7 +334,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
     artworkType?: string;
     tags?: Record<string, string | number>;
     note?: string;
-  }) {
+  }): void {
     if (details.title !== undefined) state.value.title = details.title;
     if (details.artworkType !== undefined) state.value.tags.artwork_type = details.artworkType;
     if (details.tags !== undefined) state.value.tags = { ...state.value.tags, ...details.tags };
@@ -411,7 +411,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
   /**
    * Reset the submission state
    */
-  function reset() {
+  function reset(): void {
     // Cleanup object URLs
     state.value.photos.forEach(photo => {
       URL.revokeObjectURL(photo.url);
