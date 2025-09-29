@@ -4,6 +4,7 @@ import { XMarkIcon } from '@heroicons/vue/24/outline';
 import { AdjustmentsHorizontalIcon } from '@heroicons/vue/24/solid';
 import { useMapFilters } from '../composables/useMapFilters';
 import { useAuthStore } from '../stores/auth';
+import { useRouter } from 'vue-router';
 
 interface Props {
   isOpen: boolean;
@@ -21,6 +22,7 @@ const emit = defineEmits<Emits>();
 // Composables
 const mapFilters = useMapFilters();
 const authStore = useAuthStore();
+const router = useRouter();
 
 // Local state
 const isLoadingData = ref(false);
@@ -70,6 +72,13 @@ function handleToggleNotSeenByMe() {
 
 function handleToggleUserList(listId: string) {
   console.log('[FILTERS DEBUG] handleToggleUserList called with:', listId);
+  console.log('[FILTERS DEBUG] typeof listId:', typeof listId);
+  console.log('[FILTERS DEBUG] listId value:', JSON.stringify(listId));
+  
+  if (!listId) {
+    console.error('[FILTERS DEBUG] No listId provided to handleToggleUserList');
+    return;
+  }
   mapFilters.toggleUserList(listId);
   console.log('[FILTERS DEBUG] emitting filtersChanged');
   emit('filtersChanged');
@@ -84,6 +93,19 @@ function handleApplyFilters() {
   // Emit filters changed and close modal
   emit('filtersChanged');
   closeModal();
+}
+
+function handleViewList(listId: string) {
+  // Navigate to the list view page
+  router.push(`/lists/${listId}`);
+  // Close the modal
+  closeModal();
+}
+
+function handleToggleClick(event: Event, handler: (...args: any[]) => void, ...args: any[]) {
+  // Stop propagation to prevent double-triggering
+  event.stopPropagation();
+  handler(...args);
 }
 
 // Advanced Features Methods
@@ -150,7 +172,7 @@ function formatDuration(seconds: number): string {
 }
 
 // Load data when modal opens
-watch(() => props.isOpen, async (isOpen) => {
+watch(() => props.isOpen, async (isOpen: boolean) => {
   if (isOpen && isAuthenticated.value) {
     isLoadingData.value = true;
     try {
@@ -189,7 +211,7 @@ onUnmounted(() => {
   >
     <!-- Full Screen Modal Content -->
     <div
-      class="bg-white w-full h-full max-w-full max-h-full overflow-hidden md:w-[90vw] md:h-[90vh] md:max-w-4xl md:rounded-lg md:shadow-xl"
+      class="bg-white w-full h-full max-w-full max-h-full flex flex-col md:w-[90vw] md:h-[90vh] md:max-w-4xl md:rounded-lg md:shadow-xl"
       @click.stop
     >
       <!-- Header -->
@@ -212,14 +234,13 @@ onUnmounted(() => {
         </div>
         
         <!-- Quick Actions -->
-        <div class="flex items-center justify-between mt-4">
+        <div v-if="mapFilters.hasActiveFilters.value" class="flex items-center justify-between mt-4">
           <div class="text-sm text-gray-600">
-            {{ mapFilters.hasActiveFilters.value ? mapFilters.activeFilterDescription.value : 'No filters active' }}
+            {{ mapFilters.activeFilterDescription.value }}
           </div>
           <button
             @click="handleResetFilters"
-            :disabled="!mapFilters.hasActiveFilters.value"
-            class="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            class="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 transition-colors"
           >
             Reset All Filters
           </button>
@@ -227,7 +248,7 @@ onUnmounted(() => {
       </div>
 
       <!-- Content Area - Scrollable -->
-      <div class="flex-1 overflow-y-auto">
+      <div class="flex-1 overflow-y-auto min-h-0">
         <div class="px-6 py-6 space-y-8">
           <!-- Filter Documentation -->
           <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -263,11 +284,11 @@ onUnmounted(() => {
                   class="sr-only"
                 />
                 <div
-                  class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors"
-                  :class="clusterEnabled ? 'bg-blue-600' : 'bg-gray-200'"
+                  class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors border-2"
+                  :class="clusterEnabled ? 'bg-blue-600 border-blue-600' : 'bg-gray-100 border-gray-300'"
                 >
                   <div
-                    class="dot absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform"
+                    class="dot absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform shadow-sm"
                     :class="clusterEnabled ? 'translate-x-5' : 'translate-x-0'"
                   ></div>
                 </div>
@@ -306,26 +327,34 @@ onUnmounted(() => {
           <div v-else class="space-y-8">
             <p class="text-sm text-green-600">✓ Signed in - All filtering features available</p>
             
+            <!-- Filters Section Header -->
+            <div>
+              <h3 class="text-lg font-bold text-gray-900 mb-6 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z" />
+                </svg>
+                Filters
+              </h3>
+            
             <!-- System Lists Section -->
             <div>
-              <h3 class="text-base font-semibold text-gray-900 mb-4">System Lists</h3>
+              <h4 class="text-base font-semibold text-gray-900 mb-4">System Lists</h4>
               <div class="space-y-4">
                 <!-- Want to See Filter -->
-                <div class="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <label class="relative inline-flex items-center cursor-pointer">
+                <div class="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors" @click="handleToggleWantToSee">
+                  <label class="relative inline-flex items-center cursor-pointer" @click="handleToggleClick($event, handleToggleWantToSee)">
                     <input
                       type="checkbox"
                       :checked="mapFilters.isFilterEnabled('wantToSee')"
-                      @change="handleToggleWantToSee"
                       class="sr-only"
                     />
                     <div
-                      class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors"
-                      :class="mapFilters.isFilterEnabled('wantToSee') ? 'bg-blue-600' : 'bg-gray-200'"
+                      class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors border-2"
+                      :class="mapFilters.isFilterEnabled('wantToSee') ? 'bg-blue-600 border-blue-600 shadow-md' : 'bg-gray-100 border-gray-300 shadow-inner'"
                     >
                       <div
-                        class="dot absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform"
-                        :class="mapFilters.isFilterEnabled('wantToSee') ? 'translate-x-5' : 'translate-x-0'"
+                        class="dot absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform shadow-lg border border-gray-200"
+                        :class="mapFilters.isFilterEnabled('wantToSee') ? 'translate-x-5 bg-white' : 'translate-x-0 bg-gray-50'"
                       ></div>
                     </div>
                   </label>
@@ -347,21 +376,20 @@ onUnmounted(() => {
                 </div>
 
                 <!-- Not Seen by Me Filter -->
-                <div class="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
-                  <label class="relative inline-flex items-center cursor-pointer">
+                <div class="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors" @click="handleToggleNotSeenByMe">
+                  <label class="relative inline-flex items-center cursor-pointer" @click="handleToggleClick($event, handleToggleNotSeenByMe)">
                     <input
                       type="checkbox"
                       :checked="mapFilters.isFilterEnabled('notSeenByMe')"
-                      @change="handleToggleNotSeenByMe"
                       class="sr-only"
                     />
                     <div
-                      class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-orange-500 transition-colors"
-                      :class="mapFilters.isFilterEnabled('notSeenByMe') ? 'bg-orange-600' : 'bg-gray-200'"
+                      class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-orange-500 transition-colors border-2"
+                      :class="mapFilters.isFilterEnabled('notSeenByMe') ? 'bg-orange-600 border-orange-600 shadow-md' : 'bg-gray-100 border-gray-300 shadow-inner'"
                     >
                       <div
-                        class="dot absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform"
-                        :class="mapFilters.isFilterEnabled('notSeenByMe') ? 'translate-x-5' : 'translate-x-0'"
+                        class="dot absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform shadow-lg border border-gray-200"
+                        :class="mapFilters.isFilterEnabled('notSeenByMe') ? 'translate-x-5 bg-white' : 'translate-x-0 bg-gray-50'"
                       ></div>
                     </div>
                   </label>
@@ -386,40 +414,60 @@ onUnmounted(() => {
 
             <!-- User Lists Section -->
             <div v-if="hasUserLists">
-              <h3 class="text-base font-semibold text-gray-900 mb-4">Your Custom Lists</h3>
+              <h4 class="text-base font-semibold text-gray-900 mb-4">Your Custom Lists</h4>
               <div class="space-y-3">
                 <div 
                   v-for="list in mapFilters.availableUserLists.value" 
                   :key="list.id"
                   class="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  @click="handleToggleUserList(list.id)"
                 >
-                  <label class="relative inline-flex items-center cursor-pointer">
+                  <div class="relative inline-flex items-center">
                     <input
                       type="checkbox"
                       :checked="mapFilters.isFilterEnabled(`list:${list.id}`)"
-                      @change="() => handleToggleUserList(list.id)"
                       class="sr-only"
+                      :id="`toggle-${list.id}`"
+                      :aria-labelledby="`label-${list.id}`"
                     />
                     <div
-                      class="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-2 peer-focus:ring-green-500 transition-colors"
-                      :class="mapFilters.isFilterEnabled(`list:${list.id}`) ? 'bg-green-600' : 'bg-gray-200'"
+                      class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-green-500 transition-colors border-2 cursor-pointer"
+                      :class="mapFilters.isFilterEnabled(`list:${list.id}`) ? 'bg-green-600 border-green-600 shadow-md' : 'bg-gray-100 border-gray-300 shadow-inner'"
+                      @click="handleToggleClick($event, handleToggleUserList, list.id)"
+                      :aria-label="`Toggle ${list.name} filter`"
+                      role="button"
+                      :aria-pressed="mapFilters.isFilterEnabled(`list:${list.id}`)"
+                      tabindex="0"
                     >
                       <div
-                        class="dot absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform"
-                        :class="mapFilters.isFilterEnabled(`list:${list.id}`) ? 'translate-x-5' : 'translate-x-0'"
+                        class="dot absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform shadow-lg border border-gray-200"
+                        :class="mapFilters.isFilterEnabled(`list:${list.id}`) ? 'translate-x-5 bg-white' : 'translate-x-0 bg-gray-50'"
                       ></div>
                     </div>
-                  </label>
+                  </div>
                   
                   <div class="flex-1">
-                    <div class="flex items-center">
-                      <h4 class="text-sm font-medium text-gray-900">{{ list.name }}</h4>
-                      <span
-                        v-if="mapFilters.isFilterEnabled(`list:${list.id}`)"
-                        class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center">
+                        <h4 class="text-sm font-medium text-gray-900">{{ list.name }}</h4>
+                        <span
+                          v-if="mapFilters.isFilterEnabled(`list:${list.id}`)"
+                          class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                        >
+                          Active
+                        </span>
+                      </div>
+                      <button
+                        @click="handleToggleClick($event, handleViewList, list.id)"
+                        class="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs leading-4 font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                        title="View this list"
                       >
-                        Active
-                      </span>
+                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        View List
+                      </button>
                     </div>
                     <p class="text-xs mt-1 text-gray-600">
                       {{ list.item_count || 0 }} item{{ (list.item_count || 0) !== 1 ? 's' : '' }}
@@ -562,6 +610,7 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
+          </div> <!-- Close Filters section -->
 
           <!-- Advanced Features Toggle -->
           <div v-if="isAuthenticated" class="border-t border-gray-200 pt-4">

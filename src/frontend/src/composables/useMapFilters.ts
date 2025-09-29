@@ -62,11 +62,21 @@ interface MapFilterState {
   notSeenByMe: boolean;
 }
 
+// Global instance for singleton pattern
+let mapFiltersInstance: any = null;
+
 /**
  * Composable for managing map filtering state and operations
  * Provides filtering logic for the main map view
+ * Uses singleton pattern to ensure shared state across components
  */
 export function useMapFilters() {
+  // Return existing instance if already created
+  if (mapFiltersInstance) {
+    return mapFiltersInstance;
+  }
+  
+  // Create new instance only on first call
   // Internal state
   const filterState = ref<MapFilterState>({
     wantToSee: false,
@@ -224,7 +234,9 @@ export function useMapFilters() {
       // Build system lists mapping
       systemLists.value.clear();
       lists.forEach(list => {
-        if (list.is_system && list.name) {
+        // Check both is_system flag AND known system list names as fallback
+        const isSystemList = list.is_system || Object.values(SPECIAL_LIST_NAMES).includes(list.name);
+        if (isSystemList && list.name) {
           systemLists.value.set(list.name, list.id);
         }
       });
@@ -232,6 +244,7 @@ export function useMapFilters() {
       console.log('[MAP FILTERS] Loaded user lists:', {
         total: lists.length,
         systemLists: Array.from(systemLists.value.entries()),
+        allLists: lists.map(l => ({ name: l.name, is_system: l.is_system, id: l.id })),
       });
     } catch (error) {
       console.error('[MAP FILTERS] Failed to load user lists:', error);
@@ -606,7 +619,8 @@ export function useMapFilters() {
   // Watch for filter state changes to persist automatically
   watch(filterState, saveStateToStorage, { deep: true });
 
-  return {
+  // Create the instance object
+  const instance = {
     // State
     filterState: filterState as Ref<Readonly<MapFilterState>>,
     availableUserLists: availableUserLists as Ref<Readonly<ListApiResponse[]>>,
@@ -643,4 +657,8 @@ export function useMapFilters() {
     importFilters,
     analytics: analytics as Ref<Readonly<FilterAnalytics>>,
   };
+  
+  // Store as singleton instance
+  mapFiltersInstance = instance;
+  return instance;
 }

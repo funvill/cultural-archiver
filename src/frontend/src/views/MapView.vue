@@ -38,7 +38,8 @@ const artworks = computed(() => {
     listArtworksLength: listArtworks.value.length,
     displayedArtworksLength: displayedArtworks.value.length,
     storeArtworksLength: artworksStore.artworks.length,
-    hasMapFilters: mapFilters.hasActiveFilters.value
+    hasMapFilters: mapFilters.hasActiveFilters.value,
+    refreshTrigger: mapFilters.refreshTrigger.value // Force reactivity
   });
   
   // Use filtered list artworks if legacy list filtering is active
@@ -88,7 +89,7 @@ const updateDisplayedArtworks = async () => {
   await nextTick();
   console.log('[MAP FILTERS] Display artworks updated:', {
     finalCount: displayedArtworks.value.length,
-    firstFew: displayedArtworks.value.slice(0, 3).map(a => ({ id: a.id, title: a.title }))
+    firstFew: displayedArtworks.value.slice(0, 3).map((a: ArtworkPin) => ({ id: a.id, title: a.title }))
   });
 };
 
@@ -200,6 +201,8 @@ function clearListFilter() {
 
 // Map filters handlers
 const handleOpenFilters = () => {
+  // Close any existing artwork preview dialog when opening map options
+  mapPreviewStore.clearPreview();
   showFiltersModal.value = true;
 };
 
@@ -345,6 +348,7 @@ watch(
     () => mapFilters.filterState.value.wantToSee,
     () => mapFilters.filterState.value.notSeenByMe,
     () => mapFilters.filterState.value.userLists,
+    () => mapFilters.refreshTrigger.value, // Force reactivity trigger
   ],
   async () => {
     console.log('[MAP FILTERS] Filter state changed, updating displayed artworks');

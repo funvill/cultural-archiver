@@ -18,6 +18,7 @@ import type { Coordinates, ArtworkPin, MapComponentProps } from '../types/index'
 import { useArtworksStore } from '../stores/artworks';
 import { useArtworkTypeFilters, type ArtworkTypeToggle } from '../composables/useArtworkTypeFilters';
 import { useRouter } from 'vue-router';
+import { apiService } from '../services/api';
 
 // Props
 const props = withDefaults(defineProps<MapComponentProps>(), {
@@ -89,9 +90,39 @@ async function checkArtworkListMembership(artworkId: string): Promise<{ beenHere
   // Default membership
   const membership = { beenHere: false, wantToSee: false };
 
-  // For now, we'll implement a placeholder system since the full list membership 
-  // checking would require additional API endpoints. This can be enhanced later.
-  // TODO: Implement proper API calls to check if artwork is in user's lists
+  try {
+    // Get user lists to check membership
+    const userLists = await apiService.getUserLists();
+    const lists = Array.isArray(userLists) ? userLists : userLists.data || [];
+    
+    // Check each system list for the artwork
+    for (const list of lists) {
+      if (!list.is_system) continue;
+      
+      try {
+        // Get list details to check if artwork is in it
+        const listDetails = await apiService.getListDetails(list.id, 1, 100);
+        if (!listDetails?.success || !listDetails.data?.items) continue;
+        
+        const isInList = listDetails.data.items.some((item: any) => item.id === artworkId);
+        
+        if (isInList) {
+          if (list.name === 'Have Seen' || list.name === 'Been Here' || list.name === 'Logged') {
+            membership.beenHere = true;
+          } else if (list.name === 'Want to See') {
+            membership.wantToSee = true;
+          }
+        }
+      } catch (listError) {
+        // Continue checking other lists if one fails
+        continue;
+      }
+    }
+    
+  } catch (error) {
+    // If API calls fail, fall back to default (false, false)
+    console.warn('Failed to check artwork list membership:', error);
+  }
   
   // Cache the result
   artworkListMembership.value.set(artworkId, membership);
@@ -154,69 +185,56 @@ const router = useRouter();
 // Default coordinates (Vancouver - near sample data for testing)
 const DEFAULT_CENTER = { latitude: 49.265, longitude: -123.25 };
 
-// Create circle marker style for artworks with priority-based icons
+// Create priority-based div icon for artworks
 // Implements PRD section 3.5 - Map Marker & Icon Updates
-const createArtworkStyle = (artwork: ArtworkPin, listMembership?: { 
+const createArtworkIcon = (artwork: ArtworkPin, listMembership?: { 
   beenHere: boolean, 
   wantToSee: boolean 
 }) => {
   const currentZoom = map.value?.getZoom() ?? 15;
-  const minRadius = 3;
-  const maxRadius = 10;
-  const minZoom = 12;
-  const maxZoom = 18;
+  const baseSize = Math.max(20, Math.min(32, currentZoom * 1.5));
   
-  let dynamicRadius: number;
-  if (currentZoom <= minZoom) {
-    dynamicRadius = minRadius;
-  } else if (currentZoom >= maxZoom) {
-    dynamicRadius = maxRadius;
-  } else {
-    const t = (currentZoom - minZoom) / (maxZoom - minZoom);
-    dynamicRadius = minRadius + t * (maxRadius - minRadius);
-  }
-  
-  dynamicRadius = Math.min(dynamicRadius * 2, maxRadius * 2);
+  let iconHtml = '';
 
   // Priority-based icon system per PRD 3.5
   if (listMembership?.beenHere) {
     // Priority 1: "Been Here" / "Logged" - Flag icon in gray circle
-    return {
-      radius: dynamicRadius,
-      fillColor: '#9CA3AF', // gray-400
-      color: '#6B7280', // gray-500 border
-      weight: 2,
-      fillOpacity: 0.9,
-      opacity: 1,
-      className: 'artwork-marker-visited'
-    };
+    iconHtml = `
+      <div class="artwork-marker-container flex items-center justify-center bg-gray-400 rounded-full border-2 border-gray-500 shadow-lg" style="width: ${baseSize}px; height: ${baseSize}px;">
+        <svg width="${Math.floor(baseSize * 0.6)}" height="${Math.floor(baseSize * 0.6)}" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+          <path d="M4 4v16h2V4H4zm2 0h12l-2 3 2 3H6V4z"/>
+        </svg>
+      </div>
+    `;
   } else if (listMembership?.wantToSee) {
     // Priority 2: "Want to See" - Gold star icon in circle
-    return {
-      radius: dynamicRadius,
-      fillColor: '#F59E0B', // amber-500 (gold)
-      color: '#D97706', // amber-600 border
-      weight: 2,
-      fillOpacity: 0.9,
-      opacity: 1,
-      className: 'artwork-marker-want-to-see'
-    };
+    iconHtml = `
+      <div class="artwork-marker-container flex items-center justify-center bg-yellow-500 rounded-full border-2 border-yellow-600 shadow-lg" style="width: ${baseSize}px; height: ${baseSize}px;">
+        <svg width="${Math.floor(baseSize * 0.6)}" height="${Math.floor(baseSize * 0.6)}" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+        </svg>
+      </div>
+    `;
   } else {
-    // Priority 3: Default - Question mark icon
-    // Use type-based coloring for default markers
+    // Priority 3: Default - Question mark icon with type-based coloring
     const normalized = (artwork.type || 'other').toLowerCase();
     const fillColor = getTypeColor(normalized);
     
-    return {
-      radius: dynamicRadius,
-      fillColor: fillColor,
-      color: '#ffffff',
-      weight: 1,
-      fillOpacity: 0.7,
-      opacity: 1,
-      className: 'artwork-marker-default'
-    };
+    iconHtml = `
+      <div class="artwork-marker-container flex items-center justify-center rounded-full border-2 border-white shadow-lg" style="width: ${baseSize}px; height: ${baseSize}px; background-color: ${fillColor};">
+        <svg width="${Math.floor(baseSize * 0.6)}" height="${Math.floor(baseSize * 0.6)}" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+        </svg>
+      </div>
+    `;
   }
+
+  return L.divIcon({
+    html: iconHtml,
+    className: '', // Avoid Leaflet default styling
+    iconSize: [baseSize, baseSize],
+    iconAnchor: [baseSize / 2, baseSize / 2],
+  });
 };
 
 // Custom icon for user location - use a person icon so it's clearly the user, not an artwork
@@ -882,15 +900,14 @@ async function updateArtworkMarkers() {
     // Check list membership for priority-based icons
     const listMembership = await checkArtworkListMembership(artwork.id);
 
-    // Create new marker with optimized options
-    const markerOptions = {
-      ...createArtworkStyle(artwork, listMembership),
+    // Create marker with priority-based div icon
+    const artworkIcon = createArtworkIcon(artwork, listMembership);
+    const marker = L.marker([artwork.latitude, artwork.longitude], {
+      icon: artworkIcon,
       interactive: true,
       bubblingMouseEvents: false,
       pane: 'markerPane',
-    };
-
-    const marker = L.circleMarker([artwork.latitude, artwork.longitude], markerOptions);
+    });
 
     // Store artwork ID and type on marker for efficient tracking
     (marker as any)._artworkId = artwork.id;
@@ -943,13 +960,32 @@ async function updateArtworkMarkers() {
       emit('previewArtwork', previewData);
     });
 
-    // Add hover effects
+    // Add hover effects for div icon markers
     marker.on('mouseover', () => {
-      marker.setStyle({ fillOpacity: 1.0, weight: 2 });
+      // For div icons, we can add CSS classes for hover effects
+      const iconElement = marker.getElement();
+      if (iconElement) {
+        // Target the inner container div directly
+        const container = iconElement.querySelector('.artwork-marker-container') as HTMLElement;
+        if (container) {
+          container.style.transform = 'scale(1.1)';
+          container.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+          container.style.zIndex = '1000';
+        }
+      }
     });
 
     marker.on('mouseout', () => {
-      marker.setStyle({ fillOpacity: 0.9, weight: 1 });
+      // Reset hover effects
+      const iconElement = marker.getElement();
+      if (iconElement) {
+        const container = iconElement.querySelector('.artwork-marker-container') as HTMLElement;
+        if (container) {
+          container.style.transform = 'scale(1.0)';
+          container.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+          container.style.zIndex = 'auto';
+        }
+      }
     });
 
     artworkMarkers.value.push(marker);
@@ -977,21 +1013,13 @@ function updateMarkerStyles() {
           // Get list membership for the artwork
           const listMembership = await checkArtworkListMembership(artworkId);
           
-          // Create artwork object for the style function
+          // Create artwork object for the icon function
           const artwork = { id: artworkId, type: artworkType } as ArtworkPin;
-          const newStyle = createArtworkStyle(artwork, listMembership);
+          const newIcon = createArtworkIcon(artwork, listMembership);
           
-          // circleMarker supports setStyle; markerCluster may wrap markers but setStyle should still work
-          if (typeof (marker as any).setStyle === 'function') {
-            (marker as any).setStyle(newStyle);
-          }
-          // Also attempt to setRadius on circle markers which sometimes don't update via setStyle
-          if (typeof (marker as any).setRadius === 'function' && typeof newStyle.radius === 'number') {
-            try {
-              (marker as any).setRadius(newStyle.radius);
-            } catch {
-              /* ignore */
-            }
+          // Update the marker icon for div icon markers
+          if (typeof (marker as any).setIcon === 'function') {
+            (marker as any).setIcon(newIcon);
           }
 
           // If this is a group/cluster wrapper, try to update inner layers as well
@@ -999,20 +1027,14 @@ function updateMarkerStyles() {
             const layers = (marker as any).getLayers();
             layers.forEach((inner: any) => {
               if (!inner) return;
-            if (typeof inner.setStyle === 'function') {
-              try {
-                inner.setStyle(newStyle);
-              } catch {
-                /* ignore */
+              // For inner layers in cluster groups, also try to update the icon
+              if (typeof inner.setIcon === 'function') {
+                try {
+                  inner.setIcon(newIcon);
+                } catch {
+                  /* ignore */
+                }
               }
-            }
-            if (typeof inner.setRadius === 'function' && typeof newStyle.radius === 'number') {
-              try {
-                inner.setRadius(newStyle.radius);
-              } catch {
-                /* ignore */
-              }
-            }
             });
           }
         } catch (err) {
@@ -1757,21 +1779,8 @@ watch(
   transform: scale(1.1);
 }
 
-/* Priority-based marker styles */
-.artwork-marker-visited {
-  /* Visited artworks - gray flag style */
-  position: relative;
-}
-
-.artwork-marker-want-to-see {
-  /* Want to See artworks - gold star style */
-  position: relative;
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
-}
-
-.artwork-marker-default {
-  /* Default artworks - question mark style */
-  position: relative;
+.artwork-marker-container {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .user-location-marker {
