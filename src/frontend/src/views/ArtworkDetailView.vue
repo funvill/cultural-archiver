@@ -824,7 +824,7 @@ async function checkPendingEdits(): Promise<void> {
           <h3 class="text-lg font-medium text-gray-900 mb-3">Description</h3>
           
           <!-- Display mode -->
-          <!-- eslint-disable-next-line vue/no-v-html -->
+          <!-- eslint-disable-next-line vue/no-v-html -- TODO: sanitize rendered markdown before binding -->
           <div v-if="displayDescription"
             class="prose prose-gray max-w-none text-gray-700 leading-relaxed" v-html="renderedDescription"></div>
 

@@ -1,3 +1,35 @@
+<script setup lang="ts">
+import { ref, computed } from 'vue';
+import type { BadgeRecord } from '../types';
+
+interface Props {
+  badge: BadgeRecord;
+  awardedAt: string;
+  awardReason: string;
+  metadata?: Record<string, unknown>;
+}
+
+const props = defineProps<Props>();
+const showDetails = ref(false);
+
+const tooltipText = computed(() => {
+  return `${props.badge.title} - ${props.badge.description}. Earned: ${formatDate(props.awardedAt)}`;
+});
+
+const formatDate = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+  } catch (error) {
+    return 'Unknown date';
+  }
+};
+</script>
+
 <template>
   <div
     class="badge-card group cursor-help"
@@ -78,37 +110,7 @@
   </div>
 </template>
 
-<script setup lang="ts">
-import { ref, computed } from 'vue';
-import type { BadgeRecord } from '../types';
-
-interface Props {
-  badge: BadgeRecord;
-  awardedAt: string;
-  awardReason: string;
-  metadata?: Record<string, unknown>;
-}
-
-const props = defineProps<Props>();
-const showDetails = ref(false);
-
-const tooltipText = computed(() => {
-  return `${props.badge.title} - ${props.badge.description}. Earned: ${formatDate(props.awardedAt)}`;
-});
-
-const formatDate = (dateString: string): string => {
-  try {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch (error) {
-    return 'Unknown date';
-  }
-};
-</script>
+<!-- script moved above template to satisfy component-tags-order rule -->
 
 <style scoped>
 .badge-card {

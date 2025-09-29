@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import ArtworkCard from '../components/ArtworkCard.vue';
+import type { SearchResult } from '../types';
 import { apiService } from '../services/api';
 
 // Props
@@ -20,10 +21,26 @@ const authStore = useAuthStore();
 const loading = ref(true);
 const error = ref<string | null>(null);
 const list = ref<any>(null);
-const artworks = ref<any[]>([]);
+const artworks = ref<Array<{ id: string; [key: string]: any }>>([]);
+
+function toSearchResult(item: any): SearchResult {
+  return {
+    id: String(item.id),
+    lat: Number(item.lat || item.latitude || 0),
+    lon: Number(item.lon || item.longitude || 0),
+    type_name: String(item.type_name || 'artwork'),
+    title: item.title || item.name || null,
+    artist_name: null,
+    tags: (item.tags && typeof item.tags === 'object') ? item.tags : null,
+    recent_photo: item.recent_photo || (item.photos && item.photos[0] && item.photos[0].url) || null,
+    photo_count: item.photo_count || (item.photos ? item.photos.length : 0),
+    distance_km: null,
+  };
+}
 const currentPage = ref(1);
 const totalPages = ref(1);
 const hasMore = ref(false);
+const PAGE_SIZE = 50;
 
 // Bulk operations state
 const selectedArtworks = ref<Set<string>>(new Set());
@@ -40,7 +57,7 @@ const canBulkRemove = computed(() => {
 });
 
 const allSelected = computed(() => {
-  return artworks.value.length > 0 && artworks.value.every(artwork => selectedArtworks.value.has(artwork.id));
+  return artworks.value.length > 0 && artworks.value.every((artwork: { id: string }) => selectedArtworks.value.has(artwork.id));
 });
 
 // Load list data
@@ -51,20 +68,21 @@ const loadList = async (page = 1) => {
   try {
     const response = await apiService.getListDetails(props.id, page, 50);
     
-    if (response.success && response.data) {
-      list.value = response.data.list;
-      
+    if (response && response.success && response.data) {
+      const data = response.data as { list?: any; items?: any[]; page?: number; total?: number; per_page?: number; has_more?: boolean };
+      list.value = data.list as any;
+
       if (page === 1) {
-        artworks.value = response.data.items;
+        artworks.value = (data.items || []) as any[];
       } else {
-        artworks.value.push(...response.data.items);
+        artworks.value.push(...((data.items || []) as any[]));
       }
-      
-      currentPage.value = response.data.page;
-      totalPages.value = Math.ceil(response.data.total / response.data.per_page);
-      hasMore.value = response.data.has_more;
+
+      currentPage.value = data.page || 1;
+  totalPages.value = Math.ceil((data.total || 0) / (data.per_page || PAGE_SIZE));
+      hasMore.value = !!data.has_more;
     } else {
-      error.value = response.error || 'Failed to load list';
+      error.value = (response as any)?.error || 'Failed to load list';
     }
   } catch (err) {
     console.error('Error loading list:', err);
@@ -110,7 +128,7 @@ const toggleSelectAll = () => {
   if (allSelected.value) {
     selectedArtworks.value.clear();
   } else {
-    artworks.value.forEach(artwork => selectedArtworks.value.add(artwork.id));
+  artworks.value.forEach((artwork: { id: string }) => selectedArtworks.value.add(String(artwork.id)));
   }
 };
 
@@ -122,11 +140,11 @@ const bulkRemoveItems = async () => {
   
   try {
     const artworkIds = Array.from(selectedArtworks.value);
-    const response = await apiService.removeArtworksFromList(props.id, artworkIds);
+  const response = await apiService.removeArtworksFromList(props.id, artworkIds as string[]);
     
     if (response.success) {
       // Remove items from local state
-      artworks.value = artworks.value.filter(artwork => !selectedArtworks.value.has(artwork.id));
+  artworks.value = artworks.value.filter((artwork: { id: string }) => !selectedArtworks.value.has(artwork.id));
       selectedArtworks.value.clear();
       isSelectionMode.value = false;
       
@@ -200,21 +218,18 @@ onMounted(() => {
                 ({{ selectedArtworks.size }} selected)
               </span>
             </p>
-            
-            <!-- System list indicator -->
             <div v-if="list.is_system_list" class="mt-2">
               <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
                 System List
               </span>
             </div>
           </div>
-
           <!-- Actions for list owner -->
           <div v-if="isOwner" class="flex items-center space-x-2">
             <!-- List filtering actions -->
             <div v-if="artworks.length > 0" class="flex items-center space-x-2 mr-4">
               <button 
-                @click="$router.push(`/?list=${props.id}`)"
+                @click="$router.push('/?list=' + props.id)"
                 class="inline-flex items-center px-3 py-2 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-300 rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -297,7 +312,7 @@ onMounted(() => {
               'relative group cursor-pointer',
               isSelectionMode && selectedArtworks.has(artwork.id) ? 'ring-2 ring-blue-500' : ''
             ]"
-            @click="isSelectionMode ? toggleArtworkSelection(artwork.id) : (artwork.id ? $router.push(`/artwork/${artwork.id}`) : null)"
+            @click="isSelectionMode ? toggleArtworkSelection(artwork.id) : (artwork.id ? $router.push('/artwork/' + artwork.id) : null)"
           >
             <!-- Selection checkbox overlay (only visible in selection mode) -->
             <div 
@@ -326,7 +341,7 @@ onMounted(() => {
             <!-- Normal artwork card -->
             <ArtworkCard 
               v-else
-              :artwork="artwork"
+              :artwork="toSearchResult(artwork)"
               :show-distance="false"
               :class="isSelectionMode ? 'pointer-events-none' : ''"
             />

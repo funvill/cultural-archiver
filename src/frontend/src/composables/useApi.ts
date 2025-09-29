@@ -3,10 +3,21 @@
  */
 
 import { ref } from 'vue';
+import type { Ref } from 'vue';
 import { getErrorMessage, isNetworkError, ApiError } from '../services/api';
 
-export function useApi() {
-  // eslint-disable-line @typescript-eslint/explicit-function-return-type
+export interface UseApiReturn {
+  isLoading: ReturnType<typeof ref>;
+  error: ReturnType<typeof ref>;
+  execute: <T>(apiCall: () => Promise<T>, options?: { retries?: number; showError?: boolean; onRetry?: (attempt: number) => void; }) => Promise<T | null>;
+  executeParallel: <T>(apiCalls: (() => Promise<T>)[], options?: { failFast?: boolean; showErrors?: boolean }) => Promise<(T | null)[]>;
+  executePaginated: <T>(apiCall: (page: number, limit: number) => Promise<{ items: T[]; total: number; hasMore: boolean }>, options?: { initialPage?: number; pageSize?: number; maxPages?: number }) => Promise<unknown>;
+  uploadFile: <T>(file: File, uploadFunction: (file: File, onProgress?: (progress: number) => void) => Promise<T>, options?: { onProgress?: (progress: number) => void; maxSize?: number; allowedTypes?: string[] }) => Promise<T | null>;
+  clearError: () => void;
+  isRetryableError: (err: unknown) => boolean;
+}
+
+export function useApi(): UseApiReturn {
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
@@ -116,7 +127,7 @@ export function useApi() {
   /**
    * Paginated API call helper
    */
-  const executePaginated = async <T>( // eslint-disable-line @typescript-eslint/explicit-function-return-type
+  const executePaginated = async <T>(
     apiCall: (
       page: number,
       limit: number
@@ -126,8 +137,16 @@ export function useApi() {
       pageSize?: number;
       maxPages?: number;
     } = {}
-  ): Promise<unknown> => {
-    // eslint-disable-line @typescript-eslint/explicit-function-return-type, @typescript-eslint/no-explicit-any
+  ): Promise<{
+    allItems: Ref<unknown[]>;
+    totalCount: Ref<number>;
+    hasMore: Ref<boolean>;
+    currentPage: Ref<number>;
+    isLoading: ReturnType<typeof ref>;
+    error: ReturnType<typeof ref>;
+    loadMore: () => Promise<boolean>;
+    reset: () => void;
+  }> => {
     const { initialPage = 1, pageSize = 20, maxPages = 10 } = options;
 
     const allItems = ref<T[]>([]);

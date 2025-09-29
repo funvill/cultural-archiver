@@ -38,8 +38,10 @@ export const useNotificationsStore = defineStore('notifications', () => {
       unread_only?: boolean;
       append?: boolean;
     } = {}
-  ) {
-    if (isLoading.value && !options.append) return;
+  ): Promise<{ notifications: NotificationResponse[] }> {
+    if (isLoading.value && !options.append) {
+      return Promise.resolve({ notifications: notifications.value });
+    }
 
     isLoading.value = true;
     error.value = null;
@@ -76,7 +78,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
   }
 
-  async function fetchUnreadCount() {
+  async function fetchUnreadCount(): Promise<{ unread_count: number }> {
     try {
       const result = await NotificationService.getUnreadCount();
       unreadCount.value = result.unread_count;
@@ -88,7 +90,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
   }
 
-  async function dismissNotification(notificationId: string) {
+  async function dismissNotification(notificationId: string): Promise<{ success: boolean }> {
     try {
       await NotificationService.dismissNotification(notificationId);
 
@@ -107,7 +109,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
   }
 
-  async function markNotificationRead(notificationId: string) {
+  async function markNotificationRead(notificationId: string): Promise<{ success: boolean }> {
     try {
       await NotificationService.markNotificationRead(notificationId);
 
@@ -130,7 +132,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
    * Mark all notifications in memory as read (calls backend per-notification).
    * This is a best-effort implementation since backend doesn't expose a bulk endpoint.
    */
-  async function markAllRead() {
+  async function markAllRead(): Promise<{ success: boolean }> {
     const unread = notifications.value.filter(n => !n.is_dismissed).map(n => n.id);
     if (unread.length === 0) return { success: true };
 
@@ -144,7 +146,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
     return { success: true };
   }
 
-  function addNotification(notification: NotificationResponse) {
+  function addNotification(notification: NotificationResponse): void {
     // Add new notification to the beginning of the list
     notifications.value.unshift(notification);
 
@@ -158,7 +160,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
   }
 
-  function startPolling() {
+  function startPolling(): void {
     if (pollInterval.value) return; // Already polling
 
     // Initial fetch
@@ -176,7 +178,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
     console.log('Started notification polling (interval:', POLL_INTERVAL_MS, 'ms)');
   }
 
-  function stopPolling() {
+  function stopPolling(): void {
     if (pollInterval.value) {
       clearInterval(pollInterval.value);
       pollInterval.value = null;
@@ -184,11 +186,11 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
   }
 
-  function clearError() {
+  function clearError(): void {
     error.value = null;
   }
 
-  function resetState() {
+  function resetState(): void {
     notifications.value = [];
     unreadCount.value = 0;
     isLoading.value = false;

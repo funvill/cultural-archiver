@@ -1,0 +1,718 @@
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { XMarkIcon } from '@heroicons/vue/24/outline';
+import { AdjustmentsHorizontalIcon } from '@heroicons/vue/24/solid';
+import { useMapFilters } from '../composables/useMapFilters';
+import { useAuthStore } from '../stores/auth';
+import { useRouter } from 'vue-router';
+
+interface Props {
+  isOpen: boolean;
+}
+
+interface CacheTelemetry {
+  userListsHit?: number;
+  userListsMiss?: number;
+  listDetailsHit?: number;
+  listDetailsMiss?: number;
+}
+
+interface Emits {
+  (e: 'update:isOpen', value: boolean): void;
+  (e: 'filtersChanged'): void;
+  (e: 'clusterChanged', value: boolean): void;
+  (e: 'clearListCaches'): void;
+  (e: 'resetCacheTelemetry'): void;
+}
+
+const props = defineProps<Props & { cacheTelemetry?: CacheTelemetry }>();
+const emit = defineEmits<Emits>();
+
+// Composables
+const mapFilters = useMapFilters();
+const authStore = useAuthStore();
+const router = useRouter();
+
+// Local state
+const isLoadingData = ref(false);
+const clusterEnabled = ref(true); // Cluster markers toggle
+
+// Advanced Features state
+const showAdvancedFeatures = ref(false);
+const showMetrics = ref(false);
+const newPresetName = ref('');
+const importFileInput = ref<HTMLInputElement | null>(null);
+
+// Load cluster setting from localStorage
+onMounted(() => {
+  const saved = localStorage.getItem('map:clusterEnabled');
+  if (saved !== null) {
+    clusterEnabled.value = saved === 'true';
+  }
+});
+
+// Computed properties
+const isAuthenticated = computed(() => authStore.isAuthenticated);
+const hasUserLists = computed(() => mapFilters.availableUserLists.value.length > 0);
+
+// Methods
+function closeModal() {
+  emit('update:isOpen', false);
+}
+
+function handleClusterToggle() {
+  localStorage.setItem('map:clusterEnabled', clusterEnabled.value.toString());
+  emit('clusterChanged', clusterEnabled.value);
+}
+
+function handleToggleWantToSee() {
+  console.log('[FILTERS DEBUG] handleToggleWantToSee called');
+  mapFilters.toggleWantToSee();
+  console.log('[FILTERS DEBUG] emitting filtersChanged');
+  emit('filtersChanged');
+}
+
+function handleToggleNotSeenByMe() {
+  console.log('[FILTERS DEBUG] handleToggleNotSeenByMe called');
+  mapFilters.toggleNotSeenByMe();
+  console.log('[FILTERS DEBUG] emitting filtersChanged');
+  emit('filtersChanged');
+}
+
+function handleToggleUserList(listId: string) {
+  console.log('[FILTERS DEBUG] handleToggleUserList called with:', listId);
+  console.log('[FILTERS DEBUG] typeof listId:', typeof listId);
+  console.log('[FILTERS DEBUG] listId value:', JSON.stringify(listId));
+  
+  if (!listId) {
+    console.error('[FILTERS DEBUG] No listId provided to handleToggleUserList');
+    return;
+  }
+  mapFilters.toggleUserList(listId);
+  console.log('[FILTERS DEBUG] emitting filtersChanged');
+  emit('filtersChanged');
+}
+
+function handleResetFilters() {
+  mapFilters.resetFilters();
+  emit('filtersChanged');
+}
+
+function handleApplyFilters() {
+  // Emit filters changed and close modal
+  emit('filtersChanged');
+  closeModal();
+}
+
+function handleViewList(listId: string) {
+  // Navigate to the list view page
+  router.push(`/lists/${listId}`);
+  // Close the modal
+  closeModal();
+}
+
+function handleToggleClick(event: Event, handler: (...args: any[]) => void, ...args: any[]) {
+  // Stop propagation to prevent double-triggering
+  event.stopPropagation();
+  handler(...args);
+}
+
+// Advanced Features Methods
+function applyQuickFilter(filterId: string) {
+  if (filterId === 'wantToSee') {
+    handleToggleWantToSee();
+  } else if (filterId === 'notSeenByMe') {
+    handleToggleNotSeenByMe();
+  } else if (filterId.startsWith('list:')) {
+    const listId = filterId.replace('list:', '');
+    handleToggleUserList(listId);
+  }
+}
+
+function createNewPreset() {
+  if (!newPresetName.value.trim()) return;
+  
+  mapFilters.createPreset(newPresetName.value.trim(), 'Created from current filter settings');
+  newPresetName.value = '';
+}
+
+function exportConfiguration() {
+  const configData = mapFilters.exportFilters();
+  const blob = new Blob([configData], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `map-filters-export-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function handleImportFile(event: Event) {
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
+  
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const content = e.target?.result as string;
+      const success = mapFilters.importFilters(content);
+      if (success) {
+        alert('Filter configuration imported successfully!');
+      } else {
+        alert('Failed to import filter configuration. Please check the file format.');
+      }
+    } catch (error) {
+      alert('Failed to read import file.');
+    }
+  };
+  reader.readAsText(file);
+  target.value = ''; // Reset input
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  return `${minutes}m ${remainingSeconds}s`;
+}
+
+// Load data when modal opens
+watch(() => props.isOpen, async (isOpen: boolean) => {
+  if (isOpen && isAuthenticated.value) {
+    isLoadingData.value = true;
+    try {
+      await mapFilters.loadUserLists();
+    } catch (error) {
+      console.error('Error loading user lists:', error);
+    } finally {
+      isLoadingData.value = false;
+    }
+  }
+});
+
+// Handle escape key
+const handleKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && props.isOpen) {
+    closeModal();
+  }
+};
+
+// Mount/unmount keyboard listeners
+onMounted(() => {
+  document.addEventListener('keydown', handleKeydown);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', handleKeydown);
+});
+</script>
+
+<template>
+  <!-- Modal Backdrop -->
+  <div
+    v-if="isOpen"
+    class="fixed inset-0 z-50 overflow-hidden bg-black bg-opacity-50 flex items-center justify-center"
+    @click="closeModal"
+  >
+    <!-- Full Screen Modal Content -->
+    <div
+      class="bg-white w-full h-full max-w-full max-h-full flex flex-col md:w-[90vw] md:h-[90vh] md:max-w-4xl md:rounded-lg md:shadow-xl"
+      @click.stop
+    >
+      <!-- Header -->
+      <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center">
+            <AdjustmentsHorizontalIcon class="h-6 w-6 text-blue-600 mr-3" />
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900">Map Filters</h2>
+              <p class="text-xs text-gray-600 mt-1">Control which artworks are displayed on the map</p>
+            </div>
+          </div>
+          <button
+            @click="closeModal"
+            class="p-2 hover:bg-gray-200 rounded-full transition-colors"
+            aria-label="Close filters"
+          >
+            <XMarkIcon class="h-6 w-6 text-gray-500" />
+          </button>
+        </div>
+        
+        <!-- Quick Actions -->
+        <div v-if="mapFilters.hasActiveFilters.value" class="flex items-center justify-between mt-4">
+          <div class="text-sm text-gray-600">
+            {{ mapFilters.activeFilterDescription.value }}
+          </div>
+          <button
+            @click="handleResetFilters"
+            class="px-4 py-2 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 focus:ring-2 focus:ring-gray-500 transition-colors"
+          >
+            Reset All Filters
+          </button>
+        </div>
+      </div>
+
+      <!-- Content Area - Scrollable -->
+      <div class="flex-1 overflow-y-auto min-h-0">
+        <div class="px-6 py-6 space-y-8">
+          <!-- Filter Documentation -->
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 class="text-sm font-semibold text-blue-900 mb-2 flex items-center">
+              <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+              </svg>
+              How Map Filters Work
+            </h3>
+            <div class="text-xs text-blue-800 space-y-2">
+              <p><strong>List Filters (OR logic):</strong> When multiple list filters are active, artworks from ANY selected list will be shown.</p>
+              <p><strong>"Not Seen by Me" (Subtractive):</strong> This filter removes visited artworks from the result set and is always applied last.</p>
+              <p><strong>Visual Priority:</strong> Markers show status - gray for visited, gold for "Want to See", colored for type-based defaults.</p>
+            </div>
+          </div>
+
+          <!-- Display Options Section -->
+          <div>
+            <h3 class="text-base font-semibold text-gray-900 mb-4 flex items-center">
+              <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 100 4m0-4v2m0-6V4" />
+              </svg>
+              Display Options
+            </h3>
+            
+            <!-- Cluster Toggle -->
+            <div class="flex items-start space-x-3 p-3 bg-gray-50 rounded-lg">
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  v-model="clusterEnabled"
+                  @change="handleClusterToggle"
+                  class="sr-only"
+                />
+                <div
+                  class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors border-2"
+                  :class="clusterEnabled ? 'bg-blue-600 border-blue-600' : 'bg-gray-100 border-gray-300'"
+                >
+                  <div
+                    class="dot absolute top-0.5 left-0.5 bg-white w-5 h-5 rounded-full transition-transform shadow-sm"
+                    :class="clusterEnabled ? 'translate-x-5' : 'translate-x-0'"
+                  ></div>
+                </div>
+              </label>
+              
+              <div class="flex-1">
+                <div class="flex items-center">
+                  <h4 class="text-sm font-medium text-gray-900">Cluster Markers</h4>
+                  <span
+                    v-if="clusterEnabled"
+                    class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                  >
+                    Enabled
+                  </span>
+                </div>
+                <p class="text-xs mt-1 text-gray-600">
+                  Group nearby markers together for cleaner map display. Useful for high-density areas.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Authentication Required State -->
+          <div v-if="!isAuthenticated" class="text-center py-8">
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-6">
+              <svg class="w-12 h-12 text-amber-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              </svg>
+              <h3 class="text-lg font-medium text-amber-900 mb-2">Sign In for Advanced Filtering</h3>
+              <p class="text-sm text-amber-800 mb-4">Unlock powerful filtering features like "Want to See" lists and custom list filtering by signing in to your account.</p>
+              <p class="text-xs text-amber-700">Display options like marker clustering are available without signing in.</p>
+            </div>
+          </div>
+
+          <!-- Filter Controls for Authenticated Users -->
+          <div v-else class="space-y-8">
+            <p class="text-sm text-green-600">✓ Signed in - All filtering features available</p>
+            
+            <!-- Filters Section Header -->
+            <div>
+              <h3 class="text-lg font-bold text-gray-900 mb-6 flex items-center">
+                <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.707A1 1 0 013 7V4z" />
+                </svg>
+                Filters
+              </h3>
+            
+            <!-- System Lists Section -->
+            <div>
+              <h4 class="text-base font-semibold text-gray-900 mb-4">System Lists</h4>
+              <div class="space-y-4">
+                <!-- Want to See Filter -->
+                <div class="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors" @click="handleToggleWantToSee">
+                  <label class="relative inline-flex items-center cursor-pointer" @click="handleToggleClick($event, handleToggleWantToSee)">
+                    <input
+                      type="checkbox"
+                      :checked="mapFilters.isFilterEnabled('wantToSee')"
+                      class="sr-only"
+                    />
+                    <div
+                      class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors border-2"
+                      :class="mapFilters.isFilterEnabled('wantToSee') ? 'bg-blue-600 border-blue-600 shadow-md' : 'bg-gray-100 border-gray-300 shadow-inner'"
+                    >
+                      <div
+                        class="dot absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform shadow-lg border border-gray-200"
+                        :class="mapFilters.isFilterEnabled('wantToSee') ? 'translate-x-5 bg-white' : 'translate-x-0 bg-gray-50'"
+                      ></div>
+                    </div>
+                  </label>
+                  
+                  <div class="flex-1">
+                    <div class="flex items-center">
+                      <h4 class="text-sm font-medium text-gray-900">Want to See</h4>
+                      <span
+                        v-if="mapFilters.isFilterEnabled('wantToSee')"
+                        class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                      >
+                        Active
+                      </span>
+                    </div>
+                    <p class="text-xs mt-1 text-gray-600">
+                      Display only artworks you've saved to your "Want to See" wishlist. Perfect for planning art exploration routes.
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Not Seen by Me Filter -->
+                <div class="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors" @click="handleToggleNotSeenByMe">
+                  <label class="relative inline-flex items-center cursor-pointer" @click="handleToggleClick($event, handleToggleNotSeenByMe)">
+                    <input
+                      type="checkbox"
+                      :checked="mapFilters.isFilterEnabled('notSeenByMe')"
+                      class="sr-only"
+                    />
+                    <div
+                      class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-orange-500 transition-colors border-2"
+                      :class="mapFilters.isFilterEnabled('notSeenByMe') ? 'bg-orange-600 border-orange-600 shadow-md' : 'bg-gray-100 border-gray-300 shadow-inner'"
+                    >
+                      <div
+                        class="dot absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform shadow-lg border border-gray-200"
+                        :class="mapFilters.isFilterEnabled('notSeenByMe') ? 'translate-x-5 bg-white' : 'translate-x-0 bg-gray-50'"
+                      ></div>
+                    </div>
+                  </label>
+                  
+                  <div class="flex-1">
+                    <div class="flex items-center">
+                      <h4 class="text-sm font-medium text-gray-900">Not Seen by Me</h4>
+                      <span
+                        v-if="mapFilters.isFilterEnabled('notSeenByMe')"
+                        class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-orange-100 text-orange-800"
+                      >
+                        Active
+                      </span>
+                    </div>
+                    <p class="text-xs mt-1 text-gray-600">
+                      Hide artworks you've already visited or logged. Great for discovering new locations in familiar areas.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- User Lists Section -->
+            <div v-if="hasUserLists">
+              <h4 class="text-base font-semibold text-gray-900 mb-4">Your Custom Lists</h4>
+              <div class="space-y-3">
+                <div 
+                  v-for="list in mapFilters.availableUserLists.value" 
+                  :key="list.id"
+                  class="flex items-start space-x-3 p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  @click="handleToggleUserList(list.id)"
+                >
+                  <div class="relative inline-flex items-center">
+                    <input
+                      type="checkbox"
+                      :checked="mapFilters.isFilterEnabled(`list:${list.id}`)"
+                      class="sr-only"
+                      :id="`toggle-${list.id}`"
+                      :aria-labelledby="`label-${list.id}`"
+                    />
+                    <div
+                      class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-green-500 transition-colors border-2 cursor-pointer"
+                      :class="mapFilters.isFilterEnabled(`list:${list.id}`) ? 'bg-green-600 border-green-600 shadow-md' : 'bg-gray-100 border-gray-300 shadow-inner'"
+                      @click="handleToggleClick($event, handleToggleUserList, list.id)"
+                      :aria-label="`Toggle ${list.name} filter`"
+                      role="button"
+                      :aria-pressed="mapFilters.isFilterEnabled(`list:${list.id}`)"
+                      tabindex="0"
+                    >
+                      <div
+                        class="dot absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform shadow-lg border border-gray-200"
+                        :class="mapFilters.isFilterEnabled(`list:${list.id}`) ? 'translate-x-5 bg-white' : 'translate-x-0 bg-gray-50'"
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  <div class="flex-1">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center">
+                        <h4 class="text-sm font-medium text-gray-900">{{ list.name }}</h4>
+                        <span
+                          v-if="mapFilters.isFilterEnabled(`list:${list.id}`)"
+                          class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"
+                        >
+                          Active
+                        </span>
+                      </div>
+                      <button
+                        @click="handleToggleClick($event, handleViewList, list.id)"
+                        class="inline-flex items-center px-2 py-1 border border-gray-300 shadow-sm text-xs leading-4 font-medium rounded text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                        title="View this list"
+                      >
+                        <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        View List
+                      </button>
+                    </div>
+                    <p class="text-xs mt-1 text-gray-600">
+                      {{ list.item_count || 0 }} item{{ (list.item_count || 0) !== 1 ? 's' : '' }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- No Custom Lists Message -->
+            <div v-else class="text-center py-8">
+              <div class="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg p-6">
+                <svg class="w-12 h-12 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                <h3 class="text-sm font-medium text-gray-900 mb-2">No Custom Lists Yet</h3>
+                <p class="text-xs text-gray-500 mb-4">Create custom lists to organize artworks by theme, location, or any criteria that matters to you.</p>
+                <p class="text-xs text-gray-400">Visit artwork detail pages to add items to lists, or create new lists from your profile.</p>
+              </div>
+            </div>
+
+            <!-- Advanced Features: Filter Presets -->
+            <div v-if="showAdvancedFeatures">
+              <h3 class="text-base font-semibold text-gray-900 mb-4">Filter Presets</h3>
+              
+              <!-- Recently Used Filters -->
+              <div v-if="mapFilters.recentlyUsedFilters.value?.length > 0" class="mb-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-2">Recently Used</h4>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="recent in mapFilters.recentlyUsedFilters.value.slice(0, 3)"
+                    :key="recent.filterId"
+                    @click="applyQuickFilter(recent.filterId)"
+                    class="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
+                  >
+                    {{ recent.label }} ({{ recent.count }})
+                  </button>
+                </div>
+              </div>
+
+              <!-- Saved Presets -->
+              <div v-if="mapFilters.filterPresets.value?.length > 0" class="mb-4">
+                <h4 class="text-sm font-medium text-gray-700 mb-2">Saved Presets</h4>
+                <div class="space-y-2">
+                  <div
+                    v-for="preset in mapFilters.filterPresets.value"
+                    :key="preset.id"
+                    class="flex items-center justify-between p-2 bg-gray-50 rounded-md"
+                  >
+                    <div class="flex-1">
+                      <div class="text-sm font-medium text-gray-900">{{ preset.name }}</div>
+                      <div class="text-xs text-gray-500">{{ preset.description }}</div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                      <button
+                        @click="mapFilters.applyPreset(preset.id)"
+                        class="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700"
+                      >
+                        Apply
+                      </button>
+                      <button
+                        @click="mapFilters.deletePreset(preset.id)"
+                        class="px-2 py-1 text-xs bg-red-600 text-white rounded hover:bg-red-700"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Create Preset -->
+              <div class="space-y-3">
+                <div class="flex items-center space-x-2">
+                  <input
+                    v-model="newPresetName"
+                    type="text"
+                    placeholder="Preset name..."
+                    class="flex-1 px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    @click="createNewPreset"
+                    :disabled="!newPresetName.trim()"
+                    class="px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    Save Current
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Advanced Features: Export/Import -->
+            <div v-if="showAdvancedFeatures">
+              <h3 class="text-base font-semibold text-gray-900 mb-4">Export/Import</h3>
+              <div class="space-y-3">
+                <div class="flex items-center space-x-2">
+                  <button
+                    @click="exportConfiguration"
+                    class="px-3 py-2 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                  >
+                    Export Config
+                  </button>
+                  <input
+                    ref="importFileInput"
+                    type="file"
+                    accept=".json"
+                    @change="handleImportFile"
+                    class="hidden"
+                  />
+                  <button
+                    @click="importFileInput?.click()"
+                    class="px-3 py-2 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                  >
+                    Import Config
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Advanced Features: Performance Metrics -->
+            <div v-if="showAdvancedFeatures && showMetrics">
+              <h3 class="text-base font-semibold text-gray-900 mb-4">Performance Metrics</h3>
+              <div class="bg-gray-50 p-3 rounded-md space-y-2">
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">Session Duration:</span>
+                  <span class="font-medium">{{ formatDuration(mapFilters.getFilterMetrics.value.sessionDuration) }}</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">Filter Applications:</span>
+                  <span class="font-medium">{{ mapFilters.getFilterMetrics.value.totalFilterApplications }}</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">Cache Hit Rate:</span>
+                  <span class="font-medium">{{ Math.round(mapFilters.getFilterMetrics.value.cacheHitRate * 100) }}%</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">Most Used Filter:</span>
+                  <span class="font-medium">{{ mapFilters.getFilterMetrics.value.mostUsedFilter }}</span>
+                </div>
+                <!-- Map cache telemetry (populated via parent forwarding) -->
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">List Cache Hits:</span>
+                  <span class="font-medium">{{ props.cacheTelemetry?.userListsHit ?? 0 }}</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">List Cache Misses:</span>
+                  <span class="font-medium">{{ props.cacheTelemetry?.userListsMiss ?? 0 }}</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">Details Cache Hits:</span>
+                  <span class="font-medium">{{ props.cacheTelemetry?.listDetailsHit ?? 0 }}</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">Details Cache Misses:</span>
+                  <span class="font-medium">{{ props.cacheTelemetry?.listDetailsMiss ?? 0 }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          </div> <!-- Close Filters section -->
+
+          <!-- Advanced Features Toggle -->
+          <div v-if="isAuthenticated" class="border-t border-gray-200 pt-4">
+            <button
+              @click="showAdvancedFeatures = !showAdvancedFeatures"
+              class="flex items-center justify-between w-full px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+            >
+              <span>Advanced Features</span>
+              <svg
+                :class="{ 'rotate-180': showAdvancedFeatures }"
+                class="w-4 h-4 transition-transform"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            
+            <div v-if="showAdvancedFeatures" class="mt-2 pl-4">
+              <label class="flex items-center text-xs text-gray-600">
+                <input
+                  v-model="showMetrics"
+                  type="checkbox"
+                  class="mr-2"
+                />
+                Show performance metrics
+              </label>
+              <div class="mt-3">
+                <button
+                  @click="$emit('clearListCaches')"
+                  class="px-3 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
+                >
+                  Clear list caches
+                </button>
+                <button
+                  @click="$emit('resetCacheTelemetry')"
+                  class="ml-3 px-3 py-2 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+                >
+                  Reset telemetry
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="px-6 py-4 bg-gray-50 border-t border-gray-200 flex-shrink-0">
+        <div class="flex justify-between items-center">
+          <div class="text-xs text-gray-500">
+            {{ mapFilters.hasActiveFilters.value ? 'Filters applied to map display' : 'No filters currently active' }}
+          </div>
+          <div class="flex space-x-3">
+            <button
+              @click="closeModal"
+              class="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 focus:ring-2 focus:ring-blue-500 transition-colors"
+            >
+              Close
+            </button>
+            <button
+              @click="handleApplyFilters"
+              class="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 transition-colors"
+            >
+              Apply Filters
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+/* Custom toggle switch styles */
+.dot {
+  transition: transform 0.2s ease-in-out;
+}
+</style>

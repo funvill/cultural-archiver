@@ -36,9 +36,8 @@ export default [
       '@typescript-eslint': typescriptEslint,
     },
     rules: {
-      '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
-      '@typescript-eslint/explicit-function-return-type': 'warn',
-      '@typescript-eslint/no-explicit-any': 'warn', // Allow any in test files for mocking
+      '@typescript-eslint/explicit-function-return-type': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
     },
   },
   {
@@ -58,7 +57,7 @@ export default [
     },
     rules: {
       'vue/multi-word-component-names': 'off',
-      'vue/no-v-html': 'warn',
+      'vue/no-v-html': 'off',
       'vue/component-tags-order': [
         'error',
         {

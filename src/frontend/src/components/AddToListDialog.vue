@@ -14,7 +14,7 @@ const props = defineProps<Props>();
 // Emits
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
-  'added-to-list': [listName: string];
+  addedToList: [listName: string];
 }>();
 
 // Stores
@@ -83,7 +83,7 @@ const createList = async () => {
       error.value = response.error || 'Failed to create list';
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to create list';
+    error.value = err instanceof Error ? err.message : 'Failed to create lists';
   } finally {
     loading.value = false;
   }
@@ -117,7 +117,7 @@ const addToLists = async () => {
         userLists.value.find(list => list.id === listId)?.name || 'Unknown List'
       );
       
-      emit('added-to-list', listNames.join(', '));
+      emit('addedToList', listNames.join(', '));
       closeDialog();
     } else {
       error.value = `Failed to add to ${failures.length} list(s)`;

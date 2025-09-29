@@ -218,8 +218,8 @@ async function fetchUserProfile() {
 async function fetchUserSubmissions() {
   try {
     const response = await apiService.getUserSubmissions();
-    if (response.data) {
-      submissions.value = response.data.submissions;
+    if (response && (response as any).data && (response as any).data.submissions) {
+      submissions.value = (response as any).data.submissions as SubmissionWithData[];
       // Fetch linked artwork details for better cards (title/photo/artist)
       await fetchLinkedArtworks();
     }
@@ -305,11 +305,12 @@ async function fetchUserLists() {
     listsLoading.value = true;
     listsError.value = null;
     const response = await apiService.getUserLists();
-    if (response.success && response.data) {
-      // Filter out private lists (like Validated) from profile display
-      userLists.value = response.data.filter(list => !list.is_private);
+    if (response && (response as any).success && (response as any).data) {
+      const listsData = (response as any).data as any[];
+      // Filter out private lists (server may use visibility or is_private)
+      userLists.value = listsData.filter((list) => !list.is_private && list.visibility !== 'private') as ListApiResponse[];
     } else {
-      listsError.value = response.error || 'Failed to load lists';
+      listsError.value = (response as any)?.error || 'Failed to load lists';
     }
   } catch (err) {
     console.error('Failed to fetch user lists:', err);

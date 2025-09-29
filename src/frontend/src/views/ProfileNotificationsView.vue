@@ -1,3 +1,161 @@
+<script setup lang="ts">
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { useNotificationsStore } from '../stores/notifications';
+import type { NotificationResponse } from '../../../shared/types';
+import { isBadgeNotificationMetadata } from '../../../shared/types';
+
+// Store
+const notificationsStore = useNotificationsStore();
+
+// Local state
+const filterType = ref<'all' | 'unread' | 'badge'>('all');
+const currentPage = ref(1);
+const itemsPerPage = 20;
+const isMarkingAllRead = ref(false);
+
+// Computed
+const notifications = computed(() => notificationsStore.notifications);
+const unreadCount = computed(() => notificationsStore.unreadCount);
+const isLoading = computed(() => notificationsStore.isLoading);
+const error = computed(() => notificationsStore.error);
+
+const filteredNotifications = computed(() => {
+  let filtered = notifications.value as NotificationResponse[];
+
+  switch (filterType.value) {
+    case 'unread':
+      filtered = filtered.filter((n: NotificationResponse) => !n.is_dismissed);
+      break;
+    case 'badge':
+      filtered = filtered.filter((n: NotificationResponse) => n.type === 'badge');
+      break;
+    default:
+      // 'all' - no filtering
+      break;
+  }
+
+  return filtered;
+});
+
+const totalCount = computed(() => filteredNotifications.value.length);
+const totalPages = computed(() => Math.ceil(totalCount.value / itemsPerPage));
+const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage);
+const endIndex = computed(() => Math.min(startIndex.value + itemsPerPage, totalCount.value));
+
+const paginatedNotifications = computed(() =>
+  filteredNotifications.value.slice(startIndex.value, endIndex.value)
+);
+
+// Methods
+async function refreshNotifications() {
+  try {
+    await notificationsStore.fetchNotifications({ limit: 100, offset: 0 });
+    await notificationsStore.fetchUnreadCount();
+  } catch (err) {
+    console.error('Failed to refresh notifications:', err);
+  }
+}
+
+async function markAllAsRead() {
+  isMarkingAllRead.value = true;
+
+  try {
+    const unreadNotifications = filteredNotifications.value.filter(
+      (n: NotificationResponse) => !n.is_dismissed
+    );
+    const promises = unreadNotifications.map((n: NotificationResponse) =>
+      notificationsStore.markNotificationRead(n.id)
+    );
+
+    await Promise.all(promises);
+  } catch (err) {
+    console.error('Failed to mark all as read:', err);
+  } finally {
+    isMarkingAllRead.value = false;
+  }
+}
+
+async function dismissNotification(notificationId: string) {
+  try {
+    await notificationsStore.dismissNotification(notificationId);
+  } catch (err) {
+    console.error('Failed to dismiss notification:', err);
+  }
+}
+
+function handleNotificationClick(notification: NotificationResponse) {
+  // Mark as read if unread
+  if (!notification.is_dismissed) {
+    notificationsStore.markNotificationRead(notification.id).catch(console.error);
+  }
+
+  // Handle navigation based on notification type
+  if (notification.type === 'badge') {
+    // Could navigate to badge details or profile badges
+    console.log('Badge notification clicked:', notification);
+  }
+}
+
+function getBadgeEmoji(notification: NotificationResponse): string {
+  if (
+    notification.type === 'badge' &&
+    notification.metadata &&
+    isBadgeNotificationMetadata(notification.metadata)
+  ) {
+    return notification.metadata.badge_icon_emoji || '🏆';
+  }
+  return '🏆';
+}
+
+function formatTimestamp(timestamp: string): string {
+  const date = new Date(timestamp);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) {
+    return 'Today';
+  } else if (diffDays === 1) {
+    return 'Yesterday';
+  } else if (diffDays < 7) {
+    return `${diffDays} days ago`;
+  } else {
+    return date.toLocaleDateString();
+  }
+}
+
+function previousPage() {
+  if (currentPage.value > 1) {
+    currentPage.value--;
+  }
+}
+
+function nextPage() {
+  if (currentPage.value < totalPages.value) {
+    currentPage.value++;
+  }
+}
+
+// Lifecycle
+onMounted(() => {
+  notificationsStore.startPolling();
+  refreshNotifications();
+});
+
+onUnmounted(() => {
+  notificationsStore.stopPolling();
+});
+
+// Reset pagination when filter changes
+function resetPagination() {
+  currentPage.value = 1;
+}
+
+// Watch filter changes (reset pagination when filter changes)
+// We don't need an unused watcher reference here; simply react to the value where it's used
+watch(filterType, () => resetPagination());
+</script>
+
 <template>
   <div class="profile-notifications-view p-4 sm:p-6 lg:p-8">
     <!-- Header -->
@@ -311,164 +469,6 @@
     </div>
   </div>
 </template>
-
-<script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { useNotificationsStore } from '../stores/notifications';
-import type { NotificationResponse } from '../../../shared/types';
-import { isBadgeNotificationMetadata } from '../../../shared/types';
-
-// Store
-const notificationsStore = useNotificationsStore();
-
-// Local state
-const filterType = ref<'all' | 'unread' | 'badge'>('all');
-const currentPage = ref(1);
-const itemsPerPage = 20;
-const isMarkingAllRead = ref(false);
-
-// Computed
-const notifications = computed(() => notificationsStore.notifications);
-const unreadCount = computed(() => notificationsStore.unreadCount);
-const isLoading = computed(() => notificationsStore.isLoading);
-const error = computed(() => notificationsStore.error);
-
-const filteredNotifications = computed(() => {
-  let filtered = notifications.value as NotificationResponse[];
-
-  switch (filterType.value) {
-    case 'unread':
-      filtered = filtered.filter((n: NotificationResponse) => !n.is_dismissed);
-      break;
-    case 'badge':
-      filtered = filtered.filter((n: NotificationResponse) => n.type === 'badge');
-      break;
-    default:
-      // 'all' - no filtering
-      break;
-  }
-
-  return filtered;
-});
-
-const totalCount = computed(() => filteredNotifications.value.length);
-const totalPages = computed(() => Math.ceil(totalCount.value / itemsPerPage));
-const startIndex = computed(() => (currentPage.value - 1) * itemsPerPage);
-const endIndex = computed(() => Math.min(startIndex.value + itemsPerPage, totalCount.value));
-
-const paginatedNotifications = computed(() =>
-  filteredNotifications.value.slice(startIndex.value, endIndex.value)
-);
-
-// Methods
-async function refreshNotifications() {
-  try {
-    await notificationsStore.fetchNotifications({ limit: 100, offset: 0 });
-    await notificationsStore.fetchUnreadCount();
-  } catch (err) {
-    console.error('Failed to refresh notifications:', err);
-  }
-}
-
-async function markAllAsRead() {
-  isMarkingAllRead.value = true;
-
-  try {
-    const unreadNotifications = filteredNotifications.value.filter(
-      (n: NotificationResponse) => !n.is_dismissed
-    );
-    const promises = unreadNotifications.map((n: NotificationResponse) =>
-      notificationsStore.markNotificationRead(n.id)
-    );
-
-    await Promise.all(promises);
-  } catch (err) {
-    console.error('Failed to mark all as read:', err);
-  } finally {
-    isMarkingAllRead.value = false;
-  }
-}
-
-async function dismissNotification(notificationId: string) {
-  try {
-    await notificationsStore.dismissNotification(notificationId);
-  } catch (err) {
-    console.error('Failed to dismiss notification:', err);
-  }
-}
-
-function handleNotificationClick(notification: NotificationResponse) {
-  // Mark as read if unread
-  if (!notification.is_dismissed) {
-    notificationsStore.markNotificationRead(notification.id).catch(console.error);
-  }
-
-  // Handle navigation based on notification type
-  if (notification.type === 'badge') {
-    // Could navigate to badge details or profile badges
-    console.log('Badge notification clicked:', notification);
-  }
-}
-
-function getBadgeEmoji(notification: NotificationResponse): string {
-  if (
-    notification.type === 'badge' &&
-    notification.metadata &&
-    isBadgeNotificationMetadata(notification.metadata)
-  ) {
-    return notification.metadata.badge_icon_emoji || '🏆';
-  }
-  return '🏆';
-}
-
-function formatTimestamp(timestamp: string): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) {
-    return 'Today';
-  } else if (diffDays === 1) {
-    return 'Yesterday';
-  } else if (diffDays < 7) {
-    return `${diffDays} days ago`;
-  } else {
-    return date.toLocaleDateString();
-  }
-}
-
-function previousPage() {
-  if (currentPage.value > 1) {
-    currentPage.value--;
-  }
-}
-
-function nextPage() {
-  if (currentPage.value < totalPages.value) {
-    currentPage.value++;
-  }
-}
-
-// Lifecycle
-onMounted(() => {
-  notificationsStore.startPolling();
-  refreshNotifications();
-});
-
-onUnmounted(() => {
-  notificationsStore.stopPolling();
-});
-
-// Reset pagination when filter changes
-function resetPagination() {
-  currentPage.value = 1;
-}
-
-// Watch filter changes (reset pagination when filter changes)
-// We don't need an unused watcher reference here; simply react to the value where it's used
-watch(filterType, () => resetPagination());
-</script>
 
 <style scoped>
 /* Additional styles if needed */

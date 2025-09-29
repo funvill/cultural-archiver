@@ -240,11 +240,14 @@ export const useSearchStore = defineStore('search', () => {
           throw new Error('List not found or inaccessible');
         }
 
-        if (!listMeta) listMeta = resp.data.list;
-        const items = (resp.data.items || []) as ListItemLike[];
+        // Narrow the shape of resp.data to expected list details
+        const data = resp.data as { list?: Record<string, unknown>; items?: unknown[]; has_more?: boolean; page?: number; per_page?: number; total?: number };
+
+        if (!listMeta) listMeta = data.list;
+        const items = (data.items || []) as ListItemLike[];
         accumulated.push(...items);
 
-        if (!resp.data.has_more) break;
+        if (!data.has_more) break;
         page += 1;
       }
 

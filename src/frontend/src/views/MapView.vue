@@ -1,29 +1,160 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import MapComponent from '../components/MapComponent.vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
+import MapFiltersModal from '../components/MapFiltersModal.vue';
 import { useArtworksStore } from '../stores/artworks';
 import { useMapPreviewStore } from '../stores/mapPreview';
+import { useMapFilters } from '../composables/useMapFilters';
 import { apiService } from '../services/api';
 import type { ArtworkPin, Coordinates, MapPreview, SearchResult } from '../types';
+import { AdjustmentsHorizontalIcon } from '@heroicons/vue/24/outline';
 
 const router = useRouter();
 const route = useRoute();
 const artworksStore = useArtworksStore();
 const mapPreviewStore = useMapPreviewStore();
+const mapFilters = useMapFilters();
 
-// List filtering state
+// List filtering state (legacy support for URL params)
 const currentListId = ref<string | null>(null);
 const listArtworks = ref<ArtworkPin[]>([]);
 const listInfo = ref<any>(null);
 const listFilterActive = ref(false);
 
+// Map filters modal state
+const showFiltersModal = ref(false);
+// Keep a normalized telemetry snapshot so modal always receives a predictable object
+const cacheTelemetryRef = ref<{ userListsHit: number; userListsMiss: number; listDetailsHit: number; listDetailsMiss: number } | null>(null);
+
+// Telemetry polling for modal display
+let telemetryPollHandle: ReturnType<typeof setInterval> | null = null;
+function startTelemetryPolling() {
+  stopTelemetryPolling();
+  // Poll immediately and then regularly while modal is open
+  try {
+    if (mapComponentRef.value && typeof (mapComponentRef.value as any).getCacheTelemetry === 'function') {
+      // Prefer exposed getter
+      const t = (mapComponentRef.value as any).getCacheTelemetry();
+      cacheTelemetryRef.value = {
+        userListsHit: t?.userListsHit || 0,
+        userListsMiss: t?.userListsMiss || 0,
+        listDetailsHit: t?.listDetailsHit || 0,
+        listDetailsMiss: t?.listDetailsMiss || 0,
+      };
+    } else {
+      // Fallback: read persisted telemetry from localStorage if present
+      try {
+        const raw = localStorage.getItem('map:cacheTelemetry');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          cacheTelemetryRef.value = {
+            userListsHit: parsed?.userListsHit || 0,
+            userListsMiss: parsed?.userListsMiss || 0,
+            listDetailsHit: parsed?.listDetailsHit || 0,
+            listDetailsMiss: parsed?.listDetailsMiss || 0,
+          };
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+  } catch (e) {
+    /* ignore */
+  }
+  telemetryPollHandle = setInterval(() => {
+    try {
+      if (mapComponentRef.value && typeof (mapComponentRef.value as any).getCacheTelemetry === 'function') {
+        const t = (mapComponentRef.value as any).getCacheTelemetry();
+        cacheTelemetryRef.value = {
+          userListsHit: t?.userListsHit || 0,
+          userListsMiss: t?.userListsMiss || 0,
+          listDetailsHit: t?.listDetailsHit || 0,
+          listDetailsMiss: t?.listDetailsMiss || 0,
+        };
+      } else {
+        try {
+          const raw = localStorage.getItem('map:cacheTelemetry');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            cacheTelemetryRef.value = {
+              userListsHit: parsed?.userListsHit || 0,
+              userListsMiss: parsed?.userListsMiss || 0,
+              listDetailsHit: parsed?.listDetailsHit || 0,
+              listDetailsMiss: parsed?.listDetailsMiss || 0,
+            };
+          }
+        } catch (e) {
+          /* ignore */
+        }
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }, 2000);
+}
+
+function stopTelemetryPolling() {
+  if (telemetryPollHandle) {
+    clearInterval(telemetryPollHandle as any);
+    telemetryPollHandle = null;
+  }
+}
+
+// BroadcastChannel for cross-tab telemetry sync
+let bc: BroadcastChannel | null = null;
+onMounted(() => {
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      bc = new BroadcastChannel('map-cache');
+      bc.onmessage = (ev: MessageEvent) => {
+        try {
+          const msg = ev.data || {};
+          if (msg && msg.type === 'telemetry' && msg.payload) {
+            cacheTelemetryRef.value = {
+              userListsHit: msg.payload.userListsHit || 0,
+              userListsMiss: msg.payload.userListsMiss || 0,
+              listDetailsHit: msg.payload.listDetailsHit || 0,
+              listDetailsMiss: msg.payload.listDetailsMiss || 0,
+            };
+          } else if (msg && msg.type === 'clearCaches') {
+            cacheTelemetryRef.value = { userListsHit: 0, userListsMiss: 0, listDetailsHit: 0, listDetailsMiss: 0 };
+          }
+        } catch (e) {
+          /* ignore */
+        }
+      };
+    }
+  } catch (e) {
+    /* ignore */
+  }
+});
+
+onUnmounted(() => {
+  try { if (bc) { bc.close(); bc = null; } } catch (e) {}
+});
+
+// Ref for MapComponent so we can call exposed methods
+const mapComponentRef = ref<InstanceType<typeof MapComponent> | null>(null);
+
+// Displayed artworks with reactive filtering
+const displayedArtworks = ref<ArtworkPin[]>([]);
+
 // Computed properties
 const mapCenter = computed(() => artworksStore.mapCenter);
 const mapZoom = computed(() => artworksStore.mapZoom);
 const artworks = computed(() => {
-  // Use filtered list artworks if list filtering is active
+  console.log('[ARTWORKS COMPUTED] Recomputing artworks:', {
+    listFilterActive: listFilterActive.value,
+    listArtworksLength: listArtworks.value.length,
+    displayedArtworksLength: displayedArtworks.value.length,
+    storeArtworksLength: artworksStore.artworks.length,
+    hasMapFilters: mapFilters.hasActiveFilters.value,
+    refreshTrigger: mapFilters.refreshTrigger.value // Force reactivity
+  });
+  
+  // Use filtered list artworks if legacy list filtering is active
   if (listFilterActive.value && listArtworks.value.length > 0) {
     console.log('[MARKER DEBUG] MapView using list-filtered artworks:', {
       listArtworksLength: listArtworks.value.length,
@@ -33,15 +164,46 @@ const artworks = computed(() => {
     return listArtworks.value;
   }
 
-  // Default behavior - use all artworks
-  const storeArtworks = artworksStore.artworks;
-  console.log('[MARKER DEBUG] MapView using all artworks:', {
-    storeArtworksLength: storeArtworks.length,
-    listFilterActive: listFilterActive.value,
+  // Use the displayedArtworks ref that gets updated by the watchers
+  console.log('[ARTWORKS COMPUTED] Using displayedArtworks:', {
+    displayedCount: displayedArtworks.value.length,
+    hasActiveFilters: mapFilters.hasActiveFilters.value,
     timestamp: new Date().toISOString(),
   });
-  return storeArtworks;
+  return displayedArtworks.value;
 });
+
+// Update displayed artworks when store or filters change
+const updateDisplayedArtworks = async () => {
+  const storeArtworks = artworksStore.artworks;
+  
+  console.log('[MAP FILTERS] updateDisplayedArtworks called:', {
+    storeArtworksLength: storeArtworks.length,
+    hasActiveFilters: mapFilters.hasActiveFilters.value,
+    currentDisplayedLength: displayedArtworks.value.length
+  });
+  
+  // Apply map filters if any are active
+  if (mapFilters.hasActiveFilters.value) {
+    console.log('[MAP FILTERS] Applying filters to store artworks');
+    const filtered = await mapFilters.applyFilters(storeArtworks);
+    console.log('[MAP FILTERS] Filtered artworks:', {
+      originalCount: storeArtworks.length,
+      filteredCount: filtered.length
+    });
+    displayedArtworks.value = filtered;
+  } else {
+    console.log('[MAP FILTERS] No active filters, using all store artworks');
+    displayedArtworks.value = storeArtworks;
+  }
+  
+  // Ensure Vue reactivity system picks up the change
+  await nextTick();
+  console.log('[MAP FILTERS] Display artworks updated:', {
+    finalCount: displayedArtworks.value.length,
+    firstFew: displayedArtworks.value.slice(0, 3).map((a: ArtworkPin) => ({ id: a.id, title: a.title }))
+  });
+};
 
 // Preview state
 const currentPreview = computed(() => mapPreviewStore.currentPreview);
@@ -107,11 +269,12 @@ async function loadListArtworks(listId: string) {
         return;
       }
 
-      if (!listMeta) listMeta = resp.data.list;
-      const items = resp.data.items || [];
+      const data = resp.data as { list?: any; items?: any[]; has_more?: boolean };
+      if (!listMeta) listMeta = data.list;
+      const items = data.items || [];
       accumulated.push(...items);
 
-      if (!resp.data.has_more) break;
+      if (!data.has_more) break;
       page += 1;
     }
 
@@ -147,6 +310,82 @@ function clearListFilter() {
   listFilterActive.value = false;
   listArtworks.value = [];
   listInfo.value = null;
+}
+
+// Map filters handlers
+const handleOpenFilters = () => {
+  // Close any existing artwork preview dialog when opening map options
+  mapPreviewStore.clearPreview();
+  showFiltersModal.value = true;
+  // When opening filters, try to read telemetry from map component and attach to mapFilters for modal display
+  try {
+    if (mapComponentRef.value && typeof (mapComponentRef.value as any).getCacheTelemetry === 'function') {
+      const t = (mapComponentRef.value as any).getCacheTelemetry();
+      cacheTelemetryRef.value = t;
+    }
+  } catch (e) {
+    /* ignore */
+  }
+  // Start live polling so metrics update while modal is open
+  startTelemetryPolling();
+};
+
+const handleCloseFilters = () => {
+  showFiltersModal.value = false;
+  stopTelemetryPolling();
+};
+
+const handleFiltersChanged = async () => {
+  console.log('[MAP FILTERS] Filters changed event received, updating displayed artworks');
+  console.log('[MAP FILTERS] Current filter state:', {
+    hasActiveFilters: mapFilters.hasActiveFilters.value,
+    wantToSee: (mapFilters.filterState as any).value?.wantToSee,
+    notSeenByMe: (mapFilters.filterState as any).value?.notSeenByMe,
+    userListsCount: Array.isArray((mapFilters.filterState as any).value?.userLists) ? (mapFilters.filterState as any).value.userLists.length : 0
+  });
+  await updateDisplayedArtworks();
+};
+
+// Advanced Feature: Quick filter reset from banner
+const handleQuickResetFilters = async () => {
+  console.log('[MAP FILTERS] Quick reset triggered from banner');
+  mapFilters.resetFilters();
+  await updateDisplayedArtworks();
+};
+
+// Handle cluster setting change from filters modal
+const handleClusterChanged = (enabled: boolean) => {
+  console.log('[MAP FILTERS] Cluster setting changed:', enabled);
+  // The MapComponent will automatically pick up the change from localStorage
+  // No additional action needed here as the MapComponent watches localStorage
+};
+
+function handleResetCacheTelemetry() {
+  try {
+    if (mapComponentRef.value && typeof (mapComponentRef.value as any).resetCacheTelemetry === 'function') {
+      (mapComponentRef.value as any).resetCacheTelemetry();
+      // Update mapFilters display copy
+      if (typeof (mapComponentRef.value as any).getCacheTelemetry === 'function') {
+        (mapFilters as any).cacheTelemetry = (mapComponentRef.value as any).getCacheTelemetry();
+      }
+    }
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+// Handle telemetry update events from MapComponent
+function handleTelemetryUpdate(t: any) {
+  try {
+    cacheTelemetryRef.value = {
+      userListsHit: t?.userListsHit || 0,
+      userListsMiss: t?.userListsMiss || 0,
+      listDetailsHit: t?.listDetailsHit || 0,
+      listDetailsMiss: t?.listDetailsMiss || 0,
+    };
+  } catch (e) {
+    /* ignore */
+  }
 }
 
 function handlePreviewArtwork(preview: MapPreview) {
@@ -218,6 +457,9 @@ onMounted(() => {
     artworksStore.fetchNearbyArtworks();
   }
 
+  // Initialize displayed artworks
+  displayedArtworks.value = artworksStore.artworks;
+
   // Watch for changes to persist (simple interval to avoid adding watchers here)
   const persist = () => {
     try {
@@ -238,7 +480,35 @@ onMounted(() => {
     clearInterval(interval);
     window.removeEventListener('beforeunload', persist);
   });
+
+  // Initialize displayed artworks
+  updateDisplayedArtworks();
 });
+
+// Watch for artwork store changes to update display
+watch(
+  () => artworksStore.artworks,
+  async () => {
+    await updateDisplayedArtworks();
+  },
+  { deep: true }
+);
+
+// Watch for filter changes - including specific filter state changes
+watch(
+  [
+    () => mapFilters.hasActiveFilters.value,
+    () => mapFilters.filterState.value.wantToSee,
+    () => mapFilters.filterState.value.notSeenByMe,
+    () => mapFilters.filterState.value.userLists,
+    () => mapFilters.refreshTrigger.value, // Force reactivity trigger
+  ],
+  async () => {
+    console.log('[MAP FILTERS] Filter state changed, updating displayed artworks');
+    await updateDisplayedArtworks();
+  },
+  { deep: true }
+);
 
 // Watch for URL parameter changes to enable/disable list filtering
 watch(
@@ -257,10 +527,33 @@ watch(
 
 <template>
   <div class="map-view h-full w-full relative">
-    <!-- List Filter Indicator -->
+    <!-- Map Filters Banner with Enhanced Features -->
+    <div 
+      v-if="mapFilters.hasActiveFilters.value && !listFilterActive"
+      class="absolute top-4 left-4 right-20 z-40 bg-amber-50 border border-amber-200 rounded-lg p-3 shadow-sm"
+    >
+      <div class="flex items-center justify-between">
+        <div class="flex items-center">
+          <AdjustmentsHorizontalIcon class="w-5 h-5 text-amber-600 mr-2 flex-shrink-0" />
+          <span class="text-sm font-medium text-amber-900">
+            {{ mapFilters.activeFilterDescription.value }}
+          </span>
+        </div>
+        <!-- Advanced Feature: Reset Button in Banner -->
+        <button
+          @click="handleQuickResetFilters"
+          class="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded hover:bg-amber-200 transition-colors"
+          title="Reset all filters"
+        >
+          Reset
+        </button>
+      </div>
+    </div>
+
+    <!-- Legacy List Filter Indicator -->
     <div 
       v-if="listFilterActive && listInfo"
-      class="absolute top-4 left-4 right-4 z-40 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-sm"
+      class="absolute top-4 left-4 right-20 z-40 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-sm"
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center">
@@ -281,15 +574,38 @@ watch(
       </div>
     </div>
 
+    <!-- Map Controls Stack - Right Side -->
+    <div class="absolute top-4 right-4 z-30 flex flex-col space-y-2">
+      <!-- Map Filters Button - Top Position -->
+      <button
+        @click="handleOpenFilters"
+        class="bg-white shadow-md rounded-full p-3 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+        title="Map filters"
+        aria-label="Open map filters"
+      >
+        <AdjustmentsHorizontalIcon 
+          class="w-5 h-5"
+          :class="mapFilters.hasActiveFilters.value ? 'text-amber-600' : 'text-gray-700'"
+        />
+        <!-- Active indicator -->
+        <div 
+          v-if="mapFilters.hasActiveFilters.value" 
+          class="absolute -top-1 -right-1 w-3 h-3 bg-amber-500 rounded-full border-2 border-white"
+        ></div>
+      </button>
+    </div>
+
     <MapComponent
       :center="mapCenter"
       :zoom="mapZoom"
       :artworks="artworks"
+      ref="mapComponentRef"
       @artwork-click="handleArtworkClick"
       @preview-artwork="handlePreviewArtwork"
       @dismiss-preview="handleDismissPreview"
       @map-move="handleMapMove"
       @location-found="handleLocationFound"
+  @telemetry-update="handleTelemetryUpdate"
     />
     
     <!-- Map Preview using ArtworkCard -->
@@ -307,6 +623,17 @@ watch(
         @click="handlePreviewClick"
       />
     </div>
+
+    <!-- Map Filters Modal -->
+    <MapFiltersModal
+      :is-open="showFiltersModal"
+      @update:is-open="handleCloseFilters"
+      @filters-changed="handleFiltersChanged"
+      @cluster-changed="handleClusterChanged"
+      @clearListCaches="() => mapComponentRef && mapComponentRef.clearListCaches && mapComponentRef.clearListCaches()"
+    @resetCacheTelemetry="handleResetCacheTelemetry"
+  :cache-telemetry="cacheTelemetryRef ?? { userListsHit: 0, userListsMiss: 0, listDetailsHit: 0, listDetailsMiss: 0 }"
+    />
   </div>
 </template>
 

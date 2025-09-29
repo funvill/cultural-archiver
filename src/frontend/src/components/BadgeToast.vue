@@ -1,104 +1,3 @@
-<template>
-  <Teleport to="body">
-    <Transition
-      enter-active-class="transition ease-out duration-300"
-      enter-from-class="opacity-0 transform translate-y-2 scale-95"
-      enter-to-class="opacity-100 transform translate-y-0 scale-100"
-      leave-active-class="transition ease-in duration-200"
-      leave-from-class="opacity-100 transform translate-y-0 scale-100"
-      leave-to-class="opacity-0 transform translate-y-2 scale-95"
-    >
-      <div
-        v-if="isVisible"
-        class="fixed top-4 right-4 z-50 max-w-sm"
-        role="alert"
-        aria-live="polite"
-        aria-atomic="true"
-      >
-        <div
-          class="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
-        >
-          <!-- Toast Header -->
-          <div class="bg-gradient-to-r from-yellow-400 to-yellow-500 px-4 py-2">
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-2">
-                <span class="text-2xl" aria-hidden="true">
-                  {{ badge.icon_emoji || '🏆' }}
-                </span>
-                <span class="text-white font-semibold text-sm"> New Badge! </span>
-              </div>
-              <button
-                @click="dismiss"
-                class="text-white hover:text-yellow-100 transition-colors"
-                :aria-label="`Dismiss ${badge.title} badge notification`"
-              >
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fill-rule="evenodd"
-                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                    clip-rule="evenodd"
-                  />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          <!-- Toast Content -->
-          <div class="p-4">
-            <div class="flex items-start space-x-3">
-              <div class="flex-shrink-0">
-                <div
-                  class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center"
-                >
-                  <span class="text-2xl">
-                    {{ badge.icon_emoji || '🏆' }}
-                  </span>
-                </div>
-              </div>
-              <div class="flex-1 min-w-0">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                  {{ badge.title }}
-                </h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-                  {{ badge.description }}
-                </p>
-                <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                  {{ badge.award_reason }}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Toast Actions -->
-          <div class="px-4 pb-4 flex justify-between items-center">
-            <button
-              @click="viewBadges"
-              class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
-            >
-              View all badges
-            </button>
-            <button
-              @click="celebrate"
-              class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors"
-              :disabled="isConfettiActive"
-            >
-              🎉 Celebrate
-            </button>
-          </div>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Confetti Canvas -->
-    <canvas
-      v-if="isConfettiActive && !prefersReducedMotion"
-      ref="confettiCanvas"
-      class="fixed inset-0 pointer-events-none z-40"
-      aria-hidden="true"
-    ></canvas>
-  </Teleport>
-</template>
-
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
@@ -283,6 +182,109 @@ onUnmounted(() => {
   isConfettiActive.value = false;
 });
 </script>
+
+<template>
+  <Teleport to="body">
+    <Transition
+      enter-active-class="transition ease-out duration-300"
+      enter-from-class="opacity-0 transform translate-y-2 scale-95"
+      enter-to-class="opacity-100 transform translate-y-0 scale-100"
+      leave-active-class="transition ease-in duration-200"
+      leave-from-class="opacity-100 transform translate-y-0 scale-100"
+      leave-to-class="opacity-0 transform translate-y-2 scale-95"
+    >
+      <div
+        v-if="isVisible"
+        class="fixed top-4 right-4 z-50 max-w-sm"
+        role="alert"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        <div
+          class="bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden"
+        >
+          <!-- Toast Header -->
+          <div class="bg-gradient-to-r from-yellow-400 to-yellow-500 px-4 py-2">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <span class="text-2xl" aria-hidden="true">
+                  {{ badge.icon_emoji || '🏆' }}
+                </span>
+                <span class="text-white font-semibold text-sm"> New Badge! </span>
+              </div>
+              <button
+                @click="dismiss"
+                class="text-white hover:text-yellow-100 transition-colors"
+                :aria-label="`Dismiss ${badge.title} badge notification`"
+              >
+                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fill-rule="evenodd"
+                    d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- Toast Content -->
+          <div class="p-4">
+            <div class="flex items-start space-x-3">
+              <div class="flex-shrink-0">
+                <div
+                  class="w-12 h-12 bg-yellow-100 dark:bg-yellow-900/30 rounded-full flex items-center justify-center"
+                >
+                  <span class="text-2xl">
+                    {{ badge.icon_emoji || '🏆' }}
+                  </span>
+                </div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                  {{ badge.title }}
+                </h3>
+                <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                  {{ badge.description }}
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                  {{ badge.award_reason }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Toast Actions -->
+          <div class="px-4 pb-4 flex justify-between items-center">
+            <button
+              @click="viewBadges"
+              class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium"
+            >
+              View all badges
+            </button>
+            <button
+              @click="celebrate"
+              class="bg-yellow-500 hover:bg-yellow-600 text-white px-3 py-1 rounded-md text-sm font-medium transition-colors"
+              :disabled="isConfettiActive"
+            >
+              🎉 Celebrate
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+
+    <!-- Confetti Canvas -->
+    <canvas
+      v-if="isConfettiActive && !prefersReducedMotion"
+      ref="confettiCanvas"
+      class="fixed inset-0 pointer-events-none z-40"
+      aria-hidden="true"
+    ></canvas>
+  </Teleport>
+</template>
+
+<!-- script moved above template to satisfy component-tags-order rule -->
 
 <style scoped>
 /* Additional toast styles if needed */

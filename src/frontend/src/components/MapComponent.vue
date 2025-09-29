@@ -1,5 +1,11 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick, defineEmits } from 'vue';
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
+
+// Provide local declarations for Vue SFC macros so the TypeScript language
+// server recognizes them in <script setup> without needing @ts-ignore.
+declare function defineEmits<T extends Record<string, (...args: unknown[]) => void>>(emits?: T): (...args: unknown[]) => void;
+declare function defineEmits(emits?: string[]): (event: string, ...args: unknown[]) => void;
+declare function defineExpose<T = Record<string, unknown>>(exposed?: T): void;
 import {
   ExclamationTriangleIcon,
   ExclamationCircleIcon,
@@ -16,11 +22,9 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import type { Coordinates, ArtworkPin, MapComponentProps } from '../types/index';
 import { useArtworksStore } from '../stores/artworks';
-import {
-  useArtworkTypeFilters,
-  type ArtworkTypeToggle,
-} from '../composables/useArtworkTypeFilters';
+import { useArtworkTypeFilters, type ArtworkTypeToggle } from '../composables/useArtworkTypeFilters';
 import { useRouter } from 'vue-router';
+import { apiService } from '../services/api';
 
 // Props
 const props = withDefaults(defineProps<MapComponentProps>(), {
@@ -35,6 +39,8 @@ const emit = defineEmits([
   'dismissPreview',
   'mapMove',
   'locationFound'
+  // telemetry update event - parent can listen for live telemetry
+  , 'telemetryUpdate'
 ]);
 
 // State
@@ -52,6 +58,12 @@ const lastLoadedBounds = ref<{ north: number; south: number; east: number; west:
 const loadingTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 // Marker update debouncing
 const markerUpdateTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
+// Pending marker update flag to avoid mutating layers during Leaflet zoom animations
+const pendingMarkerUpdate = ref(false);
+// Explicit animating flag driven by Leaflet zoom events (avoid reading Leaflet private props)
+const animatingZoom = ref(false);
+// Pending dismiss preview when zoom animates
+const pendingDismissPreview = ref(false);
 // Debounce for updating marker styles during continuous zoom
 const zoomStyleTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 // Progressive loading state
@@ -78,6 +90,384 @@ const clearingCache = ref(false);
 // Artwork type filters - using shared composable
 const { artworkTypes, isArtworkTypeEnabled, getTypeColor, enableAllTypes, disableAllTypes } =
   useArtworkTypeFilters();
+
+// Cache for artwork list memberships to avoid repeated API calls
+const artworkListMembership = ref<Map<string, { beenHere: boolean, wantToSee: boolean }>>(new Map());
+
+// Simple in-memory TTL caches to reduce repeated network calls
+const USER_LISTS_TTL_MS = 1000 * 60 * 5; // 5 minutes
+const LIST_DETAILS_TTL_MS = 1000 * 60 * 5; // 5 minutes
+
+const userListsCache: { ts: number; data: any[] | null } = { ts: 0, data: null };
+const listDetailsCache: Map<string, { ts: number; data: any | null }> = new Map();
+
+// Persisted cache keys
+const PERSIST_USER_LISTS_KEY = 'map:cachedUserLists';
+const PERSIST_LIST_DETAILS_KEY = 'map:cachedListDetails';
+// Cache telemetry keys
+const PERSIST_CACHE_TELEMETRY_KEY = 'map:cacheTelemetry';
+
+// Telemetry counters (persisted)
+const cacheTelemetry = { userListsHit: 0, userListsMiss: 0, listDetailsHit: 0, listDetailsMiss: 0 };
+
+// Load telemetry from localStorage
+try {
+  const persisted = localStorage.getItem(PERSIST_CACHE_TELEMETRY_KEY);
+  if (persisted) {
+    const parsed = JSON.parse(persisted);
+    cacheTelemetry.userListsHit = parsed.userListsHit || 0;
+    cacheTelemetry.userListsMiss = parsed.userListsMiss || 0;
+    cacheTelemetry.listDetailsHit = parsed.listDetailsHit || 0;
+    cacheTelemetry.listDetailsMiss = parsed.listDetailsMiss || 0;
+  }
+} catch (e) {
+  /* ignore */
+}
+
+function persistTelemetry() {
+  try {
+    localStorage.setItem(PERSIST_CACHE_TELEMETRY_KEY, JSON.stringify(cacheTelemetry));
+    try {
+      // Expose a copy for easy debugging in the browser console
+      if (typeof window !== 'undefined') {
+        try { (window as any).__mapCacheTelemetry = { ...cacheTelemetry }; } catch (e) {}
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    // Emit telemetry update so parent components can pick up changes immediately
+    try {
+      emit && typeof emit === 'function' && emit('telemetryUpdate', getCacheTelemetry());
+    } catch (e) {
+      // ignore
+    }
+
+    // Broadcast to other tabs using BroadcastChannel if available
+    try {
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          const ch = new BroadcastChannel('map-cache');
+          ch.postMessage({ type: 'telemetry', payload: getCacheTelemetry() });
+          ch.close();
+        } catch (e) {
+          // ignore
+        }
+      } else {
+        // Fallback: also write to localStorage (already done) so other tabs can read storage events
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+// Debounce support for telemetry persistence to avoid frequent sync I/O
+let telemetryFlushTimeout: ReturnType<typeof setTimeout> | null = null;
+const TELEMETRY_DEBOUNCE_MS = 1000;
+
+function schedulePersistTelemetry() {
+  // Clear existing and schedule a new flush
+  if (telemetryFlushTimeout) clearTimeout(telemetryFlushTimeout as any);
+  telemetryFlushTimeout = setTimeout(() => {
+    try {
+      persistTelemetry();
+    } finally {
+      telemetryFlushTimeout = null;
+    }
+  }, TELEMETRY_DEBOUNCE_MS);
+}
+
+function flushTelemetryNow() {
+  if (telemetryFlushTimeout) {
+    clearTimeout(telemetryFlushTimeout as any);
+    telemetryFlushTimeout = null;
+  }
+  try {
+    persistTelemetry();
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+// BroadcastChannel for cross-tab sync (created lazily in browser)
+let bc: BroadcastChannel | null = null;
+
+onMounted(() => {
+  try {
+    if (typeof BroadcastChannel !== 'undefined') {
+      bc = new BroadcastChannel('map-cache');
+      bc.onmessage = (ev: MessageEvent) => {
+        try {
+          const msg = ev.data || {};
+          if (msg && msg.type === 'telemetry' && msg.payload) {
+            // Merge counters (adopt payload as current snapshot)
+            try {
+              cacheTelemetry.userListsHit = msg.payload.userListsHit || 0;
+              cacheTelemetry.userListsMiss = msg.payload.userListsMiss || 0;
+              cacheTelemetry.listDetailsHit = msg.payload.listDetailsHit || 0;
+              cacheTelemetry.listDetailsMiss = msg.payload.listDetailsMiss || 0;
+              // Emit locally so parent updates immediately
+              try { emit('telemetryUpdate', getCacheTelemetry()); } catch (e) {}
+            } catch (e) {}
+          } else if (msg && msg.type === 'clearCaches') {
+            try {
+              userListsCache.data = null;
+              userListsCache.ts = 0;
+              listDetailsCache.clear();
+              artworkListMembership.value.clear();
+              try { localStorage.removeItem(PERSIST_USER_LISTS_KEY); localStorage.removeItem(PERSIST_LIST_DETAILS_KEY); } catch (e) {}
+              try { emit('telemetryUpdate', getCacheTelemetry()); } catch (e) {}
+            } catch (e) {}
+          }
+        } catch (e) {
+          // ignore
+        }
+      };
+    }
+  } catch (e) {
+    /* ignore */
+  }
+  // Ensure we flush telemetry before unload to persist the latest counters
+  try { window.addEventListener('beforeunload', flushTelemetryNow); } catch (e) {}
+});
+
+onUnmounted(() => {
+  try { window.removeEventListener('beforeunload', flushTelemetryNow); } catch (e) {}
+  try { if (bc) { bc.close(); bc = null; } } catch (e) {}
+});
+
+function getCacheTelemetry() {
+  return { ...cacheTelemetry };
+}
+
+function resetCacheTelemetry() {
+  cacheTelemetry.userListsHit = 0;
+  cacheTelemetry.userListsMiss = 0;
+  cacheTelemetry.listDetailsHit = 0;
+  cacheTelemetry.listDetailsMiss = 0;
+  // Persist immediately when resetting
+  try {
+    flushTelemetryNow();
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+// Load persisted caches from localStorage if present
+try {
+  const persisted = localStorage.getItem(PERSIST_USER_LISTS_KEY);
+  if (persisted) {
+    const parsed = JSON.parse(persisted);
+    if (parsed?.ts && parsed?.data) {
+      userListsCache.ts = parsed.ts;
+      userListsCache.data = parsed.data;
+    }
+  }
+} catch (e) {
+  /* ignore parse errors */
+}
+
+try {
+  const persistedLists = localStorage.getItem(PERSIST_LIST_DETAILS_KEY);
+  if (persistedLists) {
+    const parsed = JSON.parse(persistedLists);
+    if (parsed && typeof parsed === 'object') {
+      for (const k of Object.keys(parsed)) {
+        try {
+          listDetailsCache.set(k, parsed[k]);
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+  }
+} catch (e) {
+  /* ignore parse errors */
+}
+
+// Expose a method to clear caches programmatically
+function clearListCaches() {
+  try {
+    userListsCache.data = null;
+    userListsCache.ts = 0;
+    listDetailsCache.clear();
+    try {
+      localStorage.removeItem(PERSIST_USER_LISTS_KEY);
+      localStorage.removeItem(PERSIST_LIST_DETAILS_KEY);
+    } catch (e) {
+      /* ignore */
+    }
+    // Also clear per-artwork membership cache
+    artworkListMembership.value.clear();
+    console.log('MapComponent: list caches cleared');
+    try {
+      // Broadcast cache clear to other tabs
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          const ch = new BroadcastChannel('map-cache');
+          ch.postMessage({ type: 'clearCaches' });
+          ch.close();
+        } catch (e) {}
+      }
+    } catch (e) {}
+    // Flush telemetry too
+    try { flushTelemetryNow(); } catch (e) {}
+  } catch (e) {
+    console.warn('Failed to clear list caches', e);
+  }
+}
+
+// Expose to parent via composition API (script setup macro)
+// Note: use the compile-time defineExpose macro directly so parent refs can access these methods.
+defineExpose({ clearListCaches, getCacheTelemetry, resetCacheTelemetry });
+
+// Function to check artwork list membership
+async function checkArtworkListMembership(artworkId: string): Promise<{ beenHere: boolean, wantToSee: boolean }> {
+  // Debug: trace entry to help verify this function runs in the browser
+  try {
+    // Use debug instead of console.log to be filter-friendly
+    console.debug && console.debug('MapComponent.checkArtworkListMembership ENTER', { artworkId });
+  } catch (e) {
+    /* ignore */
+  }
+
+  // Check cache first
+  if (artworkListMembership.value.has(artworkId)) {
+    return artworkListMembership.value.get(artworkId)!;
+  }
+
+  // Default membership
+  const membership = { beenHere: false, wantToSee: false };
+
+  try {
+    // Get user lists to check membership (use TTL cache)
+    let lists: any[] = [];
+    const now = Date.now();
+    if (userListsCache.data && now - userListsCache.ts < USER_LISTS_TTL_MS) {
+      lists = userListsCache.data as any[];
+      // telemetry: userLists cache hit
+      try {
+            cacheTelemetry.userListsHit++;
+            // Debug log for telemetry
+            try {
+              console.debug('telemetry: userListsHit ->', cacheTelemetry.userListsHit);
+            } catch (e) {}
+            // Schedule a debounced persist instead of writing immediately
+            schedulePersistTelemetry();
+      } catch (e) {
+        /* ignore */
+      }
+    } else {
+      try {
+        const userLists = await apiService.getUserLists();
+        lists = Array.isArray(userLists) ? userLists : userLists.data || [];
+          userListsCache.data = lists;
+        userListsCache.ts = now;
+        // telemetry: userLists miss (we fetched from network)
+        try {
+          cacheTelemetry.userListsMiss++;
+          try {
+            console.debug('telemetry: userListsMiss ->', cacheTelemetry.userListsMiss);
+          } catch (e) {}
+          schedulePersistTelemetry();
+        } catch (e) {
+          /* ignore */
+        }
+        try {
+          localStorage.setItem(PERSIST_USER_LISTS_KEY, JSON.stringify({ ts: now, data: lists }));
+        } catch (e) {
+          /* ignore */
+        }
+      } catch (e) {
+        // Could not fetch lists; fall back to empty lists
+        lists = [];
+      }
+    }
+
+    // Check each system list for the artwork. Be resilient to API shape and name variations.
+    const KNOWN_BEEN_HERE = new Set(['have seen', 'been here', 'logged', 'have_seen', 'been_here']);
+    const KNOWN_WANT_TO_SEE = new Set(['want to see', 'want_to_see', 'wanttosee', 'wanttosee']);
+
+    for (const list of lists) {
+      // Some API variants use `is_system` or `is_system_list` - treat either truthy value as system list
+      const isSystemFlag = Boolean(list.is_system || list.is_system_list || list.is_system_list === 1);
+      if (!isSystemFlag) continue;
+
+      try {
+        // Get list details (use per-list TTL cache)
+        const lid = String(list.id);
+        let listDetails: any | null = null;
+        const cached = listDetailsCache.get(lid);
+        if (cached && now - cached.ts < LIST_DETAILS_TTL_MS) {
+          listDetails = cached.data;
+          // telemetry: listDetails cache hit
+          try {
+            cacheTelemetry.listDetailsHit++;
+            try {
+              console.debug('telemetry: listDetailsHit ->', cacheTelemetry.listDetailsHit);
+            } catch (e) {}
+            schedulePersistTelemetry();
+          } catch (e) {
+            /* ignore */
+          }
+        } else {
+          try {
+            const resp = await apiService.getListDetails(list.id, 1, 100);
+            listDetails = resp?.data || null;
+            listDetailsCache.set(lid, { ts: now, data: listDetails });
+            try {
+              // Persist map of cached list details as a simple object
+              const obj: Record<string, any> = {};
+              listDetailsCache.forEach((v, k) => (obj[k] = v));
+              localStorage.setItem(PERSIST_LIST_DETAILS_KEY, JSON.stringify(obj));
+            } catch (e) {
+              /* ignore */
+            }
+            // telemetry: listDetails miss (we fetched from network)
+            try {
+              cacheTelemetry.listDetailsMiss++;
+              try {
+                console.debug('telemetry: listDetailsMiss ->', cacheTelemetry.listDetailsMiss);
+              } catch (e) {}
+              schedulePersistTelemetry();
+            } catch (e) {
+              /* ignore */
+            }
+          } catch (e) {
+            listDetails = null;
+            // continue to next list
+          }
+        }
+
+        if (!listDetails || !listDetails.items) continue;
+        const items = Array.isArray(listDetails.items) ? listDetails.items : listDetails.data?.items || [];
+
+        const isInList = items.some((item: any) => item.id === artworkId);
+        if (!isInList) continue;
+
+        const name = (list.name || '').toString().trim().toLowerCase();
+
+        if (KNOWN_BEEN_HERE.has(name) || name.includes('seen') || name.includes('been')) {
+          membership.beenHere = true;
+        } else if (KNOWN_WANT_TO_SEE.has(name) || name.includes('want')) {
+          membership.wantToSee = true;
+        }
+      } catch (listError) {
+        // Continue checking other lists if one fails
+        continue;
+      }
+    }
+  } catch (error) {
+    // If API calls fail at top-level, fall back to default (false, false)
+    console.warn('Failed to check artwork list membership:', error);
+  }
+  
+  // Cache the result
+  artworkListMembership.value.set(artworkId, membership);
+  return membership;
+}
 
 // Debug ring layer (only immediate 100m ring)
 let debugImmediateRing: L.Circle | null = null;
@@ -135,56 +525,101 @@ const router = useRouter();
 // Default coordinates (Vancouver - near sample data for testing)
 const DEFAULT_CENTER = { latitude: 49.265, longitude: -123.25 };
 
-// Create circle marker style for artworks (replaces emoji icons for better performance)
-const createArtworkStyle = (type: string) => {
-  const normalized = (type || 'other').toLowerCase();
+// Icon pre-render cache (data-URIs keyed by type+size)
+const iconDataUriCache: Map<string, string> = new Map();
 
-  // Calculate dynamic radius based on zoom level
-  // Note: Leaflet zoom increases when you zoom in (higher = closer). We want radius to grow as zoom increases.
-  const currentZoom = map.value?.getZoom() ?? 15;
-  // Set base min/max for the raw radius (before applying the 2x multiplier)
-  const minRadius = 3; // smallest marker at lower zoom levels
-  const maxRadius = 10; // largest marker at higher zoom levels
+// Helper: render an icon to an offscreen canvas and return data-URI
+function renderIconToDataUri(kind: 'flag' | 'star' | 'question', size: number, fillColor?: string) {
+  const key = `${kind}:${size}:${fillColor || ''}`;
+  if (iconDataUriCache.has(key)) return iconDataUriCache.get(key)!;
 
-  // Effective zoom range for interpolation (adjustable)
-  // 10 = metropolitan area, 16 = Street, 18 = buildings/trees
-  const minZoom = 12;
-  const maxZoom = 18;
-  let dynamicRadius: number;
+  // Create offscreen canvas
+  const canvas = document.createElement('canvas');
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return '';
+  }
+  ctx.scale(dpr, dpr);
 
-  if (currentZoom <= minZoom) {
-    dynamicRadius = minRadius;
-  } else if (currentZoom >= maxZoom) {
-    dynamicRadius = maxRadius;
+  // Draw background circle
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
+  ctx.fillStyle = kind === 'question' ? (fillColor || '#888') : (kind === 'star' ? '#F59E0B' : '#9CA3AF');
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#fff';
+  ctx.stroke();
+
+  // Draw simple glyphs centered
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  if (kind === 'flag') {
+    // Simple flag pole + triangle
+    const poleX = size * 0.36;
+    ctx.fillRect(poleX, size * 0.22, size * 0.06, size * 0.56);
+    ctx.moveTo(poleX + size * 0.06, size * 0.22);
+    ctx.lineTo(size * 0.76, size * 0.38);
+    ctx.lineTo(poleX + size * 0.06, size * 0.54);
+    ctx.closePath();
+    ctx.fill();
+  } else if (kind === 'star') {
+    // Draw a simple star via path approximation
+    const cx = size / 2;
+    const cy = size / 2;
+    const r = size * 0.22;
+    for (let i = 0; i < 5; i++) {
+      const a = ((-18 + i * 72) * Math.PI) / 180;
+      const x = cx + Math.cos(a) * r * (i % 2 === 0 ? 1 : 0.45);
+      const y = cy + Math.sin(a) * r * (i % 2 === 0 ? 1 : 0.45);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
   } else {
-    // t = 0 at minZoom (smallest), t = 1 at maxZoom (largest)
-    const t = (currentZoom - minZoom) / (maxZoom - minZoom);
-    dynamicRadius = minRadius + t * (maxRadius - minRadius);
+    // question mark - draw a rounded path approximation
+    ctx.font = `${Math.floor(size * 0.6)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('?', size / 2, size / 2 - size * 0.06);
   }
 
-  // Apply the user's requested unconditional doubling of marker sizes across all zooms.
-  // Clamp to a reasonable maximum to avoid excessively large markers.
-  dynamicRadius = Math.min(dynamicRadius * 2, maxRadius * 2);
-  console.log('Zoom:', currentZoom, 'Dynamic radius:', dynamicRadius);
+  const dataUri = canvas.toDataURL('image/png');
+  iconDataUriCache.set(key, dataUri);
+  return dataUri;
+}
 
-  // Use shared color logic from composable
-  const fillColor = getTypeColor(normalized);
+// Create priority-based div icon for artworks using cached data-URIs (faster)
+const createArtworkIcon = (artwork: ArtworkPin, listMembership?: { beenHere: boolean, wantToSee: boolean }) => {
+  const currentZoom = map.value?.getZoom() ?? 15;
+  const baseSize = Math.max(20, Math.min(32, currentZoom * 1.5));
 
-  const baseStyle = {
-    radius: dynamicRadius, // Use zoom-scaled radius
-    fillColor: fillColor,
-    color: '#ffffff', // white border
-    weight: 1,
-    fillOpacity: 0.9,
-    opacity: 1,
-    // Ensure proper interaction settings
-    interactive: true,
-    bubblingMouseEvents: false,
-    className: 'artwork-circle-marker', // Add CSS class for styling
-  };
+  // Determine kind
+  const kind: 'flag' | 'star' | 'question' = listMembership?.beenHere
+    ? 'flag'
+    : listMembership?.wantToSee
+    ? 'star'
+    : 'question';
 
-  // Don't add renderer - let Leaflet handle canvas rendering automatically
-  return baseStyle;
+  const fillColor = kind === 'question' ? getTypeColor((artwork.type || 'other').toLowerCase()) : undefined;
+  const dataUri = renderIconToDataUri(kind, Math.floor(baseSize), fillColor);
+
+  const html = `
+    <div class="artwork-marker-outer" style="width: ${baseSize}px; height: ${baseSize}px; display:flex; align-items:center; justify-content:center;">
+      <div class="artwork-marker-inner" style="width: ${baseSize}px; height: ${baseSize}px; border-radius:50%; background-image: url('${dataUri}'); background-size: cover; box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: transform 120ms ease, box-shadow 120ms ease;">
+      </div>
+    </div>
+  `;
+
+  return L.divIcon({
+    html,
+    className: '',
+    iconSize: [baseSize, baseSize],
+    iconAnchor: [baseSize / 2, baseSize / 2],
+  });
 };
 
 // Custom icon for user location - use a person icon so it's clearly the user, not an artwork
@@ -261,6 +696,33 @@ async function initializeMap() {
     });
 
     console.log('Map created successfully:', map.value);
+
+    // Defensive runtime patch: wrap Leaflet's Popup._animateZoom to guard against
+    // rare cases where a popup's internal `_map` becomes null during animated zooms.
+    // This prevents uncaught TypeErrors like "Cannot read properties of null (reading '_latLngToNewLayerPoint')"
+    // while we handle layer update ordering elsewhere in the component.
+    try {
+      const PopupProto: any = (L as any).Popup && (L as any).Popup.prototype;
+      if (PopupProto && typeof PopupProto._animateZoom === 'function') {
+        const _origAnimateZoom = PopupProto._animateZoom;
+        PopupProto._animateZoom = function (zoom: any, center: any, options: any) {
+          try {
+            // If the popup is not attached to a map anymore, skip animation safely
+            if (!this || !this._map) return;
+            return _origAnimateZoom.call(this, zoom, center, options);
+          } catch (err) {
+            // Swallow errors here to avoid bubbling to global error handlers
+            // Log for debugging but don't throw
+            // eslint-disable-next-line no-console
+            console.warn('Popup._animateZoom guarded error', err);
+            return;
+          }
+        };
+      }
+    } catch (err) {
+      // If any of the above fails, continue without the guard
+      console.warn('Failed to install Popup._animateZoom guard', err);
+    }
 
     // Ensure the container has the proper Leaflet classes
     if (mapContainer.value) {
@@ -407,6 +869,21 @@ async function initializeMap() {
 
     await configureMarkerGroup();
 
+    // Pre-warm icon cache for common sizes to avoid first-render delay
+    try {
+      // Use standard base size for pre-warm (matches createArtworkIcon logic)
+      const preWarmSize = 28;
+      // Render and cache each kind
+      if (typeof window !== 'undefined') {
+        renderIconToDataUri('flag', preWarmSize);
+        renderIconToDataUri('star', preWarmSize);
+        renderIconToDataUri('question', preWarmSize, getTypeColor('other'));
+      }
+    } catch (e) {
+      // Non-fatal; continue
+      console.warn('Icon pre-warm failed', e);
+    }
+
     // Setup event listeners
     map.value.on('moveend', handleMapMove);
     map.value.on('zoomend', handleMapMove);
@@ -424,6 +901,17 @@ async function initializeMap() {
         }
         zoomStyleTimeout.value = null;
       }, 50);
+    });
+    // Track animation lifecycle using explicit flag
+    map.value.on('zoomstart', () => {
+      animatingZoom.value = true;
+    });
+    map.value.on('zoomend', () => {
+      animatingZoom.value = false;
+    });
+    // Also set animating on zoomanim events (some Leaflet builds use this for animated transitions)
+    map.value.on('zoomanim', () => {
+      animatingZoom.value = true;
     });
     // Save map state on move/zoom
     map.value.on('moveend', saveMapState);
@@ -620,7 +1108,7 @@ async function loadArtworks() {
     // Check if we already have data for this area (smart caching)
     if (lastLoadedBounds.value && boundsContain(lastLoadedBounds.value, expandedBounds)) {
       // We already have data for this viewport, just update markers
-      updateArtworkMarkers();
+      updateArtworkMarkers().catch(console.error);
       return;
     }
 
@@ -648,7 +1136,7 @@ async function loadArtworks() {
     await nextTick();
 
     console.log('[MARKER DEBUG] After nextTick, props length now:', props.artworks?.length || 0);
-    updateArtworkMarkers();
+    updateArtworkMarkers().catch(console.error);
   } catch (err) {
     console.error('Error loading artworks:', err);
   } finally {
@@ -692,7 +1180,7 @@ async function loadArtworksProgressively(bounds: {
 
         // Update markers incrementally for each batch
         nextTick(() => {
-          updateArtworkMarkers();
+          updateArtworkMarkers().catch(console.error);
         });
       }
     );
@@ -724,13 +1212,28 @@ function updateArtworkMarkersDebounced(delay: number = 0) {
   markerUpdateTimeout.value = setTimeout(() => {
     // Guard against running after component unmount
     if (map.value) {
-      updateArtworkMarkers();
+      // Fire and forget async call
+      updateArtworkMarkers().catch(console.error);
     }
   }, delay);
 }
 
 // Update artwork markers with efficient viewport-based rendering
-function updateArtworkMarkers() {
+async function updateArtworkMarkers() {
+    // If we're currently performing an animated zoom, avoid mutating layers.
+  if (map.value && animatingZoom.value) {
+    if (!pendingMarkerUpdate.value) {
+      pendingMarkerUpdate.value = true;
+      // Schedule a one-time update after zoomend
+      map.value.once('zoomend', () => {
+        pendingMarkerUpdate.value = false;
+        // ensure animating flag cleared before updating
+        animatingZoom.value = false;
+        updateArtworkMarkers().catch(console.error);
+      });
+    }
+    return;
+  }
   console.log('[MARKER DEBUG] updateArtworkMarkers() called:', {
     mapExists: !!map.value,
     clusterGroupExists: !!markerClusterGroup.value,
@@ -759,7 +1262,7 @@ function updateArtworkMarkers() {
       console.log('[MARKER DEBUG] Map container has zero dimensions - triggering resize');
       setTimeout(() => {
         map.value?.invalidateSize();
-        updateArtworkMarkers();
+        updateArtworkMarkers().catch(console.error);
       }, 100);
       return;
     }
@@ -767,7 +1270,7 @@ function updateArtworkMarkers() {
     // Additional stability check - ensure map is actually rendered and interactive
     if (map.value && !map.value.getContainer()) {
       console.log('[MARKER DEBUG] Map container not yet attached - delaying marker update');
-      setTimeout(() => updateArtworkMarkers(), 100);
+      setTimeout(() => updateArtworkMarkers().catch(console.error), 100);
       return;
     }
   }
@@ -817,107 +1320,170 @@ function updateArtworkMarkers() {
   );
 
   // Remove markers that are no longer in viewport or are of disabled types
-  artworkMarkers.value = artworkMarkers.value.filter((marker: any) => {
-    const artworkId = marker._artworkId;
-    const artworkType = marker._artworkType;
-
-    // Remove if no longer in viewport
-    if (artworkId && !viewportArtworkIds.has(artworkId)) {
-      if (markerClusterGroup.value) {
-        markerClusterGroup.value.removeLayer(marker as any);
-      }
-      return false; // Remove from artworkMarkers array
-    }
-
-    // Remove if artwork type is now disabled
-    if (artworkType && !isArtworkTypeEnabled(artworkType)) {
-      if (markerClusterGroup.value) {
-        markerClusterGroup.value.removeLayer(marker as any);
-      }
-      return false; // Remove from artworkMarkers array
-    }
-    return true; // Keep in artworkMarkers array
-  });
-
-  // Add new markers for artworks that entered the viewport
-  artworksInViewport.forEach((artwork: ArtworkPin) => {
-    // Skip if marker already exists
-    if (currentArtworkIds.has(artwork.id)) {
-      return;
-    }
-
-    // Create new marker with optimized options
-    const markerOptions = {
-      ...createArtworkStyle(artwork.type || 'other'),
-      interactive: true,
-      bubblingMouseEvents: false,
-      pane: 'markerPane',
-    };
-
-    const marker = L.circleMarker([artwork.latitude, artwork.longitude], markerOptions);
-
-    // Store artwork ID and type on marker for efficient tracking
-    (marker as any)._artworkId = artwork.id;
-    (marker as any)._artworkType = artwork.type || 'other';
-
-    // Create popup content
-    const popupContent = `
-      <div class="artwork-popup">
-        <h3 class="font-semibold text-sm mb-1">${artwork.title || 'Untitled'}</h3>
-        <button onclick="window.viewArtworkDetails('${artwork.id}')" 
-                class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
-          View Details
-        </button>
-      </div>
-    `;
-
-    marker.bindPopup(popupContent);
-
-    // Add to cluster group first
-    if (markerClusterGroup.value) {
-      console.log('[MARKER DEBUG] Adding marker to cluster group:', {
-        markerId: artwork.id,
-        clusterGroupType: markerClusterGroup.value.constructor.name,
-        isClusterGroupOnMap: map.value?.hasLayer(markerClusterGroup.value),
-        mapContainerInDOM: !!mapContainer.value?.isConnected,
+  if (animatingZoom.value) {
+    // Defer removals until after animation ends to avoid Leaflet timing races
+    if (!pendingMarkerUpdate.value && map.value) {
+      pendingMarkerUpdate.value = true;
+      map.value.once('zoomend', () => {
+        pendingMarkerUpdate.value = false;
+        animatingZoom.value = false;
+        updateArtworkMarkers().catch(console.error);
       });
-      markerClusterGroup.value.addLayer(marker as any);
-    } else {
-      console.log('[MARKER DEBUG] No cluster group available for marker:', artwork.id);
+    }
+  } else {
+    artworkMarkers.value = artworkMarkers.value.filter((marker: any) => {
+      const artworkId = marker._artworkId;
+      const artworkType = marker._artworkType;
+
+      try {
+        // Remove if no longer in viewport
+        if (artworkId && !viewportArtworkIds.has(artworkId)) {
+          if (markerClusterGroup.value) {
+            try {
+              markerClusterGroup.value.removeLayer(marker as any);
+            } catch (e) {
+              /* ignore remove errors */
+            }
+          }
+          return false; // Remove from artworkMarkers array
+        }
+
+        // Remove if artwork type is now disabled
+        if (artworkType && !isArtworkTypeEnabled(artworkType)) {
+          if (markerClusterGroup.value) {
+            try {
+              markerClusterGroup.value.removeLayer(marker as any);
+            } catch (e) {
+              /* ignore remove errors */
+            }
+          }
+          return false; // Remove from artworkMarkers array
+        }
+      } catch (err) {
+        // In case marker structure is unexpected, keep it and continue
+        return true;
+      }
+      return true; // Keep in artworkMarkers array
+    });
+  }
+
+  // Add new markers for artworks that entered the viewport (batched)
+  const toAdd = artworksInViewport.filter((a: ArtworkPin) => !currentArtworkIds.has(a.id)) as ArtworkPin[];
+
+  // Concurrency/batch size for membership checks and marker creation
+  const BATCH_SIZE = 20;
+  for (let i = 0; i < toAdd.length; i += BATCH_SIZE) {
+    const batch = toAdd.slice(i, i + BATCH_SIZE);
+
+    // Resolve membership checks in parallel for the batch
+  const memberships = await Promise.all(batch.map((a: ArtworkPin) => checkArtworkListMembership(a.id)));
+
+    // Create markers for the batch
+    const markersToAdd: L.Marker[] = [];
+    for (let j = 0; j < batch.length; j++) {
+      const artwork = batch[j] as ArtworkPin;
+      const listMembership = memberships[j];
+
+      try {
+        const artworkIcon = createArtworkIcon(artwork, listMembership);
+        const marker = L.marker([artwork.latitude, artwork.longitude], {
+          icon: artworkIcon,
+          interactive: true,
+          bubblingMouseEvents: false,
+          pane: 'markerPane',
+        });
+
+        (marker as any)._artworkId = artwork.id;
+        (marker as any)._artworkType = artwork.type || 'other';
+
+        const popupContent = `
+          <div class="artwork-popup">
+            <h3 class="font-semibold text-sm mb-1">${artwork.title || 'Untitled'}</h3>
+            <button onclick="window.viewArtworkDetails('${artwork.id}')" 
+                    class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
+              View Details
+            </button>
+          </div>
+        `;
+        marker.bindPopup(popupContent);
+
+        marker.on('click', (e: L.LeafletMouseEvent) => {
+          e.originalEvent?.stopPropagation();
+          const previewData = {
+            id: artwork.id,
+            title: artwork.title || 'Untitled Artwork',
+            description: artwork.type || 'Public artwork',
+            thumbnailUrl: artwork.photos && artwork.photos.length > 0 ? artwork.photos[0] : undefined,
+            lat: artwork.latitude,
+            lon: artwork.longitude,
+          };
+          emit('previewArtwork', previewData);
+        });
+
+        // Hover effects - operate on inner element to avoid overwriting Leaflet positioning
+        marker.on('mouseover', () => {
+          // Avoid mutating DOM while Leaflet is animating zoom to prevent internal null refs
+          if (animatingZoom.value) return;
+          let iconElement: HTMLElement | null = null;
+          try {
+            iconElement = typeof marker.getElement === 'function' ? (marker.getElement() as HTMLElement | null) : null;
+          } catch (err) {
+            iconElement = null;
+          }
+          if (iconElement) {
+            const inner = iconElement.querySelector('.artwork-marker-inner') as HTMLElement | null;
+            if (inner) {
+              try {
+                inner.style.transform = 'scale(1.1)';
+                inner.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+                inner.style.zIndex = '1000';
+              } catch (err) {
+                // ignore transient DOM errors
+              }
+            }
+          }
+        });
+
+        marker.on('mouseout', () => {
+          if (animatingZoom.value) return;
+          let iconElement: HTMLElement | null = null;
+          try {
+            iconElement = typeof marker.getElement === 'function' ? (marker.getElement() as HTMLElement | null) : null;
+          } catch (err) {
+            iconElement = null;
+          }
+          if (iconElement) {
+            const inner = iconElement.querySelector('.artwork-marker-inner') as HTMLElement | null;
+            if (inner) {
+              try {
+                inner.style.transform = 'scale(1.0)';
+                inner.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+                inner.style.zIndex = 'auto';
+              } catch (err) {
+                // ignore transient DOM errors
+              }
+            }
+          }
+        });
+
+        markersToAdd.push(marker);
+        artworkMarkers.value.push(marker);
+      } catch (err) {
+        // Continue on per-marker failures
+        console.warn('Failed to create marker for artwork', artwork && (artwork as any)?.id, err);
+      }
     }
 
-    // Add event handlers AFTER adding to cluster group to avoid conflicts
-    marker.on('click', (e: L.LeafletMouseEvent) => {
-      console.log('[MARKER DEBUG] Leaflet marker click event fired for artwork:', artwork.id);
-      e.originalEvent?.stopPropagation();
-      
-      // Create preview data from artwork
-      const previewData = {
-        id: artwork.id,
-        title: artwork.title || 'Untitled Artwork',
-        description: artwork.type || 'Public artwork',
-        thumbnailUrl: artwork.photos && artwork.photos.length > 0 ? artwork.photos[0] : undefined,
-        lat: artwork.latitude,
-        lon: artwork.longitude,
-      };
-      
-      console.log('[MARKER DEBUG] Emitting previewArtwork event:', previewData);
-      
-      // Only emit preview event - let MapPreviewCard handle navigation
-      emit('previewArtwork', previewData);
-    });
-
-    // Add hover effects
-    marker.on('mouseover', () => {
-      marker.setStyle({ fillOpacity: 1.0, weight: 2 });
-    });
-
-    marker.on('mouseout', () => {
-      marker.setStyle({ fillOpacity: 0.9, weight: 1 });
-    });
-
-    artworkMarkers.value.push(marker);
-  });
+    // Add markers in bulk to the cluster group to minimize DOM updates
+    if (markerClusterGroup.value && markersToAdd.length > 0) {
+      try {
+        markerClusterGroup.value.addLayers(markersToAdd as any);
+      } catch (e) {
+        // Fallback: add each individually
+        markersToAdd.forEach(m => markerClusterGroup.value.addLayer(m as any));
+      }
+    }
+  }
 }
 
 // Update styles (radius/color/etc) for all existing markers to react to zoom changes
@@ -927,59 +1493,83 @@ function updateMarkerStyles() {
     return;
   }
 
-  try {
-    // Recompute style for each marker and apply via setStyle
-    artworkMarkers.value.forEach((marker: any) => {
-      try {
-        const artworkType = marker._artworkType || 'other';
-        const newStyle = createArtworkStyle(artworkType as string);
-        // circleMarker supports setStyle; markerCluster may wrap markers but setStyle should still work
-        if (typeof marker.setStyle === 'function') {
-          marker.setStyle(newStyle);
-        }
-        // Also attempt to setRadius on circle markers which sometimes don't update via setStyle
-        if (typeof marker.setRadius === 'function' && typeof newStyle.radius === 'number') {
-          try {
-            marker.setRadius(newStyle.radius);
-          } catch {
-            /* ignore */
-          }
-        }
-
-        // If this is a group/cluster wrapper, try to update inner layers as well
-        if (marker.getLayers && typeof marker.getLayers === 'function') {
-          const layers = marker.getLayers();
-          layers.forEach((inner: any) => {
-            if (!inner) return;
-            if (typeof inner.setStyle === 'function') {
-              try {
-                inner.setStyle(newStyle);
-              } catch {
-                /* ignore */
-              }
-            }
-            if (typeof inner.setRadius === 'function' && typeof newStyle.radius === 'number') {
-              try {
-                inner.setRadius(newStyle.radius);
-              } catch {
-                /* ignore */
-              }
-            }
-          });
-        }
-      } catch (err) {
-        // ignore per-marker failures
-        // console.debug('Failed to update marker style for marker', marker, err);
-      }
-    });
-  } catch (err) {
-    console.warn('updateMarkerStyles failed:', err);
+  // Avoid updating icons during animated zooms which can cause internal null references
+  if (animatingZoom.value) {
+    if (!pendingMarkerUpdate.value && map.value) {
+      pendingMarkerUpdate.value = true;
+      map.value.once('zoomend', () => {
+        pendingMarkerUpdate.value = false;
+        animatingZoom.value = false;
+        updateMarkerStyles();
+      });
+    }
+    return;
   }
+
+  // Run async updates without blocking UI
+  (async () => {
+    try {
+      // Recompute style for each marker and apply via setStyle
+      for (const marker of artworkMarkers.value) {
+        try {
+          const artworkId = (marker as any)._artworkId;
+          const artworkType = (marker as any)._artworkType || 'other';
+          
+          if (!artworkId) continue;
+          
+          // Get list membership for the artwork
+          const listMembership = await checkArtworkListMembership(artworkId);
+          
+          // Create artwork object for the icon function
+          const artwork = { id: artworkId, type: artworkType } as ArtworkPin;
+          const newIcon = createArtworkIcon(artwork, listMembership);
+          
+          // Update the marker icon for div icon markers
+          if (typeof (marker as any).setIcon === 'function') {
+            (marker as any).setIcon(newIcon);
+          }
+
+          // If this is a group/cluster wrapper, try to update inner layers as well
+          if ((marker as any).getLayers && typeof (marker as any).getLayers === 'function') {
+            const layers = (marker as any).getLayers();
+            layers.forEach((inner: any) => {
+              if (!inner) return;
+              // For inner layers in cluster groups, also try to update the icon
+              if (typeof inner.setIcon === 'function') {
+                try {
+                  inner.setIcon(newIcon);
+                } catch {
+                  /* ignore */
+                }
+              }
+            });
+          }
+        } catch (err) {
+          // ignore per-marker failures
+          // console.debug('Failed to update marker style for marker', marker, err);
+        }
+      }
+    } catch (err) {
+      console.warn('updateMarkerStyles failed:', err);
+    }
+  })();
 }
 
 // Configure marker layer group according to clusterEnabled
 async function configureMarkerGroup() {
   if (!map.value) return;
+
+  // If a zoom animation is in progress, defer reconfiguration to avoid removing/adding layers mid-animation
+  if (animatingZoom.value && map.value && !pendingMarkerUpdate.value) {
+    pendingMarkerUpdate.value = true;
+    map.value.once('zoomend', () => {
+      pendingMarkerUpdate.value = false;
+      animatingZoom.value = false;
+      // Retry configuration after animation
+      configureMarkerGroup().catch?.(console.error);
+    });
+    return;
+  }
 
   // Remove existing group from map
   if (markerClusterGroup.value) {
@@ -1011,7 +1601,7 @@ async function configureMarkerGroup() {
   // Clear existing marker references since they belong to the old cluster group
   artworkMarkers.value = [];
 
-  updateArtworkMarkers();
+  updateArtworkMarkers().catch(console.error);
 
   // Ensure styles applied to any markers added during updateArtworkMarkers
   updateMarkerStyles();
@@ -1044,7 +1634,22 @@ function handleMapMove() {
   emit('mapMove', { center: coordinates, zoom });
   
   // Dismiss preview on pan according to PRD
-  emit('dismissPreview');
+  // If a zoom animation is in progress, defer dismissing the preview until after animation ends
+  if (animatingZoom.value && map.value) {
+    if (!pendingDismissPreview.value) {
+      pendingDismissPreview.value = true;
+      map.value.once('zoomend', () => {
+        pendingDismissPreview.value = false;
+        try {
+          emit('dismissPreview');
+        } catch (e) {
+          /* ignore */
+        }
+      });
+    }
+  } else {
+    emit('dismissPreview');
+  }
 
   // Persist map state
   try {
@@ -1056,7 +1661,7 @@ function handleMapMove() {
   // Debounced artwork loading to prevent infinite loops
   debounceLoadArtworks();
   // Also update marker styles immediately for zoom changes (better responsiveness)
-  updateArtworkMarkers();
+  updateArtworkMarkers().catch(console.error);
   // Ensure existing markers update their style (radius/color) when zoom changes
   updateMarkerStyles();
   // Move debug rings to new center
@@ -1138,7 +1743,7 @@ async function clearMapCacheAndReload() {
     // Clear current in-memory pins; they will refill on next fetch
     artworksStore.setArtworks([]);
     await nextTick();
-    updateArtworkMarkers();
+    updateArtworkMarkers().catch(console.error);
     await loadArtworks();
   } finally {
     clearingCache.value = false;
@@ -1148,19 +1753,19 @@ async function clearMapCacheAndReload() {
 // Handle artwork type filter toggles
 function handleArtworkTypeToggle(_artworkType: ArtworkTypeToggle) {
   // Immediately update markers to show/hide based on the new filter state
-  updateArtworkMarkers();
+  updateArtworkMarkers().catch(console.error);
 }
 
 // Enable all artwork type filters
 function enableAllArtworkTypes() {
   enableAllTypes();
-  updateArtworkMarkers();
+  updateArtworkMarkers().catch(console.error);
 }
 
 // Disable all artwork type filters
 function disableAllArtworkTypes() {
   disableAllTypes();
-  updateArtworkMarkers();
+  updateArtworkMarkers().catch(console.error);
 }
 
 // =====================
@@ -1706,6 +2311,14 @@ watch(
 
 .artwork-marker:hover {
   transform: scale(1.1);
+}
+
+.artwork-marker-container {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.artwork-marker-inner {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .user-location-marker {

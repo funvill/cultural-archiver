@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { marked } from 'marked';
+import { sanitizeHtml } from '../utils/sanitizeHtml';
 
 const termsContent = ref<string>('');
 const isLoading = ref<boolean>(true);
@@ -22,8 +23,8 @@ onMounted(async () => {
       gfm: true,
     });
 
-    // Parse markdown to HTML
-    termsContent.value = await marked(markdownContent);
+  // Parse markdown to HTML and sanitize before binding
+  termsContent.value = sanitizeHtml(await marked(markdownContent));
   } catch (err) {
     console.error('Error loading terms of service:', err);
     error.value = 'Failed to load terms of service. Please try again later.';
