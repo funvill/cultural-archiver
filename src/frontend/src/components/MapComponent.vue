@@ -95,29 +95,35 @@ async function checkArtworkListMembership(artworkId: string): Promise<{ beenHere
     const userLists = await apiService.getUserLists();
     const lists = Array.isArray(userLists) ? userLists : userLists.data || [];
     
-    // Check each system list for the artwork
-    for (const list of lists) {
-      if (!list.is_system) continue;
-      
-      try {
-        // Get list details to check if artwork is in it
-        const listDetails = await apiService.getListDetails(list.id, 1, 100);
-        if (!listDetails?.success || !listDetails.data?.items) continue;
-        
-        const isInList = listDetails.data.items.some((item: any) => item.id === artworkId);
-        
-        if (isInList) {
-          if (list.name === 'Have Seen' || list.name === 'Been Here' || list.name === 'Logged') {
+      // Check each system list for the artwork. Be resilient to API shape and name variations.
+      const KNOWN_BEEN_HERE = new Set(['have seen', 'been here', 'logged', 'have_seen', 'been_here']);
+      const KNOWN_WANT_TO_SEE = new Set(['want to see', 'want_to_see', 'wanttosee', 'wanttosee']);
+
+      for (const list of lists) {
+        // Some API variants use `is_system` or `is_system_list` - treat either truthy value as system list
+        const isSystemFlag = Boolean(list.is_system || list.is_system_list || list.is_system_list === 1);
+        if (!isSystemFlag) continue;
+
+        try {
+          // Get list details to check if artwork is in it
+          const listDetails = await apiService.getListDetails(list.id, 1, 100);
+          if (!listDetails?.success || !listDetails.data?.items) continue;
+
+          const isInList = listDetails.data.items.some((item: any) => item.id === artworkId);
+          if (!isInList) continue;
+
+          const name = (list.name || '').toString().trim().toLowerCase();
+
+          if (KNOWN_BEEN_HERE.has(name) || name.includes('seen') || name.includes('been')) {
             membership.beenHere = true;
-          } else if (list.name === 'Want to See') {
+          } else if (KNOWN_WANT_TO_SEE.has(name) || name.includes('want')) {
             membership.wantToSee = true;
           }
+        } catch (listError) {
+          // Continue checking other lists if one fails
+          continue;
         }
-      } catch (listError) {
-        // Continue checking other lists if one fails
-        continue;
       }
-    }
     
   } catch (error) {
     // If API calls fail, fall back to default (false, false)
