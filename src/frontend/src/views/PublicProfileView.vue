@@ -186,7 +186,6 @@ onMounted(() => {
         </div>
       </div>
     </AppShell>
-  </div>
 </template>
 
 

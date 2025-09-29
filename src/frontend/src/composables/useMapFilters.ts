@@ -72,10 +72,17 @@ interface MapFiltersInstance {
   activeFilterCount: ComputedRef<number>;
   activeFilterSummary: ComputedRef<string[]>;
   activeFilterDescription: ComputedRef<string>;
-  getFilterRecommendations: ComputedRef<unknown>;
-  recentlyUsedFilters: ComputedRef<unknown[]>;
+  getFilterRecommendations: ComputedRef<Array<{ filterId: string; reason: string; type: 'frequent' }>>;
+  recentlyUsedFilters: ComputedRef<Array<{ filterId: string; count: number; label: string }>>;
+  getFilterMetrics: ComputedRef<{
+    sessionDuration: number;
+    totalFilterApplications: number;
+    averageApplicationsPerMinute: number;
+    totalUniqueFiltersUsed: number;
+    mostUsedFilter: string;
+    cacheHitRate: number;
+  }>;
   filterPresets: Ref<FilterPreset[]>;
-  getFilterMetrics: ComputedRef<unknown>;
   loadUserLists(): Promise<void>;
   toggleWantToSee(): void;
   toggleUserList(listId: string): void;
@@ -258,27 +265,31 @@ export function useMapFilters(): MapFiltersInstance {
     isLoadingLists.value = true;
     try {
       const response = await apiService.getUserLists();
-      // Handle both API response format and direct array format
-      const lists = Array.isArray(response) ? response : response.data || [];
+      // Handle both API response formats: direct array or { data: [] }
+      const lists = (Array.isArray(response) ? response : (response as unknown as { data?: unknown })?.data || []) as ListApiResponse[];
       availableUserLists.value = lists;
-      
+
       // Build system lists mapping
       systemLists.value.clear();
-      lists.forEach(list => {
-        // Check both is_system flag AND known system list names as fallback
-        const isSystemList = list.is_system || Object.values(SPECIAL_LIST_NAMES).includes(list.name);
+      type LocalListCompat = ListApiResponse & { is_system?: boolean; is_system_list?: boolean; is_private?: boolean };
+      lists.forEach((raw) => {
+        const list = raw as LocalListCompat;
+        const name = String(list.name || '');
+        const isSystemFlag = !!list.is_system || !!list.is_system_list || false;
+        const knownSystemName = (Object.values(SPECIAL_LIST_NAMES) as string[]).includes(name);
+        const isSystemList = isSystemFlag || knownSystemName;
         if (isSystemList && list.name) {
           systemLists.value.set(list.name, list.id);
         }
       });
-      
+
       console.log('[MAP FILTERS] Loaded user lists:', {
         total: lists.length,
         systemLists: Array.from(systemLists.value.entries()),
-        allLists: lists.map(l => ({ name: l.name, is_system: l.is_system, id: l.id })),
+  allLists: lists.map((l) => ({ name: l.name, is_system_list: ((l as LocalListCompat).is_system_list) || false, id: l.id })),
       });
-    } catch (error) {
-      console.error('[MAP FILTERS] Failed to load user lists:', error);
+    } catch (err) {
+      console.error('[MAP FILTERS] Failed to load user lists:', err);
       availableUserLists.value = [];
     } finally {
       isLoadingLists.value = false;
@@ -354,8 +365,8 @@ export function useMapFilters(): MapFiltersInstance {
     
     // Fetch fresh data
     try {
-  const listDetails = await apiService.getListDetails(listId);
-  const items: { id: string }[] = listDetails.data?.items || [];
+      const listDetails = (await apiService.getListDetails(listId)) as { success?: boolean; data?: { items?: { id: string }[] } } | null;
+      const items: { id: string }[] = (listDetails?.data?.items ?? []) as { id: string }[];
       
       // Cache the result
       listCache.value.set(cacheKey, {

@@ -269,11 +269,12 @@ async function loadListArtworks(listId: string) {
         return;
       }
 
-      if (!listMeta) listMeta = resp.data.list;
-      const items = resp.data.items || [];
+      const data = resp.data as { list?: any; items?: any[]; has_more?: boolean };
+      if (!listMeta) listMeta = data.list;
+      const items = data.items || [];
       accumulated.push(...items);
 
-      if (!resp.data.has_more) break;
+      if (!data.has_more) break;
       page += 1;
     }
 
@@ -338,9 +339,9 @@ const handleFiltersChanged = async () => {
   console.log('[MAP FILTERS] Filters changed event received, updating displayed artworks');
   console.log('[MAP FILTERS] Current filter state:', {
     hasActiveFilters: mapFilters.hasActiveFilters.value,
-    wantToSee: mapFilters.filterState.value.wantToSee,
-    notSeenByMe: mapFilters.filterState.value.notSeenByMe,
-    userListsCount: Object.keys(mapFilters.filterState.value.userLists).length
+    wantToSee: (mapFilters.filterState as any).value?.wantToSee,
+    notSeenByMe: (mapFilters.filterState as any).value?.notSeenByMe,
+    userListsCount: Array.isArray((mapFilters.filterState as any).value?.userLists) ? (mapFilters.filterState as any).value.userLists.length : 0
   });
   await updateDisplayedArtworks();
 };
