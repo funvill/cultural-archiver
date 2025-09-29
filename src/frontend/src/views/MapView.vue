@@ -25,6 +25,85 @@ const listFilterActive = ref(false);
 
 // Map filters modal state
 const showFiltersModal = ref(false);
+// Keep a normalized telemetry snapshot so modal always receives a predictable object
+const cacheTelemetryRef = ref<{ userListsHit: number; userListsMiss: number; listDetailsHit: number; listDetailsMiss: number } | null>(null);
+
+// Telemetry polling for modal display
+let telemetryPollHandle: ReturnType<typeof setInterval> | null = null;
+function startTelemetryPolling() {
+  stopTelemetryPolling();
+  // Poll immediately and then regularly while modal is open
+  try {
+    if (mapComponentRef.value && typeof (mapComponentRef.value as any).getCacheTelemetry === 'function') {
+      // Prefer exposed getter
+      const t = (mapComponentRef.value as any).getCacheTelemetry();
+      cacheTelemetryRef.value = {
+        userListsHit: t?.userListsHit || 0,
+        userListsMiss: t?.userListsMiss || 0,
+        listDetailsHit: t?.listDetailsHit || 0,
+        listDetailsMiss: t?.listDetailsMiss || 0,
+      };
+    } else {
+      // Fallback: read persisted telemetry from localStorage if present
+      try {
+        const raw = localStorage.getItem('map:cacheTelemetry');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          cacheTelemetryRef.value = {
+            userListsHit: parsed?.userListsHit || 0,
+            userListsMiss: parsed?.userListsMiss || 0,
+            listDetailsHit: parsed?.listDetailsHit || 0,
+            listDetailsMiss: parsed?.listDetailsMiss || 0,
+          };
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    }
+  } catch (e) {
+    /* ignore */
+  }
+  telemetryPollHandle = setInterval(() => {
+    try {
+      if (mapComponentRef.value && typeof (mapComponentRef.value as any).getCacheTelemetry === 'function') {
+        const t = (mapComponentRef.value as any).getCacheTelemetry();
+        cacheTelemetryRef.value = {
+          userListsHit: t?.userListsHit || 0,
+          userListsMiss: t?.userListsMiss || 0,
+          listDetailsHit: t?.listDetailsHit || 0,
+          listDetailsMiss: t?.listDetailsMiss || 0,
+        };
+      } else {
+        try {
+          const raw = localStorage.getItem('map:cacheTelemetry');
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            cacheTelemetryRef.value = {
+              userListsHit: parsed?.userListsHit || 0,
+              userListsMiss: parsed?.userListsMiss || 0,
+              listDetailsHit: parsed?.listDetailsHit || 0,
+              listDetailsMiss: parsed?.listDetailsMiss || 0,
+            };
+          }
+        } catch (e) {
+          /* ignore */
+        }
+      }
+    } catch (e) {
+      /* ignore */
+    }
+  }, 2000);
+}
+
+function stopTelemetryPolling() {
+  if (telemetryPollHandle) {
+    clearInterval(telemetryPollHandle as any);
+    telemetryPollHandle = null;
+  }
+}
+
+// Ref for MapComponent so we can call exposed methods
+const mapComponentRef = ref<InstanceType<typeof MapComponent> | null>(null);
 
 // Displayed artworks with reactive filtering
 const displayedArtworks = ref<ArtworkPin[]>([]);
@@ -204,10 +283,22 @@ const handleOpenFilters = () => {
   // Close any existing artwork preview dialog when opening map options
   mapPreviewStore.clearPreview();
   showFiltersModal.value = true;
+  // When opening filters, try to read telemetry from map component and attach to mapFilters for modal display
+  try {
+    if (mapComponentRef.value && typeof (mapComponentRef.value as any).getCacheTelemetry === 'function') {
+      const t = (mapComponentRef.value as any).getCacheTelemetry();
+      cacheTelemetryRef.value = t;
+    }
+  } catch (e) {
+    /* ignore */
+  }
+  // Start live polling so metrics update while modal is open
+  startTelemetryPolling();
 };
 
 const handleCloseFilters = () => {
   showFiltersModal.value = false;
+  stopTelemetryPolling();
 };
 
 const handleFiltersChanged = async () => {
@@ -234,6 +325,34 @@ const handleClusterChanged = (enabled: boolean) => {
   // The MapComponent will automatically pick up the change from localStorage
   // No additional action needed here as the MapComponent watches localStorage
 };
+
+function handleResetCacheTelemetry() {
+  try {
+    if (mapComponentRef.value && typeof (mapComponentRef.value as any).resetCacheTelemetry === 'function') {
+      (mapComponentRef.value as any).resetCacheTelemetry();
+      // Update mapFilters display copy
+      if (typeof (mapComponentRef.value as any).getCacheTelemetry === 'function') {
+        (mapFilters as any).cacheTelemetry = (mapComponentRef.value as any).getCacheTelemetry();
+      }
+    }
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+// Handle telemetry update events from MapComponent
+function handleTelemetryUpdate(t: any) {
+  try {
+    cacheTelemetryRef.value = {
+      userListsHit: t?.userListsHit || 0,
+      userListsMiss: t?.userListsMiss || 0,
+      listDetailsHit: t?.listDetailsHit || 0,
+      listDetailsMiss: t?.listDetailsMiss || 0,
+    };
+  } catch (e) {
+    /* ignore */
+  }
+}
 
 function handlePreviewArtwork(preview: MapPreview) {
   console.log('[MAPVIEW DEBUG] handlePreviewArtwork called with:', preview);
@@ -446,11 +565,13 @@ watch(
       :center="mapCenter"
       :zoom="mapZoom"
       :artworks="artworks"
+      ref="mapComponentRef"
       @artwork-click="handleArtworkClick"
       @preview-artwork="handlePreviewArtwork"
       @dismiss-preview="handleDismissPreview"
       @map-move="handleMapMove"
       @location-found="handleLocationFound"
+  @telemetry-update="handleTelemetryUpdate"
     />
     
     <!-- Map Preview using ArtworkCard -->
@@ -475,6 +596,9 @@ watch(
       @update:is-open="handleCloseFilters"
       @filters-changed="handleFiltersChanged"
       @cluster-changed="handleClusterChanged"
+      @clearListCaches="() => mapComponentRef && mapComponentRef.clearListCaches && mapComponentRef.clearListCaches()"
+    @resetCacheTelemetry="handleResetCacheTelemetry"
+  :cache-telemetry="cacheTelemetryRef ?? { userListsHit: 0, userListsMiss: 0, listDetailsHit: 0, listDetailsMiss: 0 }"
     />
   </div>
 </template>

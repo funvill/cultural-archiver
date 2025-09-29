@@ -33,6 +33,8 @@ const emit = defineEmits([
   'dismissPreview',
   'mapMove',
   'locationFound'
+  // telemetry update event - parent can listen for live telemetry
+  , 'telemetryUpdate'
 ]);
 
 // State
@@ -50,6 +52,12 @@ const lastLoadedBounds = ref<{ north: number; south: number; east: number; west:
 const loadingTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 // Marker update debouncing
 const markerUpdateTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
+// Pending marker update flag to avoid mutating layers during Leaflet zoom animations
+const pendingMarkerUpdate = ref(false);
+// Explicit animating flag driven by Leaflet zoom events (avoid reading Leaflet private props)
+const animatingZoom = ref(false);
+// Pending dismiss preview when zoom animates
+const pendingDismissPreview = ref(false);
 // Debounce for updating marker styles during continuous zoom
 const zoomStyleTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 // Progressive loading state
@@ -80,8 +88,137 @@ const { artworkTypes, isArtworkTypeEnabled, getTypeColor, enableAllTypes, disabl
 // Cache for artwork list memberships to avoid repeated API calls
 const artworkListMembership = ref<Map<string, { beenHere: boolean, wantToSee: boolean }>>(new Map());
 
+// Simple in-memory TTL caches to reduce repeated network calls
+const USER_LISTS_TTL_MS = 1000 * 60 * 5; // 5 minutes
+const LIST_DETAILS_TTL_MS = 1000 * 60 * 5; // 5 minutes
+
+const userListsCache: { ts: number; data: any[] | null } = { ts: 0, data: null };
+const listDetailsCache: Map<string, { ts: number; data: any | null }> = new Map();
+
+// Persisted cache keys
+const PERSIST_USER_LISTS_KEY = 'map:cachedUserLists';
+const PERSIST_LIST_DETAILS_KEY = 'map:cachedListDetails';
+// Cache telemetry keys
+const PERSIST_CACHE_TELEMETRY_KEY = 'map:cacheTelemetry';
+
+// Telemetry counters (persisted)
+const cacheTelemetry = { userListsHit: 0, userListsMiss: 0, listDetailsHit: 0, listDetailsMiss: 0 };
+
+// Load telemetry from localStorage
+try {
+  const persisted = localStorage.getItem(PERSIST_CACHE_TELEMETRY_KEY);
+  if (persisted) {
+    const parsed = JSON.parse(persisted);
+    cacheTelemetry.userListsHit = parsed.userListsHit || 0;
+    cacheTelemetry.userListsMiss = parsed.userListsMiss || 0;
+    cacheTelemetry.listDetailsHit = parsed.listDetailsHit || 0;
+    cacheTelemetry.listDetailsMiss = parsed.listDetailsMiss || 0;
+  }
+} catch (e) {
+  /* ignore */
+}
+
+function persistTelemetry() {
+  try {
+    localStorage.setItem(PERSIST_CACHE_TELEMETRY_KEY, JSON.stringify(cacheTelemetry));
+    try {
+      // Expose a copy for easy debugging in the browser console
+      if (typeof window !== 'undefined') {
+        try { (window as any).__mapCacheTelemetry = { ...cacheTelemetry }; } catch (e) {}
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    // Emit telemetry update so parent components can pick up changes immediately
+    try {
+      // Use Vue runtime `emit` - defineEmits is available at top of file
+      emit && typeof emit === 'function' && emit('telemetryUpdate', getCacheTelemetry());
+    } catch (e) {
+      // ignore
+    }
+  } catch (e) {
+    /* ignore */
+  }
+}
+
+function getCacheTelemetry() {
+  return { ...cacheTelemetry };
+}
+
+function resetCacheTelemetry() {
+  cacheTelemetry.userListsHit = 0;
+  cacheTelemetry.userListsMiss = 0;
+  cacheTelemetry.listDetailsHit = 0;
+  cacheTelemetry.listDetailsMiss = 0;
+  persistTelemetry();
+}
+
+// Load persisted caches from localStorage if present
+try {
+  const persisted = localStorage.getItem(PERSIST_USER_LISTS_KEY);
+  if (persisted) {
+    const parsed = JSON.parse(persisted);
+    if (parsed?.ts && parsed?.data) {
+      userListsCache.ts = parsed.ts;
+      userListsCache.data = parsed.data;
+    }
+  }
+} catch (e) {
+  /* ignore parse errors */
+}
+
+try {
+  const persistedLists = localStorage.getItem(PERSIST_LIST_DETAILS_KEY);
+  if (persistedLists) {
+    const parsed = JSON.parse(persistedLists);
+    if (parsed && typeof parsed === 'object') {
+      for (const k of Object.keys(parsed)) {
+        try {
+          listDetailsCache.set(k, parsed[k]);
+        } catch (e) {
+          // ignore
+        }
+      }
+    }
+  }
+} catch (e) {
+  /* ignore parse errors */
+}
+
+// Expose a method to clear caches programmatically
+function clearListCaches() {
+  try {
+    userListsCache.data = null;
+    userListsCache.ts = 0;
+    listDetailsCache.clear();
+    try {
+      localStorage.removeItem(PERSIST_USER_LISTS_KEY);
+      localStorage.removeItem(PERSIST_LIST_DETAILS_KEY);
+    } catch (e) {
+      /* ignore */
+    }
+    // Also clear per-artwork membership cache
+    artworkListMembership.value.clear();
+    console.log('MapComponent: list caches cleared');
+  } catch (e) {
+    console.warn('Failed to clear list caches', e);
+  }
+}
+
+// Expose to parent via composition API (script setup macro)
+// Note: use the compile-time defineExpose macro directly so parent refs can access these methods.
+defineExpose({ clearListCaches, getCacheTelemetry, resetCacheTelemetry });
+
 // Function to check artwork list membership
 async function checkArtworkListMembership(artworkId: string): Promise<{ beenHere: boolean, wantToSee: boolean }> {
+  // Debug: trace entry to help verify this function runs in the browser
+  try {
+    // Use debug instead of console.log to be filter-friendly
+    console.debug && console.debug('MapComponent.checkArtworkListMembership ENTER', { artworkId });
+  } catch (e) {
+    /* ignore */
+  }
+
   // Check cache first
   if (artworkListMembership.value.has(artworkId)) {
     return artworkListMembership.value.get(artworkId)!;
@@ -91,42 +228,124 @@ async function checkArtworkListMembership(artworkId: string): Promise<{ beenHere
   const membership = { beenHere: false, wantToSee: false };
 
   try {
-    // Get user lists to check membership
-    const userLists = await apiService.getUserLists();
-    const lists = Array.isArray(userLists) ? userLists : userLists.data || [];
-    
-      // Check each system list for the artwork. Be resilient to API shape and name variations.
-      const KNOWN_BEEN_HERE = new Set(['have seen', 'been here', 'logged', 'have_seen', 'been_here']);
-      const KNOWN_WANT_TO_SEE = new Set(['want to see', 'want_to_see', 'wanttosee', 'wanttosee']);
-
-      for (const list of lists) {
-        // Some API variants use `is_system` or `is_system_list` - treat either truthy value as system list
-        const isSystemFlag = Boolean(list.is_system || list.is_system_list || list.is_system_list === 1);
-        if (!isSystemFlag) continue;
-
-        try {
-          // Get list details to check if artwork is in it
-          const listDetails = await apiService.getListDetails(list.id, 1, 100);
-          if (!listDetails?.success || !listDetails.data?.items) continue;
-
-          const isInList = listDetails.data.items.some((item: any) => item.id === artworkId);
-          if (!isInList) continue;
-
-          const name = (list.name || '').toString().trim().toLowerCase();
-
-          if (KNOWN_BEEN_HERE.has(name) || name.includes('seen') || name.includes('been')) {
-            membership.beenHere = true;
-          } else if (KNOWN_WANT_TO_SEE.has(name) || name.includes('want')) {
-            membership.wantToSee = true;
-          }
-        } catch (listError) {
-          // Continue checking other lists if one fails
-          continue;
-        }
+    // Get user lists to check membership (use TTL cache)
+    let lists: any[] = [];
+    const now = Date.now();
+    if (userListsCache.data && now - userListsCache.ts < USER_LISTS_TTL_MS) {
+      lists = userListsCache.data as any[];
+      // telemetry: userLists cache hit
+      try {
+            cacheTelemetry.userListsHit++;
+            // Debug log for telemetry
+            try {
+              console.debug('telemetry: userListsHit ->', cacheTelemetry.userListsHit);
+            } catch (e) {}
+            persistTelemetry();
+      } catch (e) {
+        /* ignore */
       }
-    
+    } else {
+      try {
+        const userLists = await apiService.getUserLists();
+        lists = Array.isArray(userLists) ? userLists : userLists.data || [];
+          userListsCache.data = lists;
+        userListsCache.ts = now;
+        // telemetry: userLists miss (we fetched from network)
+        try {
+          cacheTelemetry.userListsMiss++;
+          try {
+            console.debug('telemetry: userListsMiss ->', cacheTelemetry.userListsMiss);
+          } catch (e) {}
+          persistTelemetry();
+        } catch (e) {
+          /* ignore */
+        }
+        try {
+          localStorage.setItem(PERSIST_USER_LISTS_KEY, JSON.stringify({ ts: now, data: lists }));
+        } catch (e) {
+          /* ignore */
+        }
+      } catch (e) {
+        // Could not fetch lists; fall back to empty lists
+        lists = [];
+      }
+    }
+
+    // Check each system list for the artwork. Be resilient to API shape and name variations.
+    const KNOWN_BEEN_HERE = new Set(['have seen', 'been here', 'logged', 'have_seen', 'been_here']);
+    const KNOWN_WANT_TO_SEE = new Set(['want to see', 'want_to_see', 'wanttosee', 'wanttosee']);
+
+    for (const list of lists) {
+      // Some API variants use `is_system` or `is_system_list` - treat either truthy value as system list
+      const isSystemFlag = Boolean(list.is_system || list.is_system_list || list.is_system_list === 1);
+      if (!isSystemFlag) continue;
+
+      try {
+        // Get list details (use per-list TTL cache)
+        const lid = String(list.id);
+        let listDetails: any | null = null;
+        const cached = listDetailsCache.get(lid);
+        if (cached && now - cached.ts < LIST_DETAILS_TTL_MS) {
+          listDetails = cached.data;
+          // telemetry: listDetails cache hit
+          try {
+            cacheTelemetry.listDetailsHit++;
+            try {
+              console.debug('telemetry: listDetailsHit ->', cacheTelemetry.listDetailsHit);
+            } catch (e) {}
+            persistTelemetry();
+          } catch (e) {
+            /* ignore */
+          }
+        } else {
+          try {
+            const resp = await apiService.getListDetails(list.id, 1, 100);
+            listDetails = resp?.data || null;
+            listDetailsCache.set(lid, { ts: now, data: listDetails });
+            try {
+              // Persist map of cached list details as a simple object
+              const obj: Record<string, any> = {};
+              listDetailsCache.forEach((v, k) => (obj[k] = v));
+              localStorage.setItem(PERSIST_LIST_DETAILS_KEY, JSON.stringify(obj));
+            } catch (e) {
+              /* ignore */
+            }
+            // telemetry: listDetails miss (we fetched from network)
+            try {
+              cacheTelemetry.listDetailsMiss++;
+              try {
+                console.debug('telemetry: listDetailsMiss ->', cacheTelemetry.listDetailsMiss);
+              } catch (e) {}
+              persistTelemetry();
+            } catch (e) {
+              /* ignore */
+            }
+          } catch (e) {
+            listDetails = null;
+            // continue to next list
+          }
+        }
+
+        if (!listDetails || !listDetails.items) continue;
+        const items = Array.isArray(listDetails.items) ? listDetails.items : listDetails.data?.items || [];
+
+        const isInList = items.some((item: any) => item.id === artworkId);
+        if (!isInList) continue;
+
+        const name = (list.name || '').toString().trim().toLowerCase();
+
+        if (KNOWN_BEEN_HERE.has(name) || name.includes('seen') || name.includes('been')) {
+          membership.beenHere = true;
+        } else if (KNOWN_WANT_TO_SEE.has(name) || name.includes('want')) {
+          membership.wantToSee = true;
+        }
+      } catch (listError) {
+        // Continue checking other lists if one fails
+        continue;
+      }
+    }
   } catch (error) {
-    // If API calls fail, fall back to default (false, false)
+    // If API calls fail at top-level, fall back to default (false, false)
     console.warn('Failed to check artwork list membership:', error);
   }
   
@@ -191,53 +410,98 @@ const router = useRouter();
 // Default coordinates (Vancouver - near sample data for testing)
 const DEFAULT_CENTER = { latitude: 49.265, longitude: -123.25 };
 
-// Create priority-based div icon for artworks
-// Implements PRD section 3.5 - Map Marker & Icon Updates
-const createArtworkIcon = (artwork: ArtworkPin, listMembership?: { 
-  beenHere: boolean, 
-  wantToSee: boolean 
-}) => {
-  const currentZoom = map.value?.getZoom() ?? 15;
-  const baseSize = Math.max(20, Math.min(32, currentZoom * 1.5));
-  
-  let iconHtml = '';
+// Icon pre-render cache (data-URIs keyed by type+size)
+const iconDataUriCache: Map<string, string> = new Map();
 
-  // Priority-based icon system per PRD 3.5
-  if (listMembership?.beenHere) {
-    // Priority 1: "Been Here" / "Logged" - Flag icon in gray circle
-    iconHtml = `
-      <div class="artwork-marker-container flex items-center justify-center bg-gray-400 rounded-full border-2 border-gray-500 shadow-lg" style="width: ${baseSize}px; height: ${baseSize}px;">
-        <svg width="${Math.floor(baseSize * 0.6)}" height="${Math.floor(baseSize * 0.6)}" viewBox="0 0 24 24" fill="white" aria-hidden="true">
-          <path d="M4 4v16h2V4H4zm2 0h12l-2 3 2 3H6V4z"/>
-        </svg>
-      </div>
-    `;
-  } else if (listMembership?.wantToSee) {
-    // Priority 2: "Want to See" - Gold star icon in circle
-    iconHtml = `
-      <div class="artwork-marker-container flex items-center justify-center bg-yellow-500 rounded-full border-2 border-yellow-600 shadow-lg" style="width: ${baseSize}px; height: ${baseSize}px;">
-        <svg width="${Math.floor(baseSize * 0.6)}" height="${Math.floor(baseSize * 0.6)}" viewBox="0 0 24 24" fill="white" aria-hidden="true">
-          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
-        </svg>
-      </div>
-    `;
+// Helper: render an icon to an offscreen canvas and return data-URI
+function renderIconToDataUri(kind: 'flag' | 'star' | 'question', size: number, fillColor?: string) {
+  const key = `${kind}:${size}:${fillColor || ''}`;
+  if (iconDataUriCache.has(key)) return iconDataUriCache.get(key)!;
+
+  // Create offscreen canvas
+  const canvas = document.createElement('canvas');
+  const dpr = Math.max(1, window.devicePixelRatio || 1);
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    return '';
+  }
+  ctx.scale(dpr, dpr);
+
+  // Draw background circle
+  ctx.beginPath();
+  ctx.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
+  ctx.fillStyle = kind === 'question' ? (fillColor || '#888') : (kind === 'star' ? '#F59E0B' : '#9CA3AF');
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#fff';
+  ctx.stroke();
+
+  // Draw simple glyphs centered
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  if (kind === 'flag') {
+    // Simple flag pole + triangle
+    const poleX = size * 0.36;
+    ctx.fillRect(poleX, size * 0.22, size * 0.06, size * 0.56);
+    ctx.moveTo(poleX + size * 0.06, size * 0.22);
+    ctx.lineTo(size * 0.76, size * 0.38);
+    ctx.lineTo(poleX + size * 0.06, size * 0.54);
+    ctx.closePath();
+    ctx.fill();
+  } else if (kind === 'star') {
+    // Draw a simple star via path approximation
+    const cx = size / 2;
+    const cy = size / 2;
+    const r = size * 0.22;
+    for (let i = 0; i < 5; i++) {
+      const a = ((-18 + i * 72) * Math.PI) / 180;
+      const x = cx + Math.cos(a) * r * (i % 2 === 0 ? 1 : 0.45);
+      const y = cy + Math.sin(a) * r * (i % 2 === 0 ? 1 : 0.45);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
   } else {
-    // Priority 3: Default - Question mark icon with type-based coloring
-    const normalized = (artwork.type || 'other').toLowerCase();
-    const fillColor = getTypeColor(normalized);
-    
-    iconHtml = `
-      <div class="artwork-marker-container flex items-center justify-center rounded-full border-2 border-white shadow-lg" style="width: ${baseSize}px; height: ${baseSize}px; background-color: ${fillColor};">
-        <svg width="${Math.floor(baseSize * 0.6)}" height="${Math.floor(baseSize * 0.6)}" viewBox="0 0 24 24" fill="white" aria-hidden="true">
-          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75l-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
-        </svg>
-      </div>
-    `;
+    // question mark - draw a rounded path approximation
+    ctx.font = `${Math.floor(size * 0.6)}px sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('?', size / 2, size / 2 - size * 0.06);
   }
 
+  const dataUri = canvas.toDataURL('image/png');
+  iconDataUriCache.set(key, dataUri);
+  return dataUri;
+}
+
+// Create priority-based div icon for artworks using cached data-URIs (faster)
+const createArtworkIcon = (artwork: ArtworkPin, listMembership?: { beenHere: boolean, wantToSee: boolean }) => {
+  const currentZoom = map.value?.getZoom() ?? 15;
+  const baseSize = Math.max(20, Math.min(32, currentZoom * 1.5));
+
+  // Determine kind
+  const kind: 'flag' | 'star' | 'question' = listMembership?.beenHere
+    ? 'flag'
+    : listMembership?.wantToSee
+    ? 'star'
+    : 'question';
+
+  const fillColor = kind === 'question' ? getTypeColor((artwork.type || 'other').toLowerCase()) : undefined;
+  const dataUri = renderIconToDataUri(kind, Math.floor(baseSize), fillColor);
+
+  const html = `
+    <div class="artwork-marker-outer" style="width: ${baseSize}px; height: ${baseSize}px; display:flex; align-items:center; justify-content:center;">
+      <div class="artwork-marker-inner" style="width: ${baseSize}px; height: ${baseSize}px; border-radius:50%; background-image: url('${dataUri}'); background-size: cover; box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: transform 120ms ease, box-shadow 120ms ease;">
+      </div>
+    </div>
+  `;
+
   return L.divIcon({
-    html: iconHtml,
-    className: '', // Avoid Leaflet default styling
+    html,
+    className: '',
     iconSize: [baseSize, baseSize],
     iconAnchor: [baseSize / 2, baseSize / 2],
   });
@@ -317,6 +581,33 @@ async function initializeMap() {
     });
 
     console.log('Map created successfully:', map.value);
+
+    // Defensive runtime patch: wrap Leaflet's Popup._animateZoom to guard against
+    // rare cases where a popup's internal `_map` becomes null during animated zooms.
+    // This prevents uncaught TypeErrors like "Cannot read properties of null (reading '_latLngToNewLayerPoint')"
+    // while we handle layer update ordering elsewhere in the component.
+    try {
+      const PopupProto: any = (L as any).Popup && (L as any).Popup.prototype;
+      if (PopupProto && typeof PopupProto._animateZoom === 'function') {
+        const _origAnimateZoom = PopupProto._animateZoom;
+        PopupProto._animateZoom = function (zoom: any, center: any, options: any) {
+          try {
+            // If the popup is not attached to a map anymore, skip animation safely
+            if (!this || !this._map) return;
+            return _origAnimateZoom.call(this, zoom, center, options);
+          } catch (err) {
+            // Swallow errors here to avoid bubbling to global error handlers
+            // Log for debugging but don't throw
+            // eslint-disable-next-line no-console
+            console.warn('Popup._animateZoom guarded error', err);
+            return;
+          }
+        };
+      }
+    } catch (err) {
+      // If any of the above fails, continue without the guard
+      console.warn('Failed to install Popup._animateZoom guard', err);
+    }
 
     // Ensure the container has the proper Leaflet classes
     if (mapContainer.value) {
@@ -463,6 +754,21 @@ async function initializeMap() {
 
     await configureMarkerGroup();
 
+    // Pre-warm icon cache for common sizes to avoid first-render delay
+    try {
+      // Use standard base size for pre-warm (matches createArtworkIcon logic)
+      const preWarmSize = 28;
+      // Render and cache each kind
+      if (typeof window !== 'undefined') {
+        renderIconToDataUri('flag', preWarmSize);
+        renderIconToDataUri('star', preWarmSize);
+        renderIconToDataUri('question', preWarmSize, getTypeColor('other'));
+      }
+    } catch (e) {
+      // Non-fatal; continue
+      console.warn('Icon pre-warm failed', e);
+    }
+
     // Setup event listeners
     map.value.on('moveend', handleMapMove);
     map.value.on('zoomend', handleMapMove);
@@ -480,6 +786,17 @@ async function initializeMap() {
         }
         zoomStyleTimeout.value = null;
       }, 50);
+    });
+    // Track animation lifecycle using explicit flag
+    map.value.on('zoomstart', () => {
+      animatingZoom.value = true;
+    });
+    map.value.on('zoomend', () => {
+      animatingZoom.value = false;
+    });
+    // Also set animating on zoomanim events (some Leaflet builds use this for animated transitions)
+    map.value.on('zoomanim', () => {
+      animatingZoom.value = true;
     });
     // Save map state on move/zoom
     map.value.on('moveend', saveMapState);
@@ -788,6 +1105,20 @@ function updateArtworkMarkersDebounced(delay: number = 0) {
 
 // Update artwork markers with efficient viewport-based rendering
 async function updateArtworkMarkers() {
+    // If we're currently performing an animated zoom, avoid mutating layers.
+  if (map.value && animatingZoom.value) {
+    if (!pendingMarkerUpdate.value) {
+      pendingMarkerUpdate.value = true;
+      // Schedule a one-time update after zoomend
+      map.value.once('zoomend', () => {
+        pendingMarkerUpdate.value = false;
+        // ensure animating flag cleared before updating
+        animatingZoom.value = false;
+        updateArtworkMarkers().catch(console.error);
+      });
+    }
+    return;
+  }
   console.log('[MARKER DEBUG] updateArtworkMarkers() called:', {
     mapExists: !!map.value,
     clusterGroupExists: !!markerClusterGroup.value,
@@ -874,127 +1205,169 @@ async function updateArtworkMarkers() {
   );
 
   // Remove markers that are no longer in viewport or are of disabled types
-  artworkMarkers.value = artworkMarkers.value.filter((marker: any) => {
-    const artworkId = marker._artworkId;
-    const artworkType = marker._artworkType;
-
-    // Remove if no longer in viewport
-    if (artworkId && !viewportArtworkIds.has(artworkId)) {
-      if (markerClusterGroup.value) {
-        markerClusterGroup.value.removeLayer(marker as any);
-      }
-      return false; // Remove from artworkMarkers array
-    }
-
-    // Remove if artwork type is now disabled
-    if (artworkType && !isArtworkTypeEnabled(artworkType)) {
-      if (markerClusterGroup.value) {
-        markerClusterGroup.value.removeLayer(marker as any);
-      }
-      return false; // Remove from artworkMarkers array
-    }
-    return true; // Keep in artworkMarkers array
-  });
-
-  // Add new markers for artworks that entered the viewport
-  for (const artwork of artworksInViewport) {
-    // Skip if marker already exists
-    if (currentArtworkIds.has(artwork.id)) {
-      continue;
-    }
-
-    // Check list membership for priority-based icons
-    const listMembership = await checkArtworkListMembership(artwork.id);
-
-    // Create marker with priority-based div icon
-    const artworkIcon = createArtworkIcon(artwork, listMembership);
-    const marker = L.marker([artwork.latitude, artwork.longitude], {
-      icon: artworkIcon,
-      interactive: true,
-      bubblingMouseEvents: false,
-      pane: 'markerPane',
-    });
-
-    // Store artwork ID and type on marker for efficient tracking
-    (marker as any)._artworkId = artwork.id;
-    (marker as any)._artworkType = artwork.type || 'other';
-
-    // Create popup content
-    const popupContent = `
-      <div class="artwork-popup">
-        <h3 class="font-semibold text-sm mb-1">${artwork.title || 'Untitled'}</h3>
-        <button onclick="window.viewArtworkDetails('${artwork.id}')" 
-                class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
-          View Details
-        </button>
-      </div>
-    `;
-
-    marker.bindPopup(popupContent);
-
-    // Add to cluster group first
-    if (markerClusterGroup.value) {
-      console.log('[MARKER DEBUG] Adding marker to cluster group:', {
-        markerId: artwork.id,
-        clusterGroupType: markerClusterGroup.value.constructor.name,
-        isClusterGroupOnMap: map.value?.hasLayer(markerClusterGroup.value),
-        mapContainerInDOM: !!mapContainer.value?.isConnected,
+  if (animatingZoom.value) {
+    // Defer removals until after animation ends to avoid Leaflet timing races
+    if (!pendingMarkerUpdate.value && map.value) {
+      pendingMarkerUpdate.value = true;
+      map.value.once('zoomend', () => {
+        pendingMarkerUpdate.value = false;
+        animatingZoom.value = false;
+        updateArtworkMarkers().catch(console.error);
       });
-      markerClusterGroup.value.addLayer(marker as any);
-    } else {
-      console.log('[MARKER DEBUG] No cluster group available for marker:', artwork.id);
+    }
+  } else {
+    artworkMarkers.value = artworkMarkers.value.filter((marker: any) => {
+      const artworkId = marker._artworkId;
+      const artworkType = marker._artworkType;
+
+      try {
+        // Remove if no longer in viewport
+        if (artworkId && !viewportArtworkIds.has(artworkId)) {
+          if (markerClusterGroup.value) {
+            try {
+              markerClusterGroup.value.removeLayer(marker as any);
+            } catch (e) {
+              /* ignore remove errors */
+            }
+          }
+          return false; // Remove from artworkMarkers array
+        }
+
+        // Remove if artwork type is now disabled
+        if (artworkType && !isArtworkTypeEnabled(artworkType)) {
+          if (markerClusterGroup.value) {
+            try {
+              markerClusterGroup.value.removeLayer(marker as any);
+            } catch (e) {
+              /* ignore remove errors */
+            }
+          }
+          return false; // Remove from artworkMarkers array
+        }
+      } catch (err) {
+        // In case marker structure is unexpected, keep it and continue
+        return true;
+      }
+      return true; // Keep in artworkMarkers array
+    });
+  }
+
+  // Add new markers for artworks that entered the viewport (batched)
+  const toAdd = artworksInViewport.filter((a: ArtworkPin) => !currentArtworkIds.has(a.id)) as ArtworkPin[];
+
+  // Concurrency/batch size for membership checks and marker creation
+  const BATCH_SIZE = 20;
+  for (let i = 0; i < toAdd.length; i += BATCH_SIZE) {
+    const batch = toAdd.slice(i, i + BATCH_SIZE);
+
+    // Resolve membership checks in parallel for the batch
+  const memberships = await Promise.all(batch.map((a: ArtworkPin) => checkArtworkListMembership(a.id)));
+
+    // Create markers for the batch
+    const markersToAdd: L.Marker[] = [];
+    for (let j = 0; j < batch.length; j++) {
+      const artwork = batch[j] as ArtworkPin;
+      const listMembership = memberships[j];
+
+      try {
+        const artworkIcon = createArtworkIcon(artwork, listMembership);
+        const marker = L.marker([artwork.latitude, artwork.longitude], {
+          icon: artworkIcon,
+          interactive: true,
+          bubblingMouseEvents: false,
+          pane: 'markerPane',
+        });
+
+        (marker as any)._artworkId = artwork.id;
+        (marker as any)._artworkType = artwork.type || 'other';
+
+        const popupContent = `
+          <div class="artwork-popup">
+            <h3 class="font-semibold text-sm mb-1">${artwork.title || 'Untitled'}</h3>
+            <button onclick="window.viewArtworkDetails('${artwork.id}')" 
+                    class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
+              View Details
+            </button>
+          </div>
+        `;
+        marker.bindPopup(popupContent);
+
+        marker.on('click', (e: L.LeafletMouseEvent) => {
+          e.originalEvent?.stopPropagation();
+          const previewData = {
+            id: artwork.id,
+            title: artwork.title || 'Untitled Artwork',
+            description: artwork.type || 'Public artwork',
+            thumbnailUrl: artwork.photos && artwork.photos.length > 0 ? artwork.photos[0] : undefined,
+            lat: artwork.latitude,
+            lon: artwork.longitude,
+          };
+          emit('previewArtwork', previewData);
+        });
+
+        // Hover effects - operate on inner element to avoid overwriting Leaflet positioning
+        marker.on('mouseover', () => {
+          // Avoid mutating DOM while Leaflet is animating zoom to prevent internal null refs
+          if (animatingZoom.value) return;
+          let iconElement: HTMLElement | null = null;
+          try {
+            iconElement = typeof marker.getElement === 'function' ? (marker.getElement() as HTMLElement | null) : null;
+          } catch (err) {
+            iconElement = null;
+          }
+          if (iconElement) {
+            const inner = iconElement.querySelector('.artwork-marker-inner') as HTMLElement | null;
+            if (inner) {
+              try {
+                inner.style.transform = 'scale(1.1)';
+                inner.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
+                inner.style.zIndex = '1000';
+              } catch (err) {
+                // ignore transient DOM errors
+              }
+            }
+          }
+        });
+
+        marker.on('mouseout', () => {
+          if (animatingZoom.value) return;
+          let iconElement: HTMLElement | null = null;
+          try {
+            iconElement = typeof marker.getElement === 'function' ? (marker.getElement() as HTMLElement | null) : null;
+          } catch (err) {
+            iconElement = null;
+          }
+          if (iconElement) {
+            const inner = iconElement.querySelector('.artwork-marker-inner') as HTMLElement | null;
+            if (inner) {
+              try {
+                inner.style.transform = 'scale(1.0)';
+                inner.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+                inner.style.zIndex = 'auto';
+              } catch (err) {
+                // ignore transient DOM errors
+              }
+            }
+          }
+        });
+
+        markersToAdd.push(marker);
+        artworkMarkers.value.push(marker);
+      } catch (err) {
+        // Continue on per-marker failures
+        console.warn('Failed to create marker for artwork', artwork && (artwork as any)?.id, err);
+      }
     }
 
-    // Add event handlers AFTER adding to cluster group to avoid conflicts
-    marker.on('click', (e: L.LeafletMouseEvent) => {
-      console.log('[MARKER DEBUG] Leaflet marker click event fired for artwork:', artwork.id);
-      e.originalEvent?.stopPropagation();
-      
-      // Create preview data from artwork
-      const previewData = {
-        id: artwork.id,
-        title: artwork.title || 'Untitled Artwork',
-        description: artwork.type || 'Public artwork',
-        thumbnailUrl: artwork.photos && artwork.photos.length > 0 ? artwork.photos[0] : undefined,
-        lat: artwork.latitude,
-        lon: artwork.longitude,
-      };
-      
-      console.log('[MARKER DEBUG] Emitting previewArtwork event:', previewData);
-      
-      // Only emit preview event - let MapPreviewCard handle navigation
-      emit('previewArtwork', previewData);
-    });
-
-    // Add hover effects for div icon markers
-    marker.on('mouseover', () => {
-      // For div icons, we can add CSS classes for hover effects
-      const iconElement = marker.getElement();
-      if (iconElement) {
-        // Target the inner container div directly
-        const container = iconElement.querySelector('.artwork-marker-container') as HTMLElement;
-        if (container) {
-          container.style.transform = 'scale(1.1)';
-          container.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
-          container.style.zIndex = '1000';
-        }
+    // Add markers in bulk to the cluster group to minimize DOM updates
+    if (markerClusterGroup.value && markersToAdd.length > 0) {
+      try {
+        markerClusterGroup.value.addLayers(markersToAdd as any);
+      } catch (e) {
+        // Fallback: add each individually
+        markersToAdd.forEach(m => markerClusterGroup.value.addLayer(m as any));
       }
-    });
-
-    marker.on('mouseout', () => {
-      // Reset hover effects
-      const iconElement = marker.getElement();
-      if (iconElement) {
-        const container = iconElement.querySelector('.artwork-marker-container') as HTMLElement;
-        if (container) {
-          container.style.transform = 'scale(1.0)';
-          container.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-          container.style.zIndex = 'auto';
-        }
-      }
-    });
-
-    artworkMarkers.value.push(marker);
+    }
   }
 }
 
@@ -1002,6 +1375,19 @@ async function updateArtworkMarkers() {
 function updateMarkerStyles() {
   // Guard against accessing map during destruction
   if (!map.value) {
+    return;
+  }
+
+  // Avoid updating icons during animated zooms which can cause internal null references
+  if (animatingZoom.value) {
+    if (!pendingMarkerUpdate.value && map.value) {
+      pendingMarkerUpdate.value = true;
+      map.value.once('zoomend', () => {
+        pendingMarkerUpdate.value = false;
+        animatingZoom.value = false;
+        updateMarkerStyles();
+      });
+    }
     return;
   }
 
@@ -1057,6 +1443,18 @@ function updateMarkerStyles() {
 // Configure marker layer group according to clusterEnabled
 async function configureMarkerGroup() {
   if (!map.value) return;
+
+  // If a zoom animation is in progress, defer reconfiguration to avoid removing/adding layers mid-animation
+  if (animatingZoom.value && map.value && !pendingMarkerUpdate.value) {
+    pendingMarkerUpdate.value = true;
+    map.value.once('zoomend', () => {
+      pendingMarkerUpdate.value = false;
+      animatingZoom.value = false;
+      // Retry configuration after animation
+      configureMarkerGroup().catch?.(console.error);
+    });
+    return;
+  }
 
   // Remove existing group from map
   if (markerClusterGroup.value) {
@@ -1121,7 +1519,22 @@ function handleMapMove() {
   emit('mapMove', { center: coordinates, zoom });
   
   // Dismiss preview on pan according to PRD
-  emit('dismissPreview');
+  // If a zoom animation is in progress, defer dismissing the preview until after animation ends
+  if (animatingZoom.value && map.value) {
+    if (!pendingDismissPreview.value) {
+      pendingDismissPreview.value = true;
+      map.value.once('zoomend', () => {
+        pendingDismissPreview.value = false;
+        try {
+          emit('dismissPreview');
+        } catch (e) {
+          /* ignore */
+        }
+      });
+    }
+  } else {
+    emit('dismissPreview');
+  }
 
   // Persist map state
   try {
@@ -1786,6 +2199,10 @@ watch(
 }
 
 .artwork-marker-container {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.artwork-marker-inner {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 

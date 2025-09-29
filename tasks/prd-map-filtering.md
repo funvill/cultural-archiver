@@ -328,6 +328,48 @@ const artworks = computed(() => {
 - Advanced filter combinations
 - Export/import filter configurations
 
+## Performance Plans — Speeding up marker icon rendering
+
+Context: rendering the priority marker icons (flag, star, question) is noticeably slow in some environments (~1 second per icon). Below are two concrete plans to speed this up: a short-term fast win and a medium-term, more robust solution.
+
+Plan A — Short-term: Static sprite / single SVG + client-side caching
+- Goal: Reduce per-icon render time to near-instant by avoiding repeated DOM/SVG construction and network overhead.
+- What to do:
+  1. Create a single, small SVG sprite that contains the flag, star, and question icons as <symbol> elements (or a small PNG sprite if SVG isn't feasible).
+  2. Ship the sprite as a static asset (in `src/frontend/public/icons/sprite.svg`).
+  3. Update `createArtworkIcon` in `MapComponent.vue` to reference the appropriate symbol via <use xlink:href="/icons/sprite.svg#flag"/> (or inline a cached <svg> element) instead of constructing inline SVG for each marker.
+  4. Add a lightweight in-memory cache keyed by icon type + size to reuse created DOM node or serialized HTML string for the marker divIcon.
+  5. Optionally pre-warm the cache on map init for the three priority icons so the first visuals are instant.
+- Trade-offs:
+  - Very low risk and minimal code changes.
+  - Slight increase in static asset size (negligible for a small sprite).
+  - Works well across browsers and is easy to roll back.
+- Acceptance criteria:
+  - First-render time for each icon should be < 100ms on a typical dev machine.
+  - No visual regressions in high-DPI or line-width rendering.
+
+Plan B — Medium-term: Pre-rendered canvases / batched DOM updates + server-side help
+- Goal: Make marker creation extremely fast at scale when many markers must appear at once (dozens+), and avoid per-marker async operations.
+- What to do:
+  1. Implement a pre-render step where the three icons are drawn to an offscreen <canvas> at required sizes (standard + retina) and cached as data-URI images.
+  2. Use the data-URI images as the background-image for Leaflet divIcons or small <img> tags inside the divIcon. This avoids in-document SVG rendering overhead for each marker.
+  3. Batch marker updates so that when many markers are created/updated at once, the DOM mutations are grouped (requestAnimationFrame or using a single parent fragment) to reduce layout thrashing.
+  4. If network latency is part of the slowness (for example, fetching list membership or icon assets), implement a small server-side endpoint that returns a precomputed membership map for visible artworks (bulk membership) so client-side logic doesn't block icon selection.
+  5. Add optional lazy-loading of photo thumbnails (future plan) so thumbnails don't block icon rendering.
+- Trade-offs:
+  - More implementation work and slightly more complex cache invalidation (retina vs standard sizes).
+  - Slight increase in memory (cached data-URIs), but bounded to a small set of icons.
+  - Adds complexity if you introduce a new icon type (thumbnails) — pre-render and caching framework should be generic.
+- Acceptance criteria:
+  - Bulk-rendering 200 markers should complete without visible stutter on a mid-range device.
+  - Individual icon render latency near-instant (<50ms) after cache warm-up.
+  - No memory leaks after adding/removing maps or switching views.
+
+Suggested rollout order:
+1. Implement Plan A (sprite + cache + pre-warm). Verify immediate improvement and update tests/docs.
+2. Measure performance under realistic data (dozen → hundreds of markers). If issues remain, implement Plan B (pre-rendered canvases + batching + optional server bulk endpoint).
+3. Add a small performance test in the frontend test harness (Vitest + jsdom/puppeteer snapshot) that ensures marker creation for 100 icons completes within an acceptable time threshold.
+
 ## 📝 **Development Environment**
 
 ### Setup

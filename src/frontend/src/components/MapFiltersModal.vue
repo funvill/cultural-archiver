@@ -10,13 +10,22 @@ interface Props {
   isOpen: boolean;
 }
 
+interface CacheTelemetry {
+  userListsHit?: number;
+  userListsMiss?: number;
+  listDetailsHit?: number;
+  listDetailsMiss?: number;
+}
+
 interface Emits {
   (e: 'update:isOpen', value: boolean): void;
   (e: 'filtersChanged'): void;
   (e: 'clusterChanged', value: boolean): void;
+  (e: 'clearListCaches'): void;
+  (e: 'resetCacheTelemetry'): void;
 }
 
-const props = defineProps<Props>();
+const props = defineProps<Props & { cacheTelemetry?: CacheTelemetry }>();
 const emit = defineEmits<Emits>();
 
 // Composables
@@ -607,6 +616,23 @@ onUnmounted(() => {
                   <span class="text-gray-600">Most Used Filter:</span>
                   <span class="font-medium">{{ mapFilters.getFilterMetrics.value.mostUsedFilter }}</span>
                 </div>
+                <!-- Map cache telemetry (populated via parent forwarding) -->
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">List Cache Hits:</span>
+                  <span class="font-medium">{{ props.cacheTelemetry?.userListsHit ?? 0 }}</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">List Cache Misses:</span>
+                  <span class="font-medium">{{ props.cacheTelemetry?.userListsMiss ?? 0 }}</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">Details Cache Hits:</span>
+                  <span class="font-medium">{{ props.cacheTelemetry?.listDetailsHit ?? 0 }}</span>
+                </div>
+                <div class="flex justify-between text-xs">
+                  <span class="text-gray-600">Details Cache Misses:</span>
+                  <span class="font-medium">{{ props.cacheTelemetry?.listDetailsMiss ?? 0 }}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -639,6 +665,20 @@ onUnmounted(() => {
                 />
                 Show performance metrics
               </label>
+              <div class="mt-3">
+                <button
+                  @click="$emit('clearListCaches')"
+                  class="px-3 py-2 text-sm bg-red-600 text-white rounded-md hover:bg-red-700"
+                >
+                  Clear list caches
+                </button>
+                <button
+                  @click="$emit('resetCacheTelemetry')"
+                  class="ml-3 px-3 py-2 text-sm bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300"
+                >
+                  Reset telemetry
+                </button>
+              </div>
             </div>
           </div>
         </div>
