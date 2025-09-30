@@ -13,8 +13,8 @@ interface Props {
   permissions?: { canEdit: boolean };
   initialListStates?: {
     loved?: boolean;
-    beenHere?: boolean;
-    wantToSee?: boolean;
+    visited?: boolean;
+    starred?: boolean;
     inAnyList?: boolean;
   };
 }
@@ -40,15 +40,15 @@ const { announceError, announceSuccess } = useAnnouncer();
 // Local state
 const listStates = ref({
   loved: false,
-  beenHere: false,
-  wantToSee: false,
+  visited: false,
+  starred: false,
   inAnyList: false,
 });
 
 const loadingStates = ref({
   loved: false,
-  beenHere: false,
-  wantToSee: false,
+  visited: false,
+  starred: false,
   bookmark: false,
   share: false,
 });
@@ -56,15 +56,15 @@ const loadingStates = ref({
 // Public counts for each action (visible to all users)
 const publicCounts = ref({
   loved: 0,
-  beenHere: 0,
-  wantToSee: 0,
+  visited: 0,
+  starred: 0,
 });
 
 // Success animation states
 const successAnimations = ref({
   loved: false,
-  beenHere: false,
-  wantToSee: false,
+  visited: false,
+  starred: false,
 });
 
 const initialLoading = ref(true);
@@ -92,30 +92,30 @@ const chipData = computed(() => [
     action: () => toggleListMembership('loved'),
   },
   {
-    id: 'beenHere',
+    id: 'visited',
     icon: 'flag',
-    label: 'Been Here',
-    active: listStates.value.beenHere,
-    loading: loadingStates.value.beenHere,
-    ...(publicCounts.value.beenHere > 0 && { count: publicCounts.value.beenHere }),
-    showSuccessAnimation: successAnimations.value.beenHere,
-    ariaLabel: listStates.value.beenHere 
-      ? 'Remove from Been Here list - currently in list' 
-      : 'Add to Been Here list - not in list',
-    action: () => toggleListMembership('beenHere'),
+    label: 'Visited',
+    active: listStates.value.visited,
+    loading: loadingStates.value.visited,
+    ...(publicCounts.value.visited > 0 && { count: publicCounts.value.visited }),
+    showSuccessAnimation: successAnimations.value.visited,
+    ariaLabel: listStates.value.visited 
+      ? 'Remove from Visited list - currently in list' 
+      : 'Add to Visited list - not in list',
+    action: () => toggleListMembership('visited'),
   },
   {
-    id: 'wantToSee',
+    id: 'starred',
     icon: 'star',
-    label: 'Want to See',
-    active: listStates.value.wantToSee,
-    loading: loadingStates.value.wantToSee,
-    ...(publicCounts.value.wantToSee > 0 && { count: publicCounts.value.wantToSee }),
-    showSuccessAnimation: successAnimations.value.wantToSee,
-    ariaLabel: listStates.value.wantToSee 
-      ? 'Remove from Want to See list - currently in list' 
-      : 'Add to Want to See list - not in list',
-    action: () => toggleListMembership('wantToSee'),
+    label: 'Starred',
+    active: listStates.value.starred,
+    loading: loadingStates.value.starred,
+    ...(publicCounts.value.starred > 0 && { count: publicCounts.value.starred }),
+    showSuccessAnimation: successAnimations.value.starred,
+    ariaLabel: listStates.value.starred 
+      ? 'Remove from Starred list - currently in list' 
+      : 'Add to Starred list - not in list',
+    action: () => toggleListMembership('starred'),
   },
   {
     id: 'bookmark',
@@ -162,10 +162,10 @@ onMounted(async () => {
     // Update each property individually to preserve reactivity
     if ('loved' in props.initialListStates)
       listStates.value.loved = !!props.initialListStates.loved;
-    if ('beenHere' in props.initialListStates)
-      listStates.value.beenHere = !!props.initialListStates.beenHere;
-    if ('wantToSee' in props.initialListStates)
-      listStates.value.wantToSee = !!props.initialListStates.wantToSee;
+    if ('visited' in props.initialListStates)
+      listStates.value.visited = !!props.initialListStates.visited;
+    if ('starred' in props.initialListStates)
+      listStates.value.starred = !!props.initialListStates.starred;
     if ('inAnyList' in props.initialListStates)
       listStates.value.inAnyList = !!props.initialListStates.inAnyList;
     initialLoading.value = false;
@@ -213,8 +213,8 @@ async function fetchMembershipStates(): Promise<void> {
       success: boolean;
       data?: {
         loved?: boolean;
-        beenHere?: boolean;
-        wantToSee?: boolean;
+        visited?: boolean;
+        starred?: boolean;
         inAnyList?: boolean;
       };
     }>(`/artwork/${props.artworkId}/membership`);
@@ -222,8 +222,8 @@ async function fetchMembershipStates(): Promise<void> {
       // Update each property individually to preserve reactivity
       console.debug('[ArtworkActionBar] fetchMembershipStates response', response.data);
       listStates.value.loved = response.data.loved || false;
-      listStates.value.beenHere = response.data.beenHere || false;
-      listStates.value.wantToSee = response.data.wantToSee || false;
+      listStates.value.visited = response.data.visited || false;
+      listStates.value.starred = response.data.starred || false;
       listStates.value.inAnyList = response.data.inAnyList || false;
       console.debug('[ArtworkActionBar] After fetchMembershipStates: listStates', JSON.parse(JSON.stringify(listStates.value)));
     }
@@ -242,16 +242,16 @@ async function fetchPublicCounts() {
       success: boolean;
       data?: {
         loved?: number;
-        beenHere?: number;
-        wantToSee?: number;
+        visited?: number;
+        starred?: number;
       };
     }>(`/artwork/${props.artworkId}/counts`);
     
     if (response.success && response.data) {
       publicCounts.value = {
         loved: response.data.loved || 0,
-        beenHere: response.data.beenHere || 0,
-        wantToSee: response.data.wantToSee || 0,
+        visited: response.data.visited || 0,
+        starred: response.data.starred || 0,
       };
     }
   } catch (error) {
@@ -260,7 +260,7 @@ async function fetchPublicCounts() {
   }
 }
 
-async function toggleListMembership(listType: 'loved' | 'beenHere' | 'wantToSee'): Promise<void> {
+async function toggleListMembership(listType: 'loved' | 'visited' | 'starred'): Promise<void> {
   // Check authentication
   if (!isAuthenticated.value) {
     emit('authRequired');
@@ -332,14 +332,14 @@ async function toggleListMembership(listType: 'loved' | 'beenHere' | 'wantToSee'
 function getListDisplayName(listType: string): string {
   const names: Record<string, string> = {
     loved: 'Loved',
-    beenHere: 'Been Here',
-    wantToSee: 'Want to See',
+    visited: 'Visited',
+    starred: 'Starred',
   };
   return names[listType] || listType;
 }
 
 // Trigger success animation for a specific chip
-function triggerSuccessAnimation(listType: 'loved' | 'beenHere' | 'wantToSee'): void {
+function triggerSuccessAnimation(listType: 'loved' | 'visited' | 'starred'): void {
   successAnimations.value[listType] = true;
   
   // Reset animation after it completes

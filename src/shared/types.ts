@@ -802,10 +802,9 @@ export interface ListItemsResponse extends PaginatedResponse<ArtworkApiResponse>
 
 // Special list names as constants
 export const SPECIAL_LIST_NAMES = {
-  WANT_TO_SEE: 'Want to see',
-  HAVE_SEEN: 'Have seen', 
   LOVED: 'Loved',
-  VALIDATED: 'Validated'
+  VISITED: 'Visited', 
+  STARRED: 'Starred'
 } as const;
 
 export type SpecialListName = typeof SPECIAL_LIST_NAMES[keyof typeof SPECIAL_LIST_NAMES];

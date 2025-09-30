@@ -521,19 +521,16 @@ export async function getOrCreateSystemList(
   // Create the system list
   const listId = generateUUID();
   const now = new Date().toISOString();
-  const isValidated = listName === SPECIAL_LIST_NAMES.VALIDATED;
 
   const insertStmt = db.db.prepare(`
     INSERT INTO lists (id, owner_user_id, name, visibility, is_readonly, is_system_list, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, 1, ?, ?)
+    VALUES (?, ?, ?, 'unlisted', 0, 1, ?, ?)
   `);
   
   await insertStmt.bind(
     listId, 
     userToken, 
     listName, 
-    isValidated ? 'private' : 'unlisted',  // "Validated" list is private per PRD
-    isValidated ? 1 : 0,  // "Validated" list is readonly per PRD
     now, 
     now
   ).run();
@@ -542,8 +539,8 @@ export async function getOrCreateSystemList(
     id: listId,
     owner_user_id: userToken,
     name: listName,
-    visibility: isValidated ? 'private' : 'unlisted',
-    is_readonly: isValidated ? 1 : 0,
+    visibility: 'unlisted',
+    is_readonly: 0,
     is_system_list: 1,
     created_at: now,
     updated_at: now,

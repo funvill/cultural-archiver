@@ -135,8 +135,8 @@ describe('ArtworkActionBar.vue', () => {
       wrapper = createWrapper({
         initialListStates: {
           loved: true,
-          beenHere: false,
-          wantToSee: true,
+          visited: false,
+          starred: true,
           inAnyList: false,
         },
       });
@@ -145,8 +145,8 @@ describe('ArtworkActionBar.vue', () => {
 
       const chips = wrapper.findAllComponents(MChip);
       expect(chips[0]?.props('active')).toBe(true);  // loved
-      expect(chips[1]?.props('active')).toBe(false); // beenHere
-      expect(chips[2]?.props('active')).toBe(true);  // wantToSee
+      expect(chips[1]?.props('active')).toBe(false); // visited
+      expect(chips[2]?.props('active')).toBe(true);  // starred
       expect(chips[3]?.props('active')).toBe(false); // bookmark (inAnyList)
     });
 
@@ -225,8 +225,8 @@ describe('ArtworkActionBar.vue', () => {
       wrapper = createWrapper({
         initialListStates: {
           loved: false,
-          beenHere: false,
-          wantToSee: false,
+          visited: false,
+          starred: false,
           inAnyList: false,
         },
       });
@@ -332,8 +332,8 @@ describe('ArtworkActionBar.vue', () => {
       wrapper = createWrapper({
         initialListStates: {
           loved: true,
-          beenHere: false,
-          wantToSee: false,
+          visited: false,
+          starred: false,
           inAnyList: true,
         },
       });
@@ -349,7 +349,7 @@ describe('ArtworkActionBar.vue', () => {
       const chips = wrapper.findAllComponents(MChip);
       
       expect(chips[0]?.props('ariaLabel')).toContain('Remove from Loved list');
-      expect(chips[1]?.props('ariaLabel')).toContain('Add to Been Here list');
+      expect(chips[1]?.props('ariaLabel')).toContain('Add to Visited list');
       expect(chips[3]?.props('ariaLabel')).toBe('Manage lists - open list selection modal');
     });
 
@@ -413,7 +413,7 @@ describe('ArtworkActionBar.vue', () => {
       (apiService.post as any).mockRejectedValueOnce(new Error('Server error'));
 
       wrapper = createWrapper({
-        initialListStates: { loved: false, beenHere: false, wantToSee: false, inAnyList: false },
+        initialListStates: { loved: false, visited: false, starred: false, inAnyList: false },
       });
 
       const chips = wrapper.findAllComponents(MChip);

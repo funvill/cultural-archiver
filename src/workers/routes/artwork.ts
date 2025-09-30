@@ -439,8 +439,8 @@ export async function getArtworkMembership(c: Context<{ Bindings: WorkerEnv }>):
     // Return default states for unauthenticated users
     return c.json(createSuccessResponse({
       loved: false,
-      beenHere: false,
-      wantToSee: false,
+      visited: false,
+      starred: false,
       inAnyList: false,
     }));
   }
@@ -451,8 +451,8 @@ export async function getArtworkMembership(c: Context<{ Bindings: WorkerEnv }>):
     // Use display names for system lists
     const displayNames = {
       loved: 'Loved',
-      beenHere: 'Been Here',
-      wantToSee: 'Want to See',
+      visited: 'Visited',
+      starred: 'Starred',
     };
 
     // Check membership in special lists (use display names)
@@ -462,8 +462,8 @@ export async function getArtworkMembership(c: Context<{ Bindings: WorkerEnv }>):
         CASE WHEN li.artwork_id IS NOT NULL THEN 1 ELSE 0 END as is_member
       FROM (
         SELECT '${displayNames.loved}' as list_name
-        UNION SELECT '${displayNames.beenHere}' as list_name  
-        UNION SELECT '${displayNames.wantToSee}' as list_name
+        UNION SELECT '${displayNames.visited}' as list_name  
+        UNION SELECT '${displayNames.starred}' as list_name
       ) l
       LEFT JOIN lists ls ON ls.owner_user_id = ? AND ls.name = l.list_name AND ls.is_system_list = 1
       LEFT JOIN list_items li ON li.list_id = ls.id AND li.artwork_id = ?
@@ -495,16 +495,16 @@ export async function getArtworkMembership(c: Context<{ Bindings: WorkerEnv }>):
     // Add index signature for dynamic assignment
     const membership: Record<string, boolean> = {
       loved: false,
-      beenHere: false,
-      wantToSee: false,
+      visited: false,
+      starred: false,
       inAnyList: false,
     };
 
     // Map display names back to internal keys
     const displayNameToKey: Record<string, string> = {
       [displayNames.loved]: 'loved',
-      [displayNames.beenHere]: 'beenHere',
-      [displayNames.wantToSee]: 'wantToSee',
+      [displayNames.visited]: 'visited',
+      [displayNames.starred]: 'starred',
     };
 
     // Process special list memberships
@@ -520,13 +520,13 @@ export async function getArtworkMembership(c: Context<{ Bindings: WorkerEnv }>):
       }
     }
 
-    // Check custom lists
+    // Check custom lists (user lists only for bookmark highlighting)
     type CustomListResult = { count: number };
     if (customListResult && (customListResult as CustomListResult).count > 0) {
       membership.inAnyList = true;
     } else {
-      // Also true if in any special list
-      membership.inAnyList = Boolean(membership.loved) || Boolean(membership.beenHere) || Boolean(membership.wantToSee);
+      // Only highlight bookmark for user lists, not system lists
+      membership.inAnyList = false;
     }
 
     // DEBUG: Log final membership object
@@ -534,8 +534,8 @@ export async function getArtworkMembership(c: Context<{ Bindings: WorkerEnv }>):
 
     return c.json(createSuccessResponse(membership as {
       loved: boolean;
-      beenHere: boolean;
-      wantToSee: boolean;
+      visited: boolean;
+      starred: boolean;
       inAnyList: boolean;
     }));
 
@@ -568,11 +568,11 @@ export async function toggleArtworkListMembership(c: Context<{ Bindings: WorkerE
     ]);
   }
 
-  if (!listType || !['loved', 'beenHere', 'wantToSee'].includes(listType)) {
+  if (!listType || !['loved', 'visited', 'starred'].includes(listType)) {
     throw new ValidationApiError([
       {
         field: 'listType',
-        message: 'List type must be one of: loved, beenHere, wantToSee',
+        message: 'List type must be one of: loved, visited, starred',
         code: 'INVALID_VALUE',
       },
     ]);
@@ -603,8 +603,8 @@ export async function toggleArtworkListMembership(c: Context<{ Bindings: WorkerE
     const listId = crypto.randomUUID();
     const listNames = {
       loved: 'Loved',
-      beenHere: 'Been Here', 
-      wantToSee: 'Want to See'
+      visited: 'Visited', 
+      starred: 'Starred'
     };
 
     // Check if list already exists for this user
@@ -690,9 +690,9 @@ export async function getArtworkCounts(c: Context<{ Bindings: WorkerEnv }>): Pro
         l.list_name,
         COUNT(li.artwork_id) as count
       FROM (
-        SELECT 'loved' as list_name
-        UNION SELECT 'beenHere' as list_name  
-        UNION SELECT 'wantToSee' as list_name
+        SELECT 'Loved' as list_name
+        UNION SELECT 'Visited' as list_name  
+        UNION SELECT 'Starred' as list_name
       ) l
       LEFT JOIN lists ls ON ls.name = l.list_name AND ls.is_system_list = 1
       LEFT JOIN list_items li ON li.list_id = ls.id AND li.artwork_id = ?
@@ -718,8 +718,8 @@ export async function getArtworkCounts(c: Context<{ Bindings: WorkerEnv }>): Pro
     // Build response
     const counts = {
       loved: 0,
-      beenHere: 0,
-      wantToSee: 0,
+      visited: 0,
+      starred: 0,
       totalUsers: 0,
     };
 
@@ -729,9 +729,9 @@ export async function getArtworkCounts(c: Context<{ Bindings: WorkerEnv }>): Pro
       for (const row of countsResults.results as CountRow[]) {
         const listName = row.list_name;
         const count = row.count || 0;
-        if (listName === 'loved') counts.loved = count;
-        else if (listName === 'beenHere') counts.beenHere = count;
-        else if (listName === 'wantToSee') counts.wantToSee = count;
+        if (listName === 'Loved') counts.loved = count;
+        else if (listName === 'Visited') counts.visited = count;
+        else if (listName === 'Starred') counts.starred = count;
       }
     }
 

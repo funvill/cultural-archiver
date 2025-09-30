@@ -1,64 +1,64 @@
 
-# PRD: Map Filtering
+# Map interface
 
-This document outlines the requirements for a map filtering feature that allows users to selectively control which artwork markers are displayed on the map, reducing clutter and helping them find specific points of interest.
+## User story
 
-## 1. Problem Statement & Goal
+1) What is around me?
 
-**Problem:** The main map can become cluttered with a large number of artwork markers, making it difficult for users to find artworks that are relevant to their immediate goals, such as visiting new places or focusing on a specific curated list.
+- Want to know about all the art near them
+- Want to filter out artwork markers for artwork that doesn't exist any more (Removed, temporary, etc...)
+- May want to filter by artwork type
 
-**Goal:** Give users a simple and intuitive way to filter the artworks shown on the map. This will reduce visual noise and allow them to focus on a targeted set of locations based on their saved lists and viewing history.
+2) Curated list (low priorty)
 
-## 2. User Stories
+- The user has already gone though the catalog and selected artworks that they want to see
+- They only want to see the artworks in their specific list
+- Filter by user list
 
-1. **Finding New Artworks:** As a user who has seen several artworks in an area, I want to filter the map to show only artworks I have *not* yet seen, so I can easily discover new places to visit.
-2. **Planning an Outing:** As a user who has curated a "Want to See" list, I want to filter the map to show only markers from that list, so I can plan my route efficiently.
-3. **Focused Exploration:** As a user with a specific list for an upcoming trip (e.g., "New York Art"), I want to filter the map to show only items from that list that I have also not yet seen, so I can maximize my time visiting new art.
+3) Hunter
 
-## 3. Feature Requirements
+- Wants to check off all artworks around him
+- Wants to filter out artwork markers for artwork with an unknown status (Removed, temporary, etc...)
+- Wants to show artworks that they have already seen in a different way (Gray flags)
+- May want to filter artworks out of the map that they have already seen
 
-### 3.1. Access & UI
+## Lists
 
-- **Entry Point:** The filtering options will be accessed via an icon within the map's main navigation bar.
-- **Screen Layout:** The "Map Options" screen will be presented as a full-screen overlay on all devices.
-- **Filter Controls:** All filters will be enabled or disabled using standard toggle switches for a clear on/off state.
-- **Default State:** When the filter screen is opened and no filters are active, it will display all available filters in their "off" state.
-- **Resetting Filters:** A "Reset Filters" button will be available on the filter options screen. When pressed, it will turn off all active filters and return the map to its default state.
+- Loved (System) - The user clicked the heart next to the artwork.
+- Visited (System) - Artworks that the user has already seen.
+- Stared (System) - Artworks that the user has stared, (Wants to see)
+- Custom lists (User) - A series of custom lists that the user has made.
 
-### 3.2. Filter Definitions
+## Requirments
 
-A new "Filters" section will be added to the map options. The following filters will be available:
+- Ability to show different markers on the map depending on the state of the artwork. (Visited, Stared, Normal, Unknown)
+  - Visited - This shows as a Gray flag. From the Visited (System) list.
+  - Stared - This shows as a golden star. From the Stared (System) list.
+  - Normal - This is a round circle for artworks that don't exist in the other two system lists
+  - Unknown - Shown as a gray circle with a dashed boarder. These are artworks that we don't know if they exist any more. Status=unknown
+- Markers can be simple style
+- Ability to show 1000 map markes of different types on the map at any given time
+  - Good preformence with a large amount of map markers
+  - The map pointers must not be in the HTML DOM as there are too many to keep proforment
+- Ability to turn on and off map marker clustering
+  - Force clustering at zoom level 1-12
+- Caching of map markers and lists for quicker inital loading and filtering
 
-- **Want to See:** When enabled, only shows artworks from the user's "Want to See" system list.
-- **User Lists:** Displays a scrolling list of the user's custom-created lists. Each list has a toggle switch.
-  - If a user has no custom lists, this section will display a message like: "You haven't created any lists yet."
-  - The lists will be ordered by the most recently updated.
-- **Not Seen by Me:** This is a **subtractive filter**. When enabled, it removes any artworks that are in the user's "Been Here" or "Logged" system lists from the final filtered result set.
+## Implmentation
 
-### 3.3. Filter Logic
+Create a test map page '/test-map/` that loads in 250 markers of each different artwork status types (Visited, Stared, Normal, Unknown). Then have a panel that allows for filtering of the markers.
 
-- **Combining Filters:** When multiple filters (e.g., "Want to See" and a custom "New York" list) are enabled, the logic is **additive (OR)**. The map will show markers that are in *either* of the selected lists.
-- **"Not Seen by Me" Interaction:** This filter is always applied last. It removes items from the set created by any other active filters. For example, if "Want to See" is active, enabling "Not Seen by Me" will show items that are in "Want to See" AND are NOT in "Been Here" or "Logged".
-- **State Persistence:** The user's last-used filter settings will be persisted between sessions.
+On page load
+- Request the system lists from the user profile (Visited, Stared, Loved). This should be a single request. This should be cacheable with a head request for last updated time.
+- Request the nearby artworks with minimal flag set.
 
-### 3.4. Active Filter Display
+Update the local storage database with a list of all the markers
+Update the map based on what is in the local stroage database, and what filters have been applied.
 
-- **Banner:** When one or more filters are active, a banner will appear at the top of the map.
-- **Banner Content:** The banner will display a concise summary of the active filters (e.g., "Filters active: Want to See, Not Seen by Me"). For the initial release, this banner will not contain a reset button.
+## UI/UX
 
-### 3.5. Map Marker & Icon Updates
-
-To support the filtering system, map marker icons will be updated to convey status at a glance.
-
-- **Icon Priority (Initial Release):** If an artwork falls into multiple categories, the icon will be determined by the following priority:
-    1. **"Been Here" / "Logged"**: A flag icon inside a gray circle.
-    2. **"Want to See"**: A gold star icon in a circle.
-    3. **Default**: A question mark icon.
-- **"Not Seen by Me" Effect on Icons:** If the "Not Seen by Me" filter is active, artworks in "Been Here" or "Logged" will be completely hidden from the map, not just shown with a different icon.
-
-### 3.6. Scope & Future Enhancements
-
-- **Application Area:** These filters will only apply to the main, full-screen map view.
-- **Future - Photo Thumbnails:** In a future iteration, a fourth icon type will be introduced: a circular thumbnail of the artwork's primary photo. This will have a lower priority than the "Been Here" and "Want to See" icons.
-- **Future - List Search:** For users with many lists, a search/filter bar for the lists themselves is a potential future enhancement.
-- **Future - Banner Reset Button:** A "Reset" button may be added to the active filter banner in a future release for quicker access.
+- Show a banner at the top of the map that indicates what filters are currenly active. If no filters are active then hide the banner.
+- Show the Map filtering options in the Map options panel. The map options panel should be scrollable.
+- The filters are
+  - "Hide Visited Artworks", Disabled by default, if enabled then filter out the artworks that are in the "visited" list.
+  - "Show removed Artworks", Disabled by default, if enabled then also show the artworks with the "Unknown" status.

@@ -302,6 +302,15 @@ function onProfileUpdated(newProfileName: string) {
 
 // Theme persistence and application moved into `ThemeToggle` component
 
+// Computed properties to separate system and user lists
+const systemLists = computed(() => {
+  return userLists.value.filter((list: ListApiResponse) => list.is_system_list);
+});
+
+const customUserLists = computed(() => {
+  return userLists.value.filter((list: ListApiResponse) => !list.is_system_list);
+});
+
 // Lists management methods
 async function fetchUserLists() {
   try {
@@ -432,7 +441,7 @@ onMounted(() => {
           <div v-else-if="userLists.length === 0" class="text-center py-8">
             <svg class="mx-auto h-12 w-12 mb-4 theme-outline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v0a2 2 0 01-2 2H10a2 2 0 01-2-2v0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 812-2h4a2 2 0 012 2v0a2 2 0 01-2 2H10a2 2 0 01-2-2v0z" />
             </svg>
             <h3 class="text-lg font-medium theme-on-surface mb-2">No Lists Yet</h3>
             <p class="theme-on-surface-variant mb-4">Create your first list by visiting an artwork page and clicking "Add to List".</p>
@@ -444,35 +453,95 @@ onMounted(() => {
             </button>
           </div>
 
-          <!-- Lists Grid -->
-          <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div 
-              v-for="list in userLists" 
-              :key="list.id"
-              @click="handleListClick(list)"
-              class="rounded-lg p-4 border theme-border hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-colors"
-            >
-              <div class="flex items-start justify-between mb-3">
-                <h3 class="font-semibold theme-on-surface truncate pr-2">{{ list.name }}</h3>
-                <span 
-                  v-if="list.is_system_list"
-                  class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 theme-primary-container theme-on-primary-container"
-                >
-                  System
-                </span>
-              </div>
-              
-              <div class="flex items-center justify-between text-sm theme-on-surface-variant">
-                <span>{{ list.item_count || 0 }} artworks</span>
-                <span>{{ formatDateSafe(list.updated_at, list.created_at) }}</span>
-              </div>
-              
-              <div class="mt-2 flex items-center text-xs theme-muted">
-                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+          <!-- Lists Content -->
+          <div v-else class="space-y-8">
+            <!-- System Lists Section -->
+            <div v-if="systemLists.length > 0">
+              <h3 class="text-lg font-semibold theme-on-surface mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 theme-primary" fill="currentColor" viewBox="0 0 20 20">
+                  <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" />
                 </svg>
-                {{ list.visibility === 'private' ? 'Private' : 'Unlisted' }}
+                System Lists
+              </h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div 
+                  v-for="list in systemLists" 
+                  :key="list.id"
+                  @click="handleListClick(list)"
+                  class="rounded-lg p-4 border theme-border hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-colors"
+                >
+                  <div class="flex items-start justify-between mb-3">
+                    <h4 class="font-semibold theme-on-surface truncate pr-2">{{ list.name }}</h4>
+                    <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 theme-primary-container theme-on-primary-container">
+                      System
+                    </span>
+                  </div>
+                  
+                  <div class="flex items-center justify-between text-sm theme-on-surface-variant">
+                    <span>{{ list.item_count || 0 }} artworks</span>
+                    <span>{{ formatDateSafe(list.updated_at, list.created_at) }}</span>
+                  </div>
+                  
+                  <div class="mt-2 flex items-center text-xs theme-muted">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+                    </svg>
+                    {{ list.visibility === 'private' ? 'Private' : 'Unlisted' }}
+                  </div>
+                </div>
               </div>
+            </div>
+
+            <!-- User Lists Section -->
+            <div v-if="customUserLists.length > 0">
+              <h3 class="text-lg font-semibold theme-on-surface mb-4 flex items-center">
+                <svg class="w-5 h-5 mr-2 theme-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                </svg>
+                My Custom Lists
+                <span class="ml-2 inline-flex items-center px-2 py-1 rounded-full text-xs font-medium theme-surface-variant theme-on-surface-variant">
+                  {{ customUserLists.length }}
+                </span>
+              </h3>
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div 
+                  v-for="list in customUserLists" 
+                  :key="list.id"
+                  @click="handleListClick(list)"
+                  class="rounded-lg p-4 border theme-border hover:border-blue-300 hover:bg-blue-50 cursor-pointer transition-colors"
+                >
+                  <div class="flex items-start justify-between mb-3">
+                    <h4 class="font-semibold theme-on-surface truncate pr-2">{{ list.name }}</h4>
+                  </div>
+                  
+                  <div class="flex items-center justify-between text-sm theme-on-surface-variant">
+                    <span>{{ list.item_count || 0 }} artworks</span>
+                    <span>{{ formatDateSafe(list.updated_at, list.created_at) }}</span>
+                  </div>
+                  
+                  <div class="mt-2 flex items-center text-xs theme-muted">
+                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z" />
+                    </svg>
+                    {{ list.visibility === 'private' ? 'Private' : 'Unlisted' }}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Empty State for Custom Lists -->
+            <div v-if="systemLists.length > 0 && customUserLists.length === 0" class="text-center py-6">
+              <svg class="mx-auto h-10 w-10 mb-3 theme-outline" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              <h4 class="text-md font-medium theme-on-surface mb-2">Create Your First Custom List</h4>
+              <p class="text-sm theme-on-surface-variant mb-3">Organize your favorite artworks into custom collections.</p>
+              <button 
+                @click="$router.push('/')"
+                class="inline-flex items-center px-3 py-2 border border-transparent text-sm font-medium rounded-md theme-primary theme-on-primary"
+              >
+                Browse Artworks
+              </button>
             </div>
           </div>
         </div>
