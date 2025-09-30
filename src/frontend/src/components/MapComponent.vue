@@ -150,6 +150,112 @@ const artworksStore = useArtworksStore();
 // Router for navigation
 const router = useRouter();
 
+type LeafletGlobal = typeof L & Record<string, any>;
+
+const getLeafletGlobal = (): LeafletGlobal | null => {
+  const imported = L as LeafletGlobal;
+  if (imported?.Popup) return imported;
+
+  if (typeof window !== 'undefined') {
+    const globalL = (window as any).L as LeafletGlobal | undefined;
+    if (globalL?.Popup) return globalL;
+  }
+
+  return null;
+};
+
+const installLeafletPopupGuards = () => {
+  const Lglobal = getLeafletGlobal();
+  if (!Lglobal?.Popup?.prototype) return;
+
+  const popupProto = Lglobal.Popup.prototype as any;
+  if (popupProto._superNuclearGuardInstalled) return;
+
+  popupProto._superNuclearGuardInstalled = true;
+
+  const guardPopupMethod = (methodName: '_animateZoom' | '_updatePosition' | '_updateLayout' | '_movePopup') => {
+    const original = popupProto[methodName];
+    if (typeof original !== 'function') return;
+
+    const originalKey = `_original${methodName.substring(1).charAt(0).toUpperCase()}${methodName.substring(2)}`;
+    if (!popupProto[originalKey]) {
+      popupProto[originalKey] = original;
+    }
+
+    popupProto[methodName] = function (...args: any[]) {
+      if (!this || !this._map || typeof this._map._latLngToNewLayerPoint !== 'function') {
+        return this;
+      }
+
+      if (methodName === '_movePopup') {
+        if (!this._container || !this._source) {
+          return this;
+        }
+      }
+
+      try {
+        return original.apply(this, args);
+      } catch (error) {
+        console.warn(`[POPUP DEBUG] Suppressed popup ${methodName} failure:`, error);
+        return this;
+      }
+    };
+  };
+
+  guardPopupMethod('_animateZoom');
+  guardPopupMethod('_updatePosition');
+  guardPopupMethod('_updateLayout');
+  guardPopupMethod('_movePopup');
+};
+
+const installLeafletDomUtilGuards = () => {
+  const Lglobal = getLeafletGlobal();
+  if (!Lglobal?.DomUtil) return;
+
+  if ((Lglobal.DomUtil as any)._superNuclearGuardInstalled) return;
+
+  (Lglobal.DomUtil as any)._superNuclearGuardInstalled = true;
+
+  const originalGetPosition = Lglobal.DomUtil.getPosition;
+  if (typeof originalGetPosition === 'function') {
+    (Lglobal.DomUtil as any)._originalGetPosition = originalGetPosition;
+    Lglobal.DomUtil.getPosition = function (el: any, round?: boolean) {
+      if (!el) {
+        return { x: 0, y: 0 };
+      }
+
+      try {
+        return originalGetPosition.call(this, el, round);
+      } catch (error) {
+        return { x: 0, y: 0 };
+      }
+    };
+  }
+};
+
+const installLeafletMapZoomGuard = () => {
+  const Lglobal = getLeafletGlobal();
+  if (!Lglobal?.Map?.prototype) return;
+
+  const mapProto = Lglobal.Map.prototype as any;
+  if (mapProto._superNuclearGuardInstalled) return;
+
+  mapProto._superNuclearGuardInstalled = true;
+
+  if (typeof mapProto._animateZoom === 'function') {
+    mapProto._originalAnimateZoomGuard = mapProto._animateZoom;
+    mapProto._animateZoom = function (...args: any[]) {
+      try {
+        return mapProto._originalAnimateZoomGuard.apply(this, args);
+      } catch (error) {
+        console.warn('[ZOOM DEBUG] Suppressed map _animateZoom failure:', error);
+        return this;
+      }
+    };
+  }
+};
+
+
 // Default coordinates (Vancouver - near sample data for testing)
 const DEFAULT_CENTER = { latitude: 49.265, longitude: -123.25 };
 
@@ -508,32 +614,10 @@ async function initializeMap() {
 
     console.log('Map created successfully:', map.value);
 
-    // Defensive runtime patch: wrap Leaflet's Popup._animateZoom to guard against
-    // rare cases where a popup's internal `_map` becomes null during animated zooms.
-    // This prevents uncaught TypeErrors like "Cannot read properties of null (reading '_latLngToNewLayerPoint')"
-    // while we handle layer update ordering elsewhere in the component.
-    try {
-      const PopupProto: any = (L as any).Popup && (L as any).Popup.prototype;
-      if (PopupProto && typeof PopupProto._animateZoom === 'function') {
-        const _origAnimateZoom = PopupProto._animateZoom;
-        PopupProto._animateZoom = function (zoom: any, center: any, options: any) {
-          try {
-            // If the popup is not attached to a map anymore, skip animation safely
-            if (!this || !this._map) return;
-            return _origAnimateZoom.call(this, zoom, center, options);
-          } catch (err) {
-            // Swallow errors here to avoid bubbling to global error handlers
-            // Log for debugging but don't throw
-            // eslint-disable-next-line no-console
-            console.warn('Popup._animateZoom guarded error', err);
-            return;
-          }
-        };
-      }
-    } catch (err) {
-      // If any of the above fails, continue without the guard
-      console.warn('Failed to install Popup._animateZoom guard', err);
-    }
+    // Install persistent Leaflet guards to prevent popup zoom crashes
+    installLeafletPopupGuards();
+    installLeafletDomUtilGuards();
+    installLeafletMapZoomGuard();
 
     // Ensure the container has the proper Leaflet classes
     if (mapContainer.value) {
@@ -682,20 +766,99 @@ async function initializeMap() {
 
     await configureMarkerGroup();
 
-    // Pre-warm icon cache for common sizes to avoid first-render delay
-    try {
-      // Use standard base size for pre-warm (matches createArtworkIcon logic)
-      const preWarmSize = 28;
-      // Render and cache each kind
-      if (typeof window !== 'undefined') {
-        renderIconToDataUri('flag', preWarmSize);
-        renderIconToDataUri('star', preWarmSize);
-        renderIconToDataUri('question', preWarmSize, getTypeColor('other'));
+    // 🚀 PROACTIVE ZOOM INTERCEPTION - Override zoom controls to execute nuclear cleanup BEFORE animation starts
+    const interceptZoomControls = () => {
+      if (!map.value) return;
+
+      // Wait for Leaflet to fully initialize the zoom controls
+      nextTick(() => {
+        const zoomInButton = map.value!.getContainer().querySelector('.leaflet-control-zoom-in');
+        const zoomOutButton = map.value!.getContainer().querySelector('.leaflet-control-zoom-out');
+
+        if (zoomInButton) {
+          console.log('[ZOOM DEBUG] Intercepting zoom in button');
+          // Remove existing event listeners and add our own
+          const newZoomInButton = zoomInButton.cloneNode(true) as HTMLElement;
+          zoomInButton.parentNode?.replaceChild(newZoomInButton, zoomInButton);
+          
+          newZoomInButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            executeNuclearZoom(() => map.value!.zoomIn());
+          });
+        }
+
+        if (zoomOutButton) {
+          console.log('[ZOOM DEBUG] Intercepting zoom out button');
+          // Remove existing event listeners and add our own
+          const newZoomOutButton = zoomOutButton.cloneNode(true) as HTMLElement;
+          zoomOutButton.parentNode?.replaceChild(newZoomOutButton, zoomOutButton);
+          
+          newZoomOutButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            executeNuclearZoom(() => map.value!.zoomOut());
+          });
+        }
+      });
+    };
+
+    // 🚀 NUCLEAR ZOOM EXECUTION - Synchronous popup cleanup BEFORE zoom animation can start
+    const executeNuclearZoom = (zoomAction: () => void) => {
+      console.log('[ZOOM DEBUG] Executing nuclear zoom with synchronous popup cleanup');
+      
+      if (!map.value) return;
+
+      // 🔥 IMMEDIATE SYNCHRONOUS POPUP DESTRUCTION - Execute BEFORE any Leaflet animation starts
+      console.log('[POPUP DEBUG] SYNCHRONOUS: Destroying all popups before zoom animation can start');
+      
+      // Force preview dismissal immediately
+      emit('dismissPreview');
+
+      // Close all popups immediately and synchronously
+      const mapAny = map.value as any;
+      
+      // Remove main popup completely
+      if (mapAny._popup) {
+        map.value.closePopup();
+        mapAny._popup = null;
       }
-    } catch (e) {
-      // Non-fatal; continue
-      console.warn('Icon pre-warm failed', e);
-    }
+      
+      // Remove all popup layers from map's internal layer management
+      if (mapAny._layers) {
+        Object.keys(mapAny._layers).forEach(layerKey => {
+          const layer = mapAny._layers[layerKey];
+          if (layer && layer._popup) {
+            if (map.value!.hasLayer(layer._popup)) {
+              map.value!.removeLayer(layer._popup);
+            }
+            layer._popup = null;
+          }
+        });
+      }
+
+      // Clear and rebuild cluster group to ensure clean state
+      if (markerClusterGroup.value) {
+        markerClusterGroup.value.clearLayers();
+        artworkMarkers.value.forEach((marker: any) => {
+          if (marker) {
+            // Remove any popup from marker
+            if (marker.getPopup && marker.getPopup()) {
+              marker.unbindPopup();
+            }
+            markerClusterGroup.value!.addLayer(marker);
+          }
+        });
+      }
+
+      console.log('[ZOOM DEBUG] Starting zoom action with completely clean popup state');
+      
+      // Execute the actual zoom - now safe because all popups are destroyed
+      zoomAction();
+    };
+
+    // Initialize zoom control interception
+    interceptZoomControls();
 
     // Setup event listeners
     map.value.on('moveend', handleMapMove);
@@ -703,39 +866,241 @@ async function initializeMap() {
     
     // Track zoom animation state to prevent marker updates during animations
     map.value.on('zoomstart', () => {
-      isZoomAnimating.value = true;
-      console.log('[ZOOM DEBUG] Zoom animation started');
-      
-      // Close all popups before zoom animation to prevent null reference errors
       try {
-        map.value?.closePopup();
-        // Also close any popups in the cluster group
-        if (markerClusterGroup.value && typeof markerClusterGroup.value.closePopup === 'function') {
-          markerClusterGroup.value.closePopup();
+        isZoomAnimating.value = true;
+        console.log('[ZOOM DEBUG] SUPER NUCLEAR: Instantaneous popup destruction started');
+
+        // Ensure Leaflet guard patches are active before zoom
+        // Defensive overrides: ensure persistent guard patches stay active
+        try {
+          installLeafletPopupGuards();
+          installLeafletDomUtilGuards();
+          installLeafletMapZoomGuard();
+        } catch (overrideErr) {
+          console.warn('[ZOOM DEBUG] Error applying defensive overrides:', overrideErr);
         }
-      } catch (e) {
-        console.warn('[ZOOM DEBUG] Error closing popups during zoom start:', e);
+
+        // Synchronous popup/DOM cleanup
+        const mapAny = map.value as any;
+
+        // Remove the main popup if present
+        try {
+          if (mapAny && mapAny._popup) {
+            try {
+              if (map.value && typeof map.value.closePopup === 'function') map.value.closePopup();
+            } catch {};
+            try {
+              if (mapAny._popup && mapAny._popup._container && mapAny._popup._container.parentNode) {
+                mapAny._popup._container.parentNode.removeChild(mapAny._popup._container);
+              }
+            } catch {};
+            mapAny._popup = null;
+          }
+        } catch (mainPopupErr) {
+          console.warn('[ZOOM DEBUG] Error removing main popup:', mainPopupErr);
+        }
+
+        // Remove popups attached to layers
+        try {
+          if (mapAny && mapAny._layers) {
+            Object.keys(mapAny._layers).forEach(layerKey => {
+              try {
+                const layer = mapAny._layers[layerKey];
+                if (layer && layer._popup) {
+                  try {
+                    if (layer._popup._container && layer._popup._container.parentNode) {
+                      layer._popup._container.parentNode.removeChild(layer._popup._container);
+                    }
+                  } catch {}
+                  try { layer._popup = null; } catch {}
+                }
+              } catch (e) {
+                /* ignore individual layer errors */
+              }
+            });
+          }
+        } catch (layersErr) {
+          console.warn('[ZOOM DEBUG] Error cleaning layer popups:', layersErr);
+        }
+
+        // Force-close popups on markers
+        let popupsClosed = 0;
+        try {
+          artworkMarkers.value.forEach((marker: any) => {
+            try {
+              const hasPopup = !!marker?._popup;
+              const isOpen = !!(marker && marker.isPopupOpen && marker.isPopupOpen());
+              if (hasPopup || isOpen) {
+                try {
+                  if (marker._popup && marker._popup._container && marker._popup._container.parentNode) {
+                    marker._popup._container.parentNode.removeChild(marker._popup._container);
+                  }
+                } catch {}
+                try { if (marker.closePopup) marker.closePopup(); } catch {}
+                try { marker._popup = null; } catch {}
+                popupsClosed++;
+              }
+            } catch (markerErr) {
+              /* ignore marker-level errors */
+            }
+          });
+        } catch (markerLoopErr) {
+          console.warn('[ZOOM DEBUG] Error iterating markers to close popups:', markerLoopErr);
+        }
+
+        // Emergency DOM cleanup: remove any orphaned popup elements
+        try {
+          const selectors = ['.leaflet-popup', '.leaflet-popup-pane', '.leaflet-popup-content-wrapper', '.leaflet-popup-content', '.leaflet-popup-tip-container', '.leaflet-popup-tip', '.artwork-popup-container'];
+          selectors.forEach(sel => {
+            const nodes = Array.from(document.querySelectorAll(sel));
+            nodes.forEach(n => { try { n.remove(); } catch {} });
+          });
+        } catch (domErr) {
+          console.warn('[ZOOM DEBUG] Emergency DOM cleanup error:', domErr);
+        }
+
+        // Clear cluster group state if available (best-effort)
+        try {
+          if (markerClusterGroup.value) {
+            try { markerClusterGroup.value.clearLayers(); } catch {};
+            try { artworkMarkers.value.forEach((m: any) => markerClusterGroup.value.addLayer(m)); } catch {}
+          }
+        } catch (clusterErr) {
+          console.warn('[ZOOM DEBUG] Error resetting cluster group:', clusterErr);
+        }
+
+        // Ensure preview dismissed
+        try { emit('dismissPreview'); } catch (_) {}
+
+        console.log('[ZOOM DEBUG] All popup closure attempts completed. Closed', popupsClosed, 'popups.');
+      } catch (overallError) {
+        console.error('[ZOOM DEBUG] Critical error in zoomstart handler:', overallError);
+        // Ensure zoom state is set so other logic knows animation may be happening
+        isZoomAnimating.value = true;
       }
     });
     
     map.value.on('zoomend', () => {
-      isZoomAnimating.value = false;
-      console.log('[ZOOM DEBUG] Zoom animation ended');
+      try {
+        isZoomAnimating.value = false;
+        
+        // Debug: Log final zoom state
+        const mapAny = map.value as any;
+      console.log('[ZOOM DEBUG] Zoom animation ended:', {
+        currentZoom: map.value?.getZoom(),
+        hasPopup: !!mapAny?._popup,
+        mapExists: !!map.value,
+        mapContainerExists: !!map.value?.getContainer(),
+        markerCount: artworkMarkers.value.length,
+        timestamp: new Date().toISOString()
+      });
+
+      // RESTORE: Re-enable ALL popup methods after zoom completes
+      try {
+        const Lglobal = getLeafletGlobal();
+        if (Lglobal) {
+          const popupProto = Lglobal.Popup?.prototype as any;
+          if (popupProto && popupProto._superNuclearGuardInstalled) {
+            console.log('[POPUP DEBUG] Persistent popup guards active; skipping popup restoration');
+          } else if (popupProto) {
+            if (popupProto._originalAnimateZoom) {
+              console.log('[POPUP DEBUG] Restoring popup _animateZoom method');
+              popupProto._animateZoom = popupProto._originalAnimateZoom;
+            }
+
+            if (popupProto._originalUpdatePosition) {
+              console.log('[POPUP DEBUG] Restoring popup _updatePosition method');
+              popupProto._updatePosition = popupProto._originalUpdatePosition;
+            }
+
+            if (popupProto._originalUpdateLayout) {
+              console.log('[POPUP DEBUG] Restoring popup _updateLayout method');
+              popupProto._updateLayout = popupProto._originalUpdateLayout;
+            }
+          }
+
+          if (Lglobal.Marker && Lglobal.Marker.prototype && Lglobal.Marker.prototype._originalOpenPopup) {
+            console.log('[POPUP DEBUG] Restoring marker openPopup method');
+            Lglobal.Marker.prototype.openPopup = Lglobal.Marker.prototype._originalOpenPopup;
+          }
+
+          if (Lglobal.DomUtil) {
+            const domUtilAny = Lglobal.DomUtil as any;
+            if (domUtilAny._superNuclearGuardInstalled) {
+              console.log('[POPUP DEBUG] Persistent DomUtil guards active; skipping restoration');
+            } else if (domUtilAny._originalGetPosition) {
+              console.log('[POPUP DEBUG] Restoring DomUtil.getPosition method');
+              Lglobal.DomUtil.getPosition = domUtilAny._originalGetPosition;
+            }
+          }
+
+          if (map.value) {
+            const mapInstance = map.value as any;
+            if (mapInstance._originalGetMapPanePos) {
+              console.log('[POPUP DEBUG] Restoring map _getMapPanePos method');
+              mapInstance._getMapPanePos = mapInstance._originalGetMapPanePos;
+            }
+          }
+        }
+
+        // RESTORE: Re-enable CSS transitions and restore transforms
+        console.log('[POPUP DEBUG] Restoring CSS transitions and transforms');
+        
+        // Restore transitions on preview elements
+        const previewElements = document.querySelectorAll('.preview-card, .shake-animation, [class*="transition"]');
+        previewElements.forEach((el) => {
+          const element = el as HTMLElement;
+          if (element.style) {
+            element.style.transition = '';
+            element.style.animation = '';
+          }
+        });
+
+        // Restore original transforms on map panes
+        const mapPanes = document.querySelectorAll('.leaflet-map-pane, .leaflet-popup-pane');
+        mapPanes.forEach((pane) => {
+          const paneEl = pane as HTMLElement;
+          const originalTransform = paneEl.getAttribute('data-original-transform');
+          if (originalTransform) {
+            paneEl.style.transform = originalTransform;
+            paneEl.removeAttribute('data-original-transform');
+          }
+        });
+        
+      } catch (restoreError) {
+        console.warn('[POPUP DEBUG] Error restoring popup animation method:', restoreError);
+      }
+      
       // Update markers after zoom animation completes
       updateArtworkMarkersDebounced(50);
+      
+      } catch (zoomEndError) {
+        console.error('[ZOOM DEBUG] Critical error in zoomend handler:', zoomEndError);
+        // Ensure zoom state is cleared even if restoration fails
+        isZoomAnimating.value = false;
+      }
     });
     
     // Update marker styles during continuous zoom events (throttled)
     map.value.on('zoom', () => {
+      console.log('[ZOOM DEBUG] Zoom event fired:', {
+        currentZoom: map.value?.getZoom(),
+        isAnimating: isZoomAnimating.value,
+        timestamp: new Date().toISOString()
+      });
+      
       if (zoomStyleTimeout.value) clearTimeout(zoomStyleTimeout.value);
       zoomStyleTimeout.value = setTimeout(() => {
         try {
           // Guard against calling updateMarkerStyles after map destruction or during animation
           if (map.value && !isZoomAnimating.value) {
+            console.log('[ZOOM DEBUG] Updating marker styles after zoom');
             updateMarkerStyles();
+          } else {
+            console.log('[ZOOM DEBUG] Skipping marker style update - map missing or still animating');
           }
         } catch (e) {
-          /* ignore */
+          console.warn('[ZOOM DEBUG] Error updating marker styles:', e);
         }
         zoomStyleTimeout.value = null;
       }, 50);
@@ -1261,6 +1626,30 @@ async function updateArtworkMarkers() {
     marker.on('click', (e: L.LeafletMouseEvent) => {
       console.log('[MARKER DEBUG] Leaflet marker click event fired for artwork:', artwork.id);
       
+      // Debug: Log marker and popup state at click time
+      const markerAny = marker as any;
+      const mapAny = map.value as any;
+      
+      // Check if there are existing preview elements that might cause conflicts
+      const existingPreviews = document.querySelectorAll('.preview-card, [data-preview-id]');
+      const previewAnimations = document.querySelectorAll('.shake-animation, [class*="animate"]');
+      
+      console.log('[POPUP DEBUG] Marker clicked - state:', {
+        markerId: artwork.id,
+        markerHasPopup: !!markerAny._popup,
+        mapHasPopup: !!mapAny?._popup,
+        markerIsOnMap: map.value?.hasLayer(marker) || false,
+        zoomAnimating: isZoomAnimating.value,
+        existingPreviewElements: existingPreviews.length,
+        activeAnimations: previewAnimations.length,
+        timestamp: new Date().toISOString()
+      });
+
+      // If there are existing preview elements, this is a transition scenario
+      if (existingPreviews.length > 0) {
+        console.log('[POPUP DEBUG] Preview transition detected - existing preview elements will conflict with zoom');
+      }
+      
       // Prevent event propagation to avoid map click conflicts
       if (e.originalEvent) {
         e.originalEvent.stopPropagation();
@@ -1279,6 +1668,18 @@ async function updateArtworkMarkers() {
       
       console.log('[MARKER DEBUG] Emitting previewArtwork event:', previewData);
       
+      // SPECIAL HANDLING: If zoom is starting, defer the preview event
+      if (isZoomAnimating.value) {
+        console.log('[POPUP DEBUG] Deferring preview event due to active zoom animation');
+        // Wait for zoom to complete before showing preview
+        setTimeout(() => {
+          if (!isZoomAnimating.value) {
+            emit('previewArtwork', previewData);
+          }
+        }, 100);
+        return;
+      }
+
       // Only emit preview event - let MapPreviewCard handle navigation
       emit('previewArtwork', previewData);
     });
@@ -1294,10 +1695,41 @@ async function updateArtworkMarkers() {
       </div>
     `;
 
+    console.log('[POPUP DEBUG] Binding popup to marker:', {
+      markerId: artwork.id,
+      markerPosition: [artwork.latitude, artwork.longitude],
+      mapExists: !!map.value,
+      isZoomAnimating: isZoomAnimating.value
+    });
+
     marker.bindPopup(popupContent, {
       closeOnClick: true,
       autoClose: true,
-      closeButton: true
+      closeButton: true,
+      // Set a custom className to identify our popups
+      className: 'artwork-popup-container'
+    });
+
+    // Add popup event listeners for debugging
+    marker.on('popupopen', (e: any) => {
+      console.log('[POPUP DEBUG] Popup opened for marker:', {
+        markerId: artwork.id,
+        popupElement: !!e.popup._container,
+        mapExists: !!map.value,
+        isZoomAnimating: isZoomAnimating.value,
+        timestamp: new Date().toISOString()
+      });
+    });
+
+    marker.on('popupclose', (e: any) => {
+      console.log('[POPUP DEBUG] Popup closed for marker:', {
+        markerId: artwork.id,
+        reason: 'popup-close-event',
+        popupExists: !!e.popup,
+        mapExists: !!map.value,
+        isZoomAnimating: isZoomAnimating.value,
+        timestamp: new Date().toISOString()
+      });
     });
 
     // Add to cluster group after event handlers are set up
