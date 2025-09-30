@@ -9,9 +9,9 @@ const mockArtwork = {
   longitude: -123.1207,
   type: 'mural',
   title: 'Test Mural',
-  photos: [],
-  recent_photo: null,
-  photo_count: 0,
+  photos: ['https://example.com/photo.jpg'],
+  recent_photo: 'https://example.com/photo.jpg',
+  photo_count: 1,
 } as ArtworkPin;
 
 describe('useMapFilters', () => {
@@ -31,6 +31,30 @@ describe('useMapFilters', () => {
 
     it('should show artwork by default', () => {
       expect(mapFilters.shouldShowArtwork(mockArtwork)).toBe(true);
+    });
+
+    it('hides artworks without photos by default', () => {
+      const artworkWithoutPhotos = {
+        ...mockArtwork,
+        id: 'no-photo',
+        photos: [],
+        recent_photo: null,
+        photo_count: 0,
+      };
+      expect(mapFilters.shouldShowArtwork(artworkWithoutPhotos)).toBe(false);
+    });
+
+    it('shows artworks without photos when enabled', () => {
+      const artworkWithoutPhotos = {
+        ...mockArtwork,
+        id: 'no-photo-enabled',
+        photos: [],
+        recent_photo: null,
+        photo_count: 0,
+      };
+      mapFilters.toggleShowArtworksWithoutPhotos();
+      expect(mapFilters.shouldShowArtwork(artworkWithoutPhotos)).toBe(true);
+      mapFilters.toggleShowArtworksWithoutPhotos();
     });
 
     it('should toggle artwork types', () => {

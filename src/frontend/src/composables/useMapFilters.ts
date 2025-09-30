@@ -30,6 +30,7 @@ export interface MapFiltersState {
   showOnlyMySubmissions: boolean;
   hideVisited: boolean;
   showRemoved: boolean;
+  showArtworksWithoutPhotos: boolean;
 }
 
 // Default artwork types with colors (matches existing system)
@@ -62,6 +63,7 @@ let globalFiltersState = reactive<MapFiltersState>({
   showOnlyMySubmissions: false,
   hideVisited: false,
   showRemoved: false,
+  showArtworksWithoutPhotos: false,
 });
 
 let isInitialized = false;
@@ -94,8 +96,9 @@ export function useMapFilters() {
     // Check new simple filters
     const hideVisitedActive = globalFiltersState.hideVisited;
     const showRemovedActive = globalFiltersState.showRemoved;
+    const showArtworksWithoutPhotosActive = globalFiltersState.showArtworksWithoutPhotos;
 
-    return someTypesDisabled || nonDefaultStatus || userListFiltersActive || showingOnlyMySubmissions || hideVisitedActive || showRemovedActive;
+    return someTypesDisabled || nonDefaultStatus || userListFiltersActive || showingOnlyMySubmissions || hideVisitedActive || showRemovedActive || showArtworksWithoutPhotosActive;
   });
 
   const activeFilterCount = computed(() => {
@@ -118,6 +121,7 @@ export function useMapFilters() {
     // Count new simple filters
     if (globalFiltersState.hideVisited) count++;
     if (globalFiltersState.showRemoved) count++;
+    if (globalFiltersState.showArtworksWithoutPhotos) count++;
     
     return count;
   });
@@ -195,6 +199,10 @@ export function useMapFilters() {
         if (typeof parsed.showRemoved === 'boolean') {
           globalFiltersState.showRemoved = parsed.showRemoved;
         }
+
+        if (typeof parsed.showArtworksWithoutPhotos === 'boolean') {
+          globalFiltersState.showArtworksWithoutPhotos = parsed.showArtworksWithoutPhotos;
+        }
       }
     } catch (error) {
       console.warn('Failed to load map filters from storage:', error);
@@ -227,6 +235,7 @@ export function useMapFilters() {
     globalFiltersState.showOnlyMySubmissions = false;
     globalFiltersState.hideVisited = false;
     globalFiltersState.showRemoved = false;
+    globalFiltersState.showArtworksWithoutPhotos = false;
     
     saveFiltersToStorage();
   }
@@ -279,6 +288,11 @@ export function useMapFilters() {
     saveFiltersToStorage();
   }
 
+  function toggleShowArtworksWithoutPhotos(): void {
+    globalFiltersState.showArtworksWithoutPhotos = !globalFiltersState.showArtworksWithoutPhotos;
+    saveFiltersToStorage();
+  }
+
   // Sync user lists when they're available
   async function syncUserLists(): Promise<void> {
     try {
@@ -313,11 +327,24 @@ export function useMapFilters() {
   // Filter checking methods for MapComponent
   function shouldShowArtwork(artwork: any): boolean {
     // Check artwork type filter
+    const artworkTypeKey = artwork.artwork_type || artwork.type;
     const typeEnabled = globalFiltersState.artworkTypes.find(type => 
-      type.key === artwork.artwork_type
+      type.key === artworkTypeKey
     )?.enabled ?? true; // Show by default if type not found
     
     if (!typeEnabled) return false;
+    
+    // Check for artworks without photos when the toggle is off
+    if (!globalFiltersState.showArtworksWithoutPhotos) {
+      const hasPhotos =
+        (Array.isArray(artwork.photos) && artwork.photos.length > 0) ||
+        Boolean(artwork.recent_photo) ||
+        (typeof artwork.photo_count === 'number' && artwork.photo_count > 0) ||
+        (typeof artwork.photoCount === 'number' && artwork.photoCount > 0);
+      if (!hasPhotos) {
+        return false;
+      }
+    }
     
     // Check "Hide Visited" filter
     if (globalFiltersState.hideVisited) {
@@ -388,6 +415,7 @@ export function useMapFilters() {
     toggleShowOnlyMySubmissions,
     toggleHideVisited,
     toggleShowRemoved,
+    toggleShowArtworksWithoutPhotos,
     syncUserLists,
     shouldShowArtwork,
     

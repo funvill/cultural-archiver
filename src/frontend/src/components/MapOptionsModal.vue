@@ -130,6 +130,36 @@ onUnmounted(() => {
               </div>
             </div>
 
+            <!-- Show Artworks Without Photos -->
+            <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  :checked="mapFilters.filtersState.showArtworksWithoutPhotos"
+                  @change="mapFilters.toggleShowArtworksWithoutPhotos()"
+                  class="sr-only peer"
+                />
+                <div
+                  class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors border-2 cursor-pointer"
+                  :class="mapFilters.filtersState.showArtworksWithoutPhotos ? 'bg-blue-600 border-blue-600 shadow-md' : 'bg-gray-100 border-gray-300 shadow-inner'"
+                >
+                  <div
+                    class="dot absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform shadow-lg border border-gray-200 pointer-events-none"
+                    :class="mapFilters.filtersState.showArtworksWithoutPhotos ? 'translate-x-5 bg-white' : 'translate-x-0 bg-gray-50'"
+                  ></div>
+                </div>
+              </label>
+              
+              <div class="flex-1">
+                <div class="flex items-center">
+                  <span class="text-sm font-medium text-gray-900">Show artworks without photos</span>
+                </div>
+                <p class="text-xs mt-1 text-gray-600">
+                  When off, artworks that do not have photos yet are hidden from the map.
+                </p>
+              </div>
+            </div>
+
             <!-- Show Removed Artworks -->
             <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
               <label class="relative inline-flex items-center cursor-pointer">

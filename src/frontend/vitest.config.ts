@@ -15,6 +15,7 @@ export default defineConfig({
       '**/cypress/**',
       '**/.{idea,git,cache,output,temp}/**',
       '**/tests/e2e/**', // Exclude Playwright E2E tests
+      '**/tests/playwright/**', // Exclude standalone Playwright tests
     ],
   },
   resolve: {

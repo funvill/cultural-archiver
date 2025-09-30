@@ -150,26 +150,27 @@ const artworksStore = useArtworksStore();
 // Router for navigation
 const router = useRouter();
 
-type LeafletGlobal = typeof L & Record<string, any>;
+
+// Leaflet guard helpers
+
+type LeafletGlobal = typeof L & {
+  Popup?: typeof L.Popup & { prototype: Record<string, any> };
+  Marker?: typeof L.Marker & { prototype: Record<string, any> };
+  DomUtil?: typeof L.DomUtil & Record<string, any>;
+  Map?: typeof L.Map & { prototype: Record<string, any> };
+};
 
 const getLeafletGlobal = (): LeafletGlobal | null => {
-  const imported = L as LeafletGlobal;
-  if (imported?.Popup) return imported;
-
-  if (typeof window !== 'undefined') {
-    const globalL = (window as any).L as LeafletGlobal | undefined;
-    if (globalL?.Popup) return globalL;
+  if (typeof window !== 'undefined' && (window as any).L) {
+    return (window as any).L as LeafletGlobal;
   }
-
-  return null;
+  return L as LeafletGlobal;
 };
 
 const installLeafletPopupGuards = () => {
   const Lglobal = getLeafletGlobal();
-  if (!Lglobal?.Popup?.prototype) return;
-
-  const popupProto = Lglobal.Popup.prototype as any;
-  if (popupProto._superNuclearGuardInstalled) return;
+  const popupProto = Lglobal?.Popup?.prototype as Record<string, any> | undefined;
+  if (!popupProto || popupProto._superNuclearGuardInstalled) return;
 
   popupProto._superNuclearGuardInstalled = true;
 
@@ -183,13 +184,13 @@ const installLeafletPopupGuards = () => {
     }
 
     popupProto[methodName] = function (...args: any[]) {
-      if (!this || !this._map || typeof this._map._latLngToNewLayerPoint !== 'function') {
-        return this;
-      }
+      const popupInstance = this as any;
+      if (!popupInstance) return popupInstance;
 
       if (methodName === '_movePopup') {
-        if (!this._container || !this._source) {
-          return this;
+        const popup = popupInstance._popup;
+        if (!popup || typeof popup.setLatLng !== 'function') {
+          return popupInstance;
         }
       }
 
@@ -197,7 +198,7 @@ const installLeafletPopupGuards = () => {
         return original.apply(this, args);
       } catch (error) {
         console.warn(`[POPUP DEBUG] Suppressed popup ${methodName} failure:`, error);
-        return this;
+        return popupInstance;
       }
     };
   };
@@ -210,43 +211,38 @@ const installLeafletPopupGuards = () => {
 
 const installLeafletDomUtilGuards = () => {
   const Lglobal = getLeafletGlobal();
-  if (!Lglobal?.DomUtil) return;
+  const domUtilAny = Lglobal?.DomUtil as (typeof L.DomUtil & Record<string, any>) | undefined;
+  if (!domUtilAny || domUtilAny._superNuclearGuardInstalled) return;
 
-  if ((Lglobal.DomUtil as any)._superNuclearGuardInstalled) return;
+  domUtilAny._superNuclearGuardInstalled = true;
+  const originalGetPosition = domUtilAny.getPosition;
+  domUtilAny._originalGetPosition = originalGetPosition;
 
-  (Lglobal.DomUtil as any)._superNuclearGuardInstalled = true;
+  domUtilAny.getPosition = ((el: HTMLElement) => {
+    if (!el) {
+      return L.point(0, 0);
+    }
 
-  const originalGetPosition = Lglobal.DomUtil.getPosition;
-  if (typeof originalGetPosition === 'function') {
-    (Lglobal.DomUtil as any)._originalGetPosition = originalGetPosition;
-    Lglobal.DomUtil.getPosition = function (el: any, round?: boolean) {
-      if (!el) {
-        return { x: 0, y: 0 };
-      }
-
-      try {
-        return originalGetPosition.call(this, el, round);
-      } catch (error) {
-        return { x: 0, y: 0 };
-      }
-    };
-  }
+    try {
+      return originalGetPosition.call(domUtilAny, el);
+    } catch (error) {
+      return L.point(0, 0);
+    }
+  }) as typeof L.DomUtil.getPosition;
 };
 
 const installLeafletMapZoomGuard = () => {
   const Lglobal = getLeafletGlobal();
-  if (!Lglobal?.Map?.prototype) return;
-
-  const mapProto = Lglobal.Map.prototype as any;
-  if (mapProto._superNuclearGuardInstalled) return;
+  const mapProto = Lglobal?.Map?.prototype as Record<string, any> | undefined;
+  if (!mapProto || mapProto._superNuclearGuardInstalled) return;
 
   mapProto._superNuclearGuardInstalled = true;
-
-  if (typeof mapProto._animateZoom === 'function') {
-    mapProto._originalAnimateZoomGuard = mapProto._animateZoom;
+  const originalAnimateZoom = mapProto._animateZoom;
+  if (typeof originalAnimateZoom === 'function') {
+    mapProto._originalAnimateZoomGuard = originalAnimateZoom;
     mapProto._animateZoom = function (...args: any[]) {
       try {
-        return mapProto._originalAnimateZoomGuard.apply(this, args);
+        return originalAnimateZoom.apply(this, args);
       } catch (error) {
         console.warn('[ZOOM DEBUG] Suppressed map _animateZoom failure:', error);
         return this;
@@ -255,33 +251,27 @@ const installLeafletMapZoomGuard = () => {
   }
 };
 
-
 const installLeafletMarkerGuards = () => {
   const Lglobal = getLeafletGlobal();
-  if (!Lglobal?.Marker?.prototype) return;
-
-  const markerProto = Lglobal.Marker.prototype as any;
-  if (markerProto._superNuclearMarkerGuardInstalled) return;
+  const markerProto = Lglobal?.Marker?.prototype as Record<string, any> | undefined;
+  if (!markerProto || markerProto._superNuclearMarkerGuardInstalled) return;
 
   markerProto._superNuclearMarkerGuardInstalled = true;
-
-  if (typeof markerProto._movePopup === 'function') {
-    const originalMovePopup = markerProto._movePopup;
-    if (!markerProto._originalMovePopupGuard) {
-      markerProto._originalMovePopupGuard = originalMovePopup;
-    }
-
-    markerProto._movePopup = function (e: any) {
-      if (!this || !this._popup || typeof this._popup.setLatLng !== 'function') {
+  const originalMovePopup = markerProto._movePopup as ((this: L.Marker, e: any) => any) | undefined;
+  if (typeof originalMovePopup === 'function') {
+    markerProto._originalMovePopupGuard = originalMovePopup;
+    markerProto._movePopup = function (this: L.Marker, e: any) {
+      const popup = (this as any)._popup;
+      if (!popup || typeof popup.setLatLng !== 'function') {
         return this;
       }
 
       try {
-        return originalMovePopup.call(this, e);
+        originalMovePopup.call(this, e);
       } catch (error) {
         console.warn('[POPUP DEBUG] Suppressed marker _movePopup failure:', error);
-        return this;
       }
+      return this;
     };
   }
 };
@@ -642,6 +632,10 @@ async function initializeMap() {
     console.log('Map created successfully:', map.value);
 
     // Install persistent Leaflet guards to prevent popup zoom crashes
+    installLeafletPopupGuards();
+    installLeafletDomUtilGuards();
+    installLeafletMapZoomGuard();
+    installLeafletMarkerGuards();
     installLeafletPopupGuards();
     installLeafletDomUtilGuards();
     installLeafletMapZoomGuard();
@@ -1645,7 +1639,7 @@ async function updateArtworkMarkers() {
         break;
     }
 
-    // Store artwork ID and type on marker for efficient tracking
+    // Store artwork ID and type on marker for efficient tracking and type on marker for efficient tracking
     (marker as any)._artworkId = artwork.id;
     (marker as any)._artworkType = artwork.type || 'other';
     (marker as any)._markerType = markerType;
@@ -1791,17 +1785,15 @@ async function updateArtworkMarkers() {
 
 // Update styles (radius/color/etc) for all existing markers to react to zoom changes
 function updateMarkerStyles() {
-  // Guard against accessing map during destruction
   if (!map.value) {
     return;
   }
 
   try {
-    // Recompute style for each marker and apply via setStyle
     artworkMarkers.value.forEach((marker: any) => {
       try {
         const artworkType = marker._artworkType || 'other';
-        const markerType = marker._markerType as string | undefined;
+        const markerType = marker._markerType as MarkerType | undefined;
         const newStyle = createArtworkStyle(artworkType as string);
 
         if (typeof marker.setIcon === 'function' && markerType) {
@@ -1823,19 +1815,14 @@ function updateMarkerStyles() {
           }
 
           if (newIcon) {
-            try {
-              marker.setIcon(newIcon);
-            } catch {
-              /* ignore */
-            }
+            marker.setIcon(newIcon);
           }
         }
 
-        // circleMarker supports setStyle; markerCluster may wrap markers but setStyle should still work
         if (typeof marker.setStyle === 'function') {
           marker.setStyle(newStyle);
         }
-        // Also attempt to setRadius on circle markers which sometimes don't update via setStyle
+
         if (typeof marker.setRadius === 'function' && typeof newStyle.radius === 'number') {
           try {
             marker.setRadius(newStyle.radius);
@@ -1843,6 +1830,7 @@ function updateMarkerStyles() {
             /* ignore */
           }
 
+<<<<<<< HEAD
           // If this is a group/cluster wrapper, try to update inner layers as well
           if ((marker as any).getLayers && typeof (marker as any).getLayers === 'function') {
             const layers = (marker as any).getLayers();
@@ -1855,6 +1843,17 @@ function updateMarkerStyles() {
                 } catch {
                   /* ignore */
                 }
+=======
+        if (marker.getLayers && typeof marker.getLayers === 'function') {
+          const layers = marker.getLayers();
+          layers.forEach((inner: any) => {
+            if (!inner) return;
+            if (typeof inner.setStyle === 'function') {
+              try {
+                inner.setStyle(newStyle);
+              } catch {
+                /* ignore */
+>>>>>>> ad07d42 (Filter artworks without photos)
               }
             });
           }
@@ -1862,6 +1861,11 @@ function updateMarkerStyles() {
           // ignore per-marker failures
           // console.debug('Failed to update marker style for marker', marker, err);
         }
+<<<<<<< HEAD
+=======
+      } catch (err) {
+        /* ignore individual marker errors */
+>>>>>>> ad07d42 (Filter artworks without photos)
       }
     } catch (err) {
       console.warn('updateMarkerStyles failed:', err);
@@ -2248,6 +2252,16 @@ onUnmounted(() => {
   }
 });
 
+// Rebuild markers when visited/starred sets change
+watch(
+  () => Array.from(visitedArtworks.value).join(','),
+  () => updateArtworkMarkersDebounced(25)
+);
+watch(
+  () => Array.from(starredArtworks.value).join(','),
+  () => updateArtworkMarkersDebounced(25)
+);
+
 // Watch clustering toggle
 watch(
   () => clusterEnabled.value,
@@ -2281,6 +2295,7 @@ watch(
     mapFilters.filtersState.clusterEnabled,
     mapFilters.filtersState.hideVisited,
     mapFilters.filtersState.showRemoved,
+    mapFilters.filtersState.showArtworksWithoutPhotos,
   ],
   () => {
     console.log('[FILTER DEBUG] Map filters changed, updating markers');
