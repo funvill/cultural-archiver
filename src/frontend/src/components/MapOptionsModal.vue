@@ -102,11 +102,12 @@ onUnmounted(() => {
           <div class="space-y-4">
             <!-- Hide Visited Artworks -->
             <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
-              <label class="relative inline-flex items-center cursor-pointer" @click="mapFilters.toggleHideVisited">
+              <label class="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
                   :checked="mapFilters.filtersState.hideVisited"
-                  class="sr-only"
+                  @change="mapFilters.toggleHideVisited()"
+                  class="sr-only peer"
                 />
                 <div
                   class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors border-2 cursor-pointer"
@@ -131,11 +132,12 @@ onUnmounted(() => {
 
             <!-- Show Removed Artworks -->
             <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
-              <label class="relative inline-flex items-center cursor-pointer" @click="mapFilters.toggleShowRemoved">
+              <label class="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
                   :checked="mapFilters.filtersState.showRemoved"
-                  class="sr-only"
+                  @change="mapFilters.toggleShowRemoved()"
+                  class="sr-only peer"
                 />
                 <div
                   class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors border-2 cursor-pointer"
@@ -238,7 +240,7 @@ onUnmounted(() => {
                   type="checkbox"
                   :checked="artworkType.enabled"
                   @change="mapFilters.toggleArtworkType(artworkType.key)"
-                  class="sr-only"
+                  class="sr-only peer"
                 />
                 <div
                   class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors border-2"

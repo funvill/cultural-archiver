@@ -1,9 +1,13 @@
+<<<<<<< HEAD
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
+=======
+﻿<script setup lang="ts">
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+>>>>>>> 982fdc3 (Better filter banner)
 import { useRouter, useRoute } from 'vue-router';
 import MapComponent from '../components/MapComponent.vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
-import FilterBanner from '../components/FilterBanner.vue';
 import { useArtworksStore } from '../stores/artworks';
 import { useMapPreviewStore } from '../stores/mapPreview';
 import { useMapFilters } from '../composables/useMapFilters';
@@ -528,10 +532,7 @@ watch(
 
 <template>
   <div class="map-view h-full w-full relative">
-    <!-- Active Filters Banner -->
-    <FilterBanner />
-    
-    <!-- List Filter Indicator -->
+    <!-- Active Filters Banner --><!-- List Filter Indicator -->
     <div 
       v-if="mapFilters.hasActiveFilters.value && !listFilterActive"
       class="absolute top-4 left-4 right-20 z-40 bg-amber-50 border border-amber-200 rounded-lg p-3 shadow-sm"
@@ -678,3 +679,4 @@ watch(
   animation: shake-and-settle 0.6s ease-in-out;
 }
 </style>
+
