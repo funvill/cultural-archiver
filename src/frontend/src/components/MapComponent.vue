@@ -256,6 +256,36 @@ const installLeafletMapZoomGuard = () => {
 };
 
 
+const installLeafletMarkerGuards = () => {
+  const Lglobal = getLeafletGlobal();
+  if (!Lglobal?.Marker?.prototype) return;
+
+  const markerProto = Lglobal.Marker.prototype as any;
+  if (markerProto._superNuclearMarkerGuardInstalled) return;
+
+  markerProto._superNuclearMarkerGuardInstalled = true;
+
+  if (typeof markerProto._movePopup === 'function') {
+    const originalMovePopup = markerProto._movePopup;
+    if (!markerProto._originalMovePopupGuard) {
+      markerProto._originalMovePopupGuard = originalMovePopup;
+    }
+
+    markerProto._movePopup = function (e: any) {
+      if (!this || !this._popup || typeof this._popup.setLatLng !== 'function') {
+        return this;
+      }
+
+      try {
+        return originalMovePopup.call(this, e);
+      } catch (error) {
+        console.warn('[POPUP DEBUG] Suppressed marker _movePopup failure:', error);
+        return this;
+      }
+    };
+  }
+};
+
 // Default coordinates (Vancouver - near sample data for testing)
 const DEFAULT_CENTER = { latitude: 49.265, longitude: -123.25 };
 
@@ -392,52 +422,49 @@ const createNormalMarker = (type: string) => {
 const createVisitedMarker = () => {
   const currentZoom = map.value?.getZoom() ?? 15;
   const size = calculateIconSize(currentZoom);
-  
+  const circleDiameter = size;
+
   return L.divIcon({
     html: `
-      <div class="artwork-visited-marker flex items-center justify-center" style="width: ${size}px; height: ${size}px; opacity: 0.6;">
-        <div class="visited-flag" style="
-          width: ${size * 0.8}px; 
-          height: ${size * 0.6}px; 
-          background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
-          border: 1px solid #4b5563;
+      <div
+        class="artwork-visited-marker flex items-center justify-center"
+        style="
+          width: ${circleDiameter}px;
+          height: ${circleDiameter}px;
           position: relative;
-          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-        ">
-          <!-- Flag pole -->
-          <div style="
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        "
+      >
+        
+        <svg
+          width="${circleDiameter}px"
+          height="${circleDiameter}"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#ffffff"
+          stroke-width="3"
+          style="
             position: absolute;
-            left: 0;
-            top: 0;
-            width: 2px;
-            height: ${size}px;
-            background: #4b5563;
-            transform: translateY(-${size * 0.2}px);
-          "></div>
-          <!-- Flag triangle cutout on right -->
-          <div style="
-            position: absolute;
-            right: 0;
-            top: 0;
-            width: 0;
-            height: 0;
-            border-top: ${size * 0.3}px solid transparent;
-            border-bottom: ${size * 0.3}px solid transparent;
-            border-left: ${size * 0.15}px solid #f3f4f6;
-          "></div>
-          <!-- Check mark -->
-          <svg width="${size * 0.4}" height="${size * 0.4}" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" 
-               style="position: absolute; left: ${size * 0.15}px; top: ${size * 0.1}px;">
-            <polyline points="20,6 9,17 4,12"></polyline>
-          </svg>
-        </div>
+            background: #1f2937;
+            border-radius: 9999px;
+            padding: ${size * 0.06}px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+          "
+        >
+          <polyline points="20,6 9,17 4,12"></polyline>
+        </svg>
       </div>
     `,
     className: 'custom-visited-icon visited-marker-layer',
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2]
+    iconSize: [circleDiameter, circleDiameter],
+    iconAnchor: [circleDiameter / 2, circleDiameter / 2]
   });
 };
+
+
 
 const createStarredMarker = () => {
   const currentZoom = map.value?.getZoom() ?? 15;
@@ -618,6 +645,7 @@ async function initializeMap() {
     installLeafletPopupGuards();
     installLeafletDomUtilGuards();
     installLeafletMapZoomGuard();
+    installLeafletMarkerGuards();
 
     // Ensure the container has the proper Leaflet classes
     if (mapContainer.value) {
@@ -876,6 +904,7 @@ async function initializeMap() {
           installLeafletPopupGuards();
           installLeafletDomUtilGuards();
           installLeafletMapZoomGuard();
+          installLeafletMarkerGuards();
         } catch (overrideErr) {
           console.warn('[ZOOM DEBUG] Error applying defensive overrides:', overrideErr);
         }
@@ -1616,11 +1645,10 @@ async function updateArtworkMarkers() {
         break;
     }
 
-    // Create markers for the batch
-    const markersToAdd: L.Marker[] = [];
-    for (let j = 0; j < batch.length; j++) {
-      const artwork = batch[j] as ArtworkPin;
-      const listMembership = memberships[j];
+    // Store artwork ID and type on marker for efficient tracking
+    (marker as any)._artworkId = artwork.id;
+    (marker as any)._artworkType = artwork.type || 'other';
+    (marker as any)._markerType = markerType;
 
     // Add event handlers BEFORE adding to cluster group to ensure proper binding
     marker.on('click', (e: L.LeafletMouseEvent) => {
@@ -1768,40 +1796,51 @@ function updateMarkerStyles() {
     return;
   }
 
-  // Avoid updating icons during animated zooms which can cause internal null references
-  if (animatingZoom.value) {
-    if (!pendingMarkerUpdate.value && map.value) {
-      pendingMarkerUpdate.value = true;
-      map.value.once('zoomend', () => {
-        pendingMarkerUpdate.value = false;
-        animatingZoom.value = false;
-        updateMarkerStyles();
-      });
-    }
-    return;
-  }
+  try {
+    // Recompute style for each marker and apply via setStyle
+    artworkMarkers.value.forEach((marker: any) => {
+      try {
+        const artworkType = marker._artworkType || 'other';
+        const markerType = marker._markerType as string | undefined;
+        const newStyle = createArtworkStyle(artworkType as string);
 
-  // Run async updates without blocking UI
-  (async () => {
-    try {
-      // Recompute style for each marker and apply via setStyle
-      for (const marker of artworkMarkers.value) {
-        try {
-          const artworkId = (marker as any)._artworkId;
-          const artworkType = (marker as any)._artworkType || 'other';
-          
-          if (!artworkId) continue;
-          
-          // Get list membership for the artwork
-          const listMembership = await checkArtworkListMembership(artworkId);
-          
-          // Create artwork object for the icon function
-          const artwork = { id: artworkId, type: artworkType } as ArtworkPin;
-          const newIcon = createArtworkIcon(artwork, listMembership);
-          
-          // Update the marker icon for div icon markers
-          if (typeof (marker as any).setIcon === 'function') {
-            (marker as any).setIcon(newIcon);
+        if (typeof marker.setIcon === 'function' && markerType) {
+          let newIcon: L.DivIcon | null = null;
+          switch (markerType) {
+            case MarkerType.VISITED:
+              newIcon = createVisitedMarker();
+              break;
+            case MarkerType.STARRED:
+              newIcon = createStarredMarker();
+              break;
+            case MarkerType.UNKNOWN:
+              newIcon = createUnknownMarker(artworkType as string);
+              break;
+            case MarkerType.NORMAL:
+            default:
+              newIcon = createNormalMarker(artworkType as string);
+              break;
+          }
+
+          if (newIcon) {
+            try {
+              marker.setIcon(newIcon);
+            } catch {
+              /* ignore */
+            }
+          }
+        }
+
+        // circleMarker supports setStyle; markerCluster may wrap markers but setStyle should still work
+        if (typeof marker.setStyle === 'function') {
+          marker.setStyle(newStyle);
+        }
+        // Also attempt to setRadius on circle markers which sometimes don't update via setStyle
+        if (typeof marker.setRadius === 'function' && typeof newStyle.radius === 'number') {
+          try {
+            marker.setRadius(newStyle.radius);
+          } catch {
+            /* ignore */
           }
 
           // If this is a group/cluster wrapper, try to update inner layers as well
@@ -2214,6 +2253,21 @@ watch(
   () => clusterEnabled.value,
   async () => {
     await configureMarkerGroup();
+  }
+);
+
+// Rebuild markers when visited/starred sets change (ensures icons update after lists load)
+watch(
+  () => Array.from(visitedArtworks.value).join(','),
+  () => {
+    updateArtworkMarkersDebounced(25);
+  }
+);
+
+watch(
+  () => Array.from(starredArtworks.value).join(','),
+  () => {
+    updateArtworkMarkersDebounced(25);
   }
 );
 
