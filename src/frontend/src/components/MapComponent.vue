@@ -1,11 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
-
-// Provide local declarations for Vue SFC macros so the TypeScript language
-// server recognizes them in <script setup> without needing @ts-ignore.
-declare function defineEmits<T extends Record<string, (...args: unknown[]) => void>>(emits?: T): (...args: unknown[]) => void;
-declare function defineEmits(emits?: string[]): (event: string, ...args: unknown[]) => void;
-declare function defineExpose<T = Record<string, unknown>>(exposed?: T): void;
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineEmits } from 'vue';
 import {
   ExclamationTriangleIcon,
   ExclamationCircleIcon,
@@ -22,9 +16,13 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import type { Coordinates, ArtworkPin, MapComponentProps } from '../types/index';
 import { useArtworksStore } from '../stores/artworks';
-import { useArtworkTypeFilters, type ArtworkTypeToggle } from '../composables/useArtworkTypeFilters';
+import {
+  useArtworkTypeFilters,
+} from '../composables/useArtworkTypeFilters';
+import { useUserLists } from '../composables/useUserLists';
+import { useMapFilters } from '../composables/useMapFilters';
 import { useRouter } from 'vue-router';
-import { apiService } from '../services/api';
+import MapOptionsModal from './MapOptionsModal.vue';
 
 // Props
 const props = withDefaults(defineProps<MapComponentProps>(), {
@@ -66,6 +64,8 @@ const animatingZoom = ref(false);
 const pendingDismissPreview = ref(false);
 // Debounce for updating marker styles during continuous zoom
 const zoomStyleTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
+// Track zoom animation state to prevent marker updates during animations
+const isZoomAnimating = ref(false);
 // Progressive loading state
 const isProgressiveLoading = ref(false);
 const progressiveLoadingStats = ref<{
@@ -83,391 +83,19 @@ const artworkMarkers = ref<(L.Marker | L.CircleMarker)[]>([]);
 // Use any for cluster type to avoid type issues if markercluster types not available
 const markerClusterGroup = ref<any | null>(null);
 // Map options state
-const showOptionsPanel = ref(false);
-const clusterEnabled = ref(true);
+const showOptionsModal = ref(false);
+// Use mapFilters clustering state instead of local ref
+const clusterEnabled = computed(() => mapFilters.filtersState.clusterEnabled);
 const debugRingsEnabled = ref(false);
-const clearingCache = ref(false);
 // Artwork type filters - using shared composable
-const { artworkTypes, isArtworkTypeEnabled, getTypeColor, enableAllTypes, disableAllTypes } =
+const { isArtworkTypeEnabled, getTypeColor } =
   useArtworkTypeFilters();
 
-// Cache for artwork list memberships to avoid repeated API calls
-const artworkListMembership = ref<Map<string, { beenHere: boolean, wantToSee: boolean }>>(new Map());
+// User lists for marker classification
+const { visitedArtworks, starredArtworks } = useUserLists();
 
-// Simple in-memory TTL caches to reduce repeated network calls
-const USER_LISTS_TTL_MS = 1000 * 60 * 5; // 5 minutes
-const LIST_DETAILS_TTL_MS = 1000 * 60 * 5; // 5 minutes
-
-const userListsCache: { ts: number; data: any[] | null } = { ts: 0, data: null };
-const listDetailsCache: Map<string, { ts: number; data: any | null }> = new Map();
-
-// Persisted cache keys
-const PERSIST_USER_LISTS_KEY = 'map:cachedUserLists';
-const PERSIST_LIST_DETAILS_KEY = 'map:cachedListDetails';
-// Cache telemetry keys
-const PERSIST_CACHE_TELEMETRY_KEY = 'map:cacheTelemetry';
-
-// Telemetry counters (persisted)
-const cacheTelemetry = { userListsHit: 0, userListsMiss: 0, listDetailsHit: 0, listDetailsMiss: 0 };
-
-// Load telemetry from localStorage
-try {
-  const persisted = localStorage.getItem(PERSIST_CACHE_TELEMETRY_KEY);
-  if (persisted) {
-    const parsed = JSON.parse(persisted);
-    cacheTelemetry.userListsHit = parsed.userListsHit || 0;
-    cacheTelemetry.userListsMiss = parsed.userListsMiss || 0;
-    cacheTelemetry.listDetailsHit = parsed.listDetailsHit || 0;
-    cacheTelemetry.listDetailsMiss = parsed.listDetailsMiss || 0;
-  }
-} catch (e) {
-  /* ignore */
-}
-
-function persistTelemetry() {
-  try {
-    localStorage.setItem(PERSIST_CACHE_TELEMETRY_KEY, JSON.stringify(cacheTelemetry));
-    try {
-      // Expose a copy for easy debugging in the browser console
-      if (typeof window !== 'undefined') {
-        try { (window as any).__mapCacheTelemetry = { ...cacheTelemetry }; } catch (e) {}
-      }
-    } catch (e) {
-      /* ignore */
-    }
-    // Emit telemetry update so parent components can pick up changes immediately
-    try {
-      emit && typeof emit === 'function' && emit('telemetryUpdate', getCacheTelemetry());
-    } catch (e) {
-      // ignore
-    }
-
-    // Broadcast to other tabs using BroadcastChannel if available
-    try {
-      if (typeof BroadcastChannel !== 'undefined') {
-        try {
-          const ch = new BroadcastChannel('map-cache');
-          ch.postMessage({ type: 'telemetry', payload: getCacheTelemetry() });
-          ch.close();
-        } catch (e) {
-          // ignore
-        }
-      } else {
-        // Fallback: also write to localStorage (already done) so other tabs can read storage events
-      }
-    } catch (e) {
-      /* ignore */
-    }
-  } catch (e) {
-    /* ignore */
-  }
-}
-
-// Debounce support for telemetry persistence to avoid frequent sync I/O
-let telemetryFlushTimeout: ReturnType<typeof setTimeout> | null = null;
-const TELEMETRY_DEBOUNCE_MS = 1000;
-
-function schedulePersistTelemetry() {
-  // Clear existing and schedule a new flush
-  if (telemetryFlushTimeout) clearTimeout(telemetryFlushTimeout as any);
-  telemetryFlushTimeout = setTimeout(() => {
-    try {
-      persistTelemetry();
-    } finally {
-      telemetryFlushTimeout = null;
-    }
-  }, TELEMETRY_DEBOUNCE_MS);
-}
-
-function flushTelemetryNow() {
-  if (telemetryFlushTimeout) {
-    clearTimeout(telemetryFlushTimeout as any);
-    telemetryFlushTimeout = null;
-  }
-  try {
-    persistTelemetry();
-  } catch (e) {
-    /* ignore */
-  }
-}
-
-// BroadcastChannel for cross-tab sync (created lazily in browser)
-let bc: BroadcastChannel | null = null;
-
-onMounted(() => {
-  try {
-    if (typeof BroadcastChannel !== 'undefined') {
-      bc = new BroadcastChannel('map-cache');
-      bc.onmessage = (ev: MessageEvent) => {
-        try {
-          const msg = ev.data || {};
-          if (msg && msg.type === 'telemetry' && msg.payload) {
-            // Merge counters (adopt payload as current snapshot)
-            try {
-              cacheTelemetry.userListsHit = msg.payload.userListsHit || 0;
-              cacheTelemetry.userListsMiss = msg.payload.userListsMiss || 0;
-              cacheTelemetry.listDetailsHit = msg.payload.listDetailsHit || 0;
-              cacheTelemetry.listDetailsMiss = msg.payload.listDetailsMiss || 0;
-              // Emit locally so parent updates immediately
-              try { emit('telemetryUpdate', getCacheTelemetry()); } catch (e) {}
-            } catch (e) {}
-          } else if (msg && msg.type === 'clearCaches') {
-            try {
-              userListsCache.data = null;
-              userListsCache.ts = 0;
-              listDetailsCache.clear();
-              artworkListMembership.value.clear();
-              try { localStorage.removeItem(PERSIST_USER_LISTS_KEY); localStorage.removeItem(PERSIST_LIST_DETAILS_KEY); } catch (e) {}
-              try { emit('telemetryUpdate', getCacheTelemetry()); } catch (e) {}
-            } catch (e) {}
-          }
-        } catch (e) {
-          // ignore
-        }
-      };
-    }
-  } catch (e) {
-    /* ignore */
-  }
-  // Ensure we flush telemetry before unload to persist the latest counters
-  try { window.addEventListener('beforeunload', flushTelemetryNow); } catch (e) {}
-});
-
-onUnmounted(() => {
-  try { window.removeEventListener('beforeunload', flushTelemetryNow); } catch (e) {}
-  try { if (bc) { bc.close(); bc = null; } } catch (e) {}
-});
-
-function getCacheTelemetry() {
-  return { ...cacheTelemetry };
-}
-
-function resetCacheTelemetry() {
-  cacheTelemetry.userListsHit = 0;
-  cacheTelemetry.userListsMiss = 0;
-  cacheTelemetry.listDetailsHit = 0;
-  cacheTelemetry.listDetailsMiss = 0;
-  // Persist immediately when resetting
-  try {
-    flushTelemetryNow();
-  } catch (e) {
-    /* ignore */
-  }
-}
-
-// Load persisted caches from localStorage if present
-try {
-  const persisted = localStorage.getItem(PERSIST_USER_LISTS_KEY);
-  if (persisted) {
-    const parsed = JSON.parse(persisted);
-    if (parsed?.ts && parsed?.data) {
-      userListsCache.ts = parsed.ts;
-      userListsCache.data = parsed.data;
-    }
-  }
-} catch (e) {
-  /* ignore parse errors */
-}
-
-try {
-  const persistedLists = localStorage.getItem(PERSIST_LIST_DETAILS_KEY);
-  if (persistedLists) {
-    const parsed = JSON.parse(persistedLists);
-    if (parsed && typeof parsed === 'object') {
-      for (const k of Object.keys(parsed)) {
-        try {
-          listDetailsCache.set(k, parsed[k]);
-        } catch (e) {
-          // ignore
-        }
-      }
-    }
-  }
-} catch (e) {
-  /* ignore parse errors */
-}
-
-// Expose a method to clear caches programmatically
-function clearListCaches() {
-  try {
-    userListsCache.data = null;
-    userListsCache.ts = 0;
-    listDetailsCache.clear();
-    try {
-      localStorage.removeItem(PERSIST_USER_LISTS_KEY);
-      localStorage.removeItem(PERSIST_LIST_DETAILS_KEY);
-    } catch (e) {
-      /* ignore */
-    }
-    // Also clear per-artwork membership cache
-    artworkListMembership.value.clear();
-    console.log('MapComponent: list caches cleared');
-    try {
-      // Broadcast cache clear to other tabs
-      if (typeof BroadcastChannel !== 'undefined') {
-        try {
-          const ch = new BroadcastChannel('map-cache');
-          ch.postMessage({ type: 'clearCaches' });
-          ch.close();
-        } catch (e) {}
-      }
-    } catch (e) {}
-    // Flush telemetry too
-    try { flushTelemetryNow(); } catch (e) {}
-  } catch (e) {
-    console.warn('Failed to clear list caches', e);
-  }
-}
-
-// Expose to parent via composition API (script setup macro)
-// Note: use the compile-time defineExpose macro directly so parent refs can access these methods.
-defineExpose({ clearListCaches, getCacheTelemetry, resetCacheTelemetry });
-
-// Function to check artwork list membership
-async function checkArtworkListMembership(artworkId: string): Promise<{ beenHere: boolean, wantToSee: boolean }> {
-  // Debug: trace entry to help verify this function runs in the browser
-  try {
-    // Use debug instead of console.log to be filter-friendly
-    console.debug && console.debug('MapComponent.checkArtworkListMembership ENTER', { artworkId });
-  } catch (e) {
-    /* ignore */
-  }
-
-  // Check cache first
-  if (artworkListMembership.value.has(artworkId)) {
-    return artworkListMembership.value.get(artworkId)!;
-  }
-
-  // Default membership
-  const membership = { beenHere: false, wantToSee: false };
-
-  try {
-    // Get user lists to check membership (use TTL cache)
-    let lists: any[] = [];
-    const now = Date.now();
-    if (userListsCache.data && now - userListsCache.ts < USER_LISTS_TTL_MS) {
-      lists = userListsCache.data as any[];
-      // telemetry: userLists cache hit
-      try {
-            cacheTelemetry.userListsHit++;
-            // Debug log for telemetry
-            try {
-              console.debug('telemetry: userListsHit ->', cacheTelemetry.userListsHit);
-            } catch (e) {}
-            // Schedule a debounced persist instead of writing immediately
-            schedulePersistTelemetry();
-      } catch (e) {
-        /* ignore */
-      }
-    } else {
-      try {
-        const userLists = await apiService.getUserLists();
-        lists = Array.isArray(userLists) ? userLists : userLists.data || [];
-          userListsCache.data = lists;
-        userListsCache.ts = now;
-        // telemetry: userLists miss (we fetched from network)
-        try {
-          cacheTelemetry.userListsMiss++;
-          try {
-            console.debug('telemetry: userListsMiss ->', cacheTelemetry.userListsMiss);
-          } catch (e) {}
-          schedulePersistTelemetry();
-        } catch (e) {
-          /* ignore */
-        }
-        try {
-          localStorage.setItem(PERSIST_USER_LISTS_KEY, JSON.stringify({ ts: now, data: lists }));
-        } catch (e) {
-          /* ignore */
-        }
-      } catch (e) {
-        // Could not fetch lists; fall back to empty lists
-        lists = [];
-      }
-    }
-
-    // Check each system list for the artwork. Be resilient to API shape and name variations.
-    const KNOWN_BEEN_HERE = new Set(['have seen', 'been here', 'logged', 'have_seen', 'been_here']);
-    const KNOWN_WANT_TO_SEE = new Set(['want to see', 'want_to_see', 'wanttosee', 'wanttosee']);
-
-    for (const list of lists) {
-      // Some API variants use `is_system` or `is_system_list` - treat either truthy value as system list
-      const isSystemFlag = Boolean(list.is_system || list.is_system_list || list.is_system_list === 1);
-      if (!isSystemFlag) continue;
-
-      try {
-        // Get list details (use per-list TTL cache)
-        const lid = String(list.id);
-        let listDetails: any | null = null;
-        const cached = listDetailsCache.get(lid);
-        if (cached && now - cached.ts < LIST_DETAILS_TTL_MS) {
-          listDetails = cached.data;
-          // telemetry: listDetails cache hit
-          try {
-            cacheTelemetry.listDetailsHit++;
-            try {
-              console.debug('telemetry: listDetailsHit ->', cacheTelemetry.listDetailsHit);
-            } catch (e) {}
-            schedulePersistTelemetry();
-          } catch (e) {
-            /* ignore */
-          }
-        } else {
-          try {
-            const resp = await apiService.getListDetails(list.id, 1, 100);
-            listDetails = resp?.data || null;
-            listDetailsCache.set(lid, { ts: now, data: listDetails });
-            try {
-              // Persist map of cached list details as a simple object
-              const obj: Record<string, any> = {};
-              listDetailsCache.forEach((v, k) => (obj[k] = v));
-              localStorage.setItem(PERSIST_LIST_DETAILS_KEY, JSON.stringify(obj));
-            } catch (e) {
-              /* ignore */
-            }
-            // telemetry: listDetails miss (we fetched from network)
-            try {
-              cacheTelemetry.listDetailsMiss++;
-              try {
-                console.debug('telemetry: listDetailsMiss ->', cacheTelemetry.listDetailsMiss);
-              } catch (e) {}
-              schedulePersistTelemetry();
-            } catch (e) {
-              /* ignore */
-            }
-          } catch (e) {
-            listDetails = null;
-            // continue to next list
-          }
-        }
-
-        if (!listDetails || !listDetails.items) continue;
-        const items = Array.isArray(listDetails.items) ? listDetails.items : listDetails.data?.items || [];
-
-        const isInList = items.some((item: any) => item.id === artworkId);
-        if (!isInList) continue;
-
-        const name = (list.name || '').toString().trim().toLowerCase();
-
-        if (KNOWN_BEEN_HERE.has(name) || name.includes('seen') || name.includes('been')) {
-          membership.beenHere = true;
-        } else if (KNOWN_WANT_TO_SEE.has(name) || name.includes('want')) {
-          membership.wantToSee = true;
-        }
-      } catch (listError) {
-        // Continue checking other lists if one fails
-        continue;
-      }
-    }
-  } catch (error) {
-    // If API calls fail at top-level, fall back to default (false, false)
-    console.warn('Failed to check artwork list membership:', error);
-  }
-  
-  // Cache the result
-  artworkListMembership.value.set(artworkId, membership);
-  return membership;
-}
+// Map filters for advanced filtering
+const mapFilters = useMapFilters();
 
 // Debug ring layer (only immediate 100m ring)
 let debugImmediateRing: L.Circle | null = null;
@@ -525,8 +153,17 @@ const router = useRouter();
 // Default coordinates (Vancouver - near sample data for testing)
 const DEFAULT_CENTER = { latitude: 49.265, longitude: -123.25 };
 
-// Icon pre-render cache (data-URIs keyed by type+size)
-const iconDataUriCache: Map<string, string> = new Map();
+// Marker type enum for filtering
+enum MarkerType {
+  NORMAL = 'normal',
+  VISITED = 'visited',
+  STARRED = 'starred',
+  UNKNOWN = 'unknown'
+}
+
+// Create circle marker style for normal artworks (replaces emoji icons for better performance)
+const createArtworkStyle = (type: string) => {
+  const normalized = (type || 'other').toLowerCase();
 
 // Helper: render an icon to an offscreen canvas and return data-URI
 function renderIconToDataUri(kind: 'flag' | 'star' | 'question', size: number, fillColor?: string) {
@@ -587,10 +224,9 @@ function renderIconToDataUri(kind: 'flag' | 'star' | 'question', size: number, f
     ctx.fillText('?', size / 2, size / 2 - size * 0.06);
   }
 
-  const dataUri = canvas.toDataURL('image/png');
-  iconDataUriCache.set(key, dataUri);
-  return dataUri;
-}
+  // Apply the user's requested unconditional doubling of marker sizes across all zooms.
+  // Clamp to a reasonable maximum to avoid excessively large markers.
+  dynamicRadius = Math.min(dynamicRadius * 2, maxRadius * 2);
 
 // Create priority-based div icon for artworks using cached data-URIs (faster)
 const createArtworkIcon = (artwork: ArtworkPin, listMembership?: { beenHere: boolean, wantToSee: boolean }) => {
@@ -620,6 +256,181 @@ const createArtworkIcon = (artwork: ArtworkPin, listMembership?: { beenHere: boo
     iconSize: [baseSize, baseSize],
     iconAnchor: [baseSize / 2, baseSize / 2],
   });
+};
+
+// Enhanced marker factory functions for different marker types
+const createNormalMarker = (type: string) => {
+  const currentZoom = map.value?.getZoom() ?? 15;
+  const size = calculateIconSize(currentZoom);
+  const fillColor = getTypeColor((type || 'other').toLowerCase());
+  
+  return L.divIcon({
+    html: `
+      <div class="artwork-normal-marker flex items-center justify-center" style="width: ${size}px; height: ${size}px;">
+        <div class="normal-circle" style="
+          width: ${size}px; 
+          height: ${size}px; 
+          border-radius: 50%; 
+          background: ${fillColor};
+          border: 2px solid #1f2937;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        "></div>
+      </div>
+    `,
+    className: 'custom-normal-icon',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2]
+  });
+};
+
+const createVisitedMarker = () => {
+  const currentZoom = map.value?.getZoom() ?? 15;
+  const size = calculateIconSize(currentZoom);
+  
+  return L.divIcon({
+    html: `
+      <div class="artwork-visited-marker flex items-center justify-center" style="width: ${size}px; height: ${size}px; opacity: 0.6;">
+        <div class="visited-flag" style="
+          width: ${size * 0.8}px; 
+          height: ${size * 0.6}px; 
+          background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+          border: 1px solid #4b5563;
+          position: relative;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        ">
+          <!-- Flag pole -->
+          <div style="
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 2px;
+            height: ${size}px;
+            background: #4b5563;
+            transform: translateY(-${size * 0.2}px);
+          "></div>
+          <!-- Flag triangle cutout on right -->
+          <div style="
+            position: absolute;
+            right: 0;
+            top: 0;
+            width: 0;
+            height: 0;
+            border-top: ${size * 0.3}px solid transparent;
+            border-bottom: ${size * 0.3}px solid transparent;
+            border-left: ${size * 0.15}px solid #f3f4f6;
+          "></div>
+          <!-- Check mark -->
+          <svg width="${size * 0.4}" height="${size * 0.4}" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" 
+               style="position: absolute; left: ${size * 0.15}px; top: ${size * 0.1}px;">
+            <polyline points="20,6 9,17 4,12"></polyline>
+          </svg>
+        </div>
+      </div>
+    `,
+    className: 'custom-visited-icon visited-marker-layer',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2]
+  });
+};
+
+const createStarredMarker = () => {
+  const currentZoom = map.value?.getZoom() ?? 15;
+  const size = calculateIconSize(currentZoom);
+  
+  return L.divIcon({
+    html: `
+      <div class="artwork-starred-marker flex items-center justify-center" style="width: ${size}px; height: ${size}px;">
+        <div class="starred-circle" style="
+          width: ${size}px; 
+          height: ${size}px; 
+          border-radius: 50%; 
+          background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+          border: 2px solid #d97706;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        ">
+          <svg width="${size * 0.6}" height="${size * 0.6}" viewBox="0 0 24 24" fill="#fff" stroke="none">
+            <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+          </svg>
+        </div>
+      </div>
+    `,
+    className: 'custom-starred-icon',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+};
+
+const createUnknownMarker = (type: string) => {
+  const currentZoom = map.value?.getZoom() ?? 15;
+  const size = calculateIconSize(currentZoom);
+  const fillColor = getTypeColor((type || 'other').toLowerCase());
+  
+  return L.divIcon({
+    html: `
+      <div class="artwork-unknown-marker flex items-center justify-center" style="width: ${size}px; height: ${size}px;">
+        <div class="unknown-circle" style="
+          width: ${size}px; 
+          height: ${size}px; 
+          border-radius: 50%; 
+          background: ${fillColor};
+          border: 2px dashed #6b7280;
+          opacity: 0.6;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        "></div>
+      </div>
+    `,
+    className: 'custom-unknown-icon',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2]
+  });
+};
+
+// Helper functions for marker sizing
+const calculateIconSize = (currentZoom: number) => {
+  const minSize = 16;
+  const maxSize = 32;
+  const minZoom = 12;
+  const maxZoom = 18;
+  
+  if (currentZoom <= minZoom) {
+    return minSize;
+  } else if (currentZoom >= maxZoom) {
+    return maxSize;
+  } else {
+    const t = (currentZoom - minZoom) / (maxZoom - minZoom);
+    return Math.round(minSize + t * (maxSize - minSize));
+  }
+};
+
+// Function to determine marker type based on artwork and user lists
+const getMarkerType = (artwork: ArtworkPin): MarkerType => {
+  // For test/mock data, check title keywords first
+  if (artwork.title) {
+    const titleLower = artwork.title.toLowerCase();
+    if (titleLower.includes('unknown')) {
+      return MarkerType.UNKNOWN;
+    }
+    if (titleLower.includes('starred')) {
+      return MarkerType.STARRED;
+    }
+    if (titleLower.includes('visited')) {
+      return MarkerType.VISITED;
+    }
+  }
+  
+  // Check user lists using the composable (for production data)
+  if (starredArtworks.value.has(artwork.id)) {
+    return MarkerType.STARRED;
+  }
+  
+  if (visitedArtworks.value.has(artwork.id)) {
+    return MarkerType.VISITED;
+  }
+  
+  return MarkerType.NORMAL;
 };
 
 // Custom icon for user location - use a person icon so it's clearly the user, not an artwork
@@ -862,7 +673,9 @@ async function initializeMap() {
     // Load saved preference
     try {
       const saved = localStorage.getItem('map:clusterEnabled');
-      if (saved !== null) clusterEnabled.value = saved === 'true';
+      if (saved !== null) {
+        mapFilters.filtersState.clusterEnabled = saved === 'true';
+      }
     } catch {
       /* ignore */
     }
@@ -887,13 +700,38 @@ async function initializeMap() {
     // Setup event listeners
     map.value.on('moveend', handleMapMove);
     map.value.on('zoomend', handleMapMove);
+    
+    // Track zoom animation state to prevent marker updates during animations
+    map.value.on('zoomstart', () => {
+      isZoomAnimating.value = true;
+      console.log('[ZOOM DEBUG] Zoom animation started');
+      
+      // Close all popups before zoom animation to prevent null reference errors
+      try {
+        map.value?.closePopup();
+        // Also close any popups in the cluster group
+        if (markerClusterGroup.value && typeof markerClusterGroup.value.closePopup === 'function') {
+          markerClusterGroup.value.closePopup();
+        }
+      } catch (e) {
+        console.warn('[ZOOM DEBUG] Error closing popups during zoom start:', e);
+      }
+    });
+    
+    map.value.on('zoomend', () => {
+      isZoomAnimating.value = false;
+      console.log('[ZOOM DEBUG] Zoom animation ended');
+      // Update markers after zoom animation completes
+      updateArtworkMarkersDebounced(50);
+    });
+    
     // Update marker styles during continuous zoom events (throttled)
     map.value.on('zoom', () => {
       if (zoomStyleTimeout.value) clearTimeout(zoomStyleTimeout.value);
       zoomStyleTimeout.value = setTimeout(() => {
         try {
-          // Guard against calling updateMarkerStyles after map destruction
-          if (map.value) {
+          // Guard against calling updateMarkerStyles after map destruction or during animation
+          if (map.value && !isZoomAnimating.value) {
             updateMarkerStyles();
           }
         } catch (e) {
@@ -902,17 +740,7 @@ async function initializeMap() {
         zoomStyleTimeout.value = null;
       }, 50);
     });
-    // Track animation lifecycle using explicit flag
-    map.value.on('zoomstart', () => {
-      animatingZoom.value = true;
-    });
-    map.value.on('zoomend', () => {
-      animatingZoom.value = false;
-    });
-    // Also set animating on zoomanim events (some Leaflet builds use this for animated transitions)
-    map.value.on('zoomanim', () => {
-      animatingZoom.value = true;
-    });
+    
     // Save map state on move/zoom
     map.value.on('moveend', saveMapState);
     map.value.on('zoomend', saveMapState);
@@ -1210,10 +1038,12 @@ function updateArtworkMarkersDebounced(delay: number = 0) {
   }
 
   markerUpdateTimeout.value = setTimeout(() => {
-    // Guard against running after component unmount
-    if (map.value) {
-      // Fire and forget async call
-      updateArtworkMarkers().catch(console.error);
+    // Guard against running after component unmount or during zoom animations
+    if (map.value && !isZoomAnimating.value) {
+      updateArtworkMarkers();
+    } else if (isZoomAnimating.value) {
+      // Retry after animation completes
+      updateArtworkMarkersDebounced(100);
     }
   }, delay);
 }
@@ -1241,11 +1071,20 @@ async function updateArtworkMarkers() {
     currentMarkersCount: artworkMarkers.value.length,
     mapContainerInDOM: !!mapContainer.value?.isConnected,
     mapSize: map.value ? { width: map.value.getSize().x, height: map.value.getSize().y } : null,
+    isZoomAnimating: isZoomAnimating.value,
     timestamp: new Date().toISOString(),
   });
 
   if (!map.value || !markerClusterGroup.value) {
     console.log('[MARKER DEBUG] Early return - missing map or cluster group');
+    return;
+  }
+
+  // Prevent marker updates during zoom animations to avoid _latLngToNewLayerPoint errors
+  if (isZoomAnimating.value) {
+    console.log('[MARKER DEBUG] Skipping marker update during zoom animation');
+    // Retry after animation completes
+    updateArtworkMarkersDebounced(100);
     return;
   }
 
@@ -1284,12 +1123,16 @@ async function updateArtworkMarkers() {
     L.latLng(bounds.getNorth() + latPad, bounds.getEast() + lngPad)
   );
 
-  // Get artworks that should be visible in current viewport and are of enabled types
+  // Get artworks that should be visible in current viewport and pass all filters
   const artworksInViewport = (props.artworks || []).filter((artwork: ArtworkPin) => {
     const inBounds = viewportBounds.contains(L.latLng(artwork.latitude, artwork.longitude));
-    const typeEnabled = isArtworkTypeEnabled(artwork.type || 'other');
+    
+    // Use the new comprehensive filtering system
+    if (!mapFilters.shouldShowArtwork(artwork)) {
+      return false;
+    }
 
-    return inBounds && typeEnabled;
+    return inBounds;
   });
 
   console.log('[MARKER DEBUG] Filtered artworks in viewport:', {
@@ -1320,63 +1163,93 @@ async function updateArtworkMarkers() {
   );
 
   // Remove markers that are no longer in viewport or are of disabled types
-  if (animatingZoom.value) {
-    // Defer removals until after animation ends to avoid Leaflet timing races
-    if (!pendingMarkerUpdate.value && map.value) {
-      pendingMarkerUpdate.value = true;
-      map.value.once('zoomend', () => {
-        pendingMarkerUpdate.value = false;
-        animatingZoom.value = false;
-        updateArtworkMarkers().catch(console.error);
-      });
+  artworkMarkers.value = artworkMarkers.value.filter((marker: any) => {
+    const artworkId = marker._artworkId;
+    const artworkType = marker._artworkType;
+
+    // Remove if no longer in viewport
+    if (artworkId && !viewportArtworkIds.has(artworkId)) {
+      try {
+        // Close any open popup first to prevent animation issues
+        if (marker.isPopupOpen && marker.isPopupOpen()) {
+          marker.closePopup();
+        }
+        // Remove from cluster group first
+        if (markerClusterGroup.value && markerClusterGroup.value.hasLayer(marker)) {
+          markerClusterGroup.value.removeLayer(marker as any);
+        }
+        // Remove any lingering event listeners
+        if (marker.off) {
+          marker.off();
+        }
+      } catch (e) {
+        console.warn('[MARKER DEBUG] Error removing marker from cluster:', e);
+      }
+      return false; // Remove from artworkMarkers array
     }
   } else {
     artworkMarkers.value = artworkMarkers.value.filter((marker: any) => {
       const artworkId = marker._artworkId;
       const artworkType = marker._artworkType;
 
+    // Remove if artwork type is now disabled
+    if (artworkType && !isArtworkTypeEnabled(artworkType)) {
       try {
-        // Remove if no longer in viewport
-        if (artworkId && !viewportArtworkIds.has(artworkId)) {
-          if (markerClusterGroup.value) {
-            try {
-              markerClusterGroup.value.removeLayer(marker as any);
-            } catch (e) {
-              /* ignore remove errors */
-            }
-          }
-          return false; // Remove from artworkMarkers array
+        // Close any open popup first to prevent animation issues
+        if (marker.isPopupOpen && marker.isPopupOpen()) {
+          marker.closePopup();
         }
-
-        // Remove if artwork type is now disabled
-        if (artworkType && !isArtworkTypeEnabled(artworkType)) {
-          if (markerClusterGroup.value) {
-            try {
-              markerClusterGroup.value.removeLayer(marker as any);
-            } catch (e) {
-              /* ignore remove errors */
-            }
-          }
-          return false; // Remove from artworkMarkers array
+        // Remove from cluster group first
+        if (markerClusterGroup.value && markerClusterGroup.value.hasLayer(marker)) {
+          markerClusterGroup.value.removeLayer(marker as any);
         }
-      } catch (err) {
-        // In case marker structure is unexpected, keep it and continue
-        return true;
+        // Remove any lingering event listeners
+        if (marker.off) {
+          marker.off();
+        }
+      } catch (e) {
+        console.warn('[MARKER DEBUG] Error removing marker from cluster:', e);
       }
       return true; // Keep in artworkMarkers array
     });
   }
 
-  // Add new markers for artworks that entered the viewport (batched)
-  const toAdd = artworksInViewport.filter((a: ArtworkPin) => !currentArtworkIds.has(a.id)) as ArtworkPin[];
+  // Sort artworks by marker type to ensure visited markers are added first (appear behind)
+  const sortedArtworks = artworksInViewport.sort((a: ArtworkPin, b: ArtworkPin) => {
+    const typeA = getMarkerType(a);
+    const typeB = getMarkerType(b);
+    
+    // Visited markers first (behind), then unknown, then normal, then starred (on top)
+    const order = { [MarkerType.VISITED]: 0, [MarkerType.UNKNOWN]: 1, [MarkerType.NORMAL]: 2, [MarkerType.STARRED]: 3 };
+    return (order[typeA] || 2) - (order[typeB] || 2);
+  });
 
-  // Concurrency/batch size for membership checks and marker creation
-  const BATCH_SIZE = 20;
-  for (let i = 0; i < toAdd.length; i += BATCH_SIZE) {
-    const batch = toAdd.slice(i, i + BATCH_SIZE);
+  // Add new markers for artworks that entered the viewport
+  sortedArtworks.forEach((artwork: ArtworkPin) => {
+    // Skip if marker already exists
+    if (currentArtworkIds.has(artwork.id)) {
+      return;
+    }
 
-    // Resolve membership checks in parallel for the batch
-  const memberships = await Promise.all(batch.map((a: ArtworkPin) => checkArtworkListMembership(a.id)));
+    // Create new marker using appropriate factory based on artwork type
+    const markerType = getMarkerType(artwork);
+    let marker: L.Marker;
+
+    switch (markerType) {
+      case MarkerType.VISITED:
+        marker = L.marker([artwork.latitude, artwork.longitude], { icon: createVisitedMarker() });
+        break;
+      case MarkerType.STARRED:
+        marker = L.marker([artwork.latitude, artwork.longitude], { icon: createStarredMarker() });
+        break;
+      case MarkerType.UNKNOWN:
+        marker = L.marker([artwork.latitude, artwork.longitude], { icon: createUnknownMarker(artwork.type || 'other') });
+        break;
+      case MarkerType.NORMAL:
+      default:
+        marker = L.marker([artwork.latitude, artwork.longitude], { icon: createNormalMarker(artwork.type || 'other') });
+        break;
+    }
 
     // Create markers for the batch
     const markersToAdd: L.Marker[] = [];
@@ -1384,106 +1257,76 @@ async function updateArtworkMarkers() {
       const artwork = batch[j] as ArtworkPin;
       const listMembership = memberships[j];
 
-      try {
-        const artworkIcon = createArtworkIcon(artwork, listMembership);
-        const marker = L.marker([artwork.latitude, artwork.longitude], {
-          icon: artworkIcon,
-          interactive: true,
-          bubblingMouseEvents: false,
-          pane: 'markerPane',
-        });
-
-        (marker as any)._artworkId = artwork.id;
-        (marker as any)._artworkType = artwork.type || 'other';
-
-        const popupContent = `
-          <div class="artwork-popup">
-            <h3 class="font-semibold text-sm mb-1">${artwork.title || 'Untitled'}</h3>
-            <button onclick="window.viewArtworkDetails('${artwork.id}')" 
-                    class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
-              View Details
-            </button>
-          </div>
-        `;
-        marker.bindPopup(popupContent);
-
-        marker.on('click', (e: L.LeafletMouseEvent) => {
-          e.originalEvent?.stopPropagation();
-          const previewData = {
-            id: artwork.id,
-            title: artwork.title || 'Untitled Artwork',
-            description: artwork.type || 'Public artwork',
-            thumbnailUrl: artwork.photos && artwork.photos.length > 0 ? artwork.photos[0] : undefined,
-            lat: artwork.latitude,
-            lon: artwork.longitude,
-          };
-          emit('previewArtwork', previewData);
-        });
-
-        // Hover effects - operate on inner element to avoid overwriting Leaflet positioning
-        marker.on('mouseover', () => {
-          // Avoid mutating DOM while Leaflet is animating zoom to prevent internal null refs
-          if (animatingZoom.value) return;
-          let iconElement: HTMLElement | null = null;
-          try {
-            iconElement = typeof marker.getElement === 'function' ? (marker.getElement() as HTMLElement | null) : null;
-          } catch (err) {
-            iconElement = null;
-          }
-          if (iconElement) {
-            const inner = iconElement.querySelector('.artwork-marker-inner') as HTMLElement | null;
-            if (inner) {
-              try {
-                inner.style.transform = 'scale(1.1)';
-                inner.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
-                inner.style.zIndex = '1000';
-              } catch (err) {
-                // ignore transient DOM errors
-              }
-            }
-          }
-        });
-
-        marker.on('mouseout', () => {
-          if (animatingZoom.value) return;
-          let iconElement: HTMLElement | null = null;
-          try {
-            iconElement = typeof marker.getElement === 'function' ? (marker.getElement() as HTMLElement | null) : null;
-          } catch (err) {
-            iconElement = null;
-          }
-          if (iconElement) {
-            const inner = iconElement.querySelector('.artwork-marker-inner') as HTMLElement | null;
-            if (inner) {
-              try {
-                inner.style.transform = 'scale(1.0)';
-                inner.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-                inner.style.zIndex = 'auto';
-              } catch (err) {
-                // ignore transient DOM errors
-              }
-            }
-          }
-        });
-
-        markersToAdd.push(marker);
-        artworkMarkers.value.push(marker);
-      } catch (err) {
-        // Continue on per-marker failures
-        console.warn('Failed to create marker for artwork', artwork && (artwork as any)?.id, err);
+    // Add event handlers BEFORE adding to cluster group to ensure proper binding
+    marker.on('click', (e: L.LeafletMouseEvent) => {
+      console.log('[MARKER DEBUG] Leaflet marker click event fired for artwork:', artwork.id);
+      
+      // Prevent event propagation to avoid map click conflicts
+      if (e.originalEvent) {
+        e.originalEvent.stopPropagation();
+        e.originalEvent.preventDefault();
       }
+      
+      // Create preview data from artwork
+      const previewData = {
+        id: artwork.id,
+        title: artwork.title || 'Untitled Artwork',
+        description: artwork.type || 'Public artwork',
+        thumbnailUrl: artwork.photos && artwork.photos.length > 0 ? artwork.photos[0] : undefined,
+        lat: artwork.latitude,
+        lon: artwork.longitude,
+      };
+      
+      console.log('[MARKER DEBUG] Emitting previewArtwork event:', previewData);
+      
+      // Only emit preview event - let MapPreviewCard handle navigation
+      emit('previewArtwork', previewData);
+    });
+
+    // Create popup content - but disable during zoom animations to prevent null reference errors
+    const popupContent = `
+      <div class="artwork-popup">
+        <h3 class="font-semibold text-sm mb-1">${artwork.title || 'Untitled'}</h3>
+        <button onclick="window.viewArtworkDetails('${artwork.id}')" 
+                class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
+          View Details
+        </button>
+      </div>
+    `;
+
+    marker.bindPopup(popupContent, {
+      closeOnClick: true,
+      autoClose: true,
+      closeButton: true
+    });
+
+    // Add to cluster group after event handlers are set up
+    if (markerClusterGroup.value) {
+      console.log('[MARKER DEBUG] Adding marker to cluster group:', {
+        markerId: artwork.id,
+        clusterGroupType: markerClusterGroup.value.constructor.name,
+        isClusterGroupOnMap: map.value?.hasLayer(markerClusterGroup.value),
+        mapContainerInDOM: !!mapContainer.value?.isConnected,
+      });
+      markerClusterGroup.value.addLayer(marker as any);
+    } else {
+      console.log('[MARKER DEBUG] No cluster group available for marker:', artwork.id);
     }
 
-    // Add markers in bulk to the cluster group to minimize DOM updates
-    if (markerClusterGroup.value && markersToAdd.length > 0) {
-      try {
-        markerClusterGroup.value.addLayers(markersToAdd as any);
-      } catch (e) {
-        // Fallback: add each individually
-        markersToAdd.forEach(m => markerClusterGroup.value.addLayer(m as any));
-      }
+    // Add hover effects (only for CircleMarkers)
+    if (marker instanceof L.CircleMarker) {
+      const circleMarker = marker as L.CircleMarker;
+      marker.on('mouseover', () => {
+        circleMarker.setStyle({ fillOpacity: 1.0, weight: 2 });
+      });
+
+      marker.on('mouseout', () => {
+        circleMarker.setStyle({ fillOpacity: 0.9, weight: 1 });
+      });
     }
-  }
+
+    artworkMarkers.value.push(marker);
+  });
 }
 
 // Update styles (radius/color/etc) for all existing markers to react to zoom changes
@@ -1727,45 +1570,12 @@ function retryMapLoad() {
   initializeMap();
 }
 
-// Clear persistent map cache via store and reload markers
-async function clearMapCacheAndReload() {
-  if (clearingCache.value) return;
-  const confirmed =
-    typeof window !== 'undefined'
-      ? window.confirm(
-          'Clear cached map pins? This will remove locally stored pins and reload from the network.'
-        )
-      : true;
-  if (!confirmed) return;
-  try {
-    clearingCache.value = true;
-    artworksStore.clearMapCache();
-    // Clear current in-memory pins; they will refill on next fetch
-    artworksStore.setArtworks([]);
-    await nextTick();
-    updateArtworkMarkers().catch(console.error);
-    await loadArtworks();
-  } finally {
-    clearingCache.value = false;
-  }
-}
 
-// Handle artwork type filter toggles
-function handleArtworkTypeToggle(_artworkType: ArtworkTypeToggle) {
-  // Immediately update markers to show/hide based on the new filter state
-  updateArtworkMarkers().catch(console.error);
-}
 
-// Enable all artwork type filters
-function enableAllArtworkTypes() {
-  enableAllTypes();
-  updateArtworkMarkers().catch(console.error);
-}
-
-// Disable all artwork type filters
-function disableAllArtworkTypes() {
-  disableAllTypes();
-  updateArtworkMarkers().catch(console.error);
+// Handle applying settings from the modal
+function handleApplySettings(): void {
+  // Trigger a re-rendering of markers with new filter settings
+  updateArtworkMarkers();
 }
 
 // =====================
@@ -1939,6 +1749,7 @@ onUnmounted(() => {
     try {
       map.value.off('moveend');
       map.value.off('zoomend');
+      map.value.off('zoomstart');
       map.value.off('zoom');
       map.value.off('locationfound');
       map.value.off('locationerror');
@@ -1972,6 +1783,24 @@ watch(
   async () => {
     await configureMarkerGroup();
   }
+);
+
+// Watch map filters for changes
+watch(
+  () => [
+    mapFilters.filtersState.artworkTypes,
+    mapFilters.filtersState.statusFilters,
+    mapFilters.filtersState.userListFilters,
+    mapFilters.filtersState.showOnlyMySubmissions,
+    mapFilters.filtersState.clusterEnabled,
+    mapFilters.filtersState.hideVisited,
+    mapFilters.filtersState.showRemoved,
+  ],
+  () => {
+    console.log('[FILTER DEBUG] Map filters changed, updating markers');
+    updateArtworkMarkersDebounced(25);
+  },
+  { deep: true }
 );
 
 // Persist and react to debug rings toggle
@@ -2106,122 +1935,47 @@ watch(
       </div>
     </div>
 
+    <!-- Active Filters Banner -->
+    <div
+      v-if="mapFilters.hasActiveFilters.value"
+      class="absolute top-4 left-4 right-24 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-md z-10 pointer-events-auto"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          <span class="text-sm text-blue-800 font-medium">
+            {{ mapFilters.activeFilterCount.value }} filter{{ mapFilters.activeFilterCount.value === 1 ? '' : 's' }} active
+          </span>
+        </div>
+        <button
+          @click="mapFilters.resetFilters"
+          class="text-xs text-blue-600 hover:text-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 px-2 py-1 rounded transition-colors"
+          title="Clear all filters"
+        >
+          Clear
+        </button>
+      </div>
+      <p class="text-xs text-blue-700 mt-1">{{ mapFilters.activeFilterDescription.value }}</p>
+    </div>
+
   <!-- Map Controls -->
   <div class="absolute top-4 right-4 flex flex-col space-y-2 z-20">
       <!-- Map Options (Layers) Button -->
       <div class="relative">
         <button
-          @click="showOptionsPanel = !showOptionsPanel"
+          @click="showOptionsModal = true"
           class="theme-surface shadow-md rounded-full p-3 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-          title="Map options"
-          aria-label="Open map options"
-          :aria-expanded="showOptionsPanel"
+          title="Map settings"
+          aria-label="Open map settings"
         >
           <Squares2X2Icon class="w-5 h-5 text-gray-700" />
         </button>
 
-        <!-- Options Panel -->
-        <div
-          v-show="showOptionsPanel"
-          class="absolute top-14 right-0 w-80 sm:w-96 lg:w-[32rem] bg-white shadow-xl rounded-lg p-4 border border-gray-200 max-h-[calc(100vh-8rem)] overflow-y-auto"
-          role="dialog"
-          aria-label="Map options"
-        >
-          <div class="flex items-start">
-            <input
-              id="toggle-cluster"
-              type="checkbox"
-              class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              v-model="clusterEnabled"
-            />
-            <label for="toggle-cluster" class="ml-2 text-sm text-gray-700 select-none">
-              Cluster markers
-            </label>
-          </div>
-          <div class="mt-2 pt-2 border-t border-gray-100 flex items-start">
-            <input
-              id="toggle-rings"
-              type="checkbox"
-              class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              v-model="debugRingsEnabled"
-            />
-            <label for="toggle-rings" class="ml-2 text-sm text-gray-700 select-none">
-              Enable map rings (debug)
-            </label>
-          </div>
-          <div class="mt-2 pt-2 border-t border-gray-100 flex items-start">
-            <input
-              id="toggle-progressive"
-              type="checkbox"
-              class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              v-model="useProgressiveLoading"
-            />
-            <label for="toggle-progressive" class="ml-2 text-sm text-gray-700 select-none">
-              Progressive loading
-              <div class="text-xs text-gray-500 mt-0.5">Load large datasets in batches</div>
-            </label>
-          </div>
-          <div class="mt-3 pt-3 border-t border-gray-100">
-            <h3 class="text-sm font-medium text-gray-900 mb-1">Artwork Types Filtering</h3>
-            <p class="text-xs text-gray-600 mb-3">
-              Select which types of artworks to display on the map. Each colored circle shows the
-              marker color used on the map.
-            </p>
 
-            <!-- Control buttons -->
-            <div class="flex gap-2 mb-3">
-              <button
-                @click="enableAllArtworkTypes"
-                class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
-              >
-                Enable All
-              </button>
-              <button
-                @click="disableAllArtworkTypes"
-                class="text-xs bg-gray-600 text-white px-3 py-1.5 rounded hover:bg-gray-700 focus:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 transition-colors"
-              >
-                Disable All
-              </button>
-            </div>
-
-            <!-- Artwork types grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
-              <div
-                v-for="artworkType in artworkTypes"
-                :key="artworkType.key"
-                class="flex items-center"
-              >
-                <input
-                  :id="`toggle-${artworkType.key}`"
-                  type="checkbox"
-                  class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
-                  v-model="artworkType.enabled"
-                  @change="handleArtworkTypeToggle(artworkType)"
-                />
-                <label
-                  :for="`toggle-${artworkType.key}`"
-                  class="ml-2 flex items-center text-xs text-gray-700 select-none min-w-0"
-                >
-                  <span
-                    class="inline-block w-3 h-3 rounded-full mr-1.5 border border-white shadow-sm flex-shrink-0"
-                    :style="{ backgroundColor: artworkType.color }"
-                  ></span>
-                  <span class="truncate">{{ artworkType.label }}</span>
-                </label>
-              </div>
-            </div>
-          </div>
-          <div class="mt-4 pt-3 border-t border-gray-100">
-            <button
-              @click="clearMapCacheAndReload"
-              :disabled="clearingCache"
-              class="w-full text-sm bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1.5 rounded transition-colors disabled:opacity-50"
-              title="Clear cached map pins"
-            >
-              {{ clearingCache ? 'Clearing…' : 'Clear map Cache' }}
-            </button>
-          </div>
-        </div>
       </div>
       <!-- Current Location Button -->
       <button
@@ -2289,6 +2043,13 @@ watch(
       </div>
     </div>
   </div>
+
+  <!-- Map Options Modal -->
+  <MapOptionsModal
+    :isOpen="showOptionsModal"
+    @update:isOpen="showOptionsModal = $event"
+    @applySettings="handleApplySettings"
+  />
 </template>
 
 <style>
@@ -2418,5 +2179,37 @@ watch(
 .map-component .leaflet-popup-pane,
 .map-component .leaflet-tooltip-pane {
   pointer-events: none !important;
+}
+
+/* Fix custom marker click events by allowing pointer events to pass through child elements */
+.custom-visited-icon .artwork-visited-marker,
+.custom-visited-icon .artwork-visited-marker *,
+.custom-starred-icon .artwork-starred-marker,
+.custom-starred-icon .artwork-starred-marker *,
+.custom-normal-icon .artwork-normal-marker,
+.custom-normal-icon .artwork-normal-marker *,
+.custom-unknown-icon .artwork-unknown-marker,
+.custom-unknown-icon .artwork-unknown-marker *,
+.custom-artwork-icon,
+.custom-artwork-icon * {
+  pointer-events: none !important;
+}
+
+/* Keep the root marker icon clickable */
+.custom-visited-icon,
+.custom-starred-icon,
+.custom-normal-icon,
+.custom-unknown-icon,
+.leaflet-marker-icon {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Ensure marker layers don't block each other */
+.leaflet-marker-icon.custom-visited-icon,
+.leaflet-marker-icon.custom-starred-icon,
+.leaflet-marker-icon.custom-normal-icon,
+.leaflet-marker-icon.custom-unknown-icon {
+  z-index: 1000 !important;
 }
 </style>
