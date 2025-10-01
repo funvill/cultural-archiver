@@ -437,7 +437,7 @@ async function handleShare(): Promise<void> {
         :loading="initialLoading || chip.loading"
         :show-success-animation="'showSuccessAnimation' in chip ? chip.showSuccessAnimation : false"
         :aria-label="chip.ariaLabel"
-        :show-label="false"
+        :show-label="true"
         variant="outlined"
         size="md"
         :data-testid="`chip-${chip.id}`"

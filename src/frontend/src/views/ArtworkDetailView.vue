@@ -237,11 +237,7 @@ const artworkPhotos = computed(() => {
 //   return artwork.value?.logbook_entries || [];
 // });
 
-// Computed for authentication and editing permissions
-// UI-only: surface Edit button to any authenticated user per PRD (server still enforces permissions)
-const canEdit = computed(() => {
-  return authStore.isAuthenticated;
-});
+// NOTE: Title-level edit/add buttons were removed; edit availability handled elsewhere
 
 const displayTitle = computed(() => {
   return isEditMode.value ? editData.value.title : artworkTitle.value;
@@ -472,10 +468,7 @@ function goToMap(): void {
   router.push('/');
 }
 
-// Add to list methods
-function openAddToListDialog(): void {
-  showAddToListDialog.value = true;
-}
+// Add-to-list dialog is opened by the action bar component; removed local opener
 
 function handleAddedToList(listNames: string): void {
   showToast.value = true;
@@ -630,8 +623,8 @@ function handleActionBarAddLog(): void {
     return;
   }
   
-  // Navigate to add log page
-  router.push(`/artwork/${props.id}/logbook/add`);
+  // Navigate to logbook page for this artwork
+  router.push(`/logbook/${props.id}`);
 }
 
 function handleActionBarShare(): void {
@@ -762,46 +755,7 @@ function handleActionBarShare(): void {
               </div>
             </div>
 
-            <!-- Edit buttons inline with title -->
-            <div v-if="canEdit" class="flex items-center gap-3 mt-1 sm:mt-0">
-              <!-- Pending edits indicator -->
-              <div v-if="hasPendingEdits"
-                class="px-3 py-1 text-sm font-medium text-amber-700 bg-amber-100 rounded-full">
-                Changes pending review
-              </div>
-
-              <!-- Edit button -->
-              <button @click="enterEditMode" v-bind="{ 'data-has-pending-edits': hasPendingEdits ? 'true' : undefined }" :disabled="Boolean(hasPendingEdits)" :aria-disabled="hasPendingEdits ? 'true' : 'false'" aria-label="Edit artwork details"
-                class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2"
-                :class="hasPendingEdits
-                    ? 'text-gray-500 bg-gray-100 cursor-not-allowed'
-                    : 'text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 shadow-sm'
-                  ">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                {{ hasPendingEdits ? 'Edit Disabled' : 'Edit' }}
-              </button>
-
-              <!-- Add Logbook Entry button -->
-              <button @click="router.push({ path: `/logbook/${props.id}` })" aria-label="Add logbook entry"
-                class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                Add log
-              </button>
-
-              <!-- Add to List button -->
-              <button @click="openAddToListDialog" aria-label="Add to list"
-                class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                </svg>
-                Add to List
-              </button>
-            </div>
+            <!-- Inline title action buttons removed per design: actions available in the action bar below the photos -->
           </div>
         </div>
         <div v-else class="mb-4 ">
@@ -960,17 +914,7 @@ function handleActionBarShare(): void {
           <div class="relative">
             <MiniMap v-if="artwork && artwork.lat != null && artwork.lon != null" :latitude="artwork?.lat"
               :longitude="artwork?.lon" :title="artworkTitle" height="200px" :zoom="16" />
-            <!-- Directions button -->
-            <div v-if="artwork && artwork.lat != null && artwork.lon != null" class="mt-3">
-              <a :href="`https://www.google.com/maps/dir/?api=1&destination=${artwork?.lat},${artwork?.lon}`"
-                target="_blank" rel="noopener noreferrer"
-                class="inline-flex items-center px-3 py-2 bg-white border border-gray-200 rounded text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h4l3-8 4 18 3-8h4" />
-                </svg>
-                Directions
-              </a>
-            </div>
+            <!-- Inline square Directions link removed; map control provides directions -->
             <div v-else class="text-gray-500 text-sm">Location information not available</div>
 
             <!-- Edit mode overlay for location -->
