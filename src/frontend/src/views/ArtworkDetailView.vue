@@ -160,6 +160,25 @@ function navigateToArtistSearch(artistName: string) {
   router.push(`/search?artist=${encodedName}`);
 }
 
+// When MiniMap emits 'mapReady' provide a final invalidateSize retry from
+// the parent. This helps with edge cases where the child initializes the
+// map while the parent's layout is not fully settled.
+function handleChildMapReady(mapInstance: any) {
+  try {
+    console.debug('[ArtworkDetailView] child mapReady received', { mapInstance });
+    if (!mapInstance) return;
+    // Attempt a few retries spaced across frames/timeouts
+    if (typeof mapInstance.invalidateSize === 'function') {
+      mapInstance.invalidateSize();
+      requestAnimationFrame(() => mapInstance.invalidateSize());
+      setTimeout(() => mapInstance.invalidateSize(), 150);
+      setTimeout(() => mapInstance.invalidateSize(), 500);
+    }
+  } catch (err) {
+    // ignore
+  }
+}
+
 const artworkTags = computed(() => {
   if (!artwork.value?.tags_parsed) return {};
 
@@ -977,7 +996,7 @@ function handleFeedbackCancel(): void {
           </h2>
           <div class="relative">
             <MiniMap v-if="artwork && artwork.lat != null && artwork.lon != null" :latitude="artwork?.lat"
-              :longitude="artwork?.lon" :title="artworkTitle" height="200px" :zoom="16" />
+              :longitude="artwork?.lon" :title="artworkTitle" height="200px" :zoom="16" @mapReady="handleChildMapReady" />
             <!-- Inline square Directions link removed; map control provides directions -->
             <div v-else class="text-gray-500 text-sm">Location information not available</div>
 

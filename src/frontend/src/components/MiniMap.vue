@@ -35,6 +35,10 @@ const map = ref<Map>();
 const marker = ref<Marker>();
 const isLoading = ref(true);
 const hasError = ref(false);
+// Resize observer reference for detecting when container gets laid out
+let resizeObserver: ResizeObserver | null = null;
+// Guard to prevent concurrent or duplicate initialization attempts
+let initializing = false;
 
 // Computed directions URL
 const directionsUrl = computed(() => {
@@ -44,21 +48,41 @@ const directionsUrl = computed(() => {
 // Map setup
 async function initializeMap(): Promise<void> {
   if (!mapContainer.value) return;
+  if (map.value) return; // already initialized
+  if (initializing) return; // already in progress
+  initializing = true;
 
   try {
+  // initialization start (debug logs removed)
     isLoading.value = true;
     hasError.value = false;
 
-  // Dynamic import of Leaflet to avoid SSR issues
-  const imported = await import('leaflet');
-  // Support both module shapes: default export or named exports (mocks may provide either)
-  const L: any = (imported && (imported as any).default) ? (imported as any).default : imported;
+    // Dynamic import of Leaflet to avoid SSR issues
+    const imported = await import('leaflet');
+    const L: any = (imported && (imported as any).default) ? (imported as any).default : imported;
 
-  // Create map
-  const mapInstance = L.map(mapContainer.value, {
-      // Disable default zoomControl here and add a positioned control below if requested
+    // Create a fresh inner container on each init to guarantee no leftover
+    // Leaflet state exists on that element. If a previous inner exists,
+    // remove it first.
+    try {
+      const prev: HTMLElement | undefined = (mapContainer.value as any).__mini_map_inner_current;
+      if (prev && mapContainer.value.contains(prev)) {
+        try { prev.remove(); } catch (err) { /* ignore */ }
+      }
+    } catch (err) { /* ignore */ }
+
+    const inner = document.createElement('div');
+    inner.className = 'mini-map-inner';
+    inner.style.width = '100%';
+    inner.style.height = '100%';
+    inner.style.position = 'relative';
+    mapContainer.value.appendChild(inner);
+    // store reference for cleanup on next init/unmount
+    (mapContainer.value as any).__mini_map_inner_current = inner;
+
+    const mapInstance: any = L.map(inner, {
       zoomControl: false,
-      scrollWheelZoom: false, // Prevent accidental zooming
+      scrollWheelZoom: false,
       doubleClickZoom: true,
       touchZoom: true,
       keyboard: true,
@@ -66,7 +90,7 @@ async function initializeMap(): Promise<void> {
     }).setView([props.latitude, props.longitude], props.zoom);
 
     // Add tile layer
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '© OpenStreetMap contributors',
       maxZoom: 19,
     }).addTo(mapInstance);
@@ -94,24 +118,35 @@ async function initializeMap(): Promise<void> {
     map.value = mapInstance;
     marker.value = markerInstance;
 
-    // Add zoom control in top-right if requested
+    // Log container dimensions after create
+      // record container size silently (no debug log)
+      try { mapContainer.value.getBoundingClientRect(); } catch (err) { /* ignore */ }
+
+    // Ensure layout recalculation
+    try {
+      if (mapInstance?.invalidateSize) {
+        mapInstance.invalidateSize();
+        requestAnimationFrame(() => mapInstance.invalidateSize());
+        setTimeout(() => mapInstance.invalidateSize(), 250);
+        setTimeout(() => mapInstance.invalidateSize(), 1000);
+      }
+    } catch (err) {
+      // ignore
+    }
+
+    // Add zoom control if available
     if (props.showZoomControls) {
       try {
-        // Some test environments mock 'leaflet' and may not provide control.zoom
         if (L && (L as any).control && typeof (L as any).control.zoom === 'function') {
           (L as any).control.zoom({ position: 'topright' }).addTo(mapInstance);
-        } else {
-          // If the mock doesn't support controls, skip gracefully
-          console.warn('Leaflet control.zoom not available; skipping zoom control addition in MiniMap.');
         }
       } catch (err) {
         console.warn('Could not add zoom control:', err);
       }
     }
-    // Emit map ready event
+
     emit('mapReady', mapInstance);
 
-    // Handle marker click
     markerInstance.on('click', () => {
       emit('markerClick', { lat: props.latitude, lng: props.longitude });
     });
@@ -121,6 +156,8 @@ async function initializeMap(): Promise<void> {
     console.error('Failed to initialize map:', error);
     hasError.value = true;
     isLoading.value = false;
+  } finally {
+    initializing = false;
   }
 }
 
@@ -190,9 +227,64 @@ onMounted(async () => {
   await initializeMap();
 });
 
+// In case the viewport changes (resizes) or parent layout changes, try to
+// invalidate the map size so Leaflet can recompute tiles and controls.
+function handleWindowResize(): void {
+  try {
+    map.value?.invalidateSize();
+  } catch (err) {
+    // ignore
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('resize', handleWindowResize);
+  // If ResizeObserver is available, observe the container to catch the
+  // moment when it receives layout (width/height > 0) after client-side
+  // navigation or parent transitions. When that happens, invalidate the
+  // Leaflet map so tiles and controls render correctly.
+  try {
+    if (typeof ResizeObserver !== 'undefined' && mapContainer.value) {
+      resizeObserver = new ResizeObserver(entries => {
+        for (const entry of entries) {
+          const rect = entry.contentRect;
+          if (rect.width > 0 && rect.height > 0) {
+            try {
+              if (!map.value && !initializing) {
+                // initialize when container gains dimensions
+                initializeMap().catch(() => {});
+              } else {
+                map.value?.invalidateSize();
+              }
+            } catch (err) {
+              /* ignore */
+            }
+          }
+        }
+      });
+      resizeObserver.observe(mapContainer.value);
+    }
+  } catch (err) {
+    /* ResizeObserver may be mocked away in tests; ignore errors */
+  }
+});
+
 onUnmounted(() => {
   if (map.value) {
     map.value.remove();
+  }
+  try {
+    window.removeEventListener('resize', handleWindowResize);
+  } catch (err) {
+    // ignore
+  }
+  try {
+    if (resizeObserver) {
+      resizeObserver.disconnect();
+      resizeObserver = null;
+    }
+  } catch (err) {
+    // ignore
   }
 });
 
