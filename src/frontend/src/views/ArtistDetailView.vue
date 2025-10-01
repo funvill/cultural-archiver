@@ -6,6 +6,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import PhotoCarousel from '../components/PhotoCarousel.vue';
 import TagBadge from '../components/TagBadge.vue';
+import FeedbackDialog from '../components/FeedbackDialog.vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import type { ArtistApiResponse } from '../../../shared/types';
 
@@ -27,6 +28,12 @@ const { announceError, announceSuccess } = useAnnouncer();
 const loading = ref(true);
 const error = ref<string | null>(null);
 const artist = ref<ArtistApiResponse | null>(null);
+
+// Feedback dialog state
+const showFeedbackDialog = ref(false);
+const feedbackMode = ref<'missing' | 'comment'>('comment');
+const showToast = ref(false);
+const toastMessage = ref('');
 
 // Template refs
 const keyInput = ref<HTMLInputElement>();
@@ -242,6 +249,31 @@ async function saveEdit() {
   }
 }
 
+// Feedback Methods
+function handleReportMissing(): void {
+  feedbackMode.value = 'missing';
+  showFeedbackDialog.value = true;
+}
+
+function handleReportIssue(): void {
+  feedbackMode.value = 'comment';
+  showFeedbackDialog.value = true;
+}
+
+function handleFeedbackSuccess(): void {
+  showFeedbackDialog.value = false;
+  announceSuccess('Thank you for your feedback! Moderators will review it shortly.');
+  showToast.value = true;
+  toastMessage.value = 'Feedback submitted successfully';
+  setTimeout(() => {
+    showToast.value = false;
+  }, 3000);
+}
+
+function handleFeedbackCancel(): void {
+  showFeedbackDialog.value = false;
+}
+
 function navigateToArtwork(artworkId: string) {
   router.push(`/artwork/${artworkId}`);
 }
@@ -376,6 +408,40 @@ function focusValueInput(): void {
               </button>
             </div>
           </div>
+        </div>
+
+        <!-- Feedback Buttons -->
+        <div v-if="!isEditMode" class="mt-4 flex gap-2">
+          <button
+            @click="handleReportMissing"
+            class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
+            :style="{ 
+              background: 'rgba(var(--md-error-container), 0.1)', 
+              color: 'rgb(var(--md-error))',
+              border: '1px solid rgba(var(--md-error), 0.2)'
+            }"
+            type="button"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.964-1.333-2.732 0L3.082 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            Report Missing
+          </button>
+          <button
+            @click="handleReportIssue"
+            class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
+            :style="{ 
+              background: 'rgba(var(--md-surface-variant), 0.5)', 
+              color: 'rgb(var(--md-on-surface-variant))',
+              border: '1px solid rgba(var(--md-outline), 0.3)'
+            }"
+            type="button"
+          >
+            <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+            </svg>
+            Report Issue
+          </button>
         </div>
 
         <!-- Edit Error -->
@@ -600,6 +666,35 @@ function focusValueInput(): void {
       </div>
     </div>
   </div>
+
+  <!-- Success Toast -->
+  <div
+    v-if="showToast"
+    class="fixed bottom-4 left-1/2 transform -translate-x-1/2 transition-transform duration-300 ease-in-out z-50"
+    :class="{ 'translate-y-0': showToast, 'translate-y-full': !showToast }"
+  >
+    <div class="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center">
+      <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+        <path
+          fill-rule="evenodd"
+          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+          clip-rule="evenodd"
+        ></path>
+      </svg>
+      <span>{{ toastMessage }}</span>
+    </div>
+  </div>
+
+  <!-- Feedback Dialog -->
+  <FeedbackDialog
+    v-if="artist"
+    :open="showFeedbackDialog"
+    subject-type="artist"
+    :subject-id="props.id"
+    :mode="feedbackMode"
+    @success="handleFeedbackSuccess"
+    @cancel="handleFeedbackCancel"
+  />
 </template>
 
 <style scoped>

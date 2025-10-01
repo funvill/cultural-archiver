@@ -14,6 +14,8 @@ const ProfileView = (): Promise<Component> => import('../views/ProfileView.vue')
 const ProfileNotificationsView = (): Promise<Component> =>
   import('../views/ProfileNotificationsView.vue');
 const ReviewView = (): Promise<Component> => import('../views/ReviewView.vue');
+const ModeratorFeedbackView = (): Promise<Component> =>
+  import('../views/ModeratorFeedbackView.vue');
 const AdminView = (): Promise<Component> => import('../views/AdminView.vue');
 const VerifyView = (): Promise<Component> => import('../views/VerifyView.vue');
 const SearchView = (): Promise<Component> => import('../views/SearchView.vue');
@@ -184,6 +186,15 @@ const router = createRouter({
       component: ReviewView,
       meta: {
         title: 'Review Queue - Cultural Archiver',
+        requiresModerator: true,
+      },
+    },
+    {
+      path: '/moderation/feedback',
+      name: 'ModeratorFeedback',
+      component: ModeratorFeedbackView,
+      meta: {
+        title: 'Feedback Moderation - Cultural Archiver',
         requiresModerator: true,
       },
     },

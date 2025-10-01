@@ -10,6 +10,7 @@ import TagBadge from '../components/TagBadge.vue';
 import TagEditor from '../components/TagEditor.vue';
 import AddToListDialog from '../components/AddToListDialog.vue';
 import ArtworkActionBar from '../components/ArtworkActionBar.vue';
+import FeedbackDialog from '../components/FeedbackDialog.vue';
 // import LogbookTimeline from '../components/LogbookTimeline.vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { apiService } from '../services/api';
@@ -36,6 +37,10 @@ const toastMessage = ref('');
 
 // Add to list dialog state
 const showAddToListDialog = ref(false);
+
+// Feedback dialog state
+const showFeedbackDialog = ref(false);
+const feedbackMode = ref<'missing' | 'comment'>('comment');
 
 // State
 const loading = ref(true);
@@ -632,6 +637,31 @@ function handleActionBarShare(): void {
   announceSuccess('Artwork shared');
 }
 
+// Feedback Methods
+function handleReportMissing(): void {
+  feedbackMode.value = 'missing';
+  showFeedbackDialog.value = true;
+}
+
+function handleReportIssue(): void {
+  feedbackMode.value = 'comment';
+  showFeedbackDialog.value = true;
+}
+
+function handleFeedbackSuccess(): void {
+  showFeedbackDialog.value = false;
+  announceSuccess('Thank you for your feedback! Moderators will review it shortly.');
+  showToast.value = true;
+  toastMessage.value = 'Feedback submitted successfully';
+  setTimeout(() => {
+    showToast.value = false;
+  }, 3000);
+}
+
+function handleFeedbackCancel(): void {
+  showFeedbackDialog.value = false;
+}
+
 // (Previously had getArtworkTypeEmoji() for icon display above title; removed per product request.)
 </script>
 
@@ -727,6 +757,40 @@ function handleActionBarShare(): void {
         @add-log="handleActionBarAddLog"
         @share-artwork="handleActionBarShare"
       />
+
+      <!-- Feedback Buttons -->
+      <div v-if="!isEditMode" class="flex gap-2 mb-6">
+        <button
+          @click="handleReportMissing"
+          class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
+          :style="{ 
+            background: 'rgba(var(--md-error-container), 0.1)', 
+            color: 'rgb(var(--md-error))',
+            border: '1px solid rgba(var(--md-error), 0.2)'
+          }"
+          type="button"
+        >
+          <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.964-1.333-2.732 0L3.082 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          Report Missing
+        </button>
+        <button
+          @click="handleReportIssue"
+          class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
+          :style="{ 
+            background: 'rgba(var(--md-surface-variant), 0.5)', 
+            color: 'rgb(var(--md-on-surface-variant))',
+            border: '1px solid rgba(var(--md-outline), 0.3)'
+          }"
+          type="button"
+        >
+          <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+          </svg>
+          Report Issue
+        </button>
+      </div>
 
       <!-- Artwork Details - Title, Artist, and Description -->
   <section aria-labelledby="artwork-details-heading" class="mb-6 theme-surface rounded-lg border theme-border p-6">
@@ -1111,6 +1175,17 @@ function handleActionBarShare(): void {
     v-model="showAddToListDialog"
     :artwork-id="props.id"
     @added-to-list="handleAddedToList"
+  />
+
+  <!-- Feedback Dialog -->
+  <FeedbackDialog
+    v-if="artwork"
+    :open="showFeedbackDialog"
+    subject-type="artwork"
+    :subject-id="props.id"
+    :mode="feedbackMode"
+    @success="handleFeedbackSuccess"
+    @cancel="handleFeedbackCancel"
   />
 </template>
 

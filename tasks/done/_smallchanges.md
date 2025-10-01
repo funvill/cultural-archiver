@@ -728,3 +728,51 @@ Users should be able to earn "Badges" for compleating tasks. There are lots of d
 When clicking the the "Add" button in the appshell for the 2nd time. it should overwrite the existing image with this new image. As if you are starting the whole process over again.
 
 If the customer wanted to select multiple images they would have in the inital "add" event
+
+
+-----
+
+
+Map icons
+
+- 🏴 Done        - These are artworks that the user has already visited.
+- 📷 Want to see - These are artworks that are on a list of ones that the user wants to see.
+- 🪦 Archived    - These are artworks that probably don't exist any more.
+- ⭕ Artworks    - These are artworks that the user hasn't sorted, seen, or archived.
+                   These artworks could be further organized by Artwork Types
+
+Current ArtworkTypes
+- 2D Artwork
+- Bust
+- Figurative
+- Fountain
+- Gateway
+- Graffiti
+- Installation
+- Media Work
+- Memorial
+- Monument
+- Mosaic
+- Mural
+- Other
+- Relief
+- Sculpture
+- Site-Integrated Work
+- Social Art
+- Statue
+- Stone
+- Street Art
+- Tiny Library
+- Totem Pole
+- Unknown
+
+----
+
+Cultural archive project note
+
+- [x] It asks for location even when location is provided by the browser
+- [x] The map markers are too small when fully zoomed in
+- [x] The current location blue circle marker on the map isn't clear that it's your location rather than a piece of art. Change it to a icon person
+- [x] Add log book entry button to artwork details page
+
+----

@@ -85,15 +85,9 @@ Badges Show a list of badges that this user has been awarded.
 
 Submissions Show the submission cards
 
----
+----
 
-Cultural archive project note
-
-- [x] It asks for location even when location is provided by the browser
-- [x] The map markers are too small when fully zoomed in
-- [x] The current location blue circle marker on the map isn't clear that it's your location rather than a piece of art. Change it to a icon person
 - Artist Pages need to be created
-- [x] Add log book entry button to artwork details page
 - The photo checkbox in the search results does not work because it's searching the tags for photos instead of the photos field
 
 ---- 
@@ -103,35 +97,27 @@ This allows people to print the sign for their own artworks to link to this page
 
 ----
 
-Map icons
+Artwork preview on the map
 
-- 🏴 Done        - These are artworks that the user has already visited.
-- 📷 Want to see - These are artworks that are on a list of ones that the user wants to see.
-- 🪦 Archived    - These are artworks that probably don't exist any more.
-- ⭕ Artworks    - These are artworks that the user hasn't sorted, seen, or archived.
-                   These artworks could be further organized by Artwork Types
+Add buttons that the user can press from the preview
 
-Current ArtworkTypes
-- 2D Artwork
-- Bust
-- Figurative
-- Fountain
-- Gateway
-- Graffiti
-- Installation
-- Media Work
-- Memorial
-- Monument
-- Mosaic
-- Mural
-- Other
-- Relief
-- Sculpture
-- Site-Integrated Work
-- Social Art
-- Statue
-- Stone
-- Street Art
-- Tiny Library
-- Totem Pole
-- Unknown
+- Loved - Adds the artwork to the user's Loved system list
+- Visited - Adds the artwork to the user's Visited system list
+- Star - Adds the artwork to the user's star system list
+- Missing - This should open the feedback dialog.
+
+The goal is to give the user a quick action buttons that they can preform on an artwork without having to go to the artwork details page.
+
+------
+
+On the map
+
+When the user clicks the center user button on the map.
+
+- The user icon should be on top of any markers that already exist on the map.
+- The user icon should show the direction that the user is looking. Simlare to the way google maps does. A circle in the center with a view cone. The view cone should update in real time
+- This current location should update peroditcly, once every few seconds
+
+The goal is to help users find themselfs on the map when they are hunting for new artworks nearby.
+
+------

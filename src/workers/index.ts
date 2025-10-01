@@ -140,6 +140,8 @@ import {
 } from './routes/admin';
 import { debugStevenPermissions } from './routes/debug-permissions';
 import { fixPermissionsSchema } from './routes/fix-schema';
+import { createFeedback } from './routes/feedback';
+import { listFeedback, reviewFeedback } from './routes/moderation/feedback';
 
 // Initialize Hono app
 const app = new Hono<{ Bindings: WorkerEnv }>();
@@ -636,6 +638,9 @@ app.use('/api/auth/*', checkEmailVerification);
 app.use('/api/review/*', ensureUserToken);
 app.use('/api/review/*', checkEmailVerification);
 app.use('/api/review/*', requireReviewer);
+app.use('/api/moderation/*', ensureUserToken);
+app.use('/api/moderation/*', checkEmailVerification);
+app.use('/api/moderation/*', requireReviewer);
 app.use('/api/admin/*', ensureUserToken);
 app.use('/api/admin/*', checkEmailVerification);
 app.use('/api/admin/*', requireAdmin);
@@ -1161,6 +1166,23 @@ app.post(
   '/api/review/artwork-edits/:editId/reject',
   validateUUID('editId'),
   withErrorHandling(rejectArtworkEdit)
+);
+
+// ================================
+// Feedback Endpoints
+// ================================
+
+// POST /api/feedback - Public endpoint for user feedback
+app.post('/api/feedback', ensureUserToken, withErrorHandling(createFeedback));
+
+// GET /api/moderation/feedback - Moderator list feedback
+app.get('/api/moderation/feedback', withErrorHandling(listFeedback));
+
+// POST /api/moderation/feedback/:id/review - Moderator review feedback
+app.post(
+  '/api/moderation/feedback/:id/review',
+  validateUUID('id'),
+  withErrorHandling(reviewFeedback)
 );
 
 // ================================

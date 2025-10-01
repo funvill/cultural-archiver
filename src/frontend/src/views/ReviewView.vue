@@ -7,7 +7,7 @@ import { globalModal } from '../composables/useModal';
 import { apiService, getErrorMessage } from '../services/api';
 import { createApiUrl } from '../utils/api-config';
 import ArtworkEditDiffs from '../components/ArtworkEditDiffs.vue';
-import type { ArtworkEditReviewData } from '../../../shared/types';
+import type { ArtworkEditReviewData, FeedbackRecord } from '../../../shared/types';
 
 // Types
 interface ReviewSubmission {
@@ -46,7 +46,9 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const submissions = ref<ReviewSubmission[]>([]);
 const artworkEdits = ref<ArtworkEditReviewData[]>([]);
-const currentTab = ref<'submissions' | 'edits'>('submissions');
+const feedback = ref<FeedbackRecord[]>([]);
+const feedbackTotal = ref(0);
+const currentTab = ref<'submissions' | 'edits' | 'feedback'>('submissions');
 const statistics = ref<Statistics>({
   pending: 0,
   approvedToday: 0,
@@ -184,7 +186,7 @@ async function loadData() {
   error.value = null;
 
   try {
-    await Promise.all([loadSubmissions(), loadArtworkEdits()]);
+    await Promise.all([loadSubmissions(), loadArtworkEdits(), loadFeedback()]);
     // After initial load, if a deep link searchId was provided ensure it's loaded
     if (searchId.value.trim()) {
       await ensureSubmissionLoaded(searchId.value.trim());
@@ -271,6 +273,40 @@ async function loadArtworkEdits() {
     );
 
     // Don't throw - let the submission loading continue
+  }
+}
+
+async function loadFeedback() {
+  try {
+    console.log('[ReviewView] Loading feedback for moderation...');
+
+    const params = new URLSearchParams({
+      page: '1',
+      per_page: '100',
+      status: 'open', // Only show open feedback by default
+    });
+
+    const response = (await apiService.get(`/moderation/feedback?${params.toString()}`)) as {
+      feedback: FeedbackRecord[];
+      total: number;
+      page: number;
+      per_page: number;
+      has_more: boolean;
+    };
+
+    feedback.value = response.feedback || [];
+    feedbackTotal.value = response.total || 0;
+    console.log('[ReviewView] Loaded feedback:', feedback.value.length);
+  } catch (err) {
+    console.error('[ReviewView] Error loading feedback:', err);
+
+    // Show user-friendly error modal
+    await globalModal.showError(
+      `Failed to load feedback for review: ${getErrorMessage(err)}`,
+      'Review Queue Error'
+    );
+
+    feedback.value = [];
   }
 }
 
@@ -682,6 +718,89 @@ async function rejectArtworkEdit(edit: ArtworkEditReviewData) {
   }
 }
 
+// Feedback review functions
+async function resolveFeedback(item: FeedbackRecord) {
+  const notes = await globalModal.showPrompt({
+    title: 'Resolve Feedback',
+    message: 'Mark this feedback as resolved. Optionally add notes about your decision:',
+    inputLabel: 'Review Notes (optional)',
+    placeholder: 'Add any notes about how this was resolved...',
+    multiline: true,
+    maxLength: 500,
+    required: false,
+    confirmText: 'Resolve',
+    cancelText: 'Cancel',
+  });
+
+  // User cancelled
+  if (notes === null) return;
+
+  processingId.value = item.id;
+  action.value = 'approve';
+
+  try {
+    await apiService.post(`/moderation/feedback/${item.id}/review`, {
+      action: 'resolve',
+      review_notes: notes || undefined,
+    });
+
+    // Remove from list on success
+    feedback.value = feedback.value.filter((f: FeedbackRecord) => f.id !== item.id);
+  } catch (err) {
+    console.error('[ReviewView] Error resolving feedback:', err);
+    error.value = getErrorMessage(err);
+  } finally {
+    processingId.value = null;
+    action.value = null;
+  }
+}
+
+async function archiveFeedback(item: FeedbackRecord) {
+  const notes = await globalModal.showPrompt({
+    title: 'Archive Feedback',
+    message: 'Archive this feedback without taking action. Optionally add notes:',
+    inputLabel: 'Review Notes (optional)',
+    placeholder: 'Add any notes about why this was archived...',
+    multiline: true,
+    maxLength: 500,
+    required: false,
+    confirmText: 'Archive',
+    cancelText: 'Cancel',
+  });
+
+  // User cancelled
+  if (notes === null) return;
+
+  processingId.value = item.id;
+  action.value = 'reject';
+
+  try {
+    await apiService.post(`/moderation/feedback/${item.id}/review`, {
+      action: 'archive',
+      review_notes: notes || undefined,
+    });
+
+    // Remove from list on success
+    feedback.value = feedback.value.filter((f: FeedbackRecord) => f.id !== item.id);
+  } catch (err) {
+    console.error('[ReviewView] Error archiving feedback:', err);
+    error.value = getErrorMessage(err);
+  } finally {
+    processingId.value = null;
+    action.value = null;
+  }
+}
+
+function getIssueTypeLabel(issueType: string): string {
+  const labels: Record<string, string> = {
+    missing: 'Missing',
+    incorrect_info: 'Incorrect Info',
+    other: 'Other',
+    comment: 'Comment',
+  };
+  return labels[issueType] || issueType;
+}
+
 function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
   const fieldCount = edit.diffs.length;
   const fields = edit.diffs.map(diff => {
@@ -818,6 +937,29 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
               ]"
             >
               {{ filteredArtworkEdits.length }}
+            </span>
+          </button>
+          <button
+            :class="[
+              'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors',
+              currentTab === 'feedback'
+                ? 'theme-primary theme-on-primary-container'
+                : 'border-transparent theme-outline hover:theme-on-surface hover:border-gray-300',
+            ]"
+            @click="
+              currentTab = 'feedback';
+              currentPage = 1;
+            "
+          >
+            User Feedback
+            <span
+              v-if="feedback.length > 0"
+              :class="[
+                'ml-2 py-0.5 px-2 rounded-full text-xs font-medium',
+                currentTab === 'feedback' ? 'theme-primary-container theme-on-primary-container' : 'bg-gray-100 text-gray-600',
+              ]"
+            >
+              {{ feedback.length }}
             </span>
           </button>
         </nav>
@@ -1371,6 +1513,92 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
         </div>
       </template>
 
+      <!-- User Feedback Tab -->
+      <template v-if="currentTab === 'feedback'">
+        <!-- Empty State -->
+        <div
+          v-if="feedback.length === 0"
+          class="text-center py-12 bg-white rounded-lg shadow"
+        >
+          <svg
+            class="w-16 h-16 mx-auto mb-4 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+            />
+          </svg>
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">No Feedback Found</h3>
+          <p class="text-gray-600">All feedback has been reviewed!</p>
+        </div>
+
+        <!-- Feedback List -->
+        <div v-else class="space-y-4">
+          <div
+            v-for="item in feedback"
+            :key="item.id"
+            class="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6"
+          >
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <!-- Header -->
+                <div class="flex items-center gap-3 mb-3">
+                  <span class="px-2 py-1 text-xs font-medium rounded bg-yellow-100 text-yellow-800">
+                    OPEN
+                  </span>
+                  <span class="text-sm text-gray-500">
+                    {{ item.subject_type === 'artwork' ? '🎨 Artwork' : '👤 Artist' }}
+                  </span>
+                  <span class="text-sm text-gray-500">•</span>
+                  <span class="text-sm text-gray-500">
+                    {{ getIssueTypeLabel(item.issue_type) }}
+                  </span>
+                  <span class="text-sm text-gray-500">•</span>
+                  <span class="text-sm text-gray-500">{{ formatDate(item.created_at) }}</span>
+                </div>
+
+                <!-- Feedback Note -->
+                <p class="text-gray-900 mb-3 whitespace-pre-wrap">{{ item.note }}</p>
+
+                <!-- Subject Link -->
+                <div class="mb-3">
+                  <router-link
+                    :to="`/${item.subject_type}/${item.subject_id}`"
+                    class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    target="_blank"
+                  >
+                    View {{ item.subject_type }} →
+                  </router-link>
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="flex flex-col gap-2 ml-4">
+                <button
+                  @click="resolveFeedback(item)"
+                  :disabled="!!processingId"
+                  class="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Resolve
+                </button>
+                <button
+                  @click="archiveFeedback(item)"
+                  :disabled="!!processingId"
+                  class="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Archive
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
       <!-- Pagination (works for both tabs) -->
       <div v-if="totalPages > 1" class="mt-8 flex items-center justify-between">
         <div class="text-sm text-gray-700">
@@ -1378,9 +1606,12 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
             Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, filteredSubmissions.length) }} of
             {{ filteredSubmissions.length }} submissions
           </span>
-          <span v-else>
+          <span v-else-if="currentTab === 'edits'">
             Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, filteredArtworkEdits.length) }} of
             {{ filteredArtworkEdits.length }} artwork edits
+          </span>
+          <span v-else>
+            Showing {{ feedback.length }} feedback item{{ feedback.length !== 1 ? 's' : '' }}
           </span>
         </div>
         <div class="flex space-x-2">
