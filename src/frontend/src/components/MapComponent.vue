@@ -23,6 +23,7 @@ import { useUserLists } from '../composables/useUserLists';
 import { useMapFilters } from '../composables/useMapFilters';
 import { useRouter } from 'vue-router';
 import MapOptionsModal from './MapOptionsModal.vue';
+import { useMapPreviewStore } from '../stores/mapPreview';
 
 // Props
 const props = withDefaults(defineProps<MapComponentProps>(), {
@@ -84,6 +85,9 @@ const artworkMarkers = ref<(L.Marker | L.CircleMarker)[]>([]);
 const markerClusterGroup = ref<any | null>(null);
 // Map options state
 const showOptionsModal = ref(false);
+
+// Map preview store - used to hide preview when opening options
+const mapPreviewStore = useMapPreviewStore();
 // Use mapFilters clustering state instead of local ref
 const clusterEnabled = computed(() => mapFilters.filtersState.clusterEnabled);
 const debugRingsEnabled = ref(false);
@@ -2468,7 +2472,7 @@ watch(
       <!-- Map Options (Layers) Button -->
       <div class="relative">
         <button
-          @click="showOptionsModal = true"
+          @click="() => { showOptionsModal = true; mapPreviewStore.hidePreview(); }"
           class="theme-surface shadow-md rounded-full p-3 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
           title="Map settings"
           aria-label="Open map settings"
@@ -2548,7 +2552,7 @@ watch(
   <!-- Map Options Modal -->
   <MapOptionsModal
     :isOpen="showOptionsModal"
-    @update:isOpen="showOptionsModal = $event"
+    @update:isOpen="(val) => { showOptionsModal = val; if (val) mapPreviewStore.hidePreview(); }"
     @applySettings="handleApplySettings"
   />
 </template>
