@@ -16,6 +16,7 @@ export default defineConfig({
       '**/.{idea,git,cache,output,temp}/**',
       '**/tests/e2e/**', // Exclude Playwright E2E tests
       '**/tests/playwright/**', // Exclude standalone Playwright tests
+      'tests/**', // Exclude top-level Playwright/test suites under tests/
     ],
   },
   resolve: {
