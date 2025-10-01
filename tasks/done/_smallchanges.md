@@ -776,3 +776,13 @@ Cultural archive project note
 - [x] Add log book entry button to artwork details page
 
 ----
+
+Bug
+The map in the locations section of the artwork details doesn't show up when you browes to a artwork details page, but does show up when you refresh the page.
+
+----
+
+Bug
+When the page refreshes, the artwork markers that have been visted show as normal.instead of checked. when you pan the markers out of view then back into view they are checked. There is an issue with marking the visited marker on page load.
+
+----

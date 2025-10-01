@@ -798,8 +798,17 @@ async function initializeMap() {
 
       // Wait for Leaflet to fully initialize the zoom controls
       nextTick(() => {
-        const zoomInButton = map.value!.getContainer().querySelector('.leaflet-control-zoom-in');
-        const zoomOutButton = map.value!.getContainer().querySelector('.leaflet-control-zoom-out');
+        // Some test environments mock map.value and may not provide getContainer().
+        // Fall back to the component's mapContainer DOM node when necessary.
+        const containerEl: HTMLElement | null =
+          (map.value && typeof (map.value as any).getContainer === 'function')
+            ? (map.value as any).getContainer()
+            : mapContainer.value || null;
+
+        if (!containerEl) return;
+
+        const zoomInButton = containerEl.querySelector('.leaflet-control-zoom-in');
+        const zoomOutButton = containerEl.querySelector('.leaflet-control-zoom-out');
 
         if (zoomInButton) {
           // intercepting zoom in button (debug suppressed)
@@ -1597,8 +1606,42 @@ function updateArtworkMarkers() {
 
   // Add new markers for artworks that entered the viewport
   sortedArtworks.forEach((artwork: ArtworkPin) => {
-    // Skip if marker already exists
+    // If marker already exists, ensure its icon/type is up-to-date
     if (currentArtworkIds.has(artwork.id)) {
+      try {
+        const existing = artworkMarkers.value.find((m: any) => m._artworkId === artwork.id);
+        if (existing) {
+          const existingAny = existing as any;
+          const newType = getMarkerType(artwork);
+          // If marker type changed (for example visited list loaded after initial render), update icon
+          if (newType !== existingAny._markerType) {
+            if (typeof existingAny.setIcon === 'function') {
+              let newIcon: L.DivIcon | null = null;
+              switch (newType) {
+                case MarkerType.VISITED:
+                  newIcon = createVisitedMarker();
+                  break;
+                case MarkerType.STARRED:
+                  newIcon = createStarredMarker();
+                  break;
+                case MarkerType.UNKNOWN:
+                  newIcon = createUnknownMarker(artwork.type || 'other');
+                  break;
+                case MarkerType.NORMAL:
+                default:
+                  newIcon = createNormalMarker(artwork.type || 'other');
+                  break;
+              }
+              if (newIcon) {
+                try { existingAny.setIcon(newIcon); } catch (e) { /* ignore */ }
+              }
+            }
+            existingAny._markerType = newType;
+          }
+        }
+      } catch (e) {
+        // ignore individual marker update failures
+      }
       return;
     }
 
