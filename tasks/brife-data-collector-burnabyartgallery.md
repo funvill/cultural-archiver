@@ -14,6 +14,8 @@ The output from this data collector is stored in `src\lib\data-collection\burnab
 
 There should be 114 recoreds
 
+
+
 ## Data Format
 
 Each artwork is a GeoJSON `Feature`
@@ -37,6 +39,7 @@ This will produce a GeoJSON file like this
   },
   "properties": {
     "source": "https://burnabyartgallery.ca",
+    "source_url": "https://collections.burnabyartgallery.ca/link/publicart46",
     "name": "Arc de Triomphe",
     "artwork_type": "sculpture",
     "location": "Simon Fraser University",
@@ -55,7 +58,7 @@ This will produce a GeoJSON file like this
 }
 ```
 
-The artist pages should also be captured
+The linked artist pages from the public artworks should also be captured
 
 Example: https://collections.burnabyartgallery.ca/list?q=&p=1&ps=&ct=expand&objectType_facet=artist000000|Artist&artist_facet=fafardjoe000000|Fafard,%20Joe
 
