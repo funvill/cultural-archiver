@@ -80,6 +80,12 @@ const useProgressiveLoading = ref(false); // Toggle for progressive loading mode
 // Guard navigator for SSR / non-browser test environments
 const hasGeolocation = ref(typeof navigator !== 'undefined' && !!navigator.geolocation);
 const userLocationMarker = ref<L.Marker | null>(null);
+// Live tracking state for the centered user marker
+const userWatchId = ref<number | null>(null);
+const userHeading = ref<number>(0); // degrees
+let deviceOrientationListener: ((ev: DeviceOrientationEvent) => void) | null = null;
+
+const isTracking = computed(() => userWatchId.value !== null);
 const artworkMarkers = ref<(L.Marker | L.CircleMarker)[]>([]);
 // Use any for cluster type to avoid type issues if markercluster types not available
 const markerClusterGroup = ref<any | null>(null);
@@ -1287,11 +1293,67 @@ function addUserLocationMarker(location: Coordinates) {
 
   // Add new marker
   userLocationMarker.value = L.marker([location.latitude, location.longitude], {
-    icon: createUserLocationIcon(),
+    icon: createUserLocationIconWithCone(userHeading.value),
+    zIndexOffset: 10000,
   })
     .addTo(map.value!)
     .bindPopup('Your current location');
+
+  // Ensure user marker is on top visually
+  try {
+    userLocationMarker.value.getElement()?.style.setProperty('z-index', '10050');
+    if ((userLocationMarker.value as any).bringToFront) {
+      (userLocationMarker.value as any).bringToFront();
+    }
+  } catch (e) {
+    /* ignore */
+  }
 }
+
+// Create a divIcon that includes a view cone rotated to heading (deg)
+const createUserLocationIconWithCone = (headingDeg: number) => {
+  const size = 56; // px
+  const half = size / 2;
+  // Google-maps-like marker: small central circle, subtle ring, cone (faint), and a small arrow/chevron
+  const coneSvg = `
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.25" />
+        </filter>
+      </defs>
+      <g transform="translate(${half}, ${half}) rotate(${headingDeg})">
+        <!-- Outer faint ring -->
+        <circle cx="0" cy="0" r="18" fill="none" stroke="#2563eb" stroke-opacity="0.12" stroke-width="8" />
+
+        <!-- Inner solid center -->
+        <circle cx="0" cy="0" r="8" fill="#2563eb" stroke="#fff" stroke-width="2" filter="url(#shadow)" />
+
+        <!-- Forward cone (semi-transparent) -->
+        <path d="M0 -10 L22 -38 L-22 -38 Z" fill="#2563eb" fill-opacity="0.12" stroke="none" />
+
+        <!-- Inner thin cone edge -->
+        <path d="M0 -10 L18 -34 L-18 -34 Z" fill="none" stroke="#2563eb" stroke-opacity="0.22" stroke-width="1" />
+
+        <!-- Small arrow/chevron tip at the cone point -->
+        <path d="M0 -40 L6 -30 L-6 -30 Z" fill="#2563eb" />
+      </g>
+    </svg>
+  `;
+
+  return L.divIcon({
+    html: `
+      <div class="user-location-marker-wrapper" style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;">
+        ${coneSvg}
+      </div>
+    `,
+    className: 'custom-user-location-icon-wrapper',
+    iconSize: [size, size],
+    iconAnchor: [half, half],
+  });
+};
+
+// Note: keep legacy createUserLocationIcon available for other code paths
 
 // Load artworks on map with intelligent viewport-based loading
 async function loadArtworks() {
@@ -2017,11 +2079,98 @@ function zoomOut() {
 }
 
 function centerOnUserLocation() {
-  requestUserLocation();
+  // Toggle live tracking: if already tracking, stop; otherwise start and center
+  if (userWatchId.value !== null) {
+    stopUserTracking();
+    return;
+  }
+
+  startUserTracking();
 }
 
 function requestLocation() {
   requestUserLocation();
+}
+
+function startUserTracking() {
+  if (!hasGeolocation.value) {
+    requestUserLocation();
+    return;
+  }
+
+  // Start listening to device orientation if available
+  try {
+    if (window && 'DeviceOrientationEvent' in window) {
+      deviceOrientationListener = (ev: DeviceOrientationEvent) => {
+        if (typeof ev.alpha === 'number') {
+          // alpha is rotation around z axis in degrees (0-360)
+          userHeading.value = 360 - (ev.alpha || 0);
+          // update marker rotation if exists
+          if (userLocationMarker.value) {
+            try {
+              const el = userLocationMarker.value.getElement();
+              if (el) {
+                const svg = el.querySelector('svg');
+                if (svg) svg.style.transform = `rotate(${userHeading.value}deg)`;
+              }
+            } catch {}
+          }
+        }
+      };
+      window.addEventListener('deviceorientation', deviceOrientationListener as EventListener);
+    }
+  } catch (e) {
+    /* ignore */
+  }
+
+  // Use watchPosition for continuous updates
+  try {
+    userWatchId.value = navigator.geolocation.watchPosition(
+      (pos) => {
+        const coords: Coordinates = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+        artworksStore.setCurrentLocation(coords);
+        // Update marker and center map
+        addUserLocationMarker(coords);
+        if (map.value) map.value.setView([coords.latitude, coords.longitude], map.value.getZoom());
+        emit('locationFound', coords);
+      },
+      (err) => {
+        console.warn('watchPosition error:', err);
+      },
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+    );
+  } catch (e) {
+    // Fallback to single request and periodic poll
+    requestUserLocation();
+    const poll = setInterval(() => {
+      requestUserLocation().catch(() => {});
+    }, 5000);
+    // Save watch id as negative to indicate interval so stopUserTracking can clear it
+    userWatchId.value = -poll as any as number;
+  }
+}
+
+function stopUserTracking() {
+  // Stop device orientation listener
+  try {
+    if (deviceOrientationListener && window) {
+      window.removeEventListener('deviceorientation', deviceOrientationListener as EventListener);
+    }
+  } catch {}
+
+  // Stop geolocation watch
+  try {
+    if (userWatchId.value !== null) {
+      if (userWatchId.value >= 0) {
+        navigator.geolocation.clearWatch(userWatchId.value);
+      } else {
+        // negative value encodes a setInterval id
+        clearInterval(-userWatchId.value);
+      }
+    }
+  } catch {}
+
+  userWatchId.value = null;
 }
 
 function clearError() {
@@ -2234,6 +2383,8 @@ onUnmounted(() => {
     
     map.value = undefined;
   }
+  // Ensure user tracking is stopped when component unmounts
+  try { stopUserTracking(); } catch {}
 });
 
 // Rebuild markers when visited/starred sets change
@@ -2471,11 +2622,12 @@ watch(
         v-if="hasGeolocation"
         @click="centerOnUserLocation"
         :disabled="isLocating"
-        class="theme-surface shadow-md rounded-full p-3 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+        :class="['theme-surface shadow-md rounded-full p-3 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50', isTracking ? 'ring-4 ring-blue-300' : '']"
         :title="isLocating ? 'Getting location...' : 'Center on current location'"
         :aria-label="isLocating ? 'Getting current location...' : 'Center map on current location'"
       >
         <MapPinIcon v-if="!isLocating" class="w-5 h-5 text-gray-700" />
+        <div v-if="isTracking && !isLocating" class="w-3 h-3 rounded-full bg-blue-600 absolute" style="transform: translate(10px, -10px);"></div>
         <div
           v-else
           class="w-5 h-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"
@@ -2573,6 +2725,15 @@ watch(
 
 .user-location-marker {
   animation: pulse 2s infinite;
+}
+
+.custom-user-location-icon-wrapper {
+  pointer-events: auto !important;
+}
+
+.user-location-marker-wrapper svg {
+  transform-origin: center center;
+  transition: transform 150ms linear;
 }
 
 @keyframes pulse {
@@ -2700,5 +2861,11 @@ watch(
 .leaflet-marker-icon.custom-normal-icon,
 .leaflet-marker-icon.custom-unknown-icon {
   z-index: 1000 !important;
+}
+
+/* Ensure user marker sits above artwork markers and tiles */
+.leaflet-marker-icon.custom-user-location-icon-wrapper,
+.custom-user-location-icon-wrapper {
+  z-index: 11000 !important;
 }
 </style>

@@ -92,39 +92,7 @@ Submissions Show the submission cards
 
 ---- 
 
-Downloadable QR code "Sign" for the artwork page. 
+Downloadable QR code "Sign" for the artwork page
 This allows people to print the sign for their own artworks to link to this page.
-
-----
-
-Artwork preview on the map
-
-Add buttons that the user can press from the preview
-
-- Loved - Adds the artwork to the user's Loved system list
-- Visited - Adds the artwork to the user's Visited system list
-- Star - Adds the artwork to the user's star system list
-- Missing - This should open the feedback dialog.
-
-The goal is to give the user a quick action buttons that they can preform on an artwork without having to go to the artwork details page.
-
-------
-
-On the map
-
-When the user clicks the center user button on the map.
-
-- The user icon should be on top of any markers that already exist on the map.
-- The user icon should show the direction that the user is looking. Simlare to the way google maps does. A circle in the center with a view cone. The view cone should update in real time
-- This current location should update peroditcly, once every few seconds
-
-The goal is to help users find themselfs on the map when they are hunting for new artworks nearby.
-
-------
-
-The text on top of the Artwork Card is hard to read
-
-The Title should be White, and larger
-The Artwork type, and number of photos should be a Chips with a solid background
 
 ----
