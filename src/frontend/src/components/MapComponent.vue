@@ -2389,34 +2389,38 @@ watch(
     </div>
 
     <!-- Location Permission Notice -->
+    <!-- Updated: use a solid/semi-opaque background + shadow for better readability over the map -->
     <div
       v-if="showLocationNotice"
-      class="absolute top-4 left-4 right-4 bg-yellow-100 border border-yellow-300 rounded-lg p-3 z-30"
+      class="absolute top-4 left-4 bg-yellow-50/95 border border-yellow-300 rounded-lg z-30 shadow-md backdrop-blur-sm max-w-xs"
       role="alert"
       aria-live="assertive"
+      aria-atomic="true"
     >
-      <div class="flex items-start space-x-2">
-        <ExclamationTriangleIcon class="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-        <div class="flex-1">
-          <p class="text-sm text-yellow-800 font-medium">Location Access Needed</p>
-          <p class="text-xs text-yellow-700 mb-2">
+      <div class="flex items-center gap-3 px-3 py-2">
+        <ExclamationTriangleIcon class="w-5 h-5 text-yellow-600 flex-shrink-0" />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm text-yellow-900 font-semibold truncate">Location Access Needed</p>
+          <p class="text-xs text-yellow-800 truncate">
             Enable location access to see nearby artworks and improve your experience.
           </p>
-          <div class="flex flex-col sm:flex-row gap-2">
-            <button
-              @click="requestLocation"
-              class="text-xs bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 focus:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors"
-            >
-              Enable Location
-            </button>
-            <a
-              href="/help#location-access-faq"
-              class="text-xs text-yellow-700 underline hover:text-yellow-800 focus:text-yellow-800 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded px-1"
-            >
-              Why is this needed?
-            </a>
-          </div>
         </div>
+        <div class="flex-shrink-0 ml-2 flex items-center space-x-2">
+          <button
+            @click="requestLocation"
+            class="text-xs bg-yellow-700 text-white px-2 py-1 rounded hover:bg-yellow-800 focus:bg-yellow-800 focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:ring-offset-2 transition-colors"
+          >
+            Enable
+          </button>
+        </div>
+      </div>
+      <div class="px-3 pb-2">
+        <a
+          href="/help#location-access-faq"
+          class="text-xs text-yellow-700 underline hover:text-yellow-800 focus:text-yellow-800 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded px-1"
+        >
+          Why is this needed?
+        </a>
       </div>
     </div>
 
