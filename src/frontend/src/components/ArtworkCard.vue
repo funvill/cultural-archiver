@@ -266,11 +266,11 @@ function handleKeydown(event: KeyboardEvent): void {
           <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
         </div>
 
-        <!-- Photo count badge (top-right) - show human readable text so tests can assert '3 photos' -->
+        <!-- Photo count badge (top-right) - solid chip with high contrast -->
         <div
           v-if="artwork.photo_count && artwork.photo_count > 1"
-          class="photo-count-overlay absolute top-2 right-2 text-xs px-2 py-1 rounded z-10 flex items-center gap-1"
-          :style="{ background: 'color-mix(in srgb, var(--md-on-surface, #000) 0.6, transparent)', color: 'var(--md-on-surface, #fff)' }"
+          class="photo-count-overlay absolute top-2 right-2 text-xs px-2 py-1 rounded-full z-10 flex items-center gap-1"
+          :style="{ background: 'rgba(0,0,0,0.7)', color: '#ffffff' }"
         >
           <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
@@ -279,14 +279,14 @@ function handleKeydown(event: KeyboardEvent): void {
           {{ photoCount }}
         </div>
 
-        <!-- Type badge (top-right) -->
-        <div class="type-badge-overlay absolute top-2 left-12 z-10">
-          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" :style="{ background: 'var(--md-primary-container, rgba(37,99,235,0.12))', color: 'var(--md-on-primary-container, #0f172a)' }">{{ artworkType }}</span>
+        <!-- Type badge (top-left) - solid chip -->
+        <div class="type-badge-overlay absolute top-2 left-2 z-10">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" :style="{ background: 'rgba(0,0,0,0.7)', color: '#ffffff' }">{{ artworkType }}</span>
         </div>
 
         <!-- Bottom overlay with title + artist -->
-          <div class="text-overlay absolute left-0 right-0 bottom-0 p-3 text-white z-10" :style="{ background: 'linear-gradient(180deg, transparent, color-mix(in srgb, var(--md-surface, black) 80%))' }">
-          <h3 class="text-base font-semibold leading-tight line-clamp-2" :style="{ color: 'var(--md-on-surface, #fff)' }">{{ artworkTitle }}</h3>
+          <div class="text-overlay absolute left-0 right-0 bottom-0 p-3 text-white z-10" :style="{ background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.65) 100%)' }">
+          <h3 class="text-base md:text-xl font-semibold leading-tight line-clamp-2" :style="{ color: '#ffffff' }">{{ artworkTitle }}</h3>
           <p v-if="artistName" class="text-xs mt-1 truncate" :style="{ color: 'var(--md-on-surface-variant, #e5e7eb)' }">{{ artistName }}</p>
           <!-- Always show distance if requested (even when artist exists) -->
           <p v-if="showDistance && distanceText" class="text-xs mt-1" :style="{ color: 'var(--md-on-surface-variant, #e5e7eb)' }">{{ distanceText }}</p>
@@ -367,7 +367,7 @@ function handleKeydown(event: KeyboardEvent): void {
 .aspect-h-1 .type-badge-overlay {
   position: absolute !important;
   top: 0.5rem !important;
-  right: 0.5rem !important;
+  left: 0.5rem !important;
   z-index: 10 !important;
 }
 
@@ -377,6 +377,16 @@ function handleKeydown(event: KeyboardEvent): void {
   left: 0 !important;
   right: 0 !important;
   z-index: 20 !important;
+}
+
+/* Ensure chips have clear contrast and slightly larger tappable area on mobile */
+.photo-count-overlay, .type-badge-overlay span {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.25);
+}
+
+/* Slightly increase padding of text overlay on small screens for readability */
+.text-overlay {
+  padding: 0.75rem !important;
 }
 
 /* Ensure overlay badges are not stretched to full size by the aspect ratio helper */
