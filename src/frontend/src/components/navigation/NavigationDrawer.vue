@@ -26,15 +26,14 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 // Events
-interface Emits {
-  'update:isOpen': [value: boolean];
-  'searchSubmit': [query: string];
-  'profileClick': [];
-  'logoutClick': [];
-  'aboutModalOpen': [];
-}
-
-const emit = defineEmits<Emits>();
+const emit = defineEmits(([
+  'update:isOpen',
+  'searchSubmit',
+  'profileClick',
+  'logoutClick',
+  'loginClick',
+  'aboutModalOpen',
+] as unknown) as string[]);
 
 // Local state
 // (search removed from drawer per design)

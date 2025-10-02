@@ -2,52 +2,30 @@
  * Geolocation services composable for getting user location
  */
 
-<<<<<<< HEAD
+
 import { ref, computed } from 'vue';
 import type { Ref } from 'vue';
 import type { Coordinates } from '../types';
 
 export interface UseGeolocationReturn {
-=======
-import { ref, computed, type Ref, type ComputedRef } from 'vue';
-import type { Coordinates } from '../types';
-
-export interface UseGeolocationReturn {
-  // State
->>>>>>> 79cbe81 (data-collectors, linting)
   position: Ref<Coordinates | null>;
   error: Ref<string | null>;
   isLoading: Ref<boolean>;
   isWatching: Ref<boolean>;
-<<<<<<< HEAD
+
   hasLocation: Ref<boolean>;
   hasPermission: Ref<boolean>;
   isSupported: Ref<boolean>;
   FALLBACK_COORDINATES: Coordinates;
-=======
-  hasLocation: ComputedRef<boolean>;
-  hasPermission: ComputedRef<boolean>;
-  isSupported: ComputedRef<boolean>;
-  
-  // Actions
->>>>>>> 79cbe81 (data-collectors, linting)
   getCurrentPosition: () => Promise<Coordinates>;
   watchPosition: () => void;
   stopWatching: () => void;
   getLocationWithFallback: () => Promise<Coordinates>;
   clearError: () => void;
-<<<<<<< HEAD
+
   calculateDistance: (coord1: Coordinates, coord2: Coordinates) => number;
   isWithinRadius: (center: Coordinates, point: Coordinates, radiusMeters: number) => boolean;
   formatCoordinates: (coords: Coordinates) => string;
-=======
-  
-  // Utilities
-  calculateDistance: (coord1: Coordinates, coord2: Coordinates) => number;
-  isWithinRadius: (center: Coordinates, point: Coordinates, radiusMeters: number) => boolean;
-  formatCoordinates: (coords: Coordinates) => string;
-  FALLBACK_COORDINATES: Coordinates;
->>>>>>> 79cbe81 (data-collectors, linting)
 }
 
 export function useGeolocation(): UseGeolocationReturn {

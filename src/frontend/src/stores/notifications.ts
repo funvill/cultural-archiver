@@ -38,15 +38,11 @@ export const useNotificationsStore = defineStore('notifications', () => {
       unread_only?: boolean;
       append?: boolean;
     } = {}
-<<<<<<< HEAD
+
   ): Promise<{ notifications: NotificationResponse[] }> {
     if (isLoading.value && !options.append) {
       return Promise.resolve({ notifications: notifications.value });
     }
-=======
-  ): Promise<{ notifications: NotificationResponse[] } | null> {
-  if (isLoading.value && !options.append) return null;
->>>>>>> 79cbe81 (data-collectors, linting)
 
     isLoading.value = true;
     error.value = null;
@@ -83,11 +79,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
   }
 
-<<<<<<< HEAD
+
   async function fetchUnreadCount(): Promise<{ unread_count: number }> {
-=======
-  async function fetchUnreadCount(): Promise<{ unread_count: number } | null> {
->>>>>>> 79cbe81 (data-collectors, linting)
     try {
       const result = await NotificationService.getUnreadCount();
       unreadCount.value = result.unread_count;
@@ -99,11 +92,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
   }
 
-<<<<<<< HEAD
+
   async function dismissNotification(notificationId: string): Promise<{ success: boolean }> {
-=======
-  async function dismissNotification(notificationId: string): Promise<{ success: true } | null> {
->>>>>>> 79cbe81 (data-collectors, linting)
     try {
       await NotificationService.dismissNotification(notificationId);
 
@@ -122,11 +112,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
   }
 
-<<<<<<< HEAD
+
   async function markNotificationRead(notificationId: string): Promise<{ success: boolean }> {
-=======
-  async function markNotificationRead(notificationId: string): Promise<{ success: true } | null> {
->>>>>>> 79cbe81 (data-collectors, linting)
     try {
       await NotificationService.markNotificationRead(notificationId);
 
@@ -149,11 +136,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
    * Mark all notifications in memory as read (calls backend per-notification).
    * This is a best-effort implementation since backend doesn't expose a bulk endpoint.
    */
-<<<<<<< HEAD
+
   async function markAllRead(): Promise<{ success: boolean }> {
-=======
-  async function markAllRead(): Promise<{ success: true } | null> {
->>>>>>> 79cbe81 (data-collectors, linting)
     const unread = notifications.value.filter(n => !n.is_dismissed).map(n => n.id);
     if (unread.length === 0) return { success: true };
 

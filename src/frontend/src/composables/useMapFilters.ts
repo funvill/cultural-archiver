@@ -1,6 +1,20 @@
-import { computed, reactive, watch, type ComputedRef } from 'vue';
+import { computed, reactive, watch, ref, type ComputedRef, type Ref } from 'vue';
 import { useUserLists } from './useUserLists';
 import type { ListApiResponse } from '../../../shared/types';
+import type { ArtworkPin } from '../types';
+
+// ArtworkPin is the frontend map marker shape; some filtering code expects extra fields
+// present on API artwork objects. Define a wider type for filtering that includes
+// optional fields used by older codepaths.
+export type ArtworkForFiltering = ArtworkPin & Partial<{
+  artwork_type: string;
+  photos: unknown[];
+  recent_photo: unknown;
+  photo_count: number;
+  photoCount: number;
+  status: string;
+  want_to_see: boolean;
+}>;
 
 // Types
 export interface ArtworkTypeFilter {
@@ -31,7 +45,32 @@ export interface MapFiltersState {
   hideVisited: boolean;
   showRemoved: boolean;
   showArtworksWithoutPhotos: boolean;
+  // Additional simple flags used by UI
+  wantToSee?: boolean;
+  notSeenByMe?: boolean;
 }
+
+// Small helper types to avoid `any`
+export interface FilterPreset {
+  id: string;
+  name: string;
+  note?: string | undefined;
+  state?: MapFiltersState;
+  // UI-driven quick-filter shape
+  filterId?: string;
+  label?: string;
+  count?: number;
+  description?: string;
+}
+
+export interface FilterMetrics {
+  sessionDuration: number;
+  totalFilterApplications: number;
+  cacheHitRate: number;
+  mostUsedFilter: string | null;
+}
+
+// We'll use ArtworkPin (frontend type) for filtering operations
 
 // Default artwork types with colors (matches existing system)
 const DEFAULT_ARTWORK_TYPES: ArtworkTypeFilter[] = [
@@ -71,6 +110,10 @@ let isInitialized = false;
 export interface UseMapFiltersReturn {
   // State
   filtersState: MapFiltersState;
+  // Backwards-compatible alias used by some views
+  filterState: ComputedRef<Record<string, unknown>>;
+  // Available user lists (from useUserLists)
+  availableUserLists: ComputedRef<ListApiResponse[]>;
   
   // Computed
   hasActiveFilters: ComputedRef<boolean>;
@@ -83,6 +126,8 @@ export interface UseMapFiltersReturn {
   setAllArtworkTypes: (enabled: boolean) => void;
   toggleStatusFilter: (status: keyof StatusFilter) => void;
   toggleUserListFilter: (listId: string) => void;
+  // Backwards-compatible name
+  toggleUserList: (listId: string) => void;
   toggleClusterEnabled: () => void;
   toggleShowOnlyMySubmissions: () => void;
   toggleHideVisited: () => void;
@@ -92,10 +137,37 @@ export interface UseMapFiltersReturn {
   shouldShowArtwork: (artwork: any) => boolean; // eslint-disable-line @typescript-eslint/no-explicit-any
   saveFiltersToStorage: () => void;
   loadFiltersFromStorage: () => void;
+  // New UI helpers and actions
+  isFilterEnabled: (filterKey: string) => boolean;
+  toggleWantToSee: () => void;
+  toggleNotSeenByMe: () => void;
+  createPreset: (name: string, note?: string) => void;
+  applyPreset: (id: string) => void;
+  deletePreset: (id: string) => void;
+  exportFilters: () => string;
+  importFilters: (content: string) => boolean;
+  loadUserLists: () => Promise<void>;
+  recentlyUsedFilters: Ref<FilterPreset[]>;
+  filterPresets: Ref<FilterPreset[]>;
+  getFilterMetrics: Ref<FilterMetrics>;
+  refreshTrigger: { value: number };
+  applyFilters: (artworks: ArtworkPin[]) => Promise<ArtworkPin[]>;
 }
 
 export function useMapFilters(): UseMapFiltersReturn {
   const userLists = useUserLists();
+  // Local reactive support for presets/metrics
+  const filterPresetsRef: Ref<FilterPreset[]> = ref([]);
+  const recentlyUsedFiltersRef: Ref<FilterPreset[]> = ref([]);
+  const filterMetrics: Ref<FilterMetrics> = ref({
+    sessionDuration: 0,
+    totalFilterApplications: 0,
+    cacheHitRate: 0,
+    mostUsedFilter: null,
+  });
+
+  // A simple numeric trigger we can increment to force reactivity where needed
+  const refreshTriggerRef = { value: 0 };
 
   // Initialize from localStorage on first use
   if (!isInitialized) {
@@ -171,12 +243,30 @@ export function useMapFilters(): UseMapFiltersReturn {
       parts.push('only my submissions');
     }
     
+    // Simple flags: include descriptions so the UI banner isn't empty
+    if (globalFiltersState.hideVisited) {
+      parts.push('hiding visited artworks');
+    }
+    if (globalFiltersState.showRemoved) {
+      parts.push('including removed artworks');
+    }
+    if (globalFiltersState.showArtworksWithoutPhotos) {
+      parts.push('including artworks without photos');
+    }
+
     if (!globalFiltersState.statusFilters.approved || 
         globalFiltersState.statusFilters.pending || 
         globalFiltersState.statusFilters.rejected) {
       parts.push('custom status filters');
     }
     
+    // If we somehow detected active filters but couldn't make a readable
+    // description from parts, fall back to a generic count-based message.
+    if (parts.length === 0) {
+      const c = activeFilterCount?.value ?? 0;
+      return `${c} filter${c === 1 ? '' : 's'} active`;
+    }
+
     return parts.join(', ');
   });
 
@@ -238,6 +328,8 @@ export function useMapFilters(): UseMapFiltersReturn {
   function saveFiltersToStorage(): void {
     try {
       localStorage.setItem('mapFilters:state', JSON.stringify(globalFiltersState));
+  // Bump refresh trigger so callers depending on mapFilters.refreshTrigger get notified
+  refreshTriggerRef.value += 1;
     } catch (error) {
       console.warn('Failed to save map filters to storage:', error);
     }
@@ -350,27 +442,152 @@ export function useMapFilters(): UseMapFiltersReturn {
     }
   }
 
+  // Backwards-compatible alias - components call loadUserLists
+  async function loadUserLists(): Promise<void> {
+    await syncUserLists();
+  }
+
+  // Check whether a named/simple filter is enabled (used by template bindings)
+  function isFilterEnabled(filterKey: string): boolean {
+    if (filterKey === 'wantToSee') return !!globalFiltersState.wantToSee;
+    if (filterKey === 'notSeenByMe') return !!globalFiltersState.notSeenByMe;
+    if (filterKey.startsWith('list:')) {
+      const id = filterKey.replace('list:', '');
+      const f = globalFiltersState.userListFilters.find(u => u.listId === id);
+      return !!f?.enabled;
+    }
+    return false;
+  }
+
+  function toggleWantToSee(): void {
+    globalFiltersState.wantToSee = !globalFiltersState.wantToSee;
+    // Track recent usage
+    refreshTriggerRef.value += 1;
+    saveFiltersToStorage();
+  }
+
+  function toggleNotSeenByMe(): void {
+    globalFiltersState.notSeenByMe = !globalFiltersState.notSeenByMe;
+    refreshTriggerRef.value += 1;
+    saveFiltersToStorage();
+  }
+
+  // Backwards-compatible name used in some places
+  function toggleUserList(listId: string): void {
+    toggleUserListFilter(listId);
+  }
+
+  // Preset handling (light-weight in-memory implementation)
+  function createPreset(name: string, note?: string): void {
+    // For now, store minimal preset data in localStorage
+    try {
+  const raw = localStorage.getItem('mapFilters:presets');
+  const existing: FilterPreset[] = raw ? JSON.parse(raw) as FilterPreset[] : [];
+  existing.push({ id: Date.now().toString(), name, note, state: { ...globalFiltersState } });
+  localStorage.setItem('mapFilters:presets', JSON.stringify(existing));
+      // bump trigger
+      refreshTriggerRef.value += 1;
+    } catch (e) {
+      console.warn('Failed to create preset', e);
+    }
+  }
+
+  function applyPreset(id: string): void {
+    try {
+      const raw = localStorage.getItem('mapFilters:presets');
+      const existing: FilterPreset[] = raw ? JSON.parse(raw) as FilterPreset[] : [];
+      const p = existing.find(x => x.id === id);
+      if (p && p.state) {
+        Object.assign(globalFiltersState, p.state);
+        saveFiltersToStorage();
+      }
+    } catch (e) {
+      console.warn('Failed to apply preset', e);
+    }
+  }
+
+  function deletePreset(id: string): void {
+    try {
+      const raw = localStorage.getItem('mapFilters:presets');
+      const existing: FilterPreset[] = raw ? JSON.parse(raw) as FilterPreset[] : [];
+      const filtered = existing.filter(x => x.id !== id);
+      localStorage.setItem('mapFilters:presets', JSON.stringify(filtered));
+    } catch (e) {
+      console.warn('Failed to delete preset', e);
+    }
+  }
+
+  function exportFilters(): string {
+    try {
+      return JSON.stringify(globalFiltersState);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function importFilters(content: string): boolean {
+    try {
+      const parsed = JSON.parse(content) as Partial<MapFiltersState> | null;
+      // Merge carefully
+      if (parsed) {
+        if (parsed.artworkTypes) {
+          // Only copy enabled states
+          (parsed.artworkTypes as ArtworkTypeFilter[]).forEach(t => {
+            const existing = globalFiltersState.artworkTypes.find(a => a.key === t.key);
+            if (existing && typeof t.enabled === 'boolean') existing.enabled = t.enabled;
+          });
+        }
+        if (parsed.statusFilters) Object.assign(globalFiltersState.statusFilters, parsed.statusFilters);
+        if (Array.isArray(parsed.userListFilters)) globalFiltersState.userListFilters = parsed.userListFilters;
+        if (typeof parsed.wantToSee === 'boolean') globalFiltersState.wantToSee = parsed.wantToSee;
+        if (typeof parsed.notSeenByMe === 'boolean') globalFiltersState.notSeenByMe = parsed.notSeenByMe;
+        saveFiltersToStorage();
+        return true;
+      }
+    } catch (e) {
+      console.warn('Failed to import filters', e);
+    }
+    return false;
+  }
+
+  // Lightweight metrics and applyFilters implementation
+  async function applyFilters(artworks: ArtworkPin[]): Promise<ArtworkPin[]> {
+    // Update metrics
+    filterMetrics.value = { ...filterMetrics.value, totalFilterApplications: (filterMetrics.value.totalFilterApplications || 0) + 1 };
+
+    // Basic filtering using shouldShowArtwork and simple flags
+      const result = artworks.filter(a => {
+        const af = a as ArtworkForFiltering;
+        if (!shouldShowArtwork(af)) return false;
+        // Only apply wantToSee filter if the artwork object has that flag
+        if (globalFiltersState.wantToSee && af.want_to_see === false) return false;
+        if (globalFiltersState.notSeenByMe) {
+          // Exclude visited
+          const visited = userLists.isArtworkInList(a.id, 'visited');
+          if (visited) return false;
+        }
+        return true;
+      });
+
+    return result;
+  }
+
   // Filter checking methods for MapComponent
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function shouldShowArtwork(artwork: any): boolean {
+  function shouldShowArtwork(artwork: ArtworkForFiltering): boolean {
     // Check artwork type filter
     const artworkTypeKey = artwork.artwork_type || artwork.type;
-    const typeEnabled = globalFiltersState.artworkTypes.find(type => 
-      type.key === artworkTypeKey
-    )?.enabled ?? true; // Show by default if type not found
+    const typeEnabled = globalFiltersState.artworkTypes.find(type => type.key === artworkTypeKey)?.enabled ?? true; // Show by default if type not found
     
     if (!typeEnabled) return false;
     
     // Check for artworks without photos when the toggle is off
     if (!globalFiltersState.showArtworksWithoutPhotos) {
-      const hasPhotos =
-        (Array.isArray(artwork.photos) && artwork.photos.length > 0) ||
-        Boolean(artwork.recent_photo) ||
-        (typeof artwork.photo_count === 'number' && artwork.photo_count > 0) ||
-        (typeof artwork.photoCount === 'number' && artwork.photoCount > 0);
-      if (!hasPhotos) {
-        return false;
-      }
+      const hasPhotos = (Array.isArray(artwork.photos) && artwork.photos.length > 0)
+        || Boolean(artwork.recent_photo)
+        || (typeof artwork.photo_count === 'number' && artwork.photo_count > 0)
+        || (typeof artwork.photoCount === 'number' && artwork.photoCount > 0)
+        || (Array.isArray((artwork as ArtworkPin).photos) && (artwork as ArtworkPin).photos.length > 0);
+      if (!hasPhotos) return false;
     }
     
     // Check "Hide Visited" filter
@@ -380,7 +597,7 @@ export function useMapFilters(): UseMapFiltersReturn {
     }
     
     // Check status filter - if "Show Removed" is disabled, hide unknown/removed artwork
-    const status = artwork.status || 'approved';
+  const status = artwork.status || 'approved';
     if (!globalFiltersState.showRemoved && status === 'unknown') {
       return false;
     }
@@ -426,6 +643,15 @@ export function useMapFilters(): UseMapFiltersReturn {
   return {
     // State
     filtersState: globalFiltersState,
+    filterState: computed(() => ({
+      // Provide a lightweight alias used by existing code
+      wantToSee: globalFiltersState.wantToSee,
+      notSeenByMe: globalFiltersState.notSeenByMe,
+      userLists: globalFiltersState.userListFilters,
+      // keep other flags for convenience
+      ...globalFiltersState,
+    })),
+    availableUserLists: computed(() => userLists.lists.value),
     
     // Computed
     hasActiveFilters,
@@ -438,6 +664,7 @@ export function useMapFilters(): UseMapFiltersReturn {
     setAllArtworkTypes,
     toggleStatusFilter,
     toggleUserListFilter,
+    toggleUserList,
     toggleClusterEnabled,
     toggleShowOnlyMySubmissions,
     toggleHideVisited,
@@ -445,9 +672,25 @@ export function useMapFilters(): UseMapFiltersReturn {
     toggleShowArtworksWithoutPhotos,
     syncUserLists,
     shouldShowArtwork,
-    
     // Storage
     saveFiltersToStorage,
     loadFiltersFromStorage,
+    // New helpers
+    isFilterEnabled,
+    toggleWantToSee,
+    toggleNotSeenByMe,
+    createPreset,
+    applyPreset,
+    deletePreset,
+    exportFilters,
+    importFilters,
+    loadUserLists,
+    recentlyUsedFilters: recentlyUsedFiltersRef,
+    filterPresets: filterPresetsRef,
+    getFilterMetrics: filterMetrics,
+    refreshTrigger: refreshTriggerRef,
+    applyFilters,
+    
+    // keep original storage functions present (also returned above)
   };
 }

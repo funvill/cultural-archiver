@@ -6,7 +6,7 @@ import { ref } from 'vue';
 import type { Ref } from 'vue';
 import { getErrorMessage, isNetworkError, ApiError } from '../services/api';
 
-<<<<<<< HEAD
+
 export interface UseApiReturn {
   isLoading: ReturnType<typeof ref>;
   error: ReturnType<typeof ref>;
@@ -19,58 +19,6 @@ export interface UseApiReturn {
 }
 
 export function useApi(): UseApiReturn {
-=======
-export function useApi(): {
-  isLoading: Ref<boolean>;
-  error: Ref<string | null>;
-  execute: <T>(
-    apiCall: () => Promise<T>,
-    options?: {
-      retries?: number;
-      showError?: boolean;
-      onRetry?: (attempt: number) => void;
-    }
-  ) => Promise<T | null>;
-  executeParallel: <T>(
-    apiCalls: (() => Promise<T>)[],
-    options?: {
-      failFast?: boolean;
-      showErrors?: boolean;
-    }
-  ) => Promise<(T | null)[]>;
-  executePaginated: <T>(
-    apiCall: (
-      page: number,
-      limit: number
-    ) => Promise<{ items: T[]; total: number; hasMore: boolean }> ,
-    options?: {
-      initialPage?: number;
-      pageSize?: number;
-      maxPages?: number;
-    }
-  ) => Promise<{
-    allItems: Ref<T[]>;
-    totalCount: Ref<number>;
-    hasMore: Ref<boolean>;
-    currentPage: Ref<number>;
-    isLoading: Ref<boolean>;
-    error: Ref<string | null>;
-    loadMore: () => Promise<boolean>;
-    reset: () => void;
-  }>;
-  uploadFile: <T>(
-    file: File,
-    uploadFunction: (file: File, onProgress?: (progress: number) => void) => Promise<T>,
-    options?: {
-      onProgress?: (progress: number) => void;
-      maxSize?: number; // in bytes
-      allowedTypes?: string[];
-    }
-  ) => Promise<T | null>;
-  clearError: () => void;
-  isRetryableError: (err: unknown) => boolean;
-} {
->>>>>>> 79cbe81 (data-collectors, linting)
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
@@ -190,21 +138,13 @@ export function useApi(): {
       maxPages?: number;
     } = {}
   ): Promise<{
-<<<<<<< HEAD
+
     allItems: Ref<unknown[]>;
     totalCount: Ref<number>;
     hasMore: Ref<boolean>;
     currentPage: Ref<number>;
     isLoading: ReturnType<typeof ref>;
     error: ReturnType<typeof ref>;
-=======
-    allItems: Ref<T[]>;
-    totalCount: Ref<number>;
-    hasMore: Ref<boolean>;
-    currentPage: Ref<number>;
-    isLoading: Ref<boolean>;
-    error: Ref<string | null>;
->>>>>>> 79cbe81 (data-collectors, linting)
     loadMore: () => Promise<boolean>;
     reset: () => void;
   }> => {

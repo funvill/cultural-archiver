@@ -102,11 +102,10 @@ onUnmounted(() => {
           <div class="space-y-4">
             <!-- Hide Visited Artworks -->
             <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
-              <label class="relative inline-flex items-center cursor-pointer">
+              <label class="relative inline-flex items-center cursor-pointer" @click="mapFilters.toggleHideVisited()">
                 <input
                   type="checkbox"
                   :checked="mapFilters.filtersState.hideVisited"
-                  @change="mapFilters.toggleHideVisited()"
                   class="sr-only peer"
                 />
                 <div
@@ -132,11 +131,10 @@ onUnmounted(() => {
 
             <!-- Show Artworks Without Photos -->
             <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
-              <label class="relative inline-flex items-center cursor-pointer">
+              <label class="relative inline-flex items-center cursor-pointer" @click="mapFilters.toggleShowArtworksWithoutPhotos()">
                 <input
                   type="checkbox"
                   :checked="mapFilters.filtersState.showArtworksWithoutPhotos"
-                  @change="mapFilters.toggleShowArtworksWithoutPhotos()"
                   class="sr-only peer"
                 />
                 <div
@@ -162,11 +160,10 @@ onUnmounted(() => {
 
             <!-- Show Removed Artworks -->
             <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
-              <label class="relative inline-flex items-center cursor-pointer">
+              <label class="relative inline-flex items-center cursor-pointer" @click="mapFilters.toggleShowRemoved()">
                 <input
                   type="checkbox"
                   :checked="mapFilters.filtersState.showRemoved"
-                  @change="mapFilters.toggleShowRemoved()"
                   class="sr-only peer"
                 />
                 <div
@@ -200,11 +197,10 @@ onUnmounted(() => {
           </h3>
           
           <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
-            <label class="relative inline-flex items-center cursor-pointer">
+              <label class="relative inline-flex items-center cursor-pointer" @click="mapFilters.toggleClusterEnabled()">
               <input
                 type="checkbox"
                 :checked="mapFilters.filtersState.clusterEnabled"
-                @change="mapFilters.toggleClusterEnabled"
                 class="sr-only"
               />
               <div

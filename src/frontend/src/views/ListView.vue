@@ -68,7 +68,7 @@ const loadList = async (page = 1) => {
   try {
     const response = await apiService.getListDetails(props.id, page, 50);
     
-<<<<<<< HEAD
+
     if (response && response.success && response.data) {
       const data = response.data as { list?: any; items?: any[]; page?: number; total?: number; per_page?: number; has_more?: boolean };
       list.value = data.list as any;
@@ -82,21 +82,6 @@ const loadList = async (page = 1) => {
       currentPage.value = data.page || 1;
   totalPages.value = Math.ceil((data.total || 0) / (data.per_page || PAGE_SIZE));
       hasMore.value = !!data.has_more;
-=======
-    if (response.success && response.data) {
-      const data = response.data;
-      list.value = data.list;
-      
-      if (page === 1) {
-        artworks.value = data.items as any[];
-      } else {
-        artworks.value.push(...(data.items as any[]));
-      }
-      
-      currentPage.value = data.page as number;
-      totalPages.value = Math.ceil((data.total as number) / (data.per_page as number));
-      hasMore.value = data.has_more as boolean;
->>>>>>> 79cbe81 (data-collectors, linting)
     } else {
       error.value = (response as any)?.error || 'Failed to load list';
     }
@@ -144,11 +129,8 @@ const toggleSelectAll = () => {
   if (allSelected.value) {
     selectedArtworks.value.clear();
   } else {
-<<<<<<< HEAD
+
   artworks.value.forEach((artwork: { id: string }) => selectedArtworks.value.add(String(artwork.id)));
-=======
-    artworks.value.forEach((artwork: any) => selectedArtworks.value.add(artwork.id));
->>>>>>> 79cbe81 (data-collectors, linting)
   }
 };
 
@@ -159,21 +141,13 @@ const bulkRemoveItems = async () => {
   error.value = null;
   
   try {
-<<<<<<< HEAD
+
     const artworkIds = Array.from(selectedArtworks.value);
   const response = await apiService.removeArtworksFromList(props.id, artworkIds as string[]);
     
     if (response.success) {
       // Remove items from local state
   artworks.value = artworks.value.filter((artwork: { id: string }) => !selectedArtworks.value.has(artwork.id));
-=======
-    const artworkIds = Array.from(selectedArtworks.value) as string[];
-    const response = await apiService.removeArtworksFromList(props.id, artworkIds);
-    
-    if (response.success) {
-      // Remove items from local state
-      artworks.value = artworks.value.filter((artwork: any) => !selectedArtworks.value.has(artwork.id));
->>>>>>> 79cbe81 (data-collectors, linting)
       selectedArtworks.value.clear();
       isSelectionMode.value = false;
       

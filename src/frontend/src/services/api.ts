@@ -654,11 +654,7 @@ export const apiService = {
       uuid: string;
       profile_name: string;
       badges: Array<{
-<<<<<<< HEAD
         badge: Record<string, unknown> | BadgeRecord;
-=======
-        badge: unknown;
->>>>>>> 79cbe81 (data-collectors, linting)
         awarded_at: string;
         award_reason: string;
         metadata?: Record<string, unknown>;
@@ -1062,11 +1058,7 @@ export const apiService = {
   /**
    * Get list details with items
    */
-<<<<<<< HEAD
-  async getListDetails(listId: string, page = 1, limit = 50): Promise<ApiResponse<unknown>> {
-=======
   async getListDetails(listId: string, page = 1, limit = 50): Promise<ApiResponse<Record<string, unknown>>> {
->>>>>>> 79cbe81 (data-collectors, linting)
     return client.get(`/lists/${listId}`, { 
       page: page.toString(), 
       limit: limit.toString() 

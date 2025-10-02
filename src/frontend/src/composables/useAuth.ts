@@ -3,17 +3,14 @@
  * Updated to work with the new UUID-based authentication system
  */
 
-<<<<<<< HEAD
+
 import { computed, watch } from 'vue';
 import type { ComputedRef, WritableComputedRef } from 'vue';
-=======
-import { computed, watch, type ComputedRef } from 'vue';
->>>>>>> 79cbe81 (data-collectors, linting)
 import { useAuthStore } from '../stores/auth';
 import type { User } from '../types';
 
 export interface UseAuthReturn {
-<<<<<<< HEAD
+
   isAuthenticated: ComputedRef<boolean> | WritableComputedRef<boolean>;
   isAnonymous: ComputedRef<boolean> | WritableComputedRef<boolean>;
   isModerator: ComputedRef<boolean> | WritableComputedRef<boolean>;
@@ -25,24 +22,6 @@ export interface UseAuthReturn {
   error: ComputedRef<string | null> | WritableComputedRef<string | null>;
   canPerformAuthenticatedActions: ComputedRef<boolean> | WritableComputedRef<boolean>;
   userDisplayName: ComputedRef<string> | WritableComputedRef<string>;
-=======
-  // State
-  isAuthenticated: ComputedRef<boolean>;
-  isAnonymous: ComputedRef<boolean>;
-  isModerator: ComputedRef<boolean>;
-  canReview: ComputedRef<boolean>;
-  isEmailVerified: ComputedRef<boolean>;
-  user: ComputedRef<User | null>;
-  token: ComputedRef<string | null>;
-  isLoading: ComputedRef<boolean>;
-  error: ComputedRef<string | null>;
-  
-  // Computed
-  canPerformAuthenticatedActions: ComputedRef<boolean>;
-  userDisplayName: ComputedRef<string>;
-  
-  // Actions
->>>>>>> 79cbe81 (data-collectors, linting)
   initAuth: () => Promise<void>;
   requestMagicLink: (email: string) => Promise<{ success: boolean; message: string; isSignup?: boolean }>;
   verifyMagicLink: (magicToken: string) => Promise<{ success: boolean; message: string; isNewAccount?: boolean }>;

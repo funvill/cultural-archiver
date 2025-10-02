@@ -1,11 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import { marked } from 'marked';
-<<<<<<< HEAD
+
 import { sanitizeHtml } from '../utils/sanitizeHtml';
-=======
-import { sanitizeHtml } from '../utils/sanitize';
->>>>>>> 79cbe81 (data-collectors, linting)
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import PhotoCarousel from '../components/PhotoCarousel.vue';
@@ -66,7 +63,7 @@ const originalData = ref({
   tags: {} as Record<string, unknown>,
 });
 
-<<<<<<< HEAD
+
 // Rendered bio (sanitized). marked may be async depending on configuration,
 // so compute this reactively and support async parsing.
 const renderedBio = ref<string>('');
@@ -87,15 +84,6 @@ watch(
   },
   { immediate: true }
 );
-=======
-// Computed properties
-const renderedBio = computed(() => {
-  if (!artist.value?.description) return '';
-  // Convert markdown to HTML, then sanitize before injecting via v-html
-  const raw = (marked.parse(artist.value.description || '') as string);
-  return sanitizeHtml(raw);
-});
->>>>>>> 79cbe81 (data-collectors, linting)
 
 const hasUnsavedChanges = computed(() => {
   return (
@@ -300,8 +288,10 @@ function removeTag(key: string) {
   delete editData.value.tags[key];
 }
 
+  // Keep single focus implementation
   function focusValueInput(): void {
-    valueInput.value?.focus();
+    const el = valueInput.value as HTMLInputElement | undefined;
+    if (el) el.focus();
   }
 
   function addTagFromInputs() {
@@ -321,10 +311,7 @@ onMounted(() => {
   checkPendingEdits();
 });
 
-function focusValueInput(): void {
-  const el = valueInput.value as HTMLInputElement | undefined;
-  if (el) el.focus();
-}
+// duplicate removed by merge resolution
 </script>
 
 <template>
@@ -477,11 +464,8 @@ function focusValueInput(): void {
             <h2 class="text-xl font-semibold text-gray-900 mb-4">Biography</h2>
 
             <div v-if="!isEditMode">
-<<<<<<< HEAD
+
               <!-- eslint-disable-next-line vue/no-v-html -- TODO: sanitize rendered markdown before binding -->
-=======
-              <!-- eslint-disable-next-line vue/no-v-html -->
->>>>>>> 79cbe81 (data-collectors, linting)
               <div
                 v-if="artist.description"
                 class="prose prose-gray max-w-none"

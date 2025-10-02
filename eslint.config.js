@@ -23,7 +23,7 @@ export default [
       // than a hard blocker across the whole repository.
   '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
       '@typescript-eslint/explicit-function-return-type': 'warn',
-<<<<<<< HEAD
+
       '@typescript-eslint/no-explicit-any': 'error',
     },
   },
@@ -42,9 +42,6 @@ export default [
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
-=======
-      '@typescript-eslint/no-explicit-any': 'warn',
->>>>>>> 79cbe81 (data-collectors, linting)
     },
   },
   // NOTE: test files are large and use many helpers/mocks. We prefer to skip

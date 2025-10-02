@@ -30,11 +30,8 @@ export interface UseFocusManagementReturn {
   announceToScreenReader: (message: string, priority?: 'polite' | 'assertive') => void;
 }
 
-<<<<<<< HEAD
+
 export function useFocusManagement(): UseFocusManagementReturn {
-=======
-export function useFocusManagement(): unknown { // eslint-disable-line @typescript-eslint/no-explicit-any
->>>>>>> 79cbe81 (data-collectors, linting)
   const previouslyFocused = ref<HTMLElement | null>(null);
 
   /**

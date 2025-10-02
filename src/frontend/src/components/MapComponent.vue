@@ -26,9 +26,10 @@ import MapOptionsModal from './MapOptionsModal.vue';
 import { useMapPreviewStore } from '../stores/mapPreview';
 
 // Props
-const props = withDefaults(defineProps<MapComponentProps>(), {
+const props = withDefaults(defineProps<MapComponentProps & { suppressFilterBanner?: boolean }>(), {
   zoom: 15,
   showUserLocation: true,
+  suppressFilterBanner: false,
 });
 
 // Emits - using runtime declaration to avoid TypeScript compilation issues
@@ -38,8 +39,6 @@ const emit = defineEmits([
   'dismissPreview',
   'mapMove',
   'locationFound'
-  // telemetry update event - parent can listen for live telemetry
-  , 'telemetryUpdate'
 ]);
 
 // State
@@ -57,12 +56,6 @@ const lastLoadedBounds = ref<{ north: number; south: number; east: number; west:
 const loadingTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 // Marker update debouncing
 const markerUpdateTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
-// Pending marker update flag to avoid mutating layers during Leaflet zoom animations
-const pendingMarkerUpdate = ref(false);
-// Explicit animating flag driven by Leaflet zoom events (avoid reading Leaflet private props)
-const animatingZoom = ref(false);
-// Pending dismiss preview when zoom animates
-const pendingDismissPreview = ref(false);
 // Debounce for updating marker styles during continuous zoom
 const zoomStyleTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 // Track zoom animation state to prevent marker updates during animations
@@ -301,97 +294,51 @@ enum MarkerType {
 const createArtworkStyle = (type: string) => {
   const normalized = (type || 'other').toLowerCase();
 
-// Helper: render an icon to an offscreen canvas and return data-URI
-function renderIconToDataUri(kind: 'flag' | 'star' | 'question', size: number, fillColor?: string) {
-  const key = `${kind}:${size}:${fillColor || ''}`;
-  if (iconDataUriCache.has(key)) return iconDataUriCache.get(key)!;
+  // Calculate dynamic radius based on zoom level
+  // Note: Leaflet zoom increases when you zoom in (higher = closer). We want radius to grow as zoom increases.
+  const currentZoom = map.value?.getZoom() ?? 15;
+  // Set base min/max for the raw radius (before applying the 2x multiplier)
+  const minRadius = 3; // smallest marker at lower zoom levels
+  const maxRadius = 10; // largest marker at higher zoom levels
 
-  // Create offscreen canvas
-  const canvas = document.createElement('canvas');
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-  canvas.width = size * dpr;
-  canvas.height = size * dpr;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    return '';
-  }
-  ctx.scale(dpr, dpr);
+  // Effective zoom range for interpolation (adjustable)
+  // 10 = metropolitan area, 16 = Street, 18 = buildings/trees
+  const minZoom = 12;
+  const maxZoom = 18;
+  let dynamicRadius: number;
 
-  // Draw background circle
-  ctx.beginPath();
-  ctx.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
-  ctx.fillStyle = kind === 'question' ? (fillColor || '#888') : (kind === 'star' ? '#F59E0B' : '#9CA3AF');
-  ctx.fill();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = '#fff';
-  ctx.stroke();
-
-  // Draw simple glyphs centered
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  if (kind === 'flag') {
-    // Simple flag pole + triangle
-    const poleX = size * 0.36;
-    ctx.fillRect(poleX, size * 0.22, size * 0.06, size * 0.56);
-    ctx.moveTo(poleX + size * 0.06, size * 0.22);
-    ctx.lineTo(size * 0.76, size * 0.38);
-    ctx.lineTo(poleX + size * 0.06, size * 0.54);
-    ctx.closePath();
-    ctx.fill();
-  } else if (kind === 'star') {
-    // Draw a simple star via path approximation
-    const cx = size / 2;
-    const cy = size / 2;
-    const r = size * 0.22;
-    for (let i = 0; i < 5; i++) {
-      const a = ((-18 + i * 72) * Math.PI) / 180;
-      const x = cx + Math.cos(a) * r * (i % 2 === 0 ? 1 : 0.45);
-      const y = cy + Math.sin(a) * r * (i % 2 === 0 ? 1 : 0.45);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    ctx.fill();
+  if (currentZoom <= minZoom) {
+    dynamicRadius = minRadius;
+  } else if (currentZoom >= maxZoom) {
+    dynamicRadius = maxRadius;
   } else {
-    // question mark - draw a rounded path approximation
-    ctx.font = `${Math.floor(size * 0.6)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('?', size / 2, size / 2 - size * 0.06);
+    // t = 0 at minZoom (smallest), t = 1 at maxZoom (largest)
+    const t = (currentZoom - minZoom) / (maxZoom - minZoom);
+    dynamicRadius = minRadius + t * (maxRadius - minRadius);
   }
 
   // Apply the user's requested unconditional doubling of marker sizes across all zooms.
   // Clamp to a reasonable maximum to avoid excessively large markers.
   dynamicRadius = Math.min(dynamicRadius * 2, maxRadius * 2);
 
-// Create priority-based div icon for artworks using cached data-URIs (faster)
-const createArtworkIcon = (artwork: ArtworkPin, listMembership?: { beenHere: boolean, wantToSee: boolean }) => {
-  const currentZoom = map.value?.getZoom() ?? 15;
-  const baseSize = Math.max(20, Math.min(32, currentZoom * 1.5));
+  // Use shared color logic from composable
+  const fillColor = getTypeColor(normalized);
 
-  // Determine kind
-  const kind: 'flag' | 'star' | 'question' = listMembership?.beenHere
-    ? 'flag'
-    : listMembership?.wantToSee
-    ? 'star'
-    : 'question';
+  const baseStyle = {
+    radius: dynamicRadius, // Use zoom-scaled radius
+    fillColor: fillColor,
+    color: '#ffffff', // white border
+    weight: 1,
+    fillOpacity: 0.9,
+    opacity: 1,
+    // Ensure proper interaction settings
+    interactive: true,
+    bubblingMouseEvents: false,
+    className: 'artwork-circle-marker', // Add CSS class for styling
+  };
 
-  const fillColor = kind === 'question' ? getTypeColor((artwork.type || 'other').toLowerCase()) : undefined;
-  const dataUri = renderIconToDataUri(kind, Math.floor(baseSize), fillColor);
-
-  const html = `
-    <div class="artwork-marker-outer" style="width: ${baseSize}px; height: ${baseSize}px; display:flex; align-items:center; justify-content:center;">
-      <div class="artwork-marker-inner" style="width: ${baseSize}px; height: ${baseSize}px; border-radius:50%; background-image: url('${dataUri}'); background-size: cover; box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: transform 120ms ease, box-shadow 120ms ease;">
-      </div>
-    </div>
-  `;
-
-  return L.divIcon({
-    html,
-    className: '',
-    iconSize: [baseSize, baseSize],
-    iconAnchor: [baseSize / 2, baseSize / 2],
-  });
+  // Don't add renderer - let Leaflet handle canvas rendering automatically
+  return baseStyle;
 };
 
 // Enhanced marker factory functions for different marker types
@@ -567,6 +514,7 @@ const getMarkerType = (artwork: ArtworkPin): MarkerType => {
 };
 
 // Custom icon for user location - use a person icon so it's clearly the user, not an artwork
+// Legacy user location icon generator
 const createUserLocationIcon = () => {
   // Inline SVG for a simple person/user glyph (keeps dependency-free)
   const personSvg = `
@@ -587,6 +535,22 @@ const createUserLocationIcon = () => {
     iconAnchor: [16, 16],
   });
 };
+
+// Expose a no-op clearListCaches so parent components can call it safely
+function clearListCaches(): void {
+  // This was previously used to clear internal caches on the map component.
+  // Currently a no-op; keep as a stable API for callers.
+}
+
+// Expose methods for parent components (include legacy helpers)
+try {
+  // defineExpose is available in <script setup>
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  defineExpose({ clearListCaches, createUserLocationIcon });
+} catch (e) {
+  // ignore in non-setup contexts
+}
 
 // Initialize map
 async function initializeMap() {
@@ -1381,7 +1345,7 @@ async function loadArtworks() {
     // Check if we already have data for this area (smart caching)
     if (lastLoadedBounds.value && boundsContain(lastLoadedBounds.value, expandedBounds)) {
       // We already have data for this viewport, just update markers
-      updateArtworkMarkers().catch(console.error);
+      updateArtworkMarkers();
       return;
     }
 
@@ -1406,13 +1370,8 @@ async function loadArtworks() {
     // Wait for Vue reactivity to update props before updating markers
     await nextTick();
 
-<<<<<<< HEAD
-    console.log('[MARKER DEBUG] After nextTick, props length now:', props.artworks?.length || 0);
-    updateArtworkMarkers().catch(console.error);
-=======
   // After nextTick, updating markers
     updateArtworkMarkers();
->>>>>>> 563e2c1 (Fixed issue with mini map on artwork page)
   } catch (err) {
     console.error('Error loading artworks:', err);
   } finally {
@@ -1456,7 +1415,7 @@ async function loadArtworksProgressively(bounds: {
 
         // Update markers incrementally for each batch
         nextTick(() => {
-          updateArtworkMarkers().catch(console.error);
+          updateArtworkMarkers();
         });
       }
     );
@@ -1497,36 +1456,8 @@ function updateArtworkMarkersDebounced(delay: number = 0) {
 }
 
 // Update artwork markers with efficient viewport-based rendering
-<<<<<<< HEAD
-async function updateArtworkMarkers() {
-    // If we're currently performing an animated zoom, avoid mutating layers.
-  if (map.value && animatingZoom.value) {
-    if (!pendingMarkerUpdate.value) {
-      pendingMarkerUpdate.value = true;
-      // Schedule a one-time update after zoomend
-      map.value.once('zoomend', () => {
-        pendingMarkerUpdate.value = false;
-        // ensure animating flag cleared before updating
-        animatingZoom.value = false;
-        updateArtworkMarkers().catch(console.error);
-      });
-    }
-    return;
-  }
-  console.log('[MARKER DEBUG] updateArtworkMarkers() called:', {
-    mapExists: !!map.value,
-    clusterGroupExists: !!markerClusterGroup.value,
-    propsArtworksLength: props.artworks?.length || 0,
-    currentMarkersCount: artworkMarkers.value.length,
-    mapContainerInDOM: !!mapContainer.value?.isConnected,
-    mapSize: map.value ? { width: map.value.getSize().x, height: map.value.getSize().y } : null,
-    isZoomAnimating: isZoomAnimating.value,
-    timestamp: new Date().toISOString(),
-  });
-=======
 function updateArtworkMarkers() {
   // updateArtworkMarkers called
->>>>>>> 563e2c1 (Fixed issue with mini map on artwork page)
 
   if (!map.value || !markerClusterGroup.value) {
   // Early return - missing map or cluster group
@@ -1550,20 +1481,15 @@ function updateArtworkMarkers() {
   // Map container has zero dimensions - triggering resize
       setTimeout(() => {
         map.value?.invalidateSize();
-        updateArtworkMarkers().catch(console.error);
+        updateArtworkMarkers();
       }, 100);
       return;
     }
 
     // Additional stability check - ensure map is actually rendered and interactive
     if (map.value && !map.value.getContainer()) {
-<<<<<<< HEAD
-      console.log('[MARKER DEBUG] Map container not yet attached - delaying marker update');
-      setTimeout(() => updateArtworkMarkers().catch(console.error), 100);
-=======
   // Map container not yet attached - delaying marker update
       setTimeout(() => updateArtworkMarkers(), 100);
->>>>>>> 563e2c1 (Fixed issue with mini map on artwork page)
       return;
     }
   }
@@ -1629,10 +1555,6 @@ function updateArtworkMarkers() {
       }
       return false; // Remove from artworkMarkers array
     }
-  } else {
-    artworkMarkers.value = artworkMarkers.value.filter((marker: any) => {
-      const artworkId = marker._artworkId;
-      const artworkType = marker._artworkType;
 
     // Remove if artwork type is now disabled
     if (artworkType && !isArtworkTypeEnabled(artworkType)) {
@@ -1652,9 +1574,10 @@ function updateArtworkMarkers() {
       } catch (e) {
         console.warn('[MARKER DEBUG] Error removing marker from cluster:', e);
       }
-      return true; // Keep in artworkMarkers array
-    });
-  }
+      return false; // Remove from artworkMarkers array
+    }
+    return true; // Keep in artworkMarkers array
+  });
 
   // Sort artworks by marker type to ensure visited markers are added first (appear behind)
   const sortedArtworks = artworksInViewport.sort((a: ArtworkPin, b: ArtworkPin) => {
@@ -1879,21 +1802,8 @@ function updateMarkerStyles() {
           } catch {
             /* ignore */
           }
+        }
 
-<<<<<<< HEAD
-          // If this is a group/cluster wrapper, try to update inner layers as well
-          if ((marker as any).getLayers && typeof (marker as any).getLayers === 'function') {
-            const layers = (marker as any).getLayers();
-            layers.forEach((inner: any) => {
-              if (!inner) return;
-              // For inner layers in cluster groups, also try to update the icon
-              if (typeof inner.setIcon === 'function') {
-                try {
-                  inner.setIcon(newIcon);
-                } catch {
-                  /* ignore */
-                }
-=======
         if (marker.getLayers && typeof marker.getLayers === 'function') {
           const layers = marker.getLayers();
           layers.forEach((inner: any) => {
@@ -1903,41 +1813,29 @@ function updateMarkerStyles() {
                 inner.setStyle(newStyle);
               } catch {
                 /* ignore */
->>>>>>> ad07d42 (Filter artworks without photos)
               }
-            });
-          }
-        } catch (err) {
-          // ignore per-marker failures
-          // console.debug('Failed to update marker style for marker', marker, err);
+            }
+            if (typeof inner.setRadius === 'function' && typeof newStyle.radius === 'number') {
+              try {
+                inner.setRadius(newStyle.radius);
+              } catch {
+                /* ignore */
+              }
+            }
+          });
         }
-<<<<<<< HEAD
-=======
       } catch (err) {
         /* ignore individual marker errors */
->>>>>>> ad07d42 (Filter artworks without photos)
       }
-    } catch (err) {
-      console.warn('updateMarkerStyles failed:', err);
-    }
-  })();
+    });
+  } catch (err) {
+    console.warn('updateMarkerStyles failed:', err);
+  }
 }
 
 // Configure marker layer group according to clusterEnabled
 async function configureMarkerGroup() {
   if (!map.value) return;
-
-  // If a zoom animation is in progress, defer reconfiguration to avoid removing/adding layers mid-animation
-  if (animatingZoom.value && map.value && !pendingMarkerUpdate.value) {
-    pendingMarkerUpdate.value = true;
-    map.value.once('zoomend', () => {
-      pendingMarkerUpdate.value = false;
-      animatingZoom.value = false;
-      // Retry configuration after animation
-      configureMarkerGroup().catch?.(console.error);
-    });
-    return;
-  }
 
   // Remove existing group from map
   if (markerClusterGroup.value) {
@@ -1969,7 +1867,7 @@ async function configureMarkerGroup() {
   // Clear existing marker references since they belong to the old cluster group
   artworkMarkers.value = [];
 
-  updateArtworkMarkers().catch(console.error);
+  updateArtworkMarkers();
 
   // Ensure styles applied to any markers added during updateArtworkMarkers
   updateMarkerStyles();
@@ -2002,22 +1900,7 @@ function handleMapMove() {
   emit('mapMove', { center: coordinates, zoom });
   
   // Dismiss preview on pan according to PRD
-  // If a zoom animation is in progress, defer dismissing the preview until after animation ends
-  if (animatingZoom.value && map.value) {
-    if (!pendingDismissPreview.value) {
-      pendingDismissPreview.value = true;
-      map.value.once('zoomend', () => {
-        pendingDismissPreview.value = false;
-        try {
-          emit('dismissPreview');
-        } catch (e) {
-          /* ignore */
-        }
-      });
-    }
-  } else {
-    emit('dismissPreview');
-  }
+  emit('dismissPreview');
 
   // Persist map state
   try {
@@ -2029,7 +1912,7 @@ function handleMapMove() {
   // Debounced artwork loading to prevent infinite loops
   debounceLoadArtworks();
   // Also update marker styles immediately for zoom changes (better responsiveness)
-  updateArtworkMarkers().catch(console.error);
+  updateArtworkMarkers();
   // Ensure existing markers update their style (radius/color) when zoom changes
   updateMarkerStyles();
   // Move debug rings to new center
@@ -2577,7 +2460,7 @@ watch(
 
     <!-- Active Filters Banner -->
     <div
-      v-if="mapFilters.hasActiveFilters.value"
+      v-if="mapFilters.hasActiveFilters.value && !props.suppressFilterBanner"
       class="absolute top-4 left-4 right-24 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-md z-10 pointer-events-auto"
       role="status"
       aria-live="polite"
@@ -2592,7 +2475,7 @@ watch(
           </span>
         </div>
         <button
-          @click="mapFilters.resetFilters"
+          @click="handleClearFilters"
           class="text-xs text-blue-600 hover:text-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 px-2 py-1 rounded transition-colors"
           title="Clear all filters"
         >
@@ -2713,14 +2596,6 @@ watch(
 
 .artwork-marker:hover {
   transform: scale(1.1);
-}
-
-.artwork-marker-container {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.artwork-marker-inner {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .user-location-marker {

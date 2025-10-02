@@ -40,6 +40,19 @@ let resizeObserver: ResizeObserver | null = null;
 // Guard to prevent concurrent or duplicate initialization attempts
 let initializing = false;
 
+// Safe wrapper for calling Leaflet's invalidateSize. Leaflet may throw when
+// its internal DOM state is detached (for example during rapid unmounts), so
+// callers should use this to avoid uncaught errors.
+const safeInvalidate = (m: any) => {
+  try {
+    if (m && typeof m.invalidateSize === 'function') {
+      m.invalidateSize();
+    }
+  } catch (err) {
+    // ignore - Leaflet internal state may be detached during rapid nav/unmount
+  }
+};
+
 // Computed directions URL
 const directionsUrl = computed(() => {
   return `https://www.google.com/maps?q=${props.latitude},${props.longitude}`;
@@ -122,14 +135,25 @@ async function initializeMap(): Promise<void> {
       // record container size silently (no debug log)
       try { mapContainer.value.getBoundingClientRect(); } catch (err) { /* ignore */ }
 
-    // Ensure layout recalculation
-    try {
-      if (mapInstance?.invalidateSize) {
-        mapInstance.invalidateSize();
-        requestAnimationFrame(() => mapInstance.invalidateSize());
-        setTimeout(() => mapInstance.invalidateSize(), 250);
-        setTimeout(() => mapInstance.invalidateSize(), 1000);
+    // Ensure layout recalculation. Wrap calls to invalidateSize in a safe guard
+    // because Leaflet may throw if internal DOM state is not present (for
+    // example when the map has been removed). Use a small helper that swallows
+    // errors so these attempts won't crash the app.
+    const safeInvalidate = (m: any) => {
+      try {
+        if (m && typeof m.invalidateSize === 'function') {
+          m.invalidateSize();
+        }
+      } catch (err) {
+        // ignore - Leaflet internal state may be detached during rapid nav/unmount
       }
+    };
+
+    try {
+      safeInvalidate(mapInstance);
+      requestAnimationFrame(() => safeInvalidate(mapInstance));
+      setTimeout(() => safeInvalidate(mapInstance), 250);
+      setTimeout(() => safeInvalidate(mapInstance), 1000);
     } catch (err) {
       // ignore
     }
@@ -231,7 +255,7 @@ onMounted(async () => {
 // invalidate the map size so Leaflet can recompute tiles and controls.
 function handleWindowResize(): void {
   try {
-    map.value?.invalidateSize();
+    safeInvalidate(map.value);
   } catch (err) {
     // ignore
   }
@@ -248,18 +272,18 @@ onMounted(() => {
       resizeObserver = new ResizeObserver(entries => {
         for (const entry of entries) {
           const rect = entry.contentRect;
-          if (rect.width > 0 && rect.height > 0) {
-            try {
-              if (!map.value && !initializing) {
-                // initialize when container gains dimensions
-                initializeMap().catch(() => {});
-              } else {
-                map.value?.invalidateSize();
+            if (rect.width > 0 && rect.height > 0) {
+              try {
+                if (!map.value && !initializing) {
+                  // initialize when container gains dimensions
+                  initializeMap().catch(() => {});
+                } else {
+                  safeInvalidate(map.value);
+                }
+              } catch (err) {
+                /* ignore */
               }
-            } catch (err) {
-              /* ignore */
             }
-          }
         }
       });
       resizeObserver.observe(mapContainer.value);

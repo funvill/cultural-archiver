@@ -1,12 +1,9 @@
-<<<<<<< HEAD
+
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
-=======
-﻿<script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
->>>>>>> 982fdc3 (Better filter banner)
 import { useRouter, useRoute } from 'vue-router';
 import MapComponent from '../components/MapComponent.vue';
+import MapFiltersModal from '../components/MapFiltersModal.vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
 import { useArtworksStore } from '../stores/artworks';
 import { useMapPreviewStore } from '../stores/mapPreview';
@@ -274,14 +271,10 @@ async function loadListArtworks(listId: string) {
         return;
       }
 
-<<<<<<< HEAD
+
       const data = resp.data as { list?: any; items?: any[]; has_more?: boolean };
       if (!listMeta) listMeta = data.list;
       const items = data.items || [];
-=======
-      if (!listMeta) listMeta = resp.data.list;
-      const items = (resp.data.items || []) as any[];
->>>>>>> 79cbe81 (data-collectors, linting)
       accumulated.push(...items);
 
       if (!data.has_more) break;
@@ -609,6 +602,7 @@ watch(
     <MapComponent
       :center="mapCenter"
       :zoom="mapZoom"
+      :suppress-filter-banner="mapFilters.hasActiveFilters.value && !listFilterActive"
       :artworks="artworks"
       ref="mapComponentRef"
       @artwork-click="handleArtworkClick"
