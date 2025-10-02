@@ -144,14 +144,6 @@ If the photo GPS data can't be found. Highlight this as an error, and hightlight
 
 ----
 
-The "Location Access Needed" dialog has a transpartent background making it hard to read.
-
-----
-
-The status page https://art.abluestar.com/status should show the device GSP status and the date of all the locally stored values.
-
-----
-
 In the navagation rail, if a user clicks the white space (without a icon) the navagation rail should expand or hide
 
 ----

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed } from 'vue';
+import { computed as vueComputed } from 'vue';
 import { apiService, getErrorMessage } from '../services/api';
 import { getApiBaseUrl } from '../utils/api-config';
 import { useNotificationsStore } from '../stores/notifications';
@@ -275,6 +276,9 @@ const geoError = ref<string | null>(null);
 const geoLoading = ref(false);
 let geoWatchId: number | null = null;
 
+// Permissions API state for geolocation (if available)
+const geoPermissionState = ref<string | null>(null);
+
 function formatCoords(pos: GeolocationPosition | null) {
   if (!pos) return null;
   return {
@@ -347,8 +351,178 @@ function requestSinglePosition() {
   );
 }
 
+// Try to read permission state for geolocation (optional)
+async function updateGeoPermissionState() {
+  try {
+    if (typeof navigator !== 'undefined' && (navigator as any).permissions && (navigator as any).permissions.query) {
+      const perm = await (navigator as any).permissions.query({ name: 'geolocation' });
+      geoPermissionState.value = perm.state;
+      // keep in sync if it changes
+      perm.onchange = () => {
+        geoPermissionState.value = perm.state;
+      };
+    } else {
+      geoPermissionState.value = null;
+    }
+  } catch (err) {
+    geoPermissionState.value = null;
+  }
+}
+
+// Local storage diagnostics: list keys and try to infer timestamps from common fields
+const localDataList = ref<Array<{ key: string; raw: string | null; inferredDate: string | null; size: number }>>([]);
+const expandedKeys = ref<Record<string, boolean>>({});
+const userToken = ref<string | null>(null);
+const lastMapState = ref<{ center?: { latitude?: number; longitude?: number }; zoom?: number } | null>(null);
+const showFullToken = ref(false);
+
+const maskedToken = vueComputed(() => {
+  if (!userToken.value) return null;
+  if (showFullToken.value) return userToken.value;
+  const t = userToken.value;
+  if (t.length <= 8) return t;
+  return `${t.slice(0, 6)}...${t.slice(-4)}`;
+});
+
+async function copyToClipboard(text: string | null) {
+  if (!text) return;
+  try {
+    if (typeof navigator !== 'undefined' && (navigator as any).clipboard && (navigator as any).clipboard.writeText) {
+      await (navigator as any).clipboard.writeText(text);
+      alert('Copied to clipboard');
+      return;
+    }
+  } catch (e) {
+    // fallthrough to fallback
+  }
+  // Fallback
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    alert('Copied to clipboard');
+  } catch (e) {
+    alert('Copy failed');
+  }
+}
+
+function refreshLocalDiagnostics() {
+  loadLocalDataDiagnostics();
+}
+
+function bytesForString(s: string | null): number {
+  if (!s) return 0;
+  try {
+    if (typeof TextEncoder !== 'undefined') {
+      return new TextEncoder().encode(s).length;
+    }
+  } catch (e) {
+    // fallback
+  }
+  return s.length;
+}
+
+function inferDateFromValue(raw: string | null): string | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+
+    // Common timestamp field names
+    const candidates = ['timestamp', 'created_at', 'updated_at', 'cachedAt', 'cached_at', 'savedAt', 'saved_at'];
+    for (const name of candidates) {
+      if (parsed && typeof parsed === 'object' && parsed[name]) {
+        const v = parsed[name];
+        // epoch ms number
+        if (typeof v === 'number' && v > 0) return new Date(v).toLocaleString();
+        // ISO string
+        if (typeof v === 'string') {
+          const d = new Date(v);
+          if (!isNaN(d.getTime())) return d.toLocaleString();
+        }
+      }
+    }
+
+    // If object has nested cachedAt or timestamp as number
+    if (parsed && typeof parsed === 'object') {
+      const flat = JSON.stringify(parsed);
+      const epochMatch = flat.match(/\b(1[0-9]{12,}|[0-9]{12,})\b/); // crude epoch ms/seconds
+      if (epochMatch) {
+        const n = Number(epochMatch[0]);
+        // heuristic: if looks like seconds (10 digits) convert
+        if (epochMatch[0].length === 10) return new Date(n * 1000).toLocaleString();
+        return new Date(n).toLocaleString();
+      }
+    }
+  } catch (e) {
+    // not JSON
+    // try to detect ISO date
+    const isoMatch = raw.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/);
+    if (isoMatch) {
+      const d = new Date(isoMatch[0]);
+      if (!isNaN(d.getTime())) return d.toLocaleString();
+    }
+  }
+  return null;
+}
+
+function loadLocalDataDiagnostics() {
+  try {
+    const keys = Object.keys(localStorage).sort();
+    localDataList.value = keys.map(k => {
+      const raw = localStorage.getItem(k);
+      const inferred = inferDateFromValue(raw);
+      const size = bytesForString(raw);
+      return { key: k, raw, inferredDate: inferred, size };
+    });
+    // reset expanded state
+    expandedKeys.value = {};
+    // load specific known keys for convenience
+    loadSpecificKeys();
+  } catch (err) {
+    localDataList.value = [];
+    expandedKeys.value = {};
+  }
+}
+
+function loadSpecificKeys() {
+  try {
+    userToken.value = localStorage.getItem('user-token');
+  } catch (e) {
+    userToken.value = null;
+  }
+
+  try {
+    const raw = localStorage.getItem('map:lastState');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        lastMapState.value = parsed;
+      } catch (e) {
+        lastMapState.value = null;
+      }
+    } else {
+      lastMapState.value = null;
+    }
+  } catch (e) {
+    lastMapState.value = null;
+  }
+}
+
+function toggleExpanded(key: string) {
+  expandedKeys.value[key] = !expandedKeys.value[key];
+}
+
+function totalLocalStorageBytes(): number {
+  return localDataList.value.reduce((s: number, it: { size: number }) => s + (it.size || 0), 0);
+}
+
 onMounted(() => {
   checkSystemHealth();
+  updateGeoPermissionState();
+  loadLocalDataDiagnostics();
   window.addEventListener('resize', handleResize);
 });
 
@@ -373,6 +547,38 @@ onUnmounted(() => {
     </div>
 
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+      <!-- Local Keys Card -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div class="p-6">
+          <div class="flex items-center justify-between">
+            <h2 class="text-lg font-semibold mb-0">Local Keys</h2>
+            <div class="flex items-center space-x-2">
+              <button @click="refreshLocalDiagnostics" class="text-sm px-3 py-1 border rounded bg-gray-100">Refresh</button>
+            </div>
+          </div>
+
+          <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+            <div>
+              <div class="text-xs text-gray-600">User Token (user-token)</div>
+              <div class="flex items-center space-x-2 mt-1">
+                <div class="font-mono text-sm text-gray-900 truncate">{{ maskedToken ?? 'not set' }}</div>
+                <button @click="showFullToken = !showFullToken" class="text-xs text-blue-600 underline">{{ showFullToken ? 'Hide' : 'Show' }}</button>
+                <button @click="copyToClipboard(userToken)" class="text-xs px-2 py-1 border rounded">Copy</button>
+              </div>
+            </div>
+
+            <div>
+              <div class="text-xs text-gray-600">Map Last State (map:lastState)</div>
+              <div class="mt-1 font-mono text-sm text-gray-900">{{ lastMapState ? (lastMapState.center ? `${lastMapState.center.latitude?.toFixed(6)}, ${lastMapState.center.longitude?.toFixed(6)} (z:${lastMapState.zoom})` : JSON.stringify(lastMapState)) : 'not set' }}</div>
+              <div class="mt-2">
+                <button @click="copyToClipboard(JSON.stringify(lastMapState))" class="text-xs px-2 py-1 border rounded">Copy JSON</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- API Status Card -->
       <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
         <div class="p-6">
@@ -492,6 +698,91 @@ onUnmounted(() => {
               <div class="text-sm text-gray-600">Pending Review</div>
             </div>
           </div>
+
+            <!-- Device GPS Permission & Local Data Card -->
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+              <div class="p-6">
+                <h2 class="text-lg font-semibold mb-4 flex items-center">
+                  <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M10 2a1 1 0 00-.894.553L7.382 6H4a1 1 0 00-.707 1.707l6 6a1 1 0 001.414 0l6-6A1 1 0 0016 6h-3.382l-1.724-3.447A1 1 0 0010 2z" />
+                  </svg>
+                  Device & Local Data
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div class="space-y-2">
+                    <div class="flex justify-between">
+                      <span class="font-medium text-gray-600">Geolocation Supported:</span>
+                      <span class="text-gray-900">{{ geoSupported ? 'Yes' : 'No' }}</span>
+                    </div>
+
+                    <div class="flex justify-between">
+                      <span class="font-medium text-gray-600">Geolocation Permission:</span>
+                      <span class="text-gray-900">{{ geoPermissionState ?? 'unknown' }}</span>
+                    </div>
+
+                    <div class="flex justify-between">
+                      <span class="font-medium text-gray-600">Last Device Position:</span>
+                      <span class="text-gray-900">{{ position ? formatCoords(position)?.lat + ', ' + formatCoords(position)?.lon : 'N/A' }}</span>
+                    </div>
+
+                    <div class="flex justify-between">
+                      <span class="font-medium text-gray-600">Position Timestamp:</span>
+                      <span class="text-gray-900">{{ position ? formatCoords(position)?.timestamp : 'N/A' }}</span>
+                    </div>
+                  </div>
+
+                  <div class="space-y-2">
+                    <div class="flex justify-between">
+                      <span class="font-medium text-gray-600">Local Storage Keys:</span>
+                      <span class="text-gray-900">{{ localDataList.length }}</span>
+                    </div>
+
+                    <div class="flex justify-between">
+                      <span class="font-medium text-gray-600">User Token (user-token):</span>
+                      <span class="text-gray-900 font-mono text-xs">{{ userToken ?? 'not set' }}</span>
+                    </div>
+
+                    <div class="flex justify-between">
+                      <span class="font-medium text-gray-600">Map Last State (map:lastState):</span>
+                      <span class="text-gray-900 font-mono text-xs">{{ lastMapState ? (lastMapState.center ? `${lastMapState.center.latitude?.toFixed(6)}, ${lastMapState.center.longitude?.toFixed(6)} (z:${lastMapState.zoom})` : JSON.stringify(lastMapState)) : 'not set' }}</span>
+                    </div>
+
+                    <div class="text-sm text-gray-600">
+                      Below are localStorage keys and any inferred timestamps found inside their values (best-effort heuristic).
+                    </div>
+
+                    <div class="mt-2">
+                      <div class="flex justify-between items-center mb-2">
+                        <div class="text-sm text-gray-600">Total localStorage size:</div>
+                        <div class="text-sm text-gray-900 font-mono">{{ totalLocalStorageBytes() }} bytes</div>
+                      </div>
+
+                      <div class="max-h-48 overflow-auto border rounded p-2 bg-gray-50">
+                        <template v-if="localDataList.length">
+                          <div v-for="item in localDataList" :key="item.key" class="py-1 border-b last:border-b-0">
+                            <div class="flex justify-between items-center">
+                              <div class="flex items-center space-x-3">
+                                <button @click="toggleExpanded(item.key)" class="text-xs text-gray-500">{{ expandedKeys[item.key] ? '▾' : '▸' }}</button>
+                                <div class="text-xs text-gray-700 font-mono truncate max-w-xs">{{ item.key }}</div>
+                              </div>
+                              <div class="flex items-center space-x-4">
+                                <div class="text-xs text-gray-900">{{ item.inferredDate ?? '-' }}</div>
+                                <div class="text-xs text-gray-600 font-mono">{{ item.size }} B</div>
+                              </div>
+                            </div>
+                            <div v-if="expandedKeys[item.key]" class="mt-2 text-xs text-gray-800 font-mono bg-white p-2 rounded">
+                              <pre class="whitespace-pre-wrap break-words">{{ item.raw }}</pre>
+                            </div>
+                          </div>
+                        </template>
+                        <div v-else class="text-sm text-gray-600">No localStorage data found.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
         </div>
       </div>
 

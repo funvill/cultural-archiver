@@ -786,3 +786,11 @@ Bug
 When the page refreshes, the artwork markers that have been visted show as normal.instead of checked. when you pan the markers out of view then back into view they are checked. There is an issue with marking the visited marker on page load.
 
 ----
+
+The "Location Access Needed" dialog has a transpartent background making it hard to read.
+
+----
+
+The status page https://art.abluestar.com/status should show the device GPS status and the date of all the locally stored values.
+
+----
