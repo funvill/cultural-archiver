@@ -98,6 +98,9 @@ const { isArtworkTypeEnabled, getTypeColor } =
 const { visitedArtworks, starredArtworks } = useUserLists();
 
 // Map filters for advanced filtering
+function handleClearFilters() {
+  mapFilters.resetFilters();
+}
 const mapFilters = useMapFilters();
 
 // Debug ring layer (only immediate 100m ring)
