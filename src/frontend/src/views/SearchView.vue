@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { PlusIcon } from '@heroicons/vue/24/outline';
 import SearchInput from '../components/SearchInput.vue';
+import MiniMap from '../components/MiniMap.vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
 import ArtworkTypeFilter from '../components/ArtworkTypeFilter.vue';
 import SkeletonCard from '../components/SkeletonCard.vue';
@@ -405,6 +406,33 @@ function getLocationMethodDescription(detectedSources: any): string {
   }
 }
 
+function shouldShowExifMissingWarning(detectedSources: any): boolean {
+  if (!detectedSources) return false;
+  try {
+    return !detectedSources.exif?.detected && !!detectedSources.browser?.detected;
+  } catch {
+    return false;
+  }
+}
+
+function photoHasExif(photo: any): boolean {
+  if (!photo) return false;
+  try {
+    return !!(photo.exifLat || photo.exifLon || (photo.exif && (photo.exif.latitude || photo.exif.longitude)));
+  } catch {
+    return false;
+  }
+}
+
+function primaryPhoto(): any | null {
+  try {
+    if (!fastUploadSession.value || !fastUploadSession.value.photos) return null;
+    return fastUploadSession.value.photos[0] || null;
+  } catch {
+    return null;
+  }
+}
+
 onUnmounted(() => {
   // Clear any pending debounced searches
   searchStore.clearSearch();
@@ -471,48 +499,74 @@ onUnmounted(() => {
             <h2 class="text-lg font-semibold text-gray-900 mb-4">
               Your Photos ({{ fastUploadSession.photos.length }})
             </h2>
-            <div class="flex space-x-4 overflow-x-auto">
-              <div
-                v-for="photo in fastUploadSession.photos"
-                :key="photo.id"
-                class="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center text-[10px] text-gray-500"
-              >
-                <img
-                  v-if="photo.preview"
-                  :src="photo.preview"
-                  :alt="photo.name"
-                  class="w-20 h-20 object-cover rounded-lg"
-                />
-                <span v-else>No preview</span>
-              </div>
-            </div>
-            <div v-if="fastUploadSession.location" class="mt-4 text-sm text-gray-600">
-              <div class="flex items-center space-x-2">
-                <strong>Location detected:</strong>
-                <span
-                  >{{ fastUploadSession.location.latitude.toFixed(6) }},
-                  {{ fastUploadSession.location.longitude.toFixed(6) }}</span
-                >
-              </div>
-              <div v-if="fastUploadSession.detectedSources" class="mt-2 space-y-1">
-                <div class="flex items-center space-x-2">
-                  <span class="text-xs font-medium">Method:</span>
-                  <span
-                    class="text-xs px-2 py-1 rounded-full"
-                    :class="getLocationMethodStyle(fastUploadSession.detectedSources)"
-                  >
-                    {{ getLocationMethodText(fastUploadSession.detectedSources) }}
-                  </span>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <!-- Thumbnail card (fills card) -->
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-2">
+                <div class="w-full h-full flex items-center justify-center">
+                  <div class="w-full h-40 relative rounded-lg overflow-hidden bg-gray-50">
+                    <template v-if="primaryPhoto()">
+                      <img
+                        v-if="primaryPhoto().preview"
+                        :src="primaryPhoto().preview"
+                        :alt="primaryPhoto().name"
+                        class="w-full h-full object-cover"
+                      />
+                      <div v-else class="w-full h-40 flex items-center justify-center text-sm text-gray-500">No preview</div>
+
+                      <!-- EXIF badge for primary photo (overlay) -->
+                      <div v-if="photoHasExif(primaryPhoto())" class="absolute top-3 left-3 bg-green-600 text-white text-xs px-2 py-0.5 rounded-full flex items-center gap-1 z-10">
+                        <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" fill="white" stroke="none"></circle></svg>
+                        GPS
+                      </div>
+                    </template>
+                    <div v-else class="w-full h-40 flex items-center justify-center text-sm text-gray-500">No photos uploaded</div>
+                  </div>
                 </div>
-                <div class="text-xs text-gray-500">
-                  {{ getLocationMethodDescription(fastUploadSession.detectedSources) }}
+              </div>
+
+              <!-- Map preview card (fills card) -->
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-2 flex items-center justify-center">
+                <div v-if="fastUploadSession.location" class="w-full h-40 rounded-lg overflow-hidden bg-gray-50">
+                  <MiniMap
+                    :latitude="fastUploadSession.location.latitude"
+                    :longitude="fastUploadSession.location.longitude"
+                    height="160px"
+                    :zoom="17"
+                    class="w-full h-full"
+                  />
                 </div>
+                <div v-else class="w-full h-40 flex items-center justify-center text-sm text-gray-500">No map available</div>
+              </div>
+
+              <!-- Location detection info card (last) -->
+              <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+                <div v-if="fastUploadSession.location" class="text-sm text-gray-700">
+                  <div class="flex items-center mb-2">
+                    <strong class="mr-2">Location detected:</strong>
+                    <span>{{ fastUploadSession.location.latitude.toFixed(6) }}, {{ fastUploadSession.location.longitude.toFixed(6) }}</span>
+                  </div>
+
+                  <div v-if="fastUploadSession.detectedSources" class="mb-3">
+                    <div class="flex items-center space-x-2 mb-1">
+                      <span class="text-xs font-medium">Method:</span>
+                      <span class="text-xs px-2 py-1 rounded-full" :class="getLocationMethodStyle(fastUploadSession.detectedSources)">
+                        {{ getLocationMethodText(fastUploadSession.detectedSources) }}
+                      </span>
+                    </div>
+                    <div class="text-xs text-gray-500">{{ getLocationMethodDescription(fastUploadSession.detectedSources) }}</div>
+                  </div>
+
+                  <div class="mt-3">
+                    <p class="text-sm text-gray-600">If the photo contains GPS in EXIF this is preferred. If not available we may use device GPS.</p>
+                  </div>
+                </div>
+                <div v-else class="text-sm text-gray-500">Location not detected yet.</div>
               </div>
             </div>
           </div>
 
           <!-- Instructions -->
-          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <div class="bg-white border border-gray-200 rounded-lg p-4 mb-6">
             <div class="flex items-start">
               <div class="flex-shrink-0">
                 <svg class="w-5 h-5 theme-primary mt-0.5" fill="currentColor" viewBox="0 0 20 20">
@@ -524,8 +578,8 @@ onUnmounted(() => {
                 </svg>
               </div>
               <div class="ml-3">
-                <h3 class="text-sm font-medium theme-primary">What would you like to do?</h3>
-                <div class="mt-2 text-sm theme-primary">
+                <h3 class="text-sm font-medium text-gray-900">What would you like to do?</h3>
+                <div class="mt-2 text-sm text-gray-700">
                   <p>
                     <strong>Add to existing artwork:</strong> Click on any artwork card below to add
                     your photos as a new logbook entry
@@ -536,6 +590,12 @@ onUnmounted(() => {
                   </p>
                 </div>
               </div>
+            </div>
+          </div>
+          <!-- Show warning if EXIF not found but device GPS used -->
+          <div v-if="shouldShowExifMissingWarning(fastUploadSession.detectedSources)" class="mb-6">
+            <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800">
+              Photo EXIF GPS data not found. Using device GPS instead — encourage users to use photo GPS where available for better accuracy.
             </div>
           </div>
         </div>

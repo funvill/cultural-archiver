@@ -794,3 +794,7 @@ The "Location Access Needed" dialog has a transpartent background making it hard
 The status page https://art.abluestar.com/status should show the device GPS status and the date of all the locally stored values.
 
 ----
+
+In the navagation rail, if a user clicks the white space (without a icon) the navagation rail should expand or hide
+
+----

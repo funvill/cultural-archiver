@@ -322,6 +322,11 @@ watch([finalLocation, () => selectedFiles.value.length, isProcessing], () => {
                 :alt="photo.name"
                 class="w-full h-24 object-cover rounded-lg"
               />
+              <!-- EXIF GPS badge -->
+              <div v-if="photo.exifData?.latitude && photo.exifData?.longitude" class="absolute top-1 left-1 bg-green-600 text-white text-xs px-2 py-0.5 rounded flex items-center gap-1">
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" fill="white" stroke="none"></circle></svg>
+                GPS
+              </div>
               <button
                 @click.stop="removePhoto(photo.id)"
                 class="absolute top-1 right-1 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity group"

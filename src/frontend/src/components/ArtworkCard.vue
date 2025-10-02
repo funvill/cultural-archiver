@@ -316,7 +316,7 @@ function handleKeydown(event: KeyboardEvent): void {
               d="M12 4v16m8-8H4"
             />
           </svg>
-          Add Report
+          Add photo to Artwork
         </button>
       </div>
     </div>

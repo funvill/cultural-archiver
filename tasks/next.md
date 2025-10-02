@@ -143,8 +143,3 @@ Location should preference the GPS data in the photo EXIF data over the device G
 If the photo GPS data can't be found. Highlight this as an error, and hightlight that the device GPS is being used instead. We want people to use the photo GPS instead of the Device GPS.
 
 ----
-
-In the navagation rail, if a user clicks the white space (without a icon) the navagation rail should expand or hide
-
-----
-
