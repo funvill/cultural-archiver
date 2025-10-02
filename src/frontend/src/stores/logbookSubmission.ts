@@ -85,9 +85,9 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
 
       const response = await apiService.getArtworkDetails(artworkId);
       artwork.value = response;
-    } catch (error) {
-      artworkError.value = getErrorMessage(error);
-      console.error('Failed to fetch artwork details:', error);
+    } catch (err: unknown) {
+      artworkError.value = getErrorMessage(err);
+      console.error('Failed to fetch artwork details:', err);
     } finally {
       isLoadingArtwork.value = false;
     }
@@ -207,14 +207,14 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
       material.value = '';
 
       return { success: true, submissionId: response.id };
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
+    } catch (err: unknown) {
+      const errorMessage = getErrorMessage(err);
 
       // Handle different error types according to PRD
-      if (isNetworkError(error)) {
+      if (isNetworkError(err)) {
         // Network error - preserve form data and show retryable error
         submitError.value = 'Submission Failed. Please check your connection and try again.';
-      } else if (isRateLimited(error)) {
+      } else if (isRateLimited(err)) {
         // Rate limit error - provide user-friendly message
         submitError.value = 'Too many submissions. Please wait a moment before trying again.';
         await fetchArtworkDetails(artworkId); // Refresh cooldown status
@@ -228,7 +228,7 @@ export const useLogbookSubmissionStore = defineStore('logbookSubmission', () => 
         clearForm();
       }
 
-      console.error('Logbook submission failed:', error);
+      console.error('Logbook submission failed:', err);
       return { success: false };
     } finally {
       isSubmitting.value = false;

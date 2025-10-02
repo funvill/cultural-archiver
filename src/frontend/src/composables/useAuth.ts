@@ -3,12 +3,14 @@
  * Updated to work with the new UUID-based authentication system
  */
 
+
 import { computed, watch } from 'vue';
 import type { ComputedRef, WritableComputedRef } from 'vue';
 import { useAuthStore } from '../stores/auth';
 import type { User } from '../types';
 
 export interface UseAuthReturn {
+
   isAuthenticated: ComputedRef<boolean> | WritableComputedRef<boolean>;
   isAnonymous: ComputedRef<boolean> | WritableComputedRef<boolean>;
   isModerator: ComputedRef<boolean> | WritableComputedRef<boolean>;

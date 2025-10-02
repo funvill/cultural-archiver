@@ -68,6 +68,7 @@ const loadList = async (page = 1) => {
   try {
     const response = await apiService.getListDetails(props.id, page, 50);
     
+
     if (response && response.success && response.data) {
       const data = response.data as { list?: any; items?: any[]; page?: number; total?: number; per_page?: number; has_more?: boolean };
       list.value = data.list as any;
@@ -128,6 +129,7 @@ const toggleSelectAll = () => {
   if (allSelected.value) {
     selectedArtworks.value.clear();
   } else {
+
   artworks.value.forEach((artwork: { id: string }) => selectedArtworks.value.add(String(artwork.id)));
   }
 };
@@ -139,6 +141,7 @@ const bulkRemoveItems = async () => {
   error.value = null;
   
   try {
+
     const artworkIds = Array.from(selectedArtworks.value);
   const response = await apiService.removeArtworksFromList(props.id, artworkIds as string[]);
     

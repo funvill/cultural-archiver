@@ -200,7 +200,7 @@ export const useAuthStore = defineStore('auth', () => {
             }
 
             setUser(userData);
-          } catch (profileError) {
+          } catch (profileError: unknown) {
             console.warn('[AUTH DEBUG] Failed to fetch user profile:', profileError);
           }
 
@@ -246,7 +246,7 @@ export const useAuthStore = defineStore('auth', () => {
                 isAdmin: userPermissions.includes('admin'),
               });
             }
-          } catch (profileError) {
+          } catch (profileError: unknown) {
             console.warn(
               '[AUTH DEBUG] Failed to fetch user profile for anonymous user:',
               profileError
@@ -270,7 +270,7 @@ export const useAuthStore = defineStore('auth', () => {
           tokens_match: token.value === user.value?.id,
         });
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[AUTH DEBUG] Auth initialization error:', {
         error: err,
         message: err instanceof Error ? err.message : 'Unknown error',
@@ -325,7 +325,7 @@ export const useAuthStore = defineStore('auth', () => {
           user_id: userData.id,
         });
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[AUTH DEBUG] Failed to generate anonymous token:', {
         error: err,
         message: err instanceof Error ? err.message : 'Unknown error',
@@ -369,7 +369,7 @@ export const useAuthStore = defineStore('auth', () => {
       }
 
       return { success: false, message: 'Failed to send magic link' };
-    } catch (err) {
+    } catch (err: unknown) {
       const message = getErrorMessage(err);
       setError(message);
       return { success: false, message };
@@ -460,7 +460,7 @@ export const useAuthStore = defineStore('auth', () => {
         response.message || 'Unknown error'
       );
       return { success: false, message: response.message || 'Failed to verify magic link' };
-    } catch (err) {
+    } catch (err: unknown) {
       const message = getErrorMessage(err);
       console.error('[AUTH DEBUG] Magic link verification error:', {
         error: message,
@@ -525,7 +525,7 @@ export const useAuthStore = defineStore('auth', () => {
           });
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('[AUTH DEBUG] Logout error:', {
         error: err,
         message: err instanceof Error ? err.message : 'Unknown error',
@@ -580,7 +580,7 @@ export const useAuthStore = defineStore('auth', () => {
           // TODO: Refresh permissions as well
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to refresh auth status:', err);
     }
   }

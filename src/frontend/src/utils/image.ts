@@ -67,8 +67,8 @@ export async function extractExifData(file: File): Promise<ExifData> {
     }
 
     return result;
-  } catch (error) {
-    console.warn('Failed to extract EXIF data:', error);
+  } catch (err: unknown) {
+    console.warn('Failed to extract EXIF data:', err);
     return {};
   }
 }
@@ -88,8 +88,8 @@ export async function extractImageCoordinates(file: File): Promise<Coordinates |
     }
 
     return null;
-  } catch (error) {
-    console.warn('Failed to extract image coordinates:', error);
+  } catch (err: unknown) {
+    console.warn('Failed to extract image coordinates:', err);
     return null;
   }
 }

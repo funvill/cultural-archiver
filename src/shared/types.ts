@@ -802,10 +802,9 @@ export interface ListItemsResponse extends PaginatedResponse<ArtworkApiResponse>
 
 // Special list names as constants
 export const SPECIAL_LIST_NAMES = {
-  WANT_TO_SEE: 'Want to see',
-  HAVE_SEEN: 'Have seen', 
   LOVED: 'Loved',
-  VALIDATED: 'Validated'
+  VISITED: 'Visited', 
+  STARRED: 'Starred'
 } as const;
 
 export type SpecialListName = typeof SPECIAL_LIST_NAMES[keyof typeof SPECIAL_LIST_NAMES];
@@ -1582,6 +1581,79 @@ export interface LocationResult {
   source: 'cache' | 'nominatim';
   last_updated: string;
 }
+
+// ================================
+// Feedback System Types (Moderator-only)
+// ================================
+
+export interface FeedbackRecord {
+  id: string;
+  subject_type: 'artwork' | 'artist';
+  subject_id: string;
+  user_token: string | null;
+  issue_type: 'missing' | 'incorrect_info' | 'other' | 'comment';
+  note: string;
+  status: 'open' | 'archived' | 'resolved';
+  created_at: string;
+  reviewed_at: string | null;
+  moderator_token: string | null;
+  review_notes: string | null;
+  ip_address: string | null;
+  user_agent: string | null;
+}
+
+export interface CreateFeedbackRequest {
+  subject_type: 'artwork' | 'artist';
+  subject_id: string;
+  issue_type: 'missing' | 'incorrect_info' | 'other' | 'comment';
+  note: string;
+  user_token?: string | null;
+  consent_version?: string;
+  consent_text_hash?: string;
+}
+
+export interface CreateFeedbackResponse {
+  id: string;
+  status: 'open';
+  created_at: string;
+  message?: string;
+}
+
+export interface FeedbackListResponse {
+  feedback: FeedbackRecord[];
+  total: number;
+  page: number;
+  per_page: number;
+  has_more: boolean;
+}
+
+export interface ReviewFeedbackRequest {
+  action: 'archive' | 'resolve' | 'apply_changes';
+  moderator_token: string;
+  review_notes?: string;
+  changes?: Partial<CreateArtworkRequest> | Partial<CreateArtistRequest>;
+}
+
+export interface ReviewFeedbackResponse {
+  feedback: FeedbackRecord;
+  message?: string;
+}
+
+// Constants
+export const FEEDBACK_SUBJECT_TYPES = ['artwork', 'artist'] as const;
+export const FEEDBACK_ISSUE_TYPES = ['missing', 'incorrect_info', 'other', 'comment'] as const;
+export const FEEDBACK_STATUSES = ['open', 'archived', 'resolved'] as const;
+export const MAX_FEEDBACK_NOTE_LENGTH = 1000;
+
+// Validators
+export const isValidFeedbackSubjectType = (t: string): t is FeedbackRecord['subject_type'] =>
+  FEEDBACK_SUBJECT_TYPES.includes(t as FeedbackRecord['subject_type']);
+
+export const isValidFeedbackIssueType = (t: string): t is FeedbackRecord['issue_type'] =>
+  FEEDBACK_ISSUE_TYPES.includes(t as FeedbackRecord['issue_type']);
+
+export const isValidFeedbackStatus = (s: string): s is FeedbackRecord['status'] =>
+  FEEDBACK_STATUSES.includes(s as FeedbackRecord['status']);
 
 // ================================
 // LEGACY TYPES (Maintaining for compatibility)

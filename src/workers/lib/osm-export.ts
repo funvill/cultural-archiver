@@ -47,7 +47,14 @@ export function artworkToOSMExport(artwork: ArtworkRecord): {
 /**
  * Export multiple artworks to OSM format
  */
-export function exportArtworksToOSM(artworks: ArtworkRecord[]) {
+export function exportArtworksToOSM(artworks: ArtworkRecord[]): Array<{
+  id: string;
+  lat: number;
+  lon: number;
+  tags: Record<string, string>;
+  created_at: string;
+  updated_at: string;
+}> {
   return artworks
     .filter(artwork => {
       // Only export approved artworks with valid coordinates

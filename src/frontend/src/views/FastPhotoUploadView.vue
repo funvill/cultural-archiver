@@ -264,12 +264,12 @@ watch([finalLocation, () => selectedFiles.value.length, isProcessing], () => {
 </script>
 
 <template>
-  <div class="fast-photo-upload min-h-screen bg-gray-50 py-8 px-4">
+  <div class="fast-photo-upload min-h-screen theme-background py-8 px-4">
     <div class="max-w-4xl mx-auto">
       <!-- Header -->
       <div class="text-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 mb-2">Add Artwork</h1>
-        <p class="text-lg text-gray-600">
+        <h1 class="text-3xl font-bold mb-2" :style="{ color: 'rgb(var(--md-on-background))' }">Add Artwork</h1>
+        <p class="text-lg" :style="{ color: 'rgba(var(--md-on-background),0.85)' }">
           Upload photos and we'll automatically search for nearby artworks
         </p>
       </div>
@@ -277,9 +277,7 @@ watch([finalLocation, () => selectedFiles.value.length, isProcessing], () => {
       <!-- Step 1: Photo Upload -->
       <div class="bg-white rounded-lg shadow-md p-6 mb-6">
         <div class="flex items-center mb-4">
-          <div
-            class="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full mr-3"
-          >
+          <div class="flex items-center justify-center w-8 h-8 rounded-full mr-3" :style="{ background: 'rgb(var(--md-primary))', color: 'rgb(var(--md-on-primary))' }">
             <span class="text-sm font-bold">1</span>
           </div>
           <h2 class="text-xl font-semibold text-gray-900">Upload Photos</h2>
@@ -291,14 +289,11 @@ watch([finalLocation, () => selectedFiles.value.length, isProcessing], () => {
           @dragover="handleDragOver"
           @dragleave="handleDragLeave"
           @click="triggerFileInput"
-          class="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center cursor-pointer transition-colors hover:border-blue-400 hover:bg-blue-50"
-          :class="{
-            'border-blue-400 bg-blue-50': isDragOver,
-            'border-green-400 bg-green-50': selectedFiles.length > 0,
-          }"
+          class="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors"
+          :style="isDragOver ? { borderColor: 'rgb(var(--md-primary))', background: 'rgba(var(--md-primary),0.06)' } : (selectedFiles.length > 0 ? { borderColor: 'rgb(var(--md-success))', background: 'rgba(var(--md-success),0.06)' } : { borderColor: 'rgba(0,0,0,0.08)' })"
         >
           <PhotoIcon class="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <p class="text-lg font-medium text-gray-700 mb-2">
+          <p class="text-lg font-medium mb-2" :style="{ color: 'rgba(var(--md-on-surface),0.9)' }">
             {{
               selectedFiles.length > 0
                 ? `${selectedFiles.length} photo(s) selected`
@@ -327,11 +322,17 @@ watch([finalLocation, () => selectedFiles.value.length, isProcessing], () => {
                 :alt="photo.name"
                 class="w-full h-24 object-cover rounded-lg"
               />
+              <!-- EXIF GPS badge -->
+              <div v-if="photo.exifData?.latitude && photo.exifData?.longitude" class="absolute top-1 left-1 bg-green-600 text-white text-xs px-2 py-0.5 rounded flex items-center gap-1">
+                <svg class="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3" fill="white" stroke="none"></circle></svg>
+                GPS
+              </div>
               <button
                 @click.stop="removePhoto(photo.id)"
-                class="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                class="absolute top-1 right-1 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity group"
+                :style="{ background: 'rgb(var(--md-error))', color: 'rgb(var(--md-on-error))' }"
               >
-                <XMarkIcon class="w-4 h-4" />
+                <XMarkIcon class="w-4 h-4 theme-icon-hover" />
               </button>
               <div
                 class="absolute bottom-1 left-1 bg-black bg-opacity-75 text-white text-xs px-1 rounded"
@@ -345,13 +346,11 @@ watch([finalLocation, () => selectedFiles.value.length, isProcessing], () => {
 
       <!-- Step 2: Location Detection -->
       <div class="bg-white rounded-lg shadow-md p-6 mb-6" v-if="selectedFiles.length > 0">
-        <div class="flex items-center mb-4">
-          <div
-            class="flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full mr-3"
-          >
+          <div class="flex items-center mb-4">
+          <div class="flex items-center justify-center w-8 h-8 rounded-full mr-3" :style="{ background: 'rgb(var(--md-primary))', color: 'rgb(var(--md-on-primary))' }">
             <span class="text-sm font-bold">2</span>
           </div>
-          <h2 class="text-xl font-semibold text-gray-900">Detecting Location</h2>
+          <h2 class="text-xl font-semibold" :style="{ color: 'rgb(var(--md-on-surface))' }">Detecting Location</h2>
         </div>
 
         <div class="space-y-3">
@@ -364,9 +363,10 @@ watch([finalLocation, () => selectedFiles.value.length, isProcessing], () => {
             <div class="flex items-center">
               <CheckCircleIcon
                 v-if="locationSources.exif.detected"
-                class="w-5 h-5 text-green-500 mr-2"
+                class="w-5 h-5 mr-2"
+                :style="{ color: 'rgb(var(--md-success))' }"
               />
-              <ExclamationTriangleIcon v-else class="w-5 h-5 text-red-500 mr-2" />
+              <ExclamationTriangleIcon v-else class="w-5 h-5 mr-2" :style="{ color: 'rgb(var(--md-error))' }" />
               <span class="text-sm text-gray-600">
                 {{ locationSources.exif.detected ? 'Found' : 'Not available' }}
               </span>
@@ -382,9 +382,10 @@ watch([finalLocation, () => selectedFiles.value.length, isProcessing], () => {
             <div class="flex items-center">
               <CheckCircleIcon
                 v-if="locationSources.browser.detected"
-                class="w-5 h-5 text-green-500 mr-2"
+                class="w-5 h-5 mr-2"
+                :style="{ color: 'rgb(var(--md-success))' }"
               />
-              <ExclamationTriangleIcon v-else class="w-5 h-5 text-red-500 mr-2" />
+              <ExclamationTriangleIcon v-else class="w-5 h-5 mr-2" :style="{ color: 'rgb(var(--md-error))' }" />
               <span class="text-sm text-gray-600">
                 {{
                   locationSources.browser.detected
@@ -410,7 +411,7 @@ watch([finalLocation, () => selectedFiles.value.length, isProcessing], () => {
               <span class="text-sm font-medium text-gray-700">IP Address Location</span>
             </div>
             <div class="flex items-center">
-              <ExclamationTriangleIcon class="w-5 h-5 text-red-500 mr-2" />
+              <ExclamationTriangleIcon class="w-5 h-5 mr-2" :style="{ color: 'rgb(var(--md-error))' }" />
               <span class="text-sm text-gray-600">Not available</span>
             </div>
           </div>
@@ -420,7 +421,8 @@ watch([finalLocation, () => selectedFiles.value.length, isProcessing], () => {
         <div class="mt-4 text-center">
           <button
             @click="showManualLocationPicker"
-            class="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            class="inline-flex items-center px-4 py-2 border rounded-md shadow-sm text-sm font-medium bg-white hover:bg-gray-50 focus:outline-none"
+            :style="{ color: 'rgb(var(--md-on-surface))', borderColor: 'rgba(var(--md-surface),0.08)' }"
           >
             <MapPinIcon class="w-4 h-4 mr-2" />
             Set Location Manually
@@ -428,11 +430,11 @@ watch([finalLocation, () => selectedFiles.value.length, isProcessing], () => {
         </div>
 
         <!-- Current Location Display -->
-        <div v-if="finalLocation" class="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+        <div v-if="finalLocation" class="mt-4 p-3 rounded-lg" :style="{ background: 'rgba(var(--md-success),0.06)', border: '1px solid rgba(var(--md-success),0.12)' }">
           <div class="flex items-center">
-            <CheckCircleIcon class="w-5 h-5 text-green-500 mr-2" />
-            <span class="text-sm font-medium text-green-700">Location detected:</span>
-            <span class="text-sm text-green-600 ml-2">
+            <CheckCircleIcon class="w-5 h-5 mr-2" :style="{ color: 'rgb(var(--md-success))' }" />
+            <span class="text-sm font-medium" :style="{ color: 'rgb(var(--md-on-success))' }">Location detected:</span>
+            <span class="text-sm ml-2" :style="{ color: 'rgb(var(--md-success))' }">
               {{ finalLocation.latitude.toFixed(6) }}, {{ finalLocation.longitude.toFixed(6) }}
             </span>
           </div>

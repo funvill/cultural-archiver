@@ -276,13 +276,13 @@ async function main() {
   let processed = 0;
   let fetched = 0;
   let skipped = 0;
-  let inFlight = 0;
+  // tracking in-flight requests is unnecessary here; remove to avoid lint errors
 
-  async function worker(workerId) {
+  async function worker(_workerId) {
     while (queue.length) {
       const tile = queue.shift();
       if (!tile) break;
-      inFlight++;
+  // track in-flight removed
       const key = `${tile.z}-${tile.x}-${tile.y}`;
       const tilePath = path.join(outTilesDir, `${key}.geojson`);
 
@@ -316,8 +316,7 @@ async function main() {
       } catch (err) {
         console.error(`[tile ${key}] ERROR:`, err?.message || err);
       } finally {
-        processed++;
-        inFlight--;
+  processed++;
       }
     }
   }

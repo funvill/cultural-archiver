@@ -1,11 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue';
-
-// Provide local declarations for Vue SFC macros so the TypeScript language
-// server recognizes them in <script setup> without needing @ts-ignore.
-declare function defineEmits<T extends Record<string, (...args: unknown[]) => void>>(emits?: T): (...args: unknown[]) => void;
-declare function defineEmits(emits?: string[]): (event: string, ...args: unknown[]) => void;
-declare function defineExpose<T = Record<string, unknown>>(exposed?: T): void;
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineEmits } from 'vue';
 import {
   ExclamationTriangleIcon,
   ExclamationCircleIcon,
@@ -22,14 +16,20 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import type { Coordinates, ArtworkPin, MapComponentProps } from '../types/index';
 import { useArtworksStore } from '../stores/artworks';
-import { useArtworkTypeFilters, type ArtworkTypeToggle } from '../composables/useArtworkTypeFilters';
+import {
+  useArtworkTypeFilters,
+} from '../composables/useArtworkTypeFilters';
+import { useUserLists } from '../composables/useUserLists';
+import { useMapFilters } from '../composables/useMapFilters';
 import { useRouter } from 'vue-router';
-import { apiService } from '../services/api';
+import MapOptionsModal from './MapOptionsModal.vue';
+import { useMapPreviewStore } from '../stores/mapPreview';
 
 // Props
-const props = withDefaults(defineProps<MapComponentProps>(), {
+const props = withDefaults(defineProps<MapComponentProps & { suppressFilterBanner?: boolean }>(), {
   zoom: 15,
   showUserLocation: true,
+  suppressFilterBanner: false,
 });
 
 // Emits - using runtime declaration to avoid TypeScript compilation issues
@@ -39,8 +39,6 @@ const emit = defineEmits([
   'dismissPreview',
   'mapMove',
   'locationFound'
-  // telemetry update event - parent can listen for live telemetry
-  , 'telemetryUpdate'
 ]);
 
 // State
@@ -58,14 +56,10 @@ const lastLoadedBounds = ref<{ north: number; south: number; east: number; west:
 const loadingTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 // Marker update debouncing
 const markerUpdateTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
-// Pending marker update flag to avoid mutating layers during Leaflet zoom animations
-const pendingMarkerUpdate = ref(false);
-// Explicit animating flag driven by Leaflet zoom events (avoid reading Leaflet private props)
-const animatingZoom = ref(false);
-// Pending dismiss preview when zoom animates
-const pendingDismissPreview = ref(false);
 // Debounce for updating marker styles during continuous zoom
 const zoomStyleTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
+// Track zoom animation state to prevent marker updates during animations
+const isZoomAnimating = ref(false);
 // Progressive loading state
 const isProgressiveLoading = ref(false);
 const progressiveLoadingStats = ref<{
@@ -79,395 +73,35 @@ const useProgressiveLoading = ref(false); // Toggle for progressive loading mode
 // Guard navigator for SSR / non-browser test environments
 const hasGeolocation = ref(typeof navigator !== 'undefined' && !!navigator.geolocation);
 const userLocationMarker = ref<L.Marker | null>(null);
+// Live tracking state for the centered user marker
+const userWatchId = ref<number | null>(null);
+const userHeading = ref<number>(0); // degrees
+let deviceOrientationListener: ((ev: DeviceOrientationEvent) => void) | null = null;
+
+const isTracking = computed(() => userWatchId.value !== null);
 const artworkMarkers = ref<(L.Marker | L.CircleMarker)[]>([]);
 // Use any for cluster type to avoid type issues if markercluster types not available
 const markerClusterGroup = ref<any | null>(null);
 // Map options state
-const showOptionsPanel = ref(false);
-const clusterEnabled = ref(true);
+const showOptionsModal = ref(false);
+
+// Map preview store - used to hide preview when opening options
+const mapPreviewStore = useMapPreviewStore();
+// Use mapFilters clustering state instead of local ref
+const clusterEnabled = computed(() => mapFilters.filtersState.clusterEnabled);
 const debugRingsEnabled = ref(false);
-const clearingCache = ref(false);
 // Artwork type filters - using shared composable
-const { artworkTypes, isArtworkTypeEnabled, getTypeColor, enableAllTypes, disableAllTypes } =
+const { isArtworkTypeEnabled, getTypeColor } =
   useArtworkTypeFilters();
 
-// Cache for artwork list memberships to avoid repeated API calls
-const artworkListMembership = ref<Map<string, { beenHere: boolean, wantToSee: boolean }>>(new Map());
+// User lists for marker classification
+const { visitedArtworks, starredArtworks } = useUserLists();
 
-// Simple in-memory TTL caches to reduce repeated network calls
-const USER_LISTS_TTL_MS = 1000 * 60 * 5; // 5 minutes
-const LIST_DETAILS_TTL_MS = 1000 * 60 * 5; // 5 minutes
-
-const userListsCache: { ts: number; data: any[] | null } = { ts: 0, data: null };
-const listDetailsCache: Map<string, { ts: number; data: any | null }> = new Map();
-
-// Persisted cache keys
-const PERSIST_USER_LISTS_KEY = 'map:cachedUserLists';
-const PERSIST_LIST_DETAILS_KEY = 'map:cachedListDetails';
-// Cache telemetry keys
-const PERSIST_CACHE_TELEMETRY_KEY = 'map:cacheTelemetry';
-
-// Telemetry counters (persisted)
-const cacheTelemetry = { userListsHit: 0, userListsMiss: 0, listDetailsHit: 0, listDetailsMiss: 0 };
-
-// Load telemetry from localStorage
-try {
-  const persisted = localStorage.getItem(PERSIST_CACHE_TELEMETRY_KEY);
-  if (persisted) {
-    const parsed = JSON.parse(persisted);
-    cacheTelemetry.userListsHit = parsed.userListsHit || 0;
-    cacheTelemetry.userListsMiss = parsed.userListsMiss || 0;
-    cacheTelemetry.listDetailsHit = parsed.listDetailsHit || 0;
-    cacheTelemetry.listDetailsMiss = parsed.listDetailsMiss || 0;
-  }
-} catch (e) {
-  /* ignore */
+// Map filters for advanced filtering
+function handleClearFilters() {
+  mapFilters.resetFilters();
 }
-
-function persistTelemetry() {
-  try {
-    localStorage.setItem(PERSIST_CACHE_TELEMETRY_KEY, JSON.stringify(cacheTelemetry));
-    try {
-      // Expose a copy for easy debugging in the browser console
-      if (typeof window !== 'undefined') {
-        try { (window as any).__mapCacheTelemetry = { ...cacheTelemetry }; } catch (e) {}
-      }
-    } catch (e) {
-      /* ignore */
-    }
-    // Emit telemetry update so parent components can pick up changes immediately
-    try {
-      emit && typeof emit === 'function' && emit('telemetryUpdate', getCacheTelemetry());
-    } catch (e) {
-      // ignore
-    }
-
-    // Broadcast to other tabs using BroadcastChannel if available
-    try {
-      if (typeof BroadcastChannel !== 'undefined') {
-        try {
-          const ch = new BroadcastChannel('map-cache');
-          ch.postMessage({ type: 'telemetry', payload: getCacheTelemetry() });
-          ch.close();
-        } catch (e) {
-          // ignore
-        }
-      } else {
-        // Fallback: also write to localStorage (already done) so other tabs can read storage events
-      }
-    } catch (e) {
-      /* ignore */
-    }
-  } catch (e) {
-    /* ignore */
-  }
-}
-
-// Debounce support for telemetry persistence to avoid frequent sync I/O
-let telemetryFlushTimeout: ReturnType<typeof setTimeout> | null = null;
-const TELEMETRY_DEBOUNCE_MS = 1000;
-
-function schedulePersistTelemetry() {
-  // Clear existing and schedule a new flush
-  if (telemetryFlushTimeout) clearTimeout(telemetryFlushTimeout as any);
-  telemetryFlushTimeout = setTimeout(() => {
-    try {
-      persistTelemetry();
-    } finally {
-      telemetryFlushTimeout = null;
-    }
-  }, TELEMETRY_DEBOUNCE_MS);
-}
-
-function flushTelemetryNow() {
-  if (telemetryFlushTimeout) {
-    clearTimeout(telemetryFlushTimeout as any);
-    telemetryFlushTimeout = null;
-  }
-  try {
-    persistTelemetry();
-  } catch (e) {
-    /* ignore */
-  }
-}
-
-// BroadcastChannel for cross-tab sync (created lazily in browser)
-let bc: BroadcastChannel | null = null;
-
-onMounted(() => {
-  try {
-    if (typeof BroadcastChannel !== 'undefined') {
-      bc = new BroadcastChannel('map-cache');
-      bc.onmessage = (ev: MessageEvent) => {
-        try {
-          const msg = ev.data || {};
-          if (msg && msg.type === 'telemetry' && msg.payload) {
-            // Merge counters (adopt payload as current snapshot)
-            try {
-              cacheTelemetry.userListsHit = msg.payload.userListsHit || 0;
-              cacheTelemetry.userListsMiss = msg.payload.userListsMiss || 0;
-              cacheTelemetry.listDetailsHit = msg.payload.listDetailsHit || 0;
-              cacheTelemetry.listDetailsMiss = msg.payload.listDetailsMiss || 0;
-              // Emit locally so parent updates immediately
-              try { emit('telemetryUpdate', getCacheTelemetry()); } catch (e) {}
-            } catch (e) {}
-          } else if (msg && msg.type === 'clearCaches') {
-            try {
-              userListsCache.data = null;
-              userListsCache.ts = 0;
-              listDetailsCache.clear();
-              artworkListMembership.value.clear();
-              try { localStorage.removeItem(PERSIST_USER_LISTS_KEY); localStorage.removeItem(PERSIST_LIST_DETAILS_KEY); } catch (e) {}
-              try { emit('telemetryUpdate', getCacheTelemetry()); } catch (e) {}
-            } catch (e) {}
-          }
-        } catch (e) {
-          // ignore
-        }
-      };
-    }
-  } catch (e) {
-    /* ignore */
-  }
-  // Ensure we flush telemetry before unload to persist the latest counters
-  try { window.addEventListener('beforeunload', flushTelemetryNow); } catch (e) {}
-});
-
-onUnmounted(() => {
-  try { window.removeEventListener('beforeunload', flushTelemetryNow); } catch (e) {}
-  try { if (bc) { bc.close(); bc = null; } } catch (e) {}
-});
-
-function getCacheTelemetry() {
-  return { ...cacheTelemetry };
-}
-
-function resetCacheTelemetry() {
-  cacheTelemetry.userListsHit = 0;
-  cacheTelemetry.userListsMiss = 0;
-  cacheTelemetry.listDetailsHit = 0;
-  cacheTelemetry.listDetailsMiss = 0;
-  // Persist immediately when resetting
-  try {
-    flushTelemetryNow();
-  } catch (e) {
-    /* ignore */
-  }
-}
-
-// Load persisted caches from localStorage if present
-try {
-  const persisted = localStorage.getItem(PERSIST_USER_LISTS_KEY);
-  if (persisted) {
-    const parsed = JSON.parse(persisted);
-    if (parsed?.ts && parsed?.data) {
-      userListsCache.ts = parsed.ts;
-      userListsCache.data = parsed.data;
-    }
-  }
-} catch (e) {
-  /* ignore parse errors */
-}
-
-try {
-  const persistedLists = localStorage.getItem(PERSIST_LIST_DETAILS_KEY);
-  if (persistedLists) {
-    const parsed = JSON.parse(persistedLists);
-    if (parsed && typeof parsed === 'object') {
-      for (const k of Object.keys(parsed)) {
-        try {
-          listDetailsCache.set(k, parsed[k]);
-        } catch (e) {
-          // ignore
-        }
-      }
-    }
-  }
-} catch (e) {
-  /* ignore parse errors */
-}
-
-// Expose a method to clear caches programmatically
-function clearListCaches() {
-  try {
-    userListsCache.data = null;
-    userListsCache.ts = 0;
-    listDetailsCache.clear();
-    try {
-      localStorage.removeItem(PERSIST_USER_LISTS_KEY);
-      localStorage.removeItem(PERSIST_LIST_DETAILS_KEY);
-    } catch (e) {
-      /* ignore */
-    }
-    // Also clear per-artwork membership cache
-    artworkListMembership.value.clear();
-    console.log('MapComponent: list caches cleared');
-    try {
-      // Broadcast cache clear to other tabs
-      if (typeof BroadcastChannel !== 'undefined') {
-        try {
-          const ch = new BroadcastChannel('map-cache');
-          ch.postMessage({ type: 'clearCaches' });
-          ch.close();
-        } catch (e) {}
-      }
-    } catch (e) {}
-    // Flush telemetry too
-    try { flushTelemetryNow(); } catch (e) {}
-  } catch (e) {
-    console.warn('Failed to clear list caches', e);
-  }
-}
-
-// Expose to parent via composition API (script setup macro)
-// Note: use the compile-time defineExpose macro directly so parent refs can access these methods.
-defineExpose({ clearListCaches, getCacheTelemetry, resetCacheTelemetry });
-
-// Function to check artwork list membership
-async function checkArtworkListMembership(artworkId: string): Promise<{ beenHere: boolean, wantToSee: boolean }> {
-  // Debug: trace entry to help verify this function runs in the browser
-  try {
-    // Use debug instead of console.log to be filter-friendly
-    console.debug && console.debug('MapComponent.checkArtworkListMembership ENTER', { artworkId });
-  } catch (e) {
-    /* ignore */
-  }
-
-  // Check cache first
-  if (artworkListMembership.value.has(artworkId)) {
-    return artworkListMembership.value.get(artworkId)!;
-  }
-
-  // Default membership
-  const membership = { beenHere: false, wantToSee: false };
-
-  try {
-    // Get user lists to check membership (use TTL cache)
-    let lists: any[] = [];
-    const now = Date.now();
-    if (userListsCache.data && now - userListsCache.ts < USER_LISTS_TTL_MS) {
-      lists = userListsCache.data as any[];
-      // telemetry: userLists cache hit
-      try {
-            cacheTelemetry.userListsHit++;
-            // Debug log for telemetry
-            try {
-              console.debug('telemetry: userListsHit ->', cacheTelemetry.userListsHit);
-            } catch (e) {}
-            // Schedule a debounced persist instead of writing immediately
-            schedulePersistTelemetry();
-      } catch (e) {
-        /* ignore */
-      }
-    } else {
-      try {
-        const userLists = await apiService.getUserLists();
-        lists = Array.isArray(userLists) ? userLists : userLists.data || [];
-          userListsCache.data = lists;
-        userListsCache.ts = now;
-        // telemetry: userLists miss (we fetched from network)
-        try {
-          cacheTelemetry.userListsMiss++;
-          try {
-            console.debug('telemetry: userListsMiss ->', cacheTelemetry.userListsMiss);
-          } catch (e) {}
-          schedulePersistTelemetry();
-        } catch (e) {
-          /* ignore */
-        }
-        try {
-          localStorage.setItem(PERSIST_USER_LISTS_KEY, JSON.stringify({ ts: now, data: lists }));
-        } catch (e) {
-          /* ignore */
-        }
-      } catch (e) {
-        // Could not fetch lists; fall back to empty lists
-        lists = [];
-      }
-    }
-
-    // Check each system list for the artwork. Be resilient to API shape and name variations.
-    const KNOWN_BEEN_HERE = new Set(['have seen', 'been here', 'logged', 'have_seen', 'been_here']);
-    const KNOWN_WANT_TO_SEE = new Set(['want to see', 'want_to_see', 'wanttosee', 'wanttosee']);
-
-    for (const list of lists) {
-      // Some API variants use `is_system` or `is_system_list` - treat either truthy value as system list
-      const isSystemFlag = Boolean(list.is_system || list.is_system_list || list.is_system_list === 1);
-      if (!isSystemFlag) continue;
-
-      try {
-        // Get list details (use per-list TTL cache)
-        const lid = String(list.id);
-        let listDetails: any | null = null;
-        const cached = listDetailsCache.get(lid);
-        if (cached && now - cached.ts < LIST_DETAILS_TTL_MS) {
-          listDetails = cached.data;
-          // telemetry: listDetails cache hit
-          try {
-            cacheTelemetry.listDetailsHit++;
-            try {
-              console.debug('telemetry: listDetailsHit ->', cacheTelemetry.listDetailsHit);
-            } catch (e) {}
-            schedulePersistTelemetry();
-          } catch (e) {
-            /* ignore */
-          }
-        } else {
-          try {
-            const resp = await apiService.getListDetails(list.id, 1, 100);
-            listDetails = resp?.data || null;
-            listDetailsCache.set(lid, { ts: now, data: listDetails });
-            try {
-              // Persist map of cached list details as a simple object
-              const obj: Record<string, any> = {};
-              listDetailsCache.forEach((v, k) => (obj[k] = v));
-              localStorage.setItem(PERSIST_LIST_DETAILS_KEY, JSON.stringify(obj));
-            } catch (e) {
-              /* ignore */
-            }
-            // telemetry: listDetails miss (we fetched from network)
-            try {
-              cacheTelemetry.listDetailsMiss++;
-              try {
-                console.debug('telemetry: listDetailsMiss ->', cacheTelemetry.listDetailsMiss);
-              } catch (e) {}
-              schedulePersistTelemetry();
-            } catch (e) {
-              /* ignore */
-            }
-          } catch (e) {
-            listDetails = null;
-            // continue to next list
-          }
-        }
-
-        if (!listDetails || !listDetails.items) continue;
-        const items = Array.isArray(listDetails.items) ? listDetails.items : listDetails.data?.items || [];
-
-        const isInList = items.some((item: any) => item.id === artworkId);
-        if (!isInList) continue;
-
-        const name = (list.name || '').toString().trim().toLowerCase();
-
-        if (KNOWN_BEEN_HERE.has(name) || name.includes('seen') || name.includes('been')) {
-          membership.beenHere = true;
-        } else if (KNOWN_WANT_TO_SEE.has(name) || name.includes('want')) {
-          membership.wantToSee = true;
-        }
-      } catch (listError) {
-        // Continue checking other lists if one fails
-        continue;
-      }
-    }
-  } catch (error) {
-    // If API calls fail at top-level, fall back to default (false, false)
-    console.warn('Failed to check artwork list membership:', error);
-  }
-  
-  // Cache the result
-  artworkListMembership.value.set(artworkId, membership);
-  return membership;
-}
+const mapFilters = useMapFilters();
 
 // Debug ring layer (only immediate 100m ring)
 let debugImmediateRing: L.Circle | null = null;
@@ -522,107 +156,368 @@ const artworksStore = useArtworksStore();
 // Router for navigation
 const router = useRouter();
 
+
+// Leaflet guard helpers
+
+type LeafletGlobal = typeof L & {
+  Popup?: typeof L.Popup & { prototype: Record<string, any> };
+  Marker?: typeof L.Marker & { prototype: Record<string, any> };
+  DomUtil?: typeof L.DomUtil & Record<string, any>;
+  Map?: typeof L.Map & { prototype: Record<string, any> };
+};
+
+const getLeafletGlobal = (): LeafletGlobal | null => {
+  if (typeof window !== 'undefined' && (window as any).L) {
+    return (window as any).L as LeafletGlobal;
+  }
+  return L as LeafletGlobal;
+};
+
+const installLeafletPopupGuards = () => {
+  const Lglobal = getLeafletGlobal();
+  const popupProto = Lglobal?.Popup?.prototype as Record<string, any> | undefined;
+  if (!popupProto || popupProto._superNuclearGuardInstalled) return;
+
+  popupProto._superNuclearGuardInstalled = true;
+
+  const guardPopupMethod = (methodName: '_animateZoom' | '_updatePosition' | '_updateLayout' | '_movePopup') => {
+    const original = popupProto[methodName];
+    if (typeof original !== 'function') return;
+
+    const originalKey = `_original${methodName.substring(1).charAt(0).toUpperCase()}${methodName.substring(2)}`;
+    if (!popupProto[originalKey]) {
+      popupProto[originalKey] = original;
+    }
+
+    popupProto[methodName] = function (...args: any[]) {
+      const popupInstance = this as any;
+      if (!popupInstance) return popupInstance;
+
+      if (methodName === '_movePopup') {
+        const popup = popupInstance._popup;
+        if (!popup || typeof popup.setLatLng !== 'function') {
+          return popupInstance;
+        }
+      }
+
+      try {
+        return original.apply(this, args);
+      } catch (error) {
+        // Suppressed popup error in production (previously logged as [POPUP DEBUG])
+        return popupInstance;
+      }
+    };
+  };
+
+  guardPopupMethod('_animateZoom');
+  guardPopupMethod('_updatePosition');
+  guardPopupMethod('_updateLayout');
+  guardPopupMethod('_movePopup');
+};
+
+const installLeafletDomUtilGuards = () => {
+  const Lglobal = getLeafletGlobal();
+  const domUtilAny = Lglobal?.DomUtil as (typeof L.DomUtil & Record<string, any>) | undefined;
+  if (!domUtilAny || domUtilAny._superNuclearGuardInstalled) return;
+
+  domUtilAny._superNuclearGuardInstalled = true;
+  const originalGetPosition = domUtilAny.getPosition;
+  domUtilAny._originalGetPosition = originalGetPosition;
+
+  domUtilAny.getPosition = ((el: HTMLElement) => {
+    if (!el) {
+      return L.point(0, 0);
+    }
+
+    try {
+      return originalGetPosition.call(domUtilAny, el);
+    } catch (error) {
+      return L.point(0, 0);
+    }
+  }) as typeof L.DomUtil.getPosition;
+};
+
+const installLeafletMapZoomGuard = () => {
+  const Lglobal = getLeafletGlobal();
+  const mapProto = Lglobal?.Map?.prototype as Record<string, any> | undefined;
+  if (!mapProto || mapProto._superNuclearGuardInstalled) return;
+
+  mapProto._superNuclearGuardInstalled = true;
+  const originalAnimateZoom = mapProto._animateZoom;
+  if (typeof originalAnimateZoom === 'function') {
+    mapProto._originalAnimateZoomGuard = originalAnimateZoom;
+    mapProto._animateZoom = function (...args: any[]) {
+      try {
+        return originalAnimateZoom.apply(this, args);
+      } catch (error) {
+      // Suppressed map _animateZoom failure in production
+        return this;
+      }
+    };
+  }
+};
+
+const installLeafletMarkerGuards = () => {
+  const Lglobal = getLeafletGlobal();
+  const markerProto = Lglobal?.Marker?.prototype as Record<string, any> | undefined;
+  if (!markerProto || markerProto._superNuclearMarkerGuardInstalled) return;
+
+  markerProto._superNuclearMarkerGuardInstalled = true;
+  const originalMovePopup = markerProto._movePopup as ((this: L.Marker, e: any) => any) | undefined;
+  if (typeof originalMovePopup === 'function') {
+    markerProto._originalMovePopupGuard = originalMovePopup;
+    markerProto._movePopup = function (this: L.Marker, e: any) {
+      const popup = (this as any)._popup;
+      if (!popup || typeof popup.setLatLng !== 'function') {
+        return this;
+      }
+
+      try {
+        originalMovePopup.call(this, e);
+      } catch (error) {
+        // Suppressed marker _movePopup failure in production
+      }
+      return this;
+    };
+  }
+};
+
 // Default coordinates (Vancouver - near sample data for testing)
 const DEFAULT_CENTER = { latitude: 49.265, longitude: -123.25 };
 
-// Icon pre-render cache (data-URIs keyed by type+size)
-const iconDataUriCache: Map<string, string> = new Map();
-
-// Helper: render an icon to an offscreen canvas and return data-URI
-function renderIconToDataUri(kind: 'flag' | 'star' | 'question', size: number, fillColor?: string) {
-  const key = `${kind}:${size}:${fillColor || ''}`;
-  if (iconDataUriCache.has(key)) return iconDataUriCache.get(key)!;
-
-  // Create offscreen canvas
-  const canvas = document.createElement('canvas');
-  const dpr = Math.max(1, window.devicePixelRatio || 1);
-  canvas.width = size * dpr;
-  canvas.height = size * dpr;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    return '';
-  }
-  ctx.scale(dpr, dpr);
-
-  // Draw background circle
-  ctx.beginPath();
-  ctx.arc(size / 2, size / 2, size / 2 - 1, 0, Math.PI * 2);
-  ctx.fillStyle = kind === 'question' ? (fillColor || '#888') : (kind === 'star' ? '#F59E0B' : '#9CA3AF');
-  ctx.fill();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = '#fff';
-  ctx.stroke();
-
-  // Draw simple glyphs centered
-  ctx.fillStyle = '#fff';
-  ctx.beginPath();
-  if (kind === 'flag') {
-    // Simple flag pole + triangle
-    const poleX = size * 0.36;
-    ctx.fillRect(poleX, size * 0.22, size * 0.06, size * 0.56);
-    ctx.moveTo(poleX + size * 0.06, size * 0.22);
-    ctx.lineTo(size * 0.76, size * 0.38);
-    ctx.lineTo(poleX + size * 0.06, size * 0.54);
-    ctx.closePath();
-    ctx.fill();
-  } else if (kind === 'star') {
-    // Draw a simple star via path approximation
-    const cx = size / 2;
-    const cy = size / 2;
-    const r = size * 0.22;
-    for (let i = 0; i < 5; i++) {
-      const a = ((-18 + i * 72) * Math.PI) / 180;
-      const x = cx + Math.cos(a) * r * (i % 2 === 0 ? 1 : 0.45);
-      const y = cy + Math.sin(a) * r * (i % 2 === 0 ? 1 : 0.45);
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    ctx.fill();
-  } else {
-    // question mark - draw a rounded path approximation
-    ctx.font = `${Math.floor(size * 0.6)}px sans-serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('?', size / 2, size / 2 - size * 0.06);
-  }
-
-  const dataUri = canvas.toDataURL('image/png');
-  iconDataUriCache.set(key, dataUri);
-  return dataUri;
+// Marker type enum for filtering
+enum MarkerType {
+  NORMAL = 'normal',
+  VISITED = 'visited',
+  STARRED = 'starred',
+  UNKNOWN = 'unknown'
 }
 
-// Create priority-based div icon for artworks using cached data-URIs (faster)
-const createArtworkIcon = (artwork: ArtworkPin, listMembership?: { beenHere: boolean, wantToSee: boolean }) => {
+// Create circle marker style for normal artworks (replaces emoji icons for better performance)
+const createArtworkStyle = (type: string) => {
+  const normalized = (type || 'other').toLowerCase();
+
+  // Calculate dynamic radius based on zoom level
+  // Note: Leaflet zoom increases when you zoom in (higher = closer). We want radius to grow as zoom increases.
   const currentZoom = map.value?.getZoom() ?? 15;
-  const baseSize = Math.max(20, Math.min(32, currentZoom * 1.5));
+  // Set base min/max for the raw radius (before applying the 2x multiplier)
+  const minRadius = 3; // smallest marker at lower zoom levels
+  const maxRadius = 10; // largest marker at higher zoom levels
 
-  // Determine kind
-  const kind: 'flag' | 'star' | 'question' = listMembership?.beenHere
-    ? 'flag'
-    : listMembership?.wantToSee
-    ? 'star'
-    : 'question';
+  // Effective zoom range for interpolation (adjustable)
+  // 10 = metropolitan area, 16 = Street, 18 = buildings/trees
+  const minZoom = 12;
+  const maxZoom = 18;
+  let dynamicRadius: number;
 
-  const fillColor = kind === 'question' ? getTypeColor((artwork.type || 'other').toLowerCase()) : undefined;
-  const dataUri = renderIconToDataUri(kind, Math.floor(baseSize), fillColor);
+  if (currentZoom <= minZoom) {
+    dynamicRadius = minRadius;
+  } else if (currentZoom >= maxZoom) {
+    dynamicRadius = maxRadius;
+  } else {
+    // t = 0 at minZoom (smallest), t = 1 at maxZoom (largest)
+    const t = (currentZoom - minZoom) / (maxZoom - minZoom);
+    dynamicRadius = minRadius + t * (maxRadius - minRadius);
+  }
 
-  const html = `
-    <div class="artwork-marker-outer" style="width: ${baseSize}px; height: ${baseSize}px; display:flex; align-items:center; justify-content:center;">
-      <div class="artwork-marker-inner" style="width: ${baseSize}px; height: ${baseSize}px; border-radius:50%; background-image: url('${dataUri}'); background-size: cover; box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: transform 120ms ease, box-shadow 120ms ease;">
-      </div>
-    </div>
-  `;
+  // Apply the user's requested unconditional doubling of marker sizes across all zooms.
+  // Clamp to a reasonable maximum to avoid excessively large markers.
+  dynamicRadius = Math.min(dynamicRadius * 2, maxRadius * 2);
 
+  // Use shared color logic from composable
+  const fillColor = getTypeColor(normalized);
+
+  const baseStyle = {
+    radius: dynamicRadius, // Use zoom-scaled radius
+    fillColor: fillColor,
+    color: '#ffffff', // white border
+    weight: 1,
+    fillOpacity: 0.9,
+    opacity: 1,
+    // Ensure proper interaction settings
+    interactive: true,
+    bubblingMouseEvents: false,
+    className: 'artwork-circle-marker', // Add CSS class for styling
+  };
+
+  // Don't add renderer - let Leaflet handle canvas rendering automatically
+  return baseStyle;
+};
+
+// Enhanced marker factory functions for different marker types
+const createNormalMarker = (type: string) => {
+  const currentZoom = map.value?.getZoom() ?? 15;
+  const size = calculateIconSize(currentZoom);
+  const fillColor = getTypeColor((type || 'other').toLowerCase());
+  
   return L.divIcon({
-    html,
-    className: '',
-    iconSize: [baseSize, baseSize],
-    iconAnchor: [baseSize / 2, baseSize / 2],
+    html: `
+      <div class="artwork-normal-marker flex items-center justify-center" style="width: ${size}px; height: ${size}px;">
+        <div class="normal-circle" style="
+          width: ${size}px; 
+          height: ${size}px; 
+          border-radius: 50%; 
+          background: ${fillColor};
+          border: 2px solid #1f2937;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+        "></div>
+      </div>
+    `,
+    className: 'custom-normal-icon',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2]
   });
 };
 
+const createVisitedMarker = () => {
+  const currentZoom = map.value?.getZoom() ?? 15;
+  const size = calculateIconSize(currentZoom);
+  const circleDiameter = size;
+
+  return L.divIcon({
+    html: `
+      <div
+        class="artwork-visited-marker flex items-center justify-center"
+        style="
+          width: ${circleDiameter}px;
+          height: ${circleDiameter}px;
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          overflow: hidden;
+        "
+      >
+        
+        <svg
+          width="${circleDiameter}px"
+          height="${circleDiameter}"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="#ffffff"
+          stroke-width="3"
+          style="
+            position: absolute;
+            background: #1f2937;
+            border-radius: 9999px;
+            padding: ${size * 0.06}px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+          "
+        >
+          <polyline points="20,6 9,17 4,12"></polyline>
+        </svg>
+      </div>
+    `,
+    className: 'custom-visited-icon visited-marker-layer',
+    iconSize: [circleDiameter, circleDiameter],
+    iconAnchor: [circleDiameter / 2, circleDiameter / 2]
+  });
+};
+
+
+
+const createStarredMarker = () => {
+  const currentZoom = map.value?.getZoom() ?? 15;
+  const size = calculateIconSize(currentZoom);
+  
+  return L.divIcon({
+    html: `
+      <div class="artwork-starred-marker flex items-center justify-center" style="width: ${size}px; height: ${size}px;">
+        <div class="starred-circle" style="
+          width: ${size}px; 
+          height: ${size}px; 
+          border-radius: 50%; 
+          background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+          border: 2px solid #d97706;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        ">
+          <svg width="${size * 0.6}" height="${size * 0.6}" viewBox="0 0 24 24" fill="#fff" stroke="none">
+            <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+          </svg>
+        </div>
+      </div>
+    `,
+    className: 'custom-starred-icon',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+  });
+};
+
+const createUnknownMarker = (type: string) => {
+  const currentZoom = map.value?.getZoom() ?? 15;
+  const size = calculateIconSize(currentZoom);
+  const fillColor = getTypeColor((type || 'other').toLowerCase());
+  
+  return L.divIcon({
+    html: `
+      <div class="artwork-unknown-marker flex items-center justify-center" style="width: ${size}px; height: ${size}px;">
+        <div class="unknown-circle" style="
+          width: ${size}px; 
+          height: ${size}px; 
+          border-radius: 50%; 
+          background: ${fillColor};
+          border: 2px dashed #6b7280;
+          opacity: 0.6;
+          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+        "></div>
+      </div>
+    `,
+    className: 'custom-unknown-icon',
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2]
+  });
+};
+
+// Helper functions for marker sizing
+const calculateIconSize = (currentZoom: number) => {
+  const minSize = 16;
+  const maxSize = 32;
+  const minZoom = 12;
+  const maxZoom = 18;
+  
+  if (currentZoom <= minZoom) {
+    return minSize;
+  } else if (currentZoom >= maxZoom) {
+    return maxSize;
+  } else {
+    const t = (currentZoom - minZoom) / (maxZoom - minZoom);
+    return Math.round(minSize + t * (maxSize - minSize));
+  }
+};
+
+// Function to determine marker type based on artwork and user lists
+const getMarkerType = (artwork: ArtworkPin): MarkerType => {
+  // For test/mock data, check title keywords first
+  if (artwork.title) {
+    const titleLower = artwork.title.toLowerCase();
+    if (titleLower.includes('unknown')) {
+      return MarkerType.UNKNOWN;
+    }
+    if (titleLower.includes('starred')) {
+      return MarkerType.STARRED;
+    }
+    if (titleLower.includes('visited')) {
+      return MarkerType.VISITED;
+    }
+  }
+  
+  // Check user lists using the composable (for production data)
+  if (starredArtworks.value.has(artwork.id)) {
+    return MarkerType.STARRED;
+  }
+  
+  if (visitedArtworks.value.has(artwork.id)) {
+    return MarkerType.VISITED;
+  }
+  
+  return MarkerType.NORMAL;
+};
+
 // Custom icon for user location - use a person icon so it's clearly the user, not an artwork
+// Legacy user location icon generator
 const createUserLocationIcon = () => {
   // Inline SVG for a simple person/user glyph (keeps dependency-free)
   const personSvg = `
@@ -643,6 +538,22 @@ const createUserLocationIcon = () => {
     iconAnchor: [16, 16],
   });
 };
+
+// Expose a no-op clearListCaches so parent components can call it safely
+function clearListCaches(): void {
+  // This was previously used to clear internal caches on the map component.
+  // Currently a no-op; keep as a stable API for callers.
+}
+
+// Expose methods for parent components (include legacy helpers)
+try {
+  // defineExpose is available in <script setup>
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  defineExpose({ clearListCaches, createUserLocationIcon });
+} catch (e) {
+  // ignore in non-setup contexts
+}
 
 // Initialize map
 async function initializeMap() {
@@ -697,32 +608,15 @@ async function initializeMap() {
 
     console.log('Map created successfully:', map.value);
 
-    // Defensive runtime patch: wrap Leaflet's Popup._animateZoom to guard against
-    // rare cases where a popup's internal `_map` becomes null during animated zooms.
-    // This prevents uncaught TypeErrors like "Cannot read properties of null (reading '_latLngToNewLayerPoint')"
-    // while we handle layer update ordering elsewhere in the component.
-    try {
-      const PopupProto: any = (L as any).Popup && (L as any).Popup.prototype;
-      if (PopupProto && typeof PopupProto._animateZoom === 'function') {
-        const _origAnimateZoom = PopupProto._animateZoom;
-        PopupProto._animateZoom = function (zoom: any, center: any, options: any) {
-          try {
-            // If the popup is not attached to a map anymore, skip animation safely
-            if (!this || !this._map) return;
-            return _origAnimateZoom.call(this, zoom, center, options);
-          } catch (err) {
-            // Swallow errors here to avoid bubbling to global error handlers
-            // Log for debugging but don't throw
-            // eslint-disable-next-line no-console
-            console.warn('Popup._animateZoom guarded error', err);
-            return;
-          }
-        };
-      }
-    } catch (err) {
-      // If any of the above fails, continue without the guard
-      console.warn('Failed to install Popup._animateZoom guard', err);
-    }
+    // Install persistent Leaflet guards to prevent popup zoom crashes
+    installLeafletPopupGuards();
+    installLeafletDomUtilGuards();
+    installLeafletMapZoomGuard();
+    installLeafletMarkerGuards();
+    installLeafletPopupGuards();
+    installLeafletDomUtilGuards();
+    installLeafletMapZoomGuard();
+    installLeafletMarkerGuards();
 
     // Ensure the container has the proper Leaflet classes
     if (mapContainer.value) {
@@ -862,57 +756,351 @@ async function initializeMap() {
     // Load saved preference
     try {
       const saved = localStorage.getItem('map:clusterEnabled');
-      if (saved !== null) clusterEnabled.value = saved === 'true';
+      if (saved !== null) {
+        mapFilters.filtersState.clusterEnabled = saved === 'true';
+      }
     } catch {
       /* ignore */
     }
 
     await configureMarkerGroup();
 
-    // Pre-warm icon cache for common sizes to avoid first-render delay
-    try {
-      // Use standard base size for pre-warm (matches createArtworkIcon logic)
-      const preWarmSize = 28;
-      // Render and cache each kind
-      if (typeof window !== 'undefined') {
-        renderIconToDataUri('flag', preWarmSize);
-        renderIconToDataUri('star', preWarmSize);
-        renderIconToDataUri('question', preWarmSize, getTypeColor('other'));
+    // 🚀 PROACTIVE ZOOM INTERCEPTION - Override zoom controls to execute nuclear cleanup BEFORE animation starts
+    const interceptZoomControls = () => {
+  if (!map.value) return;
+
+      // Wait for Leaflet to fully initialize the zoom controls
+      nextTick(() => {
+        // Some test environments mock map.value and may not provide getContainer().
+        // Fall back to the component's mapContainer DOM node when necessary.
+        const containerEl: HTMLElement | null =
+          (map.value && typeof (map.value as any).getContainer === 'function')
+            ? (map.value as any).getContainer()
+            : mapContainer.value || null;
+
+        if (!containerEl) return;
+
+        const zoomInButton = containerEl.querySelector('.leaflet-control-zoom-in');
+        const zoomOutButton = containerEl.querySelector('.leaflet-control-zoom-out');
+
+        if (zoomInButton) {
+          // intercepting zoom in button (debug suppressed)
+          // Remove existing event listeners and add our own
+          const newZoomInButton = zoomInButton.cloneNode(true) as HTMLElement;
+          zoomInButton.parentNode?.replaceChild(newZoomInButton, zoomInButton);
+          
+          newZoomInButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            executeNuclearZoom(() => map.value!.zoomIn());
+          });
+        }
+
+        if (zoomOutButton) {
+          // intercepting zoom out button (debug suppressed)
+          // Remove existing event listeners and add our own
+          const newZoomOutButton = zoomOutButton.cloneNode(true) as HTMLElement;
+          zoomOutButton.parentNode?.replaceChild(newZoomOutButton, zoomOutButton);
+          
+          newZoomOutButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            executeNuclearZoom(() => map.value!.zoomOut());
+          });
+        }
+      });
+    };
+
+    // 🚀 NUCLEAR ZOOM EXECUTION - Synchronous popup cleanup BEFORE zoom animation can start
+    const executeNuclearZoom = (zoomAction: () => void) => {
+      // executing nuclear zoom with synchronous popup cleanup
+      
+      if (!map.value) return;
+
+      // 🔥 IMMEDIATE SYNCHRONOUS POPUP DESTRUCTION - Execute BEFORE any Leaflet animation starts
+  // synchronous: destroy all popups before zoom animation can start
+      
+      // Force preview dismissal immediately
+      emit('dismissPreview');
+
+  // Close all popups immediately and synchronously
+  const mapAny = map.value as any;
+  // final zoom state (debug suppressed)
+      
+      // Remove main popup completely
+      if (mapAny._popup) {
+        map.value.closePopup();
+        mapAny._popup = null;
       }
-    } catch (e) {
-      // Non-fatal; continue
-      console.warn('Icon pre-warm failed', e);
-    }
+      
+      // Remove all popup layers from map's internal layer management
+      if (mapAny._layers) {
+        Object.keys(mapAny._layers).forEach(layerKey => {
+          const layer = mapAny._layers[layerKey];
+          if (layer && layer._popup) {
+            if (map.value!.hasLayer(layer._popup)) {
+              map.value!.removeLayer(layer._popup);
+            }
+            layer._popup = null;
+          }
+        });
+      }
+
+      // Clear and rebuild cluster group to ensure clean state
+      if (markerClusterGroup.value) {
+        markerClusterGroup.value.clearLayers();
+        artworkMarkers.value.forEach((marker: any) => {
+          if (marker) {
+            // Remove any popup from marker
+            if (marker.getPopup && marker.getPopup()) {
+              marker.unbindPopup();
+            }
+            markerClusterGroup.value!.addLayer(marker);
+          }
+        });
+      }
+
+  // Zoom action starting after defensive popup cleanup
+      
+      // Execute the actual zoom - now safe because all popups are destroyed
+      zoomAction();
+    };
+
+    // Initialize zoom control interception
+    interceptZoomControls();
 
     // Setup event listeners
     map.value.on('moveend', handleMapMove);
     map.value.on('zoomend', handleMapMove);
+    
+    // Track zoom animation state to prevent marker updates during animations
+    map.value.on('zoomstart', () => {
+      try {
+        isZoomAnimating.value = true;
+  // SUPER NUCLEAR instantaneous popup destruction started (debug suppressed)
+
+        // Ensure Leaflet guard patches are active before zoom
+        // Defensive overrides: ensure persistent guard patches stay active
+        try {
+          installLeafletPopupGuards();
+          installLeafletDomUtilGuards();
+          installLeafletMapZoomGuard();
+          installLeafletMarkerGuards();
+        } catch (overrideErr) {
+    // Error applying defensive overrides (suppressed in production)
+        }
+
+        // Synchronous popup/DOM cleanup
+        const mapAny = map.value as any;
+
+        // Remove the main popup if present
+        try {
+          if (mapAny && mapAny._popup) {
+            try {
+              if (map.value && typeof map.value.closePopup === 'function') map.value.closePopup();
+            } catch {};
+            try {
+              if (mapAny._popup && mapAny._popup._container && mapAny._popup._container.parentNode) {
+                mapAny._popup._container.parentNode.removeChild(mapAny._popup._container);
+              }
+            } catch {};
+            mapAny._popup = null;
+          }
+        } catch (mainPopupErr) {
+          // Error removing main popup (suppressed)
+        }
+
+        // Remove popups attached to layers
+        try {
+          if (mapAny && mapAny._layers) {
+            Object.keys(mapAny._layers).forEach(layerKey => {
+              try {
+                const layer = mapAny._layers[layerKey];
+                if (layer && layer._popup) {
+                  try {
+                    if (layer._popup._container && layer._popup._container.parentNode) {
+                      layer._popup._container.parentNode.removeChild(layer._popup._container);
+                    }
+                  } catch {}
+                  try { layer._popup = null; } catch {}
+                }
+              } catch (e) {
+                /* ignore individual layer errors */
+              }
+            });
+          }
+        } catch (layersErr) {
+          // Error cleaning layer popups (suppressed)
+        }
+
+        // Force-close popups on markers
+        try {
+          artworkMarkers.value.forEach((marker: any) => {
+            try {
+              const hasPopup = !!marker?._popup;
+              const isOpen = !!(marker && marker.isPopupOpen && marker.isPopupOpen());
+              if (hasPopup || isOpen) {
+                try {
+                  if (marker._popup && marker._popup._container && marker._popup._container.parentNode) {
+                    marker._popup._container.parentNode.removeChild(marker._popup._container);
+                  }
+                } catch {}
+                try { if (marker.closePopup) marker.closePopup(); } catch {}
+                try { marker._popup = null; } catch {}
+              }
+            } catch (markerErr) {
+              /* ignore marker-level errors */
+            }
+          });
+        } catch (markerLoopErr) {
+          // Error iterating markers to close popups (suppressed)
+        }
+
+        // Emergency DOM cleanup: remove any orphaned popup elements
+        try {
+          const selectors = ['.leaflet-popup', '.leaflet-popup-pane', '.leaflet-popup-content-wrapper', '.leaflet-popup-content', '.leaflet-popup-tip-container', '.leaflet-popup-tip', '.artwork-popup-container'];
+          selectors.forEach(sel => {
+            const nodes = Array.from(document.querySelectorAll(sel));
+            nodes.forEach(n => { try { n.remove(); } catch {} });
+          });
+        } catch (domErr) {
+          // Emergency DOM cleanup error (suppressed)
+        }
+
+        // Clear cluster group state if available (best-effort)
+        try {
+          if (markerClusterGroup.value) {
+            try { markerClusterGroup.value.clearLayers(); } catch {};
+            try { artworkMarkers.value.forEach((m: any) => markerClusterGroup.value.addLayer(m)); } catch {}
+          }
+        } catch (clusterErr) {
+          // Error resetting cluster group (suppressed)
+        }
+
+        // Ensure preview dismissed
+        try { emit('dismissPreview'); } catch (_) {}
+
+  // popup closure attempts completed (debug suppressed)
+      } catch (overallError) {
+  console.error('Critical error in zoomstart handler:', overallError);
+        // Ensure zoom state is set so other logic knows animation may be happening
+        isZoomAnimating.value = true;
+      }
+    });
+    
+    map.value.on('zoomend', () => {
+      try {
+        isZoomAnimating.value = false;
+        
+  // Final zoom state (debug suppressed)
+
+      // RESTORE: Re-enable ALL popup methods after zoom completes
+      try {
+        const Lglobal = getLeafletGlobal();
+        if (Lglobal) {
+          const popupProto = Lglobal.Popup?.prototype as any;
+          if (popupProto && popupProto._superNuclearGuardInstalled) {
+            // persistent popup guards active; skipping popup restoration
+          } else if (popupProto) {
+            if (popupProto._originalAnimateZoom) {
+              // restoring popup _animateZoom method
+              popupProto._animateZoom = popupProto._originalAnimateZoom;
+            }
+
+            if (popupProto._originalUpdatePosition) {
+              // restoring popup _updatePosition method
+              popupProto._updatePosition = popupProto._originalUpdatePosition;
+            }
+
+            if (popupProto._originalUpdateLayout) {
+              // restoring popup _updateLayout method
+              popupProto._updateLayout = popupProto._originalUpdateLayout;
+            }
+          }
+
+          if (Lglobal.Marker && Lglobal.Marker.prototype && Lglobal.Marker.prototype._originalOpenPopup) {
+            // restoring marker openPopup method
+            Lglobal.Marker.prototype.openPopup = Lglobal.Marker.prototype._originalOpenPopup;
+          }
+
+          if (Lglobal.DomUtil) {
+            const domUtilAny = Lglobal.DomUtil as any;
+            if (domUtilAny._superNuclearGuardInstalled) {
+              // persistent DomUtil guards active; skipping restoration
+            } else if (domUtilAny._originalGetPosition) {
+              // restoring DomUtil.getPosition method
+              Lglobal.DomUtil.getPosition = domUtilAny._originalGetPosition;
+            }
+          }
+
+          if (map.value) {
+            const mapInstance = map.value as any;
+            if (mapInstance._originalGetMapPanePos) {
+              // restoring map _getMapPanePos method
+              mapInstance._getMapPanePos = mapInstance._originalGetMapPanePos;
+            }
+          }
+        }
+
+        // RESTORE: Re-enable CSS transitions and restore transforms
+  // Restoring CSS transitions and transforms
+        
+        // Restore transitions on preview elements
+        const previewElements = document.querySelectorAll('.preview-card, .shake-animation, [class*="transition"]');
+        previewElements.forEach((el) => {
+          const element = el as HTMLElement;
+          if (element.style) {
+            element.style.transition = '';
+            element.style.animation = '';
+          }
+        });
+
+        // Restore original transforms on map panes
+        const mapPanes = document.querySelectorAll('.leaflet-map-pane, .leaflet-popup-pane');
+        mapPanes.forEach((pane) => {
+          const paneEl = pane as HTMLElement;
+          const originalTransform = paneEl.getAttribute('data-original-transform');
+          if (originalTransform) {
+            paneEl.style.transform = originalTransform;
+            paneEl.removeAttribute('data-original-transform');
+          }
+        });
+        
+      } catch (restoreError) {
+  // Error restoring popup animation method (suppressed)
+      }
+      
+      // Update markers after zoom animation completes
+      updateArtworkMarkersDebounced(50);
+      
+      } catch (zoomEndError) {
+  console.error('Critical error in zoomend handler:', zoomEndError);
+        // Ensure zoom state is cleared even if restoration fails
+        isZoomAnimating.value = false;
+      }
+    });
+    
     // Update marker styles during continuous zoom events (throttled)
     map.value.on('zoom', () => {
+      // Zoom event fired (suppressed detailed debug)
+      
       if (zoomStyleTimeout.value) clearTimeout(zoomStyleTimeout.value);
       zoomStyleTimeout.value = setTimeout(() => {
         try {
-          // Guard against calling updateMarkerStyles after map destruction
-          if (map.value) {
+          // Guard against calling updateMarkerStyles after map destruction or during animation
+          if (map.value && !isZoomAnimating.value) {
+            // Updating marker styles after zoom
             updateMarkerStyles();
+          } else {
+            // Skipping marker style update - map missing or still animating
           }
         } catch (e) {
-          /* ignore */
+          // Error updating marker styles (suppressed)
         }
         zoomStyleTimeout.value = null;
       }, 50);
     });
-    // Track animation lifecycle using explicit flag
-    map.value.on('zoomstart', () => {
-      animatingZoom.value = true;
-    });
-    map.value.on('zoomend', () => {
-      animatingZoom.value = false;
-    });
-    // Also set animating on zoomanim events (some Leaflet builds use this for animated transitions)
-    map.value.on('zoomanim', () => {
-      animatingZoom.value = true;
-    });
+    
     // Save map state on move/zoom
     map.value.on('moveend', saveMapState);
     map.value.on('zoomend', saveMapState);
@@ -1072,22 +1260,74 @@ function addUserLocationMarker(location: Coordinates) {
 
   // Add new marker
   userLocationMarker.value = L.marker([location.latitude, location.longitude], {
-    icon: createUserLocationIcon(),
+    icon: createUserLocationIconWithCone(userHeading.value),
+    zIndexOffset: 10000,
   })
     .addTo(map.value!)
     .bindPopup('Your current location');
+
+  // Ensure user marker is on top visually
+  try {
+    userLocationMarker.value.getElement()?.style.setProperty('z-index', '10050');
+    if ((userLocationMarker.value as any).bringToFront) {
+      (userLocationMarker.value as any).bringToFront();
+    }
+  } catch (e) {
+    /* ignore */
+  }
 }
+
+// Create a divIcon that includes a view cone rotated to heading (deg)
+const createUserLocationIconWithCone = (headingDeg: number) => {
+  const size = 56; // px
+  const half = size / 2;
+  // Google-maps-like marker: small central circle, subtle ring, cone (faint), and a small arrow/chevron
+  const coneSvg = `
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.25" />
+        </filter>
+      </defs>
+      <g transform="translate(${half}, ${half}) rotate(${headingDeg})">
+        <!-- Outer faint ring -->
+        <circle cx="0" cy="0" r="18" fill="none" stroke="#2563eb" stroke-opacity="0.12" stroke-width="8" />
+
+        <!-- Inner solid center -->
+        <circle cx="0" cy="0" r="8" fill="#2563eb" stroke="#fff" stroke-width="2" filter="url(#shadow)" />
+
+        <!-- Forward cone (semi-transparent) -->
+        <path d="M0 -10 L22 -38 L-22 -38 Z" fill="#2563eb" fill-opacity="0.12" stroke="none" />
+
+        <!-- Inner thin cone edge -->
+        <path d="M0 -10 L18 -34 L-18 -34 Z" fill="none" stroke="#2563eb" stroke-opacity="0.22" stroke-width="1" />
+
+        <!-- Small arrow/chevron tip at the cone point -->
+        <path d="M0 -40 L6 -30 L-6 -30 Z" fill="#2563eb" />
+      </g>
+    </svg>
+  `;
+
+  return L.divIcon({
+    html: `
+      <div class="user-location-marker-wrapper" style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;">
+        ${coneSvg}
+      </div>
+    `,
+    className: 'custom-user-location-icon-wrapper',
+    iconSize: [size, size],
+    iconAnchor: [half, half],
+  });
+};
+
+// Note: keep legacy createUserLocationIcon available for other code paths
 
 // Load artworks on map with intelligent viewport-based loading
 async function loadArtworks() {
-  console.log('[MARKER DEBUG] loadArtworks() called:', {
-    mapExists: !!map.value,
-    currentPropsLength: props.artworks?.length || 0,
-    timestamp: new Date().toISOString(),
-  });
+  // loadArtworks called
 
   if (!map.value) {
-    console.log('[MARKER DEBUG] loadArtworks() early return - no map');
+  // loadArtworks early return - no map
     return;
   }
 
@@ -1108,7 +1348,7 @@ async function loadArtworks() {
     // Check if we already have data for this area (smart caching)
     if (lastLoadedBounds.value && boundsContain(lastLoadedBounds.value, expandedBounds)) {
       // We already have data for this viewport, just update markers
-      updateArtworkMarkers().catch(console.error);
+      updateArtworkMarkers();
       return;
     }
 
@@ -1120,23 +1360,21 @@ async function loadArtworks() {
       await loadArtworksProgressively(expandedBounds);
     } else {
       // Standard loading
-      console.log('[MARKER DEBUG] About to fetch artworks from store');
+  // About to fetch artworks from store
       await artworksStore.fetchArtworksInBounds(expandedBounds);
-      console.log('[MARKER DEBUG] Finished fetching artworks, props should update next');
+  // Finished fetching artworks
     }
 
     // Cache the bounds we just loaded
     lastLoadedBounds.value = expandedBounds;
 
-    console.log('[MARKER DEBUG] About to wait for nextTick, then update markers:', {
-      propsLength: props.artworks?.length || 0,
-    });
+    // Waiting for nextTick before updating markers
 
     // Wait for Vue reactivity to update props before updating markers
     await nextTick();
 
-    console.log('[MARKER DEBUG] After nextTick, props length now:', props.artworks?.length || 0);
-    updateArtworkMarkers().catch(console.error);
+  // After nextTick, updating markers
+    updateArtworkMarkers();
   } catch (err) {
     console.error('Error loading artworks:', err);
   } finally {
@@ -1180,7 +1418,7 @@ async function loadArtworksProgressively(bounds: {
 
         // Update markers incrementally for each batch
         nextTick(() => {
-          updateArtworkMarkers().catch(console.error);
+          updateArtworkMarkers();
         });
       }
     );
@@ -1210,67 +1448,51 @@ function updateArtworkMarkersDebounced(delay: number = 0) {
   }
 
   markerUpdateTimeout.value = setTimeout(() => {
-    // Guard against running after component unmount
-    if (map.value) {
-      // Fire and forget async call
-      updateArtworkMarkers().catch(console.error);
+    // Guard against running after component unmount or during zoom animations
+    if (map.value && !isZoomAnimating.value) {
+      updateArtworkMarkers();
+    } else if (isZoomAnimating.value) {
+      // Retry after animation completes
+      updateArtworkMarkersDebounced(100);
     }
   }, delay);
 }
 
 // Update artwork markers with efficient viewport-based rendering
-async function updateArtworkMarkers() {
-    // If we're currently performing an animated zoom, avoid mutating layers.
-  if (map.value && animatingZoom.value) {
-    if (!pendingMarkerUpdate.value) {
-      pendingMarkerUpdate.value = true;
-      // Schedule a one-time update after zoomend
-      map.value.once('zoomend', () => {
-        pendingMarkerUpdate.value = false;
-        // ensure animating flag cleared before updating
-        animatingZoom.value = false;
-        updateArtworkMarkers().catch(console.error);
-      });
-    }
-    return;
-  }
-  console.log('[MARKER DEBUG] updateArtworkMarkers() called:', {
-    mapExists: !!map.value,
-    clusterGroupExists: !!markerClusterGroup.value,
-    propsArtworksLength: props.artworks?.length || 0,
-    currentMarkersCount: artworkMarkers.value.length,
-    mapContainerInDOM: !!mapContainer.value?.isConnected,
-    mapSize: map.value ? { width: map.value.getSize().x, height: map.value.getSize().y } : null,
-    timestamp: new Date().toISOString(),
-  });
+function updateArtworkMarkers() {
+  // updateArtworkMarkers called
 
   if (!map.value || !markerClusterGroup.value) {
-    console.log('[MARKER DEBUG] Early return - missing map or cluster group');
+  // Early return - missing map or cluster group
+    return;
+  }
+
+  // Prevent marker updates during zoom animations to avoid _latLngToNewLayerPoint errors
+  if (isZoomAnimating.value) {
+  // Skipping marker update during zoom animation
+    // Retry after animation completes
+    updateArtworkMarkersDebounced(100);
     return;
   }
 
   // Force map to be visible and properly sized
   if (mapContainer.value && map.value) {
     const containerRect = mapContainer.value.getBoundingClientRect();
-    console.log('[MARKER DEBUG] Map container dimensions:', {
-      width: containerRect.width,
-      height: containerRect.height,
-      isVisible: containerRect.width > 0 && containerRect.height > 0,
-    });
+    // Map container dimensions checked
 
     if (containerRect.width === 0 || containerRect.height === 0) {
-      console.log('[MARKER DEBUG] Map container has zero dimensions - triggering resize');
+  // Map container has zero dimensions - triggering resize
       setTimeout(() => {
         map.value?.invalidateSize();
-        updateArtworkMarkers().catch(console.error);
+        updateArtworkMarkers();
       }, 100);
       return;
     }
 
     // Additional stability check - ensure map is actually rendered and interactive
     if (map.value && !map.value.getContainer()) {
-      console.log('[MARKER DEBUG] Map container not yet attached - delaying marker update');
-      setTimeout(() => updateArtworkMarkers().catch(console.error), 100);
+  // Map container not yet attached - delaying marker update
+      setTimeout(() => updateArtworkMarkers(), 100);
       return;
     }
   }
@@ -1284,27 +1506,19 @@ async function updateArtworkMarkers() {
     L.latLng(bounds.getNorth() + latPad, bounds.getEast() + lngPad)
   );
 
-  // Get artworks that should be visible in current viewport and are of enabled types
+  // Get artworks that should be visible in current viewport and pass all filters
   const artworksInViewport = (props.artworks || []).filter((artwork: ArtworkPin) => {
     const inBounds = viewportBounds.contains(L.latLng(artwork.latitude, artwork.longitude));
-    const typeEnabled = isArtworkTypeEnabled(artwork.type || 'other');
+    
+    // Use the new comprehensive filtering system
+    if (!mapFilters.shouldShowArtwork(artwork)) {
+      return false;
+    }
 
-    return inBounds && typeEnabled;
+    return inBounds;
   });
 
-  console.log('[MARKER DEBUG] Filtered artworks in viewport:', {
-    totalPropsArtworks: props.artworks?.length || 0,
-    artworksInViewport: artworksInViewport.length,
-    viewportBounds: {
-      north: viewportBounds.getNorth(),
-      south: viewportBounds.getSouth(),
-      east: viewportBounds.getEast(),
-      west: viewportBounds.getWest(),
-    },
-    firstFewInViewport: artworksInViewport
-      .slice(0, 3)
-      .map((a: ArtworkPin) => ({ id: a.id, lat: a.latitude, lng: a.longitude })),
-  });
+  // Filtered artworks in viewport determined
 
   // Create a set of artwork IDs currently in viewport for efficient comparison
   const viewportArtworkIds = new Set(artworksInViewport.map((a: ArtworkPin) => a.id));
@@ -1320,256 +1534,311 @@ async function updateArtworkMarkers() {
   );
 
   // Remove markers that are no longer in viewport or are of disabled types
-  if (animatingZoom.value) {
-    // Defer removals until after animation ends to avoid Leaflet timing races
-    if (!pendingMarkerUpdate.value && map.value) {
-      pendingMarkerUpdate.value = true;
-      map.value.once('zoomend', () => {
-        pendingMarkerUpdate.value = false;
-        animatingZoom.value = false;
-        updateArtworkMarkers().catch(console.error);
+  artworkMarkers.value = artworkMarkers.value.filter((marker: any) => {
+    const artworkId = marker._artworkId;
+    const artworkType = marker._artworkType;
+
+    // Remove if no longer in viewport
+    if (artworkId && !viewportArtworkIds.has(artworkId)) {
+      try {
+        // Close any open popup first to prevent animation issues
+        if (marker.isPopupOpen && marker.isPopupOpen()) {
+          marker.closePopup();
+        }
+        // Remove from cluster group first
+        if (markerClusterGroup.value && markerClusterGroup.value.hasLayer(marker)) {
+          markerClusterGroup.value.removeLayer(marker as any);
+        }
+        // Remove any lingering event listeners
+        if (marker.off) {
+          marker.off();
+        }
+      } catch (e) {
+        console.warn('[MARKER DEBUG] Error removing marker from cluster:', e);
+      }
+      return false; // Remove from artworkMarkers array
+    }
+
+    // Remove if artwork type is now disabled
+    if (artworkType && !isArtworkTypeEnabled(artworkType)) {
+      try {
+        // Close any open popup first to prevent animation issues
+        if (marker.isPopupOpen && marker.isPopupOpen()) {
+          marker.closePopup();
+        }
+        // Remove from cluster group first
+        if (markerClusterGroup.value && markerClusterGroup.value.hasLayer(marker)) {
+          markerClusterGroup.value.removeLayer(marker as any);
+        }
+        // Remove any lingering event listeners
+        if (marker.off) {
+          marker.off();
+        }
+      } catch (e) {
+        console.warn('[MARKER DEBUG] Error removing marker from cluster:', e);
+      }
+      return false; // Remove from artworkMarkers array
+    }
+    return true; // Keep in artworkMarkers array
+  });
+
+  // Sort artworks by marker type to ensure visited markers are added first (appear behind)
+  const sortedArtworks = artworksInViewport.sort((a: ArtworkPin, b: ArtworkPin) => {
+    const typeA = getMarkerType(a);
+    const typeB = getMarkerType(b);
+    
+    // Visited markers first (behind), then unknown, then normal, then starred (on top)
+    const order = { [MarkerType.VISITED]: 0, [MarkerType.UNKNOWN]: 1, [MarkerType.NORMAL]: 2, [MarkerType.STARRED]: 3 };
+    return (order[typeA] || 2) - (order[typeB] || 2);
+  });
+
+  // Add new markers for artworks that entered the viewport
+  sortedArtworks.forEach((artwork: ArtworkPin) => {
+    // If marker already exists, ensure its icon/type is up-to-date
+    if (currentArtworkIds.has(artwork.id)) {
+      try {
+        const existing = artworkMarkers.value.find((m: any) => m._artworkId === artwork.id);
+        if (existing) {
+          const existingAny = existing as any;
+          const newType = getMarkerType(artwork);
+          // If marker type changed (for example visited list loaded after initial render), update icon
+          if (newType !== existingAny._markerType) {
+            if (typeof existingAny.setIcon === 'function') {
+              let newIcon: L.DivIcon | null = null;
+              switch (newType) {
+                case MarkerType.VISITED:
+                  newIcon = createVisitedMarker();
+                  break;
+                case MarkerType.STARRED:
+                  newIcon = createStarredMarker();
+                  break;
+                case MarkerType.UNKNOWN:
+                  newIcon = createUnknownMarker(artwork.type || 'other');
+                  break;
+                case MarkerType.NORMAL:
+                default:
+                  newIcon = createNormalMarker(artwork.type || 'other');
+                  break;
+              }
+              if (newIcon) {
+                try { existingAny.setIcon(newIcon); } catch (e) { /* ignore */ }
+              }
+            }
+            existingAny._markerType = newType;
+          }
+        }
+      } catch (e) {
+        // ignore individual marker update failures
+      }
+      return;
+    }
+
+    // Create new marker using appropriate factory based on artwork type
+    const markerType = getMarkerType(artwork);
+    let marker: L.Marker;
+
+    switch (markerType) {
+      case MarkerType.VISITED:
+        marker = L.marker([artwork.latitude, artwork.longitude], { icon: createVisitedMarker() });
+        break;
+      case MarkerType.STARRED:
+        marker = L.marker([artwork.latitude, artwork.longitude], { icon: createStarredMarker() });
+        break;
+      case MarkerType.UNKNOWN:
+        marker = L.marker([artwork.latitude, artwork.longitude], { icon: createUnknownMarker(artwork.type || 'other') });
+        break;
+      case MarkerType.NORMAL:
+      default:
+        marker = L.marker([artwork.latitude, artwork.longitude], { icon: createNormalMarker(artwork.type || 'other') });
+        break;
+    }
+
+    // Store artwork ID and type on marker for efficient tracking and type on marker for efficient tracking
+    (marker as any)._artworkId = artwork.id;
+    (marker as any)._artworkType = artwork.type || 'other';
+    (marker as any)._markerType = markerType;
+
+    // Add event handlers BEFORE adding to cluster group to ensure proper binding
+    marker.on('click', (e: L.LeafletMouseEvent) => {
+  // Leaflet marker click event fired for artwork
+      
+      // Debug: Log marker and popup state at click time
+  // Check if there are existing preview elements that might cause conflicts
+  const existingPreviews = document.querySelectorAll('.preview-card, [data-preview-id]');
+
+      // If there are existing preview elements, this is a transition scenario
+      if (existingPreviews.length > 0) {
+        // Preview transition detected - existing preview elements may conflict with zoom
+      }
+      
+      // Prevent event propagation to avoid map click conflicts
+      if (e.originalEvent) {
+        e.originalEvent.stopPropagation();
+        e.originalEvent.preventDefault();
+      }
+      
+      // Create preview data from artwork
+      const previewData = {
+        id: artwork.id,
+        title: artwork.title || 'Untitled Artwork',
+        description: artwork.type || 'Public artwork',
+        thumbnailUrl: artwork.photos && artwork.photos.length > 0 ? artwork.photos[0] : undefined,
+        lat: artwork.latitude,
+        lon: artwork.longitude,
+      };
+      
+  // Emitting previewArtwork event
+      
+      // SPECIAL HANDLING: If zoom is starting, defer the preview event
+      if (isZoomAnimating.value) {
+  // Deferring preview event due to active zoom animation
+        // Wait for zoom to complete before showing preview
+        setTimeout(() => {
+          if (!isZoomAnimating.value) {
+            emit('previewArtwork', previewData);
+          }
+        }, 100);
+        return;
+      }
+
+      // Only emit preview event - let MapPreviewCard handle navigation
+      emit('previewArtwork', previewData);
+    });
+
+    // Create popup content - but disable during zoom animations to prevent null reference errors
+    const popupContent = `
+      <div class="artwork-popup">
+        <h3 class="font-semibold text-sm mb-1">${artwork.title || 'Untitled'}</h3>
+        <button onclick="window.viewArtworkDetails('${artwork.id}')" 
+                class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
+          View Details
+        </button>
+      </div>
+    `;
+
+    // Binding popup to marker
+
+    marker.bindPopup(popupContent, {
+      closeOnClick: true,
+      autoClose: true,
+      closeButton: true,
+      // Set a custom className to identify our popups
+      className: 'artwork-popup-container'
+    });
+
+    // Add popup event listeners for debugging
+    marker.on('popupopen', () => {
+      // Popup opened for marker (debug suppressed)
+    });
+
+    marker.on('popupclose', () => {
+      // Popup closed for marker (debug suppressed)
+    });
+
+    // Add to cluster group after event handlers are set up
+    if (markerClusterGroup.value) {
+      // Adding marker to cluster group
+      markerClusterGroup.value.addLayer(marker as any);
+    } else {
+      // No cluster group available for marker
+    }
+
+    // Add hover effects (only for CircleMarkers)
+    if (marker instanceof L.CircleMarker) {
+      const circleMarker = marker as L.CircleMarker;
+      marker.on('mouseover', () => {
+        circleMarker.setStyle({ fillOpacity: 1.0, weight: 2 });
+      });
+
+      marker.on('mouseout', () => {
+        circleMarker.setStyle({ fillOpacity: 0.9, weight: 1 });
       });
     }
-  } else {
-    artworkMarkers.value = artworkMarkers.value.filter((marker: any) => {
-      const artworkId = marker._artworkId;
-      const artworkType = marker._artworkType;
 
-      try {
-        // Remove if no longer in viewport
-        if (artworkId && !viewportArtworkIds.has(artworkId)) {
-          if (markerClusterGroup.value) {
-            try {
-              markerClusterGroup.value.removeLayer(marker as any);
-            } catch (e) {
-              /* ignore remove errors */
-            }
-          }
-          return false; // Remove from artworkMarkers array
-        }
-
-        // Remove if artwork type is now disabled
-        if (artworkType && !isArtworkTypeEnabled(artworkType)) {
-          if (markerClusterGroup.value) {
-            try {
-              markerClusterGroup.value.removeLayer(marker as any);
-            } catch (e) {
-              /* ignore remove errors */
-            }
-          }
-          return false; // Remove from artworkMarkers array
-        }
-      } catch (err) {
-        // In case marker structure is unexpected, keep it and continue
-        return true;
-      }
-      return true; // Keep in artworkMarkers array
-    });
-  }
-
-  // Add new markers for artworks that entered the viewport (batched)
-  const toAdd = artworksInViewport.filter((a: ArtworkPin) => !currentArtworkIds.has(a.id)) as ArtworkPin[];
-
-  // Concurrency/batch size for membership checks and marker creation
-  const BATCH_SIZE = 20;
-  for (let i = 0; i < toAdd.length; i += BATCH_SIZE) {
-    const batch = toAdd.slice(i, i + BATCH_SIZE);
-
-    // Resolve membership checks in parallel for the batch
-  const memberships = await Promise.all(batch.map((a: ArtworkPin) => checkArtworkListMembership(a.id)));
-
-    // Create markers for the batch
-    const markersToAdd: L.Marker[] = [];
-    for (let j = 0; j < batch.length; j++) {
-      const artwork = batch[j] as ArtworkPin;
-      const listMembership = memberships[j];
-
-      try {
-        const artworkIcon = createArtworkIcon(artwork, listMembership);
-        const marker = L.marker([artwork.latitude, artwork.longitude], {
-          icon: artworkIcon,
-          interactive: true,
-          bubblingMouseEvents: false,
-          pane: 'markerPane',
-        });
-
-        (marker as any)._artworkId = artwork.id;
-        (marker as any)._artworkType = artwork.type || 'other';
-
-        const popupContent = `
-          <div class="artwork-popup">
-            <h3 class="font-semibold text-sm mb-1">${artwork.title || 'Untitled'}</h3>
-            <button onclick="window.viewArtworkDetails('${artwork.id}')" 
-                    class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
-              View Details
-            </button>
-          </div>
-        `;
-        marker.bindPopup(popupContent);
-
-        marker.on('click', (e: L.LeafletMouseEvent) => {
-          e.originalEvent?.stopPropagation();
-          const previewData = {
-            id: artwork.id,
-            title: artwork.title || 'Untitled Artwork',
-            description: artwork.type || 'Public artwork',
-            thumbnailUrl: artwork.photos && artwork.photos.length > 0 ? artwork.photos[0] : undefined,
-            lat: artwork.latitude,
-            lon: artwork.longitude,
-          };
-          emit('previewArtwork', previewData);
-        });
-
-        // Hover effects - operate on inner element to avoid overwriting Leaflet positioning
-        marker.on('mouseover', () => {
-          // Avoid mutating DOM while Leaflet is animating zoom to prevent internal null refs
-          if (animatingZoom.value) return;
-          let iconElement: HTMLElement | null = null;
-          try {
-            iconElement = typeof marker.getElement === 'function' ? (marker.getElement() as HTMLElement | null) : null;
-          } catch (err) {
-            iconElement = null;
-          }
-          if (iconElement) {
-            const inner = iconElement.querySelector('.artwork-marker-inner') as HTMLElement | null;
-            if (inner) {
-              try {
-                inner.style.transform = 'scale(1.1)';
-                inner.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.3)';
-                inner.style.zIndex = '1000';
-              } catch (err) {
-                // ignore transient DOM errors
-              }
-            }
-          }
-        });
-
-        marker.on('mouseout', () => {
-          if (animatingZoom.value) return;
-          let iconElement: HTMLElement | null = null;
-          try {
-            iconElement = typeof marker.getElement === 'function' ? (marker.getElement() as HTMLElement | null) : null;
-          } catch (err) {
-            iconElement = null;
-          }
-          if (iconElement) {
-            const inner = iconElement.querySelector('.artwork-marker-inner') as HTMLElement | null;
-            if (inner) {
-              try {
-                inner.style.transform = 'scale(1.0)';
-                inner.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-                inner.style.zIndex = 'auto';
-              } catch (err) {
-                // ignore transient DOM errors
-              }
-            }
-          }
-        });
-
-        markersToAdd.push(marker);
-        artworkMarkers.value.push(marker);
-      } catch (err) {
-        // Continue on per-marker failures
-        console.warn('Failed to create marker for artwork', artwork && (artwork as any)?.id, err);
-      }
-    }
-
-    // Add markers in bulk to the cluster group to minimize DOM updates
-    if (markerClusterGroup.value && markersToAdd.length > 0) {
-      try {
-        markerClusterGroup.value.addLayers(markersToAdd as any);
-      } catch (e) {
-        // Fallback: add each individually
-        markersToAdd.forEach(m => markerClusterGroup.value.addLayer(m as any));
-      }
-    }
-  }
+    artworkMarkers.value.push(marker);
+  });
 }
 
 // Update styles (radius/color/etc) for all existing markers to react to zoom changes
 function updateMarkerStyles() {
-  // Guard against accessing map during destruction
   if (!map.value) {
     return;
   }
 
-  // Avoid updating icons during animated zooms which can cause internal null references
-  if (animatingZoom.value) {
-    if (!pendingMarkerUpdate.value && map.value) {
-      pendingMarkerUpdate.value = true;
-      map.value.once('zoomend', () => {
-        pendingMarkerUpdate.value = false;
-        animatingZoom.value = false;
-        updateMarkerStyles();
-      });
-    }
-    return;
-  }
+  try {
+    artworkMarkers.value.forEach((marker: any) => {
+      try {
+        const artworkType = marker._artworkType || 'other';
+        const markerType = marker._markerType as MarkerType | undefined;
+        const newStyle = createArtworkStyle(artworkType as string);
 
-  // Run async updates without blocking UI
-  (async () => {
-    try {
-      // Recompute style for each marker and apply via setStyle
-      for (const marker of artworkMarkers.value) {
-        try {
-          const artworkId = (marker as any)._artworkId;
-          const artworkType = (marker as any)._artworkType || 'other';
-          
-          if (!artworkId) continue;
-          
-          // Get list membership for the artwork
-          const listMembership = await checkArtworkListMembership(artworkId);
-          
-          // Create artwork object for the icon function
-          const artwork = { id: artworkId, type: artworkType } as ArtworkPin;
-          const newIcon = createArtworkIcon(artwork, listMembership);
-          
-          // Update the marker icon for div icon markers
-          if (typeof (marker as any).setIcon === 'function') {
-            (marker as any).setIcon(newIcon);
+        if (typeof marker.setIcon === 'function' && markerType) {
+          let newIcon: L.DivIcon | null = null;
+          switch (markerType) {
+            case MarkerType.VISITED:
+              newIcon = createVisitedMarker();
+              break;
+            case MarkerType.STARRED:
+              newIcon = createStarredMarker();
+              break;
+            case MarkerType.UNKNOWN:
+              newIcon = createUnknownMarker(artworkType as string);
+              break;
+            case MarkerType.NORMAL:
+            default:
+              newIcon = createNormalMarker(artworkType as string);
+              break;
           }
 
-          // If this is a group/cluster wrapper, try to update inner layers as well
-          if ((marker as any).getLayers && typeof (marker as any).getLayers === 'function') {
-            const layers = (marker as any).getLayers();
-            layers.forEach((inner: any) => {
-              if (!inner) return;
-              // For inner layers in cluster groups, also try to update the icon
-              if (typeof inner.setIcon === 'function') {
-                try {
-                  inner.setIcon(newIcon);
-                } catch {
-                  /* ignore */
-                }
-              }
-            });
+          if (newIcon) {
+            marker.setIcon(newIcon);
           }
-        } catch (err) {
-          // ignore per-marker failures
-          // console.debug('Failed to update marker style for marker', marker, err);
         }
+
+        if (typeof marker.setStyle === 'function') {
+          marker.setStyle(newStyle);
+        }
+
+        if (typeof marker.setRadius === 'function' && typeof newStyle.radius === 'number') {
+          try {
+            marker.setRadius(newStyle.radius);
+          } catch {
+            /* ignore */
+          }
+        }
+
+        if (marker.getLayers && typeof marker.getLayers === 'function') {
+          const layers = marker.getLayers();
+          layers.forEach((inner: any) => {
+            if (!inner) return;
+            if (typeof inner.setStyle === 'function') {
+              try {
+                inner.setStyle(newStyle);
+              } catch {
+                /* ignore */
+              }
+            }
+            if (typeof inner.setRadius === 'function' && typeof newStyle.radius === 'number') {
+              try {
+                inner.setRadius(newStyle.radius);
+              } catch {
+                /* ignore */
+              }
+            }
+          });
+        }
+      } catch (err) {
+        /* ignore individual marker errors */
       }
-    } catch (err) {
-      console.warn('updateMarkerStyles failed:', err);
-    }
-  })();
+    });
+  } catch (err) {
+    console.warn('updateMarkerStyles failed:', err);
+  }
 }
 
 // Configure marker layer group according to clusterEnabled
 async function configureMarkerGroup() {
   if (!map.value) return;
-
-  // If a zoom animation is in progress, defer reconfiguration to avoid removing/adding layers mid-animation
-  if (animatingZoom.value && map.value && !pendingMarkerUpdate.value) {
-    pendingMarkerUpdate.value = true;
-    map.value.once('zoomend', () => {
-      pendingMarkerUpdate.value = false;
-      animatingZoom.value = false;
-      // Retry configuration after animation
-      configureMarkerGroup().catch?.(console.error);
-    });
-    return;
-  }
 
   // Remove existing group from map
   if (markerClusterGroup.value) {
@@ -1601,7 +1870,7 @@ async function configureMarkerGroup() {
   // Clear existing marker references since they belong to the old cluster group
   artworkMarkers.value = [];
 
-  updateArtworkMarkers().catch(console.error);
+  updateArtworkMarkers();
 
   // Ensure styles applied to any markers added during updateArtworkMarkers
   updateMarkerStyles();
@@ -1634,22 +1903,7 @@ function handleMapMove() {
   emit('mapMove', { center: coordinates, zoom });
   
   // Dismiss preview on pan according to PRD
-  // If a zoom animation is in progress, defer dismissing the preview until after animation ends
-  if (animatingZoom.value && map.value) {
-    if (!pendingDismissPreview.value) {
-      pendingDismissPreview.value = true;
-      map.value.once('zoomend', () => {
-        pendingDismissPreview.value = false;
-        try {
-          emit('dismissPreview');
-        } catch (e) {
-          /* ignore */
-        }
-      });
-    }
-  } else {
-    emit('dismissPreview');
-  }
+  emit('dismissPreview');
 
   // Persist map state
   try {
@@ -1661,7 +1915,7 @@ function handleMapMove() {
   // Debounced artwork loading to prevent infinite loops
   debounceLoadArtworks();
   // Also update marker styles immediately for zoom changes (better responsiveness)
-  updateArtworkMarkers().catch(console.error);
+  updateArtworkMarkers();
   // Ensure existing markers update their style (radius/color) when zoom changes
   updateMarkerStyles();
   // Move debug rings to new center
@@ -1711,11 +1965,98 @@ function zoomOut() {
 }
 
 function centerOnUserLocation() {
-  requestUserLocation();
+  // Toggle live tracking: if already tracking, stop; otherwise start and center
+  if (userWatchId.value !== null) {
+    stopUserTracking();
+    return;
+  }
+
+  startUserTracking();
 }
 
 function requestLocation() {
   requestUserLocation();
+}
+
+function startUserTracking() {
+  if (!hasGeolocation.value) {
+    requestUserLocation();
+    return;
+  }
+
+  // Start listening to device orientation if available
+  try {
+    if (window && 'DeviceOrientationEvent' in window) {
+      deviceOrientationListener = (ev: DeviceOrientationEvent) => {
+        if (typeof ev.alpha === 'number') {
+          // alpha is rotation around z axis in degrees (0-360)
+          userHeading.value = 360 - (ev.alpha || 0);
+          // update marker rotation if exists
+          if (userLocationMarker.value) {
+            try {
+              const el = userLocationMarker.value.getElement();
+              if (el) {
+                const svg = el.querySelector('svg');
+                if (svg) svg.style.transform = `rotate(${userHeading.value}deg)`;
+              }
+            } catch {}
+          }
+        }
+      };
+      window.addEventListener('deviceorientation', deviceOrientationListener as EventListener);
+    }
+  } catch (e) {
+    /* ignore */
+  }
+
+  // Use watchPosition for continuous updates
+  try {
+    userWatchId.value = navigator.geolocation.watchPosition(
+      (pos) => {
+        const coords: Coordinates = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+        artworksStore.setCurrentLocation(coords);
+        // Update marker and center map
+        addUserLocationMarker(coords);
+        if (map.value) map.value.setView([coords.latitude, coords.longitude], map.value.getZoom());
+        emit('locationFound', coords);
+      },
+      (err) => {
+        console.warn('watchPosition error:', err);
+      },
+      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
+    );
+  } catch (e) {
+    // Fallback to single request and periodic poll
+    requestUserLocation();
+    const poll = setInterval(() => {
+      requestUserLocation().catch(() => {});
+    }, 5000);
+    // Save watch id as negative to indicate interval so stopUserTracking can clear it
+    userWatchId.value = -poll as any as number;
+  }
+}
+
+function stopUserTracking() {
+  // Stop device orientation listener
+  try {
+    if (deviceOrientationListener && window) {
+      window.removeEventListener('deviceorientation', deviceOrientationListener as EventListener);
+    }
+  } catch {}
+
+  // Stop geolocation watch
+  try {
+    if (userWatchId.value !== null) {
+      if (userWatchId.value >= 0) {
+        navigator.geolocation.clearWatch(userWatchId.value);
+      } else {
+        // negative value encodes a setInterval id
+        clearInterval(-userWatchId.value);
+      }
+    }
+  } catch {}
+
+  userWatchId.value = null;
 }
 
 function clearError() {
@@ -1727,45 +2068,12 @@ function retryMapLoad() {
   initializeMap();
 }
 
-// Clear persistent map cache via store and reload markers
-async function clearMapCacheAndReload() {
-  if (clearingCache.value) return;
-  const confirmed =
-    typeof window !== 'undefined'
-      ? window.confirm(
-          'Clear cached map pins? This will remove locally stored pins and reload from the network.'
-        )
-      : true;
-  if (!confirmed) return;
-  try {
-    clearingCache.value = true;
-    artworksStore.clearMapCache();
-    // Clear current in-memory pins; they will refill on next fetch
-    artworksStore.setArtworks([]);
-    await nextTick();
-    updateArtworkMarkers().catch(console.error);
-    await loadArtworks();
-  } finally {
-    clearingCache.value = false;
-  }
-}
 
-// Handle artwork type filter toggles
-function handleArtworkTypeToggle(_artworkType: ArtworkTypeToggle) {
-  // Immediately update markers to show/hide based on the new filter state
-  updateArtworkMarkers().catch(console.error);
-}
 
-// Enable all artwork type filters
-function enableAllArtworkTypes() {
-  enableAllTypes();
-  updateArtworkMarkers().catch(console.error);
-}
-
-// Disable all artwork type filters
-function disableAllArtworkTypes() {
-  disableAllTypes();
-  updateArtworkMarkers().catch(console.error);
+// Handle applying settings from the modal
+function handleApplySettings(): void {
+  // Trigger a re-rendering of markers with new filter settings
+  updateArtworkMarkers();
 }
 
 // =====================
@@ -1821,12 +2129,8 @@ if (typeof window !== 'undefined') {
 // Watch for props changes
 watch(
   () => props.artworks,
-  (newArtworks: ArtworkPin[] | undefined) => {
-    console.log('[MARKER DEBUG] Props artworks watcher triggered:', {
-      newArtworksLength: newArtworks?.length || 0,
-      newArtworks: newArtworks?.slice(0, 3) || [], // First 3 for debugging
-      timestamp: new Date().toISOString(),
-    });
+  (_newArtworks: ArtworkPin[] | undefined) => {
+    // Props artworks watcher triggered (details suppressed)
     // Use debounced update to prevent excessive calls during initialization
     updateArtworkMarkersDebounced(25);
   },
@@ -1862,7 +2166,7 @@ watch(
 // Handle window resize
 const handleResize = () => {
   if (map.value) {
-    console.log('Window resized, invalidating map size');
+  // Window resized, invalidating map size
     map.value.invalidateSize();
   }
 };
@@ -1888,7 +2192,7 @@ watch(
   () => mapContainer.value,
   (newContainer: HTMLDivElement | undefined) => {
     if (newContainer && map.value) {
-      console.log('Map container changed, invalidating size');
+  // Map container changed, invalidating size
       nextTick(() => {
         map.value?.invalidateSize();
       });
@@ -1939,6 +2243,7 @@ onUnmounted(() => {
     try {
       map.value.off('moveend');
       map.value.off('zoomend');
+      map.value.off('zoomstart');
       map.value.off('zoom');
       map.value.off('locationfound');
       map.value.off('locationerror');
@@ -1964,7 +2269,19 @@ onUnmounted(() => {
     
     map.value = undefined;
   }
+  // Ensure user tracking is stopped when component unmounts
+  try { stopUserTracking(); } catch {}
 });
+
+// Rebuild markers when visited/starred sets change
+watch(
+  () => Array.from(visitedArtworks.value).join(','),
+  () => updateArtworkMarkersDebounced(25)
+);
+watch(
+  () => Array.from(starredArtworks.value).join(','),
+  () => updateArtworkMarkersDebounced(25)
+);
 
 // Watch clustering toggle
 watch(
@@ -1972,6 +2289,40 @@ watch(
   async () => {
     await configureMarkerGroup();
   }
+);
+
+// Rebuild markers when visited/starred sets change (ensures icons update after lists load)
+watch(
+  () => Array.from(visitedArtworks.value).join(','),
+  () => {
+    updateArtworkMarkersDebounced(25);
+  }
+);
+
+watch(
+  () => Array.from(starredArtworks.value).join(','),
+  () => {
+    updateArtworkMarkersDebounced(25);
+  }
+);
+
+// Watch map filters for changes
+watch(
+  () => [
+    mapFilters.filtersState.artworkTypes,
+    mapFilters.filtersState.statusFilters,
+    mapFilters.filtersState.userListFilters,
+    mapFilters.filtersState.showOnlyMySubmissions,
+    mapFilters.filtersState.clusterEnabled,
+    mapFilters.filtersState.hideVisited,
+    mapFilters.filtersState.showRemoved,
+    mapFilters.filtersState.showArtworksWithoutPhotos,
+  ],
+  () => {
+  // Map filters changed, updating markers
+    updateArtworkMarkersDebounced(25);
+  },
+  { deep: true }
 );
 
 // Persist and react to debug rings toggle
@@ -2075,35 +2426,66 @@ watch(
     </div>
 
     <!-- Location Permission Notice -->
+    <!-- Updated: use a solid/semi-opaque background + shadow for better readability over the map -->
     <div
       v-if="showLocationNotice"
-      class="absolute top-4 left-4 right-4 bg-yellow-100 border border-yellow-300 rounded-lg p-3 z-30"
+      class="absolute top-4 left-4 bg-yellow-50/95 border border-yellow-300 rounded-lg z-30 shadow-md backdrop-blur-sm max-w-xs"
       role="alert"
       aria-live="assertive"
+      aria-atomic="true"
     >
-      <div class="flex items-start space-x-2">
-        <ExclamationTriangleIcon class="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-        <div class="flex-1">
-          <p class="text-sm text-yellow-800 font-medium">Location Access Needed</p>
-          <p class="text-xs text-yellow-700 mb-2">
+      <div class="flex items-center gap-3 px-3 py-2">
+        <ExclamationTriangleIcon class="w-5 h-5 text-yellow-600 flex-shrink-0" />
+        <div class="flex-1 min-w-0">
+          <p class="text-sm text-yellow-900 font-semibold truncate">Location Access Needed</p>
+          <p class="text-xs text-yellow-800 truncate">
             Enable location access to see nearby artworks and improve your experience.
           </p>
-          <div class="flex flex-col sm:flex-row gap-2">
-            <button
-              @click="requestLocation"
-              class="text-xs bg-yellow-600 text-white px-3 py-1 rounded hover:bg-yellow-700 focus:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 transition-colors"
-            >
-              Enable Location
-            </button>
-            <a
-              href="/help#location-access-faq"
-              class="text-xs text-yellow-700 underline hover:text-yellow-800 focus:text-yellow-800 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded px-1"
-            >
-              Why is this needed?
-            </a>
-          </div>
+        </div>
+        <div class="flex-shrink-0 ml-2 flex items-center space-x-2">
+          <button
+            @click="requestLocation"
+            class="text-xs bg-yellow-700 text-white px-2 py-1 rounded hover:bg-yellow-800 focus:bg-yellow-800 focus:outline-none focus:ring-2 focus:ring-yellow-600 focus:ring-offset-2 transition-colors"
+          >
+            Enable
+          </button>
         </div>
       </div>
+      <div class="px-3 pb-2">
+        <a
+          href="/help#location-access-faq"
+          class="text-xs text-yellow-700 underline hover:text-yellow-800 focus:text-yellow-800 focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:ring-offset-2 rounded px-1"
+        >
+          Why is this needed?
+        </a>
+      </div>
+    </div>
+
+    <!-- Active Filters Banner -->
+    <div
+      v-if="mapFilters.hasActiveFilters.value && !props.suppressFilterBanner"
+      class="absolute top-4 left-4 right-24 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-md z-10 pointer-events-auto"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+          </svg>
+          <span class="text-sm text-blue-800 font-medium">
+            {{ mapFilters.activeFilterCount.value }} filter{{ mapFilters.activeFilterCount.value === 1 ? '' : 's' }} active
+          </span>
+        </div>
+        <button
+          @click="handleClearFilters"
+          class="text-xs text-blue-600 hover:text-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 px-2 py-1 rounded transition-colors"
+          title="Clear all filters"
+        >
+          Clear
+        </button>
+      </div>
+      <p class="text-xs text-blue-700 mt-1">{{ mapFilters.activeFilterDescription.value }}</p>
     </div>
 
   <!-- Map Controls -->
@@ -2111,128 +2493,27 @@ watch(
       <!-- Map Options (Layers) Button -->
       <div class="relative">
         <button
-          @click="showOptionsPanel = !showOptionsPanel"
-          class="bg-white shadow-md rounded-full p-3 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-          title="Map options"
-          aria-label="Open map options"
-          :aria-expanded="showOptionsPanel"
+          @click="() => { showOptionsModal = true; mapPreviewStore.hidePreview(); }"
+          class="theme-surface shadow-md rounded-full p-3 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+          title="Map settings"
+          aria-label="Open map settings"
         >
           <Squares2X2Icon class="w-5 h-5 text-gray-700" />
         </button>
 
-        <!-- Options Panel -->
-        <div
-          v-show="showOptionsPanel"
-          class="absolute top-14 right-0 w-80 sm:w-96 lg:w-[32rem] bg-white shadow-xl rounded-lg p-4 border border-gray-200 max-h-[calc(100vh-8rem)] overflow-y-auto"
-          role="dialog"
-          aria-label="Map options"
-        >
-          <div class="flex items-start">
-            <input
-              id="toggle-cluster"
-              type="checkbox"
-              class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              v-model="clusterEnabled"
-            />
-            <label for="toggle-cluster" class="ml-2 text-sm text-gray-700 select-none">
-              Cluster markers
-            </label>
-          </div>
-          <div class="mt-2 pt-2 border-t border-gray-100 flex items-start">
-            <input
-              id="toggle-rings"
-              type="checkbox"
-              class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              v-model="debugRingsEnabled"
-            />
-            <label for="toggle-rings" class="ml-2 text-sm text-gray-700 select-none">
-              Enable map rings (debug)
-            </label>
-          </div>
-          <div class="mt-2 pt-2 border-t border-gray-100 flex items-start">
-            <input
-              id="toggle-progressive"
-              type="checkbox"
-              class="mt-1 h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-              v-model="useProgressiveLoading"
-            />
-            <label for="toggle-progressive" class="ml-2 text-sm text-gray-700 select-none">
-              Progressive loading
-              <div class="text-xs text-gray-500 mt-0.5">Load large datasets in batches</div>
-            </label>
-          </div>
-          <div class="mt-3 pt-3 border-t border-gray-100">
-            <h3 class="text-sm font-medium text-gray-900 mb-1">Artwork Types Filtering</h3>
-            <p class="text-xs text-gray-600 mb-3">
-              Select which types of artworks to display on the map. Each colored circle shows the
-              marker color used on the map.
-            </p>
 
-            <!-- Control buttons -->
-            <div class="flex gap-2 mb-3">
-              <button
-                @click="enableAllArtworkTypes"
-                class="text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 focus:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 transition-colors"
-              >
-                Enable All
-              </button>
-              <button
-                @click="disableAllArtworkTypes"
-                class="text-xs bg-gray-600 text-white px-3 py-1.5 rounded hover:bg-gray-700 focus:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-1 transition-colors"
-              >
-                Disable All
-              </button>
-            </div>
-
-            <!-- Artwork types grid -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-1.5">
-              <div
-                v-for="artworkType in artworkTypes"
-                :key="artworkType.key"
-                class="flex items-center"
-              >
-                <input
-                  :id="`toggle-${artworkType.key}`"
-                  type="checkbox"
-                  class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
-                  v-model="artworkType.enabled"
-                  @change="handleArtworkTypeToggle(artworkType)"
-                />
-                <label
-                  :for="`toggle-${artworkType.key}`"
-                  class="ml-2 flex items-center text-xs text-gray-700 select-none min-w-0"
-                >
-                  <span
-                    class="inline-block w-3 h-3 rounded-full mr-1.5 border border-white shadow-sm flex-shrink-0"
-                    :style="{ backgroundColor: artworkType.color }"
-                  ></span>
-                  <span class="truncate">{{ artworkType.label }}</span>
-                </label>
-              </div>
-            </div>
-          </div>
-          <div class="mt-4 pt-3 border-t border-gray-100">
-            <button
-              @click="clearMapCacheAndReload"
-              :disabled="clearingCache"
-              class="w-full text-sm bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1.5 rounded transition-colors disabled:opacity-50"
-              title="Clear cached map pins"
-            >
-              {{ clearingCache ? 'Clearing…' : 'Clear map Cache' }}
-            </button>
-          </div>
-        </div>
       </div>
       <!-- Current Location Button -->
       <button
         v-if="hasGeolocation"
         @click="centerOnUserLocation"
         :disabled="isLocating"
-        class="bg-white shadow-md rounded-full p-3 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50"
+        :class="['theme-surface shadow-md rounded-full p-3 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50', isTracking ? 'ring-4 ring-blue-300' : '']"
         :title="isLocating ? 'Getting location...' : 'Center on current location'"
         :aria-label="isLocating ? 'Getting current location...' : 'Center map on current location'"
       >
         <MapPinIcon v-if="!isLocating" class="w-5 h-5 text-gray-700" />
+        <div v-if="isTracking && !isLocating" class="w-3 h-3 rounded-full bg-blue-600 absolute" style="transform: translate(10px, -10px);"></div>
         <div
           v-else
           class="w-5 h-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"
@@ -2240,10 +2521,10 @@ watch(
       </button>
 
       <!-- Zoom Controls -->
-      <div class="bg-white shadow-md rounded-lg overflow-hidden">
+      <div class="theme-surface shadow-md rounded-lg overflow-hidden">
         <button
           @click="zoomIn"
-          class="block w-full px-3 py-2 text-gray-700 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors border-b border-gray-200"
+          class="block w-full px-3 py-2 text-gray-700 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors border-b border-gray-200"
           title="Zoom in"
           aria-label="Zoom in on map"
         >
@@ -2251,7 +2532,7 @@ watch(
         </button>
         <button
           @click="zoomOut"
-          class="block w-full px-3 py-2 text-gray-700 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
+          class="block w-full px-3 py-2 text-gray-700 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset transition-colors"
           title="Zoom out"
           aria-label="Zoom out on map"
         >
@@ -2289,6 +2570,13 @@ watch(
       </div>
     </div>
   </div>
+
+  <!-- Map Options Modal -->
+  <MapOptionsModal
+    :isOpen="showOptionsModal"
+    @update:isOpen="(val) => { showOptionsModal = val; if (val) mapPreviewStore.hidePreview(); }"
+    @applySettings="handleApplySettings"
+  />
 </template>
 
 <style>
@@ -2313,16 +2601,17 @@ watch(
   transform: scale(1.1);
 }
 
-.artwork-marker-container {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.artwork-marker-inner {
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
 .user-location-marker {
   animation: pulse 2s infinite;
+}
+
+.custom-user-location-icon-wrapper {
+  pointer-events: auto !important;
+}
+
+.user-location-marker-wrapper svg {
+  transform-origin: center center;
+  transition: transform 150ms linear;
 }
 
 @keyframes pulse {
@@ -2418,5 +2707,43 @@ watch(
 .map-component .leaflet-popup-pane,
 .map-component .leaflet-tooltip-pane {
   pointer-events: none !important;
+}
+
+/* Fix custom marker click events by allowing pointer events to pass through child elements */
+.custom-visited-icon .artwork-visited-marker,
+.custom-visited-icon .artwork-visited-marker *,
+.custom-starred-icon .artwork-starred-marker,
+.custom-starred-icon .artwork-starred-marker *,
+.custom-normal-icon .artwork-normal-marker,
+.custom-normal-icon .artwork-normal-marker *,
+.custom-unknown-icon .artwork-unknown-marker,
+.custom-unknown-icon .artwork-unknown-marker *,
+.custom-artwork-icon,
+.custom-artwork-icon * {
+  pointer-events: none !important;
+}
+
+/* Keep the root marker icon clickable */
+.custom-visited-icon,
+.custom-starred-icon,
+.custom-normal-icon,
+.custom-unknown-icon,
+.leaflet-marker-icon {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+
+/* Ensure marker layers don't block each other */
+.leaflet-marker-icon.custom-visited-icon,
+.leaflet-marker-icon.custom-starred-icon,
+.leaflet-marker-icon.custom-normal-icon,
+.leaflet-marker-icon.custom-unknown-icon {
+  z-index: 1000 !important;
+}
+
+/* Ensure user marker sits above artwork markers and tiles */
+.leaflet-marker-icon.custom-user-location-icon-wrapper,
+.custom-user-location-icon-wrapper {
+  z-index: 11000 !important;
 }
 </style>

@@ -7,7 +7,7 @@ import { globalModal } from '../composables/useModal';
 import { apiService, getErrorMessage } from '../services/api';
 import { createApiUrl } from '../utils/api-config';
 import ArtworkEditDiffs from '../components/ArtworkEditDiffs.vue';
-import type { ArtworkEditReviewData } from '../../../shared/types';
+import type { ArtworkEditReviewData, FeedbackRecord } from '../../../shared/types';
 
 // Types
 interface ReviewSubmission {
@@ -46,7 +46,9 @@ const loading = ref(true);
 const error = ref<string | null>(null);
 const submissions = ref<ReviewSubmission[]>([]);
 const artworkEdits = ref<ArtworkEditReviewData[]>([]);
-const currentTab = ref<'submissions' | 'edits'>('submissions');
+const feedback = ref<FeedbackRecord[]>([]);
+const feedbackTotal = ref(0);
+const currentTab = ref<'submissions' | 'edits' | 'feedback'>('submissions');
 const statistics = ref<Statistics>({
   pending: 0,
   approvedToday: 0,
@@ -184,7 +186,7 @@ async function loadData() {
   error.value = null;
 
   try {
-    await Promise.all([loadSubmissions(), loadArtworkEdits()]);
+    await Promise.all([loadSubmissions(), loadArtworkEdits(), loadFeedback()]);
     // After initial load, if a deep link searchId was provided ensure it's loaded
     if (searchId.value.trim()) {
       await ensureSubmissionLoaded(searchId.value.trim());
@@ -271,6 +273,40 @@ async function loadArtworkEdits() {
     );
 
     // Don't throw - let the submission loading continue
+  }
+}
+
+async function loadFeedback() {
+  try {
+    console.log('[ReviewView] Loading feedback for moderation...');
+
+    const params = new URLSearchParams({
+      page: '1',
+      per_page: '100',
+      status: 'open', // Only show open feedback by default
+    });
+
+    const response = (await apiService.get(`/moderation/feedback?${params.toString()}`)) as {
+      feedback: FeedbackRecord[];
+      total: number;
+      page: number;
+      per_page: number;
+      has_more: boolean;
+    };
+
+    feedback.value = response.feedback || [];
+    feedbackTotal.value = response.total || 0;
+    console.log('[ReviewView] Loaded feedback:', feedback.value.length);
+  } catch (err) {
+    console.error('[ReviewView] Error loading feedback:', err);
+
+    // Show user-friendly error modal
+    await globalModal.showError(
+      `Failed to load feedback for review: ${getErrorMessage(err)}`,
+      'Review Queue Error'
+    );
+
+    feedback.value = [];
   }
 }
 
@@ -682,6 +718,89 @@ async function rejectArtworkEdit(edit: ArtworkEditReviewData) {
   }
 }
 
+// Feedback review functions
+async function resolveFeedback(item: FeedbackRecord) {
+  const notes = await globalModal.showPrompt({
+    title: 'Resolve Feedback',
+    message: 'Mark this feedback as resolved. Optionally add notes about your decision:',
+    inputLabel: 'Review Notes (optional)',
+    placeholder: 'Add any notes about how this was resolved...',
+    multiline: true,
+    maxLength: 500,
+    required: false,
+    confirmText: 'Resolve',
+    cancelText: 'Cancel',
+  });
+
+  // User cancelled
+  if (notes === null) return;
+
+  processingId.value = item.id;
+  action.value = 'approve';
+
+  try {
+    await apiService.post(`/moderation/feedback/${item.id}/review`, {
+      action: 'resolve',
+      review_notes: notes || undefined,
+    });
+
+    // Remove from list on success
+    feedback.value = feedback.value.filter((f: FeedbackRecord) => f.id !== item.id);
+  } catch (err) {
+    console.error('[ReviewView] Error resolving feedback:', err);
+    error.value = getErrorMessage(err);
+  } finally {
+    processingId.value = null;
+    action.value = null;
+  }
+}
+
+async function archiveFeedback(item: FeedbackRecord) {
+  const notes = await globalModal.showPrompt({
+    title: 'Archive Feedback',
+    message: 'Archive this feedback without taking action. Optionally add notes:',
+    inputLabel: 'Review Notes (optional)',
+    placeholder: 'Add any notes about why this was archived...',
+    multiline: true,
+    maxLength: 500,
+    required: false,
+    confirmText: 'Archive',
+    cancelText: 'Cancel',
+  });
+
+  // User cancelled
+  if (notes === null) return;
+
+  processingId.value = item.id;
+  action.value = 'reject';
+
+  try {
+    await apiService.post(`/moderation/feedback/${item.id}/review`, {
+      action: 'archive',
+      review_notes: notes || undefined,
+    });
+
+    // Remove from list on success
+    feedback.value = feedback.value.filter((f: FeedbackRecord) => f.id !== item.id);
+  } catch (err) {
+    console.error('[ReviewView] Error archiving feedback:', err);
+    error.value = getErrorMessage(err);
+  } finally {
+    processingId.value = null;
+    action.value = null;
+  }
+}
+
+function getIssueTypeLabel(issueType: string): string {
+  const labels: Record<string, string> = {
+    missing: 'Missing',
+    incorrect_info: 'Incorrect Info',
+    other: 'Other',
+    comment: 'Comment',
+  };
+  return labels[issueType] || issueType;
+}
+
 function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
   const fieldCount = edit.diffs.length;
   const fields = edit.diffs.map(diff => {
@@ -776,8 +895,8 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
             :class="[
               'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors',
               currentTab === 'submissions'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+                ? 'theme-primary theme-on-primary-container'
+                : 'border-transparent theme-outline hover:theme-on-surface hover:border-gray-300',
             ]"
             @click="
               currentTab = 'submissions';
@@ -790,7 +909,7 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
               :class="[
                 'ml-2 py-0.5 px-2 rounded-full text-xs font-medium',
                 currentTab === 'submissions'
-                  ? 'bg-blue-100 text-blue-600'
+                  ? 'theme-primary-container theme-on-primary-container'
                   : 'bg-gray-100 text-gray-600',
               ]"
             >
@@ -801,8 +920,8 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
             :class="[
               'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors',
               currentTab === 'edits'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300',
+                ? 'theme-primary theme-on-primary-container'
+                : 'border-transparent theme-outline hover:theme-on-surface hover:border-gray-300',
             ]"
             @click="
               currentTab = 'edits';
@@ -814,10 +933,33 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
               v-if="filteredArtworkEdits.length > 0"
               :class="[
                 'ml-2 py-0.5 px-2 rounded-full text-xs font-medium',
-                currentTab === 'edits' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-600',
+                currentTab === 'edits' ? 'theme-primary-container theme-on-primary-container' : 'bg-gray-100 text-gray-600',
               ]"
             >
               {{ filteredArtworkEdits.length }}
+            </span>
+          </button>
+          <button
+            :class="[
+              'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors',
+              currentTab === 'feedback'
+                ? 'theme-primary theme-on-primary-container'
+                : 'border-transparent theme-outline hover:theme-on-surface hover:border-gray-300',
+            ]"
+            @click="
+              currentTab = 'feedback';
+              currentPage = 1;
+            "
+          >
+            User Feedback
+            <span
+              v-if="feedback.length > 0"
+              :class="[
+                'ml-2 py-0.5 px-2 rounded-full text-xs font-medium',
+                currentTab === 'feedback' ? 'theme-primary-container theme-on-primary-container' : 'bg-gray-100 text-gray-600',
+              ]"
+            >
+              {{ feedback.length }}
             </span>
           </button>
         </nav>
@@ -829,16 +971,16 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div class="text-center">
-            <p class="text-2xl font-bold text-blue-900">{{ statistics.pending }}</p>
-            <p class="text-sm text-blue-700">Pending Review</p>
+            <p class="text-2xl font-bold theme-warning">{{ statistics.pending }}</p>
+            <p class="text-sm theme-warning">Pending Review</p>
           </div>
           <div class="text-center">
-            <p class="text-2xl font-bold text-green-900">{{ statistics.approvedToday }}</p>
-            <p class="text-sm text-green-700">Approved Today</p>
+            <p class="text-2xl font-bold theme-success">{{ statistics.approvedToday }}</p>
+            <p class="text-sm theme-success">Approved Today</p>
           </div>
           <div class="text-center">
-            <p class="text-2xl font-bold text-red-900">{{ statistics.rejectedToday }}</p>
-            <p class="text-sm text-red-700">Rejected Today</p>
+            <p class="text-2xl font-bold theme-error">{{ statistics.rejectedToday }}</p>
+            <p class="text-sm theme-error">Rejected Today</p>
           </div>
           <div class="text-center">
             <p class="text-2xl font-bold text-gray-900">{{ statistics.total }}</p>
@@ -853,7 +995,7 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
       <!-- Loading State -->
       <div v-if="loading" class="text-center py-12">
         <svg
-          class="animate-spin h-12 w-12 mx-auto mb-4 text-blue-600"
+          class="animate-spin h-12 w-12 mx-auto mb-4"
           xmlns="http://www.w3.org/2000/svg"
           fill="none"
           viewBox="0 0 24 24"
@@ -878,7 +1020,7 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
       <!-- Error State -->
       <div v-else-if="error" class="text-center py-12">
         <svg
-          class="h-12 w-12 mx-auto mb-4 text-red-400"
+          class="h-12 w-12 mx-auto mb-4 theme-error"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
@@ -893,7 +1035,7 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
         <p class="text-gray-600 mb-4">{{ error }}</p>
         <button
           @click="loadData"
-          class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          class="px-4 py-2 theme-primary theme-on-primary rounded-md"
         >
           Retry
         </button>
@@ -995,7 +1137,7 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
               <!-- Priority Badge -->
               <div
                 v-if="submission.priority === 'high'"
-                class="absolute top-2 left-2 bg-red-600 text-white px-2 py-1 text-xs font-medium rounded"
+                class="absolute top-2 left-2 theme-error theme-on-error px-2 py-1 text-xs font-medium rounded"
               >
                 High Priority
               </div>
@@ -1046,8 +1188,8 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
                       v-if="parseLogbookNotes(submission.note).condition"
                       class="bg-blue-50 border border-blue-200 rounded-lg p-3"
                     >
-                      <h4 class="text-sm font-semibold text-blue-900 mb-1">Condition Assessment</h4>
-                      <p class="text-sm text-blue-800">
+                      <h4 class="text-sm font-semibold theme-primary mb-1">Condition Assessment</h4>
+                      <p class="text-sm theme-primary">
                         {{ parseLogbookNotes(submission.note).condition }}
                       </p>
                     </div>
@@ -1101,7 +1243,7 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
 
                 <div
                   v-if="submission.nearby_artworks && submission.nearby_artworks.length > 0"
-                  class="flex items-center text-sm text-yellow-600"
+                  class="flex items-center text-sm theme-warning"
                 >
                   <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path
@@ -1119,7 +1261,8 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
                 <button
                   @click="approveSubmission(submission)"
                   :disabled="processingId === submission.id"
-                  class="flex-1 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                  class="flex-1 px-4 py-2 theme-success theme-on-success text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50"
+                  style="--tw-ring-color: var(--md-sys-color-success);"
                 >
                   <span
                     v-if="processingId === submission.id && action === 'approve'"
@@ -1153,7 +1296,8 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
                 <button
                   @click="rejectSubmission(submission)"
                   :disabled="processingId === submission.id"
-                  class="flex-1 px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
+                  class="flex-1 px-4 py-2 theme-error theme-on-error text-sm font-medium rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50"
+                  style="--tw-ring-color: var(--md-sys-color-error);"
                 >
                   <span
                     v-if="processingId === submission.id && action === 'reject'"
@@ -1189,13 +1333,13 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
               <div class="mt-3 flex space-x-3 text-sm">
                 <button
                   @click="viewOnMap(submission)"
-                  class="text-blue-600 hover:text-blue-800 underline"
+                  class="theme-primary underline"
                 >
                   View on Map
                 </button>
                 <button
                   @click="flagForReview(submission)"
-                  class="text-yellow-600 hover:text-yellow-800 underline"
+                  class="theme-warning underline"
                 >
                   Flag for Senior Review
                 </button>
@@ -1252,13 +1396,13 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
                     </span>
                     <span
                       v-if="edit.diffs.some(d => d.field_name === 'title')"
-                      class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-700"
+                      class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium theme-primary-container theme-on-primary-container"
                     >
                       📝 Title
                     </span>
                     <span
                       v-if="edit.diffs.some(d => d.field_name === 'description')"
-                      class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700"
+                      class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium theme-success-container theme-on-success-container"
                     >
                       📖 Description
                     </span>
@@ -1271,7 +1415,7 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
                   </div>
                   <router-link
                     :to="`/artwork/${edit.artwork_id}`"
-                    class="text-blue-600 hover:text-blue-800 text-sm underline flex items-center"
+                    class="theme-primary text-sm underline flex items-center"
                     target="_blank"
                   >
                     <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1294,7 +1438,8 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
                 <button
                   @click="approveArtworkEdit(edit)"
                   :disabled="processingId === edit.edit_ids?.[0]"
-                  class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md theme-success theme-on-success focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style="--tw-ring-color: var(--md-sys-color-success);"
                 >
                   <span
                     v-if="processingId === edit.edit_ids?.[0] && action === 'approve'"
@@ -1327,7 +1472,8 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
                 <button
                   @click="rejectArtworkEdit(edit)"
                   :disabled="processingId === edit.edit_ids?.[0]"
-                  class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                  class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md theme-error theme-on-error focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style="--tw-ring-color: var(--md-sys-color-error);"
                 >
                   <span
                     v-if="processingId === edit.edit_ids?.[0] && action === 'reject'"
@@ -1367,6 +1513,92 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
         </div>
       </template>
 
+      <!-- User Feedback Tab -->
+      <template v-if="currentTab === 'feedback'">
+        <!-- Empty State -->
+        <div
+          v-if="feedback.length === 0"
+          class="text-center py-12 bg-white rounded-lg shadow"
+        >
+          <svg
+            class="w-16 h-16 mx-auto mb-4 text-gray-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+            />
+          </svg>
+          <h3 class="text-lg font-semibold text-gray-900 mb-2">No Feedback Found</h3>
+          <p class="text-gray-600">All feedback has been reviewed!</p>
+        </div>
+
+        <!-- Feedback List -->
+        <div v-else class="space-y-4">
+          <div
+            v-for="item in feedback"
+            :key="item.id"
+            class="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6"
+          >
+            <div class="flex items-start justify-between">
+              <div class="flex-1">
+                <!-- Header -->
+                <div class="flex items-center gap-3 mb-3">
+                  <span class="px-2 py-1 text-xs font-medium rounded bg-yellow-100 text-yellow-800">
+                    OPEN
+                  </span>
+                  <span class="text-sm text-gray-500">
+                    {{ item.subject_type === 'artwork' ? '🎨 Artwork' : '👤 Artist' }}
+                  </span>
+                  <span class="text-sm text-gray-500">•</span>
+                  <span class="text-sm text-gray-500">
+                    {{ getIssueTypeLabel(item.issue_type) }}
+                  </span>
+                  <span class="text-sm text-gray-500">•</span>
+                  <span class="text-sm text-gray-500">{{ formatDate(item.created_at) }}</span>
+                </div>
+
+                <!-- Feedback Note -->
+                <p class="text-gray-900 mb-3 whitespace-pre-wrap">{{ item.note }}</p>
+
+                <!-- Subject Link -->
+                <div class="mb-3">
+                  <router-link
+                    :to="`/${item.subject_type}/${item.subject_id}`"
+                    class="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                    target="_blank"
+                  >
+                    View {{ item.subject_type }} →
+                  </router-link>
+                </div>
+              </div>
+
+              <!-- Actions -->
+              <div class="flex flex-col gap-2 ml-4">
+                <button
+                  @click="resolveFeedback(item)"
+                  :disabled="!!processingId"
+                  class="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Resolve
+                </button>
+                <button
+                  @click="archiveFeedback(item)"
+                  :disabled="!!processingId"
+                  class="px-4 py-2 bg-gray-600 text-white text-sm rounded-md hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Archive
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template>
+
       <!-- Pagination (works for both tabs) -->
       <div v-if="totalPages > 1" class="mt-8 flex items-center justify-between">
         <div class="text-sm text-gray-700">
@@ -1374,9 +1606,12 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
             Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, filteredSubmissions.length) }} of
             {{ filteredSubmissions.length }} submissions
           </span>
-          <span v-else>
+          <span v-else-if="currentTab === 'edits'">
             Showing {{ startIndex + 1 }} to {{ Math.min(endIndex, filteredArtworkEdits.length) }} of
             {{ filteredArtworkEdits.length }} artwork edits
+          </span>
+          <span v-else>
+            Showing {{ feedback.length }} feedback item{{ feedback.length !== 1 ? 's' : '' }}
           </span>
         </div>
         <div class="flex space-x-2">
@@ -1404,7 +1639,7 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
 <style scoped>
 .review-view {
   min-height: 100vh;
-  background-color: #f9fafb;
+  background-color: var(--md-content-background, #f9fafb);
 }
 
 /* Text clamping for multiline truncation */

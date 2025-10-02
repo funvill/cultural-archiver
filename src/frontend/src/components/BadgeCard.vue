@@ -110,6 +110,7 @@ const formatDate = (dateString: string): string => {
   </div>
 </template>
 
+
 <!-- script moved above template to satisfy component-tags-order rule -->
 
 <style scoped>

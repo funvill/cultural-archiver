@@ -38,6 +38,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       unread_only?: boolean;
       append?: boolean;
     } = {}
+
   ): Promise<{ notifications: NotificationResponse[] }> {
     if (isLoading.value && !options.append) {
       return Promise.resolve({ notifications: notifications.value });
@@ -69,7 +70,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       lastFetchTime.value = new Date();
 
       return result;
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch notifications:', err);
       error.value = err instanceof Error ? err.message : 'Failed to fetch notifications';
       throw err;
@@ -78,17 +79,19 @@ export const useNotificationsStore = defineStore('notifications', () => {
     }
   }
 
+
   async function fetchUnreadCount(): Promise<{ unread_count: number }> {
     try {
       const result = await NotificationService.getUnreadCount();
       unreadCount.value = result.unread_count;
       return result;
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to fetch unread count:', err);
       // Don't set error for unread count failures (non-critical)
       throw err;
     }
   }
+
 
   async function dismissNotification(notificationId: string): Promise<{ success: boolean }> {
     try {
@@ -102,12 +105,13 @@ export const useNotificationsStore = defineStore('notifications', () => {
       }
 
       return { success: true };
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to dismiss notification:', err);
       error.value = err instanceof Error ? err.message : 'Failed to dismiss notification';
       throw err;
     }
   }
+
 
   async function markNotificationRead(notificationId: string): Promise<{ success: boolean }> {
     try {
@@ -121,7 +125,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
       }
 
       return { success: true };
-    } catch (err) {
+    } catch (err: unknown) {
       console.error('Failed to mark notification as read:', err);
       error.value = err instanceof Error ? err.message : 'Failed to mark notification as read';
       throw err;
@@ -132,6 +136,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
    * Mark all notifications in memory as read (calls backend per-notification).
    * This is a best-effort implementation since backend doesn't expose a bulk endpoint.
    */
+
   async function markAllRead(): Promise<{ success: boolean }> {
     const unread = notifications.value.filter(n => !n.is_dismissed).map(n => n.id);
     if (unread.length === 0) return { success: true };

@@ -62,6 +62,9 @@ import {
   getUserPendingEdits,
   validateArtworkEdit,
   exportArtworkToOSM,
+  getArtworkMembership,
+  toggleArtworkListMembership,
+  getArtworkCounts,
 } from './routes/artwork';
 import {
   getArtistsList,
@@ -74,6 +77,7 @@ import { bulkExportToOSM, getExportStats } from './routes/export';
 import {
   getUserSubmissions,
   getUserProfile,
+  updateUserPreferences,
   sendTestEmail,
   getAllBadges,
   getUserBadges,
@@ -136,6 +140,8 @@ import {
 } from './routes/admin';
 import { debugStevenPermissions } from './routes/debug-permissions';
 import { fixPermissionsSchema } from './routes/fix-schema';
+import { createFeedback } from './routes/feedback';
+import { listFeedback, reviewFeedback } from './routes/moderation/feedback';
 
 // Initialize Hono app
 const app = new Hono<{ Bindings: WorkerEnv }>();
@@ -463,6 +469,9 @@ app.get('/health', async c => {
       'GET /api/artwork/:id/pending-edits',
       'POST /api/artwork/:id/edit/validate',
       'GET /api/artwork/:id/export/osm',
+      'GET /api/artwork/:id/membership',
+      'POST /api/artwork/:id/lists/:listType',
+      'GET /api/artwork/:id/counts',
       'GET /api/export/osm',
       'GET /api/export/osm/stats',
       'GET /api/search',
@@ -629,6 +638,9 @@ app.use('/api/auth/*', checkEmailVerification);
 app.use('/api/review/*', ensureUserToken);
 app.use('/api/review/*', checkEmailVerification);
 app.use('/api/review/*', requireReviewer);
+app.use('/api/moderation/*', ensureUserToken);
+app.use('/api/moderation/*', checkEmailVerification);
+app.use('/api/moderation/*', requireReviewer);
 app.use('/api/admin/*', ensureUserToken);
 app.use('/api/admin/*', checkEmailVerification);
 app.use('/api/admin/*', requireAdmin);
@@ -815,6 +827,30 @@ app.get(
   withErrorHandling(exportArtworkToOSM)
 );
 
+app.get(
+  '/api/artwork/:id/membership',
+  rateLimitQueries,
+  validateUUID('id'),
+  ensureUserToken,
+  withErrorHandling(getArtworkMembership)
+);
+
+app.post(
+  '/api/artwork/:id/lists/:listType',
+  rateLimitSubmissions,
+  validateUUID('id'),
+  ensureUserToken,
+  checkEmailVerification,
+  withErrorHandling(toggleArtworkListMembership)
+);
+
+app.get(
+  '/api/artwork/:id/counts',
+  rateLimitQueries,
+  validateUUID('id'),
+  withErrorHandling(getArtworkCounts)
+);
+
 // ================================
 // Artist Management Endpoints
 // ================================
@@ -892,6 +928,13 @@ app.get(
   addRateLimitStatus,
   addUserTokenToResponse,
   withErrorHandling(getUserProfile)
+);
+
+app.put(
+  '/api/me/preferences',
+  ensureUserToken,
+  addUserTokenToResponse,
+  withErrorHandling(updateUserPreferences)
 );
 
 // ================================
@@ -1126,6 +1169,23 @@ app.post(
 );
 
 // ================================
+// Feedback Endpoints
+// ================================
+
+// POST /api/feedback - Public endpoint for user feedback
+app.post('/api/feedback', ensureUserToken, withErrorHandling(createFeedback));
+
+// GET /api/moderation/feedback - Moderator list feedback
+app.get('/api/moderation/feedback', withErrorHandling(listFeedback));
+
+// POST /api/moderation/feedback/:id/review - Moderator review feedback
+app.post(
+  '/api/moderation/feedback/:id/review',
+  validateUUID('id'),
+  withErrorHandling(reviewFeedback)
+);
+
+// ================================
 // Admin Endpoints
 // ================================
 // Permission management and audit logs for administrators
@@ -1235,6 +1295,9 @@ app.notFound(c => {
         'GET /api/artwork/:id/pending-edits',
         'POST /api/artwork/:id/edit/validate',
         'GET /api/artwork/:id/export/osm',
+        'GET /api/artwork/:id/membership',
+        'POST /api/artwork/:id/lists/:listType',
+        'GET /api/artwork/:id/counts',
         'GET /api/artists',
         'GET /api/artists/:id',
         'POST /api/artists',
@@ -1246,6 +1309,7 @@ app.notFound(c => {
         'GET /api/search/suggestions',
         'GET /api/me/submissions',
         'GET /api/me/profile',
+        'PUT /api/me/preferences',
         'POST /api/consent',
         'GET /api/consent',
         'GET /api/consent/form-data',
@@ -1287,3 +1351,4 @@ app.onError((err, c) => {
 
 // Export for Cloudflare Workers
 export default app;
+

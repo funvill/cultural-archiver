@@ -9,6 +9,8 @@ import MiniMap from '../components/MiniMap.vue';
 import TagBadge from '../components/TagBadge.vue';
 import TagEditor from '../components/TagEditor.vue';
 import AddToListDialog from '../components/AddToListDialog.vue';
+import ArtworkActionBar from '../components/ArtworkActionBar.vue';
+import FeedbackDialog from '../components/FeedbackDialog.vue';
 // import LogbookTimeline from '../components/LogbookTimeline.vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { apiService } from '../services/api';
@@ -35,6 +37,10 @@ const toastMessage = ref('');
 
 // Add to list dialog state
 const showAddToListDialog = ref(false);
+
+// Feedback dialog state
+const showFeedbackDialog = ref(false);
+const feedbackMode = ref<'missing' | 'comment'>('comment');
 
 // State
 const loading = ref(true);
@@ -154,6 +160,25 @@ function navigateToArtistSearch(artistName: string) {
   router.push(`/search?artist=${encodedName}`);
 }
 
+// When MiniMap emits 'mapReady' provide a final invalidateSize retry from
+// the parent. This helps with edge cases where the child initializes the
+// map while the parent's layout is not fully settled.
+function handleChildMapReady(mapInstance: any) {
+  try {
+    console.debug('[ArtworkDetailView] child mapReady received', { mapInstance });
+    if (!mapInstance) return;
+    // Attempt a few retries spaced across frames/timeouts
+    if (typeof mapInstance.invalidateSize === 'function') {
+      mapInstance.invalidateSize();
+      requestAnimationFrame(() => mapInstance.invalidateSize());
+      setTimeout(() => mapInstance.invalidateSize(), 150);
+      setTimeout(() => mapInstance.invalidateSize(), 500);
+    }
+  } catch (err) {
+    // ignore
+  }
+}
+
 const artworkTags = computed(() => {
   if (!artwork.value?.tags_parsed) return {};
 
@@ -236,11 +261,7 @@ const artworkPhotos = computed(() => {
 //   return artwork.value?.logbook_entries || [];
 // });
 
-// Computed for authentication and editing permissions
-// UI-only: surface Edit button to any authenticated user per PRD (server still enforces permissions)
-const canEdit = computed(() => {
-  return authStore.isAuthenticated;
-});
+// NOTE: Title-level edit/add buttons were removed; edit availability handled elsewhere
 
 const displayTitle = computed(() => {
   return isEditMode.value ? editData.value.title : artworkTitle.value;
@@ -471,10 +492,7 @@ function goToMap(): void {
   router.push('/');
 }
 
-// Add to list methods
-function openAddToListDialog(): void {
-  showAddToListDialog.value = true;
-}
+// Add-to-list dialog is opened by the action bar component; removed local opener
 
 function handleAddedToList(listNames: string): void {
   showToast.value = true;
@@ -612,42 +630,93 @@ async function checkPendingEdits(): Promise<void> {
   }
 }
 
+// Action Bar Methods
+function handleActionBarAuthRequired(): void {
+  // This could trigger a global auth modal
+  console.log('Authentication required for action');
+  // The action bar will handle showing auth flow
+}
+
+function handleActionBarEditArtwork(): void {
+  enterEditMode();
+}
+
+function handleActionBarAddLog(): void {
+  if (!authStore.isAuthenticated) {
+    handleActionBarAuthRequired();
+    return;
+  }
+  
+  // Navigate to logbook page for this artwork
+  router.push(`/logbook/${props.id}`);
+}
+
+function handleActionBarShare(): void {
+  // Action bar handles the sharing logic
+  announceSuccess('Artwork shared');
+}
+
+// Feedback Methods
+function handleReportMissing(): void {
+  feedbackMode.value = 'missing';
+  showFeedbackDialog.value = true;
+}
+
+function handleReportIssue(): void {
+  feedbackMode.value = 'comment';
+  showFeedbackDialog.value = true;
+}
+
+function handleFeedbackSuccess(): void {
+  showFeedbackDialog.value = false;
+  announceSuccess('Thank you for your feedback! Moderators will review it shortly.');
+  showToast.value = true;
+  toastMessage.value = 'Feedback submitted successfully';
+  setTimeout(() => {
+    showToast.value = false;
+  }, 3000);
+}
+
+function handleFeedbackCancel(): void {
+  showFeedbackDialog.value = false;
+}
+
 // (Previously had getArtworkTypeEmoji() for icon display above title; removed per product request.)
 </script>
 
 <template>
-  <div class="artwork-detail-view bg-gray-50">
+  <div class="artwork-detail-view theme-background">
     <!-- Loading State -->
     <div v-if="loading" class="flex items-center justify-center py-20">
       <div class="text-center">
-        <svg class="animate-spin h-12 w-12 mx-auto mb-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none"
-          viewBox="0 0 24 24">
+        <svg class="animate-spin h-12 w-12 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none"
+          viewBox="0 0 24 24" :style="{ color: 'rgb(var(--md-primary))' }">
           <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
           <path class="opacity-75" fill="currentColor"
             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
           </path>
         </svg>
-        <p class="text-gray-600">Loading artwork details...</p>
+  <p :style="{ color: 'rgba(var(--md-on-background),0.9)' }">Loading artwork details...</p>
       </div>
     </div>
 
     <!-- Error State -->
     <div v-else-if="error" class="flex items-center justify-center py-20">
       <div class="text-center max-w-md mx-auto px-4">
-        <svg class="h-16 w-16 mx-auto mb-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  <svg class="h-16 w-16 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" :style="{ color: 'rgb(var(--md-error))' }">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
             d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
         </svg>
-        <h1 class="text-2xl font-bold text-gray-900 mb-2">
+  <h1 class="text-2xl font-bold mb-2" :style="{ color: 'rgb(var(--md-on-background))' }">
           <template v-if="authStore?.canReview && error?.includes('pending approval')">
             Artwork Pending Approval
           </template>
           <template v-else> Artwork Not Found </template>
         </h1>
-        <p class="text-gray-600 mb-6">{{ error }}</p>
+  <p class="mb-6" :style="{ color: 'rgba(var(--md-on-background),0.85)' }">{{ error }}</p>
         <div v-if="authStore?.canReview && originatingSubmissionId" class="mb-4 text-sm text-gray-700">
           <p class="mb-1">Originating submission ID:</p>
-          <code class="px-2 py-1 bg-gray-100 rounded text-gray-800 text-xs">{{
+          <code class="px-2 py-1 rounded text-xs" :style="{ background: 'rgba(var(--md-surface),0.06)', color: 'rgb(var(--md-on-surface))' }">{{
             originatingSubmissionId
           }}</code>
         </div>
@@ -657,14 +726,15 @@ async function checkPendingEdits(): Promise<void> {
             If this artwork was just submitted it may still be pending. You can review it now:
           </p>
           <router-link :to="{ path: '/review', query: { searchId: originatingSubmissionId || props.id } }"
-            class="inline-block px-3 py-2 text-sm bg-yellow-100 text-yellow-800 rounded hover:bg-yellow-200 focus:outline-none focus:ring-2 focus:ring-yellow-500">
+            class="inline-block px-3 py-2 text-sm rounded"
+            :style="{ background: 'rgba(var(--md-warning),0.08)', color: 'rgb(var(--md-on-warning))' }">
             <template v-if="originatingSubmissionId">Open Review Queue (submission
               {{ originatingSubmissionId.substring(0, 8) }}…)</template>
             <template v-else>Open Review Queue for {{ props.id.substring(0, 8) }}…</template>
           </router-link>
         </div>
         <button @click="goToMap"
-          class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
+          class="px-4 py-2 theme-primary rounded-lg hover:opacity-95 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500">
           ← Back to Map
         </button>
       </div>
@@ -687,7 +757,7 @@ async function checkPendingEdits(): Promise<void> {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
               </svg>
-              <p class="text-sm font-medium text-gray-600">Photos cannot be edited</p>
+              <p class="text-sm font-medium theme-muted">Photos cannot be edited</p>
               <p class="text-xs text-gray-500 mt-1">
                 Photo editing is not available in this version
               </p>
@@ -696,21 +766,66 @@ async function checkPendingEdits(): Promise<void> {
         </div>
       </section>
 
+      <!-- Action Bar - Social actions below photo -->
+      <ArtworkActionBar
+        :artwork-id="props.id"
+        :user-id="authStore.user?.id || null"
+        :permissions="{ canEdit: authStore.isAuthenticated }"
+        @auth-required="handleActionBarAuthRequired"
+        @edit-artwork="handleActionBarEditArtwork"
+        @add-log="handleActionBarAddLog"
+        @share-artwork="handleActionBarShare"
+      />
+
+      <!-- Feedback Buttons -->
+      <div v-if="!isEditMode" class="flex gap-2 mb-6">
+        <button
+          @click="handleReportMissing"
+          class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
+          :style="{ 
+            background: 'rgba(var(--md-error-container), 0.1)', 
+            color: 'rgb(var(--md-error))',
+            border: '1px solid rgba(var(--md-error), 0.2)'
+          }"
+          type="button"
+        >
+          <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.964-1.333-2.732 0L3.082 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          Report Missing
+        </button>
+        <button
+          @click="handleReportIssue"
+          class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
+          :style="{ 
+            background: 'rgba(var(--md-surface-variant), 0.5)', 
+            color: 'rgb(var(--md-on-surface-variant))',
+            border: '1px solid rgba(var(--md-outline), 0.3)'
+          }"
+          type="button"
+        >
+          <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+          </svg>
+          Report Issue
+        </button>
+      </div>
+
       <!-- Artwork Details - Title, Artist, and Description -->
-      <section aria-labelledby="artwork-details-heading" class="mb-6 bg-white rounded-lg border border-gray-200 p-6">
+  <section aria-labelledby="artwork-details-heading" class="mb-6 theme-surface rounded-lg border theme-border p-6">
         <h2 id="artwork-details-heading" class="sr-only">Artwork Details</h2>
         
         <!-- Title (editable in edit mode) -->
         <div v-if="!isEditMode">
           <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-2">
             <div class="flex items-center gap-3">
-              <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 leading-tight">
+              <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold theme-on-background leading-tight">
                 {{ displayTitle }}
               </h1>
               <!-- View count badge (anonymized metric) -->
               <div v-if="artwork && artwork.view_count != null" class="ml-2">
                 <span
-                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+                  class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 theme-on-surface"
                   title="Anonymized view count">
                   <svg class="w-3 h-3 mr-1 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -723,46 +838,7 @@ async function checkPendingEdits(): Promise<void> {
               </div>
             </div>
 
-            <!-- Edit buttons inline with title -->
-            <div v-if="canEdit" class="flex items-center gap-3 mt-1 sm:mt-0">
-              <!-- Pending edits indicator -->
-              <div v-if="hasPendingEdits"
-                class="px-3 py-1 text-sm font-medium text-amber-700 bg-amber-100 rounded-full">
-                Changes pending review
-              </div>
-
-              <!-- Edit button -->
-              <button @click="enterEditMode" :disabled="hasPendingEdits" aria-label="Edit artwork details"
-                class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg transition-colors focus:outline-none focus:ring-2"
-                :class="hasPendingEdits
-                    ? 'text-gray-500 bg-gray-100 cursor-not-allowed'
-                    : 'text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 shadow-sm'
-                  ">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-                {{ hasPendingEdits ? 'Edit Disabled' : 'Edit' }}
-              </button>
-
-              <!-- Add Logbook Entry button -->
-              <button @click="router.push({ path: `/logbook/${props.id}` })" aria-label="Add logbook entry"
-                class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                Add log
-              </button>
-
-              <!-- Add to List button -->
-              <button @click="openAddToListDialog" aria-label="Add to list"
-                class="inline-flex items-center px-4 py-2 text-sm font-medium rounded-lg bg-white border border-gray-200 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-700">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                </svg>
-                Add to List
-              </button>
-            </div>
+            <!-- Inline title action buttons removed per design: actions available in the action bar below the photos -->
           </div>
         </div>
         <div v-else class="mb-4 ">
@@ -780,7 +856,8 @@ async function checkPendingEdits(): Promise<void> {
             <div v-for="artist in artworkArtists" :key="artist.id" class="flex items-center gap-2">
               <span>by</span>
               <button @click="navigateToArtist(artist.id)"
-                class="text-blue-600 hover:text-blue-700 hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded">
+                class="font-medium hover:underline focus:outline-none rounded"
+                :style="{ color: 'rgb(var(--md-primary))' }">
                 {{ artist.name }}
               </button>
               <span v-if="artist.role && artist.role !== 'artist'" class="text-sm text-gray-500">
@@ -792,7 +869,8 @@ async function checkPendingEdits(): Promise<void> {
               Legacy:
               <span v-for="(creatorName, index) in displayCreatorsList" :key="creatorName">
                 <button @click="navigateToArtistSearch(creatorName)"
-                  class="text-blue-600 hover:text-blue-700 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded">
+                  class="font-medium hover:underline focus:outline-none rounded"
+                  :style="{ color: 'rgb(var(--md-primary))' }">
                   {{ creatorName }}
                 </button>
                 <span v-if="index < displayCreatorsList.length - 1">, </span>
@@ -821,15 +899,15 @@ async function checkPendingEdits(): Promise<void> {
 
         <!-- Description (combined with title and artist) -->
         <div v-if="!isEditMode" class="mt-6 pt-6 border-t border-gray-200">
-          <h3 class="text-lg font-medium text-gray-900 mb-3">Description</h3>
+          <h3 class="text-lg font-medium theme-on-surface mb-3">Description</h3>
           
           <!-- Display mode -->
           <!-- eslint-disable-next-line vue/no-v-html -- TODO: sanitize rendered markdown before binding -->
           <div v-if="displayDescription"
-            class="prose prose-gray max-w-none text-gray-700 leading-relaxed" v-html="renderedDescription"></div>
+            class="prose prose-gray max-w-none theme-on-surface leading-relaxed" v-html="renderedDescription"></div>
 
           <!-- Empty description in display mode -->
-          <div v-else class="text-gray-500 italic bg-gray-100 p-4 rounded-lg">
+          <div v-else class="theme-muted italic theme-surface p-4 rounded-lg">
             Add description - No description available for this artwork yet.
           </div>
         </div>
@@ -918,18 +996,8 @@ async function checkPendingEdits(): Promise<void> {
           </h2>
           <div class="relative">
             <MiniMap v-if="artwork && artwork.lat != null && artwork.lon != null" :latitude="artwork?.lat"
-              :longitude="artwork?.lon" :title="artworkTitle" height="200px" :zoom="16" />
-            <!-- Directions button -->
-            <div v-if="artwork && artwork.lat != null && artwork.lon != null" class="mt-3">
-              <a :href="`https://www.google.com/maps/dir/?api=1&destination=${artwork?.lat},${artwork?.lon}`"
-                target="_blank" rel="noopener noreferrer"
-                class="inline-flex items-center px-3 py-2 bg-white border border-gray-200 rounded text-sm text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h4l3-8 4 18 3-8h4" />
-                </svg>
-                Directions
-              </a>
-            </div>
+              :longitude="artwork?.lon" :title="artworkTitle" height="200px" :zoom="16" @mapReady="handleChildMapReady" />
+            <!-- Inline square Directions link removed; map control provides directions -->
             <div v-else class="text-gray-500 text-sm">Location information not available</div>
 
             <!-- Edit mode overlay for location -->
@@ -971,7 +1039,8 @@ async function checkPendingEdits(): Promise<void> {
             <div class="text-sm font-medium text-gray-600 mb-1">Keywords</div>
             <div class="flex flex-wrap gap-1">
               <button v-for="kw in keywordList" :key="kw"
-                class="px-2 py-0.5 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                class="px-2 py-0.5 text-xs rounded-full focus:outline-none"
+                :style="{ background: 'rgba(var(--md-primary),0.08)', color: 'rgb(var(--md-primary))' }"
                 @click="router.push(`/search/${encodeURIComponent(kw)}`)">
                 {{ kw }}
               </button>
@@ -1063,7 +1132,7 @@ async function checkPendingEdits(): Promise<void> {
 
         <div class="flex justify-center">
           <button @click="showSuccessModal = false"
-            class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500">
+            class="px-6 py-2 theme-success rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-green-500">
             Got it!
           </button>
         </div>
@@ -1092,11 +1161,11 @@ async function checkPendingEdits(): Promise<void> {
 
           <div class="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3">
             <button @click="showCancelDialog = false"
-              class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 order-2 sm:order-1">
+              class="px-4 py-2 text-sm font-medium theme-on-surface bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 order-2 sm:order-1">
               Keep Editing
             </button>
             <button @click="confirmCancel"
-              class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 order-1 sm:order-2">
+              class="px-4 py-2 text-sm font-medium theme-error rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-red-500 order-1 sm:order-2">
               Discard Changes
             </button>
           </div>
@@ -1109,7 +1178,7 @@ async function checkPendingEdits(): Promise<void> {
   <div v-if="showToast" data-testid="success-toast"
     class="fixed bottom-4 left-1/2 transform -translate-x-1/2 transition-transform duration-300 ease-in-out z-50"
     :class="{ 'translate-y-0': showToast, 'translate-y-full': !showToast }">
-    <div class="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center">
+  <div class="theme-success px-6 py-3 rounded-lg shadow-lg flex items-center">
       <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
         <path fill-rule="evenodd"
           d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
@@ -1124,7 +1193,18 @@ async function checkPendingEdits(): Promise<void> {
     v-if="artwork"
     v-model="showAddToListDialog"
     :artwork-id="props.id"
-    @added-to-list="handleAddedToList"
+  @addedToList="handleAddedToList"
+  />
+
+  <!-- Feedback Dialog -->
+  <FeedbackDialog
+    v-if="artwork"
+    :open="showFeedbackDialog"
+    subject-type="artwork"
+    :subject-id="props.id"
+    :mode="feedbackMode"
+    @success="handleFeedbackSuccess"
+    @cancel="handleFeedbackCancel"
   />
 </template>
 

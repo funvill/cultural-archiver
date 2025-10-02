@@ -14,6 +14,8 @@ const ProfileView = (): Promise<Component> => import('../views/ProfileView.vue')
 const ProfileNotificationsView = (): Promise<Component> =>
   import('../views/ProfileNotificationsView.vue');
 const ReviewView = (): Promise<Component> => import('../views/ReviewView.vue');
+const ModeratorFeedbackView = (): Promise<Component> =>
+  import('../views/ModeratorFeedbackView.vue');
 const AdminView = (): Promise<Component> => import('../views/AdminView.vue');
 const VerifyView = (): Promise<Component> => import('../views/VerifyView.vue');
 const SearchView = (): Promise<Component> => import('../views/SearchView.vue');
@@ -23,6 +25,7 @@ const LogbookSubmissionView = (): Promise<Component> =>
   import('../views/LogbookSubmissionView.vue');
 const PublicProfileView = (): Promise<Component> => import('../views/PublicProfileView.vue');
 const ListView = (): Promise<Component> => import('../views/ListView.vue');
+const TestMapView = (): Promise<Component> => import('../views/TestMapView.vue');
 
 const router = createRouter({
   history: createWebHistory(),
@@ -187,12 +190,30 @@ const router = createRouter({
       },
     },
     {
+      path: '/moderation/feedback',
+      name: 'ModeratorFeedback',
+      component: ModeratorFeedbackView,
+      meta: {
+        title: 'Feedback Moderation - Cultural Archiver',
+        requiresModerator: true,
+      },
+    },
+    {
       path: '/admin',
       name: 'Admin',
       component: AdminView,
       meta: {
         title: 'Admin Dashboard - Cultural Archiver',
         requiresAdmin: true,
+      },
+    },
+    {
+      path: '/test-map',
+      name: 'TestMap',
+      component: TestMapView,
+      meta: {
+        title: 'Test Map - Cultural Archiver',
+        developmentOnly: true,
       },
     },
     {

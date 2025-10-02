@@ -21,6 +21,7 @@ export interface UseNavigationReturn {
  * Handles expand/collapse state and mobile drawer visibility
  * Persists rail state to localStorage
  */
+
 export const useNavigation = (): UseNavigationReturn => {
   const isRailExpanded = ref(true);
   const showMobileDrawer = ref(false);

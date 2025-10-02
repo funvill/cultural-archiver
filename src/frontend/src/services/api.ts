@@ -603,6 +603,13 @@ export const apiService = {
     return client.get('/me/profile');
   },
 
+  /**
+   * Update user preferences (stored server-side in KV)
+   */
+  async updateUserPreferences(preferences: Record<string, unknown>): Promise<ApiResponse<{ preferences: Record<string, unknown> }>> {
+    return client.put('/me/preferences', preferences);
+  },
+
   // ================================
   // Badge System Endpoints
   // ================================
@@ -1051,7 +1058,7 @@ export const apiService = {
   /**
    * Get list details with items
    */
-  async getListDetails(listId: string, page = 1, limit = 50): Promise<ApiResponse<unknown>> {
+  async getListDetails(listId: string, page = 1, limit = 50): Promise<ApiResponse<Record<string, unknown>>> {
     return client.get(`/lists/${listId}`, { 
       page: page.toString(), 
       limit: limit.toString() 
@@ -1077,6 +1084,38 @@ export const apiService = {
    */
   async deleteList(listId: string): Promise<ApiResponse<{ message: string }>> {
     return client.delete(`/lists/${listId}`);
+  },
+
+  // ================================
+  // Generic HTTP Methods (for extensibility)
+  // ================================
+
+  /**
+   * Generic GET request
+   */
+  async get<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
+    return client.get<T>(endpoint, params);
+  },
+
+  /**
+   * Generic POST request
+   */
+  async post<T>(endpoint: string, data?: unknown): Promise<T> {
+    return client.post<T>(endpoint, data);
+  },
+
+  /**
+   * Generic PUT request
+   */
+  async put<T>(endpoint: string, data?: unknown): Promise<T> {
+    return client.put<T>(endpoint, data);
+  },
+
+  /**
+   * Generic DELETE request
+   */
+  async delete<T>(endpoint: string, data?: unknown): Promise<T> {
+    return client.delete<T>(endpoint, data);
   },
 };
 

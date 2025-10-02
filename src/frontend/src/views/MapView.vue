@@ -1,9 +1,10 @@
+
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import MapComponent from '../components/MapComponent.vue';
-import ArtworkCard from '../components/ArtworkCard.vue';
 import MapFiltersModal from '../components/MapFiltersModal.vue';
+import ArtworkCard from '../components/ArtworkCard.vue';
 import { useArtworksStore } from '../stores/artworks';
 import { useMapPreviewStore } from '../stores/mapPreview';
 import { useMapFilters } from '../composables/useMapFilters';
@@ -144,6 +145,7 @@ const displayedArtworks = ref<ArtworkPin[]>([]);
 // Computed properties
 const mapCenter = computed(() => artworksStore.mapCenter);
 const mapZoom = computed(() => artworksStore.mapZoom);
+const hasActiveMapFilters = computed(() => mapFilters.hasActiveFilters.value);
 const artworks = computed(() => {
   console.log('[ARTWORKS COMPUTED] Recomputing artworks:', {
     listFilterActive: listFilterActive.value,
@@ -268,6 +270,7 @@ async function loadListArtworks(listId: string) {
         listInfo.value = null;
         return;
       }
+
 
       const data = resp.data as { list?: any; items?: any[]; has_more?: boolean };
       if (!listMeta) listMeta = data.list;
@@ -527,7 +530,7 @@ watch(
 
 <template>
   <div class="map-view h-full w-full relative">
-    <!-- Map Filters Banner with Enhanced Features -->
+    <!-- Active Filters Banner --><!-- List Filter Indicator -->
     <div 
       v-if="mapFilters.hasActiveFilters.value && !listFilterActive"
       class="absolute top-4 left-4 right-20 z-40 bg-amber-50 border border-amber-200 rounded-lg p-3 shadow-sm"
@@ -553,7 +556,8 @@ watch(
     <!-- Legacy List Filter Indicator -->
     <div 
       v-if="listFilterActive && listInfo"
-      class="absolute top-4 left-4 right-20 z-40 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-sm"
+      class="absolute left-4 right-4 z-40 bg-blue-50 border border-blue-200 rounded-lg p-3 shadow-sm"
+      :class="{ 'top-4': !hasActiveMapFilters, 'top-20': hasActiveMapFilters }"
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center">
@@ -598,6 +602,7 @@ watch(
     <MapComponent
       :center="mapCenter"
       :zoom="mapZoom"
+      :suppress-filter-banner="mapFilters.hasActiveFilters.value && !listFilterActive"
       :artworks="artworks"
       ref="mapComponentRef"
       @artwork-click="handleArtworkClick"
@@ -673,3 +678,4 @@ watch(
   animation: shake-and-settle 0.6s ease-in-out;
 }
 </style>
+

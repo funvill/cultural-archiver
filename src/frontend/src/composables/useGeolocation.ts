@@ -2,6 +2,7 @@
  * Geolocation services composable for getting user location
  */
 
+
 import { ref, computed } from 'vue';
 import type { Ref } from 'vue';
 import type { Coordinates } from '../types';
@@ -11,6 +12,7 @@ export interface UseGeolocationReturn {
   error: Ref<string | null>;
   isLoading: Ref<boolean>;
   isWatching: Ref<boolean>;
+
   hasLocation: Ref<boolean>;
   hasPermission: Ref<boolean>;
   isSupported: Ref<boolean>;
@@ -20,6 +22,7 @@ export interface UseGeolocationReturn {
   stopWatching: () => void;
   getLocationWithFallback: () => Promise<Coordinates>;
   clearError: () => void;
+
   calculateDistance: (coord1: Coordinates, coord2: Coordinates) => number;
   isWithinRadius: (center: Coordinates, point: Coordinates, radiusMeters: number) => boolean;
   formatCoordinates: (coords: Coordinates) => string;

@@ -71,6 +71,7 @@ onMounted(() => {
   loadProfile();
 });
 
+
 </script>
 
 <template>
@@ -132,9 +133,9 @@ onMounted(() => {
         <!-- Error State -->
         <div v-else-if="error" class="text-center py-12">
           <div
-            class="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center"
+            class="w-16 h-16 mx-auto mb-4 rounded-full theme-error-container flex items-center justify-center"
           >
-            <svg class="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg class="w-8 h-8 theme-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
@@ -149,7 +150,7 @@ onMounted(() => {
           </p>
           <button
             @click="$router.push('/')"
-            class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+            class="theme-primary theme-on-primary font-medium py-2 px-4 rounded-lg transition-colors"
           >
             Return Home
           </button>
@@ -161,8 +162,8 @@ onMounted(() => {
           <div class="bg-white rounded-lg shadow p-6">
             <div class="flex items-center space-x-4">
               <!-- Profile Avatar (using first letter of profile name) -->
-              <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                <span class="text-2xl font-semibold text-blue-600">
+              <div class="w-16 h-16 theme-primary-container rounded-full flex items-center justify-center">
+                <span class="text-2xl font-semibold" style="color: rgb(var(--md-primary));">
                   {{ profile.profile_name.charAt(0).toUpperCase() }}
                 </span>
               </div>
@@ -187,6 +188,7 @@ onMounted(() => {
       </div>
     </AppShell>
 </template>
+
 
 
 

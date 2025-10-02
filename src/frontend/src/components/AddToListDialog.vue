@@ -14,6 +14,7 @@ const props = defineProps<Props>();
 // Emits
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
+
   addedToList: [listName: string];
 }>();
 
@@ -44,7 +45,7 @@ const loadUserLists = async () => {
     const response = await apiService.getUserLists();
     if (response.success && response.data) {
       userLists.value = response.data.filter((list: any) => 
-        !list.is_system_list || list.name !== 'Validated' // Hide system Validated list per PRD
+        !list.is_system_list // Only show user lists, hide all system lists
       );
     } else {
       error.value = response.error || 'Failed to load lists';
@@ -117,6 +118,7 @@ const addToLists = async () => {
         userLists.value.find(list => list.id === listId)?.name || 'Unknown List'
       );
       
+
       emit('addedToList', listNames.join(', '));
       closeDialog();
     } else {

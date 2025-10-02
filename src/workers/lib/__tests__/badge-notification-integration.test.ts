@@ -16,7 +16,7 @@ const createMockDb = () => {
 
   const mockDb = {
     prepare: vi.fn((sql: string) => ({
-      bind: vi.fn((...params: any[]) => ({
+      bind: vi.fn((..._params: any[]) => ({
         all: vi.fn(async () => ({
           results: mockResults.get(sql) || [],
         })),
@@ -37,10 +37,10 @@ const createMockDb = () => {
 describe('Badge-Notification Integration', () => {
   let mockDb: any;
   let badgeService: BadgeService;
-  let notificationService: NotificationService;
+  let _notificationService: NotificationService;
   let mockResults: Map<string, any[]>;
   let mockFirst: Map<string, any>;
-  let mockRun: Map<string, { success: boolean; changes: number }>;
+  let _mockRun: Map<string, { success: boolean; changes: number }>;
 
   const testUserUuid = '123e4567-e89b-12d3-a456-426614174000';
 
@@ -61,13 +61,13 @@ describe('Badge-Notification Integration', () => {
 
   beforeEach(() => {
     const setup = createMockDb();
-    mockDb = setup.mockDb;
-    mockResults = setup.mockResults;
-    mockFirst = setup.mockFirst;
-    mockRun = setup.mockRun;
+  mockDb = setup.mockDb;
+  mockResults = setup.mockResults;
+  mockFirst = setup.mockFirst;
+  _mockRun = setup.mockRun;
 
-    badgeService = new BadgeService(mockDb);
-    notificationService = new NotificationService(mockDb);
+  badgeService = new BadgeService(mockDb);
+  _notificationService = new NotificationService(mockDb);
   });
 
   describe('Badge Award -> Notification Creation', () => {

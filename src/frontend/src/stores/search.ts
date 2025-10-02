@@ -120,8 +120,8 @@ export const useSearchStore = defineStore('search', () => {
     // Persist to localStorage
     try {
       localStorage.setItem('search-recent-queries', JSON.stringify(recentQueries.value));
-    } catch (error) {
-      console.warn('Failed to save recent queries to localStorage:', error);
+    } catch (err: unknown) {
+      console.warn('Failed to save recent queries to localStorage:', err);
     }
   }
 
@@ -131,8 +131,8 @@ export const useSearchStore = defineStore('search', () => {
       if (stored) {
         recentQueries.value = JSON.parse(stored);
       }
-    } catch (error) {
-      console.warn('Failed to load recent queries from localStorage:', error);
+    } catch (err: unknown) {
+      console.warn('Failed to load recent queries from localStorage:', err);
       recentQueries.value = [];
     }
   }
@@ -141,8 +141,8 @@ export const useSearchStore = defineStore('search', () => {
     recentQueries.value = [];
     try {
       localStorage.removeItem('search-recent-queries');
-    } catch (error) {
-      console.warn('Failed to clear recent queries from localStorage:', error);
+    } catch (err: unknown) {
+      console.warn('Failed to clear recent queries from localStorage:', err);
     }
   }
 
@@ -486,7 +486,7 @@ export const useSearchStore = defineStore('search', () => {
           addToRecentQueries(trimmedQuery);
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       const message = getErrorMessage(err);
       setError(message);
       console.error('Search failed:', err);
@@ -545,7 +545,7 @@ export const useSearchStore = defineStore('search', () => {
       if (response.data?.suggestions) {
         setSuggestions(response.data.suggestions);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('Failed to fetch search suggestions:', err);
       setSuggestions([]);
     }
@@ -676,7 +676,7 @@ export const useSearchStore = defineStore('search', () => {
         // Set a descriptive query for display
         setQuery(`Near (${coordinates.latitude.toFixed(4)}, ${coordinates.longitude.toFixed(4)})`);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       const errorMessage = getErrorMessage(err);
       setError(errorMessage);
       console.error('Location search failed:', err);

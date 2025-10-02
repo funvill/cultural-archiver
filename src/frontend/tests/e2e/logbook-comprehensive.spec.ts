@@ -106,8 +106,8 @@ test.describe('Logbook Submission - Comprehensive Flow', () => {
     // Wait for search results to load
     await expect(page.getByText('Test Sculpture')).toBeVisible();
 
-    // Find and click the "Add Report" button on the artwork card
-    await page.click('button:has-text("Add Report")');
+  // Find and click the "Add photo to Artwork" button on the artwork card
+  await page.click('button:has-text("Add photo to Artwork")');
 
     // Should navigate to logbook submission page
     await expect(page).toHaveURL(`/logbook/${mockArtworkId}`);

@@ -37,7 +37,7 @@ const mockLists = [
   },
   {
     id: 'list-2',
-    name: 'Want to see',
+    name: 'Starred',
     item_count: 10,
     is_system_list: true,
     is_readonly: false,
@@ -100,7 +100,8 @@ describe('AddToListDialog', () => {
 
     expect(mockApiService.getUserLists).toHaveBeenCalled();
     expect(wrapper.text()).toContain('My Custom List');
-    expect(wrapper.text()).toContain('Want to see');
+    // System lists (like 'Starred') are now filtered out from the dialog
+    expect(wrapper.text()).not.toContain('Starred');
   });
 
   it('should show item counts for lists', async () => {
@@ -108,7 +109,8 @@ describe('AddToListDialog', () => {
     await new Promise(resolve => setTimeout(resolve, 0));
 
     expect(wrapper.text()).toContain('5 items');
-    expect(wrapper.text()).toContain('10 items');
+    // '10 items' is from the system list 'Starred' which is now filtered out
+    expect(wrapper.text()).not.toContain('10 items');
   });
 
   it('should show full indicator for lists at capacity', async () => {

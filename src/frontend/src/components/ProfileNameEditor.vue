@@ -137,6 +137,7 @@ const saveProfileName = async () => {
 
     if (response.success && response.data) {
       successMessage.value = response.data.message || 'Profile name updated successfully';
+
       emit('profileUpdated', profileNameInput.value);
 
       // Close editor after a brief delay
@@ -360,6 +361,7 @@ watch(
     </div>
   </div>
 </template>
+
 
 <!-- script moved above template to satisfy component-tags-order rule and emit renamed to profileUpdated -->
 

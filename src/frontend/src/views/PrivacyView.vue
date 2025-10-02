@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { marked } from 'marked';
+
 import { sanitizeHtml } from '../utils/sanitizeHtml';
 
 const privacyContent = ref<string>('');
@@ -22,6 +23,7 @@ onMounted(async () => {
       breaks: true,
       gfm: true,
     });
+
 
   // Parse markdown to HTML and sanitize before binding
   privacyContent.value = sanitizeHtml(await marked(markdownContent));

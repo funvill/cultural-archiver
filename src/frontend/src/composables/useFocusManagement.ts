@@ -30,6 +30,7 @@ export interface UseFocusManagementReturn {
   announceToScreenReader: (message: string, priority?: 'polite' | 'assertive') => void;
 }
 
+
 export function useFocusManagement(): UseFocusManagementReturn {
   const previouslyFocused = ref<HTMLElement | null>(null);
 

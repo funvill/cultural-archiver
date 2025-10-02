@@ -7,7 +7,7 @@
 import { describe, test, expect, beforeEach } from 'vitest';
 import { PluginRegistry } from '../lib/plugin-registry.js';
 import { testEnvironment, assertPluginInterface } from './test-utils.js';
-import type { ImporterPlugin, ExporterPlugin } from '../types/plugin.js';
+import type { ImporterPlugin /*, ExporterPlugin */ } from '../types/plugin.js';
 
 describe('PluginRegistry', () => {
   let registry: PluginRegistry;

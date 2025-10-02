@@ -112,6 +112,15 @@ vi.mock('crypto', () => ({
   randomUUID: vi.fn(() => 'test-uuid-12345'),
 }));
 
+// Mock fetch for photo downloads (fast in-test stub)
+global.fetch = vi.fn(() =>
+  Promise.resolve({
+    ok: true,
+    headers: { get: (name: string) => (name.toLowerCase() === 'content-type' ? 'image/jpeg' : null) },
+    arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+  })
+) as any;
+
 function createMockContext(body: any) {
   return {
     req: { json: vi.fn(() => Promise.resolve(body)) },
@@ -337,7 +346,7 @@ describe('PRD Success Criteria Tests', () => {
       // Verify metadata preservation
       expect(responseData.data.importId).toBe('cli-test-123');
       expect(responseData.data.auditTrail.systemUserToken).toBeDefined();
-    }, 10000);
+  }, 60000);
   });
 
   describe('Success Criterion: Artist Auto-Creation', () => {

@@ -728,3 +728,122 @@ Users should be able to earn "Badges" for compleating tasks. There are lots of d
 When clicking the the "Add" button in the appshell for the 2nd time. it should overwrite the existing image with this new image. As if you are starting the whole process over again.
 
 If the customer wanted to select multiple images they would have in the inital "add" event
+
+
+-----
+
+
+Map icons
+
+- 🏴 Done        - These are artworks that the user has already visited.
+- 📷 Want to see - These are artworks that are on a list of ones that the user wants to see.
+- 🪦 Archived    - These are artworks that probably don't exist any more.
+- ⭕ Artworks    - These are artworks that the user hasn't sorted, seen, or archived.
+                   These artworks could be further organized by Artwork Types
+
+Current ArtworkTypes
+- 2D Artwork
+- Bust
+- Figurative
+- Fountain
+- Gateway
+- Graffiti
+- Installation
+- Media Work
+- Memorial
+- Monument
+- Mosaic
+- Mural
+- Other
+- Relief
+- Sculpture
+- Site-Integrated Work
+- Social Art
+- Statue
+- Stone
+- Street Art
+- Tiny Library
+- Totem Pole
+- Unknown
+
+----
+
+Cultural archive project note
+
+- [x] It asks for location even when location is provided by the browser
+- [x] The map markers are too small when fully zoomed in
+- [x] The current location blue circle marker on the map isn't clear that it's your location rather than a piece of art. Change it to a icon person
+- [x] Add log book entry button to artwork details page
+
+----
+
+Bug
+The map in the locations section of the artwork details doesn't show up when you browes to a artwork details page, but does show up when you refresh the page.
+
+----
+
+Bug
+When the page refreshes, the artwork markers that have been visted show as normal.instead of checked. when you pan the markers out of view then back into view they are checked. There is an issue with marking the visited marker on page load.
+
+----
+
+The "Location Access Needed" dialog has a transpartent background making it hard to read.
+
+----
+
+The status page https://art.abluestar.com/status should show the device GPS status and the date of all the locally stored values.
+
+----
+
+In the navagation rail, if a user clicks the white space (without a icon) the navagation rail should expand or hide
+
+
+------
+
+The Fast Add artwork page
+
+The uploaded artwork thumbnail should be larger.
+The location location information should be to the right of the thumbnail. The location information should also include a mini map.
+
+The "Add report" button should be changed to "Add photo to Artwork"
+
+The "What would you like to do?" section is highlighted weirdly. Dark blue background with a white text.
+
+Location should preference the GPS data in the photo EXIF data over the device GPS.
+
+If the photo GPS data can't be found. Highlight this as an error, and hightlight that the device GPS is being used instead. We want people to use the photo GPS instead of the Device GPS.
+
+------
+
+The text on top of the Artwork Card is hard to read
+
+The Title should be White, and larger
+The Artwork type, and number of photos should be a Chips with a solid background
+
+------
+
+On the map
+
+When the user clicks the center user button on the map.
+
+- The user icon should be on top of any markers that already exist on the map.
+- The user icon should show the direction that the user is looking. Simlare to the way google maps does. A circle in the center with a view cone. The view cone should update in real time
+- This current location should update peroditcly, once every few seconds
+
+The goal is to help users find themselfs on the map when they are hunting for new artworks nearby.
+
+----
+
+Artwork preview on the map
+
+Add buttons that the user can press from the preview
+
+- Loved - Adds the artwork to the user's Loved system list
+- Visited - Adds the artwork to the user's Visited system list
+- Star - Adds the artwork to the user's star system list
+- Missing - This should open the feedback dialog.
+
+The goal is to give the user a quick action buttons that they can preform on an artwork without having to go to the artwork details page.
+
+
+----

@@ -39,7 +39,7 @@ For each cycle:
 
 # Output
 
-- After each set of answered questions, update the output file.
+- After each set of answered questions, append the output file.
 - **Format:** Markdown (`.md`)
 - **Location:** `${workspaceFolder}/tasks/`
 - **Filename:** `questions-[feature-name].md`

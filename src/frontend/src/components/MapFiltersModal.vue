@@ -118,7 +118,8 @@ function handleToggleClick(event: Event, handler: (...args: any[]) => void, ...a
 }
 
 // Advanced Features Methods
-function applyQuickFilter(filterId: string) {
+function applyQuickFilter(filterId: string | undefined) {
+  if (!filterId) return;
   if (filterId === 'wantToSee') {
     handleToggleWantToSee();
   } else if (filterId === 'notSeenByMe') {
@@ -255,6 +256,36 @@ onUnmounted(() => {
           </button>
         </div>
       </div>
+        <!-- Simple Filters Section (Show artworks without photos) -->
+        <div class="px-6 py-4 border-b border-gray-200">
+          <div class="space-y-4">
+            <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  :checked="mapFilters.filtersState.showArtworksWithoutPhotos"
+                  @change="mapFilters.toggleShowArtworksWithoutPhotos()"
+                  class="sr-only peer"
+                />
+                <div
+                  class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors border-2 cursor-pointer"
+                  :class="mapFilters.filtersState.showArtworksWithoutPhotos ? 'bg-blue-600 border-blue-600 shadow-md' : 'bg-gray-100 border-gray-300 shadow-inner'"
+                >
+                  <div
+                    class="dot absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform shadow-lg border border-gray-200 pointer-events-none"
+                    :class="mapFilters.filtersState.showArtworksWithoutPhotos ? 'translate-x-5 bg-white' : 'translate-x-0 bg-gray-50'"
+                  ></div>
+                </div>
+              </label>
+              <div class="flex-1">
+                <div class="flex items-center">
+                  <span class="text-sm font-medium text-gray-900">Show artworks without photos</span>
+                </div>
+                <p class="text-xs mt-1 text-gray-600">When off, artworks that do not have photos yet are hidden from the map.</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
       <!-- Content Area - Scrollable -->
       <div class="flex-1 overflow-y-auto min-h-0">
@@ -508,7 +539,7 @@ onUnmounted(() => {
                 <div class="flex flex-wrap gap-2">
                   <button
                     v-for="recent in mapFilters.recentlyUsedFilters.value.slice(0, 3)"
-                    :key="recent.filterId"
+                    :key="recent.filterId ?? recent.id ?? recent.name"
                     @click="applyQuickFilter(recent.filterId)"
                     class="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
                   >
