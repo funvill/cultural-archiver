@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
 import { marked } from 'marked';
+<<<<<<< HEAD
 import { sanitizeHtml } from '../utils/sanitizeHtml';
+=======
+import { sanitizeHtml } from '../utils/sanitize';
+>>>>>>> 79cbe81 (data-collectors, linting)
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import PhotoCarousel from '../components/PhotoCarousel.vue';
@@ -62,6 +66,7 @@ const originalData = ref({
   tags: {} as Record<string, unknown>,
 });
 
+<<<<<<< HEAD
 // Rendered bio (sanitized). marked may be async depending on configuration,
 // so compute this reactively and support async parsing.
 const renderedBio = ref<string>('');
@@ -82,6 +87,15 @@ watch(
   },
   { immediate: true }
 );
+=======
+// Computed properties
+const renderedBio = computed(() => {
+  if (!artist.value?.description) return '';
+  // Convert markdown to HTML, then sanitize before injecting via v-html
+  const raw = (marked.parse(artist.value.description || '') as string);
+  return sanitizeHtml(raw);
+});
+>>>>>>> 79cbe81 (data-collectors, linting)
 
 const hasUnsavedChanges = computed(() => {
   return (
@@ -286,7 +300,11 @@ function removeTag(key: string) {
   delete editData.value.tags[key];
 }
 
-function addTagFromInputs() {
+  function focusValueInput(): void {
+    valueInput.value?.focus();
+  }
+
+  function addTagFromInputs() {
   const keyEl = keyInput.value;
   const valueEl = valueInput.value;
 
@@ -459,7 +477,11 @@ function focusValueInput(): void {
             <h2 class="text-xl font-semibold text-gray-900 mb-4">Biography</h2>
 
             <div v-if="!isEditMode">
+<<<<<<< HEAD
               <!-- eslint-disable-next-line vue/no-v-html -- TODO: sanitize rendered markdown before binding -->
+=======
+              <!-- eslint-disable-next-line vue/no-v-html -->
+>>>>>>> 79cbe81 (data-collectors, linting)
               <div
                 v-if="artist.description"
                 class="prose prose-gray max-w-none"
@@ -547,7 +569,7 @@ function focusValueInput(): void {
           </div>
         </div>
 
-        <!-- Right Column: Artworks -->
+        <!-- Right Column: Artwork Gallery -->
         <div class="space-y-6">
           <!-- Artwork Gallery -->
           <div class="bg-white rounded-lg border border-gray-200 p-6">

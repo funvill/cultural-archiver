@@ -137,7 +137,11 @@ const saveProfileName = async () => {
 
     if (response.success && response.data) {
       successMessage.value = response.data.message || 'Profile name updated successfully';
+<<<<<<< HEAD
       emit('profileUpdated', profileNameInput.value);
+=======
+  emit('profileUpdated', profileNameInput.value);
+>>>>>>> 79cbe81 (data-collectors, linting)
 
       // Close editor after a brief delay
       setTimeout(() => {
@@ -361,8 +365,11 @@ watch(
   </div>
 </template>
 
+<<<<<<< HEAD
 <!-- script moved above template to satisfy component-tags-order rule and emit renamed to profileUpdated -->
 
+=======
+>>>>>>> 79cbe81 (data-collectors, linting)
 <style scoped>
 .profile-name-editor {
   @apply w-full;

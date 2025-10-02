@@ -7,12 +7,12 @@
 import { describe, it, expect, vi } from 'vitest';
 
 // Mock process.exit and console methods to prevent actual CLI execution
-const mockExit = vi.spyOn(process, 'exit').mockImplementation(() => {
+vi.spyOn(process, 'exit').mockImplementation(() => {
   throw new Error('process.exit called');
 });
 
-const mockConsoleLog = vi.spyOn(console, 'log').mockImplementation(() => {});
-const mockConsoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+vi.spyOn(console, 'log').mockImplementation(() => {});
+vi.spyOn(console, 'error').mockImplementation(() => {});
 
 // Mock external dependencies that would cause issues in tests
 vi.mock('ora', () => ({

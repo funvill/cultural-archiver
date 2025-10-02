@@ -5,7 +5,7 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { BadgeService, type BadgeCalculationContext } from '../badges.js';
-import type { BadgeRecord, UserRecord } from '../../../shared/types.js';
+import type { BadgeRecord /*, UserRecord */ } from '../../../shared/types.js';
 
 // Mock D1Database for testing
 const createMockDb = () => {
@@ -14,7 +14,7 @@ const createMockDb = () => {
 
   const mockDb = {
     prepare: vi.fn((sql: string) => ({
-      bind: vi.fn((...params: any[]) => ({
+  bind: vi.fn((..._params: any[]) => ({
         all: vi.fn(async () => ({
           results: mockResults.get(sql) || [],
         })),

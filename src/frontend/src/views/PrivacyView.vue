@@ -1,7 +1,11 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
 import { marked } from 'marked';
+<<<<<<< HEAD
 import { sanitizeHtml } from '../utils/sanitizeHtml';
+=======
+import { sanitizeHtml } from '../utils/sanitize';
+>>>>>>> 79cbe81 (data-collectors, linting)
 
 const privacyContent = ref<string>('');
 const isLoading = ref<boolean>(true);
@@ -23,8 +27,14 @@ onMounted(async () => {
       gfm: true,
     });
 
+<<<<<<< HEAD
   // Parse markdown to HTML and sanitize before binding
   privacyContent.value = sanitizeHtml(await marked(markdownContent));
+=======
+  // Parse markdown to HTML and sanitize before assigning
+  const html = (marked.parse(markdownContent) as string);
+  privacyContent.value = sanitizeHtml(html);
+>>>>>>> 79cbe81 (data-collectors, linting)
   } catch (err) {
     console.error('Error loading privacy policy:', err);
     error.value = 'Failed to load privacy policy. Please try again later.';

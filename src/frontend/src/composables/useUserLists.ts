@@ -5,7 +5,7 @@
 
 import { ref, computed, type Ref } from 'vue';
 import { apiService as api } from '../services/api';
-import type { ListApiResponse } from '../../../shared/types';
+import type { ListApiResponse, ArtworkApiResponse } from '../../../shared/types';
 
 export interface UserListsState {
   visited: Set<string>;
@@ -97,17 +97,17 @@ export function useUserLists(): UserListsApi {
         const userLists = response.data || [];
         
         // For each system list, fetch its items to get artwork IDs
-        const systemLists = userLists.filter((list: ListApiResponse) => list.is_system_list);
+        const systemLists = (userLists as ListApiResponse[]).filter((list: ListApiResponse) => list.is_system_list);
         const listsWithItems: ListApiResponse[] = [];
         
         for (const list of systemLists) {
           try {
             const detailsResponse = await api.getListDetails(list.id, 1, 100); // Get up to 100 items (API limit)
-            if (detailsResponse.success) {
+            if (detailsResponse.success && detailsResponse.data) {
               listsWithItems.push({
                 ...list,
-                items: detailsResponse.data.items || [],
-                item_count: detailsResponse.data.total || 0
+                items: (detailsResponse.data.items || []) as ArtworkApiResponse[],
+                item_count: (detailsResponse.data.total || 0) as number
               });
             } else {
               // If we can't get list details, include the list without items
@@ -120,7 +120,7 @@ export function useUserLists(): UserListsApi {
         }
         
         // Also include non-system lists (user-created lists)
-        const customLists = userLists.filter((list: ListApiResponse) => !list.is_system_list);
+        const customLists = (userLists as ListApiResponse[]).filter((list: ListApiResponse) => !list.is_system_list);
         listsWithItems.push(...customLists);
         
         lists.value = listsWithItems;

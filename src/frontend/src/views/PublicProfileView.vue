@@ -70,7 +70,10 @@ const loadProfile = async () => {
 onMounted(() => {
   loadProfile();
 });
+<<<<<<< HEAD
 
+=======
+>>>>>>> 79cbe81 (data-collectors, linting)
 </script>
 
 <template>
@@ -188,8 +191,11 @@ onMounted(() => {
     </AppShell>
 </template>
 
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 79cbe81 (data-collectors, linting)
 <style scoped>
 .public-profile-view {
   @apply min-h-screen bg-gray-50;

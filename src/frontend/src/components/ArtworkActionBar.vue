@@ -457,7 +457,7 @@ async function handleShare(): Promise<void> {
       :artwork-id="artworkId"
       data-testid="add-to-list-dialog"
       @update:model-value="showAddToListDialog = $event"
-      @added-to-list="handleAddedToList"
+  @addedToList="handleAddedToList"
     />
 
     <!-- Screen reader announcements -->

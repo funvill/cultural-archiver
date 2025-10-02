@@ -317,10 +317,16 @@ async function fetchUserLists() {
     listsLoading.value = true;
     listsError.value = null;
     const response = await apiService.getUserLists();
+<<<<<<< HEAD
     if (response && (response as any).success && (response as any).data) {
       const listsData = (response as any).data as any[];
       // Filter out private lists (server may use visibility or is_private)
       userLists.value = listsData.filter((list) => !list.is_private && list.visibility !== 'private') as ListApiResponse[];
+=======
+    if (response.success && response.data) {
+      // Filter out private lists (like Validated) from profile display
+      userLists.value = (response.data as ListApiResponse[]).filter((list: ListApiResponse) => list.visibility !== 'private');
+>>>>>>> 79cbe81 (data-collectors, linting)
     } else {
       listsError.value = (response as any)?.error || 'Failed to load lists';
     }
@@ -387,9 +393,9 @@ onMounted(() => {
       <section class="mb-8">
         <div class="p-6 rounded-lg shadow theme-surface">
           <h2 class="text-xl font-semibold theme-on-surface mb-4">Profile Settings</h2>
-          <ProfileNameEditor
+            <ProfileNameEditor
             :currentProfileName="currentProfileName"
-            @profile-updated="onProfileUpdated"
+            @profileUpdated="onProfileUpdated"
           />
 
           <!-- Theme selector -->

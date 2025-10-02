@@ -168,14 +168,14 @@ export const useArtworksStore = defineStore('artworks', () => {
 
       setArtworks(artworkPins);
       lastFetchLocation.value = targetLocation;
-    } catch (err) {
+    } catch (err: unknown) {
       const message = getErrorMessage(err);
       setError(message);
       console.error('Error fetching nearby artworks:', err);
 
       // If it's a network error, retry once
       if (isNetworkError(err)) {
-        setTimeout(() => {
+        setTimeout((): void => {
           fetchNearbyArtworks(location);
         }, 2000);
       }
@@ -203,7 +203,7 @@ export const useArtworksStore = defineStore('artworks', () => {
       }
 
       return null;
-    } catch (err) {
+    } catch (err: unknown) {
       const message = getErrorMessage(err);
       setError(message);
       console.error('Error fetching artwork details:', err);
@@ -227,7 +227,7 @@ export const useArtworksStore = defineStore('artworks', () => {
       }
 
       return null;
-    } catch (err) {
+    } catch (err: unknown) {
       const message = getErrorMessage(err);
       setError(message);
       console.error('Failed to refresh artwork details:', err);
@@ -338,7 +338,7 @@ export const useArtworksStore = defineStore('artworks', () => {
       } catch {
         /* ignore cache errors */
       }
-    } catch (err) {
+    } catch (err: unknown) {
       const message = getErrorMessage(err);
       setError(message);
       console.error('Error fetching artworks in bounds:', err);
@@ -518,7 +518,7 @@ export const useArtworksStore = defineStore('artworks', () => {
           // Dynamic delay based on performance - faster for good performance, slower for poor performance
           const dynamicDelay = Math.max(10, Math.min(100, batchTime / 10));
           await new Promise(resolve => setTimeout(resolve, dynamicDelay));
-        } catch (batchError) {
+        } catch (batchError: unknown) {
           console.warn(`Error loading batch ${batchNumber} at offset ${offset}:`, batchError);
 
           // On error, try reducing batch size for next attempt
@@ -546,10 +546,10 @@ export const useArtworksStore = defineStore('artworks', () => {
       // Persist all pins to cache
       try {
         mapCache.upsertPins(allArtworkPins);
-      } catch {
-        /* ignore cache errors */
-      }
-    } catch (err) {
+          } catch {
+            /* ignore cache errors */
+          }
+    } catch (err: unknown) {
       const message = getErrorMessage(err);
       setError(message);
       console.error('Error in progressive artwork loading:', err);
@@ -590,7 +590,7 @@ export const useArtworksStore = defineStore('artworks', () => {
       );
 
       return artworkPins;
-    } catch (err) {
+    } catch (err: unknown) {
       console.warn('Error fetching artworks for submission:', err);
       return [];
     }

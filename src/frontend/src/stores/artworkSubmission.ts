@@ -180,8 +180,8 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
 
         // Placeholder - mark that we attempted EXIF extraction
         photo.exifData = { timestamp: new Date().toISOString() };
-      } catch (error) {
-        console.warn('EXIF extraction failed:', error);
+      } catch (err: unknown) {
+        console.warn('EXIF extraction failed:', err);
       }
     }
   }
@@ -212,7 +212,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
 
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(
-        position => {
+        (position: GeolocationPosition): void => {
           setLocation({
             lat: position.coords.latitude,
             lon: position.coords.longitude,
@@ -222,7 +222,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
           state.value.locationLoading = false;
           resolve();
         },
-        error => {
+        (error: GeolocationPositionError): void => {
           let errorMessage = 'Failed to get location';
           switch (error.code) {
             case error.PERMISSION_DENIED:
@@ -302,8 +302,8 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
       } else {
         throw new Error(result.message || 'Similarity check failed');
       }
-    } catch (error) {
-      console.error('Similarity check failed:', error);
+    } catch (err: unknown) {
+      console.error('Similarity check failed:', err);
       // Don't throw - similarity check is optional
       state.value.nearbyArtworks = [];
       state.value.similarityWarnings = [];
@@ -399,10 +399,10 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
       } else {
         throw new Error(result.message || 'Submission failed');
       }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Submission failed';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Submission failed';
       state.value.submitError = errorMessage;
-      throw error;
+      throw err;
     } finally {
       state.value.isSubmitting = false;
     }

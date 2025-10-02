@@ -1,0 +1,45 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Configuration for Richmond Public Art Registry data collector",
+  
+  "baseUrl": "https://www.richmond.ca",
+  
+  "endpoints": {
+    "artworkIndex": "/culture/howartworks/publicart/collection/Search.aspx",
+    "artworkDetail": "/culture/howartworks/publicart/collection/PublicArt.aspx?ID={id}",
+    "artistDetail": "/culture/howartworks/publicart/collection/Artist.aspx?ID={id}"
+  },
+  
+  "output": {
+    "directory": "./output",
+    "artworksFile": "artworks.geojson",
+    "artistsFile": "artists.json",
+    "debugDirectory": "./output/debug/html"
+  },
+  
+  "scraping": {
+    "delayBetweenRequestsMs": 500,
+    "maxRetries": 3,
+    "retryBackoffBaseMs": 2000,
+    "retryBackoffMultiplier": 2,
+    "requestTimeoutMs": 30000,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+  },
+  
+  "pagination": {
+    "startPage": 1,
+    "resultsPerPage": 12
+  },
+  
+  "validation": {
+    "expectedArtworkCount": 381,
+    "requireCoordinates": false,
+    "limitArtworks": null
+  },
+  
+  "source": {
+    "name": "City of Richmond Public Art Registry",
+    "attribution": "City of Richmond",
+    "url": "https://www.richmond.ca/culture/howartworks/publicart/collection/"
+  }
+}

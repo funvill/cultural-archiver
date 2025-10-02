@@ -151,9 +151,9 @@ export async function getListDetails(c: Context<{ Bindings: WorkerEnv }>): Promi
   const artworks = artworkResults.results || [];
 
   // Parse photos for each artwork
-  const artworksWithPhotos = (artworks as any[]).map((artwork: any) => {
+  const artworksWithPhotos = (artworks as any[]).map((artwork: any): ArtworkApiResponse => {
     // Parse photos stored either in photos column or inside tags
-    const photosFromColumn = artwork.photos ? (() => {
+    const photosFromColumn = artwork.photos ? (():(string[] | null) => {
       try { return JSON.parse(artwork.photos); } catch { return null; }
     })() : null;
 

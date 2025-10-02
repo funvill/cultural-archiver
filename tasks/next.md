@@ -122,9 +122,37 @@ The goal is to help users find themselfs on the map when they are hunting for ne
 
 ------
 
+The text on top of the Artwork Card is hard to read
 
+The Title should be White, and larger
+The Artwork type, and number of photos should be a Chips with a solid background
 
+------
 
+The Fast Add artwork page
 
+The uploaded artwork thumbnail should be larger.
+The location location information should be to the right of the thumbnail. The location information should also include a mini map.
 
+The "Add report" button should be changed to "Add photo to Artwork"
+
+The "What would you like to do?" section is highlighted weirdly. Dark blue background with a white text.
+
+Location should preference the GPS data in the photo EXIF data over the device GPS.
+
+If the photo GPS data can't be found. Highlight this as an error, and hightlight that the device GPS is being used instead. We want people to use the photo GPS instead of the Device GPS.
+
+----
+
+The "Location Access Needed" dialog has a transpartent background making it hard to read.
+
+----
+
+The status page https://art.abluestar.com/status should show the device GSP status and the date of all the locally stored values.
+
+----
+
+In the navagation rail, if a user clicks the white space (without a icon) the navagation rail should expand or hide
+
+----
 

@@ -8,7 +8,7 @@ import { NotificationService } from '../notifications';
 import type { CreateNotificationInput } from '../../../shared/types';
 
 // Mock D1Database for testing
-interface MockDBStatement {
+interface _MockDBStatement {
   bind: ReturnType<typeof vi.fn>;
   first: ReturnType<typeof vi.fn>;
   all: ReturnType<typeof vi.fn>;
@@ -27,7 +27,7 @@ const createMockDb = () => {
 
   const mockDb = {
     prepare: vi.fn((sql: string) => ({
-      bind: vi.fn((...params: any[]) => ({
+  bind: vi.fn((..._params: any[]) => ({
         all: vi.fn(async () => ({
           results: mockResults.get(sql) || [],
         })),

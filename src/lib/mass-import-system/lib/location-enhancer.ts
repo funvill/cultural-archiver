@@ -115,15 +115,13 @@ export class LocationEnhancer {
       }
 
       try {
-        // Check cache first
-        let location;
-        let source: 'cache' | 'api';
+  // Check cache first
+  let location;
 
         if (this.locationService.hasLocationInCache(record.lat, record.lon)) {
           location = await this.locationService.getLocation(record.lat, record.lon, {
             useCache: true,
           });
-          source = 'cache';
           fromCache++;
         } else {
           // Wait for rate limit if needed
@@ -136,7 +134,6 @@ export class LocationEnhancer {
             useCache: true,
             timeout: this.options.requestTimeout,
           });
-          source = 'api';
           fromApi++;
         }
 

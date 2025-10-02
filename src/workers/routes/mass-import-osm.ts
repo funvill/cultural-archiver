@@ -148,9 +148,8 @@ export async function handleOSMImport(c: Context<{ Bindings: WorkerEnv }>): Prom
 
     // Process batches sequentially (option A from requirements)
     const batchResults = [];
-    let totalProcessed = 0;
-    let totalSucceeded = 0;
-    let totalFailed = 0; // Track for potential future use
+  let totalProcessed = 0;
+  let totalSucceeded = 0;
 
     for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
       const batch = batches[batchIndex];
@@ -187,9 +186,8 @@ export async function handleOSMImport(c: Context<{ Bindings: WorkerEnv }>): Prom
         }
       }
 
-      totalProcessed += batch?.length || 0;
-      totalSucceeded += batchSucceeded;
-      totalFailed += batchFailed;
+  totalProcessed += batch?.length || 0;
+  totalSucceeded += batchSucceeded;
 
       batchResults.push({
         batch_id: batchIndex + 1,

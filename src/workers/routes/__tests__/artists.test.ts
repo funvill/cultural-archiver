@@ -11,6 +11,7 @@ import {
   getUserPendingArtistEdits,
 } from '../artists';
 import type { WorkerEnv } from '../../types';
+import type { Context } from 'hono';
 
 // Mock auth middleware
 vi.mock('../../middleware/auth', () => ({
@@ -71,23 +72,22 @@ const mockDb = {
     all: vi.fn(),
     run: vi.fn(),
   }),
-} as any;
+};
 
-const mockEnv: WorkerEnv = {
-  DB: mockDb,
-} as any;
+const mockEnv = { DB: mockDb as unknown as WorkerEnv['DB'] } as unknown as WorkerEnv;
 
 // Create mock Hono context
-function createMockContext(params: Record<string, string> = {}, body: any = {}) {
-  return {
+function createMockContext(params: Record<string, string> = {}, body: unknown = {}): Context<{ Bindings: WorkerEnv }> {
+  const ctx = {
     req: {
       param: vi.fn().mockImplementation((key: string) => params[key]),
-      json: vi.fn().mockResolvedValue(body),
+  json: vi.fn().mockResolvedValue(body as unknown),
     },
     json: vi.fn().mockReturnValue(new Response()),
     header: vi.fn(), // Add header method for cache control
     env: mockEnv,
-  } as any;
+  } as unknown as Context<{ Bindings: WorkerEnv }>;
+  return ctx;
 }
 
 describe('Artist Routes', () => {
@@ -122,8 +122,8 @@ describe('Artist Routes', () => {
         limit: 20,
       });
 
-      const c = createMockContext();
-      const response = await getArtistsList(c);
+    const c = createMockContext();
+    await getArtistsList(c);
 
       expect(mockDb.prepare).toHaveBeenCalled();
       expect(c.json).toHaveBeenCalled();
@@ -179,8 +179,8 @@ describe('Artist Routes', () => {
       };
       mockDb.prepare.mockReturnValue(mockDbStmt);
 
-      const c = createMockContext({ id: 'artist-1' });
-      const response = await getArtistProfile(c);
+    const c = createMockContext({ id: 'artist-1' });
+    await getArtistProfile(c);
 
       expect(mockDb.prepare).toHaveBeenCalledTimes(2); // Artist + artworks queries
       expect(c.json).toHaveBeenCalled();
@@ -222,8 +222,8 @@ describe('Artist Routes', () => {
       };
       mockDb.prepare.mockReturnValue(mockDbStmt);
 
-      const c = createMockContext({}, requestBody);
-      const response = await createArtist(c);
+    const c = createMockContext({}, requestBody);
+    await createArtist(c);
 
       expect(mockDb.prepare).toHaveBeenCalledTimes(2); // Insert + select
       expect(c.json).toHaveBeenCalled();
@@ -259,8 +259,8 @@ describe('Artist Routes', () => {
       };
       mockDb.prepare.mockReturnValue(mockDbStmt);
 
-      const c = createMockContext({ id: 'artist-1' }, requestBody);
-      const response = await submitArtistEdit(c);
+    const c = createMockContext({ id: 'artist-1' }, requestBody);
+    await submitArtistEdit(c);
 
       expect(c.json).toHaveBeenCalled();
     });
@@ -330,8 +330,8 @@ describe('Artist Routes', () => {
       };
       mockDb.prepare.mockReturnValue(mockDbStmt);
 
-      const c = createMockContext({ id: 'artist-1' });
-      const response = await getUserPendingArtistEdits(c);
+    const c = createMockContext({ id: 'artist-1' });
+    await getUserPendingArtistEdits(c);
 
       expect(mockDb.prepare).toHaveBeenCalled();
       expect(c.json).toHaveBeenCalled();
@@ -344,8 +344,8 @@ describe('Artist Routes', () => {
       };
       mockDb.prepare.mockReturnValue(mockDbStmt);
 
-      const c = createMockContext({ id: 'artist-1' });
-      const response = await getUserPendingArtistEdits(c);
+    const c = createMockContext({ id: 'artist-1' });
+    await getUserPendingArtistEdits(c);
 
       expect(c.json).toHaveBeenCalled();
     });

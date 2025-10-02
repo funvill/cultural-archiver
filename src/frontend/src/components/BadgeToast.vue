@@ -284,8 +284,11 @@ onUnmounted(() => {
   </Teleport>
 </template>
 
+<<<<<<< HEAD
 <!-- script moved above template to satisfy component-tags-order rule -->
 
+=======
+>>>>>>> 79cbe81 (data-collectors, linting)
 <style scoped>
 /* Additional toast styles if needed */
 .toast-shadow {

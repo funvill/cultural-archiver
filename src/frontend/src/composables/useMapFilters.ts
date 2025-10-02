@@ -1,4 +1,4 @@
-import { computed, reactive, watch } from 'vue';
+import { computed, reactive, watch, type ComputedRef } from 'vue';
 import { useUserLists } from './useUserLists';
 import type { ListApiResponse } from '../../../shared/types';
 
@@ -68,7 +68,33 @@ let globalFiltersState = reactive<MapFiltersState>({
 
 let isInitialized = false;
 
-export function useMapFilters() {
+export interface UseMapFiltersReturn {
+  // State
+  filtersState: MapFiltersState;
+  
+  // Computed
+  hasActiveFilters: ComputedRef<boolean>;
+  activeFilterCount: ComputedRef<number>;
+  activeFilterDescription: ComputedRef<string>;
+  
+  // Methods
+  resetFilters: () => void;
+  toggleArtworkType: (typeKey: string) => void;
+  setAllArtworkTypes: (enabled: boolean) => void;
+  toggleStatusFilter: (status: keyof StatusFilter) => void;
+  toggleUserListFilter: (listId: string) => void;
+  toggleClusterEnabled: () => void;
+  toggleShowOnlyMySubmissions: () => void;
+  toggleHideVisited: () => void;
+  toggleShowRemoved: () => void;
+  toggleShowArtworksWithoutPhotos: () => void;
+  syncUserLists: () => Promise<void>;
+  shouldShowArtwork: (artwork: any) => boolean; // eslint-disable-line @typescript-eslint/no-explicit-any
+  saveFiltersToStorage: () => void;
+  loadFiltersFromStorage: () => void;
+}
+
+export function useMapFilters(): UseMapFiltersReturn {
   const userLists = useUserLists();
 
   // Initialize from localStorage on first use
@@ -325,6 +351,7 @@ export function useMapFilters() {
   }
 
   // Filter checking methods for MapComponent
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function shouldShowArtwork(artwork: any): boolean {
     // Check artwork type filter
     const artworkTypeKey = artwork.artwork_type || artwork.type;

@@ -274,9 +274,14 @@ async function loadListArtworks(listId: string) {
         return;
       }
 
+<<<<<<< HEAD
       const data = resp.data as { list?: any; items?: any[]; has_more?: boolean };
       if (!listMeta) listMeta = data.list;
       const items = data.items || [];
+=======
+      if (!listMeta) listMeta = resp.data.list;
+      const items = (resp.data.items || []) as any[];
+>>>>>>> 79cbe81 (data-collectors, linting)
       accumulated.push(...items);
 
       if (!data.has_more) break;

@@ -142,8 +142,11 @@ onUnmounted(() => {
   ></div>
 </template>
 
+<<<<<<< HEAD
 <!-- script moved above template to satisfy component-tags-order rule -->
 
+=======
+>>>>>>> 79cbe81 (data-collectors, linting)
 <style scoped>
 /* Additional styles if needed */
 .notification-badge-pulse {

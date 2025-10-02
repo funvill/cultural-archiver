@@ -185,7 +185,14 @@ export function validateConfig(config: Partial<MassImportConfig>): {
 /**
  * Get library information
  */
-export function getLibraryInfo() {
+export function getLibraryInfo(): {
+  name: string;
+  version: string;
+  description: string;
+  supportedDataSources: string[];
+  author: string;
+  license: string;
+} {
   return {
     name: '@cultural-archiver/mass-import',
     version: VERSION,

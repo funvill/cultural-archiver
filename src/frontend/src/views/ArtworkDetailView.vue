@@ -1193,7 +1193,7 @@ function handleFeedbackCancel(): void {
     v-if="artwork"
     v-model="showAddToListDialog"
     :artwork-id="props.id"
-    @added-to-list="handleAddedToList"
+  @addedToList="handleAddedToList"
   />
 
   <!-- Feedback Dialog -->

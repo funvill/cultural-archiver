@@ -6,6 +6,7 @@ import { ref } from 'vue';
 import type { Ref } from 'vue';
 import { getErrorMessage, isNetworkError, ApiError } from '../services/api';
 
+<<<<<<< HEAD
 export interface UseApiReturn {
   isLoading: ReturnType<typeof ref>;
   error: ReturnType<typeof ref>;
@@ -18,6 +19,58 @@ export interface UseApiReturn {
 }
 
 export function useApi(): UseApiReturn {
+=======
+export function useApi(): {
+  isLoading: Ref<boolean>;
+  error: Ref<string | null>;
+  execute: <T>(
+    apiCall: () => Promise<T>,
+    options?: {
+      retries?: number;
+      showError?: boolean;
+      onRetry?: (attempt: number) => void;
+    }
+  ) => Promise<T | null>;
+  executeParallel: <T>(
+    apiCalls: (() => Promise<T>)[],
+    options?: {
+      failFast?: boolean;
+      showErrors?: boolean;
+    }
+  ) => Promise<(T | null)[]>;
+  executePaginated: <T>(
+    apiCall: (
+      page: number,
+      limit: number
+    ) => Promise<{ items: T[]; total: number; hasMore: boolean }> ,
+    options?: {
+      initialPage?: number;
+      pageSize?: number;
+      maxPages?: number;
+    }
+  ) => Promise<{
+    allItems: Ref<T[]>;
+    totalCount: Ref<number>;
+    hasMore: Ref<boolean>;
+    currentPage: Ref<number>;
+    isLoading: Ref<boolean>;
+    error: Ref<string | null>;
+    loadMore: () => Promise<boolean>;
+    reset: () => void;
+  }>;
+  uploadFile: <T>(
+    file: File,
+    uploadFunction: (file: File, onProgress?: (progress: number) => void) => Promise<T>,
+    options?: {
+      onProgress?: (progress: number) => void;
+      maxSize?: number; // in bytes
+      allowedTypes?: string[];
+    }
+  ) => Promise<T | null>;
+  clearError: () => void;
+  isRetryableError: (err: unknown) => boolean;
+} {
+>>>>>>> 79cbe81 (data-collectors, linting)
   const isLoading = ref(false);
   const error = ref<string | null>(null);
 
@@ -44,7 +97,7 @@ export function useApi(): UseApiReturn {
         const result = await apiCall();
         isLoading.value = false;
         return result;
-      } catch (err) {
+      } catch (err: unknown) {
         lastError = err instanceof Error ? err : new Error('Unknown error');
 
         // If network error and we have retries left, try again
@@ -55,7 +108,7 @@ export function useApi(): UseApiReturn {
 
           // Exponential backoff delay
           const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise<void>(resolve => setTimeout(resolve, delay));
           continue;
         }
 
@@ -97,14 +150,13 @@ export function useApi(): UseApiReturn {
       } else {
         // Continue even if some requests fail
         const settledResults = await Promise.allSettled(apiCalls.map(call => call()));
-        results = settledResults.map(result =>
-          result.status === 'fulfilled' ? result.value : null
-        );
+        const typedSettled = settledResults as PromiseSettledResult<T>[];
+        results = typedSettled.map(result => (result.status === 'fulfilled' ? result.value : null));
 
         // Collect any errors
-        const errors = settledResults
-          .filter(result => result.status === 'rejected')
-          .map(result => (result as PromiseRejectedResult).reason);
+        const errors: unknown[] = typedSettled
+          .filter((result): result is PromiseRejectedResult => result.status === 'rejected')
+          .map(result => result.reason as unknown);
 
         if (errors.length > 0 && showErrors) {
           error.value = `${errors.length} requests failed`;
@@ -113,7 +165,7 @@ export function useApi(): UseApiReturn {
 
       isLoading.value = false;
       return results;
-    } catch (err) {
+    } catch (err: unknown) {
       isLoading.value = false;
 
       if (showErrors) {
@@ -138,12 +190,21 @@ export function useApi(): UseApiReturn {
       maxPages?: number;
     } = {}
   ): Promise<{
+<<<<<<< HEAD
     allItems: Ref<unknown[]>;
     totalCount: Ref<number>;
     hasMore: Ref<boolean>;
     currentPage: Ref<number>;
     isLoading: ReturnType<typeof ref>;
     error: ReturnType<typeof ref>;
+=======
+    allItems: Ref<T[]>;
+    totalCount: Ref<number>;
+    hasMore: Ref<boolean>;
+    currentPage: Ref<number>;
+    isLoading: Ref<boolean>;
+    error: Ref<string | null>;
+>>>>>>> 79cbe81 (data-collectors, linting)
     loadMore: () => Promise<boolean>;
     reset: () => void;
   }> => {
@@ -154,7 +215,7 @@ export function useApi(): UseApiReturn {
     const hasMore = ref(true);
     const total = ref(0);
 
-    const loadMore = async (): Promise<boolean> => {
+  const loadMore = async (): Promise<boolean> => {
       if (!hasMore.value || currentPage.value > maxPages) {
         return false;
       }
@@ -188,6 +249,15 @@ export function useApi(): UseApiReturn {
       error,
       loadMore,
       reset,
+    } as unknown as {
+      allItems: Ref<T[]>;
+      totalCount: Ref<number>;
+      hasMore: Ref<boolean>;
+      currentPage: Ref<number>;
+      isLoading: Ref<boolean>;
+      error: Ref<string | null>;
+      loadMore: () => Promise<boolean>;
+      reset: () => void;
     };
   };
 
@@ -224,7 +294,7 @@ export function useApi(): UseApiReturn {
     uploadProgress.value = 0;
 
     try {
-      const result = await uploadFunction(file, progress => {
+      const result = await uploadFunction(file, (progress: number) => {
         uploadProgress.value = progress;
         if (onProgress) {
           onProgress(progress);
@@ -234,7 +304,7 @@ export function useApi(): UseApiReturn {
       isLoading.value = false;
       uploadProgress.value = 100;
       return result;
-    } catch (err) {
+    } catch (err: unknown) {
       isLoading.value = false;
       uploadError.value = getErrorMessage(err);
       return null;

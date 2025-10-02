@@ -7,7 +7,6 @@ type Coord = { lat: number; lon: number };
 
 function extractCoordinates(filePath: string): Coord[] {
   const content = fs.readFileSync(filePath, 'utf8');
-  const ext = path.extname(filePath).toLowerCase();
   let parsed: unknown;
   try {
     parsed = JSON.parse(content);

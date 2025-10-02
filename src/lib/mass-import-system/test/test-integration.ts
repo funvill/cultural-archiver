@@ -2,7 +2,7 @@
  * Integration test - Test mass import system integration with main project
  */
 
-import path from 'path';
+import _path from 'path';
 import { fileURLToPath } from 'url';
 
 // Get __dirname equivalent in ES modules

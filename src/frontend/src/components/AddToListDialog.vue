@@ -14,7 +14,11 @@ const props = defineProps<Props>();
 // Emits
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
+<<<<<<< HEAD
   addedToList: [listName: string];
+=======
+  'addedToList': [listName: string];
+>>>>>>> 79cbe81 (data-collectors, linting)
 }>();
 
 // Stores
@@ -117,7 +121,11 @@ const addToLists = async () => {
         userLists.value.find(list => list.id === listId)?.name || 'Unknown List'
       );
       
+<<<<<<< HEAD
       emit('addedToList', listNames.join(', '));
+=======
+  emit('addedToList', listNames.join(', '));
+>>>>>>> 79cbe81 (data-collectors, linting)
       closeDialog();
     } else {
       error.value = `Failed to add to ${failures.length} list(s)`;

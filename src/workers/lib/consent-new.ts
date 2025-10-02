@@ -378,8 +378,8 @@ export async function getConsentData(
       return null;
     }
 
-    const consentData = JSON.parse(stored) as ConsentData & { storedAt: string };
-    const { storedAt, ...cleanConsentData } = consentData;
+  const consentData = JSON.parse(stored) as ConsentData & { storedAt: string };
+  const { storedAt: _storedAt, ...cleanConsentData } = consentData;
     return cleanConsentData;
   } catch (error) {
     console.warn('Failed to retrieve legacy consent data:', error);

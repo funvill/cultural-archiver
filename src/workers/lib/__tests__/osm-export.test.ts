@@ -2,7 +2,7 @@
  * Tests for OSM Export functionality
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import type { ArtworkRecord } from '../../types';
 import {
   artworkToOSMExport,
