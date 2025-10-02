@@ -121,6 +121,36 @@ const handleToggleExpanded = () => {
   emit('toggleExpanded');
 };
 
+// Toggle when clicking on the rail background (white space). We need to
+// ignore clicks on interactive elements such as buttons, links, inputs, and
+// SVG icons so we don't interfere with normal behaviour.
+const handleRailBackgroundClick = (evt: MouseEvent) => {
+  const target = evt.target as HTMLElement | null;
+  if (!target) return;
+
+  // Walk up the DOM tree to see if the click happened inside an interactive
+  // element that we should ignore.
+  let el: HTMLElement | null = target;
+  while (el && el !== (evt.currentTarget as HTMLElement)) {
+    const tag = el.tagName.toLowerCase();
+    const role = el.getAttribute && el.getAttribute('role');
+    const isInteractive = (
+      tag === 'button' ||
+      tag === 'a' ||
+      tag === 'input' ||
+      tag === 'select' ||
+      tag === 'textarea' ||
+      el.closest && el.closest('[tabindex]') ||
+      (role && ['button', 'link', 'menuitem'].includes(role))
+    );
+    if (isInteractive) return; // ignore
+    el = el.parentElement;
+  }
+
+  // If we reached here, it means the click wasn't on an interactive child,
+  // so toggle the rail.
+  emit('toggleExpanded');
+};
 
 const handleNotificationClick = () => emit('notificationClick');
 const handleProfileClick = () => emit('profileClick');
@@ -135,6 +165,7 @@ const handleLogoutClick = () => emit('logoutClick');
     :class="props.isExpanded ? 'w-80' : 'w-16'"
     role="navigation"
     aria-label="Navigation rail"
+    @click="handleRailBackgroundClick"
   >
     <!-- Top: Header with project title and expand/collapse controls -->
     <div v-if="props.isExpanded" class="flex-shrink-0 h-16 px-4 theme-primary theme-on-primary flex items-center justify-between">
