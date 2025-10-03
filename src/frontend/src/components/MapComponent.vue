@@ -1257,37 +1257,79 @@ function onWebGLMarkerClick(f: any) {
   try {
     const markerId = (f && f.properties && f.properties.id) ? f.properties.id : null;
     if (!markerId) return;
-    const artwork = (props.artworks || []).find((a: any) => a.id === markerId);
-    if (!artwork) return;
+    // Try to enrich the preview with full artwork details from the store first.
+    (async () => {
+      try {
+        // Attempt to fetch details (returns cached if available)
+        const details = await (artworksStore.fetchArtwork as any)(markerId);
 
-    // Choose thumbnail defensively: prefer photos[0] then recent_photo or first photo object
-    let thumb: string | undefined = undefined;
-    try {
-      const photos = (artwork as any).photos;
-      if (Array.isArray(photos) && photos.length > 0) {
-        const p = photos[0];
-        thumb = typeof p === 'string' ? p : ((p && ((p as any).url || (p as any).src)) as string | undefined);
-      } else if ((artwork as any).recent_photo) {
-        thumb = (artwork as any).recent_photo;
+        // Choose thumbnail defensively from details first, then fallback to pin
+        let thumb: string | undefined = undefined;
+        if (details) {
+          const dphotos = (details as any).photos;
+          if (Array.isArray(dphotos) && dphotos.length) {
+            const p0 = dphotos[0];
+            if (typeof p0 === 'string') thumb = p0;
+            else if (p0 && typeof p0 === 'object') thumb = p0.url || p0.thumbnail_url || undefined;
+          } else if ((details as any).recent_photo && typeof (details as any).recent_photo === 'string') {
+            thumb = (details as any).recent_photo;
+          }
+        }
+
+        // Fallback to artwork pin in props if details not available
+        const artworkPin = (props.artworks || []).find((a: any) => a.id === markerId) as any;
+        if (!artworkPin && !details) return;
+
+        const previewData = {
+          id: markerId,
+          title: (details && (details as any).title) || (artworkPin && artworkPin.title) || 'Untitled Artwork',
+          description: (details && (details as any).description) || (artworkPin && artworkPin.type) || 'Public artwork',
+          type_name: (details && ((details as any).type_name || (details as any).type)) || (artworkPin && (artworkPin.type || (artworkPin as any).type_name)) || 'artwork',
+          thumbnailUrl: thumb || (artworkPin && Array.isArray(artworkPin.photos) && artworkPin.photos[0]) || undefined,
+          artistName: (details && ((details as any).artist_name || (details as any).artist || (details as any).created_by)) || (artworkPin && (artworkPin.artist_name || artworkPin.created_by)) || undefined,
+          lat: (artworkPin && artworkPin.latitude) || (details && ((details as any).latitude || (details as any).lat)),
+          lon: (artworkPin && artworkPin.longitude) || (details && ((details as any).longitude || (details as any).lon)),
+        };
+
+        emit('previewArtwork', previewData);
+      } catch (err) {
+        // Fallback: emit minimal preview using pin data
+        const artwork = (props.artworks || []).find((a: any) => a.id === markerId);
+        if (!artwork) return;
+        const thumb = Array.isArray((artwork as any).photos) ? (artwork as any).photos[0] : (artwork as any).recent_photo;
+        const previewData = {
+          id: artwork.id,
+          title: artwork.title || 'Untitled Artwork',
+          description: artwork.type || 'Public artwork',
+          type_name: (artwork as any).type || (artwork as any).type_name || 'artwork',
+          thumbnailUrl: thumb,
+          artistName: (artwork as any).artist_name || (artwork as any).created_by || undefined,
+          lat: artwork.latitude,
+          lon: artwork.longitude,
+        };
+        emit('previewArtwork', previewData);
       }
-    } catch (e) {
-      thumb = undefined;
-    }
-
-    const previewData = {
-      id: artwork.id,
-      title: artwork.title || 'Untitled Artwork',
-      description: artwork.type || 'Public artwork',
-      thumbnailUrl: thumb,
-      artistName: (artwork as any).artist_name || (artwork as any).created_by || undefined,
-      lat: artwork.latitude,
-      lon: artwork.longitude,
-    };
-
-    emit('previewArtwork', previewData);
+    })();
   } catch (err) {
     // ignore
   }
+}
+
+// Expose test helper to simulate marker click from page context for E2E tests
+try {
+  if (typeof window !== 'undefined') {
+    (window as any).__ca_test_trigger_marker_click = (id: string) => {
+      try {
+        const artwork = (props.artworks || []).find((a: any) => a.id === id);
+        if (!artwork) return;
+        onWebGLMarkerClick({ properties: { id } });
+      } catch (e) {
+        // ignore
+      }
+    };
+  }
+} catch (e) {
+  // ignore
 }
 
 // Handler for cluster clicks emitted from MapWebGLLayer

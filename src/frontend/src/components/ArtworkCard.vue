@@ -191,6 +191,16 @@ function handleKeydown(event: KeyboardEvent): void {
           </svg>
         </div>
 
+        <!-- No Photo overlay text when no photo -->
+        <div
+          v-if="!hasPhoto"
+          class="absolute inset-0 flex items-center justify-center pointer-events-none"
+        >
+          <span class="text-xs font-medium px-2 py-1 rounded" :style="{ background: 'rgba(0,0,0,0.6)', color: '#ffffff' }">
+            {{ photoCount }}
+          </span>
+        </div>
+
         <!-- Optional overlay badge slot (e.g., moderation status) -->
         <div class="absolute top-2 left-2 z-10 badge-slot">
           <slot name="badge"></slot>
@@ -211,15 +221,17 @@ function handleKeydown(event: KeyboardEvent): void {
         <h3 class="text-sm font-medium text-gray-900 truncate mb-1">
           {{ artworkTitle }}
         </h3>
-        <p class="text-xs text-gray-600 mb-1">
-          {{ artworkType }}
-        </p>
         <!-- Show artist in compact layout when available -->
         <p v-if="artistName" class="text-xs text-gray-500 truncate mb-1">
           {{ artistName }}
         </p>
+        <!-- Artwork type as clickable badge -->
+        <div class="mb-1">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity" :style="{ background: 'var(--md-primary-container, #e0e7ff)', color: 'var(--md-on-primary-container, #1e40af)' }">
+            {{ artworkType }}
+          </span>
+        </div>
         <div class="flex items-center justify-between text-xs text-gray-500">
-          <span>{{ photoCount }}</span>
           <span v-if="distanceText">{{ distanceText }}</span>
         </div>
       </div>
@@ -257,6 +269,16 @@ function handleKeydown(event: KeyboardEvent): void {
           </svg>
         </div>
 
+        <!-- No Photo overlay text when no photo -->
+        <div
+          v-if="!hasPhoto"
+          class="absolute inset-0 flex items-center justify-center pointer-events-none"
+        >
+          <span class="text-sm font-medium px-3 py-1.5 rounded" :style="{ background: 'rgba(0,0,0,0.6)', color: '#ffffff' }">
+            {{ photoCount }}
+          </span>
+        </div>
+
         <!-- Optional overlay badge slot (e.g., moderation status) -->
         <div class="absolute top-2 left-2 z-10 badge-slot">
           <slot name="badge"></slot>
@@ -288,10 +310,16 @@ function handleKeydown(event: KeyboardEvent): void {
           <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" :style="{ background: 'rgba(0,0,0,0.7)', color: '#ffffff' }">{{ artworkType }}</span>
         </div>
 
-        <!-- Bottom overlay with title + artist -->
+        <!-- Bottom overlay with title + artist + type -->
           <div class="text-overlay absolute left-0 right-0 bottom-0 p-3 text-white z-10" :style="{ background: 'linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(0,0,0,0.65) 100%)' }">
           <h3 class="text-base md:text-xl font-semibold leading-tight line-clamp-2" :style="{ color: '#ffffff' }">{{ artworkTitle }}</h3>
-          <p v-if="artistName" class="text-xs mt-1 truncate" :style="{ color: 'var(--md-on-surface-variant, #e5e7eb)' }">{{ artistName }}</p>
+          <p v-if="artistName" class="text-xs mt-1.5 truncate" :style="{ color: 'var(--md-on-surface-variant, #e5e7eb)' }">{{ artistName }}</p>
+          <!-- Artwork type as clickable badge -->
+          <div class="mt-1.5">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium cursor-pointer hover:opacity-80 transition-opacity" :style="{ background: 'rgba(255,255,255,0.25)', color: '#ffffff', backdropFilter: 'blur(8px)' }">
+              {{ artworkType }}
+            </span>
+          </div>
           <!-- Always show distance if requested (even when artist exists) -->
           <p v-if="showDistance && distanceText" class="text-xs mt-1" :style="{ color: 'var(--md-on-surface-variant, #e5e7eb)' }">{{ distanceText }}</p>
           <!-- Show material/year if available as secondary meta -->

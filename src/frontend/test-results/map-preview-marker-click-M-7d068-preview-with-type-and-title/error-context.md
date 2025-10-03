@@ -1,0 +1,67 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e5]:
+  - link "Skip to main content" [ref=e6] [cursor=pointer]:
+    - /url: "#main-content"
+  - alert [ref=e7]:
+    - generic [ref=e8]:
+      - paragraph [ref=e10]:
+        - text: ⚠️
+        - strong [ref=e11]: "Under Development:"
+        - text: This website is still in development. Data is cleared regularly while we work on it. Don't submit new data as it will be erased. This webpage will be moved to a new domain shortly.
+        - generic [ref=e12]:
+          - text: Questions? Contact us at
+          - link "support@art.abluestar.com" [ref=e13] [cursor=pointer]:
+            - /url: mailto:support@art.abluestar.com
+      - button "Dismiss development warning" [ref=e14] [cursor=pointer]:
+        - img [ref=e15] [cursor=pointer]
+  - navigation "Navigation rail" [ref=e17]:
+    - generic [ref=e18]:
+      - generic [ref=e19]:
+        - img "Public Art Registry logo" [ref=e20]: 🎨
+        - heading "Public Art Registry" [level=2] [ref=e21]
+      - button "Collapse navigation" [ref=e22] [cursor=pointer]:
+        - img [ref=e23] [cursor=pointer]
+    - generic [ref=e25]:
+      - paragraph [ref=e26]: make culture accessible to everyone while preserving it for future generations
+      - link "Read More" [ref=e27] [cursor=pointer]:
+        - /url: /help
+    - list [ref=e30]:
+      - listitem [ref=e31]:
+        - link "Map" [ref=e32] [cursor=pointer]:
+          - /url: /
+          - img [ref=e33] [cursor=pointer]
+          - generic [ref=e35] [cursor=pointer]: Map
+      - listitem [ref=e36]:
+        - link "Artworks" [ref=e37] [cursor=pointer]:
+          - /url: /artworks
+          - img [ref=e38] [cursor=pointer]
+          - generic [ref=e40] [cursor=pointer]: Artworks
+      - listitem [ref=e41]:
+        - link "Artists" [ref=e42] [cursor=pointer]:
+          - /url: /artists
+          - img [ref=e43] [cursor=pointer]
+          - generic [ref=e45] [cursor=pointer]: Artists
+      - listitem [ref=e46]:
+        - link "Search" [ref=e47] [cursor=pointer]:
+          - /url: /search
+          - img [ref=e48] [cursor=pointer]
+          - generic [ref=e50] [cursor=pointer]: Search
+      - listitem [ref=e51]:
+        - link "Help" [ref=e52] [cursor=pointer]:
+          - /url: /help
+          - img [ref=e53] [cursor=pointer]
+          - generic [ref=e55] [cursor=pointer]: Help
+    - button "Login" [ref=e58] [cursor=pointer]:
+      - img [ref=e59] [cursor=pointer]
+      - generic [ref=e61] [cursor=pointer]: Login
+  - navigation "Bottom navigation" [ref=e62]:
+    - generic [ref=e63]:
+      - button "Submit new artwork" [ref=e66] [cursor=pointer]:
+        - img [ref=e67] [cursor=pointer]
+      - button "Open map" [ref=e71] [cursor=pointer]:
+        - img [ref=e72] [cursor=pointer]
+  - main [ref=e74]
+  - status [ref=e75]
+```

@@ -233,7 +233,7 @@ const previewAsSearchResult = computed((): SearchResult | null => {
     id: p.id,
     lat: p.lat,
     lon: p.lon,
-    type_name: 'artwork', // Default type name
+    type_name: p.type_name || 'artwork', // Default type name
     title: p.title,
     artist_name: p.artistName || null,
     tags: {
@@ -245,9 +245,10 @@ const previewAsSearchResult = computed((): SearchResult | null => {
   };
 });
 
-// Expose a small dev-only hook to allow automated tests to show a preview from the page context
+// Expose a small hook to allow automated tests to show a preview from the page context.
+// Intentionally attach in browser environments so tests can reliably call it.
 try {
-  if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+  if (typeof window !== 'undefined') {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).__ca_test_show_preview = (preview: any) => {
       try {
@@ -418,8 +419,46 @@ function handlePreviewArtwork(preview: MapPreview) {
   }
   
   // Show the preview card
+  // Show a quick (possibly partial) preview for snappy UI
   mapPreviewStore.showPreview(preview);
-  console.log('[MAPVIEW DEBUG] Preview store updated, isVisible:', mapPreviewStore.isVisible);
+  console.log('[MAPVIEW DEBUG] Preview store updated (partial), isVisible:', mapPreviewStore.isVisible);
+
+  // Attempt to fetch full artwork details to enrich the preview (title, artist, thumbnail)
+  // This keeps the UI responsive while ensuring the preview displays full metadata when available.
+  (async () => {
+    try {
+      const details = await artworksStore.fetchArtwork(preview.id);
+      if (details) {
+        // Defensive thumbnail extraction: details.photos can be string[] or objects with a url prop
+        let thumbnail: string | undefined = undefined;
+        if (preview.thumbnailUrl) {
+          thumbnail = preview.thumbnailUrl;
+        } else if (details && (details as any).photos && Array.isArray((details as any).photos) && (details as any).photos.length) {
+          const p0 = (details as any).photos[0];
+          if (typeof p0 === 'string') thumbnail = p0;
+          else if (p0 && typeof p0 === 'object' && (p0.url || p0.thumbnail_url)) thumbnail = p0.url || p0.thumbnail_url;
+        } else if ((details as any).recent_photo && typeof (details as any).recent_photo === 'string') {
+          thumbnail = (details as any).recent_photo;
+        }
+
+        const enriched: any = {
+          id: preview.id,
+          title: (details as any).title || preview.title || 'Untitled Artwork',
+          description: preview.description || (details as any).description || (details as any).type_name || (details as any).type || 'Public artwork',
+          thumbnailUrl: thumbnail || undefined,
+          artistName: (details as any).artist_name || (details as any).artist || (details as any).created_by || preview.artistName,
+          type_name: preview.type_name || (details as any).type_name || (details as any).type || undefined,
+          lat: preview.lat ?? (details as any).latitude ?? (details as any).lat,
+          lon: preview.lon ?? (details as any).longitude ?? (details as any).lon,
+        } as MapPreview;
+
+        mapPreviewStore.updatePreview(enriched);
+        console.log('[MAPVIEW DEBUG] Preview store enriched with artwork details for id:', preview.id);
+      }
+    } catch (err) {
+      console.warn('[MAPVIEW DEBUG] Failed to fetch artwork details for preview:', err);
+    }
+  })();
 }
 
 function handleDismissPreview() {
