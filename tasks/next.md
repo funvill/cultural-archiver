@@ -2,8 +2,8 @@
 
 ## General
 
-- `support@art.abluestar.com` currently errors out when sending an email to this address. This address should forward to my personal address.
-- Check to make sure that the only email address that is public is `support@art.abluestar.com`
+- `support@publicartregistry.com` currently errors out when sending an email to this address. This address should forward to my personal address.
+- Check to make sure that the only email address that is public is `support@publicartregistry.com`
 
 - In artwork edit mode, make the description text box 3 times as tall.
 - Create a script to remove the deployed recoreds on cloudflare for the frontend and backend workers. These are piling up for no reason.

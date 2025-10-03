@@ -221,10 +221,10 @@ app.use('*', async (c, next) => {
   } else {
     // Default to production origins if not set
     origins = [
-      'https://art.abluestar.com',
-      'https://art-api.abluestar.com',
-      'https://art-photos.abluestar.com',
-      'https://cultural-archiver.broad-bird-0934.workers.dev',
+      'https://publicartregistry.com',
+      'https://api.publicartregistry.com',
+      'https://photos.publicartregistry.com',
+      'https://test.publicartregistry.com',
     ];
   }
   const corsOptions = cors({

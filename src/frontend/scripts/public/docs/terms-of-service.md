@@ -101,7 +101,7 @@ Our volunteer moderators review submissions to ensure quality and accuracy. We c
 
 **4.3 Community Standards**: We rely on community volunteers and staff for moderation. Their decisions are made in good faith to maintain the quality and integrity of the cultural archive.
 
-**4.4 Appeal Process**: If you believe your content was incorrectly rejected or removed, you may contact us at support@art.abluestar.com to request review.
+**4.4 Appeal Process**: If you believe your content was incorrectly rejected or removed, you may contact us at support@publicartregistry.com to request review.
 
 ---
 
@@ -297,7 +297,7 @@ We respect copyright and expect you to do the same. If you believe someone has s
 
 **13.1 Copyright Respect**: Cultural Archiver respects intellectual property rights and expects users to do the same. Users must not submit content that infringes copyright or other intellectual property rights.
 
-**13.2 DMCA Compliance**: We respond to valid copyright infringement notices under applicable copyright laws. If you believe your copyrighted work has been infringed, contact us at support@art.abluestar.com with:
+**13.2 DMCA Compliance**: We respond to valid copyright infringement notices under applicable copyright laws. If you believe your copyrighted work has been infringed, contact us at support@publicartregistry.com with:
 
 - Description of the copyrighted work claimed to be infringed
 - Location of the allegedly infringing content on our Service
@@ -372,7 +372,7 @@ If you have questions about these terms or problems with the Service, contact us
 
 **16.1 Contact Information**:
 
-- Email: support@art.abluestar.com
+- Email: support@publicartregistry.com
 - Website: art.abluestar.com
 - Mailing Address: [To be provided upon incorporation]
 

@@ -13,10 +13,12 @@
 
 ## Settings
 
-- Primary domain: `art.abluestar.com`
-- Primary email: `support@art.abluestar.com`
+- Primary domain: `publicartregistry.com`
+- Staging domain: `test.publicartregistry.com`
+- Primary email: `support@publicartregistry.com`
 - API documentation. `/docs/api.md`
-  - Backend API: `art-api.abluestar.com`
+  - Backend API: `api.publicartregistry.com`
+  - Photos: `photos.publicartregistry.com`
 - Database Schema documentation: `/docs/database.md`
 
 ## Tech stack

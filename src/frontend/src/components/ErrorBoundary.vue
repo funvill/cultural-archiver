@@ -139,7 +139,7 @@ const reportError = () => {
     `Error Report\n\nReference ID: ${errorReport.referenceId}\nMessage: ${errorReport.message}\nComponent: ${errorReport.component}\nURL: ${errorReport.url}\nTime: ${errorReport.timestamp}\nApp Version: ${errorReport.appVersion}\n\nStack:\n${errorReport.stack}\n\nTrace:\n${errorReport.trace}\n\nBrowser: ${errorReport.userAgent}\n\nDescribe what you were doing when this error occurred:\n[Your description here]`
   );
   if (typeof window !== 'undefined') {
-    window.open(`mailto:support@art.abluestar.com?subject=${subject}&body=${body}`);
+    window.open(`mailto:support@publicartregistry.com?subject=${subject}&body=${body}`);
   }
 };
 

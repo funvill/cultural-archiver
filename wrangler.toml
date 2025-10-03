@@ -1,22 +1,22 @@
-name = "cultural-archiver-api"
+name = "public-art-registry-api"
 main = "index.ts"
 compatibility_date = "2024-11-06"
 compatibility_flags = ["nodejs_compat"]
 
 # Routes for custom domains
 [[env.production.routes]]
-pattern = "art-api.abluestar.com/*"
-zone_name = "abluestar.com"
+pattern = "api.publicartregistry.com/*"
+zone_name = "publicartregistry.com"
 
 # D1 Database bindings
 [[env.development.d1_databases]]
 binding = "DB"
-database_name = "cultural-archiver"
+database_name = "public-art-registry"
 database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"
 
 [[env.production.d1_databases]]
 binding = "DB"
-database_name = "cultural-archiver"
+database_name = "public-art-registry"
 database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"
 
 # KV namespace bindings
@@ -28,12 +28,12 @@ id = "c991e608759d45bdae4198b72955da5f"
 binding = "CACHE"
 id = "91052eaeeef24b6fab6ac2b3c75b8b0b"
 
-# Rate limiting KV namespace for MVP. 'cultural-archiver-rate_limits'
+# Rate limiting KV namespace for MVP. 'public-art-registry-rate_limits'
 [[env.development.kv_namespaces]]
 binding = "RATE_LIMITS"
 id = "81aa51ca054d46b18977670c3dff6c04"
 
-# Magic links KV namespace for MVP. 'cultural-archiver-magic-links'
+# Magic links KV namespace for MVP. 'public-art-registry-magic-links'
 [[env.development.kv_namespaces]]
 binding = "MAGIC_LINKS"
 id = "5b69d7c338734f3aa56cea9c1f3930f7"
@@ -57,11 +57,11 @@ id = "5b69d7c338734f3aa56cea9c1f3930f7"  # Must be replaced with actual producti
 # R2 bucket bindings
 [[env.development.r2_buckets]]
 binding = "PHOTOS_BUCKET"
-bucket_name = "cultural-archiver-photos"
+bucket_name = "public-art-registry-photos"
 
 [[env.production.r2_buckets]]
 binding = "PHOTOS_BUCKET"
-bucket_name = "cultural-archiver-photos"
+bucket_name = "public-art-registry-photos"
 
 # Environment variables
 [env.development.vars]
@@ -72,9 +72,9 @@ API_VERSION = "1.0.0"
 # CORS configuration for development
 CORS_ORIGINS = "http://localhost:5173,http://localhost:5174,http://localhost:8787"
 # Email configuration
-EMAIL_FROM_ADDRESS = "noreply@art.abluestar.com"
-EMAIL_FROM_NAME = "Cultural Archiver (Dev)"
-EMAIL_REPLY_TO = "support@art.abluestar.com"
+EMAIL_FROM_ADDRESS = "noreply@publicartregistry.com"
+EMAIL_FROM_NAME = "Public Art Registry (Dev)"
+EMAIL_REPLY_TO = "support@publicartregistry.com"
 EMAIL_ENABLED = "true"
 PHOTOS_BASE_URL = "http://localhost:8787/photos"
 R2_PUBLIC_URL = "http://localhost:8787/photos"
@@ -86,15 +86,15 @@ PHOTO_DEBUG = "true"
 
 [env.production.vars]
 ENVIRONMENT = "production"
-FRONTEND_URL = "https://art.abluestar.com"
+FRONTEND_URL = "https://publicartregistry.com"
 LOG_LEVEL = "warn"
 API_VERSION = "1.0.0"
 # Email configuration
-EMAIL_FROM_ADDRESS = "noreply@art.abluestar.com"
-EMAIL_FROM_NAME = "Cultural Archiver"
-EMAIL_REPLY_TO = "support@art.abluestar.com"
+EMAIL_FROM_ADDRESS = "noreply@publicartregistry.com"
+EMAIL_FROM_NAME = "Public Art Registry"
+EMAIL_REPLY_TO = "support@publicartregistry.com"
 EMAIL_ENABLED = "true"
-PHOTOS_BASE_URL = "https://art-photos.abluestar.com"
+PHOTOS_BASE_URL = "https://photos.publicartregistry.com"
 # CLOUDFLARE_ACCOUNT_ID set via `wrangler secret put CLOUDFLARE_ACCOUNT_ID`
 # Cloudflare Images configuration  
 CLOUDFLARE_IMAGES_ENABLED = "false"

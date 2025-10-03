@@ -37,10 +37,10 @@ checkDismissed();
           <span class="ml-2">
             Questions? Contact us at
             <a
-              href="mailto:support@art.abluestar.com"
+              href="mailto:support@publicartregistry.com"
               class="underline hover:no-underline font-semibold"
             >
-              support@art.abluestar.com
+              support@publicartregistry.com
             </a>
           </span>
         </p>

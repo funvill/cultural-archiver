@@ -1,8 +1,26 @@
 {
-  "name": "cultural-archiver",
+  "name": "public-art-registry",
   "compatibility_date": "2025-04-01",
   "assets": {
     "directory": "./dist",
-    "not_found_handling": "single-page-application",
+    "not_found_handling": "single-page-application"
   },
+  "env": {
+    "production": {
+      "routes": [
+        {
+          "pattern": "publicartregistry.com/*",
+          "zone_name": "publicartregistry.com"
+        }
+      ]
+    },
+    "staging": {
+      "routes": [
+        {
+          "pattern": "test.publicartregistry.com/*",
+          "zone_name": "publicartregistry.com"
+        }
+      ]
+    }
+  }
 }

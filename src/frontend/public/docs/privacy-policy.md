@@ -275,7 +275,7 @@ As a Canadian non-profit organization focused on open data and cultural preserva
 ### 12.1 Privacy Inquiries
 
 - **Email**: privacy@art.abluestar.com
-- **General Contact**: support@art.abluestar.com
+- **General Contact**: support@publicartregistry.com
 - **Response Time**: Within 30 days for privacy-related requests
 
 ### 12.2 Data Protection Officer

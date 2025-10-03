@@ -101,7 +101,7 @@ Our volunteer moderators review submissions to ensure quality and accuracy. We c
 
 **4.3 Community Standards**: We rely on community volunteers and staff for moderation. Their decisions are made in good faith to maintain the quality and integrity of the cultural archive.
 
-**4.4 Appeal Process**: If you believe your content was incorrectly rejected or removed, you may contact us at support@art.abluestar.com to request review.
+**4.4 Appeal Process**: If you believe your content was incorrectly rejected or removed, you may contact us at support@publicartregistry.com to request review.
 
 ---
 

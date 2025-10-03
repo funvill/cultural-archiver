@@ -358,8 +358,8 @@ watch(
         By providing consent, you agree to our terms of service and confirm that you have the legal
         right to submit these photos. For questions about consent or data handling, please contact
         us at
-        <a href="mailto:privacy@art.abluestar.com" class="text-blue-600 hover:text-blue-800">
-          privacy@art.abluestar.com </a
+        <a href="mailto:support@publicartregistry.com" class="text-blue-600 hover:text-blue-800">
+          support@publicartregistry.com </a
         >.
       </p>
     </div>

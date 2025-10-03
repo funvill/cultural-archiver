@@ -34,7 +34,7 @@ const router = createRouter({
       name: 'Map',
       component: MapView,
       meta: {
-        title: 'Cultural Archiver - Discover Public Art',
+        title: 'Public Art Registry - Discover Public Art',
       },
     },
     {
@@ -42,7 +42,7 @@ const router = createRouter({
       name: 'Home',
       component: HomeView,
       meta: {
-        title: 'Cultural Archiver - About',
+        title: 'Public Art Registry - About',
       },
     },
     {
@@ -50,7 +50,7 @@ const router = createRouter({
       name: 'FastPhotoUpload',
       component: FastPhotoUploadView,
       meta: {
-        title: 'Add Artwork - Cultural Archiver',
+        title: 'Add Artwork - Public Art Registry',
       },
     },
     // /submit route removed: use /add for new artwork fast-photo submissions
@@ -59,7 +59,7 @@ const router = createRouter({
       name: 'ArtworkIndex',
       component: ArtworkIndexView,
       meta: {
-        title: 'Artworks - Cultural Archiver',
+        title: 'Artworks - Public Art Registry',
       },
     },
     {
@@ -67,7 +67,7 @@ const router = createRouter({
       name: 'ArtistIndex',
       component: ArtistIndexView,
       meta: {
-        title: 'Artists - Cultural Archiver',
+        title: 'Artists - Public Art Registry',
       },
     },
     {
@@ -76,7 +76,7 @@ const router = createRouter({
       component: SearchView,
       props: true,
       meta: {
-        title: 'Search Artworks - Cultural Archiver',
+        title: 'Search Artworks - Public Art Registry',
       },
     },
     {
@@ -84,7 +84,7 @@ const router = createRouter({
       name: 'SearchResults',
       component: SearchResultsView,
       meta: {
-        title: 'Search Results - Cultural Archiver',
+        title: 'Search Results - Public Art Registry',
       },
     },
     {
@@ -92,7 +92,7 @@ const router = createRouter({
       name: 'NewArtwork',
       component: (): Promise<Component> => import('../views/NewArtworkView.vue'),
       meta: {
-        title: 'New Artwork - Cultural Archiver',
+        title: 'New Artwork - Public Art Registry',
       },
     },
     {
@@ -101,7 +101,7 @@ const router = createRouter({
       component: ArtworkDetailView,
       props: true,
       meta: {
-        title: 'Artwork Details - Cultural Archiver',
+        title: 'Artwork Details - Public Art Registry',
       },
     },
     {
@@ -110,7 +110,7 @@ const router = createRouter({
       component: LogbookSubmissionView,
       props: true,
       meta: {
-        title: 'Log a Visit - Cultural Archiver',
+        title: 'Log a Visit - Public Art Registry',
       },
     },
     {
@@ -119,7 +119,7 @@ const router = createRouter({
       component: ListView,
       props: true,
       meta: {
-        title: 'List - Cultural Archiver',
+        title: 'List - Public Art Registry',
       },
     },
     {
@@ -128,7 +128,7 @@ const router = createRouter({
       component: (): Promise<Component> => import('../views/ArtistDetailView.vue'),
       props: true,
       meta: {
-        title: 'Artist Profile - Cultural Archiver',
+        title: 'Artist Profile - Public Art Registry',
       },
     },
     {
@@ -136,7 +136,7 @@ const router = createRouter({
       name: 'Profile',
       component: ProfileView,
       meta: {
-        title: 'My Submissions - Cultural Archiver',
+        title: 'My Submissions - Public Art Registry',
       },
     },
     {
@@ -144,7 +144,7 @@ const router = createRouter({
       name: 'ProfileNotifications',
       component: ProfileNotificationsView,
       meta: {
-        title: 'Notifications - Cultural Archiver',
+        title: 'Notifications - Public Art Registry',
       },
     },
     {
@@ -152,7 +152,7 @@ const router = createRouter({
       name: 'PublicProfile',
       component: PublicProfileView,
       meta: {
-        title: 'User Profile - Cultural Archiver',
+        title: 'User Profile - Public Art Registry',
       },
     },
     {
@@ -160,7 +160,7 @@ const router = createRouter({
       name: 'Verify',
       component: VerifyView,
       meta: {
-        title: 'Email Verification - Cultural Archiver',
+        title: 'Email Verification - Public Art Registry',
       },
     },
     {
@@ -168,7 +168,7 @@ const router = createRouter({
       name: 'Terms',
       component: (): Promise<Component> => import('../views/TermsView.vue'),
       meta: {
-        title: 'Terms of Service - Cultural Archiver',
+        title: 'Terms of Service - Public Art Registry',
       },
     },
     {
@@ -176,7 +176,7 @@ const router = createRouter({
       name: 'Privacy',
       component: (): Promise<Component> => import('../views/PrivacyView.vue'),
       meta: {
-        title: 'Privacy Policy - Cultural Archiver',
+        title: 'Privacy Policy - Public Art Registry',
       },
     },
     {
@@ -184,7 +184,7 @@ const router = createRouter({
       name: 'Review',
       component: ReviewView,
       meta: {
-        title: 'Review Queue - Cultural Archiver',
+        title: 'Review Queue - Public Art Registry',
         requiresModerator: true,
       },
     },
@@ -193,7 +193,7 @@ const router = createRouter({
       name: 'ModeratorFeedback',
       component: ModeratorFeedbackView,
       meta: {
-        title: 'Feedback Moderation - Cultural Archiver',
+        title: 'Feedback Moderation - Public Art Registry',
         requiresModerator: true,
       },
     },
@@ -202,7 +202,7 @@ const router = createRouter({
       name: 'Admin',
       component: AdminView,
       meta: {
-        title: 'Admin Dashboard - Cultural Archiver',
+        title: 'Admin Dashboard - Public Art Registry',
         requiresAdmin: true,
       },
     },
@@ -211,7 +211,7 @@ const router = createRouter({
       name: 'Help',
       component: HelpView,
       meta: {
-        title: 'Help - Cultural Archiver',
+        title: 'Help - Public Art Registry',
       },
     },
     {
@@ -219,7 +219,7 @@ const router = createRouter({
       name: 'Status',
       component: StatusView,
       meta: {
-        title: 'System Status - Cultural Archiver',
+        title: 'System Status - Public Art Registry',
       },
     },
     // Redirect old paths for compatibility

@@ -540,7 +540,7 @@ onUnmounted(() => {
         <div class="text-center">
           <h1 class="text-3xl font-bold theme-on-background mb-2">System Status</h1>
           <p class="text-lg theme-on-surface-variant">
-            Current status and health information for Cultural Archiver
+            Current status and health information for Public Art Registry
           </p>
         </div>
       </div>

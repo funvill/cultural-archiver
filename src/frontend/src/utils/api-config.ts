@@ -4,7 +4,7 @@
  *
  * This replaces all scattered environment variable usage and ensures:
  * - Development: /api (proxied to localhost:8787 by Vite)
- * - Production: https://art-api.abluestar.com/api
+ * - Production: https://api.publicartregistry.com/api
  *
  * Usage:
  * - Import { getApiBaseUrl, createApiUrl } from '@/utils/api-config'
@@ -16,7 +16,7 @@
  * Get the API base URL based on the current environment
  *
  * Development: /api (proxied to localhost:8787)
- * Production: https://art-api.abluestar.com/api
+ * Production: https://api.publicartregistry.com/api
  *
  * @returns The API base URL without trailing slash
  */
@@ -26,7 +26,7 @@ export function getApiBaseUrl(): string {
 
   if (isProduction) {
     // Production: Use the full API domain with /api path
-    return 'https://art-api.abluestar.com/api';
+    return 'https://api.publicartregistry.com/api';
   } else {
     // Development: Use relative path (proxied by Vite dev server)
     return '/api';
@@ -42,7 +42,7 @@ export function getApiBaseUrl(): string {
  * @example
  * createApiUrl('/auth/magic-link')
  * // Development: '/api/auth/magic-link'
- * // Production: 'https://art-api.abluestar.com/api/auth/magic-link'
+ * // Production: 'https://api.publicartregistry.com/api/auth/magic-link'
  */
 export function createApiUrl(endpoint: string): string {
   const baseUrl = getApiBaseUrl();
