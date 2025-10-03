@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // @ts-nocheck
-import { ref, computed, onErrorCaptured, onMounted, defineExpose } from 'vue';
+import { ref, computed, onErrorCaptured, onMounted } from 'vue';
 // Declare globals for environments where DOM lib typings may not be included during type analysis
 declare const window: any;
 declare const navigator: any;

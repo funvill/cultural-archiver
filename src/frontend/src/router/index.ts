@@ -26,6 +26,7 @@ const LogbookSubmissionView = (): Promise<Component> =>
 const PublicProfileView = (): Promise<Component> => import('../views/PublicProfileView.vue');
 const ListView = (): Promise<Component> => import('../views/ListView.vue');
 const TestMapView = (): Promise<Component> => import('../views/TestMapView.vue');
+const TestWebGLMapView = (): Promise<Component> => import('../views/TestWebGLMapView.vue');
 
 const router = createRouter({
   history: createWebHistory(),
@@ -213,6 +214,15 @@ const router = createRouter({
       component: TestMapView,
       meta: {
         title: 'Test Map - Cultural Archiver',
+        developmentOnly: true,
+      },
+    },
+    {
+      path: '/test-webgl',
+      name: 'TestWebGL',
+      component: TestWebGLMapView,
+      meta: {
+        title: 'WebGL Map Test - Cultural Archiver',
         developmentOnly: true,
       },
     },

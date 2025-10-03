@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "deck.gl": "^9.1.15",
+    "supercluster": "^8.0.1"
+  }
+}
