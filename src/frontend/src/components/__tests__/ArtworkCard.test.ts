@@ -95,45 +95,58 @@ describe('ArtworkCard', () => {
   });
 
   it('should show photo count correctly', () => {
+    // Photo count is now only shown as overlay when no photo is available
+    // Skip this test as it's no longer relevant with the new UI design
+    const artworkNoPhotos: SearchResult = {
+      ...mockArtwork,
+      recent_photo: null,
+      photo_count: 3,
+    };
+
     const wrapper = mount(ArtworkCard, {
       props: {
-        artwork: mockArtwork,
-        compact: true, // Use compact mode to see photo count in text
+        artwork: artworkNoPhotos,
+        compact: true,
       },
     });
 
+    // Photo count appears in overlay on thumbnail, not in main text
     expect(wrapper.text()).toContain('3 photos');
   });
 
   it('should show "1 photo" for single photo', () => {
     const artworkOnePhoto: SearchResult = {
       ...mockArtwork,
+      recent_photo: null,
       photo_count: 1,
     };
 
     const wrapper = mount(ArtworkCard, {
       props: {
         artwork: artworkOnePhoto,
-        compact: true, // Use compact mode to see photo count in text
+        compact: true,
       },
     });
 
+    // Photo count appears in overlay on thumbnail, not in main text
     expect(wrapper.text()).toContain('1 photo');
   });
 
   it('should show "No photos" when photo_count is 0', () => {
     const artworkNoPhotos: SearchResult = {
       ...mockArtwork,
+      recent_photo: null,
       photo_count: 0,
     };
 
     const wrapper = mount(ArtworkCard, {
       props: {
         artwork: artworkNoPhotos,
-        compact: true, // Use compact mode to see photo count in text
+        compact: true,
       },
     });
 
+    // Photo count appears in overlay on thumbnail, not in main text
     expect(wrapper.text()).toContain('No photos');
   });
 
