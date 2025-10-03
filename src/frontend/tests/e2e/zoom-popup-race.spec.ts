@@ -47,7 +47,6 @@ test('reproduce popup -> zoom race', async ({ page }) => {
     console.log(`[console:${msg.type()}] ${msg.text()}`);
   });
   await page.addInitScript(() => {
-    window.localStorage.setItem('map:clusterEnabled', 'false');
   });
 
   await page.goto('/');

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted } from 'vue';
-import { XMarkIcon, AdjustmentsHorizontalIcon } from '@heroicons/vue/24/outline';
+import { XMarkIcon } from '@heroicons/vue/24/outline';
 import { useMapFilters } from '../composables/useMapFilters';
 import { useAuthStore } from '../stores/auth';
 
@@ -189,41 +189,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- Display Options Section -->
-        <div>
-          <h3 class="text-base font-semibold text-gray-900 mb-4 flex items-center">
-            <AdjustmentsHorizontalIcon class="w-5 h-5 mr-2 text-gray-600" />
-            Display Options
-          </h3>
-          
-          <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
-              <label class="relative inline-flex items-center cursor-pointer" @click="mapFilters.toggleClusterEnabled()">
-              <input
-                type="checkbox"
-                :checked="mapFilters.filtersState.clusterEnabled"
-                class="sr-only"
-              />
-              <div
-                class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors border-2"
-                :class="mapFilters.filtersState.clusterEnabled ? 'bg-blue-600 border-blue-600 shadow-md' : 'bg-gray-100 border-gray-300 shadow-inner'"
-              >
-                <div
-                  class="dot absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform shadow-lg border border-gray-200"
-                  :class="mapFilters.filtersState.clusterEnabled ? 'translate-x-5 bg-white' : 'translate-x-0 bg-gray-50'"
-                ></div>
-              </div>
-            </label>
-            
-            <div class="flex-1">
-              <div class="flex items-center">
-                <span class="text-sm font-medium text-gray-900">Cluster markers</span>
-              </div>
-              <p class="text-xs mt-1 text-gray-600">
-                Group nearby markers together for cleaner map display. Useful for high-density areas.
-              </p>
-            </div>
-          </div>
-        </div>
+        <!-- Display Options removed: cluster toggle is moved to main map controls -->
 
         <!-- Artwork Type Filters Section -->
         <div>

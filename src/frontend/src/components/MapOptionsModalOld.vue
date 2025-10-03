@@ -145,34 +145,8 @@ if (props.isOpen) {
               Display Options
             </h3>
             
-            <!-- Cluster Toggle -->
-            <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
-              <label class="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  :checked="mapFilters.filtersState.clusterEnabled"
-                  @change="mapFilters.toggleClusterEnabled"
-                  class="sr-only"
-                />
-                <div
-                  class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors border-2"
-                  :class="mapFilters.filtersState.clusterEnabled ? 'bg-blue-600 border-blue-600 shadow-md' : 'bg-gray-100 border-gray-300 shadow-inner'"
-                >
-                  <div
-                    class="dot absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform shadow-lg border border-gray-200"
-                    :class="mapFilters.filtersState.clusterEnabled ? 'translate-x-5 bg-white' : 'translate-x-0 bg-gray-50'"
-                  ></div>
-                </div>
-              </label>
-              
-              <div class="flex-1">
-                <div class="flex items-center">
-                  <span class="text-sm font-medium text-gray-900">Cluster markers</span>
-                </div>
-                <p class="text-xs mt-1 text-gray-600">
-                  Group nearby markers together for cleaner map display. Useful for high-density areas.
-                </p>
-              </div>
+            <div class="p-3 bg-gray-50 rounded-lg">
+              <p class="text-sm text-gray-600">Marker clustering is handled automatically by the map (WebGL rendering).</p>
             </div>
           </div>
 

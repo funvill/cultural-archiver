@@ -207,8 +207,8 @@ const updateDisplayedArtworks = async () => {
   });
 };
 
-// Preview state
-const currentPreview = computed(() => mapPreviewStore.currentPreview);
+// Preview state (Pinia exposes reactive properties via proxy so access them directly)
+const currentPreview = computed(() => mapPreviewStore.currentPreview ? mapPreviewStore.currentPreview : null);
 const isPreviewVisible = computed(() => {
   const visible = mapPreviewStore.isVisible;
   console.log('[MAPVIEW DEBUG] Preview visibility computed:', {
@@ -227,22 +227,40 @@ const lastPreviewId = ref<string | null>(null);
 // Convert MapPreview to SearchResult for ArtworkCard
 const previewAsSearchResult = computed((): SearchResult | null => {
   if (!currentPreview.value) return null;
-  
+
+  const p = currentPreview.value;
   return {
-    id: currentPreview.value.id,
-    lat: currentPreview.value.lat,
-    lon: currentPreview.value.lon,
-    type_name: 'artwork', // Default type name
-    title: currentPreview.value.title,
-    artist_name: null,
+    id: p.id,
+    lat: p.lat,
+    lon: p.lon,
+    type_name: p.type_name || 'artwork', // Default type name
+    title: p.title,
+    artist_name: p.artistName || null,
     tags: {
-      description: currentPreview.value.description,
+      description: p.description,
     },
-    recent_photo: currentPreview.value.thumbnailUrl || null,
-    photo_count: currentPreview.value.thumbnailUrl ? 1 : 0,
+    recent_photo: p.thumbnailUrl || null,
+    photo_count: p.thumbnailUrl ? 1 : 0,
     distance_km: null,
   };
 });
+
+// Expose a small hook to allow automated tests to show a preview from the page context.
+// Intentionally attach in browser environments so tests can reliably call it.
+try {
+  if (typeof window !== 'undefined') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__ca_test_show_preview = (preview: any) => {
+      try {
+        mapPreviewStore.showPreview(preview as any);
+      } catch (e) {
+        // ignore
+      }
+    };
+  }
+} catch (e) {
+  // ignore in constrained environments
+}
 
 // Event handlers
 function handleArtworkClick(artwork: ArtworkPin) {
@@ -356,12 +374,7 @@ const handleQuickResetFilters = async () => {
   await updateDisplayedArtworks();
 };
 
-// Handle cluster setting change from filters modal
-const handleClusterChanged = (enabled: boolean) => {
-  console.log('[MAP FILTERS] Cluster setting changed:', enabled);
-  // The MapComponent will automatically pick up the change from localStorage
-  // No additional action needed here as the MapComponent watches localStorage
-};
+// Note: legacy `clusterChanged` event removed. Clustering is controlled by global mapFilters state and WebGL.
 
 function handleResetCacheTelemetry() {
   try {
@@ -406,8 +419,46 @@ function handlePreviewArtwork(preview: MapPreview) {
   }
   
   // Show the preview card
+  // Show a quick (possibly partial) preview for snappy UI
   mapPreviewStore.showPreview(preview);
-  console.log('[MAPVIEW DEBUG] Preview store updated, isVisible:', mapPreviewStore.isVisible);
+  console.log('[MAPVIEW DEBUG] Preview store updated (partial), isVisible:', mapPreviewStore.isVisible);
+
+  // Attempt to fetch full artwork details to enrich the preview (title, artist, thumbnail)
+  // This keeps the UI responsive while ensuring the preview displays full metadata when available.
+  (async () => {
+    try {
+      const details = await artworksStore.fetchArtwork(preview.id);
+      if (details) {
+        // Defensive thumbnail extraction: details.photos can be string[] or objects with a url prop
+        let thumbnail: string | undefined = undefined;
+        if (preview.thumbnailUrl) {
+          thumbnail = preview.thumbnailUrl;
+        } else if (details && (details as any).photos && Array.isArray((details as any).photos) && (details as any).photos.length) {
+          const p0 = (details as any).photos[0];
+          if (typeof p0 === 'string') thumbnail = p0;
+          else if (p0 && typeof p0 === 'object' && (p0.url || p0.thumbnail_url)) thumbnail = p0.url || p0.thumbnail_url;
+        } else if ((details as any).recent_photo && typeof (details as any).recent_photo === 'string') {
+          thumbnail = (details as any).recent_photo;
+        }
+
+        const enriched: any = {
+          id: preview.id,
+          title: (details as any).title || preview.title || 'Untitled Artwork',
+          description: preview.description || (details as any).description || (details as any).type_name || (details as any).type || 'Public artwork',
+          thumbnailUrl: thumbnail || undefined,
+          artistName: (details as any).artist_name || (details as any).artist || (details as any).created_by || preview.artistName,
+          type_name: preview.type_name || (details as any).type_name || (details as any).type || undefined,
+          lat: preview.lat ?? (details as any).latitude ?? (details as any).lat,
+          lon: preview.lon ?? (details as any).longitude ?? (details as any).lon,
+        } as MapPreview;
+
+        mapPreviewStore.updatePreview(enriched);
+        console.log('[MAPVIEW DEBUG] Preview store enriched with artwork details for id:', preview.id);
+      }
+    } catch (err) {
+      console.warn('[MAPVIEW DEBUG] Failed to fetch artwork details for preview:', err);
+    }
+  })();
 }
 
 function handleDismissPreview() {
@@ -633,9 +684,8 @@ watch(
     <MapFiltersModal
       :is-open="showFiltersModal"
       @update:is-open="handleCloseFilters"
-      @filters-changed="handleFiltersChanged"
-      @cluster-changed="handleClusterChanged"
-      @clearListCaches="() => mapComponentRef && mapComponentRef.clearListCaches && mapComponentRef.clearListCaches()"
+  @filters-changed="handleFiltersChanged"
+  @clearListCaches="() => mapComponentRef && mapComponentRef.clearListCaches && mapComponentRef.clearListCaches()"
     @resetCacheTelemetry="handleResetCacheTelemetry"
   :cache-telemetry="cacheTelemetryRef ?? { userListsHit: 0, userListsMiss: 0, listDetailsHit: 0, listDetailsMiss: 0 }"
     />

@@ -25,7 +25,6 @@ const LogbookSubmissionView = (): Promise<Component> =>
   import('../views/LogbookSubmissionView.vue');
 const PublicProfileView = (): Promise<Component> => import('../views/PublicProfileView.vue');
 const ListView = (): Promise<Component> => import('../views/ListView.vue');
-const TestMapView = (): Promise<Component> => import('../views/TestMapView.vue');
 
 const router = createRouter({
   history: createWebHistory(),
@@ -205,15 +204,6 @@ const router = createRouter({
       meta: {
         title: 'Admin Dashboard - Cultural Archiver',
         requiresAdmin: true,
-      },
-    },
-    {
-      path: '/test-map',
-      name: 'TestMap',
-      component: TestMapView,
-      meta: {
-        title: 'Test Map - Cultural Archiver',
-        developmentOnly: true,
       },
     },
     {

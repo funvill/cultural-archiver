@@ -40,7 +40,6 @@ export interface MapFiltersState {
   artworkTypes: ArtworkTypeFilter[];
   statusFilters: StatusFilter;
   userListFilters: UserListFilter[];
-  clusterEnabled: boolean;
   showOnlyMySubmissions: boolean;
   hideVisited: boolean;
   showRemoved: boolean;
@@ -98,7 +97,6 @@ let globalFiltersState = reactive<MapFiltersState>({
   artworkTypes: DEFAULT_ARTWORK_TYPES.map(type => ({ ...type })),
   statusFilters: { ...DEFAULT_STATUS_FILTERS },
   userListFilters: [],
-  clusterEnabled: true,
   showOnlyMySubmissions: false,
   hideVisited: false,
   showRemoved: false,
@@ -128,7 +126,6 @@ export interface UseMapFiltersReturn {
   toggleUserListFilter: (listId: string) => void;
   // Backwards-compatible name
   toggleUserList: (listId: string) => void;
-  toggleClusterEnabled: () => void;
   toggleShowOnlyMySubmissions: () => void;
   toggleHideVisited: () => void;
   toggleShowRemoved: () => void;
@@ -300,9 +297,7 @@ export function useMapFilters(): UseMapFiltersReturn {
           globalFiltersState.userListFilters = parsed.userListFilters;
         }
         
-        if (typeof parsed.clusterEnabled === 'boolean') {
-          globalFiltersState.clusterEnabled = parsed.clusterEnabled;
-        }
+  // legacy clusterEnabled removed
         
         if (typeof parsed.showOnlyMySubmissions === 'boolean') {
           globalFiltersState.showOnlyMySubmissions = parsed.showOnlyMySubmissions;
@@ -384,11 +379,6 @@ export function useMapFilters(): UseMapFiltersReturn {
       filter.enabled = !filter.enabled;
       saveFiltersToStorage();
     }
-  }
-
-  function toggleClusterEnabled(): void {
-    globalFiltersState.clusterEnabled = !globalFiltersState.clusterEnabled;
-    saveFiltersToStorage();
   }
 
   function toggleShowOnlyMySubmissions(): void {
@@ -664,8 +654,7 @@ export function useMapFilters(): UseMapFiltersReturn {
     setAllArtworkTypes,
     toggleStatusFilter,
     toggleUserListFilter,
-    toggleUserList,
-    toggleClusterEnabled,
+  toggleUserList,
     toggleShowOnlyMySubmissions,
     toggleHideVisited,
     toggleShowRemoved,
