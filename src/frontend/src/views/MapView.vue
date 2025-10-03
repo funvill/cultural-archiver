@@ -207,8 +207,8 @@ const updateDisplayedArtworks = async () => {
   });
 };
 
-// Preview state
-const currentPreview = computed(() => mapPreviewStore.currentPreview);
+// Preview state (Pinia exposes reactive properties via proxy so access them directly)
+const currentPreview = computed(() => mapPreviewStore.currentPreview ? mapPreviewStore.currentPreview : null);
 const isPreviewVisible = computed(() => {
   const visible = mapPreviewStore.isVisible;
   console.log('[MAPVIEW DEBUG] Preview visibility computed:', {
@@ -227,22 +227,39 @@ const lastPreviewId = ref<string | null>(null);
 // Convert MapPreview to SearchResult for ArtworkCard
 const previewAsSearchResult = computed((): SearchResult | null => {
   if (!currentPreview.value) return null;
-  
+
+  const p = currentPreview.value;
   return {
-    id: currentPreview.value.id,
-    lat: currentPreview.value.lat,
-    lon: currentPreview.value.lon,
+    id: p.id,
+    lat: p.lat,
+    lon: p.lon,
     type_name: 'artwork', // Default type name
-    title: currentPreview.value.title,
-    artist_name: null,
+    title: p.title,
+    artist_name: p.artistName || null,
     tags: {
-      description: currentPreview.value.description,
+      description: p.description,
     },
-    recent_photo: currentPreview.value.thumbnailUrl || null,
-    photo_count: currentPreview.value.thumbnailUrl ? 1 : 0,
+    recent_photo: p.thumbnailUrl || null,
+    photo_count: p.thumbnailUrl ? 1 : 0,
     distance_km: null,
   };
 });
+
+// Expose a small dev-only hook to allow automated tests to show a preview from the page context
+try {
+  if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).__ca_test_show_preview = (preview: any) => {
+      try {
+        mapPreviewStore.showPreview(preview as any);
+      } catch (e) {
+        // ignore
+      }
+    };
+  }
+} catch (e) {
+  // ignore in constrained environments
+}
 
 // Event handlers
 function handleArtworkClick(artwork: ArtworkPin) {
@@ -356,12 +373,7 @@ const handleQuickResetFilters = async () => {
   await updateDisplayedArtworks();
 };
 
-// Handle cluster setting change from filters modal
-const handleClusterChanged = (enabled: boolean) => {
-  console.log('[MAP FILTERS] Cluster setting changed:', enabled);
-  // The MapComponent will automatically pick up the change from localStorage
-  // No additional action needed here as the MapComponent watches localStorage
-};
+// Note: legacy `clusterChanged` event removed. Clustering is controlled by global mapFilters state and WebGL.
 
 function handleResetCacheTelemetry() {
   try {
@@ -633,9 +645,8 @@ watch(
     <MapFiltersModal
       :is-open="showFiltersModal"
       @update:is-open="handleCloseFilters"
-      @filters-changed="handleFiltersChanged"
-      @cluster-changed="handleClusterChanged"
-      @clearListCaches="() => mapComponentRef && mapComponentRef.clearListCaches && mapComponentRef.clearListCaches()"
+  @filters-changed="handleFiltersChanged"
+  @clearListCaches="() => mapComponentRef && mapComponentRef.clearListCaches && mapComponentRef.clearListCaches()"
     @resetCacheTelemetry="handleResetCacheTelemetry"
   :cache-telemetry="cacheTelemetryRef ?? { userListsHit: 0, userListsMiss: 0, listDetailsHit: 0, listDetailsMiss: 0 }"
     />

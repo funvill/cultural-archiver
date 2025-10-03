@@ -25,7 +25,6 @@ describe('useMapFilters', () => {
   describe('Basic Functionality', () => {
     it('should initialize with default state', () => {
       expect(mapFilters.filtersState).toBeDefined();
-      expect(mapFilters.filtersState.clusterEnabled).toBe(true);
       expect(mapFilters.filtersState.showOnlyMySubmissions).toBe(false);
     });
 
@@ -78,21 +77,14 @@ describe('useMapFilters', () => {
       expect(muralType?.enabled).toBe(false);
     });
 
-    it('should toggle clustering', () => {
-      expect(mapFilters.filtersState.clusterEnabled).toBe(true);
-      mapFilters.toggleClusterEnabled();
-      expect(mapFilters.filtersState.clusterEnabled).toBe(false);
-    });
-
     it('should reset filters', () => {
       mapFilters.toggleArtworkType('mural');
-      mapFilters.toggleClusterEnabled();
       
       mapFilters.resetFilters();
       
       const muralType = mapFilters.filtersState.artworkTypes.find(t => t.key === 'mural');
       expect(muralType?.enabled).toBe(true);
-      expect(mapFilters.filtersState.clusterEnabled).toBe(true);
+  // clusterEnabled removed; other flags should be reset instead
     });
   });
 });

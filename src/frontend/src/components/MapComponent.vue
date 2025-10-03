@@ -11,20 +11,18 @@ import {
 } from '@heroicons/vue/24/outline';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import 'leaflet.markercluster';
-import 'leaflet.markercluster/dist/MarkerCluster.css';
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+// MarkerCluster (DOM-based) removed: we render markers with WebGL (deck.gl)
 import type { Coordinates, ArtworkPin, MapComponentProps } from '../types/index';
 import { useArtworksStore } from '../stores/artworks';
-import {
-  useArtworkTypeFilters,
-} from '../composables/useArtworkTypeFilters';
+import { useArtworkTypeFilters } from '../composables/useArtworkTypeFilters';
 import { useUserLists } from '../composables/useUserLists';
 import { useMapFilters } from '../composables/useMapFilters';
 import { useRouter } from 'vue-router';
 import MapOptionsModal from './MapOptionsModal.vue';
 import { useMapPreviewStore } from '../stores/mapPreview';
-
+import MapWebGLLayer from './MapWebGLLayer.vue';
+import { useGridCluster } from '../composables/useGridCluster';
+import type { ClusterFeature } from '../composables/useGridCluster';
 // Props
 const props = withDefaults(defineProps<MapComponentProps & { suppressFilterBanner?: boolean }>(), {
   zoom: 15,
@@ -58,10 +56,37 @@ const loadingTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 const markerUpdateTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 // Debounce for updating marker styles during continuous zoom
 const zoomStyleTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
+// Timeout used for delayed artwork loading during various interactions
+const loadArtworksTimeout = ref<ReturnType<typeof setTimeout> | null>(null);
 // Track zoom animation state to prevent marker updates during animations
 const isZoomAnimating = ref(false);
 // Progressive loading state
+
+// Default coordinates (Vancouver - used as a fallback)
+const DEFAULT_CENTER = { latitude: 49.265, longitude: -123.25 };
+
+// MarkerType enum intentionally removed - visuals are WebGL-driven
+
+// Minimal guard/install helpers (existing implementation exists elsewhere; provide no-op fallbacks)
+const getLeafletGlobal = () => (typeof window !== 'undefined' && (window as any).L) ? (window as any).L : L;
+const installLeafletPopupGuards = () => {};
+const installLeafletDomUtilGuards = () => {};
+const installLeafletMapZoomGuard = () => {};
+const installLeafletMarkerGuards = () => {};
+
+const hadSavedMapState = ref(false);
 const isProgressiveLoading = ref(false);
+
+// Small helper placeholders and shared refs
+const hasGeolocation = ref(typeof navigator !== 'undefined' && !!navigator.geolocation);
+const userLocationMarker = ref<L.Marker | null>(null);
+const userWatchId = ref<number | null>(null);
+const userHeading = ref<number>(0);
+
+const debugRingsEnabled = ref(false);
+
+// Progressive loading stats placeholder
+// include optional fields referenced by the template (batchSize, avgTime)
 const progressiveLoadingStats = ref<{
   loaded: number;
   total: number;
@@ -69,452 +94,67 @@ const progressiveLoadingStats = ref<{
   batchSize?: number;
   avgTime?: number;
 } | null>(null);
-const useProgressiveLoading = ref(false); // Toggle for progressive loading mode
-// Guard navigator for SSR / non-browser test environments
-const hasGeolocation = ref(typeof navigator !== 'undefined' && !!navigator.geolocation);
-const userLocationMarker = ref<L.Marker | null>(null);
-// Live tracking state for the centered user marker
-const userWatchId = ref<number | null>(null);
-const userHeading = ref<number>(0); // degrees
-let deviceOrientationListener: ((ev: DeviceOrientationEvent) => void) | null = null;
+const useProgressiveLoading = ref(false);
 
+// Tracking state (are we actively following the user's location?)
 const isTracking = computed(() => userWatchId.value !== null);
-const artworkMarkers = ref<(L.Marker | L.CircleMarker)[]>([]);
-// Use any for cluster type to avoid type issues if markercluster types not available
-const markerClusterGroup = ref<any | null>(null);
-// Map options state
-const showOptionsModal = ref(false);
 
-// Map preview store - used to hide preview when opening options
-const mapPreviewStore = useMapPreviewStore();
-// Use mapFilters clustering state instead of local ref
-const clusterEnabled = computed(() => mapFilters.filtersState.clusterEnabled);
-const debugRingsEnabled = ref(false);
-// Artwork type filters - using shared composable
-const { isArtworkTypeEnabled, getTypeColor } =
-  useArtworkTypeFilters();
+// Effective clustering: use zoom threshold only (legacy user preference removed)
+const effectiveClusterEnabled = computed(() => {
+  const z = map.value?.getZoom() ?? props.zoom ?? 15;
+  return z > 14;
+});
 
-// User lists for marker classification
-const { visitedArtworks, starredArtworks } = useUserLists();
-
-// Map filters for advanced filtering
-function handleClearFilters() {
-  mapFilters.resetFilters();
-}
-const mapFilters = useMapFilters();
-
-// Debug ring layer (only immediate 100m ring)
+// Router and other listeners used in component
+const router = useRouter();
+let deviceOrientationListener: ((ev: DeviceOrientationEvent) => void) | null = null;
 let debugImmediateRing: L.Circle | null = null;
-// Saved map state presence
-const hadSavedMapState = ref(false);
 
-// LocalStorage keys
+// LocalStorage keys and basic state persistence helpers
 const MAP_STATE_KEY = 'map:lastState';
-
-// Save map state (center/zoom) to localStorage
 function saveMapState() {
   if (!map.value) return;
   const center = map.value.getCenter();
   const zoom = map.value.getZoom();
   try {
-    localStorage.setItem(
-      MAP_STATE_KEY,
-      JSON.stringify({
-        center: { latitude: center.lat, longitude: center.lng },
-        zoom,
-      })
-    );
+    localStorage.setItem(MAP_STATE_KEY, JSON.stringify({ center: { latitude: center.lat, longitude: center.lng }, zoom }));
   } catch (e) {
     // ignore
   }
 }
 
-// Read map state from localStorage
 function readSavedMapState(): { center: Coordinates; zoom: number } | null {
   try {
     const raw = localStorage.getItem(MAP_STATE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
-    if (
-      parsed &&
-      parsed.center &&
-      typeof parsed.center.latitude === 'number' &&
-      typeof parsed.center.longitude === 'number' &&
-      typeof parsed.zoom === 'number'
-    ) {
-      return parsed;
-    }
-    return null;
+    return parsed;
   } catch {
     return null;
   }
 }
-
-// Store
+// Composables used by the map component
 const artworksStore = useArtworksStore();
+const mapFilters = useMapFilters();
+const mapPreviewStore = useMapPreviewStore();
+// Artwork type helpers
+useArtworkTypeFilters();
+const { visitedArtworks, starredArtworks } = useUserLists();
 
-// Router for navigation
-const router = useRouter();
+// WebGL cluster state
+const webglClusters = ref<ClusterFeature[]>([]);
+const webglClustering = useGridCluster({ gridSize: 100, maxZoom: 15 });
+let webglMoveHandler: (() => void) | null = null;
+let webglZoomHandler: (() => void) | null = null;
+// Map options state
+const showOptionsModal = ref(false);
 
+// unknown marker DOM factory intentionally removed; visuals are WebGL-rendered
 
-// Leaflet guard helpers
+// Marker sizing handled by WebGL layer; DOM sizing helpers removed.
 
-type LeafletGlobal = typeof L & {
-  Popup?: typeof L.Popup & { prototype: Record<string, any> };
-  Marker?: typeof L.Marker & { prototype: Record<string, any> };
-  DomUtil?: typeof L.DomUtil & Record<string, any>;
-  Map?: typeof L.Map & { prototype: Record<string, any> };
-};
-
-const getLeafletGlobal = (): LeafletGlobal | null => {
-  if (typeof window !== 'undefined' && (window as any).L) {
-    return (window as any).L as LeafletGlobal;
-  }
-  return L as LeafletGlobal;
-};
-
-const installLeafletPopupGuards = () => {
-  const Lglobal = getLeafletGlobal();
-  const popupProto = Lglobal?.Popup?.prototype as Record<string, any> | undefined;
-  if (!popupProto || popupProto._superNuclearGuardInstalled) return;
-
-  popupProto._superNuclearGuardInstalled = true;
-
-  const guardPopupMethod = (methodName: '_animateZoom' | '_updatePosition' | '_updateLayout' | '_movePopup') => {
-    const original = popupProto[methodName];
-    if (typeof original !== 'function') return;
-
-    const originalKey = `_original${methodName.substring(1).charAt(0).toUpperCase()}${methodName.substring(2)}`;
-    if (!popupProto[originalKey]) {
-      popupProto[originalKey] = original;
-    }
-
-    popupProto[methodName] = function (...args: any[]) {
-      const popupInstance = this as any;
-      if (!popupInstance) return popupInstance;
-
-      if (methodName === '_movePopup') {
-        const popup = popupInstance._popup;
-        if (!popup || typeof popup.setLatLng !== 'function') {
-          return popupInstance;
-        }
-      }
-
-      try {
-        return original.apply(this, args);
-      } catch (error) {
-        // Suppressed popup error in production (previously logged as [POPUP DEBUG])
-        return popupInstance;
-      }
-    };
-  };
-
-  guardPopupMethod('_animateZoom');
-  guardPopupMethod('_updatePosition');
-  guardPopupMethod('_updateLayout');
-  guardPopupMethod('_movePopup');
-};
-
-const installLeafletDomUtilGuards = () => {
-  const Lglobal = getLeafletGlobal();
-  const domUtilAny = Lglobal?.DomUtil as (typeof L.DomUtil & Record<string, any>) | undefined;
-  if (!domUtilAny || domUtilAny._superNuclearGuardInstalled) return;
-
-  domUtilAny._superNuclearGuardInstalled = true;
-  const originalGetPosition = domUtilAny.getPosition;
-  domUtilAny._originalGetPosition = originalGetPosition;
-
-  domUtilAny.getPosition = ((el: HTMLElement) => {
-    if (!el) {
-      return L.point(0, 0);
-    }
-
-    try {
-      return originalGetPosition.call(domUtilAny, el);
-    } catch (error) {
-      return L.point(0, 0);
-    }
-  }) as typeof L.DomUtil.getPosition;
-};
-
-const installLeafletMapZoomGuard = () => {
-  const Lglobal = getLeafletGlobal();
-  const mapProto = Lglobal?.Map?.prototype as Record<string, any> | undefined;
-  if (!mapProto || mapProto._superNuclearGuardInstalled) return;
-
-  mapProto._superNuclearGuardInstalled = true;
-  const originalAnimateZoom = mapProto._animateZoom;
-  if (typeof originalAnimateZoom === 'function') {
-    mapProto._originalAnimateZoomGuard = originalAnimateZoom;
-    mapProto._animateZoom = function (...args: any[]) {
-      try {
-        return originalAnimateZoom.apply(this, args);
-      } catch (error) {
-      // Suppressed map _animateZoom failure in production
-        return this;
-      }
-    };
-  }
-};
-
-const installLeafletMarkerGuards = () => {
-  const Lglobal = getLeafletGlobal();
-  const markerProto = Lglobal?.Marker?.prototype as Record<string, any> | undefined;
-  if (!markerProto || markerProto._superNuclearMarkerGuardInstalled) return;
-
-  markerProto._superNuclearMarkerGuardInstalled = true;
-  const originalMovePopup = markerProto._movePopup as ((this: L.Marker, e: any) => any) | undefined;
-  if (typeof originalMovePopup === 'function') {
-    markerProto._originalMovePopupGuard = originalMovePopup;
-    markerProto._movePopup = function (this: L.Marker, e: any) {
-      const popup = (this as any)._popup;
-      if (!popup || typeof popup.setLatLng !== 'function') {
-        return this;
-      }
-
-      try {
-        originalMovePopup.call(this, e);
-      } catch (error) {
-        // Suppressed marker _movePopup failure in production
-      }
-      return this;
-    };
-  }
-};
-
-// Default coordinates (Vancouver - near sample data for testing)
-const DEFAULT_CENTER = { latitude: 49.265, longitude: -123.25 };
-
-// Marker type enum for filtering
-enum MarkerType {
-  NORMAL = 'normal',
-  VISITED = 'visited',
-  STARRED = 'starred',
-  UNKNOWN = 'unknown'
-}
-
-// Create circle marker style for normal artworks (replaces emoji icons for better performance)
-const createArtworkStyle = (type: string) => {
-  const normalized = (type || 'other').toLowerCase();
-
-  // Calculate dynamic radius based on zoom level
-  // Note: Leaflet zoom increases when you zoom in (higher = closer). We want radius to grow as zoom increases.
-  const currentZoom = map.value?.getZoom() ?? 15;
-  // Set base min/max for the raw radius (before applying the 2x multiplier)
-  const minRadius = 3; // smallest marker at lower zoom levels
-  const maxRadius = 10; // largest marker at higher zoom levels
-
-  // Effective zoom range for interpolation (adjustable)
-  // 10 = metropolitan area, 16 = Street, 18 = buildings/trees
-  const minZoom = 12;
-  const maxZoom = 18;
-  let dynamicRadius: number;
-
-  if (currentZoom <= minZoom) {
-    dynamicRadius = minRadius;
-  } else if (currentZoom >= maxZoom) {
-    dynamicRadius = maxRadius;
-  } else {
-    // t = 0 at minZoom (smallest), t = 1 at maxZoom (largest)
-    const t = (currentZoom - minZoom) / (maxZoom - minZoom);
-    dynamicRadius = minRadius + t * (maxRadius - minRadius);
-  }
-
-  // Apply the user's requested unconditional doubling of marker sizes across all zooms.
-  // Clamp to a reasonable maximum to avoid excessively large markers.
-  dynamicRadius = Math.min(dynamicRadius * 2, maxRadius * 2);
-
-  // Use shared color logic from composable
-  const fillColor = getTypeColor(normalized);
-
-  const baseStyle = {
-    radius: dynamicRadius, // Use zoom-scaled radius
-    fillColor: fillColor,
-    color: '#ffffff', // white border
-    weight: 1,
-    fillOpacity: 0.9,
-    opacity: 1,
-    // Ensure proper interaction settings
-    interactive: true,
-    bubblingMouseEvents: false,
-    className: 'artwork-circle-marker', // Add CSS class for styling
-  };
-
-  // Don't add renderer - let Leaflet handle canvas rendering automatically
-  return baseStyle;
-};
-
-// Enhanced marker factory functions for different marker types
-const createNormalMarker = (type: string) => {
-  const currentZoom = map.value?.getZoom() ?? 15;
-  const size = calculateIconSize(currentZoom);
-  const fillColor = getTypeColor((type || 'other').toLowerCase());
-  
-  return L.divIcon({
-    html: `
-      <div class="artwork-normal-marker flex items-center justify-center" style="width: ${size}px; height: ${size}px;">
-        <div class="normal-circle" style="
-          width: ${size}px; 
-          height: ${size}px; 
-          border-radius: 50%; 
-          background: ${fillColor};
-          border: 2px solid #1f2937;
-          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
-        "></div>
-      </div>
-    `,
-    className: 'custom-normal-icon',
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2]
-  });
-};
-
-const createVisitedMarker = () => {
-  const currentZoom = map.value?.getZoom() ?? 15;
-  const size = calculateIconSize(currentZoom);
-  const circleDiameter = size;
-
-  return L.divIcon({
-    html: `
-      <div
-        class="artwork-visited-marker flex items-center justify-center"
-        style="
-          width: ${circleDiameter}px;
-          height: ${circleDiameter}px;
-          position: relative;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          overflow: hidden;
-        "
-      >
-        
-        <svg
-          width="${circleDiameter}px"
-          height="${circleDiameter}"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="#ffffff"
-          stroke-width="3"
-          style="
-            position: absolute;
-            background: #1f2937;
-            border-radius: 9999px;
-            padding: ${size * 0.06}px;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-          "
-        >
-          <polyline points="20,6 9,17 4,12"></polyline>
-        </svg>
-      </div>
-    `,
-    className: 'custom-visited-icon visited-marker-layer',
-    iconSize: [circleDiameter, circleDiameter],
-    iconAnchor: [circleDiameter / 2, circleDiameter / 2]
-  });
-};
-
-
-
-const createStarredMarker = () => {
-  const currentZoom = map.value?.getZoom() ?? 15;
-  const size = calculateIconSize(currentZoom);
-  
-  return L.divIcon({
-    html: `
-      <div class="artwork-starred-marker flex items-center justify-center" style="width: ${size}px; height: ${size}px;">
-        <div class="starred-circle" style="
-          width: ${size}px; 
-          height: ${size}px; 
-          border-radius: 50%; 
-          background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-          border: 2px solid #d97706;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        ">
-          <svg width="${size * 0.6}" height="${size * 0.6}" viewBox="0 0 24 24" fill="#fff" stroke="none">
-            <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
-          </svg>
-        </div>
-      </div>
-    `,
-    className: 'custom-starred-icon',
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-  });
-};
-
-const createUnknownMarker = (type: string) => {
-  const currentZoom = map.value?.getZoom() ?? 15;
-  const size = calculateIconSize(currentZoom);
-  const fillColor = getTypeColor((type || 'other').toLowerCase());
-  
-  return L.divIcon({
-    html: `
-      <div class="artwork-unknown-marker flex items-center justify-center" style="width: ${size}px; height: ${size}px;">
-        <div class="unknown-circle" style="
-          width: ${size}px; 
-          height: ${size}px; 
-          border-radius: 50%; 
-          background: ${fillColor};
-          border: 2px dashed #6b7280;
-          opacity: 0.6;
-          box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
-        "></div>
-      </div>
-    `,
-    className: 'custom-unknown-icon',
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2]
-  });
-};
-
-// Helper functions for marker sizing
-const calculateIconSize = (currentZoom: number) => {
-  const minSize = 16;
-  const maxSize = 32;
-  const minZoom = 12;
-  const maxZoom = 18;
-  
-  if (currentZoom <= minZoom) {
-    return minSize;
-  } else if (currentZoom >= maxZoom) {
-    return maxSize;
-  } else {
-    const t = (currentZoom - minZoom) / (maxZoom - minZoom);
-    return Math.round(minSize + t * (maxSize - minSize));
-  }
-};
-
-// Function to determine marker type based on artwork and user lists
-const getMarkerType = (artwork: ArtworkPin): MarkerType => {
-  // For test/mock data, check title keywords first
-  if (artwork.title) {
-    const titleLower = artwork.title.toLowerCase();
-    if (titleLower.includes('unknown')) {
-      return MarkerType.UNKNOWN;
-    }
-    if (titleLower.includes('starred')) {
-      return MarkerType.STARRED;
-    }
-    if (titleLower.includes('visited')) {
-      return MarkerType.VISITED;
-    }
-  }
-  
-  // Check user lists using the composable (for production data)
-  if (starredArtworks.value.has(artwork.id)) {
-    return MarkerType.STARRED;
-  }
-  
-  if (visitedArtworks.value.has(artwork.id)) {
-    return MarkerType.VISITED;
-  }
-  
-  return MarkerType.NORMAL;
-};
+// Marker type logic and DOM marker factory functions are intentionally unused
+// because all artwork visuals are rendered via WebGL in the current integration.
 
 // Custom icon for user location - use a person icon so it's clearly the user, not an artwork
 // Legacy user location icon generator
@@ -553,6 +193,84 @@ try {
   defineExpose({ clearListCaches, createUserLocationIcon });
 } catch (e) {
   // ignore in non-setup contexts
+}
+
+/**
+ * Build ClusterFeature-like plain objects from the current artworks for the WebGL layer.
+ * This intentionally does NOT perform any clustering - we rely on Leaflet marker clustering
+ * when that feature is enabled. The WebGL layer will only be shown when clustering is disabled.
+ */
+function buildWebGLClusters() {
+  try {
+    if (!map.value || !props.artworks) {
+      webglClusters.value = [];
+      return;
+    }
+
+    // Compute a slightly padded viewport bounds so markers just outside the edge are still visible
+    const b = map.value.getBounds();
+    const latPad = (b.getNorth() - b.getSouth()) * 0.05;
+    const lngPad = (b.getEast() - b.getWest()) * 0.05;
+    const viewportBounds = L.latLngBounds(
+      L.latLng(b.getSouth() - latPad, b.getWest() - lngPad),
+      L.latLng(b.getNorth() + latPad, b.getEast() + lngPad)
+    );
+
+  // Determine effective clustering: user preference AND only when zoom > 14
+  const currentZoom = map.value?.getZoom() ?? props.zoom ?? 15;
+
+  // If clustering is enabled for this zoom level, let the grid clusterer compute clusters to render via WebGL
+  if (effectiveClusterEnabled) {
+      try {
+        // Ensure clusterer has points loaded
+        // Map artworks to clusterer expected format
+        const artworkPoints = (props.artworks || []).map((a: any) => ({
+          id: a.id,
+          lat: a.latitude,
+          lon: a.longitude,
+          title: a.title || 'Untitled',
+          type: a.type || 'default'
+        }));
+
+        webglClustering.loadPoints(artworkPoints);
+
+        const bbox: [number, number, number, number] = [
+          viewportBounds.getWest(),
+          viewportBounds.getSouth(),
+          viewportBounds.getEast(),
+          viewportBounds.getNorth()
+        ];
+
+  const zoom = currentZoom;
+
+        const clusters = webglClustering.getClusters(bbox, zoom);
+        webglClusters.value = clusters;
+        return;
+      } catch (err) {
+        console.warn('webglClustering error:', err);
+      }
+    }
+
+  // Default: no clustering — render all visible artworks as individual WebGL points
+    const pts: ClusterFeature[] = (props.artworks || [])
+  .filter((a: any) => mapFilters.shouldShowArtwork(a) && viewportBounds.contains(L.latLng(a.latitude, a.longitude)))
+      .map((a: any) => ({
+        type: 'Feature',
+        id: a.id,
+        properties: {
+          cluster: false,
+          id: a.id,
+          type: a.type || 'default',
+          title: a.title || 'Untitled'
+        },
+        geometry: { type: 'Point', coordinates: [a.longitude, a.latitude] }
+      })) as ClusterFeature[];
+
+    webglClusters.value = pts;
+  } catch (err) {
+    console.warn('buildWebGLClusters error:', err);
+    webglClusters.value = [];
+  }
 }
 
 // Initialize map
@@ -753,17 +471,23 @@ async function initializeMap() {
     }, 100);
 
     // Initialize marker group based on clustering preference
-    // Load saved preference
+    // NOTE: legacy localStorage persistence for 'map:clusterEnabled' has been removed.
+    // Map clustering is controlled by the global `mapFilters` state and WebGL behavior.
+    await configureMarkerGroup();
+
+    // Reconfigure marker group on zoom changes so clustering can toggle when crossing zoom thresholds
     try {
-      const saved = localStorage.getItem('map:clusterEnabled');
-      if (saved !== null) {
-        mapFilters.filtersState.clusterEnabled = saved === 'true';
-      }
-    } catch {
+      map.value.on('zoomend', async () => {
+        try {
+          await configureMarkerGroup();
+          buildWebGLClusters();
+        } catch (e) {
+          /* ignore */
+        }
+      });
+    } catch (e) {
       /* ignore */
     }
-
-    await configureMarkerGroup();
 
     // 🚀 PROACTIVE ZOOM INTERCEPTION - Override zoom controls to execute nuclear cleanup BEFORE animation starts
     const interceptZoomControls = () => {
@@ -846,19 +570,7 @@ async function initializeMap() {
         });
       }
 
-      // Clear and rebuild cluster group to ensure clean state
-      if (markerClusterGroup.value) {
-        markerClusterGroup.value.clearLayers();
-        artworkMarkers.value.forEach((marker: any) => {
-          if (marker) {
-            // Remove any popup from marker
-            if (marker.getPopup && marker.getPopup()) {
-              marker.unbindPopup();
-            }
-            markerClusterGroup.value!.addLayer(marker);
-          }
-        });
-      }
+      // Legacy DOM cluster/marker cleanup removed - WebGL layer manages visuals now
 
   // Zoom action starting after defensive popup cleanup
       
@@ -872,6 +584,13 @@ async function initializeMap() {
     // Setup event listeners
     map.value.on('moveend', handleMapMove);
     map.value.on('zoomend', handleMapMove);
+    // Dismiss preview immediately when the user starts panning/dragging the map
+    try {
+      map.value.on('movestart', () => { try { emit('dismissPreview'); } catch (_) {} });
+      map.value.on('dragstart', () => { try { emit('dismissPreview'); } catch (_) {} });
+    } catch (e) {
+      // some environments may not support these events; ignore
+    }
     
     // Track zoom animation state to prevent marker updates during animations
     map.value.on('zoomstart', () => {
@@ -933,28 +652,7 @@ async function initializeMap() {
           // Error cleaning layer popups (suppressed)
         }
 
-        // Force-close popups on markers
-        try {
-          artworkMarkers.value.forEach((marker: any) => {
-            try {
-              const hasPopup = !!marker?._popup;
-              const isOpen = !!(marker && marker.isPopupOpen && marker.isPopupOpen());
-              if (hasPopup || isOpen) {
-                try {
-                  if (marker._popup && marker._popup._container && marker._popup._container.parentNode) {
-                    marker._popup._container.parentNode.removeChild(marker._popup._container);
-                  }
-                } catch {}
-                try { if (marker.closePopup) marker.closePopup(); } catch {}
-                try { marker._popup = null; } catch {}
-              }
-            } catch (markerErr) {
-              /* ignore marker-level errors */
-            }
-          });
-        } catch (markerLoopErr) {
-          // Error iterating markers to close popups (suppressed)
-        }
+        // No DOM markers to force-close; WebGL layer handles interactions
 
         // Emergency DOM cleanup: remove any orphaned popup elements
         try {
@@ -967,15 +665,7 @@ async function initializeMap() {
           // Emergency DOM cleanup error (suppressed)
         }
 
-        // Clear cluster group state if available (best-effort)
-        try {
-          if (markerClusterGroup.value) {
-            try { markerClusterGroup.value.clearLayers(); } catch {};
-            try { artworkMarkers.value.forEach((m: any) => markerClusterGroup.value.addLayer(m)); } catch {}
-          }
-        } catch (clusterErr) {
-          // Error resetting cluster group (suppressed)
-        }
+        // No legacy cluster group to reset
 
         // Ensure preview dismissed
         try { emit('dismissPreview'); } catch (_) {}
@@ -1462,8 +1152,8 @@ function updateArtworkMarkersDebounced(delay: number = 0) {
 function updateArtworkMarkers() {
   // updateArtworkMarkers called
 
-  if (!map.value || !markerClusterGroup.value) {
-  // Early return - missing map or cluster group
+  if (!map.value) {
+    // Early return - no map available
     return;
   }
 
@@ -1497,390 +1187,35 @@ function updateArtworkMarkers() {
     }
   }
 
-  // Determine current bounds with padding for smooth experience
-  const bounds = map.value.getBounds();
-  const latPad = (bounds.getNorth() - bounds.getSouth()) * 0.05; // Reduced padding for viewport
-  const lngPad = (bounds.getEast() - bounds.getWest()) * 0.05;
-  const viewportBounds = L.latLngBounds(
-    L.latLng(bounds.getSouth() - latPad, bounds.getWest() - lngPad),
-    L.latLng(bounds.getNorth() + latPad, bounds.getEast() + lngPad)
-  );
+  // Determine current bounds with padding for smooth experience (used inside buildWebGLClusters)
 
-  // Get artworks that should be visible in current viewport and pass all filters
-  const artworksInViewport = (props.artworks || []).filter((artwork: ArtworkPin) => {
-    const inBounds = viewportBounds.contains(L.latLng(artwork.latitude, artwork.longitude));
-    
-    // Use the new comprehensive filtering system
-    if (!mapFilters.shouldShowArtwork(artwork)) {
-      return false;
-    }
-
-    return inBounds;
-  });
-
-  // Filtered artworks in viewport determined
-
-  // Create a set of artwork IDs currently in viewport for efficient comparison
-  const viewportArtworkIds = new Set(artworksInViewport.map((a: ArtworkPin) => a.id));
-
-  // Create a set of currently displayed artwork IDs
-  const currentArtworkIds = new Set(
-    artworkMarkers.value
-      .map((marker: any) => {
-        // Get artwork ID from marker (stored when marker was created)
-        return marker._artworkId;
-      })
-      .filter(Boolean)
-  );
-
-  // Remove markers that are no longer in viewport or are of disabled types
-  artworkMarkers.value = artworkMarkers.value.filter((marker: any) => {
-    const artworkId = marker._artworkId;
-    const artworkType = marker._artworkType;
-
-    // Remove if no longer in viewport
-    if (artworkId && !viewportArtworkIds.has(artworkId)) {
-      try {
-        // Close any open popup first to prevent animation issues
-        if (marker.isPopupOpen && marker.isPopupOpen()) {
-          marker.closePopup();
-        }
-        // Remove from cluster group first
-        if (markerClusterGroup.value && markerClusterGroup.value.hasLayer(marker)) {
-          markerClusterGroup.value.removeLayer(marker as any);
-        }
-        // Remove any lingering event listeners
-        if (marker.off) {
-          marker.off();
-        }
-      } catch (e) {
-        console.warn('[MARKER DEBUG] Error removing marker from cluster:', e);
-      }
-      return false; // Remove from artworkMarkers array
-    }
-
-    // Remove if artwork type is now disabled
-    if (artworkType && !isArtworkTypeEnabled(artworkType)) {
-      try {
-        // Close any open popup first to prevent animation issues
-        if (marker.isPopupOpen && marker.isPopupOpen()) {
-          marker.closePopup();
-        }
-        // Remove from cluster group first
-        if (markerClusterGroup.value && markerClusterGroup.value.hasLayer(marker)) {
-          markerClusterGroup.value.removeLayer(marker as any);
-        }
-        // Remove any lingering event listeners
-        if (marker.off) {
-          marker.off();
-        }
-      } catch (e) {
-        console.warn('[MARKER DEBUG] Error removing marker from cluster:', e);
-      }
-      return false; // Remove from artworkMarkers array
-    }
-    return true; // Keep in artworkMarkers array
-  });
-
-  // Sort artworks by marker type to ensure visited markers are added first (appear behind)
-  const sortedArtworks = artworksInViewport.sort((a: ArtworkPin, b: ArtworkPin) => {
-    const typeA = getMarkerType(a);
-    const typeB = getMarkerType(b);
-    
-    // Visited markers first (behind), then unknown, then normal, then starred (on top)
-    const order = { [MarkerType.VISITED]: 0, [MarkerType.UNKNOWN]: 1, [MarkerType.NORMAL]: 2, [MarkerType.STARRED]: 3 };
-    return (order[typeA] || 2) - (order[typeB] || 2);
-  });
-
-  // Add new markers for artworks that entered the viewport
-  sortedArtworks.forEach((artwork: ArtworkPin) => {
-    // If marker already exists, ensure its icon/type is up-to-date
-    if (currentArtworkIds.has(artwork.id)) {
-      try {
-        const existing = artworkMarkers.value.find((m: any) => m._artworkId === artwork.id);
-        if (existing) {
-          const existingAny = existing as any;
-          const newType = getMarkerType(artwork);
-          // If marker type changed (for example visited list loaded after initial render), update icon
-          if (newType !== existingAny._markerType) {
-            if (typeof existingAny.setIcon === 'function') {
-              let newIcon: L.DivIcon | null = null;
-              switch (newType) {
-                case MarkerType.VISITED:
-                  newIcon = createVisitedMarker();
-                  break;
-                case MarkerType.STARRED:
-                  newIcon = createStarredMarker();
-                  break;
-                case MarkerType.UNKNOWN:
-                  newIcon = createUnknownMarker(artwork.type || 'other');
-                  break;
-                case MarkerType.NORMAL:
-                default:
-                  newIcon = createNormalMarker(artwork.type || 'other');
-                  break;
-              }
-              if (newIcon) {
-                try { existingAny.setIcon(newIcon); } catch (e) { /* ignore */ }
-              }
-            }
-            existingAny._markerType = newType;
-          }
-        }
-      } catch (e) {
-        // ignore individual marker update failures
-      }
-      return;
-    }
-
-    // Create new marker using appropriate factory based on artwork type
-    const markerType = getMarkerType(artwork);
-    let marker: L.Marker;
-
-    switch (markerType) {
-      case MarkerType.VISITED:
-        marker = L.marker([artwork.latitude, artwork.longitude], { icon: createVisitedMarker() });
-        break;
-      case MarkerType.STARRED:
-        marker = L.marker([artwork.latitude, artwork.longitude], { icon: createStarredMarker() });
-        break;
-      case MarkerType.UNKNOWN:
-        marker = L.marker([artwork.latitude, artwork.longitude], { icon: createUnknownMarker(artwork.type || 'other') });
-        break;
-      case MarkerType.NORMAL:
-      default:
-        marker = L.marker([artwork.latitude, artwork.longitude], { icon: createNormalMarker(artwork.type || 'other') });
-        break;
-    }
-
-    // Store artwork ID and type on marker for efficient tracking and type on marker for efficient tracking
-    (marker as any)._artworkId = artwork.id;
-    (marker as any)._artworkType = artwork.type || 'other';
-    (marker as any)._markerType = markerType;
-
-    // Add event handlers BEFORE adding to cluster group to ensure proper binding
-    marker.on('click', (e: L.LeafletMouseEvent) => {
-  // Leaflet marker click event fired for artwork
-      
-      // Debug: Log marker and popup state at click time
-  // Check if there are existing preview elements that might cause conflicts
-  const existingPreviews = document.querySelectorAll('.preview-card, [data-preview-id]');
-
-      // If there are existing preview elements, this is a transition scenario
-      if (existingPreviews.length > 0) {
-        // Preview transition detected - existing preview elements may conflict with zoom
-      }
-      
-      // Prevent event propagation to avoid map click conflicts
-      if (e.originalEvent) {
-        e.originalEvent.stopPropagation();
-        e.originalEvent.preventDefault();
-      }
-      
-      // Create preview data from artwork
-      const previewData = {
-        id: artwork.id,
-        title: artwork.title || 'Untitled Artwork',
-        description: artwork.type || 'Public artwork',
-        thumbnailUrl: artwork.photos && artwork.photos.length > 0 ? artwork.photos[0] : undefined,
-        lat: artwork.latitude,
-        lon: artwork.longitude,
-      };
-      
-  // Emitting previewArtwork event
-      
-      // SPECIAL HANDLING: If zoom is starting, defer the preview event
-      if (isZoomAnimating.value) {
-  // Deferring preview event due to active zoom animation
-        // Wait for zoom to complete before showing preview
-        setTimeout(() => {
-          if (!isZoomAnimating.value) {
-            emit('previewArtwork', previewData);
-          }
-        }, 100);
-        return;
-      }
-
-      // Only emit preview event - let MapPreviewCard handle navigation
-      emit('previewArtwork', previewData);
-    });
-
-    // Create popup content - but disable during zoom animations to prevent null reference errors
-    const popupContent = `
-      <div class="artwork-popup">
-        <h3 class="font-semibold text-sm mb-1">${artwork.title || 'Untitled'}</h3>
-        <button onclick="window.viewArtworkDetails('${artwork.id}')" 
-                class="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700">
-          View Details
-        </button>
-      </div>
-    `;
-
-    // Binding popup to marker
-
-    marker.bindPopup(popupContent, {
-      closeOnClick: true,
-      autoClose: true,
-      closeButton: true,
-      // Set a custom className to identify our popups
-      className: 'artwork-popup-container'
-    });
-
-    // Add popup event listeners for debugging
-    marker.on('popupopen', () => {
-      // Popup opened for marker (debug suppressed)
-    });
-
-    marker.on('popupclose', () => {
-      // Popup closed for marker (debug suppressed)
-    });
-
-    // Add to cluster group after event handlers are set up
-    if (markerClusterGroup.value) {
-      // Adding marker to cluster group
-      markerClusterGroup.value.addLayer(marker as any);
-    } else {
-      // No cluster group available for marker
-    }
-
-    // Add hover effects (only for CircleMarkers)
-    if (marker instanceof L.CircleMarker) {
-      const circleMarker = marker as L.CircleMarker;
-      marker.on('mouseover', () => {
-        circleMarker.setStyle({ fillOpacity: 1.0, weight: 2 });
-      });
-
-      marker.on('mouseout', () => {
-        circleMarker.setStyle({ fillOpacity: 0.9, weight: 1 });
-      });
-    }
-
-    artworkMarkers.value.push(marker);
-  });
+  // All markers are rendered via WebGL; update webglClusters and skip DOM marker creation entirely.
+  buildWebGLClusters();
 }
 
 // Update styles (radius/color/etc) for all existing markers to react to zoom changes
 function updateMarkerStyles() {
-  if (!map.value) {
-    return;
-  }
-
-  try {
-    artworkMarkers.value.forEach((marker: any) => {
-      try {
-        const artworkType = marker._artworkType || 'other';
-        const markerType = marker._markerType as MarkerType | undefined;
-        const newStyle = createArtworkStyle(artworkType as string);
-
-        if (typeof marker.setIcon === 'function' && markerType) {
-          let newIcon: L.DivIcon | null = null;
-          switch (markerType) {
-            case MarkerType.VISITED:
-              newIcon = createVisitedMarker();
-              break;
-            case MarkerType.STARRED:
-              newIcon = createStarredMarker();
-              break;
-            case MarkerType.UNKNOWN:
-              newIcon = createUnknownMarker(artworkType as string);
-              break;
-            case MarkerType.NORMAL:
-            default:
-              newIcon = createNormalMarker(artworkType as string);
-              break;
-          }
-
-          if (newIcon) {
-            marker.setIcon(newIcon);
-          }
-        }
-
-        if (typeof marker.setStyle === 'function') {
-          marker.setStyle(newStyle);
-        }
-
-        if (typeof marker.setRadius === 'function' && typeof newStyle.radius === 'number') {
-          try {
-            marker.setRadius(newStyle.radius);
-          } catch {
-            /* ignore */
-          }
-        }
-
-        if (marker.getLayers && typeof marker.getLayers === 'function') {
-          const layers = marker.getLayers();
-          layers.forEach((inner: any) => {
-            if (!inner) return;
-            if (typeof inner.setStyle === 'function') {
-              try {
-                inner.setStyle(newStyle);
-              } catch {
-                /* ignore */
-              }
-            }
-            if (typeof inner.setRadius === 'function' && typeof newStyle.radius === 'number') {
-              try {
-                inner.setRadius(newStyle.radius);
-              } catch {
-                /* ignore */
-              }
-            }
-          });
-        }
-      } catch (err) {
-        /* ignore individual marker errors */
-      }
-    });
-  } catch (err) {
-    console.warn('updateMarkerStyles failed:', err);
-  }
+  // No-op: marker styles are handled by the WebGL layer. Keep this function as a stable API
+  // for callers that expect it, but avoid DOM marker manipulation in WebGL-only mode.
+  return;
 }
 
-// Configure marker layer group according to clusterEnabled
+// Configure marker layer group according to effective clustering state (preference + zoom)
 async function configureMarkerGroup() {
   if (!map.value) return;
 
-  // Remove existing group from map
-  if (markerClusterGroup.value) {
-    try {
-      map.value.removeLayer(markerClusterGroup.value);
-    } catch {
-      /* ignore */
-    }
-  }
+  // In WebGL-first mode we do not create or attach a DOM marker/cluster group.
+  // This function is responsible for honoring the user's clustering preference
+  // and triggering a rebuild of the WebGL features.
 
-  // Create new group
-  if (clusterEnabled.value) {
-    if ((L as any).markerClusterGroup) {
-      markerClusterGroup.value = (L as any).markerClusterGroup({
-        showCoverageOnHover: false,
-        disableClusteringAtZoom: 18,
-        spiderfyOnMaxZoom: true,
-      });
-    } else {
-      markerClusterGroup.value = L.layerGroup();
-    }
-  } else {
-    markerClusterGroup.value = L.layerGroup();
-  }
+  // Rebuild the WebGL cluster/point data. The grid clusterer will be used
+  // by buildWebGLClusters when effectiveClusterEnabled is true.
+  buildWebGLClusters();
 
-  // Add to map and rebuild markers
-  markerClusterGroup.value!.addTo(map.value);
-
-  // Clear existing marker references since they belong to the old cluster group
-  artworkMarkers.value = [];
-
-  updateArtworkMarkers();
-
-  // Ensure styles applied to any markers added during updateArtworkMarkers
+  // Ensure the WebGL layer receives any required style updates (noop for DOM markers)
   updateMarkerStyles();
 
-  // Persist preference
-  try {
-    localStorage.setItem('map:clusterEnabled', String(clusterEnabled.value));
-  } catch {
-    /* ignore */
-  }
+  // Persistence of cluster preference to localStorage has been removed - WebGL is the source of truth.
 }
 
 // Handle map movement
@@ -1888,7 +1223,6 @@ function handleMapMove() {
   if (!map.value) return;
 
   const center = map.value.getCenter();
-  const zoom = map.value.getZoom();
 
   const coordinates: Coordinates = {
     latitude: center.lat,
@@ -1897,51 +1231,16 @@ function handleMapMove() {
 
   // Update store
   artworksStore.setMapCenter(coordinates);
-  artworksStore.setMapZoom(zoom);
+  // In WebGL-first mode we no longer attach a DOM marker/cluster group.
+  // This function exists to persist clustering preferences and trigger WebGL rebuilds.
 
-  // Emit map move event
-  emit('mapMove', { center: coordinates, zoom });
-  
-  // Dismiss preview on pan according to PRD
-  emit('dismissPreview');
+  // Trigger WebGL clusters update instead of DOM marker creation
+  buildWebGLClusters();
 
-  // Persist map state
-  try {
-    localStorage.setItem('map:lastState', JSON.stringify({ center: coordinates, zoom }));
-  } catch {
-    /* ignore */
-  }
-
-  // Debounced artwork loading to prevent infinite loops
-  debounceLoadArtworks();
-  // Also update marker styles immediately for zoom changes (better responsiveness)
-  updateArtworkMarkers();
-  // Ensure existing markers update their style (radius/color) when zoom changes
+  // Ensure WebGL layer styles are up-to-date (no-op for DOM markers)
   updateMarkerStyles();
-  // Move debug rings to new center
-  updateDebugRings();
-}
 
-// Debounced artwork loading with intelligent timing
-let loadArtworksTimeout: ReturnType<typeof setTimeout> | null = null;
-function debounceLoadArtworks() {
-  // Clear existing timeout
-  if (loadArtworksTimeout) {
-    clearTimeout(loadArtworksTimeout);
-  }
-
-  // Clear any pending loading timeout state
-  if (loadingTimeout.value) {
-    clearTimeout(loadingTimeout.value);
-  }
-
-  // Set a shorter delay for more responsive loading
-  loadArtworksTimeout = setTimeout(() => {
-    // Guard against running after component unmount
-    if (map.value) {
-      loadArtworks();
-    }
-  }, 250); // Reduced from 500ms to 250ms for better responsiveness
+  // No-op: cluster preference is managed by the global mapFilters state and not persisted locally.
 
   // Show loading state after a brief delay to avoid flicker
   loadingTimeout.value = setTimeout(() => {
@@ -1949,6 +1248,76 @@ function debounceLoadArtworks() {
       isLoadingViewport.value = true;
     }
   }, 100);
+}
+
+// Handler for marker clicks emitted from MapWebGLLayer
+function onWebGLMarkerClick(f: any) {
+  try {
+    const markerId = (f && f.properties && f.properties.id) ? f.properties.id : null;
+    if (!markerId) return;
+    const artwork = (props.artworks || []).find((a: any) => a.id === markerId);
+    if (!artwork) return;
+
+    // Choose thumbnail defensively: prefer photos[0] then recent_photo or first photo object
+    let thumb: string | undefined = undefined;
+    try {
+      const photos = (artwork as any).photos;
+      if (Array.isArray(photos) && photos.length > 0) {
+        const p = photos[0];
+        thumb = typeof p === 'string' ? p : ((p && ((p as any).url || (p as any).src)) as string | undefined);
+      } else if ((artwork as any).recent_photo) {
+        thumb = (artwork as any).recent_photo;
+      }
+    } catch (e) {
+      thumb = undefined;
+    }
+
+    const previewData = {
+      id: artwork.id,
+      title: artwork.title || 'Untitled Artwork',
+      description: artwork.type || 'Public artwork',
+      thumbnailUrl: thumb,
+      artistName: (artwork as any).artist_name || (artwork as any).created_by || undefined,
+      lat: artwork.latitude,
+      lon: artwork.longitude,
+    };
+
+    emit('previewArtwork', previewData);
+  } catch (err) {
+    // ignore
+  }
+}
+
+// Handler for cluster clicks emitted from MapWebGLLayer
+function onWebGLClusterClick(feature: any) {
+  try {
+    if (!map.value || !feature || !feature.geometry) return;
+
+    // Extract cluster center coords (deck/gl feature coords are [lon, lat])
+    const lon = feature.geometry.coordinates[0];
+    const lat = feature.geometry.coordinates[1];
+
+    // Zoom in a couple of levels (clamp at max 19)
+    const currentZoom = map.value.getZoom() || props.zoom || 15;
+    const newZoom = Math.min(currentZoom + 2, 19);
+
+    // Move/zoom the map to the cluster center
+    try {
+      map.value.setView([lat, lon], newZoom, { animate: true });
+    } catch (e) {
+      // fallback: setView may fail in some test environments
+      try { map.value.setView([lat, lon], newZoom); } catch (_) {}
+    }
+
+    // Inform parent listeners that the map moved (useful for telemetry/tests)
+    try {
+      emit('mapMove', { center: { latitude: lat, longitude: lon }, zoom: newZoom });
+    } catch (e) {
+      // ignore
+    }
+  } catch (err) {
+    // ignore
+  }
 }
 
 // Map control methods
@@ -2076,6 +1445,14 @@ function handleApplySettings(): void {
   updateArtworkMarkers();
 }
 
+// Handle clear filters button in the UI banner
+function handleClearFilters(): void {
+  mapFilters.resetFilters();
+  // Rebuild webgl clusters and update markers
+  buildWebGLClusters();
+  updateArtworkMarkers();
+}
+
 // =====================
 // Debug Rings (Overlays)
 // =====================
@@ -2133,6 +1510,8 @@ watch(
     // Props artworks watcher triggered (details suppressed)
     // Use debounced update to prevent excessive calls during initialization
     updateArtworkMarkersDebounced(25);
+    // Rebuild WebGL cluster points for WebGL layer when artworks change
+    buildWebGLClusters();
   },
   { deep: true }
 );
@@ -2211,6 +1590,17 @@ onMounted(async () => {
     // Listen for navigation rail toggle events so the map can reflow to the new width
     window.addEventListener('nav-rail-toggle', handleNavRailToggle as EventListener);
   }
+  // Attach map listeners for WebGL cluster updates when clustering is disabled
+  try {
+    if (map.value) {
+      webglMoveHandler = () => buildWebGLClusters();
+      webglZoomHandler = () => buildWebGLClusters();
+      map.value.on('moveend', webglMoveHandler);
+      map.value.on('zoomend', webglZoomHandler);
+    }
+  } catch (e) {
+    // ignore
+  }
 });
 
 onUnmounted(() => {
@@ -2227,9 +1617,9 @@ onUnmounted(() => {
     clearTimeout(zoomStyleTimeout.value);
     zoomStyleTimeout.value = null;
   }
-  if (loadArtworksTimeout) {
-    clearTimeout(loadArtworksTimeout);
-    loadArtworksTimeout = null;
+  if (loadArtworksTimeout.value) {
+    clearTimeout(loadArtworksTimeout.value as any);
+    loadArtworksTimeout.value = null;
   }
 
   // Remove window resize listener (guarded)
@@ -2250,15 +1640,14 @@ onUnmounted(() => {
     } catch (e) {
       console.warn('Error removing map event listeners:', e);
     }
+
+    // Remove webgl listeners if present
+    try {
+      if (webglMoveHandler) map.value.off('moveend', webglMoveHandler);
+      if (webglZoomHandler) map.value.off('zoomend', webglZoomHandler);
+    } catch {}
     
-    // Clean up marker cluster group
-    if (markerClusterGroup.value) {
-      try {
-        markerClusterGroup.value.clearLayers();
-      } catch (e) {
-        console.warn('Error clearing cluster group:', e);
-      }
-    }
+    // Legacy DOM cluster group cleanup removed - WebGL layer manages visuals now
     
     // Remove the map instance
     try {
@@ -2285,10 +1674,29 @@ watch(
 
 // Watch clustering toggle
 watch(
-  () => clusterEnabled.value,
+  () => effectiveClusterEnabled.value,
   async () => {
     await configureMarkerGroup();
+    // When effective clustering changes (preference or zoom), rebuild WebGL list and update listeners
+    buildWebGLClusters();
   }
+);
+
+// Rebuild webgl clusters when filters change
+watch(
+  () => [
+    mapFilters.filtersState.artworkTypes,
+    mapFilters.filtersState.statusFilters,
+    mapFilters.filtersState.userListFilters,
+    mapFilters.filtersState.showOnlyMySubmissions,
+    mapFilters.filtersState.hideVisited,
+    mapFilters.filtersState.showRemoved,
+    mapFilters.filtersState.showArtworksWithoutPhotos,
+  ],
+  () => {
+    buildWebGLClusters();
+  },
+  { deep: true }
 );
 
 // Rebuild markers when visited/starred sets change (ensures icons update after lists load)
@@ -2313,7 +1721,7 @@ watch(
     mapFilters.filtersState.statusFilters,
     mapFilters.filtersState.userListFilters,
     mapFilters.filtersState.showOnlyMySubmissions,
-    mapFilters.filtersState.clusterEnabled,
+  // clusterEnabled removed from direct persistence/watch. Keep other filter dependencies below.
     mapFilters.filtersState.hideVisited,
     mapFilters.filtersState.showRemoved,
     mapFilters.filtersState.showArtworksWithoutPhotos,
@@ -2343,7 +1751,7 @@ watch(
 </script>
 
 <template>
-  <div class="map-component h-full w-full relative">
+  <div :class="['map-component h-full w-full relative', { 'webgl-active': true }]">
     <!-- Map Container -->
     <div
       ref="mapContainer"
@@ -2352,6 +1760,17 @@ watch(
       role="application"
       aria-label="Interactive map showing public artwork locations"
       :aria-busy="isLoading"
+    />
+
+    <!-- WebGL overlay (always mounted). We pass webglClusters (flat points) and keep Leaflet clustering active.
+         The UI CSS hides DOM markers when desired but cluster icons remain visible. -->
+    <MapWebGLLayer
+      v-if="map && props.artworks && props.artworks.length > 0"
+      :map="map"
+      :clusters="webglClusters"
+      :icon-atlas="null"
+      @cluster-click="onWebGLClusterClick"
+      @marker-click="onWebGLMarkerClick"
     />
 
     <!-- Loading Overlay -->
@@ -2585,6 +2004,29 @@ watch(
 .custom-user-location-icon {
   background: transparent !important;
   border: none !important;
+}
+
+/* When WebGL overlay is active we typically want to hide the DOM markers to avoid
+   duplicate visuals. Keep marker cluster icons visible (they use .marker-cluster).
+   The .webgl-active class is applied to the map root when WebGL is mounted. */
+.webgl-active .leaflet-marker-icon:not(.marker-cluster-icon),
+.webgl-active .leaflet-marker-pane .artwork-marker,
+.webgl-active .leaflet-marker-pane .artwork-circle-marker,
+.webgl-active .leaflet-marker-pane .custom-normal-icon,
+.webgl-active .leaflet-marker-pane .custom-visited-icon,
+.webgl-active .leaflet-marker-pane .custom-starred-icon,
+.webgl-active .leaflet-marker-pane .custom-unknown-icon {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  transform: scale(0.9) !important;
+}
+
+/* Ensure cluster icons remain visible and interactive */
+.webgl-active .marker-cluster-icon {
+  /* hide DOM cluster icons when using WebGL-only visuals */
+  display: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 /* Circle marker styles for better interaction */

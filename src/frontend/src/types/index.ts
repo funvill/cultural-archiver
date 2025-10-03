@@ -58,6 +58,8 @@ export interface MapPreview {
   title: string;
   description: string;
   thumbnailUrl?: string;
+  /** Optional artist name to surface in preview cards */
+  artistName?: string;
   lat: number;
   lon: number;
 }

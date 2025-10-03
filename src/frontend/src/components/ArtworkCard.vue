@@ -214,6 +214,10 @@ function handleKeydown(event: KeyboardEvent): void {
         <p class="text-xs text-gray-600 mb-1">
           {{ artworkType }}
         </p>
+        <!-- Show artist in compact layout when available -->
+        <p v-if="artistName" class="text-xs text-gray-500 truncate mb-1">
+          {{ artistName }}
+        </p>
         <div class="flex items-center justify-between text-xs text-gray-500">
           <span>{{ photoCount }}</span>
           <span v-if="distanceText">{{ distanceText }}</span>

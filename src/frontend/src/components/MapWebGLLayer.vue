@@ -32,16 +32,79 @@ function initDeck() {
   const canvas = document.createElement('canvas')
   canvas.id = 'deck-canvas'
   canvas.style.position = 'absolute'
-  canvas.style.pointerEvents = 'all'
+  // Allow pointer events so we can show hand cursor when over markers
+  // Keep canvas non-interactive so Leaflet handles dragging/panning;
+  // we'll listen on the map container and query deck for picks.
+  canvas.style.pointerEvents = 'none'
   canvas.style.zIndex = '400' // Above markers (200) but below controls (800+)
   mapContainer.appendChild(canvas)
 
-  deck.value = new Deck({
+  // Cast Deck constructor to any to avoid TypeScript instantiation depth errors
+  deck.value = new (Deck as any)({
     canvas: canvas,
     initialViewState: getLeafletViewState(),
     controller: false, // Leaflet handles all interactions
     layers: []
   })
+
+  // Add container-level mouse listeners so we can pick deck objects without
+  // blocking Leaflet's pan/drag handling. The canvas remains pointer-events:none.
+  try {
+    const container = props.map.getContainer();
+
+  // track hover id if needed in future (not used currently)
+
+    const handleMove = (ev: MouseEvent) => {
+      if (!deck.value) return;
+      try {
+        const rect = (container as HTMLElement).getBoundingClientRect();
+        const x = ev.clientX - rect.left;
+        const y = ev.clientY - rect.top;
+        // deck.pickObject expects screen coordinates
+        const pickInfo = (deck.value as any).pickObject({x, y});
+        if (pickInfo && pickInfo.object) {
+          (container as HTMLElement).style.cursor = 'pointer';
+        } else {
+          (container as HTMLElement).style.cursor = '';
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    const handleClick = (ev: MouseEvent) => {
+      if (!deck.value) return;
+      try {
+        const rect = (container as HTMLElement).getBoundingClientRect();
+        const x = ev.clientX - rect.left;
+        const y = ev.clientY - rect.top;
+        const pickInfo = (deck.value as any).pickObject({x, y});
+        if (pickInfo && pickInfo.object) {
+          const obj = pickInfo.object as ClusterFeature;
+          if (obj.properties && obj.properties.cluster) {
+            emit('clusterClick', obj);
+          } else {
+            emit('markerClick', obj);
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    container.addEventListener('mousemove', handleMove);
+    container.addEventListener('click', handleClick);
+
+    // cleanup on unmount
+    const removeHandlers = () => {
+      try { container.removeEventListener('mousemove', handleMove); } catch {}
+      try { container.removeEventListener('click', handleClick); } catch {}
+    };
+    // Attach to deck for later cleanup in onUnmounted
+    (deck.value as any)._ca_containerHandlers = removeHandlers;
+  } catch (e) {
+    // ignore
+  }
 
   syncViewport()
 }
@@ -348,10 +411,24 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
 
+  // Remove container-level handlers first if we stored a remover
+  try {
+    if (deck.value && (deck.value as any)._ca_containerHandlers) {
+      try { (deck.value as any)._ca_containerHandlers(); } catch {}
+      (deck.value as any)._ca_containerHandlers = null;
+    }
+  } catch (e) {
+    // ignore
+  }
+
   // Clean up deck.gl instance
-  if (deck.value) {
-    deck.value.finalize()
-    deck.value = null
+  try {
+    if (deck.value) {
+      deck.value.finalize()
+      deck.value = null
+    }
+  } catch (e) {
+    // ignore
   }
 
   // Remove canvas
@@ -374,6 +451,7 @@ onUnmounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
+  /* Do not capture pointer events in the overlay div so Leaflet remains interactive. */
   pointer-events: none;
   /* Let Leaflet handle interactions */
   z-index: 400;
