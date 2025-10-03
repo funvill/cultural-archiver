@@ -36,7 +36,9 @@ const emit = defineEmits([
   'previewArtwork', 
   'dismissPreview',
   'mapMove',
-  'locationFound'
+  'locationFound',
+  // Telemetry events emitted by the map for external listeners (e.g., analytics)
+  'telemetryUpdate'
 ]);
 
 // State

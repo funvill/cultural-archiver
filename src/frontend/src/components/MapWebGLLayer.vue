@@ -162,11 +162,42 @@ function updateLayers(): void {
     installation: [168, 85, 247], // purple-500
     default: [107, 114, 128] // gray-500
   }
+  // To avoid deck.gl reacting to Vue proxies we deep-clone the incoming
+  // `props.clusters` into plain JS structures. JSON-based cloning is safe for
+  // this dataset (numbers/strings) and strips Vue Proxy wrappers.
+  let rawClone: any[] = []
+  try {
+    rawClone = JSON.parse(JSON.stringify(props.clusters || []))
+  } catch (e) {
+    // Fallback: shallow copy if structured cloning fails for some reason
+    rawClone = (props.clusters || []).map((c: any) => ({ ...c }))
+  }
 
-  // ScatterplotLayer for rendering markers and clusters
-  const scatterplotLayer = new ScatterplotLayer({
+  const clustersDataPlain: any[] = rawClone.map((c: any) => ({
+    type: c.type,
+    id: c.id,
+    properties: { ...(c.properties || {}) },
+    geometry: { type: c.geometry?.type || 'Point', coordinates: [c.geometry?.coordinates?.[0], c.geometry?.coordinates?.[1]] }
+  }))
+
+  // Use fresh array copies to avoid accidentally passing proxied arrays.
+  const scatterDataPlain = clustersDataPlain.slice()
+  // Create light-weight update trigger keys (primitive string) so deck.gl
+  // sees only primitives (Edge's Proxy handling can be stricter than Chrome).
+  const scatterUpdateKey = scatterDataPlain.map((d: any) => d.id).join('|')
+
+  // Text layer data (only clusters) - use a copied array
+  const clusterData: any[] = clustersDataPlain.filter((d: any) => d.properties && d.properties.cluster).slice()
+
+  // Compute id-based keys for updateTriggers and capture current zoom as a
+  // plain number so updateTriggers contain only primitive values.
+  const clusterUpdateKey = clusterData.map((d: any) => d.id).join('|')
+  const currentZoomPlain = props.map ? (props.map.getZoom() as number) : 0
+
+  // ScatterplotLayer for rendering markers and clusters (use plain arrays)
+  const finalScatter = new ScatterplotLayer({
     id: 'artwork-clusters',
-    data: props.clusters,
+  data: scatterDataPlain.slice(),
     pickable: true,
     opacity: 0.8,
     stroked: true,
@@ -174,8 +205,8 @@ function updateLayers(): void {
     // Render radii in screen pixels so we can use pixel-based cluster radii
     radiusUnits: 'pixels',
     radiusScale: 1,
-  radiusMinPixels: 10,  // Minimum marker size for mobile
-  radiusMaxPixels: 500, // Increased maximum so very large clusters can fit labels
+    radiusMinPixels: 10,  // Minimum marker size for mobile
+    radiusMaxPixels: 500, // Increased maximum so very large clusters can fit labels
     lineWidthMinPixels: 2,
     getPosition: (d: ClusterFeature) => [d.geometry.coordinates[0], d.geometry.coordinates[1]],
     getRadius: (d: ClusterFeature) => {
@@ -203,13 +234,10 @@ function updateLayers(): void {
         else fontSize = 14
 
         // Calculate minimum radius needed to contain the text
-        // Use 0.7 multiplier for better width estimation (bold font is wider)
-        // Add 25px padding to ensure text never touches circle edge
         const approxTextWidth = label.length * fontSize * 0.7
         const minRadiusForText = Math.ceil(approxTextWidth / 2) + 25
 
         // Base sizes that provide good starting points at each zoom
-        // These are now just minimums - actual size will be at least minRadiusForText
         let baseSize: number
         if (currentZoom <= 8) {
           baseSize = 150
@@ -220,53 +248,45 @@ function updateLayers(): void {
         } else if (currentZoom <= 12) {
           baseSize = 80
         } else if (currentZoom <= 13) {
-          baseSize = 70  // Increased from 60
+          baseSize = 70
         } else if (currentZoom <= 14) {
-          baseSize = 60  // Increased from 45
+          baseSize = 60
         } else if (currentZoom <= 15) {
-          baseSize = 50  // Increased from 35
+          baseSize = 50
         } else {
-          baseSize = 40  // Increased from 20
+          baseSize = 40
         }
 
-        // Count-based bonus (logarithmic) - provides additional size for larger clusters
-        const countScale = Math.log(pointCount + 1) * 10  // Increased from 8 to 10
-
-        // Final size is the maximum of base+bonus and text requirement
+        const countScale = Math.log(pointCount + 1) * 10
         const finalSize = Math.max(baseSize + countScale, minRadiusForText)
-
-        // Cap by radiusMaxPixels (deck.gl will clamp when rendering)
         return finalSize
       }
 
       // Individual markers: larger for easier mobile tapping
-      // Scale single-marker size at lower zooms so markers remain visible and tappable when zoomed out.
       let markerSize: number
       if (currentZoom <= 8) {
-        markerSize = 20 // 40px diameter at very low zoom
+        markerSize = 20
       } else if (currentZoom <= 10) {
-        markerSize = 16 // 32px diameter
+        markerSize = 16
       } else if (currentZoom <= 12) {
-        markerSize = 14 // 28px diameter
+        markerSize = 14
       } else if (currentZoom <= 14) {
-        markerSize = 12 // 24px diameter
+        markerSize = 12
       } else {
-        markerSize = 10 // 20px diameter at high zoom
+        markerSize = 10
       }
       return markerSize
     },
     getFillColor: (d: ClusterFeature): [number, number, number] => {
-      // Clusters are orange
       if (d.properties.cluster) {
-        return [251, 146, 60] // orange-400
+        return [251, 146, 60]
       }
-      // Individual markers use their type color
       const type = (d.properties.type as string) || 'default'
       const color = colorMap[type]
       if (color) return color
-      return [107, 114, 128] // fallback to gray-500
+      return [107, 114, 128]
     },
-    getLineColor: [255, 255, 255], // white outline
+    getLineColor: [255, 255, 255],
     getLineWidth: 2,
     onClick: (info: any) => {
       if (info.object) {
@@ -279,31 +299,20 @@ function updateLayers(): void {
       }
     },
     updateTriggers: {
-      getPosition: props.clusters,
-      getRadius: props.clusters,
-      getFillColor: props.clusters
+      getPosition: scatterUpdateKey,
+      getRadius: scatterUpdateKey,
+      getFillColor: scatterUpdateKey
     }
   })
 
   // TextLayer for displaying point counts on clusters
-  // To avoid deck.gl trying to dereference Vue proxies we create a plain JS copy of cluster data
-  const clustersDataPlain: any[] = props.clusters.map((c: ClusterFeature) => ({
-    type: c.type,
-    id: c.id,
-    properties: { ...(c.properties as Record<string, unknown>) },
-    geometry: { type: c.geometry.type, coordinates: [c.geometry.coordinates[0], c.geometry.coordinates[1]] }
-  }))
-
-  const clusterData: any[] = clustersDataPlain.filter((d: any) => d.properties && d.properties.cluster)
-
-  const textLayer = new TextLayer({
+  const finalText = new TextLayer({
     id: 'cluster-labels',
-  data: clusterData,
+  data: clusterData.slice(),
     pickable: false,
     getPosition: (d: ClusterFeature) => [d.geometry.coordinates[0], d.geometry.coordinates[1]],
     getText: (d: ClusterFeature) => {
       const count = d.properties.point_count || 0
-      // Use abbreviated format for large numbers (e.g., 1.2k)
       if (count >= 1000) {
         return `${(count / 1000).toFixed(1)}k`
       }
@@ -311,44 +320,34 @@ function updateLayers(): void {
     },
     getSize: () => {
       const currentZoom = props.map?.getZoom() || 13
-
-      // Text size scales smoothly with zoom level to match larger cluster markers
       if (currentZoom <= 8) {
-        return 28  // Very large text for massive clusters at low zoom
+        return 28
       } else if (currentZoom <= 9) {
-        return 26  // Slightly smaller at zoom 9
+        return 26
       } else if (currentZoom <= 10) {
-        return 24  // Large text at zoom 10
+        return 24
       } else if (currentZoom <= 12) {
-        return 20  // Medium-large text at zoom 11-12
+        return 20
       } else if (currentZoom <= 14) {
-        return 16  // Medium text at zoom 13-14
+        return 16
       } else {
-        return 14  // Normal text at zoom 15+
+        return 14
       }
     },
-    getColor: [255, 255, 255], // white text
+    getColor: [255, 255, 255],
     getAngle: 0,
     getTextAnchor: 'middle',
     getAlignmentBaseline: 'center',
     fontFamily: 'Arial, sans-serif',
     fontWeight: 'bold',
     updateTriggers: {
-      getPosition: clusterData,
-      getText: clusterData,
-      getSize: [clusterData, props.map?.getZoom()]
+      getPosition: clusterUpdateKey,
+      getText: clusterUpdateKey,
+      getSize: [clusterUpdateKey, currentZoomPlain]
     }
   })
 
-  // Use plain data for scatterplot as well to avoid reactive proxies
-  const scatterDataPlain = clustersDataPlain as any[]
-
-  // Build layers with plain arrays so deck.gl doesn't interact with Vue proxies
-  // (Don't call setProps on layer instances - instead create new Layer instances
-  // with the desired props and pass them to Deck.)
-  const finalScatter = new ScatterplotLayer({ ...scatterplotLayer.props, data: scatterDataPlain })
-  const finalText = new TextLayer({ ...textLayer.props, data: clusterData })
-
+  // Finally set deck props with non-reactive data arrays
   deck.value.setProps({ layers: [finalScatter, finalText] })
 }
 
