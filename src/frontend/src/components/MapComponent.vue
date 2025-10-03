@@ -1244,6 +1244,16 @@ function handleMapMove() {
 
   // No-op: cluster preference is managed by the global mapFilters state and not persisted locally.
 
+  // Load artworks for the new viewport with debouncing
+  // Clear any pending load and schedule a new one after the user stops moving
+  if (loadArtworksTimeout.value) {
+    clearTimeout(loadArtworksTimeout.value);
+  }
+  
+  loadArtworksTimeout.value = setTimeout(() => {
+    loadArtworks();
+  }, 500); // Wait 500ms after map stops moving
+
   // Show loading state after a brief delay to avoid flicker
   loadingTimeout.value = setTimeout(() => {
     if (!isLoadingViewport.value && map.value) {
