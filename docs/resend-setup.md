@@ -11,11 +11,11 @@ Resend is the email service provider for the Cultural Archiver, handling:
 - Administrative alerts
 - Moderation notifications
 
-The service is configured to use the domain `art.abluestar.com` for email delivery.
+The service is configured to use the domain `api.publicartregistry.com` for email delivery.
 
 ## Prerequisites
 
-- Access to DNS management for `art.abluestar.com`
+- Access to DNS management for `api.publicartregistry.com`
 - Administrative access to create a Resend account
 - Cloudflare Workers environment for secret management
 
@@ -33,7 +33,7 @@ The service is configured to use the domain `art.abluestar.com` for email delive
 
 1. In the Resend dashboard, navigate to **Domains**
 2. Click **Add Domain**
-3. Enter your domain: `art.abluestar.com`
+3. Enter your domain: `api.publicartregistry.com`
 4. Select **Sending** as the domain type
 5. Click **Add Domain**
 
@@ -44,7 +44,7 @@ Resend will provide DNS records that need to be added to your domain. Add these 
 #### SPF Record (TXT)
 
 ```dns
-Name: art.abluestar.com
+Name: api.publicartregistry.com
 Type: TXT
 Value: v=spf1 include:_spf.resend.com ~all
 ```
@@ -52,11 +52,11 @@ Value: v=spf1 include:_spf.resend.com ~all
 #### DKIM Records (CNAME)
 
 ```dns
-Name: resend._domainkey.art.abluestar.com
+Name: resend._domainkey.api.publicartregistry.com
 Type: CNAME
 Value: [provided by Resend - unique per domain]
 
-Name: resend2._domainkey.art.abluestar.com
+Name: resend2._domainkey.api.publicartregistry.com
 Type: CNAME
 Value: [provided by Resend - unique per domain]
 ```
@@ -64,9 +64,9 @@ Value: [provided by Resend - unique per domain]
 #### DMARC Record (TXT)
 
 ```dns
-Name: _dmarc.art.abluestar.com
+Name: _dmarc.api.publicartregistry.com
 Type: TXT
-Value: v=DMARC1; p=quarantine; rua=mailto:dmarc@art.abluestar.com
+Value: v=DMARC1; p=quarantine; rua=mailto:dmarc@api.publicartregistry.com
 ```
 
 ### 4. Verify Domain
@@ -107,9 +107,9 @@ Add these variables to your `wrangler.toml`:
 ```toml
 [vars]
 # Email configuration
-EMAIL_FROM_ADDRESS = "noreply@art.abluestar.com"
+EMAIL_FROM_ADDRESS = "noreply@api.publicartregistry.com"
 EMAIL_FROM_NAME = "Cultural Archiver"
-EMAIL_REPLY_TO = "support@art.abluestar.com"
+EMAIL_REPLY_TO = "support@api.publicartregistry.com"
 
 # Feature flags
 EMAIL_ENABLED = "true"
@@ -119,11 +119,11 @@ For different environments:
 
 ```toml
 [env.development.vars]
-EMAIL_FROM_ADDRESS = "dev-noreply@art.abluestar.com"
+EMAIL_FROM_ADDRESS = "dev-noreply@api.publicartregistry.com"
 EMAIL_FROM_NAME = "Cultural Archiver (Dev)"
 
 [env.production.vars]
-EMAIL_FROM_ADDRESS = "noreply@art.abluestar.com"
+EMAIL_FROM_ADDRESS = "noreply@api.publicartregistry.com"
 EMAIL_FROM_NAME = "Cultural Archiver"
 ```
 
@@ -194,7 +194,7 @@ app.get('/test-email', async c => {
 
   try {
     const result = await resend.emails.send({
-      from: 'test@art.abluestar.com',
+      from: 'test@api.publicartregistry.com',
       to: 'your-test-email@example.com',
       subject: 'Test Email from Cultural Archiver',
       html: '<p>If you receive this, Resend is configured correctly!</p>',

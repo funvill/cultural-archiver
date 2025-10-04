@@ -1,3 +1,8 @@
+---
+title: Tutorial - Rate artworks
+date: 2025-10-03
+---
+
 # Highlight Great Works (Coming soon)
 
 ***Action: Share What Moves You***

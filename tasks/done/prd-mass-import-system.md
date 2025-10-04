@@ -374,7 +374,7 @@ import { MassImportLibrary } from '@cultural-archiver/mass-import';
 
 const importer = new MassImportLibrary({
   apiToken: process.env.MASS_IMPORT_TOKEN,
-  baseUrl: 'https://art-api.abluestar.com',
+  baseUrl: 'https://api.publicartregistry.com',
 });
 
 // Dry run process

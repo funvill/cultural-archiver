@@ -1,3 +1,7 @@
+---
+title: Tutorial - Take photos of artworks
+date: 2025-10-03
+---
 # Take photos of artworks
 
 ***Action: Safeguard Creativity***

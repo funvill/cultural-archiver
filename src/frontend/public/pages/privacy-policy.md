@@ -1,9 +1,14 @@
+---
+title: Privacy Policy
+date: 2025-09-09
+---
+
 # Privacy Policy
 
 **Version**: 1.0  
 **Effective Date**: September 9, 2025  
 **Last Updated**: September 9, 2025  
-**Applicable Domain**: api.publicartregistry.com
+**Applicable Domain**: publicartregistry.com
 
 ---
 
@@ -15,7 +20,7 @@ We collect very little personal information about you. We use anonymous tokens i
 
 ### Privacy Commitment
 
-Cultural Archiver Society ("we," "us," "our") is committed to protecting your privacy while operating our cultural archiving service ("Service"). This Privacy Policy explains how we collect, use, and protect information when you use our Service at api.publicartregistry.com.
+Cultural Archiver Society ("we," "us," "our") is committed to protecting your privacy while operating our cultural archiving service ("Service"). This Privacy Policy explains how we collect, use, and protect information when you use our Service at publicartregistry.com.
 
 As a Canadian non-profit organization focused on open data and cultural preservation, we follow privacy-by-design principles and collect only the minimum information necessary for Service operation.
 
@@ -274,8 +279,7 @@ As a Canadian non-profit organization focused on open data and cultural preserva
 
 ### 12.1 Privacy Inquiries
 
-- **Email**: privacy@api.publicartregistry.com
-- **General Contact**: support@publicartregistry.com
+- **Email**: support@publicartregistry.com
 - **Response Time**: Within 30 days for privacy-related requests
 
 ### 12.2 Data Protection Officer
@@ -306,4 +310,4 @@ As a Canadian non-profit organization focused on open data and cultural preserva
 
 ---
 
-_Cultural Archiver is a Canadian non-profit organization committed to privacy-by-design principles in cultural preservation and open data sharing._
+_Public Art Registry is a Canadian non-profit organization committed to privacy-by-design principles in cultural preservation and open data sharing._

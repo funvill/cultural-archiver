@@ -218,7 +218,7 @@ You can review the full updated terms at: [URL]
 
 These changes take effect on [Date]. Continued use of the service indicates acceptance of the updated terms.
 
-Questions? Contact us at support@art.abluestar.com
+Questions? Contact us at support@api.publicartregistry.com
 
 Cultural Archiver Team
 ```

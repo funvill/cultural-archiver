@@ -142,9 +142,15 @@ import { debugStevenPermissions } from './routes/debug-permissions';
 import { fixPermissionsSchema } from './routes/fix-schema';
 import { createFeedback } from './routes/feedback';
 import { listFeedback, reviewFeedback } from './routes/moderation/feedback';
+import { getAllPagesHandler, getPageHandler } from './routes/pages';
+import { initializePages } from './lib/pages-loader';
 
 // Initialize Hono app
 const app = new Hono<{ Bindings: WorkerEnv }>();
+
+// Initialize pages service (called once at worker startup)
+const isDevelopment = typeof process !== 'undefined' && process.env.NODE_ENV === 'development';
+initializePages(isDevelopment);
 
 // Add binding validation middleware - CRITICAL for deployment diagnosis
 app.use('*', async (c, next) => {
@@ -912,6 +918,14 @@ app.get('/api/search', rateLimitQueries, withErrorHandling(handleSearchRequest))
 app.get('/api/search/suggestions', rateLimitQueries, withErrorHandling(handleSearchSuggestions));
 
 // ================================
+// Pages Endpoints
+// ================================
+
+app.get('/api/pages', rateLimitQueries, withErrorHandling(getAllPagesHandler));
+
+app.get('/api/pages/:slug', rateLimitQueries, withErrorHandling(getPageHandler));
+
+// ================================
 // User Management Endpoints
 // ================================
 
@@ -1307,6 +1321,8 @@ app.notFound(c => {
         'GET /api/export/osm/stats',
         'GET /api/search',
         'GET /api/search/suggestions',
+        'GET /api/pages',
+        'GET /api/pages/:slug',
         'GET /api/me/submissions',
         'GET /api/me/profile',
         'PUT /api/me/preferences',

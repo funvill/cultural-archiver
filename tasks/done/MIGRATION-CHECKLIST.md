@@ -1,6 +1,6 @@
 # Domain Migration - Quick Start Checklist
 
-This is a condensed checklist for migrating from `art.abluestar.com` to `publicartregistry.com`. For detailed instructions, see the referenced documents.
+This is a condensed checklist for migrating from `api.publicartregistry.com` to `publicartregistry.com`. For detailed instructions, see the referenced documents.
 
 ## ✅ Code Changes (COMPLETED)
 

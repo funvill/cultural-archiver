@@ -152,12 +152,12 @@ node dist/cli/cli-entry.js import \
 **Production Database Import:**
 
 ```bash
-# Import to production database (art-api.abluestar.com)
+# Import to production database (api.publicartregistry.com)
 node dist/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter api \
   --input importers/public-art.json \
-  --config '{"exporter":{"apiEndpoint":"https://art-api.abluestar.com/api/mass-import/v2","authentication":{"type":"bearer","token":"your-production-admin-token"},"timeout":60000,"retryAttempts":3}}' \
+  --config '{"exporter":{"apiEndpoint":"https://api.publicartregistry.com/api/mass-import/v2","authentication":{"type":"bearer","token":"your-production-admin-token"},"timeout":60000,"retryAttempts":3}}' \
   --limit 50
 
 # Production import with verbose logging
@@ -203,7 +203,7 @@ _production-api-config.json_ (Production):
 ```json
 {
   "exporter": {
-    "apiEndpoint": "https://art-api.abluestar.com/api/mass-import/v2",
+    "apiEndpoint": "https://api.publicartregistry.com/api/mass-import/v2",
     "method": "POST",
     "headers": {
       "Content-Type": "application/json"
@@ -230,7 +230,7 @@ _production-api-config.json_ (Production):
    npm run dev  # Starts frontend and backend on localhost:8787
    ```
 
-2. **Production Environment**: Requires valid admin authentication token for `art-api.abluestar.com`
+2. **Production Environment**: Requires valid admin authentication token for `api.publicartregistry.com`
 
 3. **Authentication**: The mass-import API requires admin-level bearer tokens:
    - Development: `test-admin-token` (configured in local environment)
@@ -397,7 +397,7 @@ Exporters support various configuration options:
     "batchSize": 100
   },
   "api": {
-    "endpoint": "https://art-api.abluestar.com/submissions",
+    "endpoint": "https://api.publicartregistry.com/submissions",
     "authentication": {
       "type": "bearer",
       "token": "your-api-token"

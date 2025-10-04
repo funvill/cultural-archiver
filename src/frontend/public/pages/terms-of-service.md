@@ -1,9 +1,14 @@
+﻿---
+title: Terms of Service
+date: 2025-09-09
+---
+
 # Terms of Service
 
 **Version**: 2.0  
 **Effective Date**: September 9, 2025  
 **Last Updated**: September 9, 2025  
-**Applicable Domain**: api.publicartregistry.com
+**Applicable Domain**: publicartregistry.com
 
 ---
 
@@ -297,7 +302,7 @@ We respect copyright and expect you to do the same. If you believe someone has s
 
 **13.1 Copyright Respect**: Cultural Archiver respects intellectual property rights and expects users to do the same. Users must not submit content that infringes copyright or other intellectual property rights.
 
-**13.2 DMCA Compliance**: We respond to valid copyright infringement notices under applicable copyright laws. If you believe your copyrighted work has been infringed, contact us at support@publicartregistry.com with:
+**13.2 DMCA Compliance**: We respond to valid copyright infringement notices under applicable copyright laws. If you believe your copyrighted work has been infringed, contact us at support@api.publicartregistry.com with:
 
 - Description of the copyrighted work claimed to be infringed
 - Location of the allegedly infringing content on our Service
@@ -372,7 +377,7 @@ If you have questions about these terms or problems with the Service, contact us
 
 **16.1 Contact Information**:
 
-- Email: support@publicartregistry.com
+- Email: support@api.publicartregistry.com
 - Website: api.publicartregistry.com
 - Mailing Address: [To be provided upon incorporation]
 
@@ -416,3 +421,4 @@ If part of these terms becomes invalid, the rest still applies. These terms, alo
 ---
 
 _Cultural Archiver is a Canadian non-profit organization dedicated to preserving and democratizing access to public and cultural artworks worldwide through open data principles._
+

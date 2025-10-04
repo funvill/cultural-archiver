@@ -280,7 +280,7 @@ async function createUserForAdminToken(
   const now = new Date().toISOString();
 
   // Generate email and profile based on the known admin token
-  let email = 'admin@art.abluestar.com';
+  let email = 'admin@api.publicartregistry.com';
   let profileName = 'admin';
 
   if (userToken === '3db6be1e-0adb-44f5-862c-028987727018') {

@@ -70,7 +70,7 @@ User reported that thumbnails are not displaying in the "Nearby Artworks" sectio
   - [x] Create test data with photos for development environment
 - [x] Confirmed artwork `969b3394-e3a0-4dbb-8d62-87a42b382b1e` exists in production with photo
 - [x] Verified production database contains target artwork with photo URL:
-  - `https://art-photos.abluestar.com/originals/2025/09/16/20250916-075019-3d67fe3f-mass-import-v2-17580.jpg`
+  - `https://photos.publicartregistry.com/originals/2025/09/16/20250916-075019-3d67fe3f-mass-import-v2-17580.jpg`
 - [x] Confirmed CORS restrictions prevent direct production API access from localhost
 - [x] Verified FastAdd workflow functions correctly in development environment
 - [x] Confirmed thumbnail system shows "No photo" correctly when artworks lack photos
@@ -122,7 +122,7 @@ User reported that thumbnails are not displaying in the "Nearby Artworks" sectio
 **ISSUE RESOLVED**: The thumbnail display system is working correctly. The reported issue was caused by database environment mismatch where:
 
 1. **User expectation**: Artwork `969b3394-e3a0-4dbb-8d62-87a42b382b1e` should show thumbnails
-2. **Production reality**: Artwork exists with photo `https://art-photos.abluestar.com/originals/2025/09/16/20250916-075019-3d67fe3f-mass-import-v2-17580.jpg`
+2. **Production reality**: Artwork exists with photo `https://photos.publicartregistry.com/originals/2025/09/16/20250916-075019-3d67fe3f-mass-import-v2-17580.jpg`
 3. **Development reality**: Different artworks exist without photos, correctly showing "No photo"
 
 The thumbnail system correctly displays "No photo" placeholders when artworks lack photo data, and would display thumbnails when photo data is available.

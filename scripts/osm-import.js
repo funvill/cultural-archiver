@@ -105,7 +105,7 @@ Examples:
   node osm-import.js merged-artworks.geojson --batch-size 25
   
   # Import to production API
-  node osm-import.js data.geojson --api-url https://art-api.abluestar.com
+  node osm-import.js data.geojson --api-url https://api.publicartregistry.com
 
 Configuration presets:
   default     - Standard validation and settings

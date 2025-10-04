@@ -2,7 +2,7 @@
 
 ## Bugs
 
-- [ ] Setup email for magic link
+- [x] Setup email for magic link
 - [x] Artist pages, on import.
 - [ ] The location map button doesn't work like expected. The map icon for the user is missing.
   - Click to move the map to your current location. The current location is always shown on the map with the direction cone.

@@ -12,7 +12,7 @@ describe('Mass Import System Library', () => {
     it('should create valid default configuration', () => {
       const config = createDefaultConfig();
       expect(config).toMatchObject({
-        apiEndpoint: 'https://art-api.abluestar.com',
+        apiEndpoint: 'https://api.publicartregistry.com',
         massImportUserToken: 'a0000000-1000-4000-8000-000000000002',
         batchSize: 50,
         maxRetries: 3,

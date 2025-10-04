@@ -1,3 +1,7 @@
+---
+title: Tutorial - Update information on artworks or artists
+date: 2025-10-03
+---
 # Update information on artworks or artists
 
 ***Action: Protect History***
