@@ -187,5 +187,15 @@ export const DEFAULT_ICONS: Record<string, string> = {
   cluster: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
     <circle cx="32" cy="32" r="30" fill="#EF4444" stroke="#991B1B" stroke-width="3"/>
     <text x="32" y="38" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="white">•••</text>
+  </svg>`,
+  
+  visited: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+    <circle cx="32" cy="32" r="28" fill="#9CA3AF" stroke="#6B7280" stroke-width="3"/>
+    <path d="M20 32 L28 40 L44 24" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </svg>`,
+  
+  starred: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+    <circle cx="32" cy="32" r="28" fill="#FBBF24" stroke="#F59E0B" stroke-width="3"/>
+    <path d="M32 16 L36 28 L48 28 L38 36 L42 48 L32 40 L22 48 L26 36 L16 28 L28 28 Z" fill="white" stroke="none"/>
   </svg>`
 }

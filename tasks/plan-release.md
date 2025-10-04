@@ -4,15 +4,20 @@
 
 - [x] Setup email for magic link
 - [x] Artist pages, on import.
-- [ ] The map filters are not working as expected and are missing the "Show removed artworks"
 - [x] Links in the pages are not underlined.
-
-- [ ] When the user clicks the Map button "location" icon. The map should show their current location zoomed 15. A person icon should be shown at the users location. This icon should look different then the circle icons used for artworks, it should be bigger and look like a person. There should be a view cone that shows the users orentation on the map (what they are looking at).
-
 - [x] The action buttons on the artwork details page, if a user clicks one of these buttons when they are not logged in show the login dialog.
 - [x] When a user is not logged in the "report an issue", and "report missing" dialogs. The cancel button doesn't close the dialogs. If the user updated the text, then show a "are you sure" prompt when trying to close. The user should be able to click outside the dialog to close the window as well.
 
-- Map icons. The "visted" a
+- [ ] When the user clicks the Map button "location" icon. The map should show their current location zoomed 15. A person icon should be shown at the users location. This icon should look different then the circle icons used for artworks, it should be bigger and look like a person. There should be a view cone that shows the users orentation on the map (what they are looking at).
+- [ ] The map location buton should be a one time action, not a toggle. The map should focuse on the users location once, then allow the user to pan and zoom around the map. The users location icons should update indpendenly of the map viewing box. the persion icon is not showing on the map. I want an icon for the users current location with a view cone. It should be ontop of all other icons and it should look vistually distinct from the other icons.
+
+
+- [ ] Map icons. The "visted" artworks on the map should appear like a checkbox or flag in a gray circle. This helps users know what artworks they have already seen. The "stared" artworks should appear as "star" icon. If an an artwork has both "star", and "visted". The visted icon is shown.
+
+
+
+
+- [ ] The map filters are not working as expected and are missing the "Show removed artworks"
 
 ## Release
 

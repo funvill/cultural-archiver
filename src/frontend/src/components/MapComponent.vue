@@ -4,7 +4,6 @@ import {
   ExclamationTriangleIcon,
   ExclamationCircleIcon,
   XMarkIcon,
-  MapPinIcon,
   PlusIcon,
   MinusIcon,
   Squares2X2Icon,
@@ -24,6 +23,7 @@ import MapWebGLLayer from './MapWebGLLayer.vue';
 import { useGridCluster } from '../composables/useGridCluster';
 import type { ClusterFeature } from '../composables/useGridCluster';
 import { useAnnouncer } from '../composables/useAnnouncer';
+import { createIconAtlas, DEFAULT_ICONS, type IconAtlas } from '../utils/iconAtlas';
 // Props
 const props = withDefaults(defineProps<MapComponentProps & { suppressFilterBanner?: boolean }>(), {
   zoom: 15,
@@ -155,6 +155,8 @@ const webglClusters = ref<ClusterFeature[]>([]);
 const webglClustering = useGridCluster({ gridSize: 100, maxZoom: 15 });
 let webglMoveHandler: (() => void) | null = null;
 let webglZoomHandler: (() => void) | null = null;
+// Icon atlas for WebGL marker icons
+const iconAtlas = ref<IconAtlas | null>(null);
 // Map options state
 const showOptionsModal = ref(false);
 
@@ -227,9 +229,15 @@ function buildWebGLClusters() {
 
   // Determine effective clustering: user preference AND only when zoom > 14
   const currentZoom = map.value?.getZoom() ?? props.zoom ?? 15;
+  
+  console.log('[BUILD WEBGL CLUSTERS] Starting build:', {
+    currentZoom,
+    effectiveClusterEnabled: effectiveClusterEnabled.value,
+    artworkCount: props.artworks?.length || 0
+  });
 
   // If clustering is enabled for this zoom level, let the grid clusterer compute clusters to render via WebGL
-  if (effectiveClusterEnabled) {
+  if (effectiveClusterEnabled.value) {
       try {
         // Ensure clusterer has points loaded
         // Map artworks to clusterer expected format
@@ -263,17 +271,32 @@ function buildWebGLClusters() {
   // Default: no clustering — render all visible artworks as individual WebGL points
     const pts: ClusterFeature[] = (props.artworks || [])
   .filter((a: any) => mapFilters.shouldShowArtwork(a) && viewportBounds.contains(L.latLng(a.latitude, a.longitude)))
-      .map((a: any) => ({
-        type: 'Feature',
-        id: a.id,
-        properties: {
-          cluster: false,
+      .map((a: any) => {
+        const visited = visitedArtworks.value instanceof Set ? visitedArtworks.value.has(a.id) : false;
+        const starred = starredArtworks.value instanceof Set ? starredArtworks.value.has(a.id) : false;
+        
+        return {
+          type: 'Feature',
           id: a.id,
-          type: a.type || 'default',
-          title: a.title || 'Untitled'
-        },
-        geometry: { type: 'Point', coordinates: [a.longitude, a.latitude] }
-      })) as ClusterFeature[];
+          properties: {
+            cluster: false,
+            id: a.id,
+            type: a.type || 'default',
+            title: a.title || 'Untitled',
+            // Include user list flags so WebGL rendering can show visited/starred icons
+            visited,
+            starred
+          },
+          geometry: { type: 'Point', coordinates: [a.longitude, a.latitude] }
+        };
+      }) as ClusterFeature[];
+
+    console.log('[WEBGL CLUSTERS] Built clusters:', {
+      totalCount: pts.length,
+      visitedCount: pts.filter(p => p.properties.visited).length,
+      starredCount: pts.filter(p => p.properties.starred).length,
+      sampleFeature: pts[0]
+    });
 
     webglClusters.value = pts;
   } catch (err) {
@@ -1671,6 +1694,28 @@ watch(
 // Lifecycle
 onMounted(async () => {
   await nextTick();
+  
+  // Initialize icon atlas for WebGL markers
+  try {
+    console.log('[ICON ATLAS] Starting icon atlas creation...');
+    const iconConfigs = [
+      { name: 'default', svg: DEFAULT_ICONS.default || '', size: 64 },
+      { name: 'sculpture', svg: DEFAULT_ICONS.sculpture || '', size: 64 },
+      { name: 'mural', svg: DEFAULT_ICONS.mural || '', size: 64 },
+      { name: 'installation', svg: DEFAULT_ICONS.installation || '', size: 64 },
+      { name: 'cluster', svg: DEFAULT_ICONS.cluster || '', size: 64 },
+      { name: 'visited', svg: DEFAULT_ICONS.visited || '', size: 64 },
+      { name: 'starred', svg: DEFAULT_ICONS.starred || '', size: 64 }
+    ];
+    iconAtlas.value = await createIconAtlas(iconConfigs);
+    console.log('[ICON ATLAS] Icon atlas created successfully:', {
+      atlasExists: !!iconAtlas.value,
+      icons: iconAtlas.value ? Object.keys(iconAtlas.value.icons) : []
+    });
+  } catch (err) {
+    console.error('[ICON ATLAS] Failed to create icon atlas:', err);
+  }
+  
   await initializeMap();
 
   // Add window resize listener (guarded for non-browser envs)
@@ -1822,6 +1867,19 @@ watch(
   { deep: true }
 );
 
+// Rebuild WebGL clusters when user lists change (visited/starred artworks)
+watch(
+  [() => visitedArtworks.value, () => starredArtworks.value],
+  () => {
+    console.log('[WATCH] User lists changed, rebuilding WebGL clusters:', {
+      visitedCount: visitedArtworks.value.size,
+      starredCount: starredArtworks.value.size
+    });
+    buildWebGLClusters();
+  },
+  { deep: true }
+);
+
 // Persist and react to debug rings toggle
 watch(
   () => debugRingsEnabled.value,
@@ -1854,10 +1912,10 @@ watch(
     <!-- WebGL overlay (always mounted). We pass webglClusters (flat points) and keep Leaflet clustering active.
          The UI CSS hides DOM markers when desired but cluster icons remain visible. -->
     <MapWebGLLayer
-      v-if="map && props.artworks && props.artworks.length > 0"
+      v-if="map && props.artworks && props.artworks.length > 0 && iconAtlas"
       :map="map"
       :clusters="webglClusters"
-      :icon-atlas="null"
+      :icon-atlas="iconAtlas"
       @cluster-click="onWebGLClusterClick"
       @marker-click="onWebGLMarkerClick"
     />
