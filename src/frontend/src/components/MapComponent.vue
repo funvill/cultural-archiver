@@ -19,6 +19,7 @@ import { useMapFilters } from '../composables/useMapFilters';
 import { useRouter } from 'vue-router';
 import MapOptionsModal from './MapOptionsModal.vue';
 import { useMapPreviewStore } from '../stores/mapPreview';
+import { useMapSettings } from '../stores/mapSettings';
 import MapWebGLLayer from './MapWebGLLayer.vue';
 import { useGridCluster } from '../composables/useGridCluster';
 import type { ClusterFeature } from '../composables/useGridCluster';
@@ -108,10 +109,11 @@ const useProgressiveLoading = ref(false);
 // Tracking state (are we actively following the user's location?)
 const isTracking = computed(() => userWatchId.value !== null);
 
-// Effective clustering: use zoom threshold only (legacy user preference removed)
+// Effective clustering: user preference AND zoom threshold
 const effectiveClusterEnabled = computed(() => {
   const z = map.value?.getZoom() ?? props.zoom ?? 15;
-  return z > 14;
+  // Only cluster if user preference is enabled AND zoom is appropriate
+  return mapSettings.clusteringEnabled && z > 14;
 });
 
 // Router and other listeners used in component
@@ -146,6 +148,7 @@ function readSavedMapState(): { center: Coordinates; zoom: number } | null {
 const artworksStore = useArtworksStore();
 const mapFilters = useMapFilters();
 const mapPreviewStore = useMapPreviewStore();
+const mapSettings = useMapSettings();
 // Artwork type helpers
 useArtworkTypeFilters();
 const { visitedArtworks, starredArtworks } = useUserLists();
@@ -1878,6 +1881,15 @@ watch(
     buildWebGLClusters();
   },
   { deep: true }
+);
+
+// Watch clustering preference changes
+watch(
+  () => mapSettings.clusteringEnabled,
+  () => {
+    console.log('[WATCH] Clustering preference changed:', mapSettings.clusteringEnabled);
+    buildWebGLClusters();
+  }
 );
 
 // Persist and react to debug rings toggle
