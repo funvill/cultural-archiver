@@ -1,6 +1,7 @@
 ---
 title: Tutorial - Explore Art Nearby
 date: 2025-10-03
+category: Tutorials
 ---
 
 # Explore Art Nearby

@@ -358,35 +358,7 @@ function updateLayers(): void {
   // IconLayer for visited/starred markers using icon atlas
   let iconMarkerLayer: any = null;
   if (props.iconAtlas && props.iconAtlas.isReady) {
-    // Find the visited artwork specifically
-    const visitedArtwork = scatterDataPlain.find((d: any) => d.properties?.visited === true);
-    const starredArtwork = scatterDataPlain.find((d: any) => d.properties?.starred === true);
-    
-    console.log('[ICON LAYER] Searching for visited/starred artworks:', {
-      totalCount: scatterDataPlain.length,
-      visitedArtwork: visitedArtwork ? {
-        id: visitedArtwork.properties.id,
-        visited: visitedArtwork.properties.visited,
-        starred: visitedArtwork.properties.starred
-      } : 'NONE FOUND',
-      starredArtwork: starredArtwork ? {
-        id: starredArtwork.properties.id,
-        visited: starredArtwork.properties.visited,
-        starred: starredArtwork.properties.starred
-      } : 'NONE FOUND'
-    });
-    
     const markerData = scatterDataPlain.filter((d: any) => !d.properties.cluster && (d.properties.visited || d.properties.starred));
-    
-    console.log('[ICON LAYER] Creating IconLayer:', {
-      hasIconAtlas: !!props.iconAtlas,
-      isReady: props.iconAtlas.isReady,
-      totalMarkers: scatterDataPlain.length,
-      filteredMarkerData: markerData.length,
-      visitedCount: markerData.filter((d: any) => d.properties.visited).length,
-      starredCount: markerData.filter((d: any) => d.properties.starred).length,
-      sampleMarker: markerData[0]
-    });
     
     if (markerData.length > 0) {
       // Create icon atlas canvas

@@ -1,6 +1,7 @@
 ---
 title: About
 date: 2025-10-03
+category: About
 ---
 
 # About Public Art Registry

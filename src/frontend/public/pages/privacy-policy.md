@@ -1,6 +1,7 @@
 ---
 title: Privacy Policy
 date: 2025-09-09
+category: Legal
 ---
 
 # Privacy Policy

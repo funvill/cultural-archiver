@@ -1,6 +1,7 @@
 ---
 title: Frequently Asked Questions
 date: 2025-10-03
+category: Help
 ---
 
 # Frequently Asked Questions

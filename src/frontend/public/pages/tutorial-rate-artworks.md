@@ -1,6 +1,7 @@
 ---
 title: Tutorial - Rate artworks
 date: 2025-10-03
+category: Tutorials
 ---
 
 # Highlight Great Works (Coming soon)

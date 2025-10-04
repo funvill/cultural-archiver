@@ -1,6 +1,7 @@
 ﻿---
 title: Terms of Service
 date: 2025-09-09
+category: Legal
 ---
 
 # Terms of Service
