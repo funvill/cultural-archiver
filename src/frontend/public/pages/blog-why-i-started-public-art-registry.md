@@ -1,6 +1,7 @@
 ---
 title: Why I Started Public Art Registry
 date: 2025-10-03
+category: Blog
 ---
 
 # Why I Started Public Art Registry

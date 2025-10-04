@@ -31,11 +31,23 @@ function buildManifest() {
       slug: file.replace(/\.md$/, ''),
       title: title || file.replace(/\.md$/, ''),
       date: data.date ? String(data.date) : null,
+      category: data.category ? String(data.category) : null,
     };
   });
 
-  // Sort as spec: undated first, then dated newest-first, then title
+  // Sort by category first, then by date (newest first), then by title
   pages.sort((a, b) => {
+    // Uncategorized pages first
+    if (!a.category && b.category) return -1;
+    if (a.category && !b.category) return 1;
+    
+    // Both have categories, sort by category alphabetically
+    if (a.category && b.category) {
+      const categoryCompare = a.category.localeCompare(b.category);
+      if (categoryCompare !== 0) return categoryCompare;
+    }
+    
+    // Same category (or both uncategorized), sort by date
     if (!a.date && b.date) return -1;
     if (a.date && !b.date) return 1;
     if (!a.date && !b.date) return a.title.localeCompare(b.title);
