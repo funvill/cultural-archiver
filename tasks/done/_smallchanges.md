@@ -847,3 +847,44 @@ The goal is to give the user a quick action buttons that they can preform on an 
 
 
 ----
+
+
+# Welcome page
+
+# Welcome to Public Art Registry
+
+Public art is fragile. Murals fade, sculptures crumble, stories vanish. If no one honors them, they are lost — forever.
+
+By preserving artworks and committing them to this archive, you safeguard our shared cultural story — a legacy of memory and meaning for generations yet to come.
+
+This is your chance to protect what matters. To give the future the legacy of memory.
+
+## How to Help
+
+Every action you take makes you a guardian of culture. Each step is a way to honor artists, preserve their work, and inspire those who follow.
+
+### Take photos of artworks
+
+Your photo could be the last record of a mural before it vanishes. By capturing it now, you become the guardian of its memory.
+
+👉 Action: Safeguard Creativity
+
+### Update information on artworks or artists
+
+Every detail you add protects the truth of our shared culture. You ensure future generations know the stories behind the art.
+
+👉 Action: Protect History
+
+### Explore Art Nearby
+
+Artists create for others to witness. Your journey completes their work and preserves it for the future — every visit keeps the art alive.
+
+👉 Action: Discover Nearby Art
+
+### Highlight Great Works (Coming soon)
+
+Art lives through connection. By choosing what inspires you, you pass that spark to those who follow — guiding them toward what matters most.
+
+👉 Action: Share What Moves You
+
+----

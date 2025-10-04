@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
-import { XMarkIcon } from '@heroicons/vue/24/outline';
+import {
+  XMarkIcon,
+  CameraIcon,
+  PencilSquareIcon,
+  MapIcon,
+  StarIcon,
+} from '@heroicons/vue/24/outline';
 import { useRouter } from 'vue-router';
 
 // Reactive state
@@ -22,11 +28,6 @@ const checkFirstVisit = () => {
 // Close modal handlers
 const closeModal = () => {
   isVisible.value = false;
-};
-
-const goToHelp = () => {
-  closeModal();
-  router.push('/help');
 };
 
 const goToMap = () => {
@@ -55,6 +56,13 @@ const handleBackdropClick = (event: MouseEvent) => {
 onMounted(() => {
   checkFirstVisit();
 });
+
+// Expose method to open modal from parent components
+defineExpose({
+  open: () => {
+    isVisible.value = true;
+  },
+});
 </script>
 
 <template>
@@ -72,7 +80,7 @@ onMounted(() => {
     >
       <!-- Modal Content -->
       <div
-        class="relative bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+        class="relative bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto"
         @click.stop
       >
         <!-- Close Button -->
@@ -87,9 +95,9 @@ onMounted(() => {
         <!-- Modal Header -->
         <div class="px-6 pt-6 pb-4">
           <div class="flex items-center space-x-3 mb-4">
-            <div class="text-3xl" role="img" aria-label="Cultural Archiver logo">🎨</div>
+            <div class="text-3xl" role="img" aria-label="Public Art Registry logo">🎨</div>
             <h2 id="welcome-title" class="text-2xl font-bold text-gray-900">
-              Welcome to Cultural Archiver!
+              Welcome to Public Art Registry
             </h2>
           </div>
         </div>
@@ -110,37 +118,93 @@ onMounted(() => {
             <p class="text-lg leading-relaxed font-semibold">
               This is your chance to protect what matters. To give the future the legacy of memory.
             </p>
-
-            <div class="bg-orange-50 border-2 border-orange-200 rounded-lg p-4 text-center">
-              <p class="text-orange-800 text-lg font-bold">
-                🔥 Be the hero. Add your first artwork now.
-              </p>
-            </div>
           </div>
 
-          <!-- Action Buttons -->
-          <div class="mt-6 space-y-3">
-            <div class="flex flex-col sm:flex-row gap-3">
-              <button
-                @click="goToSubmit"
-                class="flex-1 bg-blue-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-              >
-                🚀 Add Your First Artwork
-              </button>
-              <button
-                @click="goToMap"
-                class="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors"
-              >
-                🗺️ Explore the Map
-              </button>
-            </div>
+          <!-- How to Help Section -->
+          <div class="mt-8">
+            <h3 class="text-xl font-bold text-gray-900 mb-4">How to Help</h3>
+            <p class="text-gray-700 mb-6">
+              Every action you take makes you a guardian of culture. Each step is a way to honor
+              artists, preserve their work, and inspire those who follow.
+            </p>
 
-            <button
-              @click="goToHelp"
-              class="w-full bg-gray-100 text-gray-700 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors"
-            >
-              📚 Learn More in Help Section
-            </button>
+            <!-- 2x2 Grid of Help Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- Card 1: Take photos -->
+              <div class="bg-blue-50 border-2 border-blue-200 rounded-lg p-4 flex flex-col">
+                <div class="flex items-start mb-2">
+                  <CameraIcon class="h-6 w-6 text-blue-600 mr-2 flex-shrink-0" />
+                  <h4 class="font-bold text-gray-900">Take photos of artworks</h4>
+                </div>
+                <p class="text-sm text-gray-700 mb-4 flex-grow">
+                  Your photo could be the last record of a mural before it vanishes. By capturing
+                  it now, you become the guardian of its memory.
+                </p>
+                <button
+                  @click="goToSubmit"
+                  class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors text-sm"
+                >
+                  Safeguard Creativity
+                </button>
+              </div>
+
+              <!-- Card 2: Update information -->
+              <div class="bg-green-50 border-2 border-green-200 rounded-lg p-4 flex flex-col">
+                <div class="flex items-start mb-2">
+                  <PencilSquareIcon class="h-6 w-6 text-green-600 mr-2 flex-shrink-0" />
+                  <h4 class="font-bold text-gray-900">Update information on artworks or artists</h4>
+                </div>
+                <p class="text-sm text-gray-700 mb-4 flex-grow">
+                  Every detail you add protects the truth of our shared culture. You ensure future
+                  generations know the stories behind the art.
+                </p>
+                <button
+                  @click="goToMap"
+                  class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors text-sm"
+                >
+                  Protect History
+                </button>
+              </div>
+
+              <!-- Card 3: Explore Art Nearby -->
+              <div class="bg-purple-50 border-2 border-purple-200 rounded-lg p-4 flex flex-col">
+                <div class="flex items-start mb-2">
+                  <MapIcon class="h-6 w-6 text-purple-600 mr-2 flex-shrink-0" />
+                  <h4 class="font-bold text-gray-900">Explore Art Nearby</h4>
+                </div>
+                <p class="text-sm text-gray-700 mb-4 flex-grow">
+                  Artists create for others to witness. Your journey completes their work and
+                  preserves it for the future — every visit keeps the art alive.
+                </p>
+                <button
+                  @click="goToMap"
+                  class="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors text-sm"
+                >
+                  Discover Nearby Art
+                </button>
+              </div>
+
+              <!-- Card 4: Highlight Great Works -->
+              <div class="bg-orange-50 border-2 border-orange-200 rounded-lg p-4 flex flex-col">
+                <div class="flex items-start mb-2">
+                  <StarIcon class="h-6 w-6 text-orange-600 mr-2 flex-shrink-0" />
+                  <h4 class="font-bold text-gray-900">
+                    Highlight Great Works
+                    <span class="text-xs text-orange-600">(Coming soon)</span>
+                  </h4>
+                </div>
+                <p class="text-sm text-gray-700 mb-4 flex-grow">
+                  Art lives through connection. By choosing what inspires you, you pass that spark
+                  to those who follow — guiding them toward what matters most.
+                </p>
+                <button
+                  disabled
+                  class="bg-gray-300 text-gray-500 px-4 py-2 rounded-lg font-semibold cursor-not-allowed text-sm"
+                >
+                  Share What Moves You
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
