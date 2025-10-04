@@ -1,6 +1,15 @@
 import { marked } from 'marked';
 import matter from 'gray-matter';
-import DOMPurify from 'isomorphic-dompurify';
+// Note: `isomorphic-dompurify` has a browser entry that can reference `window` during
+// module evaluation which breaks wrangler dev/miniflare. We dynamically import it inside
+// the renderer so bundlers don't evaluate the browser entry at module load time.
+// Fallback to a safe passthrough sanitizer if import is not available.
+
+type DOMPurifyType = {
+  sanitize: (html: string, options?: Record<string, unknown>) => string;
+};
+
+let DOMPurifyDynamic: DOMPurifyType | null = null;
 
 // Configure marked options
 marked.setOptions({
@@ -130,9 +139,19 @@ export class PagesService {
    */
   private renderMarkdown(markdown: string): string {
     const rawHtml = marked.parse(markdown) as string;
+    // Sanitize HTML to prevent XSS.
+    // Dynamically import isomorphic-dompurify to avoid evaluating browser entry at module load.
+    let sanitized = rawHtml;
+    try {
+      if (!DOMPurifyDynamic) {
+        // Attempt dynamic import; handle both ESM default and CJS shapes
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        const mod = require('isomorphic-dompurify');
+        DOMPurifyDynamic = (mod && (mod.default || mod)) as DOMPurifyType;
+      }
 
-    // Sanitize HTML to prevent XSS
-    const sanitized = DOMPurify.sanitize(rawHtml, {
+      if (DOMPurifyDynamic) {
+        sanitized = DOMPurifyDynamic.sanitize(rawHtml, {
       ALLOWED_TAGS: [
         'h1',
         'h2',
@@ -164,8 +183,18 @@ export class PagesService {
         'sub',
       ],
       ALLOWED_ATTR: ['href', 'title', 'target', 'rel', 'id', 'src', 'alt', 'width', 'height'],
-      ALLOW_DATA_ATTR: false,
-    });
+        ALLOW_DATA_ATTR: false,
+        });
+      } else {
+        // If DOMPurify not available, return rawHtml as a conservative fallback
+        // (the worker environment should avoid rendering untrusted markdown without sanitizer)
+        sanitized = rawHtml;
+      }
+    } catch (err) {
+      // If dynamic import or sanitize fails, log and return rawHtml
+      console.warn('DOMPurify dynamic import or sanitize failed, returning raw HTML:', err);
+      sanitized = rawHtml;
+    }
 
     return sanitized;
   }

@@ -6,8 +6,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-  "prebuild:manifest": "node scripts/generate-pages-manifest.cjs",
-  "build": "npm run prebuild:manifest && vue-tsc --noEmit && vite build",
+    "prebuild:manifest": "node scripts/generate-pages-manifest.cjs",
+    "build": "npm run prebuild:manifest && vue-tsc --noEmit && vite build",
     "deploy": "npm run build && wrangler deploy",
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit",

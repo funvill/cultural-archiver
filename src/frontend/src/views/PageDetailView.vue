@@ -75,7 +75,7 @@ const loadPage = async (): Promise<void> => {
 
     // Load markdown file from public/pages directory
     const response = await fetch(`/pages/${slug.value}.md`);
-    
+
     if (response.status === 404) {
       error.value = 'Page not found';
       return;
@@ -113,9 +113,9 @@ const loadPage = async (): Promise<void> => {
       html: renderMarkdown(stripped),
     };
 
-  // After DOM update, add heading anchors (including the page title)
-  await nextTick();
-  addHeadingAnchors();
+    // After DOM update, add heading anchors (including the page title)
+    await nextTick();
+    addHeadingAnchors();
 
     // Set page title for SEO
     if (page.value && page.value.title) {
@@ -195,31 +195,22 @@ onMounted(() => {
 
     <!-- Error State -->
     <div v-else-if="error" class="max-w-4xl mx-auto px-4 py-8">
-      <div
-        class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6"
-      >
+      <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6">
         <h2 class="text-xl font-semibold text-red-800 dark:text-red-200 mb-2">
           {{ error }}
         </h2>
-        <button
-          type="button"
-          class="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-          @click="goBack"
-        >
+        <button type="button" class="mt-4 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+          @click="goBack">
           Back to Pages
         </button>
       </div>
     </div>
 
-  <!-- Page Content -->
-  <div v-else-if="page" ref="pageWrapper" class="max-w-4xl px-4 py-8 pl-6">
+    <!-- Page Content -->
+    <div v-else-if="page" ref="pageWrapper" class="max-w-6xl px-4 py-8 pl-8">
       <!-- Header -->
       <div class="mb-8">
-        <button
-          type="button"
-          class="text-blue-600 dark:text-blue-400 hover:underline mb-4"
-          @click="goBack"
-        >
+        <button type="button" class="text-blue-600 dark:text-blue-400 hover:underline mb-4" @click="goBack">
           ← Back to Pages
         </button>
 
@@ -233,11 +224,9 @@ onMounted(() => {
       </div>
 
       <!-- Markdown Content -->
-      <div
-        ref="contentEl"
-        class="prose prose-lg dark:prose-invert max-w-none prose-headings:scroll-mt-20 prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:no-underline hover:prose-a:underline prose-img:rounded-lg prose-img:shadow-md page-content"
-        v-html="page.html"
-      ></div>
+      <div ref="contentEl"
+        class="prose prose-lg dark:prose-invert max-w-none prose-headings:scroll-mt-20 prose-a:text-blue-600 dark:prose-a:text-blue-400 prose-a:underline hover:prose-a:underline prose-img:rounded-lg prose-img:shadow-md page-content"
+        v-html="page.html"></div>
     </div>
   </div>
 </template>
@@ -315,14 +304,18 @@ onMounted(() => {
   height: 1.5rem;
   border-radius: 0.375rem;
   /* visible red circular badge with black icon/text */
-  color: #000000; /* black text/icon */
-  background: #dc2626; /* red-600 */
-  border-radius: 9999px; /* circular */
+  color: #000000;
+  /* black text/icon */
+  background: #dc2626;
+  /* red-600 */
+  border-radius: 9999px;
+  /* circular */
   border: none;
   cursor: pointer;
   transition: background 150ms, transform 120ms, opacity 120ms, box-shadow 120ms;
-  opacity: 1; /* visible by default so it's obvious during testing */
-  box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+  opacity: 1;
+  /* visible by default so it's obvious during testing */
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
   position: absolute;
   right: 0.25rem;
   top: 50%;
@@ -336,30 +329,53 @@ onMounted(() => {
 
 :deep(.page-content) .heading-anchor.copied {
   /* show a green background briefly when copied */
-  background: #10b981; /* green-500 */
+  background: #10b981;
+  /* green-500 */
   color: #ffffff;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 }
 
 /* readability improvements */
 :deep(.page-content) {
-  max-width: 72ch; /* ideal line length for readability */
+  max-width: 80ch;
+  /* ideal line length for readability */
   /* left-align the page content within the centered page container */
   margin-left: 0;
   margin-right: auto;
-  font-size: 1.075rem; /* slightly larger body text */
+  font-size: 1.075rem;
+  /* slightly larger body text */
   line-height: 1.75;
 }
 
+/* Ensure links look like links: always underlined and colored appropriately */
+:deep(.page-content) a {
+  text-decoration: underline;
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  color: #2563eb; /* blue-600 */
+}
+
+:deep(.dark .page-content) a {
+  color: #60a5fa; /* blue-400 for dark mode */
+}
+
+:deep(.page-content) a:hover {
+  text-decoration-thickness: 2px;
+}
+
+:deep(.page-content) a:visited {
+  color: #4c51bf; /* a muted visited color */
+}
+
 :deep(.page-content) pre {
-  background: rgba(17,24,39,0.04);
+  background: rgba(17, 24, 39, 0.04);
   padding: 1rem;
   border-radius: 0.5rem;
   overflow: auto;
 }
 
 :deep(.page-content) code {
-  background: rgba(243,244,246,1);
+  background: rgba(243, 244, 246, 1);
   padding: 0.1rem 0.3rem;
   border-radius: 0.25rem;
 }
@@ -404,6 +420,7 @@ onMounted(() => {
 :deep(.page-content:hover) h6 .heading-anchor {
   opacity: 1;
 }
+
 /* make headings a positioned container so absolutely positioned anchors align reliably */
 :deep(.page-content) h1,
 :deep(.page-content) h2,
@@ -412,7 +429,8 @@ onMounted(() => {
 :deep(.page-content) h5,
 :deep(.page-content) h6 {
   position: relative;
-  padding-right: 2rem; /* space for the anchor */
+  padding-right: 2rem;
+  /* space for the anchor */
 }
 
 /* show anchor icon when the heading (or its container) is hovered */
@@ -427,10 +445,29 @@ onMounted(() => {
 }
 
 /* heading typography */
-:deep(.page-content) h1 { font-size: 2.25rem; margin-top: 1.2rem; margin-bottom: 0.6rem; }
-:deep(.page-content) h2 { font-size: 1.75rem; margin-top: 1.1rem; margin-bottom: 0.55rem; }
-:deep(.page-content) h3 { font-size: 1.375rem; margin-top: 1rem; margin-bottom: 0.5rem; }
-:deep(.page-content) h4 { font-size: 1.125rem; margin-top: 0.9rem; margin-bottom: 0.45rem; }
+:deep(.page-content) h1 {
+  font-size: 2.25rem;
+  margin-top: 1.2rem;
+  margin-bottom: 0.6rem;
+}
+
+:deep(.page-content) h2 {
+  font-size: 1.75rem;
+  margin-top: 1.1rem;
+  margin-bottom: 0.55rem;
+}
+
+:deep(.page-content) h3 {
+  font-size: 1.375rem;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+:deep(.page-content) h4 {
+  font-size: 1.125rem;
+  margin-top: 0.9rem;
+  margin-bottom: 0.45rem;
+}
 
 /* decorative double-line under each heading */
 :deep(.page-content) h1::after,
@@ -453,7 +490,7 @@ onMounted(() => {
 :deep(.page-content) h4::after,
 :deep(.page-content) h5::after,
 :deep(.page-content) h6::after {
-  background-image: linear-gradient(to bottom, rgba(0,0,0,0.12) 0%, rgba(0,0,0,0.12) 50%, transparent 50%, transparent 100%);
+  background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.12) 50%, transparent 50%, transparent 100%);
   background-size: 100% 2px;
   background-repeat: no-repeat;
 }
@@ -465,7 +502,7 @@ onMounted(() => {
 :deep(.dark .page-content) h4::after,
 :deep(.dark .page-content) h5::after,
 :deep(.dark .page-content) h6::after {
-  background-image: linear-gradient(to bottom, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.06) 50%, transparent 50%, transparent 100%);
+  background-image: linear-gradient(to bottom, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.06) 50%, transparent 50%, transparent 100%);
 }
 
 /* lists */
@@ -483,7 +520,8 @@ onMounted(() => {
   list-style-position: outside;
 }
 
-:deep(.page-content) ul li, :deep(.page-content) ol li {
+:deep(.page-content) ul li,
+:deep(.page-content) ol li {
   margin-bottom: 0.5rem;
   line-height: 1.6;
 }

@@ -1,3 +1,15 @@
+// Polyfill `window` on globalThis for third-party libs that reference `window` during
+// local dev bundling (wrangler/miniflare). Cloudflare Workers runtime doesn't provide
+// `window`, and some dependencies (eg. piexifjs) reference it which causes a
+// ReferenceError. Setting a harmless global prevents those crashes in dev.
+if (typeof (globalThis as any).window === 'undefined') {
+  try {
+    (globalThis as any).window = globalThis;
+  } catch (e) {
+    // ignore; if assignment fails we'll continue without a window polyfill
+  }
+}
+
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';

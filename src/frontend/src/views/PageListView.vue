@@ -76,7 +76,7 @@ onMounted(() => {
   <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
     <!-- Header -->
     <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-      <div class="max-w-4xl mx-auto px-4 py-8">
+      <div class="max-w-4xl px-4 py-8">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Pages</h1>
         <p class="mt-2 text-gray-600 dark:text-gray-400">
           Documentation, policies, and information
@@ -85,7 +85,7 @@ onMounted(() => {
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="max-w-4xl mx-auto px-4 py-8">
+    <div v-if="loading" class="max-w-4xl px-4 py-8">
       <div class="animate-pulse space-y-4">
         <div class="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
         <div class="h-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
@@ -96,7 +96,7 @@ onMounted(() => {
     <!-- Error State -->
     <div
       v-else-if="error"
-      class="max-w-4xl mx-auto px-4 py-8"
+      class="max-w-4xl px-4 py-8"
     >
       <div
         class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4"
@@ -108,7 +108,7 @@ onMounted(() => {
     </div>
 
     <!-- Pages List -->
-    <div v-else class="max-w-4xl mx-auto px-4 py-8">
+    <div v-else class="max-w-4xl px-4 py-8">
       <div v-if="pages.length === 0" class="text-center py-12">
         <p class="text-gray-500 dark:text-gray-400">No pages available.</p>
       </div>
