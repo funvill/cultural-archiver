@@ -72,7 +72,7 @@ node dist/cli/cli-entry.js import --importer osm-artwork --generate-report --inp
 #### Vancouver open data
 
 ```
-node dist/cli/cli-entry.js import --importer vancouver-public-art --generate-report --input C:\Users\funvill\Documents\git\cultural-archiver\src\lib\mass-import-system\importers\public-art.json --output processed-art.json --exporter api --config api-config-dev.json
+node dist/lib/mass-import-system/cli/cli-entry.js import --importer vancouver-public-art --generate-report --input C:\Users\funvill\Documents\git\cultural-archiver\src\lib\mass-import-system\importers\public-art.json --output processed-art.json --exporter api --config api-config-dev.json --limit 10 --offset 0
 ```
 
 #### List Available Plugins

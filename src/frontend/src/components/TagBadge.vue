@@ -80,11 +80,19 @@ const normalizedTags = computed((): StructuredTag[] => {
 });
 
 const tagsByCategory = computed(() => {
+  console.log('=== TagBadge Debug Start ===');
+  console.log('Props tags:', props.tags);
+  console.log('Show categories:', props.showCategories);
+  console.log('Normalized tags:', normalizedTags.value);
+  
   if (!props.showCategories) {
+    console.log('Categories disabled, returning all tags');
     return { all: normalizedTags.value };
   }
 
   const categories = getCategoriesOrderedForDisplay();
+  console.log('Available categories:', categories);
+  
   const result: Record<string, StructuredTag[]> = {};
 
   // Initialize all categories
@@ -95,9 +103,14 @@ const tagsByCategory = computed(() => {
   // Add 'other' category for unrecognized tags
   result.other = [];
 
+  console.log('Processing', normalizedTags.value.length, 'tags');
+  
   // Organize tags by category
   normalizedTags.value.forEach(tag => {
     const categoryKey = tag.definition?.category || 'other';
+    
+    console.log(`Tag ${tag.key} = ${tag.value}, category: ${categoryKey}, definition:`, tag.definition);
+    
     if (!result[categoryKey]) {
       result[categoryKey] = [];
     }
@@ -115,6 +128,8 @@ const tagsByCategory = computed(() => {
     }
   });
 
+  console.log('Final categorized result:', result);
+  console.log('=== TagBadge Debug End ===');
   return result;
 });
 

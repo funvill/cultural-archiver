@@ -218,10 +218,25 @@ const keywordList = computed(() => {
 const displayTags = computed(() => {
   const clone = { ...artworkTags.value } as Record<string, string>;
   delete clone.keywords; // keywords rendered separately
+  
   // Double-safety: ensure no internal tags leak
   Object.keys(clone).forEach(k => {
     if (k.startsWith('_')) delete clone[k];
   });
+  
+  // Filter out reference/original tags that are kept for compatibility
+  // but shouldn't be displayed to users (we show the normalized versions instead)
+  const referenceTagsToHide = [
+    'primarymaterial',    // Show 'material' instead
+    'yearofinstallation', // Show 'start_date' instead  
+    'vancouver_status',   // Show 'status' instead
+    'type',              // Show 'artwork_type' instead
+  ];
+  
+  referenceTagsToHide.forEach(tag => {
+    delete clone[tag];
+  });
+  
   return clone;
 });
 

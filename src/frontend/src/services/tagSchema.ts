@@ -112,6 +112,14 @@ export const TAG_DEFINITIONS: TagDefinition[] = [
     maxLength: 100,
     placeholder: 'e.g., "modern", "classical", "street art"',
   },
+  {
+    key: 'status',
+    label: 'Status',
+    description: 'Current status of the artwork',
+    category: 'classification',
+    dataType: 'enum',
+    enumValues: ['active', 'removed', 'relocated', 'under_construction', 'planned'],
+  },
 
   // Physical Properties
   {
@@ -124,14 +132,22 @@ export const TAG_DEFINITIONS: TagDefinition[] = [
     placeholder: 'e.g., "bronze", "concrete", "paint on wall"',
   },
   {
-    key: 'height',
-    label: 'Height (meters)',
-    description: 'Height in meters',
+    key: 'materials',
+    label: 'Materials',
+    description: 'Primary construction materials (legacy plural form)',
     category: 'physical',
-    dataType: 'number',
-    min: 0,
-    max: 1000,
-    placeholder: 'Height in meters (e.g., 2.4)',
+    dataType: 'text',
+    maxLength: 100,
+    placeholder: 'e.g., "bronze", "concrete", "paint on wall"',
+  },
+  {
+    key: 'dimensions',
+    label: 'Dimensions',
+    description: 'Physical dimensions of the artwork (e.g., height, width, depth)',
+    category: 'physical',
+    dataType: 'text',
+    maxLength: 100,
+    placeholder: 'e.g., "2.4m tall", "15.5m x 3m x 2m"',
   },
   {
     key: 'condition',

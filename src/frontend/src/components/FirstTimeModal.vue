@@ -107,17 +107,17 @@ defineExpose({
         <div id="welcome-description" class="px-6 pb-6">
           <div class="space-y-4 text-gray-700">
             <p class="text-lg leading-relaxed">
-              Public art is fragile. Murals fade, sculptures crumble, stories vanish. If no one
-              honors them, they are lost — forever.
+              <strong>Public art</strong> is fragile. Murals fade, sculptures crumble, stories vanish. If no one
+              <strong>honors</strong> them, they are <strong>lost - forever</strong>.
             </p>
 
             <p class="text-lg leading-relaxed">
               By preserving artworks and committing them to this archive, you safeguard our shared
-              cultural story — a legacy of memory and meaning for generations yet to come.
+              cultural story - a legacy of memory and meaning for <strong>generations yet to come.</strong>
             </p>
 
-            <p class="text-lg leading-relaxed font-semibold">
-              This is your chance to protect what matters. To give the future the legacy of memory.
+            <p class="text-lg leading-relaxed">
+              This is your chance to <strong>protect what matters</strong>. To give the future the legacy of memory.
             </p>
           </div>
 
@@ -125,7 +125,7 @@ defineExpose({
           <div class="mt-8">
             <h3 class="text-xl font-bold text-gray-900 mb-4">Be the Hero</h3>
             <p class="text-gray-700 mb-6">
-              Every action you take makes you a guardian of culture. Each step is a way to honor
+              Every action you take makes you a <strong>guardian of culture</strong>. Each step is a way to honor
               artists, preserve their work, and inspire those who follow.
             </p>
 
@@ -153,7 +153,7 @@ defineExpose({
               <div class="bg-green-100 border-2 border-green-300 rounded-lg p-4 flex flex-col">
                 <div class="flex items-start mb-2">
                   <PencilSquareIcon class="h-6 w-6 text-green-800 mr-2 flex-shrink-0" />
-                  <h4 class="font-bold text-gray-900">Update information on artworks or artists</h4>
+                  <h4 class="font-bold text-gray-900">Update artworks and artists</h4>
                 </div>
                 <p class="text-sm text-gray-700 mb-4 flex-grow">
                   Every detail you add protects the truth of our shared culture. You ensure future
@@ -175,7 +175,7 @@ defineExpose({
                 </div>
                 <p class="text-sm text-gray-700 mb-4 flex-grow">
                   Artists create for others to witness. Your journey completes their work and
-                  preserves it for the future — every visit keeps the art alive.
+                  preserves it for the future - every visit keeps the art alive.
                 </p>
                 <button
                   @click="() => goToMap('/pages/tutorial-explore-nearby-artworks')"
@@ -193,7 +193,7 @@ defineExpose({
                 </div>
                 <p class="text-sm text-gray-700 mb-4 flex-grow">
                   Art lives through connection. By choosing what inspires you, you pass that spark
-                  to those who follow — guiding them toward what matters most.
+                  to those who follow - guiding them toward what matters most.
                 </p>
                 <button
                   @click="() => goToMap('/pages/tutorial-rate-artworks')"

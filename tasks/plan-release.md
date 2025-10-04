@@ -15,8 +15,10 @@
   - [x] 1.1 Add a link that repops up this welcome page. (?)
 - [ ] 2.0 Import all the artworks for each city
   - [ ] 2.1 Cache the images on import
-  - [ ] 2.1 Vancouver Public Data
-    - [ ] Consider converting this data to OSM first before importing.
+  - [ ] 2.2 Vancouver Public Data
+  - [ ] 2.3 Burnaby Art Gallery
+  - [ ] 2.4 New West
+  - [ ] 2.5 Richmond  
 - [x] 3.0 Add Pages system
   - [X] 3.1 Add tutorial pages
   - [x] 3.2 Add about page
@@ -43,15 +45,42 @@ Vancouver Open data | import as
 primarymaterial => material
 installation_date: => start_date
 
+- Add a fixed field "city" with the value of "Vancouver"
+- Add a fixed field "country" with the value of "Canada"
+- Add a fixed field "province" with the value of "Britsh Columbia"
 
 ----
+
 Burnabyartgallery
 
 src\lib\data-collection\burnabyartgallery
 
 The photo field needs a full url, not a realtive url.
 
-Add a fixed field "city" with the value of "burnaby"
-
 medium => material
 date => start_date
+
+- Add a fixed field "city" with the value of "burnaby"
+- Add a fixed field "country" with the value of "Canada"
+- Add a fixed field "province" with the value of "Britsh Columbia"
+
+----
+
+Newwest
+src\lib\data-collection\newwest
+
+year => start_date
+
+- Add a fixed field "city" with the value of "New West"
+- Add a fixed field "country" with the value of "Canada"
+- Add a fixed field "province" with the value of "Britsh Columbia"
+
+----
+richmond
+src\lib\data-collection\richmond
+
+- artistNames, and artistIds needs to be comma seperated instead of a array.
+
+- Add a fixed field "city" with the value of "Richmond"
+- Add a fixed field "country" with the value of "Canada"
+- Add a fixed field "province" with the value of "Britsh Columbia"
