@@ -11,6 +11,7 @@ import TagEditor from '../components/TagEditor.vue';
 import AddToListDialog from '../components/AddToListDialog.vue';
 import ArtworkActionBar from '../components/ArtworkActionBar.vue';
 import FeedbackDialog from '../components/FeedbackDialog.vue';
+import AuthModal from '../components/AuthModal.vue';
 // import LogbookTimeline from '../components/LogbookTimeline.vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { apiService } from '../services/api';
@@ -41,6 +42,9 @@ const showAddToListDialog = ref(false);
 // Feedback dialog state
 const showFeedbackDialog = ref(false);
 const feedbackMode = ref<'missing' | 'comment'>('comment');
+
+// Auth modal state
+const showAuthModal = ref(false);
 
 // State
 const loading = ref(true);
@@ -641,9 +645,8 @@ async function checkPendingEdits(): Promise<void> {
 
 // Action Bar Methods
 function handleActionBarAuthRequired(): void {
-  // This could trigger a global auth modal
-  console.log('Authentication required for action');
-  // The action bar will handle showing auth flow
+  // Show the authentication modal
+  showAuthModal.value = true;
 }
 
 function handleActionBarEditArtwork(): void {
@@ -1199,6 +1202,13 @@ function handleFeedbackCancel(): void {
     :mode="feedbackMode"
     @success="handleFeedbackSuccess"
     @cancel="handleFeedbackCancel"
+  />
+
+  <!-- Auth Modal -->
+  <AuthModal
+    :is-open="showAuthModal"
+    @close="showAuthModal = false"
+    @success="showAuthModal = false"
   />
 </template>
 

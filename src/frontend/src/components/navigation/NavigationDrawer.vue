@@ -10,19 +10,40 @@ import {
   QuestionMarkCircleIcon,
   UserIcon,
   ArrowLeftOnRectangleIcon,
+  ArrowRightOnRectangleIcon,
   ShieldCheckIcon,
   ClipboardDocumentListIcon,
 } from '@heroicons/vue/24/outline';
+
+// Auth prop interface
+interface AuthProp {
+  isAuthenticated?: boolean;
+  userDisplayName?: string;
+  userRole?: 'admin' | 'moderator' | 'user';
+}
 
 // Props
 interface Props {
   isOpen: boolean;
   currentRoute: string;
+  // Legacy props for backward compatibility
   userRole?: 'admin' | 'moderator' | 'user';
+  isAuthenticated?: boolean;
+  // New consolidated auth prop
+  auth?: AuthProp;
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  userRole: 'user',
+const props = defineProps<Props>();
+
+// Compute auth-derived values with fallbacks to legacy props
+const authIsAuthenticated = computed(() => {
+  if (props.auth && typeof props.auth.isAuthenticated === 'boolean') return props.auth.isAuthenticated;
+  return props.isAuthenticated ?? false;
+});
+
+const authUserRole = computed(() => {
+  if (props.auth && props.auth.userRole) return props.auth.userRole;
+  return props.userRole ?? 'user';
 });
 
 // Events
@@ -78,7 +99,7 @@ const navigationItems = computed(() => [
 // Role-based items
 const roleBasedItems = computed(() => {
   const items = [];
-  if (props.userRole === 'admin') {
+  if (authUserRole.value === 'admin') {
     items.push({
       name: 'Admin',
       path: '/admin',
@@ -86,7 +107,7 @@ const roleBasedItems = computed(() => {
       description: 'Admin dashboard',
     });
   }
-  if (props.userRole === 'admin' || props.userRole === 'moderator') {
+  if (authUserRole.value === 'admin' || authUserRole.value === 'moderator') {
     items.push({
       name: 'Moderate',
       path: '/review',
@@ -123,6 +144,11 @@ const handleNavItemClick = (): void => {
 
 const handleProfileClick = (): void => {
   emit('profileClick');
+  handleClose();
+};
+
+const handleLoginClick = (): void => {
+  emit('loginClick');
   handleClose();
 };
 
@@ -175,7 +201,7 @@ onUnmounted(() => {
   <!-- Overlay -->
   <Transition name="overlay">
     <div
-      v-if="isOpen"
+      v-if="props.isOpen"
       class="fixed inset-0 bg-black bg-opacity-50 z-40"
       @click="handleOverlayClick"
       aria-hidden="true"
@@ -185,7 +211,7 @@ onUnmounted(() => {
   <!-- Drawer -->
   <Transition name="drawer">
     <nav
-      v-if="isOpen"
+      v-if="props.isOpen"
       ref="drawerRef"
       class="navigation-drawer fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-white shadow-xl z-50 flex flex-col"
       role="dialog"
@@ -275,8 +301,9 @@ onUnmounted(() => {
       <!-- Footer Actions -->
       <div class="flex-shrink-0 border-t border-gray-200 p-2">
         <div class="space-y-1">
-          <!-- Profile -->
+          <!-- Profile / Login -->
           <button
+            v-if="authIsAuthenticated"
             @click="handleProfileClick"
             class="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
           >
@@ -284,8 +311,18 @@ onUnmounted(() => {
             <span class="truncate">Profile</span>
           </button>
 
+          <button
+            v-else
+            @click="handleLoginClick"
+            class="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
+          >
+            <ArrowRightOnRectangleIcon class="flex-shrink-0 w-6 h-6 mr-3 text-gray-400" aria-hidden="true" />
+            <span class="truncate">Login</span>
+          </button>
+
           <!-- Logout -->
           <button
+            v-if="authIsAuthenticated"
             @click="handleLogoutClick"
             class="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200"
           >

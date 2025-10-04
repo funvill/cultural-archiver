@@ -4,10 +4,13 @@
 
 - [x] Setup email for magic link
 - [x] Artist pages, on import.
-- [ ] The location map button doesn't work like expected. The map icon for the user is missing.
-  - Click to move the map to your current location. The current location is always shown on the map with the direction cone.
 - [ ] The map filters are not working as expected and are missing the "Show removed artworks"
 - [x] Links in the pages are not underlined.
+
+- [ ] When the user clicks the Map button "location" icon. The map should show their current location zoomed 15. A person icon should be shown at the users location. This icon should look different then the circle icons used for artworks, it should be bigger and look like a person. There should be a view cone that shows the users orentation on the map (what they are looking at).
+
+- [x] The action buttons on the artwork details page, if a user clicks one of these buttons when they are not logged in show the login dialog.
+- [x] When a user is not logged in the "report an issue", and "report missing" dialogs. The cancel button doesn't close the dialogs. If the user updated the text, then show a "are you sure" prompt when trying to close. The user should be able to click outside the dialog to close the window as well.
 
 ## Release
 
@@ -15,10 +18,11 @@
   - [x] 1.1 Add a link that repops up this welcome page. (?)
 - [ ] 2.0 Import all the artworks for each city
   - [ ] 2.1 Cache the images on import
-  - [ ] 2.2 Vancouver Public Data
-  - [ ] 2.3 Burnaby Art Gallery
-  - [ ] 2.4 New West
-  - [ ] 2.5 Richmond  
+  - [x] 2.2 Vancouver Public Data
+  - [x] 2.3 OSM
+  - [ ] 2.4 Burnaby Art Gallery
+  - [ ] 2.5 New West
+  - [ ] 2.6 Richmond  
 - [x] 3.0 Add Pages system
   - [X] 3.1 Add tutorial pages
   - [x] 3.2 Add about page

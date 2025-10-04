@@ -16,14 +16,24 @@ import {
   ArrowLeftOnRectangleIcon,
 } from '@heroicons/vue/24/outline';
 
+// Auth prop interface
+interface AuthProp {
+  isAuthenticated?: boolean;
+  userDisplayName?: string;
+  userRole?: 'admin' | 'moderator' | 'user';
+}
+
 // Props
 interface Props {
   isExpanded?: boolean;
   notificationCount?: number;
-  isAuthenticated?: boolean;
   showNotifications?: boolean;
+  // Legacy props for backward compatibility
+  isAuthenticated?: boolean;
   userDisplayName?: string;
   userRole?: 'admin' | 'moderator' | 'user';
+  // New consolidated auth prop
+  auth?: AuthProp;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -36,6 +46,17 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const route = useRoute();
+
+// Computed auth helpers with fallbacks to legacy props
+const authIsAuthenticated = computed(() => {
+  if (props.auth && typeof props.auth.isAuthenticated === 'boolean') return props.auth.isAuthenticated;
+  return props.isAuthenticated ?? false;
+});
+
+const authUserRole = computed(() => {
+  if (props.auth && props.auth.userRole) return props.auth.userRole;
+  return props.userRole ?? 'user';
+});
 
 // Navigation items matching NavigationDrawer
 const navigationItems = computed(() => [
@@ -81,7 +102,7 @@ const navigationItems = computed(() => [
 // Role-based items matching NavigationDrawer
 const roleBasedItems = computed(() => {
   const items = [];
-  if (props.userRole === 'admin') {
+  if (authUserRole.value === 'admin') {
     items.push({
       name: 'Admin',
       path: '/admin',
@@ -89,7 +110,7 @@ const roleBasedItems = computed(() => {
       description: 'Admin dashboard',
     });
   }
-  if (props.userRole === 'admin' || props.userRole === 'moderator') {
+  if (authUserRole.value === 'admin' || authUserRole.value === 'moderator') {
     items.push({
       name: 'Moderate',
       path: '/review',
@@ -110,15 +131,13 @@ const isRouteActive = (path: string): boolean => {
 };
 
 // Events
-interface Emits {
-  'toggleExpanded': [];
-  'notificationClick': [];
-  'profileClick': [];
-  'logoutClick': [];
-  'loginClick': [];
-}
-
-const emit = defineEmits<Emits>();
+const emit = defineEmits([
+  'toggleExpanded',
+  'notificationClick',
+  'profileClick',
+  'logoutClick',
+  'loginClick',
+]);
 
 // We only need a few props and emits for the bottom navigation look
 // (most navigation routing is handled elsewhere).
@@ -269,7 +288,7 @@ const handleLogoutClick = () => emit('logoutClick');
         </button>
 
         <!-- Profile -->
-        <button v-if="props.isAuthenticated" @click="handleProfileClick"
+        <button v-if="authIsAuthenticated" @click="handleProfileClick"
           class="w-full flex items-center text-sm font-medium theme-text-muted rounded-lg theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200 group"
           :class="props.isExpanded ? 'px-4 py-3' : 'px-2 py-2 justify-center'">
           <UserIcon class="flex-shrink-0 w-6 h-6 theme-text-subtle theme-nav-icon-hover"
@@ -287,7 +306,7 @@ const handleLogoutClick = () => emit('logoutClick');
         </button>
 
         <!-- Logout -->
-        <button v-if="props.isAuthenticated" @click="handleLogoutClick"
+        <button v-if="authIsAuthenticated" @click="handleLogoutClick"
           class="w-full flex items-center text-sm font-medium theme-text-muted rounded-lg hover:theme-error hover:theme-on-error focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200 group"
           :class="props.isExpanded ? 'px-4 py-3' : 'px-2 py-2 justify-center'">
           <ArrowLeftOnRectangleIcon class="flex-shrink-0 w-6 h-6 theme-text-subtle theme-nav-icon-hover"
