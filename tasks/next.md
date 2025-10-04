@@ -62,7 +62,7 @@ The admin page is a super user that can give moderators permissions to other use
 
 ---
 
-The "Nearby Artworks" results in the FastAdd Artwork. The thumbnails for the artworks are not showing. For example this artwork https://art.abluestar.com/artwork/969b3394-e3a0-4dbb-8d62-87a42b382b1e?action=add-logbook&from=fast-upload as a photo but it the photo isn't showing up on the "Nearby Artworks" results.
+The "Nearby Artworks" results in the FastAdd Artwork. The thumbnails for the artworks are not showing. For example this artwork https://api.publicartregistry.com/artwork/969b3394-e3a0-4dbb-8d62-87a42b382b1e?action=add-logbook&from=fast-upload as a photo but it the photo isn't showing up on the "Nearby Artworks" results.
 
 ---
 
@@ -96,3 +96,15 @@ Downloadable QR code "Sign" for the artwork page
 This allows people to print the sign for their own artworks to link to this page.
 
 ----
+
+A series of quotes that motivate users. This should show on the navagation rail
+
+- “Your actions preserve creativity and carry artists’ voices into the future.”
+- “When you witness and record art, you extend its legacy forward.”
+- “By preserving what artists create, you gift their legacy to the future.”
+- “You are the guardian who ensures public art’s story never fades.”
+- “Your care today honors artists and shapes tomorrow’s cultural memory.”
+- “Because of you, artists’ voices will echo through generations.”
+- “Without you, art vanishes; with you, its legacy endures.”
+- “Because of your care, public art lives on forever.”
+- “Your commitment transforms fleeting artworks into eternal stories.”

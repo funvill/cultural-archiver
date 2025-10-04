@@ -103,7 +103,7 @@ The Artwork Variable Tagging System allows users to enrich artworks with structu
 
 Tags will be organized into logical groups:
 
-- **Physical Properties:** material, height, width, weight, color
+ - **Physical Properties:** material, dimensions, width, weight, color
 - **Historical Info:** start_date, end_date, artist_name, artist:wikidata
 - **Location Details:** access, fee, opening_hours, location_type
 - **Artwork Classification:** artwork_type, subject, style, technique
@@ -269,7 +269,7 @@ To ensure successful delivery, the following scope limitations have been establi
 | `name`         | text   | `Angel of Victory`, `Untitled`                 | Classification      | Official artwork name         |
 | `artist_name`  | text   | `Jane Doe`, `Unknown`, `Community Project`     | Historical Info     | Creator information           |
 | `material`     | text   | `bronze`, `concrete`, `paint on wall`          | Physical Properties | Primary construction material |
-| `height`       | number | `2.4`, `15.5`                                  | Physical Properties | Height in meters              |
+| `dimensions`   | text   | `2.4`, `15.5`                                  | Physical Properties | Height in meters (string)     |
 | `start_date`   | date   | `1998`, `2011-07`, `2011-07-15`                | Historical Info     | Creation/installation date    |
 | `access`       | enum   | `yes`, `private`, `customers`, `no`            | Location Details    | Public accessibility          |
 | `fee`          | yes/no | `no`, `yes`                                    | Location Details    | Admission fee required        |
@@ -313,12 +313,12 @@ To ensure successful delivery, the following scope limitations have been establi
 
 1. Enter edit mode on an artwork
 2. Add invalid data to test validation:
-   - Select `height` tag
+   - Select `dimensions` tag
    - Enter `not-a-number` as value
    - Verify red border and error message appear
    - Try to save - should be blocked
 3. Fix the validation error:
-   - Change height to `3.2`
+   - Change dimensions to `3.2`
    - Verify error clears
 4. Add invalid enum value:
    - Select `access` tag
@@ -349,7 +349,7 @@ To ensure successful delivery, the following scope limitations have been establi
 
 1. View artwork detail page with multiple tags
 2. **Expected:** Tags displayed in organized categories:
-   - Physical Properties (material, height, condition)
+   - Physical Properties (material, dimensions, condition)
    - Classification (artwork_type, name, subject, style, description)
    - Historical Info (artist_name, start_date)
    - Location Details (access, fee)

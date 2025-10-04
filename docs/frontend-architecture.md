@@ -665,7 +665,7 @@ The frontend deploys automatically to Cloudflare Pages with:
 
 - **Global CDN**: Sub-100ms response times worldwide
 - **Edge caching**: Optimized static asset delivery
-- **Custom domains**: art.abluestar.com
+- **Custom domains**: api.publicartregistry.com
 - **HTTPS**: Automatic SSL certificates
 
 ## Future Enhancements

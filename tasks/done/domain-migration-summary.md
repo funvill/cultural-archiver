@@ -1,7 +1,7 @@
 # Domain Migration Summary - Public Art Registry
 
 **Migration Date:** October 3, 2025  
-**Old Domain:** art.abluestar.com  
+**Old Domain:** api.publicartregistry.com  
 **New Domain:** publicartregistry.com  
 **Old Branding:** Cultural Archiver  
 **New Branding:** Public Art Registry
@@ -53,8 +53,8 @@ These files contain extensive branding that should be updated:
 
 **Search and Replace:**
 - `Cultural Archiver` → `Public Art Registry`
-- `art.abluestar.com` → `publicartregistry.com`
-- `privacy@art.abluestar.com` → `privacy@publicartregistry.com`
+- `api.publicartregistry.com` → `publicartregistry.com`
+- `privacy@api.publicartregistry.com` → `privacy@publicartregistry.com`
 
 ### Test Files (Low Priority)
 

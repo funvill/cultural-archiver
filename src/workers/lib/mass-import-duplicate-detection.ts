@@ -59,7 +59,7 @@ export class MassImportDuplicateDetectionService {
 
   constructor(
     private readonly database: D1Database,
-    baseUrl: string = 'https://art.abluestar.com'
+    baseUrl: string = 'https://api.publicartregistry.com'
   ) {
     this.similarityStrategy = createMassImportSimilarityStrategy(baseUrl);
   }

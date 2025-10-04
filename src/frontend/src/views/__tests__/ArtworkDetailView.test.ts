@@ -14,7 +14,27 @@ vi.mock('../../services/api', () => ({
 
 // Mock auth store
 vi.mock('../../stores/auth', () => ({
-  useAuthStore: vi.fn(),
+  useAuthStore: vi.fn(() => ({
+    isAuthenticated: false,
+    isEmailVerified: false,
+    user: null,
+    token: null,
+    isLoading: false,
+    error: null,
+    isAdmin: false,
+    canReview: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    verifyMagicLink: vi.fn(),
+    updateUser: vi.fn(),
+    setToken: vi.fn(),
+    clearError: vi.fn(),
+    $patch: vi.fn(),
+    $reset: vi.fn(),
+    $subscribe: vi.fn(),
+    $dispose: vi.fn(),
+    $id: 'auth',
+  })),
 }));
 
 // Mock useAnnouncer composable
@@ -156,6 +176,7 @@ describe('ArtworkDetailView', () => {
         plugins: [router, pinia],
         stubs: {
           RouterLink: true,
+          AuthModal: true,
         },
       },
     });
@@ -203,6 +224,7 @@ describe('ArtworkDetailView', () => {
           plugins: [router, pinia],
           stubs: {
             RouterLink: true,
+            AuthModal: true,
           },
         },
       });
@@ -238,6 +260,9 @@ describe('ArtworkDetailView', () => {
         },
         global: {
           plugins: [router, pinia],
+          stubs: {
+            AuthModal: true,
+          },
         },
       });
 
@@ -269,6 +294,9 @@ describe('ArtworkDetailView', () => {
         },
         global: {
           plugins: [router, pinia],
+          stubs: {
+            AuthModal: true,
+          },
         },
       });
 
@@ -385,6 +413,7 @@ describe('ArtworkDetailView', () => {
           plugins: [router, pinia],
           stubs: {
             RouterLink: true,
+            AuthModal: true,
           },
         },
       });

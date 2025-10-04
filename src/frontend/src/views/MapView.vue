@@ -5,12 +5,13 @@ import { useRouter, useRoute } from 'vue-router';
 import MapComponent from '../components/MapComponent.vue';
 import MapFiltersModal from '../components/MapFiltersModal.vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
+import FirstTimeModal from '../components/FirstTimeModal.vue';
 import { useArtworksStore } from '../stores/artworks';
 import { useMapPreviewStore } from '../stores/mapPreview';
 import { useMapFilters } from '../composables/useMapFilters';
 import { apiService } from '../services/api';
 import type { ArtworkPin, Coordinates, MapPreview, SearchResult } from '../types';
-import { AdjustmentsHorizontalIcon } from '@heroicons/vue/24/outline';
+import { AdjustmentsHorizontalIcon, QuestionMarkCircleIcon } from '@heroicons/vue/24/outline';
 
 const router = useRouter();
 const route = useRoute();
@@ -138,6 +139,9 @@ onUnmounted(() => {
 
 // Ref for MapComponent so we can call exposed methods
 const mapComponentRef = ref<InstanceType<typeof MapComponent> | null>(null);
+
+// Ref for FirstTimeModal to programmatically open it
+const firstTimeModalRef = ref<InstanceType<typeof FirstTimeModal> | null>(null);
 
 // Displayed artworks with reactive filtering
 const displayedArtworks = ref<ArtworkPin[]>([]);
@@ -354,6 +358,13 @@ const handleOpenFilters = () => {
 const handleCloseFilters = () => {
   showFiltersModal.value = false;
   stopTelemetryPolling();
+};
+
+const handleOpenHelp = () => {
+  // Open the FirstTime/Welcome modal
+  if (firstTimeModalRef.value) {
+    firstTimeModalRef.value.open();
+  }
 };
 
 const handleFiltersChanged = async () => {
@@ -629,6 +640,19 @@ watch(
       </div>
     </div>
 
+    <!-- Map Controls Stack - Left Side -->
+    <div class="absolute top-4 left-4 z-30 flex flex-col space-y-2">
+      <!-- Help/Welcome Button -->
+      <button
+        @click="handleOpenHelp"
+        class="bg-white shadow-md rounded-full p-3 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+        title="Help and welcome information"
+        aria-label="Open help and welcome"
+      >
+        <QuestionMarkCircleIcon class="w-5 h-5 text-gray-700" />
+      </button>
+    </div>
+
     <!-- Map Controls Stack - Right Side -->
     <div class="absolute top-4 right-4 z-30 flex flex-col space-y-2">
       <!-- Map Filters Button - Top Position -->
@@ -689,6 +713,9 @@ watch(
     @resetCacheTelemetry="handleResetCacheTelemetry"
   :cache-telemetry="cacheTelemetryRef ?? { userListsHit: 0, userListsMiss: 0, listDetailsHit: 0, listDetailsMiss: 0 }"
     />
+
+    <!-- First Time / Welcome Modal -->
+    <FirstTimeModal ref="firstTimeModalRef" />
   </div>
 </template>
 

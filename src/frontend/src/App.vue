@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue';
+import { onMounted, watch, ref, provide } from 'vue';
 import { useRoute } from 'vue-router';
 import AppShell from './components/AppShell.vue';
 import ErrorBoundary from './components/ErrorBoundary.vue';
@@ -11,6 +11,16 @@ import { globalModal } from './composables/useModal';
 
 const { initAuth } = useAuth();
 const route = useRoute();
+
+// First time modal reference
+const firstTimeModalRef = ref<InstanceType<typeof FirstTimeModal> | null>(null);
+
+// Provide the method to open the welcome modal to child components
+provide('openWelcomeModal', () => {
+  if (firstTimeModalRef.value) {
+    firstTimeModalRef.value.open();
+  }
+});
 
 // Initialize authentication on app startup
 onMounted(async () => {
@@ -98,7 +108,7 @@ watch(
     />
 
     <!-- First Time User Modal -->
-    <FirstTimeModal />
+    <FirstTimeModal ref="firstTimeModalRef" />
   </div>
 </template>
 

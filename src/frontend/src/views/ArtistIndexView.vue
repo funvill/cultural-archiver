@@ -96,10 +96,20 @@ async function loadArtists(): Promise<void> {
     );
 
     if (response.data) {
+      console.log('[ArtistIndexView] API Response:', {
+        totalItems: response.data.totalItems,
+        itemsCount: response.data.items.length,
+        currentPage: response.data.currentPage,
+        totalPages: response.data.totalPages,
+      });
       artists.value = response.data.items;
       totalItems.value = response.data.totalItems;
       totalPages.value = response.data.totalPages;
       currentPage.value = response.data.currentPage;
+      console.log('[ArtistIndexView] State after update:', {
+        artistsCount: artists.value.length,
+        totalItems: totalItems.value,
+      });
     } else {
       throw new Error('Invalid response format');
     }
@@ -149,9 +159,8 @@ function handleSortChange(newSort: string): void {
 }
 
 function handleArtistClick(artist: ArtistApiResponse): void {
-  // Navigate to filtered search page as per PRD (temporary until artist detail pages are built)
-  const encodedName = encodeURIComponent(artist.name);
-  router.push(`/search?artist=${encodedName}`);
+  // Navigate to artist detail page
+  router.push(`/artist/${artist.id}`);
 }
 
 function handleRetry(): void {

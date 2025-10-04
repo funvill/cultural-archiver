@@ -5,6 +5,7 @@ import {
   type OSMGeoJSON,
   type OSMImportConfig,
   generateImportSummary,
+  type OSMFeature,
 } from '../lib/osm-mass-import';
 
 /**
@@ -316,7 +317,7 @@ describe('OSM Mass Import Parser', () => {
           website: 'https://art.example.com',
           inscription: 'Long inscription text here...',
           start_date: '2020-05-15',
-          height: '3.5',
+          dimensions: '3.5',
           width: '2.1',
           condition: 'good',
           heritage: 'yes',
@@ -331,7 +332,7 @@ describe('OSM Mass Import Parser', () => {
       const tags = result.payloads[0].logbook![0].tags!;
 
       // Verify all custom tags are preserved
-      expect(tags.find(t => t.label === 'Height')?.value).toBe('3.5');
+  expect(tags.find(t => t.label === 'Dimensions')?.value).toBe('3.5');
       expect(tags.find(t => t.label === 'Width')?.value).toBe('2.1');
       expect(tags.find(t => t.label === 'Condition')?.value).toBe('good');
       expect(tags.find(t => t.label === 'Heritage')?.value).toBe('yes');

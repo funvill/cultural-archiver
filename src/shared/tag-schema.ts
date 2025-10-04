@@ -197,20 +197,18 @@ export const TAG_DEFINITIONS: Record<string, TagDefinition> = {
     examples: ['bronze', 'concrete', 'paint on wall', 'steel', 'stone'],
   },
 
-  height: {
-    key: 'height',
-    label: 'Height (meters)',
-    description: 'Height of the artwork in meters',
+  dimensions: {
+    key: 'dimensions',
+    label: 'Dimensions',
+    description: 'Physical dimensions of the artwork (e.g., height, width, depth)',
     category: 'physical_properties',
-    dataType: 'number',
+    dataType: 'text',
     required: false,
     validation: {
-      min: 0.1,
-      max: 200,
+      maxLength: 100,
     },
-    osmMapping: 'height',
-    helpUrl: 'https://wiki.openstreetmap.org/wiki/Key:height',
-    examples: ['2.4', '15.5', '0.8'],
+    osmMapping: 'dimensions',
+    examples: ['2.4m tall', '15.5m x 3m x 2m', '0.8m diameter'],
   },
 
   condition: {
@@ -339,6 +337,17 @@ export const TAG_DEFINITIONS: Record<string, TagDefinition> = {
       maxLength: 500,
     },
     examples: ['landmark, outdoor, bronze, abstract'],
+  },
+
+  status: {
+    key: 'status',
+    label: 'Status',
+    description: 'Current status of the artwork',
+    category: 'artwork_classification',
+    dataType: 'enum',
+    required: false,
+    enumValues: ['active', 'removed', 'relocated', 'under_construction', 'planned', 'In place', 'Temporary'],
+    examples: ['active', 'removed', 'relocated'],
   },
 };
 

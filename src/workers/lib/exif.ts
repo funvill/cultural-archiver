@@ -7,7 +7,6 @@
  */
 
 import exifr from 'exifr';
-import * as piexif from 'piexifjs';
 import { ApiError } from './errors';
 
 /**
@@ -195,14 +194,33 @@ export async function injectPermalink(
       const base64 = btoa(binary);
       const dataUrl = `data:image/jpeg;base64,${base64}`;
 
+      // Try to dynamically import piexifjs. Some environments (wrangler dev/miniflare)
+      // evaluate UMD wrappers that reference `window` at module load time which can
+      // cause ReferenceError. Dynamic import avoids top-level evaluation.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let piexif: any | undefined;
+      try {
+        // Use dynamic import so bundlers don't evaluate UMD at module load
+        // In some environments dynamic import may fail - catch and fallback.
+        // eslint-disable-next-line @typescript-eslint/no-var-requires
+        piexif = await import('piexifjs');
+        // When imported as ES module, default export may be on .default
+        if (piexif && piexif.default) piexif = piexif.default;
+      } catch (err) {
+        console.warn('piexifjs not available or failed to import, skipping EXIF injection:', err);
+        piexif = undefined;
+      }
+
       // Load existing EXIF data or create new structure
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let exifData: Record<string, any>;
-      try {
-        exifData = piexif.load(dataUrl);
-      } catch {
-        // No existing EXIF data, create new structure
-        exifData = { '0th': {}, Exif: {}, GPS: {}, '1st': {}, thumbnail: undefined };
+      let exifData: Record<string, any> = { '0th': {}, Exif: {}, GPS: {}, '1st': {}, thumbnail: undefined };
+      if (piexif) {
+        try {
+          exifData = piexif.load(dataUrl);
+        } catch (e) {
+          // fallback to empty structure
+          exifData = { '0th': {}, Exif: {}, GPS: {}, '1st': {}, thumbnail: undefined };
+        }
       }
 
       // Set Image Description (comment) in IFD0

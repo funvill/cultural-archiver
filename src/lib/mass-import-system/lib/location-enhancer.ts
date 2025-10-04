@@ -6,6 +6,7 @@
  */
 
 import type { RawImportData } from '../types/index.js';
+// @ts-ignore - Path resolves after compilation: from dist/lib/mass-import-system/lib to dist/lib/location
 import { LocationService } from '../../location/service.js';
 
 export interface LocationEnhancementOptions {
@@ -45,12 +46,12 @@ export interface LocationEnhancementResult {
 
 export class LocationEnhancer {
   private locationService: LocationService;
-  private options: Required<LocationEnhancementOptions>;
+  private options: LocationEnhancementOptions & { enabled: boolean; requestTimeout: number; failOnErrors: boolean; tagFields: Required<NonNullable<LocationEnhancementOptions['tagFields']>> };
 
   constructor(options: LocationEnhancementOptions = {}) {
     this.options = {
       enabled: options.enabled ?? true,
-      cacheDbPath: options.cacheDbPath,
+      ...(options.cacheDbPath && { cacheDbPath: options.cacheDbPath }),
       requestTimeout: options.requestTimeout ?? 10000,
       failOnErrors: options.failOnErrors ?? false,
       tagFields: {
@@ -64,7 +65,7 @@ export class LocationEnhancer {
       },
     };
 
-    this.locationService = new LocationService(this.options.cacheDbPath);
+    this.locationService = new LocationService(options.cacheDbPath);
   }
 
   /**
@@ -106,6 +107,11 @@ export class LocationEnhancer {
     for (let i = 0; i < records.length; i++) {
       const record = records[i];
       processed++;
+
+      // Skip if record is undefined
+      if (!record) {
+        continue;
+      }
 
       // Check if record has valid coordinates
       if (!record.lat || !record.lon || isNaN(record.lat) || isNaN(record.lon)) {

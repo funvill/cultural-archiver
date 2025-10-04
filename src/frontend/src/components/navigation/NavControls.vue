@@ -2,12 +2,21 @@
 import { computed } from 'vue';
 import { Bars3Icon, BellIcon, CameraIcon, UserIcon, ArrowRightOnRectangleIcon, MapIcon } from '@heroicons/vue/24/outline';
 
+interface AuthProp {
+  isAuthenticated?: boolean;
+  userDisplayName?: string;
+  userRole?: string;
+}
+
 interface Props {
   orientation?: 'horizontal' | 'vertical';
   notificationCount?: number;
   showNotifications?: boolean;
+  // Backwards-compatible individual props
   isAuthenticated?: boolean;
   userDisplayName?: string;
+  // New consolidated auth prop
+  auth?: AuthProp;
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -18,18 +27,28 @@ const props = withDefaults(defineProps<Props>(), {
   userDisplayName: '',
 });
 
-interface Emits {
-  'menuToggle': [];
-  'notificationClick': [];
-  'fabClick': [];
-  'profileClick': [];
-  'loginClick': [];
-  'mapClick': [];
-}
-
-const emit = defineEmits<Emits>();
+// Event types
+const emit = defineEmits([
+  'menuToggle',
+  'notificationClick',
+  'fabClick',
+  'profileClick',
+  'loginClick',
+  'mapClick',
+]);
 
 const hasNotifications = computed(() => (props.notificationCount ?? 0) > 0);
+
+// Compute auth-derived values with fallbacks to the legacy props for compatibility
+const authIsAuthenticated = computed(() => {
+  if (props.auth && typeof props.auth.isAuthenticated === 'boolean') return props.auth.isAuthenticated;
+  return props.isAuthenticated ?? false;
+});
+
+const authUserDisplayName = computed(() => {
+  if (props.auth && typeof props.auth.userDisplayName === 'string') return props.auth.userDisplayName;
+  return props.userDisplayName ?? '';
+});
 
 const handleMenuToggle = () => emit('menuToggle');
 const handleNotificationClick = () => emit('notificationClick');
@@ -126,10 +145,10 @@ const handleMapClick = () => emit('mapClick');
 
     <!-- Profile / Login -->
     <button
-      v-if="props.isAuthenticated"
+      v-if="authIsAuthenticated"
       @click="handleProfileClick"
       class="flex items-center justify-center w-12 h-12 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors group"
-      :title="props.userDisplayName || 'Profile'"
+      :title="authUserDisplayName || 'Profile'"
     >
       <UserIcon class="w-6 h-6 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
     </button>

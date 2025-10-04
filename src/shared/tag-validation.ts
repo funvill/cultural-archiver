@@ -138,7 +138,7 @@ function validateNumberValue(
   value: unknown,
   definition: TagDefinition,
   errors: string[],
-  warnings: string[]
+  _warnings: string[]
 ): void {
   const numValue = Number(value);
 
@@ -157,14 +157,7 @@ function validateNumberValue(
   }
 
   // Warning for extremely precise values that might be measurement errors
-  if (definition.key === 'height' && numValue.toString().includes('.')) {
-    const decimalPart = numValue.toString().split('.')[1];
-    if (decimalPart && decimalPart.length > 2) {
-      warnings.push(
-        `${definition.label} has high precision - consider rounding to 2 decimal places`
-      );
-    }
-  }
+  // No legacy special-cases here; numeric validations handled by min/max in definition
 }
 
 /**

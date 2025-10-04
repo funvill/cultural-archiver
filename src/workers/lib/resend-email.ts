@@ -135,7 +135,7 @@ export function generateMagicLinkEmailTemplate(
             </p>
             <p style="margin: 0; color: #6c757d; font-size: 12px;">
                 Cultural Archiver &copy; ${new Date().getFullYear()} | 
-                <a href="https://art.abluestar.com" style="color: #3498db; text-decoration: none;">Visit Website</a>
+                <a href="https://api.publicartregistry.com" style="color: #3498db; text-decoration: none;">Visit Website</a>
             </p>
         </div>
     </div>
@@ -298,7 +298,7 @@ export async function sendTestEmail(
             <h3 style="margin: 0 0 15px 0; color: #2c3e50;">Configuration Details:</h3>
             <ul style="margin: 0; padding-left: 20px;">
                 <li><strong>From:</strong> ${env.EMAIL_FROM_NAME} &lt;${env.EMAIL_FROM_ADDRESS}&gt;</li>
-                <li><strong>Domain:</strong> art.abluestar.com</li>
+                <li><strong>Domain:</strong> api.publicartregistry.com</li>
                 <li><strong>Environment:</strong> ${env.ENVIRONMENT}</li>
                 <li><strong>Timestamp:</strong> ${new Date().toISOString()}</li>
             </ul>

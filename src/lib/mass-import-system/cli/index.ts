@@ -80,7 +80,7 @@ program
 // ================================
 
 program
-  .option('--api-endpoint <url>', 'API endpoint URL', 'https://art-api.abluestar.com')
+  .option('--api-endpoint <url>', 'API endpoint URL', 'https://api.publicartregistry.com')
   .option('--token <token>', 'Mass import user token', 'a0000000-1000-4000-8000-000000000002') // MASS_IMPORT_USER_UUID
   .option('--batch-size <number>', 'Batch size for processing', '50')
   .option('--max-retries <number>', 'Maximum retry attempts', '3')
@@ -95,7 +95,7 @@ program
   )
   .option(
     '--frontend-base <url>',
-    'Frontend base URL for artwork links (defaults to https://art.abluestar.com)'
+    'Frontend base URL for artwork links (defaults to https://api.publicartregistry.com)'
   )
   .option('--config <file>', 'Configuration file path')
   .option('--verbose', 'Enable verbose logging', false);
@@ -964,7 +964,7 @@ async function loadConfig(options: any, importerName?: string): Promise<MassImpo
 
   // Override with CLI options
   return {
-    apiEndpoint: options.apiEndpoint || config.apiEndpoint || 'https://art-api.abluestar.com',
+    apiEndpoint: options.apiEndpoint || config.apiEndpoint || 'https://api.publicartregistry.com',
     massImportUserToken:
       options.token || config.massImportUserToken || 'a0000000-1000-4000-8000-000000000002', // MASS_IMPORT_USER_UUID
     batchSize: parseInt(options.batchSize || config.batchSize || '50'),
@@ -1198,7 +1198,7 @@ async function saveDetailedReport(
   for (const batch of results.batches || []) {
     for (const result of batch.results || []) {
       if (result.success) {
-        const baseUrl = 'https://art.abluestar.com';
+        const baseUrl = 'https://api.publicartregistry.com';
         // Only generate URL for actual artwork IDs (submissionId), not for dry-run external IDs
         const artworkUrl = result.submissionId
           ? `${baseUrl}/artwork/${result.submissionId}`
@@ -1302,7 +1302,7 @@ async function saveDryRunReport(report: DryRunReport, filePath: string): Promise
  */
 async function saveNewArtworkReport(results: any, options: any, mode: string): Promise<void> {
   const filePath = options.newArtworkReport as string;
-  const frontendBase: string = (options.frontendBase as string) || 'https://art.abluestar.com';
+  const frontendBase: string = (options.frontendBase as string) || 'https://api.publicartregistry.com';
 
   // Collect submission IDs from successful import results
   const newIds: string[] = [];

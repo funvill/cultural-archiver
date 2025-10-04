@@ -202,7 +202,7 @@ export const VancouverMapper: DataSourceMapper = {
 
       // Use the standard validation with Vancouver-specific config
       const config = {
-        apiEndpoint: 'https://art-api.abluestar.com',
+        apiEndpoint: 'https://api.publicartregistry.com',
         massImportUserToken: 'a0000000-1000-4000-8000-000000000002', // MASS_IMPORT_USER_UUID from shared/constants.ts
         batchSize: 50,
         maxRetries: 3,

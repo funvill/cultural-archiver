@@ -82,7 +82,7 @@ Example transformations:
 #### R2 Fallback URLs
 
 ```
-https://art-photos.abluestar.com/{date-path}/{filename}
+https://photos.publicartregistry.com/{date-path}/{filename}
 ```
 
 ## Implementation Details

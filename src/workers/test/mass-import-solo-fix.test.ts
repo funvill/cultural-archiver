@@ -10,7 +10,7 @@ import { MassImportSimilarityStrategy } from '../../shared/mass-import-similarit
 
 describe('Mass Import Duplicate Detection - Solo Artwork Fix', () => {
   test('should properly detect identical "Solo" artworks as duplicates', () => {
-    const strategy = new MassImportSimilarityStrategy('https://art.abluestar.com');
+    const strategy = new MassImportSimilarityStrategy('https://api.publicartregistry.com');
 
     // Query (new artwork being imported)
     const query = {
@@ -70,7 +70,7 @@ describe('Mass Import Duplicate Detection - Solo Artwork Fix', () => {
   });
 
   test('should handle title-only matches correctly', () => {
-    const strategy = new MassImportSimilarityStrategy('https://art.abluestar.com');
+    const strategy = new MassImportSimilarityStrategy('https://api.publicartregistry.com');
 
     // Same test but without tags - should get title + location = 0.5 < 0.7
     const query = {
@@ -98,7 +98,7 @@ describe('Mass Import Duplicate Detection - Solo Artwork Fix', () => {
   });
 
   test('should handle edge cases in title matching', () => {
-    const strategy = new MassImportSimilarityStrategy('https://art.abluestar.com');
+    const strategy = new MassImportSimilarityStrategy('https://api.publicartregistry.com');
 
     const testCases = [
       { title1: 'Solo', title2: 'Solo', expectedSimilarity: 1.0 },

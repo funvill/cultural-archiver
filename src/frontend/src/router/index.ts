@@ -25,6 +25,8 @@ const LogbookSubmissionView = (): Promise<Component> =>
   import('../views/LogbookSubmissionView.vue');
 const PublicProfileView = (): Promise<Component> => import('../views/PublicProfileView.vue');
 const ListView = (): Promise<Component> => import('../views/ListView.vue');
+const PageListView = (): Promise<Component> => import('../views/PageListView.vue');
+const PageDetailView = (): Promise<Component> => import('../views/PageDetailView.vue');
 
 const router = createRouter({
   history: createWebHistory(),
@@ -165,19 +167,19 @@ const router = createRouter({
     },
     {
       path: '/terms',
-      name: 'Terms',
-      component: (): Promise<Component> => import('../views/TermsView.vue'),
-      meta: {
-        title: 'Terms of Service - Public Art Registry',
-      },
+      redirect: '/pages/terms-of-service',
     },
     {
       path: '/privacy',
-      name: 'Privacy',
-      component: (): Promise<Component> => import('../views/PrivacyView.vue'),
-      meta: {
-        title: 'Privacy Policy - Public Art Registry',
-      },
+      redirect: '/pages/privacy-policy',
+    },
+    {
+      path: '/docs/terms-of-service',
+      redirect: '/pages/terms-of-service',
+    },
+    {
+      path: '/docs/privacy-policy',
+      redirect: '/pages/privacy-policy',
     },
     {
       path: '/review',
@@ -220,6 +222,22 @@ const router = createRouter({
       component: StatusView,
       meta: {
         title: 'System Status - Public Art Registry',
+      },
+    },
+    {
+      path: '/pages',
+      name: 'PageList',
+      component: PageListView,
+      meta: {
+        title: 'Pages - Public Art Registry',
+      },
+    },
+    {
+      path: '/pages/:slug',
+      name: 'PageDetail',
+      component: PageDetailView,
+      meta: {
+        title: 'Page - Public Art Registry',
       },
     },
     // Redirect old paths for compatibility

@@ -33,6 +33,7 @@ const DEFAULT_MISSING_TEXT = 'The artwork is missing';
 const note = ref<string>('');
 const sending = ref(false);
 const error = ref<string | null>(null);
+const initialNote = ref<string>(''); // Track original note value
 
 // Computed
 const title = computed(() => {
@@ -54,14 +55,20 @@ const sendDisabled = computed(() => {
   return trimmed.length === 0 || trimmed.length > MAX_FEEDBACK_NOTE_LENGTH || sending.value;
 });
 
+const hasChanges = computed(() => {
+  return note.value !== initialNote.value;
+});
+
 // Watch for dialog open/close
-watch(() => props.open, (isOpen) => {
+watch(() => props.open, (isOpen: boolean) => {
   if (isOpen) {
     // Reset state when dialog opens
     if (props.mode === 'missing') {
       note.value = DEFAULT_MISSING_TEXT;
+      initialNote.value = DEFAULT_MISSING_TEXT;
     } else {
       note.value = '';
+      initialNote.value = '';
     }
     error.value = null;
     sending.value = false;
@@ -70,7 +77,16 @@ watch(() => props.open, (isOpen) => {
 
 // Methods
 function onCancel() {
+  // If user has made changes, confirm before closing
+  if (hasChanges.value) {
+    const confirmed = confirm('You have unsaved changes. Are you sure you want to close?');
+    if (!confirmed) {
+      return;
+    }
+  }
+  
   emit('close');
+  emit('cancel');
 }
 
 async function onSend() {

@@ -57,7 +57,7 @@ export class MassImportSimilarityStrategy {
   private readonly POINTS_PER_TAG = 0.05;
   private readonly LOCATION_RADIUS_METERS = 50;
 
-  constructor(private readonly baseUrl: string = 'https://art.abluestar.com') {}
+  constructor(private readonly baseUrl: string = 'https://api.publicartregistry.com') {}
 
   /**
    * Calculate similarity between import item and existing artwork

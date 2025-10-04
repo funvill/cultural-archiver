@@ -1,3 +1,15 @@
+// Polyfill `window` on globalThis for third-party libs that reference `window` during
+// local dev bundling (wrangler/miniflare). Cloudflare Workers runtime doesn't provide
+// `window`, and some dependencies (eg. piexifjs) reference it which causes a
+// ReferenceError. Setting a harmless global prevents those crashes in dev.
+if (typeof (globalThis as any).window === 'undefined') {
+  try {
+    (globalThis as any).window = globalThis;
+  } catch (e) {
+    // ignore; if assignment fails we'll continue without a window polyfill
+  }
+}
+
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
@@ -142,9 +154,15 @@ import { debugStevenPermissions } from './routes/debug-permissions';
 import { fixPermissionsSchema } from './routes/fix-schema';
 import { createFeedback } from './routes/feedback';
 import { listFeedback, reviewFeedback } from './routes/moderation/feedback';
+import { getAllPagesHandler, getPageHandler } from './routes/pages';
+import { initializePages } from './lib/pages-loader';
 
 // Initialize Hono app
 const app = new Hono<{ Bindings: WorkerEnv }>();
+
+// Initialize pages service (called once at worker startup)
+const isDevelopment = typeof process !== 'undefined' && process.env.NODE_ENV === 'development';
+initializePages(isDevelopment);
 
 // Add binding validation middleware - CRITICAL for deployment diagnosis
 app.use('*', async (c, next) => {
@@ -912,6 +930,14 @@ app.get('/api/search', rateLimitQueries, withErrorHandling(handleSearchRequest))
 app.get('/api/search/suggestions', rateLimitQueries, withErrorHandling(handleSearchSuggestions));
 
 // ================================
+// Pages Endpoints
+// ================================
+
+app.get('/api/pages', rateLimitQueries, withErrorHandling(getAllPagesHandler));
+
+app.get('/api/pages/:slug', rateLimitQueries, withErrorHandling(getPageHandler));
+
+// ================================
 // User Management Endpoints
 // ================================
 
@@ -1307,6 +1333,8 @@ app.notFound(c => {
         'GET /api/export/osm/stats',
         'GET /api/search',
         'GET /api/search/suggestions',
+        'GET /api/pages',
+        'GET /api/pages/:slug',
         'GET /api/me/submissions',
         'GET /api/me/profile',
         'PUT /api/me/preferences',

@@ -18,7 +18,7 @@ describe('ServerTagValidationService', () => {
       const validTags: StructuredTags = {
         artwork_type: 'statue',
         material: 'bronze',
-        height: 5.5,
+        dimensions: '5.5',
         access: 'yes',
         fee: 'no',
         condition: 'excellent',
@@ -34,7 +34,7 @@ describe('ServerTagValidationService', () => {
     it('should reject invalid tags but accept unknown tags', () => {
       const invalidTags: StructuredTags = {
         artwork_type: 'not_an_enum_value',
-        height: 'not_a_number',
+        dimensions: 'not_a_number', // dimensions is text in the schema, should be accepted
         website: 'not-a-url',
         unknown_tag: 'some_value', // This should be accepted as valid text
       };
@@ -42,9 +42,10 @@ describe('ServerTagValidationService', () => {
       const result = service.validateTags(invalidTags);
 
       expect(result.valid).toBe(false);
-      expect(result.errors.length).toBe(3); // Only 3 errors now (artwork_type, height, website)
+      // Only artwork_type and website should be invalid; dimensions is text so allowed
+      expect(result.errors.length).toBe(2);
       expect(result.errors.some(e => e.key === 'artwork_type')).toBe(true);
-      expect(result.errors.some(e => e.key === 'height')).toBe(true);
+      expect(result.errors.some(e => e.key === 'dimensions')).toBe(false);
       expect(result.errors.some(e => e.key === 'website')).toBe(true);
       expect(result.errors.some(e => e.key === 'unknown_tag')).toBe(false); // Should NOT have error
     });
@@ -70,7 +71,7 @@ describe('ServerTagValidationService', () => {
     it('should provide helpful suggestions for errors', () => {
       const invalidTags: StructuredTags = {
         artwork_type: 'invalid_type',
-        height: -5,
+        // dimensions is free-text now; no numeric suggestion expected
       };
 
       const result = service.validateTags(invalidTags);
@@ -80,9 +81,6 @@ describe('ServerTagValidationService', () => {
       const artworkTypeError = result.errors.find(e => e.key === 'artwork_type');
       expect(artworkTypeError?.suggestions).toBeDefined();
       expect(artworkTypeError?.suggestions?.some(s => s.includes('Valid values:'))).toBe(true);
-
-      const heightError = result.errors.find(e => e.key === 'height');
-      expect(heightError?.suggestions).toBeDefined();
     });
 
     it('should handle empty tags gracefully', () => {
@@ -116,15 +114,13 @@ describe('ServerTagValidationService', () => {
       expect(service.validateSingleTag('access', 'maybe').isValid).toBe(false);
     });
 
-    it('should validate numbers with range checking', () => {
-      // Valid number
-      expect(service.validateSingleTag('height', 5.5).isValid).toBe(true);
+    it('should validate dimensions as text with length checks', () => {
+      // Valid textual dimensions
+      expect(service.validateSingleTag('dimensions', '5.5').isValid).toBe(true);
 
-      // Invalid: negative
-      expect(service.validateSingleTag('height', -1).isValid).toBe(false);
-
-      // Invalid: too large
-      expect(service.validateSingleTag('height', 300).isValid).toBe(false);
+      // Invalid: too long (exceeds maxLength 100)
+      const long = 'x'.repeat(101);
+      expect(service.validateSingleTag('dimensions', long).isValid).toBe(false);
     });
 
     it('should validate dates in multiple formats', () => {
@@ -165,7 +161,7 @@ describe('ServerTagValidationService', () => {
       const tags: StructuredTags = {
         artwork_type: 'statue',
         material: 'bronze',
-        height: 5.5,
+        dimensions: '5.5',
         website: 'https://example.com',
       };
 
@@ -173,7 +169,7 @@ describe('ServerTagValidationService', () => {
 
       expect(osmTags.artwork_type).toBe('statue');
       expect(osmTags.material).toBe('bronze');
-      expect(osmTags.height).toBe('5.5');
+      expect(osmTags.dimensions).toBe('5.5');
       expect(osmTags.website).toBe('https://example.com');
     });
 
@@ -181,14 +177,14 @@ describe('ServerTagValidationService', () => {
       const tags: StructuredTags = {
         artwork_type: 'statue',
         material: '',
-        height: 0, // This should be included as it's a valid value
+        dimensions: '0', // This should be included as it's a valid value
       };
 
       const osmTags = service.generateOSMExport(tags);
 
       expect(osmTags.artwork_type).toBe('statue');
       expect(osmTags.material).toBeUndefined();
-      expect(osmTags.height).toBe('0');
+      expect(osmTags.dimensions).toBe('0');
     });
 
     it('should use ca: prefix for unmapped tags', () => {
@@ -215,7 +211,7 @@ describe('ServerTagValidationService', () => {
       const newTags: StructuredTags = {
         artwork_type: 'statue', // Changed type
         material: 'bronze', // Changed material
-        height: 5.5, // Added new tag
+        dimensions: '5.5', // Added new tag
       };
 
       const result = service.validateForArtworkEdit(oldTags, newTags);
@@ -274,7 +270,7 @@ describe('ServerTagValidationService', () => {
       const invalidTags: StructuredTags = {
         // Testing various invalid tag values
         artwork_type: 'invalid_enum_value',
-        height: 'not_a_number',
+        dimensions: 'not_a_number',
         start_date: 'invalid_date_format',
         website: 'not-a-url',
         unknown_tag: 'value', // This should be accepted as valid text
@@ -288,8 +284,9 @@ describe('ServerTagValidationService', () => {
       const artworkTypeError = result.errors.find(e => e.key === 'artwork_type');
       expect(artworkTypeError?.code).toBe('invalid_enum');
 
-      const heightError = result.errors.find(e => e.key === 'height');
-      expect(heightError?.code).toBe('invalid_format');
+  const dimensionsError = result.errors.find(e => e.key === 'dimensions');
+  // dimensions is free-text now; should NOT produce numeric format error
+  expect(dimensionsError).toBeUndefined();
 
       const dateError = result.errors.find(e => e.key === 'start_date');
       expect(dateError?.code).toBe('invalid_format');
@@ -332,16 +329,17 @@ describe('ServerTagValidationService', () => {
     it('should provide consistent validation between single and batch validation', () => {
       const tags: StructuredTags = {
         artwork_type: 'invalid_value',
-        height: -5,
+        dimensions: '-5',
       };
 
       const batchResult = service.validateTags(tags);
       const singleResult1 = service.validateSingleTag('artwork_type', 'invalid_value');
-      const singleResult2 = service.validateSingleTag('height', -5);
+  const singleResult2 = service.validateSingleTag('dimensions', '-5');
 
       expect(batchResult.valid).toBe(false);
       expect(singleResult1.isValid).toBe(false);
-      expect(singleResult2.isValid).toBe(false);
+  // dimensions is text so '-5' should be valid as a string
+  expect(singleResult2.isValid).toBe(true);
     });
   });
 });

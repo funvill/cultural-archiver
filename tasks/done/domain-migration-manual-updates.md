@@ -15,18 +15,18 @@ Update all occurrences in these files:
 **Search and Replace:**
 - `Cultural Archiver` → `Public Art Registry`
 - `Cultural Archiver Society` → `Public Art Registry Society` (keep "Society" for legal entity)
-- `art.abluestar.com` → `publicartregistry.com`
-- `privacy@art.abluestar.com` → `privacy@publicartregistry.com`
+- `api.publicartregistry.com` → `publicartregistry.com`
+- `privacy@api.publicartregistry.com` → `privacy@publicartregistry.com`
 
 **Note:** Keep references to "cultural archiving" as a generic term where it describes the activity, not the organization name.
 
 ### Task Files
 
 **File:** `tasks/next.md`
-- Line 65: Update the URL `https://art.abluestar.com/artwork/...` to `https://publicartregistry.com/artwork/...`
+- Line 65: Update the URL `https://api.publicartregistry.com/artwork/...` to `https://publicartregistry.com/artwork/...`
 
 **File:** `tasks/done/_smallchanges.md`
-- Update stack traces that reference `art.abluestar.com` (for documentation purposes)
+- Update stack traces that reference `api.publicartregistry.com` (for documentation purposes)
 
 **File:** `tasks/done/handoff-loved-chip-bug.md`
 - Line 53: Already updated contact email
@@ -34,12 +34,12 @@ Update all occurrences in these files:
 ### Test Files
 
 **File:** `src/frontend/test-results/map-preview-marker-click-M-7d068-preview-with-type-and-title/error-context.md`
-- Update mailto links from `support@art.abluestar.com` to `support@publicartregistry.com`
+- Update mailto links from `support@api.publicartregistry.com` to `support@publicartregistry.com`
 
 ### Documentation Files
 
 Check and update any remaining references in `/docs/` directory:
-- Search for `art.abluestar.com`
+- Search for `api.publicartregistry.com`
 - Search for `Cultural Archiver`
 - Replace with new domain and branding
 

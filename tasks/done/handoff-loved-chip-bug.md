@@ -50,4 +50,4 @@
 
 ---
 
-**Contact:** support@art.abluestar.com
+**Contact:** support@api.publicartregistry.com

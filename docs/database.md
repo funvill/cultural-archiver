@@ -397,7 +397,7 @@ The `tags` field contains a JSON object with the following structure:
     "name": "Victory Angel",
     "artist_name": "Jane Doe",
     "material": "bronze",
-    "height": 5.5,
+  "dimensions": "5.5",
     "start_date": "1995-06",
     "access": "yes",
     "fee": "no",
@@ -415,7 +415,7 @@ The `tags` field contains a JSON object with the following structure:
 
 **Tag Categories:**
 
-1. **Physical Properties**: `material`, `height`, `condition`
+1. **Physical Properties**: `material`, `dimensions`, `condition`
 2. **Historical Information**: `artist_name`, `start_date`
 3. **Location Details**: `access`, `fee`
 4. **Artwork Classification**: `tourism`, `artwork_type`, `name`, `subject`, `style`, `description`
@@ -425,7 +425,7 @@ The `tags` field contains a JSON object with the following structure:
 
 - **enum**: Fixed set of values (e.g., `artwork_type`, `access`, `condition`)
 - **text**: Free text with length limits (e.g., `name`, `artist_name`, `material`)
-- **number**: Numeric values with range validation (e.g., `height`)
+- **number**: Numeric values with range validation (e.g., `dimensions` when represented as a numeric string)
 - **date**: ISO date formats: YYYY, YYYY-MM, or YYYY-MM-DD (e.g., `start_date`)
 - **yes_no**: Boolean values as "yes" or "no" strings (e.g., `fee`)
 - **url**: Valid HTTP/HTTPS URLs (e.g., `website`)

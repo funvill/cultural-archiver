@@ -146,7 +146,7 @@ describe('Artist Routes', () => {
       await getArtistsList(c);
 
       // Should use search in query (with new default limit of 30)
-      expect(mockDbStmt.bind).toHaveBeenCalledWith('active', '%Test%', 30, 0);
+      expect(mockDbStmt.bind).toHaveBeenCalledWith('approved', '%Test%', 30, 0);
     });
   });
 

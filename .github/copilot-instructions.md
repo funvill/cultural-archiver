@@ -4,7 +4,7 @@
 
 - Developed on a Windows computer using PowerShell. Commands should be PowerShell compliant. Use PowerShell syntax instead
   - Use `Invoke-WebRequest` instead of `curl`
-- Use Playwright-MCP over `simple browser` tools when available.
+- Use Playwright-MCP over `simple browser` to debugging
 - When starting a devlopment server for testing, use `npm run devout`. This produces a log file `dev-server-logs.txt` that contains the server logs
 - [ ] `npm run test` passes with 0 failures
 - [ ] `npm run build` completes with 0 errors
@@ -34,9 +34,9 @@
 - **Frontend Deployment**
   - **NOT Cloudflare Pages** - Uses Cloudflare Worker with static assets
   - Configured via `src/frontend/wrangler.jsonc` with `assets.directory: "./dist"`. Built-in SPA configuration handles routing
-  - Serves static files through Worker runtime at `art.abluestar.com`
+  - Serves static files through Worker runtime at `publicartregistry.com`
 - **Backend Deployment**
-  - Separate Cloudflare Worker at `art-api.abluestar.com`
+  - Separate Cloudflare Worker at `api.publicartregistry.com`
   - Configured via `src/workers/wrangler.toml`
   - Handles API endpoints, database operations, and business logic
 - **Test Framework**:

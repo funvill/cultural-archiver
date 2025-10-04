@@ -323,7 +323,7 @@ describe('Similarity Service', () => {
     });
 
     it('should filter non-string values from tag parsing', () => {
-      const tagsWithNumbers = '{"material": "bronze", "height": 5, "public": true}';
+  const tagsWithNumbers = '{"material": "bronze", "dimensions": 5, "public": true}';
       const parsed = parseTagsForSimilarity(tagsWithNumbers);
 
       expect(parsed).toEqual(['bronze']);
@@ -346,7 +346,7 @@ describe('Similarity Service', () => {
         }),
       };
 
-      service.setStrategy(customStrategy);
+  service.setStrategy(customStrategy as any);
       const info = service.getStrategyInfo();
 
       expect(info.name).toBe('custom');

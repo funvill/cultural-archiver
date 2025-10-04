@@ -6,7 +6,7 @@ import type {
 
 export class NominatimApiClient {
   private readonly baseUrl = 'https://nominatim.openstreetmap.org';
-  private readonly userAgent = 'cultural-archiver/1.0 (https://art.abluestar.com)';
+  private readonly userAgent = 'cultural-archiver/1.0 (https://api.publicartregistry.com)';
   private lastRequestTime = 0;
   private readonly rateLimitDelay = 1000; // 1 second between requests
 

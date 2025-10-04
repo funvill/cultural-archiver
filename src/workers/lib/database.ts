@@ -546,7 +546,7 @@ export class DatabaseService {
         SELECT a.id, a.name, aa.role
         FROM artists a
         JOIN artwork_artists aa ON a.id = aa.artist_id
-        WHERE aa.artwork_id = ? AND a.status = 'active'
+        WHERE aa.artwork_id = ? AND a.status = 'approved'
         ORDER BY aa.created_at ASC
       `);
 
@@ -570,7 +570,7 @@ export class DatabaseService {
       const stmt = this.db.prepare(`
         SELECT id, name 
         FROM artists 
-        WHERE LOWER(TRIM(name)) = ? AND status = 'active'
+        WHERE LOWER(TRIM(name)) = ? AND status = 'approved'
         ORDER BY created_at ASC
       `);
 
@@ -648,7 +648,7 @@ export class DatabaseService {
 
     const stmt = this.db.prepare(`
       INSERT INTO artists (id, name, description, tags, created_at, updated_at, status)
-      VALUES (?, ?, ?, ?, ?, ?, 'active')
+      VALUES (?, ?, ?, ?, ?, ?, 'approved')
     `);
 
     await stmt.bind(id, data.name, data.description || null, JSON.stringify(tags), now, now).run();

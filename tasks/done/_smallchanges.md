@@ -39,7 +39,7 @@ These are small changes that I did inline.
 - In edit mode
   - [x] The different tags should show as a full row value instead of a block floating.
   - [x] A user should be able to click the tags and edit the value in the form as the add tag.
-  - [x] Couldn't enter in height, produced error.
+  - [x] Couldn't enter in dimensions, produced error.
 
 ## Add artwork
 
@@ -143,10 +143,10 @@ The admin page is a super user that can give moderators permissions to other use
 {
   "referenceId": "mfbid4ri-90w97t",
   "message": "Cannot read properties of undefined (reading 'toLocaleString')",
-  "stack": "TypeError: Cannot read properties of undefined (reading 'toLocaleString')\n    at Proxy.<anonymous> (https://art.abluestar.com/assets/AdminView-BzvBEEUH.js:1:48675)\n    at Xs (https://art.abluestar.com/assets/vendor-2hKZjCc7.js:13:26655)\n    at zr.R [as fn] (https://art.abluestar.com/assets/vendor-2hKZjCc7.js:13:19154)\n    at zr.run (https://art.abluestar.com/assets/vendor-2hKZjCc7.js:9:1907)\n    at zr.runIfDirty (https://art.abluestar.com/assets/vendor-2hKZjCc7.js:9:2216)\n    at rn (https://art.abluestar.com/assets/vendor-2hKZjCc7.js:13:46)\n    at mo (https://art.abluestar.com/assets/vendor-2hKZjCc7.js:13:1795)",
+  "stack": "TypeError: Cannot read properties of undefined (reading 'toLocaleString')\n    at Proxy.<anonymous> (https://api.publicartregistry.com/assets/AdminView-BzvBEEUH.js:1:48675)\n    at Xs (https://api.publicartregistry.com/assets/vendor-2hKZjCc7.js:13:26655)\n    at zr.R [as fn] (https://api.publicartregistry.com/assets/vendor-2hKZjCc7.js:13:19154)\n    at zr.run (https://api.publicartregistry.com/assets/vendor-2hKZjCc7.js:9:1907)\n    at zr.runIfDirty (https://api.publicartregistry.com/assets/vendor-2hKZjCc7.js:9:2216)\n    at rn (https://api.publicartregistry.com/assets/vendor-2hKZjCc7.js:13:46)\n    at mo (https://api.publicartregistry.com/assets/vendor-2hKZjCc7.js:13:1795)",
   "component": "Unknown",
   "trace": "https://vuejs.org/error-reference/#runtime-1",
-  "url": "https://art.abluestar.com/admin",
+  "url": "https://api.publicartregistry.com/admin",
   "artworkId": null,
   "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0.0.0 Safari/537.36 Edg/140.0.0.0",
   "timestamp": "2025-09-08T19:22:28.002Z",
@@ -352,11 +352,11 @@ For example: artwork.description = "## Description Of Work\n" + $.descriptionofw
 When a user submits a edit or a new artwork. Only validate on the known tags (Keywords, artwork type, etc...), but if a unknown tag is submitted accept it with a value type of string.
 
 ```
-OPTIONS https://art-api.abluestar.com/api/artwork/REDACTED/edit - Ok @ 2025-09-09, 11:46:47 p.m.
+OPTIONS https://api.publicartregistry.com/api/artwork/REDACTED/edit - Ok @ 2025-09-09, 11:46:47 p.m.
   (log) <-- OPTIONS /api/artwork/5563cf05-90cd-4b1e-9a02-60535b7dac39/edit
   (log) --> OPTIONS /api/artwork/5563cf05-90cd-4b1e-9a02-60535b7dac39/edit
  204 0ms
-POST https://art-api.abluestar.com/api/artwork/REDACTED/edit - Ok @ 2025-09-09, 11:46:48 p.m.
+POST https://api.publicartregistry.com/api/artwork/REDACTED/edit - Ok @ 2025-09-09, 11:46:48 p.m.
   (log) <-- POST /api/artwork/5563cf05-90cd-4b1e-9a02-60535b7dac39/edit
   (log) [TAG VALIDATION DEBUG] Starting tag validation: {
   tags: {
@@ -509,7 +509,7 @@ Review the `database:reset:prod` script with the migration steps in mind. specif
 
 Mass import UUID error
 
-The mass import seems to be generating its own IDs for the artwork, and logbook tables (maybe other tables) instead of using a UUID. This means that the artwork pages urls are `https://art.abluestar.com/artwork/artwork-1757533783575-sz2ucn1` instead of the expected `https://art.abluestar.com/artwork/79e3ab63-2d75-401e-98f8-9c3aa6d001f7`. Because the frontend is expecting UUIDs instead of keywords for the id, the front end is showing the following error "Artwork Not Found - Invalid artwork ID format. Please check the URL and try again."
+The mass import seems to be generating its own IDs for the artwork, and logbook tables (maybe other tables) instead of using a UUID. This means that the artwork pages urls are `https://api.publicartregistry.com/artwork/artwork-1757533783575-sz2ucn1` instead of the expected `https://api.publicartregistry.com/artwork/79e3ab63-2d75-401e-98f8-9c3aa6d001f7`. Because the frontend is expecting UUIDs instead of keywords for the id, the front end is showing the following error "Artwork Not Found - Invalid artwork ID format. Please check the URL and try again."
 
 ### Mass import vancouver artists
 
@@ -644,18 +644,18 @@ Steps to reproduce
 Here is the browser console log
 
 ```
-piClient.get] API Base URL: https://art-api.abluestar.com/api endpoint: /artworks/nearby params: Object
+piClient.get] API Base URL: https://api.publicartregistry.com/api endpoint: /artworks/nearby params: Object
 api.ts:179 [ApiClient.request] Constructing URL: Object
-api.ts:190 [ApiClient.request] Making fetch request to: https://art-api.abluestar.com/api/artworks/nearby?lat=49.261047329553165&lon=-123.09575225127979&radius=3518.170006851188&limit=250&minimal=true
+api.ts:190 [ApiClient.request] Making fetch request to: https://api.publicartregistry.com/api/artworks/nearby?lat=49.261047329553165&lon=-123.09575225127979&radius=3518.170006851188&limit=250&minimal=true
 api.ts:80 [API DEBUG] Getting user token from localStorage: Object
 api.ts:111 [API DEBUG] Creating request headers: Object
 api.ts:202 [ApiClient.request] Response received: Object
 api.ts:130 [API DEBUG] Handling response: Object
 artworks.ts:321 [DEBUG] Session artwork cache size: 629
 index.ts:205 [ROUTER DEBUG] Route guard check: Object
-api.ts:238 [ApiClient.get] API Base URL: https://art-api.abluestar.com/api endpoint: /artworks params: Object
+api.ts:238 [ApiClient.get] API Base URL: https://api.publicartregistry.com/api endpoint: /artworks params: Object
 api.ts:179 [ApiClient.request] Constructing URL: Object
-api.ts:190 [ApiClient.request] Making fetch request to: https://art-api.abluestar.com/api/artworks?page=1&limit=30&sort=updated_desc
+api.ts:190 [ApiClient.request] Making fetch request to: https://api.publicartregistry.com/api/artworks?page=1&limit=30&sort=updated_desc
 api.ts:80 [API DEBUG] Getting user token from localStorage: Object
 api.ts:111 [API DEBUG] Creating request headers: Object
 api.ts:202 [ApiClient.request] Response received: Object
@@ -668,9 +668,9 @@ MapComponent.vue:223 Map created successfully: Proxy(e)
 MapComponent.vue:229 Added leaflet-container class to map container
 MapComponent.vue:258 Tile layer added to map
 MapComponent.vue:295 Applied dimension fixes to Leaflet containers
-api.ts:238 [ApiClient.get] API Base URL: https://art-api.abluestar.com/api endpoint: /artworks/nearby params: Object
+api.ts:238 [ApiClient.get] API Base URL: https://api.publicartregistry.com/api endpoint: /artworks/nearby params: Object
 api.ts:179 [ApiClient.request] Constructing URL: Object
-api.ts:190 [ApiClient.request] Making fetch request to: https://art-api.abluestar.com/api/artworks/nearby?lat=49.261049290964195&lon=-123.09575557708742&radius=3518.1698670215073&limit=250&minimal=true
+api.ts:190 [ApiClient.request] Making fetch request to: https://api.publicartregistry.com/api/artworks/nearby?lat=49.261049290964195&lon=-123.09575557708742&radius=3518.1698670215073&limit=250&minimal=true
 api.ts:80 [API DEBUG] Getting user token from localStorage: Object
 api.ts:111 [API DEBUG] Creating request headers: Object
 MapComponent.vue:295 Applied dimension fixes to Leaflet containers
@@ -791,7 +791,7 @@ The "Location Access Needed" dialog has a transpartent background making it hard
 
 ----
 
-The status page https://art.abluestar.com/status should show the device GPS status and the date of all the locally stored values.
+The status page https://api.publicartregistry.com/status should show the device GPS status and the date of all the locally stored values.
 
 ----
 
@@ -845,5 +845,46 @@ Add buttons that the user can press from the preview
 
 The goal is to give the user a quick action buttons that they can preform on an artwork without having to go to the artwork details page.
 
+
+----
+
+
+# Welcome page
+
+# Welcome to Public Art Registry
+
+Public art is fragile. Murals fade, sculptures crumble, stories vanish. If no one honors them, they are lost — forever.
+
+By preserving artworks and committing them to this archive, you safeguard our shared cultural story — a legacy of memory and meaning for generations yet to come.
+
+This is your chance to protect what matters. To give the future the legacy of memory.
+
+## How to Help
+
+Every action you take makes you a guardian of culture. Each step is a way to honor artists, preserve their work, and inspire those who follow.
+
+### Take photos of artworks
+
+Your photo could be the last record of a mural before it vanishes. By capturing it now, you become the guardian of its memory.
+
+👉 Action: Safeguard Creativity
+
+### Update information on artworks or artists
+
+Every detail you add protects the truth of our shared culture. You ensure future generations know the stories behind the art.
+
+👉 Action: Protect History
+
+### Explore Art Nearby
+
+Artists create for others to witness. Your journey completes their work and preserves it for the future — every visit keeps the art alive.
+
+👉 Action: Discover Nearby Art
+
+### Highlight Great Works (Coming soon)
+
+Art lives through connection. By choosing what inspires you, you pass that spark to those who follow — guiding them toward what matters most.
+
+👉 Action: Share What Moves You
 
 ----

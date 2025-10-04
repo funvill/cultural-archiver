@@ -2,7 +2,7 @@
 
 **Status**: Production deployed and working ✅  
 **Date**: October 3, 2025  
-**Migration**: `art.abluestar.com` → `publicartregistry.com`
+**Migration**: `api.publicartregistry.com` → `publicartregistry.com`
 
 ## ✅ Completed Tasks
 
@@ -77,7 +77,7 @@ describe('Cultural Archiver API Integration Tests', (): void => {
 
 // Email template
 Cultural Archiver © ${new Date().getFullYear()} |
-<a href="https://art.abluestar.com">Visit Website</a>
+<a href="https://api.publicartregistry.com">Visit Website</a>
 ```
 
 **Decision**: Keep as-is unless you want complete rebrand. These don't affect user experience.
@@ -88,8 +88,8 @@ Cultural Archiver © ${new Date().getFullYear()} |
 
 **Files to update:**
 - `src/workers/lib/resend-email.ts` (line 138, 301)
-  - Footer link: `https://art.abluestar.com` → `https://publicartregistry.com`
-  - Domain display: `art.abluestar.com` → `publicartregistry.com`
+  - Footer link: `https://api.publicartregistry.com` → `https://publicartregistry.com`
+  - Domain display: `api.publicartregistry.com` → `publicartregistry.com`
 
 ### 5. Update Test File URLs
 **Status**: Old domain in test files  

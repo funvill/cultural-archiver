@@ -54,7 +54,7 @@ describe('Export Integration Tests', () => {
           tags: {
             artwork_type: 'statue',
             material: 'bronze',
-            height: 3.5,
+            dimensions: '3.5',
           },
           version: '1.0.0',
         }),
@@ -91,7 +91,7 @@ describe('Export Integration Tests', () => {
           tourism: 'artwork',
           artwork_type: 'statue',
           material: 'bronze',
-          height: '3.5',
+          dimensions: '3.5',
         }),
       });
     });

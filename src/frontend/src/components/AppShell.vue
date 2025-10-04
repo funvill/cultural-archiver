@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { RouterView, useRoute, useRouter } from 'vue-router';
 import { useGeolocation } from '../composables/useGeolocation';
 import { extractExifData, createImagePreview } from '../utils/image';
@@ -41,6 +41,13 @@ const { showNavigationRail } = useBreakpoint();
 
 // Local state for navigation rail expanded/collapsed on desktop
 const navExpanded = ref(true);
+
+// Build auth object once for passing to navigation components
+const auth = computed(() => ({
+  isAuthenticated: authStore.isAuthenticated,
+  userDisplayName: authStore.user?.email ?? '',
+  userRole: (authStore.isAdmin ? 'admin' : (authStore.canReview ? 'moderator' : 'user')) as 'admin' | 'moderator' | 'user',
+}));
 
 function handleToggleRail(): void {
   navExpanded.value = !navExpanded.value;
@@ -267,6 +274,10 @@ function handleDrawerToggle(): void {
   showDrawer.value = !showDrawer.value;
 }
 
+function setShowDrawer(value: boolean): void {
+  showDrawer.value = value;
+}
+
 
 
 function handleAboutClick(): void {
@@ -396,9 +407,7 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
       :is-expanded="navExpanded"
       :notification-count="notificationsStore.unreadCount"
       :show-notifications="authStore.isAuthenticated"
-      :is-authenticated="authStore.isAuthenticated"
-      :user-display-name="authStore.user?.email ?? ''"
-      :user-role="authStore.isAdmin ? 'admin' : (authStore.canReview ? 'moderator' : 'user')"
+      :auth="auth"
       @toggleExpanded="handleToggleRail"
       @notificationClick="handleNotificationClick"
       @profileClick="() => router.push('/profile')"
@@ -411,8 +420,7 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
       :current-route="route.path"
       :notification-count="notificationsStore.unreadCount"
       :show-notifications="authStore.isAuthenticated"
-      :is-authenticated="authStore.isAuthenticated"
-      :user-display-name="authStore.user?.email ?? ''"
+      :auth="auth"
       @menuToggle="handleDrawerToggle"
       @fabClick="triggerFastAdd"
       @mapClick="handleMapClick"
@@ -425,8 +433,8 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
     <NavigationDrawer
       :is-open="showDrawer"
       :current-route="route.path"
-      :user-role="authStore.isAdmin ? 'admin' : authStore.canReview ? 'moderator' : 'user'"
-      @update:is-open="(value) => showDrawer = value"
+      :auth="auth"
+      @update:is-open="setShowDrawer"
       @searchSubmit="handleSearch"
       @profileClick="() => router.push('/profile')"
       @aboutModalOpen="handleAboutClick"

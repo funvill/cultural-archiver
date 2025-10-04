@@ -2,7 +2,7 @@
   "extends": "../../../tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist",
-    "rootDir": "./",
+    "rootDir": "../../",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
@@ -15,6 +15,6 @@
       "@cultural-archiver/shared/*": ["../../shared/*"]
     }
   },
-  "include": ["./**/*"],
+  "include": ["./**/*", "../location/**/*", "../../shared/**/*"],
   "exclude": ["dist", "node_modules", "**/*.test.ts", "templates/**/*", "test/**/*"]
 }

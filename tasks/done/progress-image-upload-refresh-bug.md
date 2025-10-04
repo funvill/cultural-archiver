@@ -172,7 +172,7 @@ npm run test
 // API call still uses OLD coordinates:
 [LOG] [ApiClient.get] .../artworks/nearby?lat=49.25366944444445&lon=-123.08888611111111
 // But URL shows NEW coordinates:
-// https://art.abluestar.com/search?lat=49.256766666666664&lng=-123.08111944444444
+// https://api.publicartregistry.com/search?lat=49.256766666666664&lng=-123.08111944444444
 ```
 
 ### Network Request Analysis

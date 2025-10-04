@@ -61,10 +61,10 @@ const vancouverTestData: MassImportRequestV2 = {
         sourceUrl: 'https://opendata.vancouver.ca/explore/dataset/public-art',
         externalId: 'VOD-DIGITAL-ORCA-2009',
         license: 'CC0',
-        tags: {
+          tags: {
           tourism: 'artwork',
           artwork_type: 'sculpture',
-          height: 8.5,
+          dimensions: '8.5',
           start_date: '2009-12',
           access: 'yes',
           fee: 'no',
@@ -98,10 +98,10 @@ const vancouverTestData: MassImportRequestV2 = {
         sourceUrl: 'https://opendata.vancouver.ca/explore/dataset/public-art',
         externalId: 'VOD-STEAM-CLOCK-1977',
         license: 'CC0',
-        tags: {
+          tags: {
           tourism: 'artwork',
           artwork_type: 'functional_art',
-          height: 5.0,
+          dimensions: '5.0',
           start_date: '1977-09',
           access: 'yes',
           fee: 'no',

@@ -14,7 +14,7 @@ The Cultural Archiver Worker API provides a **production-ready** comprehensive b
 ## Base URL
 
 ```http
-https://art-api.abluestar.com
+https://api.publicartregistry.com
 ```
 
 ## Rate Limiting
@@ -248,7 +248,7 @@ POST /api/logbook
         "id": "artwork-uuid",
         "distance_km": 0.12,
         "title": "Downtown Mural",
-        "photos": ["https://art-photos.abluestar.com/photo.jpg"]
+        "photos": ["https://photos.publicartregistry.com/photo.jpg"]
       }
     ],
     "created_at": "2025-09-22T12:05:00Z"
@@ -304,7 +304,7 @@ POST /api/submissions
         "id": "artwork-uuid",
         "distance_km": 0.15,
         "title": "Downtown Mural",
-        "photos": ["https://art-photos.abluestar.com/photo.jpg"]
+        "photos": ["https://photos.publicartregistry.com/photo.jpg"]
       }
     ],
     "created_at": "2024-01-15T10:30:00Z"
@@ -452,7 +452,7 @@ GET /api/artworks/nearby
         "type_name": "Public Art",
         "status": "approved",
         "distance_km": 0.15,
-        "photos": ["https://art-photos.abluestar.com/2024/01/15/photo.jpg"],
+        "photos": ["https://photos.publicartregistry.com/2024/01/15/photo.jpg"],
         "recent_submissions": 3,
         "created_at": "2024-01-15T10:30:00Z"
       }
@@ -492,7 +492,7 @@ GET /api/artworks/nearby?lat=49.2827&lon=-123.1207&radius=1000&limit=250&minimal
         "lat": 49.2827,
         "lon": -123.1207,
         "type_name": "Public Art",
-        "recent_photo": "https://art-photos.abluestar.com/2024/01/15/photo.jpg"
+        "recent_photo": "https://photos.publicartregistry.com/2024/01/15/photo.jpg"
       }
     ],
     "search_center": { "lat": 49.2827, "lon": -123.1207 },
@@ -542,7 +542,7 @@ GET /api/search
         "type_name": "Street Art",
         "status": "approved",
         "distance_km": 0.15,
-        "photos": ["https://art-photos.abluestar.com/photo.jpg"],
+        "photos": ["https://photos.publicartregistry.com/photo.jpg"],
         "tags": {
           "artwork_type": "mural",
           "artist_name": "banksy",
@@ -662,7 +662,7 @@ GET /api/artworks
         "lon": -123.1207,
         "type_name": "Public Art",
         "status": "approved",
-        "recent_photo": "https://art-photos.abluestar.com/2024/01/15/photo.jpg",
+        "recent_photo": "https://photos.publicartregistry.com/2024/01/15/photo.jpg",
         "photo_count": 3,
         "title": "Victory Angel",
         "artist_name": "Jane Doe",
@@ -748,7 +748,7 @@ Example: the `tags` object appears in the `GET /api/artworks/{id}` response unde
         "name": "Victory Angel",
         "artist_name": "Jane Doe",
         "material": "bronze",
-        "height": 5.5,
+  "dimensions": "5.5",
         "condition": "excellent",
         "access": "yes",
         "year": "1995",
@@ -768,7 +768,7 @@ Example: the `tags` object appears in the `GET /api/artworks/{id}` response unde
 The API validates tags against a predefined schema with 15 essential tags across 5 categories:
 
 - **Artwork Classification**: `tourism`, `artwork_type`, `name`, `inscription`
-- **Physical Properties**: `material`, `height`, `width`, `condition`
+ - **Physical Properties**: `material`, `dimensions`, `width`, `condition`
 - **Historical Information**: `artist_name`, `year`, `heritage`
 - **Location Details**: `access`, `operator`
 - **Reference Data**: `website`, `wikidata_id`
@@ -783,9 +783,9 @@ The API validates tags against a predefined schema with 15 essential tags across
     "code": "VALIDATION_ERROR",
     "validationErrors": [
       {
-        "field": "height",
-        "message": "Must be a positive number",
-        "code": "INVALID_NUMBER"
+        "field": "dimensions",
+        "message": "Must be a valid dimensions string",
+        "code": "INVALID_DIMENSIONS"
       },
       {
         "field": "year",
@@ -1336,7 +1336,7 @@ GET /api/me/submissions
         "verification_status": "verified",
         "artwork_id": "artwork-uuid",
         "artist_id": null,
-        "photos": ["https://art-photos.abluestar.com/photo.jpg"],
+        "photos": ["https://photos.publicartregistry.com/photo.jpg"],
         "tags": {
           "artwork_type": "mural",
           "material": "paint"
@@ -2259,7 +2259,7 @@ GET /api/review/queue
         "lat": 49.2827,
         "lon": -123.1207,
         "notes": "Street art submission",
-        "photos": ["https://art-photos.abluestar.com/photo.jpg"],
+        "photos": ["https://photos.publicartregistry.com/photo.jpg"],
         "tags": {
           "artwork_type": "mural",
           "material": "paint"
@@ -2587,7 +2587,7 @@ GET /api/review/submission/{id}
       "lat": 49.2827,
       "lon": -123.1207,
       "notes": "Street art submission",
-      "photos": ["https://art-photos.abluestar.com/photo.jpg"],
+      "photos": ["https://photos.publicartregistry.com/photo.jpg"],
       "tags": {
         "artwork_type": "mural",
         "material": "paint"
@@ -2820,7 +2820,7 @@ FRONTEND_URL=http://localhost:3000 LOG_LEVEL=debug
 
 ```bash
 # Submit artwork
-curl -X POST https://art-api.abluestar.com/api/logbook \
+curl -X POST https://api.publicartregistry.com/api/logbook \
   -H "Authorization: Bearer your-token" \
   -F "lat=49.2827" \
   -F "lon=-123.1207" \
@@ -2828,11 +2828,11 @@ curl -X POST https://art-api.abluestar.com/api/logbook \
   -F "photos=@photo.jpg"
 
 # Search nearby
-curl "https://art-api.abluestar.com/api/artworks/nearby?lat=49.2827&lon=-123.1207&radius=1000"
+curl "https://api.publicartregistry.com/api/artworks/nearby?lat=49.2827&lon=-123.1207&radius=1000"
 
 # Get user submissions
 curl -H "Authorization: Bearer your-token" \
-  https://art-api.abluestar.com/api/me/submissions
+  https://api.publicartregistry.com/api/me/submissions
 ```
 
 ### Rate Limit Testing

@@ -653,7 +653,7 @@ All authentication endpoints use progressive error disclosure:
 Magic links are generated with the correct frontend path:
 
 ```
-https://art.abluestar.com/verify?token={64-character-hex-token}
+https://api.publicartregistry.com/verify?token={64-character-hex-token}
 ```
 
 The frontend Vue router handles the `/verify` route to process magic link tokens.
@@ -834,7 +834,7 @@ WHERE window_start < datetime('now', '-2 hours')
 
 **Resend Integration:**
 
-- DNS records configured on `art.abluestar.com`
+- DNS records configured on `api.publicartregistry.com`
 - API key authentication with Bearer token
 - Fallback system logs to console when Resend fails
 - Production deployment successful with Version ID: `8754c89d-039a-4d8e-a86d-71215e83ffe5`

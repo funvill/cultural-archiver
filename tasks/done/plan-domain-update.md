@@ -1,7 +1,7 @@
 # Plan: Migrate project to publicartregistry.com
 
 This document describes the steps to update the project from the old domain
-(`art.abluestar.com`) and branding (`Cultural Archiver` / `cultural-archiver`) to
+(`api.publicartregistry.com`) and branding (`Cultural Archiver` / `cultural-archiver`) to
 the new domain and branding `Public Art Registry` / `publicartregistry.com`.
 
 Primary domains
@@ -34,7 +34,7 @@ Detailed steps
 
 1) Audit (search & list)
 
-- Search for these strings: `art.abluestar.com`, `abluestar.com`, `cultural-archiver`, `Cultural Archiver`, `art-api.abluestar.com`, `support@art.abluestar.com`.
+- Search for these strings: `api.publicartregistry.com`, `abluestar.com`, `cultural-archiver`, `Cultural Archiver`, `api.publicartregistry.com`, `support@api.publicartregistry.com`.
 - Record file paths and create a branch `domain-update/publicartregistry` for changes.
 
 2) Update config files (code edits)
@@ -52,7 +52,7 @@ Detailed steps
 
 4) Cloudflare manual steps (Checklist)
 
-Prereq: You have administrative access to the Cloudflare account currently managing `art.abluestar.com` and can add domains and edit DNS, Workers, R2, and Pages settings.
+Prereq: You have administrative access to the Cloudflare account currently managing `api.publicartregistry.com` and can add domains and edit DNS, Workers, R2, and Pages settings.
 
 - Add domain to Cloudflare (if not already): publicartregistry.com
   - Follow Cloudflare steps to add the domain and update registrar nameservers.
@@ -130,9 +130,9 @@ Search-and-replace guidance and safety
 - Use a code-aware search to find instances; prefer `git grep` or your editor's project search.
 - Avoid blind renaming in code that may be used as package names, npm package identifiers, or third-party integration ids unless intentional.
 - Example safe replacements:
-  - `art.abluestar.com` -> `publicartregistry.com`
-  - `art-api.abluestar.com` -> `api.publicartregistry.com`
-  - `support@art.abluestar.com` -> `support@publicartregistry.com`
+  - `api.publicartregistry.com` -> `publicartregistry.com`
+  - `api.publicartregistry.com` -> `api.publicartregistry.com`
+  - `support@api.publicartregistry.com` -> `support@publicartregistry.com`
   - `Cultural Archiver` -> `Public Art Registry` (in docs, templates, UI copy)
   - `cultural-archiver` -> `public-art-registry` (where used as slugs)
 

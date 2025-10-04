@@ -25,7 +25,7 @@ This document tracks clarifying questions and answers related to the User Lists 
 ## Set 2: Sharing, UI, and Technical Details
 
 **6. Sharing Mechanism:** How should users share a list?
-- **Answer (A):** Provide a "Share" button on the list page that copies a permanent, public URL (e.g., `art.abluestar.com/lists/{listId}`) to the clipboard.
+- **Answer (A):** Provide a "Share" button on the list page that copies a permanent, public URL (e.g., `api.publicartregistry.com/lists/{listId}`) to the clipboard.
 
 **7. Shared List Presentation:** When a non-owner views a shared list page, what should they see?
 - **Answer (A):** The list name, the owner's username (e.g., "A list by @username"), and the artworks in the list. All owner controls (rename, delete, remove items) should be hidden.
