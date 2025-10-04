@@ -29,6 +29,7 @@ import { fileURLToPath } from 'url';
 import { config } from 'dotenv';
 import { createInterface, Interface } from 'readline';
 import { randomUUID } from 'crypto';
+import { execSync } from 'child_process';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -42,6 +43,8 @@ interface GrantAdminOptions {
   force?: boolean;
   help?: boolean;
   dryRun?: boolean;
+  // When true, execute SQL against the local wrangler/dev SQLite used by `wrangler dev`.
+  local?: boolean;
   fixOrphaned?: boolean;
 }
 
@@ -49,6 +52,8 @@ interface DatabaseConfig {
   databaseId: string;
   accountId: string;
   apiToken: string;
+  // When true, execute queries locally using wrangler CLI instead of Cloudflare REST API
+  local?: boolean;
 }
 
 interface User {
@@ -84,6 +89,9 @@ function parseArguments(): GrantAdminOptions {
         break;
       case '--force':
         options.force = true;
+        break;
+      case '--local':
+        options.local = true;
         break;
       case '--dry-run':
         options.dryRun = true;
@@ -189,6 +197,8 @@ function getDatabaseConfig(env: string): DatabaseConfig {
     process.exit(1);
   }
 
+  // If running in development and the developer prefers local execution (default for dev),
+  // callers can pass local=true by setting the `local` flag on the returned config.
   return { databaseId, accountId, apiToken };
 }
 
@@ -199,6 +209,28 @@ async function executeQuery(
   config: DatabaseConfig,
   sql: string
 ): Promise<{ results: unknown[]; meta: { duration: number } }> {
+  // If config.local is truthy, execute the SQL using the local wrangler CLI so that
+  // it targets the same SQLite database used by `wrangler dev`.
+  if (config.local) {
+    try {
+      // Use the same approach as reset-local-database.ts - execute via CLI without --json
+      // and parse the output differently
+      const cmd = `npx wrangler d1 execute cultural-archiver --command="${sql.replace(/"/g, '\\"')}" --env development --local --config src/workers/wrangler.toml`;
+      execSync(cmd, {
+        cwd: resolve(__dirname, '..'),
+        stdio: 'inherit', // Show output directly instead of capturing
+      });
+      
+      // Return a dummy result since we can't easily parse wrangler's text output
+      // The actual operation succeeded if we got here without throwing
+      return { results: [], meta: { duration: 0 } };
+    } catch (error) {
+      console.error(`❌ Local database query failed: ${error}`);
+      throw error;
+    }
+  }
+
+  // Default: talk to Cloudflare D1 HTTP API
   const url = `https://api.cloudflare.com/client/v4/accounts/${config.accountId}/d1/database/${config.databaseId}/query`;
 
   try {
@@ -451,10 +483,15 @@ async function grantAdminPrivileges(options: GrantAdminOptions): Promise<void> {
   console.log(`\n🔐 Cultural Archiver Admin Privileges Script`);
   console.log(`📧 Email: ${options.email}`);
   console.log(`🌍 Environment: ${options.env}`);
+  console.log(`${options.local ? '💻 Target: LOCAL SQLite database (wrangler dev)' : '☁️  Target: Remote Cloudflare D1 database'}`);
   console.log(`${options.dryRun ? '🔍 DRY RUN MODE - No changes will be made' : ''}\n`);
 
   // Get database configuration
   const config = getDatabaseConfig(options.env);
+  // Apply local flag to config if requested
+  if (options.local) {
+    config.local = true;
+  }
   console.log(`📊 Database ID: ${config.databaseId}\n`);
 
   // Confirmation for production

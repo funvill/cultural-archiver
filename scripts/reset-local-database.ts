@@ -23,7 +23,7 @@
 
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { existsSync, mkdirSync, copyFileSync, rmSync, readdirSync } from 'fs';
+import { existsSync, mkdirSync, copyFileSync, rmSync, readdirSync, writeFileSync, unlinkSync } from 'fs';
 import { execSync } from 'child_process';
 import { createInterface } from 'readline';
 import { randomUUID } from 'crypto';
@@ -215,7 +215,7 @@ function applyMigrations(dryRun: boolean = false): void {
   try {
     console.log('🔧 Applying database migrations...');
     execSync(
-      'npx wrangler d1 migrations apply cultural-archiver --env development --config src/workers/wrangler.toml',
+      'npx wrangler d1 migrations apply public-art-registry --env development --config src/workers/wrangler.toml',
       {
         cwd: resolve(__dirname, '..'),
         stdio: 'inherit',
@@ -245,22 +245,38 @@ function createAdminUser(dryRun: boolean = false): void {
   try {
     console.log('👤 Creating admin user...');
 
-    // Create admin user with correct schema
-    const createUserCommand = `npx wrangler d1 execute cultural-archiver --command="INSERT INTO users (uuid, email, created_at, last_login, email_verified_at, status) VALUES ('${adminUuid}', '${adminEmail}', '${now}', '${now}', '${now}', 'active');" --env development --local --config src/workers/wrangler.toml`;
+    // Write SQL to temp files to avoid command-line escaping issues
+    const tmpDir = resolve(__dirname, '..');
+    const createUserFile = resolve(tmpDir, '.temp-create-user.sql');
+    const grantRoleFile = resolve(tmpDir, '.temp-grant-role.sql');
 
-    execSync(createUserCommand, {
-      cwd: resolve(__dirname, '..'),
+    // Create admin user with correct schema
+    const createUserSql = `INSERT INTO users (uuid, email, created_at, last_login, email_verified_at, status) VALUES ('${adminUuid}', '${adminEmail}', '${now}', '${now}', '${now}', 'active');`;
+    
+    writeFileSync(createUserFile, createUserSql, 'utf8');
+
+    execSync(`npx wrangler d1 execute public-art-registry --file="${createUserFile}" --env development --local --config src/workers/wrangler.toml`, {
+      cwd: tmpDir,
       stdio: 'inherit',
     });
 
-    // Grant admin role (try both table structures for compatibility)
-    try {
-      const grantRoleCommand = `npx wrangler d1 execute cultural-archiver --command="INSERT INTO user_roles (id, user_token, role, granted_by, granted_at, is_active, notes) VALUES ('${roleId}', '${adminUuid}', 'admin', '${adminUuid}', '${now}', 1, 'Local development admin user');" --env development --local --config src/workers/wrangler.toml`;
+    // Clean up temp file
+    if (existsSync(createUserFile)) unlinkSync(createUserFile);
 
-      execSync(grantRoleCommand, {
-        cwd: resolve(__dirname, '..'),
+    // Grant admin role
+    try {
+      const grantRoleSql = `INSERT INTO user_roles (id, user_token, role, granted_by, granted_at, is_active, notes) VALUES ('${roleId}', '${adminUuid}', 'admin', '${adminUuid}', '${now}', 1, 'Local development admin user');`;
+      
+      writeFileSync(grantRoleFile, grantRoleSql, 'utf8');
+
+      execSync(`npx wrangler d1 execute public-art-registry --file="${grantRoleFile}" --env development --local --config src/workers/wrangler.toml`, {
+        cwd: tmpDir,
         stdio: 'inherit',
       });
+
+      // Clean up temp file
+      if (existsSync(grantRoleFile)) unlinkSync(grantRoleFile);
+      
       console.log('✅ Admin user created with role');
     } catch (roleError) {
       console.warn('⚠ Admin user created but role assignment failed (table may not exist)');
@@ -282,12 +298,29 @@ function removeSampleData(dryRun: boolean = false): void {
 
   try {
     console.log('🧹 Removing sample data...');
-    const clearCommand = `npx wrangler d1 execute cultural-archiver --command="DELETE FROM submissions WHERE id LIKE 'e0000000-%'; DELETE FROM artwork_artists WHERE artwork_id LIKE 'c0000000-%'; DELETE FROM artwork WHERE id LIKE 'c0000000-%'; DELETE FROM artists WHERE id LIKE 'd0000000-%'; DELETE FROM user_roles WHERE user_token LIKE '%0000000-%'; DELETE FROM users WHERE uuid LIKE '%0000000-%';" --env development --local --config src/workers/wrangler.toml`;
+    
+    // Write SQL to temp file to avoid command-line escaping issues
+    const tmpDir = resolve(__dirname, '..');
+    const clearFile = resolve(tmpDir, '.temp-clear-data.sql');
+    const clearSql = `
+DELETE FROM submissions WHERE id LIKE 'e0000000-%';
+DELETE FROM artwork_artists WHERE artwork_id LIKE 'c0000000-%';
+DELETE FROM artwork WHERE id LIKE 'c0000000-%';
+DELETE FROM artists WHERE id LIKE 'd0000000-%';
+DELETE FROM user_roles WHERE user_token LIKE '%0000000-%';
+DELETE FROM users WHERE uuid LIKE '%0000000-%';
+    `.trim();
+    
+    writeFileSync(clearFile, clearSql, 'utf8');
 
-    execSync(clearCommand, {
-      cwd: resolve(__dirname, '..'),
+    execSync(`npx wrangler d1 execute public-art-registry --file="${clearFile}" --env development --local --config src/workers/wrangler.toml`, {
+      cwd: tmpDir,
       stdio: 'inherit',
     });
+
+    // Clean up temp file
+    if (existsSync(clearFile)) unlinkSync(clearFile);
+    
     console.log('✅ Sample data removed');
   } catch (error) {
     console.warn(`⚠ Warning: Failed to remove sample data: ${error}`);

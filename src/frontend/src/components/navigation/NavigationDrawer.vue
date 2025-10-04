@@ -210,20 +210,6 @@ onUnmounted(() => {
 
       <!-- Content -->
       <div class="flex-1 overflow-y-auto">
-        <!-- Introduction -->
-        <div class="p-4 border-b border-gray-200">
-          <p class="text-sm text-gray-600 leading-relaxed">
-            make culture accessible to everyone while preserving it for future generations
-          </p>
-          <RouterLink
-            to="/help"
-            @click="handleClose"
-            class="mt-1 inline-block text-sm text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded transition-colors"
-          >
-            Read More
-          </RouterLink>
-        </div>
-
         <!-- Navigation Items -->
         <div class="py-2">
           <ul class="space-y-1 px-2">

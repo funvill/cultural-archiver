@@ -59,6 +59,7 @@
     "database:reset:prod:dry-run": "tsx scripts/reset-database.ts --env prod --dry-run",
     "database:reset:local:dry-run": "tsx scripts/reset-local-database.ts --create-admin --dry-run",
     "admin:grant": "tsx scripts/grant-admin.ts --env dev --email steven@abluestar.com",
+    "admin:grant:local": "echo For local development, admin user is created automatically by: && echo npm run database:reset:local && echo && echo To grant admin on remote dev database, use: && echo npm run admin:grant",
     "admin:grant:prod": "tsx scripts/grant-admin.ts --env prod --email steven@abluestar.com",
     "admin:grant:staging": "tsx scripts/grant-admin.ts --env staging --email steven@abluestar.com"
   },

@@ -27,10 +27,31 @@
 - [ ] HTTP Error pages
   - [ ] HTTP 404 error page
 
+----
 
+Add `status` tag to the tag schema for `Artwork Classification` in `src\shared\tag-schema.ts`
 
+Rename `height` to `dimensions` in `src\shared\tag-schema.ts` and change it to a string instead of a number
 
 ----
 
-The artist index page. 
-This shuld b
+The Vancouver open data importer src\lib\mass-import-system\importers\vancouver-public-art.ts
+
+There are tags that are imported from the Vancouver Open data that need to be renamed when importing.
+
+Vancouver Open data | import as
+primarymaterial => material
+installation_date: => start_date
+
+
+----
+Burnabyartgallery
+
+src\lib\data-collection\burnabyartgallery
+
+The photo field needs a full url, not a realtive url.
+
+Add a fixed field "city" with the value of "burnaby"
+
+medium => material
+date => start_date

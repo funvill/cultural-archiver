@@ -123,7 +123,7 @@ defineExpose({
 
           <!-- How to Help Section -->
           <div class="mt-8">
-            <h3 class="text-xl font-bold text-gray-900 mb-4">How to Help</h3>
+            <h3 class="text-xl font-bold text-gray-900 mb-4">Be the Hero</h3>
             <p class="text-gray-700 mb-6">
               Every action you take makes you a guardian of culture. Each step is a way to honor
               artists, preserve their work, and inspire those who follow.

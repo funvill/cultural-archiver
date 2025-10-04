@@ -196,18 +196,6 @@ const handleLogoutClick = () => emit('logoutClick');
         <RectangleStackIcon class="w-6 h-6 theme-text-muted" aria-hidden="true" />
       </button>
     </div>
-
-    <!-- Project description (only when expanded) -->
-    <div v-if="props.isExpanded" class="p-4 theme-nav-border">
-      <p class="text-sm theme-text-subtle leading-relaxed">
-        make culture accessible to everyone while preserving it for future generations
-      </p>
-      <router-link to="/help"
-        class="mt-1 inline-block text-sm theme-nav-link hover:theme-nav-link-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 rounded transition-colors">
-        Read More
-      </router-link>
-    </div>
-
     <!-- Navigation items -->
     <div class="flex-1 overflow-y-auto">
       <!-- Main navigation -->
