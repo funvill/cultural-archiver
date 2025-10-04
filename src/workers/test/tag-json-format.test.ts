@@ -125,10 +125,10 @@ describe('Tag JSON Format Fix', () => {
         {
           field_name: 'tags',
           field_value_old: null,
-          field_value_new: JSON.stringify({
+            field_value_new: JSON.stringify({
             material: 'wood',
             artwork_type: 'statue',
-            height: '2.5',
+            dimensions: '2.5',
           }), // JSON string format
         },
       ],

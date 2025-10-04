@@ -748,7 +748,7 @@ Example: the `tags` object appears in the `GET /api/artworks/{id}` response unde
         "name": "Victory Angel",
         "artist_name": "Jane Doe",
         "material": "bronze",
-        "height": 5.5,
+  "dimensions": "5.5",
         "condition": "excellent",
         "access": "yes",
         "year": "1995",
@@ -768,7 +768,7 @@ Example: the `tags` object appears in the `GET /api/artworks/{id}` response unde
 The API validates tags against a predefined schema with 15 essential tags across 5 categories:
 
 - **Artwork Classification**: `tourism`, `artwork_type`, `name`, `inscription`
-- **Physical Properties**: `material`, `height`, `width`, `condition`
+ - **Physical Properties**: `material`, `dimensions`, `width`, `condition`
 - **Historical Information**: `artist_name`, `year`, `heritage`
 - **Location Details**: `access`, `operator`
 - **Reference Data**: `website`, `wikidata_id`
@@ -783,9 +783,9 @@ The API validates tags against a predefined schema with 15 essential tags across
     "code": "VALIDATION_ERROR",
     "validationErrors": [
       {
-        "field": "height",
-        "message": "Must be a positive number",
-        "code": "INVALID_NUMBER"
+        "field": "dimensions",
+        "message": "Must be a valid dimensions string",
+        "code": "INVALID_DIMENSIONS"
       },
       {
         "field": "year",

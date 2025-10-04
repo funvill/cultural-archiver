@@ -39,7 +39,7 @@ These are small changes that I did inline.
 - In edit mode
   - [x] The different tags should show as a full row value instead of a block floating.
   - [x] A user should be able to click the tags and edit the value in the form as the add tag.
-  - [x] Couldn't enter in height, produced error.
+  - [x] Couldn't enter in dimensions, produced error.
 
 ## Add artwork
 

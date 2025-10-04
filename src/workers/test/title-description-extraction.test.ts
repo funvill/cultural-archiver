@@ -135,7 +135,7 @@ describe('Title/Description Extraction Fix', () => {
       description: 'Test artwork description with details',
       artist: 'Test Artist',
       material: 'bronze',
-      height: '3.5',
+      dimensions: '3.5',
     };
 
     const artworkData: Omit<ArtworkRecord, 'id' | 'created_at' | 'updated_at'> = {
