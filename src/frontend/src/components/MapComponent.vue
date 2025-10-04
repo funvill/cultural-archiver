@@ -231,12 +231,6 @@ function buildWebGLClusters() {
 
   // Determine effective clustering: user preference AND only when zoom > 14
   const currentZoom = map.value?.getZoom() ?? props.zoom ?? 15;
-  
-  console.log('[BUILD WEBGL CLUSTERS] Starting build:', {
-    currentZoom,
-    effectiveClusterEnabled: effectiveClusterEnabled.value,
-    artworkCount: props.artworks?.length || 0
-  });
 
   // If clustering is enabled for this zoom level, let the grid clusterer compute clusters to render via WebGL
   if (effectiveClusterEnabled.value) {
@@ -292,13 +286,6 @@ function buildWebGLClusters() {
           geometry: { type: 'Point', coordinates: [a.longitude, a.latitude] }
         };
       }) as ClusterFeature[];
-
-    console.log('[WEBGL CLUSTERS] Built clusters:', {
-      totalCount: pts.length,
-      visitedCount: pts.filter(p => p.properties.visited).length,
-      starredCount: pts.filter(p => p.properties.starred).length,
-      sampleFeature: pts[0]
-    });
 
     webglClusters.value = pts;
   } catch (err) {
@@ -1815,10 +1802,6 @@ watch(
 watch(
   [() => visitedArtworks.value, () => starredArtworks.value],
   () => {
-    console.log('[WATCH] User lists changed, rebuilding WebGL clusters:', {
-      visitedCount: visitedArtworks.value.size,
-      starredCount: starredArtworks.value.size
-    });
     buildWebGLClusters();
   },
   { deep: true }
@@ -1828,7 +1811,6 @@ watch(
 watch(
   () => mapSettings.clusteringEnabled,
   () => {
-    console.log('[WATCH] Clustering preference changed:', mapSettings.clusteringEnabled);
     buildWebGLClusters();
   }
 );
