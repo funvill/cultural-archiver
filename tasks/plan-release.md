@@ -12,6 +12,8 @@
 - [x] The action buttons on the artwork details page, if a user clicks one of these buttons when they are not logged in show the login dialog.
 - [x] When a user is not logged in the "report an issue", and "report missing" dialogs. The cancel button doesn't close the dialogs. If the user updated the text, then show a "are you sure" prompt when trying to close. The user should be able to click outside the dialog to close the window as well.
 
+- Map icons. The "visted" a
+
 ## Release
 
 - [x] 1.0 Update the welcome popup
@@ -32,26 +34,6 @@
 - [X] 6.0 Logo?
 - [ ] HTTP Error pages
   - [ ] HTTP 404 error page
-
-----
-
-Add `status` tag to the tag schema for `Artwork Classification` in `src\shared\tag-schema.ts`
-
-Rename `height` to `dimensions` in `src\shared\tag-schema.ts` and change it to a string instead of a number
-
-----
-
-The Vancouver open data importer src\lib\mass-import-system\importers\vancouver-public-art.ts
-
-There are tags that are imported from the Vancouver Open data that need to be renamed when importing.
-
-Vancouver Open data | import as
-primarymaterial => material
-installation_date: => start_date
-
-- Add a fixed field "city" with the value of "Vancouver"
-- Add a fixed field "country" with the value of "Canada"
-- Add a fixed field "province" with the value of "Britsh Columbia"
 
 ----
 

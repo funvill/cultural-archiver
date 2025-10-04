@@ -23,6 +23,7 @@ import { useMapPreviewStore } from '../stores/mapPreview';
 import MapWebGLLayer from './MapWebGLLayer.vue';
 import { useGridCluster } from '../composables/useGridCluster';
 import type { ClusterFeature } from '../composables/useGridCluster';
+import { useAnnouncer } from '../composables/useAnnouncer';
 // Props
 const props = withDefaults(defineProps<MapComponentProps & { suppressFilterBanner?: boolean }>(), {
   zoom: 15,
@@ -48,6 +49,12 @@ const isLoading = ref(true);
 const isLocating = ref(false);
 const error = ref<string | null>(null);
 const showLocationNotice = ref(false);
+// Transient error toast state (used when GPS/watchPosition errors occur)
+const showErrorToast = ref(false);
+const errorToastMessage = ref('');
+
+// Announcer for screen-reader announcements
+const { announceError } = useAnnouncer();
 // Viewport loading state
 const isLoadingViewport = ref(false);
 const lastLoadedBounds = ref<{ north: number; south: number; east: number; west: number } | null>(
@@ -915,7 +922,13 @@ async function requestUserLocation() {
 
     // Center map on user location
     if (map.value) {
-      map.value.setView([userLocation.latitude, userLocation.longitude], props.zoom);
+        // Always center to zoom level 15 when user requests their location
+        try {
+          map.value.setView([userLocation.latitude, userLocation.longitude], 15);
+        } catch (e) {
+          // fallback
+          map.value.setView([userLocation.latitude, userLocation.longitude], props.zoom);
+        }
     }
 
     // Add user location marker
@@ -1440,11 +1453,33 @@ function startUserTracking() {
         artworksStore.setCurrentLocation(coords);
         // Update marker and center map
         addUserLocationMarker(coords);
-        if (map.value) map.value.setView([coords.latitude, coords.longitude], map.value.getZoom());
+        if (map.value) {
+          // On initial tracking update, ensure we zoom to 15 so the user sees their location clearly
+          if (map.value.getZoom() !== 15) {
+            map.value.setView([coords.latitude, coords.longitude], 15);
+          } else {
+            map.value.setView([coords.latitude, coords.longitude], map.value.getZoom());
+          }
+        }
         emit('locationFound', coords);
       },
       (err) => {
         console.warn('watchPosition error:', err);
+        try {
+          // Friendly message for users
+          const msg = err && err.message ? `Location error: ${err.message}` : 'Unable to access GPS location.';
+          errorToastMessage.value = msg;
+          showErrorToast.value = true;
+          // Announce for screen readers
+          try { announceError(msg); } catch (e) { /* ignore */ }
+          // Auto-hide the toast after 6s
+          setTimeout(() => {
+            showErrorToast.value = false;
+            errorToastMessage.value = '';
+          }, 6000);
+        } catch (e) {
+          // ignore failures showing toast
+        }
       },
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
     );
@@ -1859,6 +1894,19 @@ watch(
       </div>
     </div>
 
+    <!-- Transient Error Toast (GPS / watchPosition failures) -->
+    <div
+      v-if="showErrorToast"
+      class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"
+      role="alert"
+      aria-live="assertive"
+    >
+      <div class="theme-error px-4 py-2 rounded-lg shadow-lg flex items-center space-x-3">
+        <ExclamationCircleIcon class="w-5 h-5" />
+        <span>{{ errorToastMessage }}</span>
+      </div>
+    </div>
+
     <!-- Progressive Loading Indicator -->
     <div
       v-if="isProgressiveLoading && progressiveLoadingStats"
@@ -1976,17 +2024,23 @@ watch(
 
 
       </div>
-      <!-- Current Location Button -->
+      <!-- Current Location Button (Person icon, toggles tracking) -->
       <button
         v-if="hasGeolocation"
         @click="centerOnUserLocation"
         :disabled="isLocating"
-        :class="['theme-surface shadow-md rounded-full p-3 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50', isTracking ? 'ring-4 ring-blue-300' : '']"
-        :title="isLocating ? 'Getting location...' : 'Center on current location'"
-        :aria-label="isLocating ? 'Getting current location...' : 'Center map on current location'"
+        :class="['theme-surface shadow-md rounded-full p-3 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 relative', isTracking ? 'ring-4 ring-blue-300' : '']"
+        :title="isLocating ? 'Getting location...' : (isTracking ? 'Stop tracking location' : 'Center on current location')"
+        :aria-label="isLocating ? 'Getting current location...' : (isTracking ? 'Stop tracking location' : 'Center map on current location')"
       >
-        <MapPinIcon v-if="!isLocating" class="w-5 h-5 text-gray-700" />
-        <div v-if="isTracking && !isLocating" class="w-3 h-3 rounded-full bg-blue-600 absolute" style="transform: translate(10px, -10px);"></div>
+        <!-- Person glyph (keeps styling consistent and distinct from artwork markers) -->
+        <template v-if="!isLocating">
+          <svg v-if="!isLocating" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 20v-1a4 4 0 014-4h4a4 4 0 014 4v1" />
+          </svg>
+          <div v-if="isTracking && !isLocating" class="w-3 h-3 rounded-full bg-blue-600 absolute" style="transform: translate(10px, -10px);"></div>
+        </template>
         <div
           v-else
           class="w-5 h-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"
