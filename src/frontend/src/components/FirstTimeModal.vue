@@ -30,14 +30,15 @@ const closeModal = () => {
   isVisible.value = false;
 };
 
-const goToMap = () => {
+const goToMap = (path = '/') => {
   closeModal();
-  router.push('/');
+  // Use relative route paths for tutorials and map
+  router.push(path);
 };
 
-const goToSubmit = () => {
+const goToSubmit = (path = '/add') => {
   closeModal();
-  router.push('/add');
+  router.push(path);
 };
 
 // Handle escape key and backdrop clicks
@@ -141,7 +142,7 @@ defineExpose({
                   it now, you become the guardian of its memory.
                 </p>
                 <button
-                  @click="goToSubmit"
+                  @click="() => goToSubmit('/pages/tutorial-take-photos')"
                   class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors text-sm"
                 >
                   Safeguard Creativity
@@ -149,9 +150,9 @@ defineExpose({
               </div>
 
               <!-- Card 2: Update information -->
-              <div class="bg-green-50 border-2 border-green-200 rounded-lg p-4 flex flex-col">
+              <div class="bg-green-100 border-2 border-green-300 rounded-lg p-4 flex flex-col">
                 <div class="flex items-start mb-2">
-                  <PencilSquareIcon class="h-6 w-6 text-green-600 mr-2 flex-shrink-0" />
+                  <PencilSquareIcon class="h-6 w-6 text-green-800 mr-2 flex-shrink-0" />
                   <h4 class="font-bold text-gray-900">Update information on artworks or artists</h4>
                 </div>
                 <p class="text-sm text-gray-700 mb-4 flex-grow">
@@ -159,8 +160,8 @@ defineExpose({
                   generations know the stories behind the art.
                 </p>
                 <button
-                  @click="goToMap"
-                  class="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors text-sm"
+                  @click="() => goToMap('/pages/tutorial-update-information')"
+                  class="bg-green-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors text-sm"
                 >
                   Protect History
                 </button>
@@ -177,7 +178,7 @@ defineExpose({
                   preserves it for the future — every visit keeps the art alive.
                 </p>
                 <button
-                  @click="goToMap"
+                  @click="() => goToMap('/pages/tutorial-explore-nearby-artworks')"
                   class="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors text-sm"
                 >
                   Discover Nearby Art
@@ -188,18 +189,15 @@ defineExpose({
               <div class="bg-orange-50 border-2 border-orange-200 rounded-lg p-4 flex flex-col">
                 <div class="flex items-start mb-2">
                   <StarIcon class="h-6 w-6 text-orange-600 mr-2 flex-shrink-0" />
-                  <h4 class="font-bold text-gray-900">
-                    Highlight Great Works
-                    <span class="text-xs text-orange-600">(Coming soon)</span>
-                  </h4>
+                  <h4 class="font-bold text-gray-900">Highlight Great Works</h4>
                 </div>
                 <p class="text-sm text-gray-700 mb-4 flex-grow">
                   Art lives through connection. By choosing what inspires you, you pass that spark
                   to those who follow — guiding them toward what matters most.
                 </p>
                 <button
-                  disabled
-                  class="bg-gray-300 text-gray-500 px-4 py-2 rounded-lg font-semibold cursor-not-allowed text-sm"
+                  @click="() => goToMap('/pages/tutorial-rate-artworks')"
+                  class="bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors text-sm"
                 >
                   Share What Moves You
                 </button>

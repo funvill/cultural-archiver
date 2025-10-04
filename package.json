@@ -20,7 +20,7 @@
     "build:frontend": "cd src/frontend && npm run build",
     "build:workers": "cd src/workers && npm run build",
     "deploy": "npm run test && npm run deploy:frontend && npm run deploy:workers",
-    "deploy:frontend": "cd src/frontend && npm run deploy",
+  "deploy:frontend": "npm --prefix src/frontend run deploy",
     "deploy:workers": "cd src/workers && npm run deploy",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

@@ -8,7 +8,7 @@
     "dev": "vite",
     "prebuild:manifest": "node scripts/generate-pages-manifest.cjs",
     "build": "npm run prebuild:manifest && vue-tsc --noEmit && vite build",
-    "deploy": "npm run build && wrangler deploy",
+  "deploy": "npm run build && cross-env CI=true wrangler deploy --env production",
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit",
     "lint": "eslint .",
@@ -42,6 +42,7 @@
     "vue-router": "^4.4.0"
   },
   "devDependencies": {
+  "cross-env": "^7.0.3",
   "@playwright/test": "^1.55.0",
     "@types/marked": "^5.0.2",
     "@types/node": "^22.0.0",
