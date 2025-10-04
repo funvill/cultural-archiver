@@ -118,7 +118,6 @@ const effectiveClusterEnabled = computed(() => {
 
 // Router and other listeners used in component
 const router = useRouter();
-let deviceOrientationListener: ((ev: DeviceOrientationEvent) => void) | null = null;
 let debugImmediateRing: L.Circle | null = null;
 
 // LocalStorage keys and basic state persistence helpers
@@ -1427,121 +1426,63 @@ function zoomOut() {
 }
 
 function centerOnUserLocation() {
-  // Toggle live tracking: if already tracking, stop; otherwise start and center
-  if (userWatchId.value !== null) {
-    stopUserTracking();
+  // One-time center action - does NOT continuously track user position
+  // User can pan/zoom away freely after centering
+  if (!hasGeolocation.value) {
+    requestUserLocation();
     return;
   }
 
-  startUserTracking();
+  isLocating.value = true;
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const coords: Coordinates = { 
+        latitude: pos.coords.latitude, 
+        longitude: pos.coords.longitude 
+      };
+      
+      // Update store and marker
+      artworksStore.setCurrentLocation(coords);
+      addUserLocationMarker(coords);
+      
+      // Center map once at zoom level 15
+      if (map.value) {
+        map.value.setView([coords.latitude, coords.longitude], 15, { 
+          animate: true, 
+          duration: 0.5 
+        });
+      }
+      
+      emit('locationFound', coords);
+      isLocating.value = false;
+    },
+    (err) => {
+      console.warn('getCurrentPosition error:', err);
+      try {
+        const msg = err && err.message ? `Location error: ${err.message}` : 'Unable to access your location.';
+        errorToastMessage.value = msg;
+        showErrorToast.value = true;
+        try { announceError(msg); } catch (e) { /* ignore */ }
+      } catch (e) {
+        /* ignore */
+      }
+      isLocating.value = false;
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 5000,
+    }
+  );
 }
 
 function requestLocation() {
   requestUserLocation();
 }
 
-function startUserTracking() {
-  if (!hasGeolocation.value) {
-    requestUserLocation();
-    return;
-  }
-
-  // Start listening to device orientation if available
-  try {
-    if (window && 'DeviceOrientationEvent' in window) {
-      deviceOrientationListener = (ev: DeviceOrientationEvent) => {
-        if (typeof ev.alpha === 'number') {
-          // alpha is rotation around z axis in degrees (0-360)
-          userHeading.value = 360 - (ev.alpha || 0);
-          // update marker rotation if exists
-          if (userLocationMarker.value) {
-            try {
-              const el = userLocationMarker.value.getElement();
-              if (el) {
-                const svg = el.querySelector('svg');
-                if (svg) svg.style.transform = `rotate(${userHeading.value}deg)`;
-              }
-            } catch {}
-          }
-        }
-      };
-      window.addEventListener('deviceorientation', deviceOrientationListener as EventListener);
-    }
-  } catch (e) {
-    /* ignore */
-  }
-
-  // Use watchPosition for continuous updates
-  try {
-    userWatchId.value = navigator.geolocation.watchPosition(
-      (pos) => {
-        const coords: Coordinates = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-        artworksStore.setCurrentLocation(coords);
-        // Update marker and center map
-        addUserLocationMarker(coords);
-        if (map.value) {
-          // On initial tracking update, ensure we zoom to 15 so the user sees their location clearly
-          if (map.value.getZoom() !== 15) {
-            map.value.setView([coords.latitude, coords.longitude], 15);
-          } else {
-            map.value.setView([coords.latitude, coords.longitude], map.value.getZoom());
-          }
-        }
-        emit('locationFound', coords);
-      },
-      (err) => {
-        console.warn('watchPosition error:', err);
-        try {
-          // Friendly message for users
-          const msg = err && err.message ? `Location error: ${err.message}` : 'Unable to access GPS location.';
-          errorToastMessage.value = msg;
-          showErrorToast.value = true;
-          // Announce for screen readers
-          try { announceError(msg); } catch (e) { /* ignore */ }
-          // Auto-hide the toast after 6s
-          setTimeout(() => {
-            showErrorToast.value = false;
-            errorToastMessage.value = '';
-          }, 6000);
-        } catch (e) {
-          // ignore failures showing toast
-        }
-      },
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
-    );
-  } catch (e) {
-    // Fallback to single request and periodic poll
-    requestUserLocation();
-    const poll = setInterval(() => {
-      requestUserLocation().catch(() => {});
-    }, 5000);
-    // Save watch id as negative to indicate interval so stopUserTracking can clear it
-    userWatchId.value = -poll as any as number;
-  }
-}
-
-function stopUserTracking() {
-  // Stop device orientation listener
-  try {
-    if (deviceOrientationListener && window) {
-      window.removeEventListener('deviceorientation', deviceOrientationListener as EventListener);
-    }
-  } catch {}
-
-  // Stop geolocation watch
-  try {
-    if (userWatchId.value !== null) {
-      if (userWatchId.value >= 0) {
-        navigator.geolocation.clearWatch(userWatchId.value);
-      } else {
-        // negative value encodes a setInterval id
-        clearInterval(-userWatchId.value);
-      }
-    }
-  } catch {}
-
-  userWatchId.value = null;
-}
+// Note: Continuous user tracking functions removed in favor of one-time centering.
+// The location button now centers the map once per click without continuous tracking.
 
 function clearError() {
   error.value = null;
@@ -1795,8 +1736,8 @@ onUnmounted(() => {
     
     map.value = undefined;
   }
-  // Ensure user tracking is stopped when component unmounts
-  try { stopUserTracking(); } catch {}
+  // Note: User tracking no longer used with one-time location button
+  // try { stopUserTracking(); } catch {}
 });
 
 // Rebuild markers when visited/starred sets change
