@@ -44,14 +44,14 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
     limit?: number;
     sort?: 'updated_desc' | 'name_asc' | 'created_desc';
     search?: string;
-    status?: 'active' | 'inactive';
+    status?: 'approved' | 'pending' | 'rejected';
   }>(c, 'query');
 
   // Set defaults per PRD
   const page = Math.max(validatedQuery.page || 1, 1);
   const limit = Math.min(validatedQuery.limit || 30, 50);
   const offset = (page - 1) * limit;
-  const status = validatedQuery.status || 'active';
+  const status = validatedQuery.status || 'approved';
 
   try {
     const db = createDatabaseService(c.env.DB);
@@ -170,16 +170,17 @@ export async function getArtistProfile(c: Context<{ Bindings: WorkerEnv }>): Pro
       throw new NotFoundError(`Artist not found: ${artistId}`);
     }
 
-    // Get artist's artworks
+    // Get artist's artworks using artwork_artists junction table
     const artworksStmt = db.db.prepare(`
       SELECT a.id, a.title, a.lat, a.lon, a.created_at, a.status, a.tags,
              (SELECT photos FROM submissions WHERE artwork_id = a.id AND submission_type = 'logbook_entry' ORDER BY created_at DESC LIMIT 1) as recent_photos,
              (SELECT COUNT(*) FROM submissions WHERE artwork_id = a.id AND submission_type = 'logbook_entry') as photo_count
       FROM artwork a
-      WHERE artist_names LIKE '%"' || ? || '"%' AND a.status = 'approved'
+      INNER JOIN artwork_artists aa ON a.id = aa.artwork_id
+      WHERE aa.artist_id = ? AND a.status = 'approved'
       ORDER BY a.created_at DESC
     `);
-    const artworks = await artworksStmt.bind(artist.name).all();
+    const artworks = await artworksStmt.bind(artistId).all();
 
     interface ArtworkWithTypeAndPhotos {
       id: string;

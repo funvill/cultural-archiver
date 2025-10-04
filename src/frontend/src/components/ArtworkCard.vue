@@ -88,7 +88,12 @@ const photoCount = computed(() => {
 });
 
 const artistName = computed(() => {
-  // Prefer explicit artwork property if present
+  // First priority: Check for linked artists from the new artist system
+  if ((props.artwork as any).artists && Array.isArray((props.artwork as any).artists) && (props.artwork as any).artists.length > 0) {
+    return (props.artwork as any).artists.map((a: any) => a.name).join(', ');
+  }
+  
+  // Second priority: explicit artwork property if present
   // Some backends provide `artist_name` at top level, others inside tags
   if ((props.artwork as any).artist_name) return (props.artwork as any).artist_name;
   if (props.artwork.tags && typeof props.artwork.tags === 'object') {

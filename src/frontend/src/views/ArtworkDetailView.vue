@@ -154,12 +154,6 @@ function navigateToArtist(artistId: string) {
   router.push(`/artist/${artistId}`);
 }
 
-function navigateToArtistSearch(artistName: string) {
-  // Generate search URL for artist name
-  const encodedName = encodeURIComponent(artistName.trim());
-  router.push(`/search?artist=${encodedName}`);
-}
-
 // When MiniMap emits 'mapReady' provide a final invalidateSize retry from
 // the parent. This helps with edge cases where the child initializes the
 // map while the parent's layout is not fully settled.
@@ -852,39 +846,24 @@ function handleFeedbackCancel(): void {
         <!-- Artists and Creators -->
         <div v-if="!isEditMode" class="text-base sm:text-lg text-gray-600 mb-4">
           <!-- Linked Artists (new system) -->
-          <div v-if="hasArtistLinks" class="space-y-1">
-            <div v-for="artist in artworkArtists" :key="artist.id" class="flex items-center gap-2">
-              <span>by</span>
+          <div v-if="hasArtistLinks" class="flex items-center gap-1 flex-wrap">
+            <span>by</span>
+            <span v-for="(artist, index) in artworkArtists" :key="artist.id">
               <button @click="navigateToArtist(artist.id)"
                 class="font-medium hover:underline focus:outline-none rounded"
                 :style="{ color: 'rgb(var(--md-primary))' }">
                 {{ artist.name }}
               </button>
-              <span v-if="artist.role && artist.role !== 'artist'" class="text-sm text-gray-500">
-                ({{ artist.role }})
-              </span>
-            </div>
-            <!-- Show legacy creator info as well if different from linked artists -->
-            <div v-if="hasDisplayableCreators" class="text-sm text-gray-500 italic">
-              Legacy:
-              <span v-for="(creatorName, index) in displayCreatorsList" :key="creatorName">
-                <button @click="navigateToArtistSearch(creatorName)"
-                  class="font-medium hover:underline focus:outline-none rounded"
-                  :style="{ color: 'rgb(var(--md-primary))' }">
-                  {{ creatorName }}
-                </button>
-                <span v-if="index < displayCreatorsList.length - 1">, </span>
-              </span>
-            </div>
+              <span v-if="index < artworkArtists.length - 1">, </span>
+            </span>
           </div>
           <!-- Fallback to legacy creator info if no linked artists -->
           <div v-else-if="hasDisplayableCreators" class="flex items-center gap-1 flex-wrap">
             <span>by</span>
             <span v-for="(creatorName, index) in displayCreatorsList" :key="creatorName">
-              <button @click="navigateToArtistSearch(creatorName)"
-                class="text-blue-600 hover:text-blue-700 hover:underline font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 rounded">
+              <span class="text-gray-700 font-medium">
                 {{ creatorName }}
-              </button>
+              </span>
               <span v-if="index < displayCreatorsList.length - 1">, </span>
             </span>
           </div>
