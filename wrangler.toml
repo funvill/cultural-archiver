@@ -8,6 +8,15 @@ compatibility_flags = ["nodejs_compat"]
 pattern = "api.publicartregistry.com/*"
 zone_name = "publicartregistry.com"
 
+# Ensure sitemap endpoints on the public domain are routed to the API worker
+[[env.production.routes]]
+pattern = "publicartregistry.com/sitemap.xml"
+zone_name = "publicartregistry.com"
+
+[[env.production.routes]]
+pattern = "publicartregistry.com/sitemap-*.xml"
+zone_name = "publicartregistry.com"
+
 # D1 Database bindings
 [[env.development.d1_databases]]
 binding = "DB"

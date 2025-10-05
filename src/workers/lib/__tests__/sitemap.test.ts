@@ -39,7 +39,7 @@ describe('Sitemap Generation', () => {
     expect(xml).toContain(`${baseUrl}/artwork/artwork-1`);
     expect(xml).toContain(`${baseUrl}/artwork/artwork-2`);
     expect(xml).toContain('<priority>0.8</priority>');
-    expect(xml).toContain('<changefreq>weekly</changefreq>');
+    expect(xml).toContain('<changefreq>monthly</changefreq>');
   });
 
   it('should generate artists sitemap', async () => {
