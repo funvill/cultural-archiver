@@ -10,20 +10,42 @@ All diagnostic logs use the prefix `[MAP DIAGNOSTIC]` or `[SITEMAP DIAGNOSTIC]` 
 
 ### 1. Map Clustering Toggle
 
-**Location**: `src/frontend/src/stores/mapSettings.ts`
+**Location**: `src/frontend/src/stores/mapSettings.ts`, `src/frontend/src/components/MapOptionsModal.vue`, `src/frontend/src/components/MapComponent.vue`
 
 **Logs**:
 - `[MAP DIAGNOSTIC] Clustering setting loaded from localStorage: <boolean>` - When settings load
 - `[MAP DIAGNOSTIC] No saved clustering setting, using default: <boolean>` - First time user
 - `[MAP DIAGNOSTIC] Clustering toggled to: <boolean>` - When user clicks toggle
 - `[MAP DIAGNOSTIC] Clustering set to: <boolean>` - When programmatically set
+- `[MAP DIAGNOSTIC] MapOptionsModal mounted, clustering enabled: <boolean>` - Modal initialization
+- `[MAP DIAGNOSTIC] Map Options Modal opened, current clustering state: <boolean>` - Modal opens
+- `[MAP DIAGNOSTIC] Clustering toggle clicked in MapOptionsModal` - Toggle button clicked
+- `[MAP DIAGNOSTIC] New clustering state: <boolean>` - After toggle
+- `[MAP DIAGNOSTIC] Clustering state:` - Computed property evaluation showing:
+  - `zoom`: Current map zoom level
+  - `userPreference`: User's clustering preference from settings
+  - `zoomThreshold`: Zoom level threshold (14)
+  - `effectivelyEnabled`: Whether clustering is actually enabled
+- `[MAP DIAGNOSTIC] buildWebGLClusters:` - Shows clustering state during marker build:
+  - `totalArtworks`: Total artworks available
+  - `currentZoom`: Current zoom level
+  - `effectiveClusterEnabled`: Whether clustering is enabled
+  - `visitedCount`: Number of visited artworks
+  - `starredCount`: Number of starred artworks
+- `[MAP DIAGNOSTIC] Clustering enabled - clusters generated: <n>` - Clusters created
+- `[MAP DIAGNOSTIC] Individual markers generated:` - When clustering disabled:
+  - `total`: Total markers
+  - `visited`: Visited markers
+  - `starred`: Starred markers
 
 **How to test**:
 1. Open browser DevTools Console
 2. Navigate to the map page
 3. Look for clustering initialization logs
 4. Open Map Options and toggle clustering
-5. Verify localStorage key `map_clustering_enabled` is updated
+5. Watch for state change logs
+6. Zoom in/out and watch clustering state changes
+7. Verify localStorage key `map_clustering_enabled` is updated
 
 ### 2. Visited/Starred Icon Display
 
@@ -154,21 +176,30 @@ Filter: [MAP DIAGNOSTIC] Clustering
    - Workers: Wrangler should auto-restart
    - If not working: Stop dev server and run `npm run build && npm run dev`
 
-### Why `npm run devout` Might Not Work
+### Why `npm run devout` Now Works Properly
 
-The `devout` command pipes output to a log file:
+The `devout` command has been updated to build before starting dev servers:
 ```powershell
-npm run dev | Tee-Object dev-server-logs.txt
+npm run devout
 ```
 
-**Issues**:
-- It doesn't rebuild before starting
-- Hot-reload might not work properly
-- Logs go to file instead of console
+**What it does now**:
+1. Builds both frontend and workers (ensuring all code is compiled)
+2. Starts both dev servers with hot-reload
+3. Pipes output to `dev-server-logs.txt` for debugging
 
-**Better alternative**:
+**Previous issue**: It only started dev servers without building first, causing features to appear broken when they were actually just not compiled.
+
+**Current behavior**: 
+- Automatically runs `npm run build` before starting servers
+- Shows colored status messages during build process
+- Hot-reload still works for subsequent changes
+
+### Alternative Development Workflow
+
+If you don't want to rebuild every time:
 ```powershell
-# Build first, then dev
+# Build once, then dev
 npm run build
 npm run dev
 ```

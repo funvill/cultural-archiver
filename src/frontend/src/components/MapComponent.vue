@@ -113,7 +113,14 @@ const isTracking = computed(() => userWatchId.value !== null);
 const effectiveClusterEnabled = computed(() => {
   const z = map.value?.getZoom() ?? props.zoom ?? 15;
   // Only cluster if user preference is enabled AND zoom is appropriate
-  return mapSettings.clusteringEnabled && z > 14;
+  const enabled = mapSettings.clusteringEnabled && z > 14;
+  console.log('[MAP DIAGNOSTIC] Clustering state:', {
+    zoom: z,
+    userPreference: mapSettings.clusteringEnabled,
+    zoomThreshold: 14,
+    effectivelyEnabled: enabled
+  });
+  return enabled;
 });
 
 // Router and other listeners used in component
@@ -216,6 +223,10 @@ try {
 function buildWebGLClusters() {
   try {
     if (!map.value || !props.artworks) {
+      console.log('[MAP DIAGNOSTIC] buildWebGLClusters skipped:', {
+        mapExists: !!map.value,
+        artworksCount: props.artworks?.length ?? 0
+      });
       webglClusters.value = [];
       return;
     }
@@ -231,6 +242,14 @@ function buildWebGLClusters() {
 
   // Determine effective clustering: user preference AND only when zoom > 14
   const currentZoom = map.value?.getZoom() ?? props.zoom ?? 15;
+
+  console.log('[MAP DIAGNOSTIC] buildWebGLClusters:', {
+    totalArtworks: props.artworks.length,
+    currentZoom,
+    effectiveClusterEnabled: effectiveClusterEnabled.value,
+    visitedCount: visitedArtworks.value.size,
+    starredCount: starredArtworks.value.size
+  });
 
   // If clustering is enabled for this zoom level, let the grid clusterer compute clusters to render via WebGL
   if (effectiveClusterEnabled.value) {
@@ -257,10 +276,11 @@ function buildWebGLClusters() {
   const zoom = currentZoom;
 
         const clusters = webglClustering.getClusters(bbox, zoom);
+        console.log('[MAP DIAGNOSTIC] Clustering enabled - clusters generated:', clusters.length);
         webglClusters.value = clusters;
         return;
       } catch (err) {
-        console.warn('webglClustering error:', err);
+        console.warn('[MAP DIAGNOSTIC] webglClustering error:', err);
       }
     }
 
@@ -287,9 +307,15 @@ function buildWebGLClusters() {
         };
       }) as ClusterFeature[];
 
+    console.log('[MAP DIAGNOSTIC] Individual markers generated:', {
+      total: pts.length,
+      visited: pts.filter(p => p.properties.visited).length,
+      starred: pts.filter(p => p.properties.starred).length
+    });
+
     webglClusters.value = pts;
   } catch (err) {
-    console.warn('buildWebGLClusters error:', err);
+    console.warn('[MAP DIAGNOSTIC] buildWebGLClusters error:', err);
     webglClusters.value = [];
   }
 }

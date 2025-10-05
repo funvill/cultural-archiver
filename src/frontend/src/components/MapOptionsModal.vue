@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue';
+import { computed, onMounted, onUnmounted, watch } from 'vue';
 import { XMarkIcon } from '@heroicons/vue/24/outline';
 import { useMapFilters } from '../composables/useMapFilters';
 import { useAuthStore } from '../stores/auth';
@@ -40,7 +40,9 @@ function handleResetAllFilters(): void {
 }
 
 function toggleClustering(): void {
+  console.log('[MAP DIAGNOSTIC] Clustering toggle clicked in MapOptionsModal');
   mapSettings.toggleClustering();
+  console.log('[MAP DIAGNOSTIC] New clustering state:', mapSettings.clusteringEnabled);
 }
 
 // Keyboard handling
@@ -53,10 +55,18 @@ function handleKeydown(event: KeyboardEvent): void {
 // Lifecycle
 onMounted(() => {
   document.addEventListener('keydown', handleKeydown);
+  console.log('[MAP DIAGNOSTIC] MapOptionsModal mounted, clustering enabled:', mapSettings.clusteringEnabled);
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown);
+});
+
+// Watch for modal open/close
+watch(() => props.isOpen, (newVal) => {
+  if (newVal) {
+    console.log('[MAP DIAGNOSTIC] Map Options Modal opened, current clustering state:', mapSettings.clusteringEnabled);
+  }
 });
 </script>
 
