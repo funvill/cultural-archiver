@@ -4,7 +4,7 @@ import {
   generateArtworksSitemap,
   generateArtistsSitemap,
   generatePagesSitemap,
-} from '../lib/sitemap';
+} from '../sitemap';
 
 describe('Sitemap Generation', () => {
   it('should generate sitemap index XML', () => {
