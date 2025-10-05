@@ -570,7 +570,7 @@ If issues occur during deployment:
    - Restore from backup: `npm run database:import:prod backup.sql`
 
 4. **Keep Old Domain Active:**
-   - Keep `art.abluestar.com` workers active until migration is verified
+   - Keep `api.publicartregistry.com` workers active until migration is verified
    - Run both domains in parallel during transition period
 
 ---
@@ -589,4 +589,4 @@ If issues occur during deployment:
 
 **Created:** October 3, 2025  
 **For Domain:** publicartregistry.com  
-**Old Domain:** art.abluestar.com
+**Old Domain:** api.publicartregistry.com

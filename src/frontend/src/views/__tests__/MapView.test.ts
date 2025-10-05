@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { mount, type VueWrapper } from '@vue/test-utils';
 import { createRouter, createWebHistory, type Router } from 'vue-router';
 import { createPinia, type Pinia } from 'pinia';
@@ -103,6 +103,15 @@ describe('MapView', () => {
 
     await router.isReady();
     await wrapper.vm.$nextTick();
+  });
+
+  afterEach(async (): Promise<void> => {
+    // Properly unmount the component to clean up timers, watchers, etc.
+    if (wrapper) {
+      await wrapper.unmount();
+    }
+    // Clear all timers
+    vi.clearAllTimers();
   });
 
   describe('Basic Rendering', (): void => {

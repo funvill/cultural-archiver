@@ -23,7 +23,7 @@ describe('OSM Export Service', () => {
       tags: {
         artwork_type: 'statue',
         material: 'bronze',
-        height: 3.5,
+  dimensions: '3.5',
         access: 'yes',
         condition: 'excellent', // This should have an OSM mapping
         start_date: '2020',
@@ -66,7 +66,7 @@ describe('OSM Export Service', () => {
         tourism: 'artwork',
         artwork_type: 'statue',
         material: 'bronze',
-        height: '3.5',
+  dimensions: '3.5',
         access: 'yes',
         condition: 'excellent',
         start_date: '2020',

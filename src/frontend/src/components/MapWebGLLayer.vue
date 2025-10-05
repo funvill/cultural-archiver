@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { Deck } from '@deck.gl/core'
-import { ScatterplotLayer, TextLayer } from '@deck.gl/layers'
+import { ScatterplotLayer, TextLayer, IconLayer } from '@deck.gl/layers'
 import type { ClusterFeature } from '../composables/useGridCluster'
 import type { IconAtlas } from '../utils/iconAtlas'
 import type L from 'leaflet'
@@ -281,6 +281,14 @@ function updateLayers(): void {
       if (d.properties.cluster) {
         return [251, 146, 60]
       }
+      // If the artwork is marked visited, use a muted gray circle so it appears subdued
+      if (d.properties.visited) {
+        return [156, 163, 175] // gray-400
+      }
+      // If starred (and not visited) use a warm gold color
+      if (d.properties.starred) {
+        return [250, 204, 21] // amber/gold
+      }
       const type = (d.properties.type as string) || 'default'
       const color = colorMap[type]
       if (color) return color
@@ -347,8 +355,119 @@ function updateLayers(): void {
     }
   })
 
+  // IconLayer for visited/starred markers using icon atlas
+  let iconMarkerLayer: any = null;
+  if (props.iconAtlas && props.iconAtlas.isReady) {
+    const markerData = scatterDataPlain.filter((d: any) => !d.properties.cluster && (d.properties.visited || d.properties.starred));
+    
+    // Diagnostic logging for visited/starred icons
+    console.log('[MAP DIAGNOSTIC] Icon Atlas Status:', {
+      isReady: props.iconAtlas.isReady,
+      totalMarkers: scatterDataPlain.length,
+      visitedOrStarred: markerData.length,
+      visitedCount: markerData.filter((d: any) => d.properties.visited).length,
+      starredCount: markerData.filter((d: any) => d.properties.starred).length,
+      iconAtlasHasIcons: {
+        visited: props.iconAtlas.icons.has('visited'),
+        starred: props.iconAtlas.icons.has('starred')
+      },
+      sampleMarkerData: markerData.slice(0, 3).map((d: any) => ({
+        id: d.properties.id,
+        visited: d.properties.visited,
+        starred: d.properties.starred,
+        cluster: d.properties.cluster
+      }))
+    });
+    
+    if (markerData.length > 0) {
+      // Create icon atlas canvas
+      const size = 64;
+      const iconNames = ['visited', 'starred'];
+      const canvas = document.createElement('canvas');
+      canvas.width = size * 2; // 2 icons side by side
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      
+      const iconMapping: any = {};
+      if (ctx && props.iconAtlas) {
+        let x = 0;
+        for (const name of iconNames) {
+          const img = props.iconAtlas.icons.get(name);
+          if (img) {
+            ctx.drawImage(img as any, x, 0, size, size);
+            iconMapping[name] = { x, y: 0, width: size, height: size, mask: false };
+            x += size;
+            console.log(`[MAP DIAGNOSTIC] Icon '${name}' added to atlas at x=${x - size}`);
+          } else {
+            console.warn(`[MAP DIAGNOSTIC] Icon '${name}' NOT FOUND in icon atlas`);
+          }
+        }
+      }
+      
+      console.log('[MAP DIAGNOSTIC] Icon Mapping Created:', iconMapping);
+      
+      console.log('[MAP DIAGNOSTIC] IconLayer Configuration:', {
+        markerDataCount: markerData.length,
+        iconMappingKeys: Object.keys(iconMapping),
+        canvasSize: `${canvas.width}x${canvas.height}`
+      });
+      
+      iconMarkerLayer = new IconLayer({
+        id: 'marker-icons',
+        data: markerData,
+        pickable: true,
+        iconAtlas: canvas as any,
+        iconMapping,
+        getIcon: (d: any) => {
+          const icon = d.properties.visited ? 'visited' : 'starred';
+          console.log('[MAP DIAGNOSTIC] getIcon called for marker:', {
+            id: d.properties.id,
+            visited: d.properties.visited,
+            starred: d.properties.starred,
+            selectedIcon: icon
+          });
+          return icon;
+        },
+        getPosition: (d: any) => [d.geometry.coordinates[0], d.geometry.coordinates[1]],
+        getSize: () => {
+          const currentZoom = props.map?.getZoom() || 13;
+          if (currentZoom <= 8) return 40;
+          if (currentZoom <= 10) return 32;
+          if (currentZoom <= 12) return 28;
+          if (currentZoom <= 14) return 24;
+          return 20;
+        },
+        sizeScale: 1,
+        sizeUnits: 'pixels',
+        onClick: (info: any) => {
+          if (info.object) {
+            emit('markerClick', info.object);
+          }
+        },
+        updateTriggers: {
+          getPosition: scatterUpdateKey,
+          getSize: currentZoomPlain,
+          getIcon: scatterUpdateKey
+        }
+      });
+      
+      console.log('[MAP DIAGNOSTIC] IconLayer created with', markerData.length, 'markers');
+    } else {
+      console.log('[MAP DIAGNOSTIC] No visited or starred markers to display');
+    }
+  } else {
+    console.log('[MAP DIAGNOSTIC] Icon Atlas not ready:', {
+      exists: !!props.iconAtlas,
+      isReady: props.iconAtlas?.isReady
+    });
+  }
+
   // Finally set deck props with non-reactive data arrays
-  deck.value.setProps({ layers: [finalScatter, finalText] })
+  const layers = [finalScatter, finalText];
+  if (iconMarkerLayer) {
+    layers.push(iconMarkerLayer);
+  }
+  deck.value.setProps({ layers });
 }
 
 /**

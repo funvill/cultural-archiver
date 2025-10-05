@@ -1,6 +1,6 @@
 # Goal
 
-Improve Leaflet map performance when rendering and interacting with large numbers (hundreds to tens of thousands) of markers. The test map is at [https://art.abluestar.com/test-map](https://art.abluestar.com/test-map) which reproduces the issue.
+Improve Leaflet map performance when rendering and interacting with large numbers (hundreds to tens of thousands) of markers. The test map is at [https://api.publicartregistry.com/test-map](https://api.publicartregistry.com/test-map) which reproduces the issue.
 
 This document lists techniques, tradeoffs, prioritized experiments, and small code snippets to try in the project.
 
@@ -296,7 +296,7 @@ Example npm packages: `leaflet.markercluster`, `supercluster`, `rbush`, `@types/
 
 - **Priority 1**: Implement viewport-based rendering first - this has proven results with 1,500+ markers
 - **Priority 2**: Test Supercluster integration - it's proven to handle millions of points and powers major mapping libraries
-- Add screenshots or gif benchmarks from [https://art.abluestar.com/test-map](https://art.abluestar.com/test-map) before/after each experiment
+- Add screenshots or gif benchmarks from [https://api.publicartregistry.com/test-map](https://api.publicartregistry.com/test-map) before/after each experiment
 - Create a performance comparison between viewport rendering, Leaflet.markercluster, and Supercluster with same dataset
 - Try `chunkedLoading` and `chunkProgress` options on MarkerClusterGroup to keep UI responsive while adding many markers
 - Implement Supercluster with property aggregation to show artwork counts, types, or date ranges per cluster

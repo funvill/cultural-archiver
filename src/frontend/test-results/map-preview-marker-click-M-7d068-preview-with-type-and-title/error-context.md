@@ -12,8 +12,8 @@
         - text: This website is still in development. Data is cleared regularly while we work on it. Don't submit new data as it will be erased. This webpage will be moved to a new domain shortly.
         - generic [ref=e12]:
           - text: Questions? Contact us at
-          - link "support@art.abluestar.com" [ref=e13] [cursor=pointer]:
-            - /url: mailto:support@art.abluestar.com
+          - link "support@api.publicartregistry.com" [ref=e13] [cursor=pointer]:
+            - /url: mailto:support@api.publicartregistry.com
       - button "Dismiss development warning" [ref=e14] [cursor=pointer]:
         - img [ref=e15] [cursor=pointer]
   - navigation "Navigation rail" [ref=e17]:

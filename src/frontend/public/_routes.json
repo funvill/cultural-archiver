@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "description": "Routes configuration for frontend Cloudflare Worker. Sitemap routes are excluded to allow backend API to handle them.",
+  "include": ["/*"],
+  "exclude": [
+    "/sitemap.xml",
+    "/sitemap-*.xml"
+  ]
+}

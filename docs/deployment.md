@@ -17,14 +17,14 @@ The Cultural Archiver consists of two main components deployed on Cloudflare inf
 
 - **Deployment**: Cloudflare Worker with static assets
 - **Configuration**: `src/frontend/wrangler.jsonc`
-- **Domain**: `art.abluestar.com`
+- **Domain**: `publicartregistry.com`
 - **Features**: SPA routing, static asset serving
 
 ### Backend (Hono API)
 
 - **Deployment**: Cloudflare Worker
 - **Configuration**: `src/workers/wrangler.toml`
-- **Domain**: `art-api.abluestar.com`
+- **Domain**: `api.publicartregistry.com`
 - **Features**: API endpoints, database operations, business logic
 
 ### Required Cloudflare Services
@@ -96,7 +96,7 @@ bucket_name = "cultural-archiver-photos-prod"
 
 [env.production.vars]
 ENVIRONMENT = "production"
-FRONTEND_URL = "https://art.abluestar.com"
+FRONTEND_URL = "https://publicartregistry.com"
 API_VERSION = "1.0.0"
 ```
 
@@ -115,12 +115,12 @@ Update `src/frontend/wrangler.jsonc` for frontend deployment:
   },
   "routes": [
     {
-      "pattern": "art.abluestar.com/*",
+      "pattern": "publicartregistry.com/*",
       "zone_name": "abluestar.com"
     }
   ],
   "vars": {
-    "API_BASE_URL": "https://art-api.abluestar.com"
+    "API_BASE_URL": "https://api.publicartregistry.com"
   }
 }
 ```
@@ -131,7 +131,7 @@ name = "cultural-archiver-api"
 
 # Variables will be set via CLI
 
-[vars] ENVIRONMENT = "production" FRONTEND_URL = "https://art.abluestar.com" LOG_LEVEL = "info"
+[vars] ENVIRONMENT = "production" FRONTEND_URL = "https://publicartregistry.com" LOG_LEVEL = "info"
 
 ````
 
@@ -225,7 +225,7 @@ Create `cors.json`:
 ```json
 [
   {
-    "AllowedOrigins": ["https://art.abluestar.com", "http://localhost:3000"],
+    "AllowedOrigins": ["https://publicartregistry.com", "http://localhost:3000"],
     "AllowedMethods": ["GET", "PUT", "POST"],
     "AllowedHeaders": ["*"],
     "ExposeHeaders": ["ETag"],
@@ -264,7 +264,7 @@ wrangler secret put ENVIRONMENT --name cultural-archiver-api
 # Enter: production
 
 wrangler secret put FRONTEND_URL --name cultural-archiver-api
-# Enter: https://art.abluestar.com
+# Enter: https://publicartregistry.com
 
 wrangler secret put LOG_LEVEL --name cultural-archiver-api
 # Enter: info
@@ -325,14 +325,14 @@ In Cloudflare Dashboard:
 1. Go to Workers & Pages
 2. Select your worker
 3. Go to Custom Domains
-4. Add `art-api.abluestar.com`
+4. Add `api.publicartregistry.com`
 
 ### 2. Update DNS
 
 Add CNAME record:
 
 ```
-art-api.abluestar.com -> cultural-archiver-api.your-subdomain.workers.dev
+api.publicartregistry.com -> cultural-archiver-api.your-subdomain.workers.dev
 ```
 
 ### 3. Update Frontend Configuration
@@ -340,7 +340,7 @@ art-api.abluestar.com -> cultural-archiver-api.your-subdomain.workers.dev
 Update your frontend to use the custom domain:
 
 ```javascript
-const API_BASE_URL = 'https://art-api.abluestar.com';
+const API_BASE_URL = 'https://api.publicartregistry.com';
 ```
 
 ## Monitoring and Logging
@@ -529,7 +529,7 @@ if (!allowedTypes.includes(file.type)) {
 
    ```bash
    # Test the current deployment
-   curl https://art-api.abluestar.com/test
+   curl https://api.publicartregistry.com/test
 
    # Should return JSON like:
    # {"message":"Test endpoint working","timestamp":"...","environment":"production"}
@@ -552,7 +552,7 @@ if (!allowedTypes.includes(file.type)) {
    wrangler deploy --env production --name cultural-archiver-workers-prod
 
    # 4. Verify deployment
-   curl https://art-api.abluestar.com/health | jq .status
+   curl https://api.publicartregistry.com/health | jq .status
    ```
 
    **Root Cause Check:**
@@ -560,7 +560,7 @@ if (!allowedTypes.includes(file.type)) {
    ```bash
    # Check the custom domain mapping in Cloudflare Dashboard:
    # Workers & Pages > cultural-archiver-workers-prod > Custom Domains
-   # Ensure art-api.abluestar.com points to the correct worker
+   # Ensure api.publicartregistry.com points to the correct worker
    ```
 
 2. **Database Connection Errors**
@@ -570,7 +570,7 @@ if (!allowedTypes.includes(file.type)) {
    wrangler d1 info cultural-archiver-db
 
    # Test health endpoint to verify database connection
-   curl https://art-api.abluestar.com/health | jq .checks.database
+   curl https://api.publicartregistry.com/health | jq .checks.database
    ```
 
 3. **KV Namespace Issues**
@@ -580,7 +580,7 @@ if (!allowedTypes.includes(file.type)) {
    wrangler kv:namespace list
 
    # Test health endpoint to verify KV connections
-   curl https://art-api.abluestar.com/health | jq '.checks | keys | map(select(startswith("kv_")))'
+   curl https://api.publicartregistry.com/health | jq '.checks | keys | map(select(startswith("kv_")))'
    ```
 
 4. **R2 Access Issues**
@@ -590,7 +590,7 @@ if (!allowedTypes.includes(file.type)) {
    wrangler r2 bucket list
 
    # Test health endpoint to verify R2 connection
-   curl https://art-api.abluestar.com/health | jq .checks.r2_storage
+   curl https://api.publicartregistry.com/health | jq .checks.r2_storage
    ```
 
 5. **Worker CPU/Memory Limits**
@@ -604,17 +604,17 @@ After deploying, run these verification steps:
 
 ```bash
 # 1. Test basic endpoints
-curl https://art-api.abluestar.com/test
-curl https://art-api.abluestar.com/health
+curl https://api.publicartregistry.com/test
+curl https://api.publicartregistry.com/health
 
 # 2. Comprehensive health check
-curl https://art-api.abluestar.com/health | jq .summary
+curl https://api.publicartregistry.com/health | jq .summary
 
 # 3. Test API endpoints
-curl "https://art-api.abluestar.com/api/artworks/nearby?lat=49.2827&lon=-123.1207"
+curl "https://api.publicartregistry.com/api/artworks/nearby?lat=49.2827&lon=-123.1207"
 
 # 4. Check frontend integration
-curl https://art.abluestar.com/ | grep -o "System Status.*failed\|API.*OK"
+curl https://publicartregistry.com/ | grep -o "System Status.*failed\|API.*OK"
 ```
 
 Expected health check response:
@@ -643,7 +643,7 @@ wrangler secret put LOG_LEVEL --name cultural-archiver-workers-prod
 wrangler tail --name cultural-archiver-workers-prod --format pretty
 
 # 3. Test with logging
-curl https://art-api.abluestar.com/test
+curl https://api.publicartregistry.com/test
 # Check logs for debug output
 ```
 
@@ -661,7 +661,7 @@ cd src/workers
 wrangler deploy --env production
 
 # 3. Verify rollback
-curl https://art-api.abluestar.com/health
+curl https://api.publicartregistry.com/health
 ```
 
 ### Debug Mode

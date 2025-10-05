@@ -1,7 +1,7 @@
 {
   "importer": {},
   "exporter": {
-    "apiEndpoint": "https://art-api.abluestar.com/api/mass-import/v2",
+    "apiEndpoint": "https://api.publicartregistry.com/api/mass-import/v2",
     "method": "POST",
     "headers": {
       "Content-Type": "application/json"

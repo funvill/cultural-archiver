@@ -3,7 +3,7 @@
 **Version**: 2.0  
 **Effective Date**: September 9, 2025  
 **Last Updated**: September 9, 2025  
-**Applicable Domain**: art.abluestar.com
+**Applicable Domain**: api.publicartregistry.com
 
 ---
 
@@ -15,7 +15,7 @@ By using Cultural Archiver, you're agreeing to these terms. We're a non-profit p
 
 ### Legal Terms
 
-These Terms of Service ("Terms") govern your use of the Cultural Archiver platform ("Service") operated by Cultural Archiver Society ("we," "us," "our"). By accessing or using our Service at art.abluestar.com, you ("User," "you," "your") agree to be bound by these Terms. If you do not agree to these Terms, please do not use our Service.
+These Terms of Service ("Terms") govern your use of the Cultural Archiver platform ("Service") operated by Cultural Archiver Society ("we," "us," "our"). By accessing or using our Service at api.publicartregistry.com, you ("User," "you," "your") agree to be bound by these Terms. If you do not agree to these Terms, please do not use our Service.
 
 Cultural Archiver is a Canadian non-profit organization dedicated to preserving and democratizing access to public and cultural artworks worldwide through open data principles.
 
@@ -373,7 +373,7 @@ If you have questions about these terms or problems with the Service, contact us
 **16.1 Contact Information**:
 
 - Email: support@publicartregistry.com
-- Website: art.abluestar.com
+- Website: api.publicartregistry.com
 - Mailing Address: [To be provided upon incorporation]
 
 **16.2 Informal Resolution**: We encourage users to contact us directly to resolve any concerns or disputes before pursuing formal legal action. We commit to responding to good-faith inquiries within reasonable timeframes.

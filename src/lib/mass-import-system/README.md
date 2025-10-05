@@ -66,40 +66,40 @@ npm run build
 #### OSM
 
 ```
-node dist/cli/cli-entry.js import --importer osm-artwork --generate-report --input C:\Users\funvill\Documents\git\cultural-archiver\src\lib\data-collection\osm\output\merged\merged-artworks.geojson --output processed-art.json --exporter api --config api-config-dev.json
+node dist/lib/mass-import-system/cli/cli-entry.js  import --importer osm-artwork --generate-report --input C:\Users\funvill\Documents\git\cultural-archiver\src\lib\data-collection\osm\output\merged\merged-artworks.geojson --output processed-art.json --exporter api --config api-config-dev.json --limit 10 --offset 0
 ```
 
 #### Vancouver open data
 
 ```
-node dist/cli/cli-entry.js import --importer vancouver-public-art --generate-report --input C:\Users\funvill\Documents\git\cultural-archiver\src\lib\mass-import-system\importers\public-art.json --output processed-art.json --exporter api --config api-config-dev.json
+node dist/lib/mass-import-system/cli/cli-entry.js import --importer vancouver-public-art --generate-report --input C:\Users\funvill\Documents\git\cultural-archiver\src\lib\mass-import-system\importers\public-art.json --output processed-art.json --exporter api --config api-config-dev.json --limit 10 --offset 0
 ```
 
 #### List Available Plugins
 
 ```bash
-node dist/cli/cli-entry.js list-plugins
+node dist/lib/mass-import-system/cli/cli-entry.js list-plugins
 ```
 
 #### Import Data
 
 ```bash
 # Import Vancouver public art data and export to JSON
-node dist/cli/cli-entry.js import \
+node dist/lib/mass-import-system/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter json \
   --input example-vancouver-data.json \
   --output processed-art.json
 
 # Import test data and display in console
-node dist/cli/cli-entry.js import \
+node dist/lib/mass-import-system/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter console \
   --input example-vancouver-data.json \
   --config test-config.json
 
 # Process only first 10 records for testing
-node dist/cli/cli-entry.js import \
+node dist/lib/mass-import-system/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter json \
   --input example-vancouver-data.json \
@@ -107,7 +107,7 @@ node dist/cli/cli-entry.js import \
   --limit 10
 
 # Skip first 100 records and process next 50 (pagination)
-node dist/cli/cli-entry.js import \
+node dist/lib/mass-import-system/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter json \
   --input example-vancouver-data.json \
@@ -124,7 +124,7 @@ The system includes an `api` exporter that can import data directly into the Cul
 
 ```bash
 # Import to local development database (localhost:8787)
-node dist/cli/cli-entry.js import \
+node dist/lib/mass-import-system/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter api \
   --input importers/public-art.json \
@@ -132,7 +132,7 @@ node dist/cli/cli-entry.js import \
   --limit 10
 
 # Import with custom development configuration
-node dist/cli/cli-entry.js import \
+node dist/lib/mass-import-system/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter api \
   --input importers/public-art.json \
@@ -140,7 +140,7 @@ node dist/cli/cli-entry.js import \
   --limit 5
 
 # Test import with dry-run (validate without importing)
-node dist/cli/cli-entry.js import \
+node dist/lib/mass-import-system/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter api \
   --input importers/public-art.json \
@@ -152,16 +152,16 @@ node dist/cli/cli-entry.js import \
 **Production Database Import:**
 
 ```bash
-# Import to production database (art-api.abluestar.com)
-node dist/cli/cli-entry.js import \
+# Import to production database (api.publicartregistry.com)
+node dist/lib/mass-import-system/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter api \
   --input importers/public-art.json \
-  --config '{"exporter":{"apiEndpoint":"https://art-api.abluestar.com/api/mass-import/v2","authentication":{"type":"bearer","token":"your-production-admin-token"},"timeout":60000,"retryAttempts":3}}' \
+  --config '{"exporter":{"apiEndpoint":"https://api.publicartregistry.com/api/mass-import/v2","authentication":{"type":"bearer","token":"your-production-admin-token"},"timeout":60000,"retryAttempts":3}}' \
   --limit 50
 
 # Production import with verbose logging
-node dist/cli/cli-entry.js import \
+node dist/lib/mass-import-system/cli/cli-entry.js import \
   --importer vancouver-public-art \
   --exporter api \
   --input importers/public-art.json \
@@ -203,7 +203,7 @@ _production-api-config.json_ (Production):
 ```json
 {
   "exporter": {
-    "apiEndpoint": "https://art-api.abluestar.com/api/mass-import/v2",
+    "apiEndpoint": "https://api.publicartregistry.com/api/mass-import/v2",
     "method": "POST",
     "headers": {
       "Content-Type": "application/json"
@@ -230,7 +230,7 @@ _production-api-config.json_ (Production):
    npm run dev  # Starts frontend and backend on localhost:8787
    ```
 
-2. **Production Environment**: Requires valid admin authentication token for `art-api.abluestar.com`
+2. **Production Environment**: Requires valid admin authentication token for `api.publicartregistry.com`
 
 3. **Authentication**: The mass-import API requires admin-level bearer tokens:
    - Development: `test-admin-token` (configured in local environment)
@@ -242,7 +242,7 @@ _production-api-config.json_ (Production):
 
 ```bash
 # Get detailed information about a plugin
-node dist/cli/cli-entry.js plugin-info --name vancouver-public-art
+node dist/lib/mass-import-system/cli/cli-entry.js plugin-info --name vancouver-public-art
 ```
 
 ### Programmatic Usage
@@ -397,7 +397,7 @@ Exporters support various configuration options:
     "batchSize": 100
   },
   "api": {
-    "endpoint": "https://art-api.abluestar.com/submissions",
+    "endpoint": "https://api.publicartregistry.com/submissions",
     "authentication": {
       "type": "bearer",
       "token": "your-api-token"

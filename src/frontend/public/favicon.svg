@@ -1,5 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-  <polyline points="3.27,6.96 12,12.01 20.73,6.96"/>
-  <line x1="12" y1="22.08" x2="12" y2="12"/>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <g fill="none" stroke="currentColor" stroke-width="12" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Pin outline -->
+    <path d="M128 20c-42 0-76 34-76 76 0 55 76 160 76 160s76-105 76-160c0-42-34-76-76-76z"/>
+  </g>
+  <!-- Sculpture on plinth inside the pin -->
+  <g fill="currentColor">
+    <rect x="92" y="130" width="72" height="18" rx="2"/>
+    <circle cx="128" cy="110" r="20"/>
+  </g>
 </svg>

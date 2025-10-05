@@ -19,6 +19,7 @@ export const useArtworksStore = defineStore('artworks', () => {
   const error = ref<string | null>(null);
   const lastFetchLocation = ref<Coordinates | null>(null);
   const fetchRadius = ref(500); // 500 meters default
+  const MAX_NEARBY_RADIUS = 50000; // Backend limit (meters) - do not request larger radii
 
   // Cache for individual artworks
   const artworkCache = ref<Map<string, ArtworkDetails>>(new Map());
@@ -281,6 +282,14 @@ export const useArtworksStore = defineStore('artworks', () => {
 
       const effectiveRadius = Math.max(radius, 200); // Allow smaller than 500 for tighter view but minimum 200m
       fetchRadius.value = Math.round(effectiveRadius);
+
+      // If effective radius exceeds backend limit, split the bounds into tiles and
+      // perform multiple nearby requests with smaller radii to avoid Validation errors.
+      if (effectiveRadius > MAX_NEARBY_RADIUS) {
+        await fetchArtworksInBoundsTiled(bounds, MAX_NEARBY_RADIUS);
+        return;
+      }
+
       const response = await apiService.getNearbyArtworks(
         centerLat,
         centerLon,
@@ -408,6 +417,13 @@ export const useArtworksStore = defineStore('artworks', () => {
 
       const effectiveRadius = Math.max(radius, 200);
       fetchRadius.value = Math.round(effectiveRadius);
+
+      // If effective radius exceeds backend limit, fall back to tiled fetching so
+      // each request stays within the allowed radius and we can still batch per-tile.
+      if (effectiveRadius > MAX_NEARBY_RADIUS) {
+        await fetchArtworksInBoundsTiled(bounds, MAX_NEARBY_RADIUS);
+        return;
+      }
 
       // Progressive batch loading with adaptive sizing
       let offset = 0;
@@ -553,6 +569,133 @@ export const useArtworksStore = defineStore('artworks', () => {
       const message = getErrorMessage(err);
       setError(message);
       console.error('Error in progressive artwork loading:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /**
+   * Split a map bounds area into a grid of tile centers and fetch nearby artworks
+   * for each tile using a radius that does not exceed the backend limit.
+   *
+   * This function will perform requests with limited concurrency and merge results
+   * into the session cache (artworks.value) and the persistent mapCache.
+   */
+  async function fetchArtworksInBoundsTiled(
+    bounds: MapBounds,
+    tileRadius: number = MAX_NEARBY_RADIUS,
+    concurrency: number = 4
+  ): Promise<void> {
+    setLoading(true);
+    clearError();
+
+    try {
+      // compute span in degrees
+      const latSpan = bounds.north - bounds.south;
+      const lonSpan = bounds.east - bounds.west;
+
+      // approximate meters per degree
+      const centerLat = (bounds.north + bounds.south) / 2;
+      const latMetersPerDeg = 111320; // approximate
+      const lonMetersPerDeg = 111320 * Math.cos((centerLat * Math.PI) / 180);
+
+      const widthMeters = Math.max(1, lonSpan * lonMetersPerDeg);
+      const heightMeters = Math.max(1, latSpan * latMetersPerDeg);
+
+      // Choose tile side so a circle of radius tileRadius covers the square tile's corners.
+      // For a square of side s, circle radius r covering corners: r = (s * Math.sqrt(2)) / 2 => s = r * sqrt(2)
+      const tileSideMeters = tileRadius * Math.SQRT2;
+
+      const cols = Math.max(1, Math.ceil(widthMeters / tileSideMeters));
+      const rows = Math.max(1, Math.ceil(heightMeters / tileSideMeters));
+
+      const lonStep = lonSpan / cols;
+      const latStep = latSpan / rows;
+
+      const centers: Array<{ lat: number; lon: number }> = [];
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const lat = bounds.south + (r + 0.5) * latStep;
+          const lon = bounds.west + (c + 0.5) * lonStep;
+          centers.push({ lat, lon });
+        }
+      }
+
+      console.log('[Tiled Fetch] bounds ->', { rows, cols, centers: centers.length });
+
+      // Concurrency-limited worker
+      let index = 0;
+      const results: ArtworkPin[] = [];
+
+      async function worker(): Promise<void> {
+        while (true) {
+          const i = index++;
+          if (i >= centers.length) return;
+          const center = centers[i];
+
+          if (!center) {
+            // Defensive: skip if center is unexpectedly undefined
+            continue;
+          }
+
+          // Capture lat/lon into locals so TypeScript knows they're defined
+          const centerLat = center.lat;
+          const centerLon = center.lon;
+          try {
+            const resp = await apiService.getNearbyArtworks(
+              centerLat,
+              centerLon,
+              tileRadius,
+              250,
+              { minimal: true }
+            );
+            const apiArtworks = resp.data?.artworks || [];
+            const pins = apiArtworks.map((artwork: any): ArtworkPin => ({
+              id: artwork.id,
+              latitude: artwork.lat,
+              longitude: artwork.lon,
+              type: artwork.type_name || 'unknown',
+              photos: artwork.recent_photo ? [artwork.recent_photo] : [],
+            }));
+
+            // Merge into shared results and reactive store
+            results.push(...pins);
+            const existingIndexById = new Map<string, number>();
+            artworks.value.forEach((a, i2) => existingIndexById.set(a.id, i2));
+            pins.forEach(pin => {
+              const existingIdx = existingIndexById.get(pin.id);
+              if (existingIdx !== undefined) {
+                artworks.value[existingIdx] = { ...artworks.value[existingIdx], ...pin };
+              } else {
+                artworks.value.push(pin);
+              }
+            });
+          } catch (tileErr) {
+            console.warn('[Tiled Fetch] tile request failed for center', center, tileErr);
+            // continue with other tiles
+          }
+        }
+      }
+
+      const workers: Promise<void>[] = [];
+      for (let i = 0; i < Math.min(concurrency, centers.length); i++) {
+        workers.push(worker());
+      }
+
+      await Promise.all(workers);
+
+      // Persist collected pins to persistent cache
+      try {
+        mapCache.upsertPins(results);
+      } catch {
+        /* ignore cache errors */
+      }
+
+      console.log(`[Tiled Fetch] loaded ${results.length} pins across ${centers.length} tiles`);
+    } catch (err: unknown) {
+      const message = getErrorMessage(err);
+      setError(message);
+      console.error('Error fetching tiled artworks:', err);
     } finally {
       setLoading(false);
     }

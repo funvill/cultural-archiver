@@ -3,7 +3,7 @@
 **Version**: 1.0  
 **Effective Date**: September 9, 2025  
 **Last Updated**: September 9, 2025  
-**Applicable Domain**: art.abluestar.com
+**Applicable Domain**: api.publicartregistry.com
 
 ---
 
@@ -15,7 +15,7 @@ We collect very little personal information about you. We use anonymous tokens i
 
 ### Privacy Commitment
 
-Cultural Archiver Society ("we," "us," "our") is committed to protecting your privacy while operating our cultural archiving service ("Service"). This Privacy Policy explains how we collect, use, and protect information when you use our Service at art.abluestar.com.
+Cultural Archiver Society ("we," "us," "our") is committed to protecting your privacy while operating our cultural archiving service ("Service"). This Privacy Policy explains how we collect, use, and protect information when you use our Service at api.publicartregistry.com.
 
 As a Canadian non-profit organization focused on open data and cultural preservation, we follow privacy-by-design principles and collect only the minimum information necessary for Service operation.
 
@@ -274,8 +274,8 @@ As a Canadian non-profit organization focused on open data and cultural preserva
 
 ### 12.1 Privacy Inquiries
 
-- **Email**: privacy@art.abluestar.com
-- **General Contact**: support@art.abluestar.com
+- **Email**: privacy@api.publicartregistry.com
+- **General Contact**: support@api.publicartregistry.com
 - **Response Time**: Within 30 days for privacy-related requests
 
 ### 12.2 Data Protection Officer

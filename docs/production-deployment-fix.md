@@ -2,7 +2,7 @@
 
 ## Problem Diagnosis
 
-The production API at `https://art-api.abluestar.com` is returning "Hello World!" instead of proper API responses. This indicates a **deployment configuration issue**, not a code issue.
+The production API at `https://api.publicartregistry.com` is returning "Hello World!" instead of proper API responses. This indicates a **deployment configuration issue**, not a code issue.
 
 ## Root Cause
 
@@ -85,14 +85,14 @@ wrangler deploy --env production
 1. Go to Cloudflare Dashboard > Workers & Pages
 2. Find worker: `cultural-archiver-workers-prod`
 3. Check Custom Domains tab
-4. Ensure `art-api.abluestar.com` points to this worker
+4. Ensure `api.publicartregistry.com` points to this worker
 5. If not, add the custom domain
 
 ### 6. Test Deployment
 
 ```bash
 # Should now return proper API responses instead of "Hello World!"
-node debug-deployment.js https://art-api.abluestar.com
+node debug-deployment.js https://api.publicartregistry.com
 ```
 
 ## Quick Fix Commands
@@ -105,7 +105,7 @@ node verify-deployment.js production
 cd src/workers && wrangler deploy --env production
 
 # 3. Test deployment
-node debug-deployment.js https://art-api.abluestar.com
+node debug-deployment.js https://api.publicartregistry.com
 ```
 
 ## Common Issues

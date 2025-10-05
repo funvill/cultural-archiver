@@ -43,7 +43,7 @@ Record the following information for team access:
 ```env
 # Main Account Details
 CLOUDFLARE_ACCOUNT_ID=your_account_id_here
-CLOUDFLARE_EMAIL=team@art.abluestar.com
+CLOUDFLARE_EMAIL=team@api.publicartregistry.com
 ````
 
 ## Cloudflare Pages Setup
@@ -86,7 +86,7 @@ If using a custom domain:
 
 1. Navigate to **Pages** → **cultural-archiver-frontend** → **Custom domains**
 2. Click **Set up a custom domain**
-3. Enter domain: `art.abluestar.com`
+3. Enter domain: `api.publicartregistry.com`
 4. Update DNS records as instructed
 
 ## Cloudflare Workers Setup
@@ -113,7 +113,7 @@ Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** �
 Navigate to **Workers & Pages** → **cultural-archiver-api** → **Settings** → **Triggers**:
 
 1. **Custom Domain**: `api.cultural-archiver.workers.dev`
-2. **Route**: `art-api.abluestar.com/*` (if using custom domain)
+2. **Route**: `api.publicartregistry.com/*` (if using custom domain)
 
 ## [x]D1 Database Setup
 

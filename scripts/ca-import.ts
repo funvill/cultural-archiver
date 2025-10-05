@@ -50,7 +50,7 @@ class MassImportCLI {
 
   constructor() {
     this.library = new MassImportLibrary({
-      apiBaseUrl: process.env.API_BASE_URL || 'https://art-api.abluestar.com',
+      apiBaseUrl: process.env.API_BASE_URL || 'https://api.publicartregistry.com',
     });
   }
 
@@ -130,7 +130,7 @@ class MassImportCLI {
       const context: ImportContext = {
         config,
         api_token: apiToken,
-        api_base_url: process.env.API_BASE_URL || 'https://art-api.abluestar.com',
+        api_base_url: process.env.API_BASE_URL || 'https://api.publicartregistry.com',
         import_id: this.generateImportId(options.source),
         dry_run: !!options.dryRun,
         onProgress: this.handleProgress.bind(this),
@@ -225,7 +225,7 @@ class MassImportCLI {
       const context: ImportContext = {
         config: {} as MassImportConfig, // Not needed for approval
         api_token: apiToken,
-        api_base_url: process.env.API_BASE_URL || 'https://art-api.abluestar.com',
+        api_base_url: process.env.API_BASE_URL || 'https://api.publicartregistry.com',
         import_id: '',
         dry_run: false,
       };

@@ -8,7 +8,7 @@ When artwork edits are approved via the moderation queue in production, the edit
 
 - Repository: cultural-archiver
 - Branch: copilot/fix-35
-- Production API: https://art-api.abluestar.com/api
+- Production API: https://api.publicartregistry.com/api
 - User used for repro: 6c970b24-f64a-49d9-8c5f-8ae23cc2af47 (reviewer)
 - Date recorded: 2025-09-05
 
@@ -26,12 +26,12 @@ When artwork edits are approved via the moderation queue in production, the edit
 
 ## Steps to reproduce
 
-1. Login as reviewer (token: `6c970b24-f64a-49d9-8c5f-8ae23cc2af47`) on production UI `https://art.abluestar.com`.
+1. Login as reviewer (token: `6c970b24-f64a-49d9-8c5f-8ae23cc2af47`) on production UI `https://api.publicartregistry.com`.
 2. Navigate to an artwork details page (example artwork id: `79e3ab63-2d75-401e-98f8-9c3aa6d001f7`).
 3. Submit an artwork edit (change title or description). This creates an artwork edit submission.
 4. Go to `/review` → `Artwork Edits` tab, find the pending edit, click `Approve`.
 5. Observe moderation UI success and artwork title updated.
-6. Call `GET https://art-api.abluestar.com/api/artworks/<id>` and inspect `data.logbook_entries` — no new entry for the approval.
+6. Call `GET https://api.publicartregistry.com/api/artworks/<id>` and inspect `data.logbook_entries` — no new entry for the approval.
 
 (Optionally reproduce programmatically with Playwright scripts used by our MCP run.)
 

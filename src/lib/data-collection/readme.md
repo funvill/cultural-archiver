@@ -1,3 +1,6 @@
+See TAG_DEFINITIONS in src\shared\tag-schema.ts for a list of default tags
+
+
 # Data Collection Scripts — How to add a new site
 
 This document explains how we build small TypeScript data-collection scripts (like the Burnaby Art Gallery collector) inside `src/lib/data-collection`. It gives a pragmatic checklist, recommended structure, patterns, and examples so you can create new collectors for other museum, gallery, or public art websites.
@@ -78,7 +81,12 @@ This document explains how we build small TypeScript data-collection scripts (li
    "type": "Feature",
    "id": "node-id-or-permalink-slug",
    "geometry": { "type": "Point", "coordinates": [lon, lat] },
-   "properties": { "title": "...", "artistId": "...", "photos": [], "sourceUrl": "..." }
+   "properties": { 
+      "title": "...", 
+      "artistId": "...", 
+      "photos": [], 
+      "sourceUrl": "..." 
+   }
 }
 ```
 

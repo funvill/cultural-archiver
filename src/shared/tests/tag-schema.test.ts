@@ -33,7 +33,7 @@ describe('Tag Schema', () => {
       expect(tagKeys).toContain('name');
       expect(tagKeys).toContain('artist_name');
       expect(tagKeys).toContain('material');
-      expect(tagKeys).toContain('height');
+  expect(tagKeys).toContain('dimensions');
       expect(tagKeys).toContain('start_date');
       expect(tagKeys).toContain('access');
       expect(tagKeys).toContain('fee');
@@ -105,14 +105,14 @@ describe('Tag Schema', () => {
         tourism: 'artwork',
         artwork_type: 'statue',
         name: 'Test Statue',
-        height: 5.5,
+        dimensions: '5.5',
       };
 
       const osmTags = generateOSMTags(structuredTags);
       expect(osmTags.tourism).toBe('artwork');
       expect(osmTags.artwork_type).toBe('statue');
       expect(osmTags.name).toBe('Test Statue');
-      expect(osmTags.height).toBe('5.5');
+  expect(osmTags.dimensions).toBe('5.5');
     });
   });
 });
@@ -160,32 +160,33 @@ describe('Tag Validation', () => {
     });
   });
 
-  describe('Number Validation', () => {
-    it('should validate numbers within range', () => {
-      const definition = TAG_DEFINITIONS.height;
+  describe('Dimensions (text) Validation', () => {
+    it('should accept numeric-like text values', () => {
+      const definition = TAG_DEFINITIONS.dimensions;
       if (!definition) throw new Error('Definition not found');
-      const result = validateTagValue(5.5, definition);
+      const result = validateTagValue('5.5', definition as any);
 
       expect(result.isValid).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
 
-    it('should reject numbers outside valid range', () => {
-      const definition = TAG_DEFINITIONS.height;
+    it('should accept descriptive dimension strings', () => {
+      const definition = TAG_DEFINITIONS.dimensions;
       if (!definition) throw new Error('Definition not found');
-      const result = validateTagValue(-1, definition);
+      const result = validateTagValue('2.4m tall', definition as any);
 
-      expect(result.isValid).toBe(false);
-      expect(result.errors[0]).toContain('at least');
+      expect(result.isValid).toBe(true);
+      expect(result.errors).toHaveLength(0);
     });
 
-    it('should reject non-numeric values', () => {
-      const definition = TAG_DEFINITIONS.height;
+    it('should reject overly long dimension strings', () => {
+      const definition = TAG_DEFINITIONS.dimensions;
       if (!definition) throw new Error('Definition not found');
-      const result = validateTagValue('not a number', definition);
+      const longText = 'X'.repeat(300);
+      const result = validateTagValue(longText, definition as any);
 
       expect(result.isValid).toBe(false);
-      expect(result.errors[0]).toContain('valid number');
+      expect(result.errors.length).toBeGreaterThan(0);
     });
   });
 
@@ -261,7 +262,7 @@ describe('Tag Validation', () => {
         tourism: 'artwork',
         artwork_type: 'statue',
         name: 'Test Statue',
-        height: 5.5,
+        dimensions: '5.5',
       };
 
       const results = validateStructuredTags(tags, TAG_DEFINITIONS);
@@ -275,21 +276,21 @@ describe('Tag Validation', () => {
     it('should identify validation errors in batch', () => {
       const tags = {
         tourism: 'invalid',
-        height: 'not a number',
+        dimensions: 'not a number',
         unknown_tag: 'value',
       };
 
       const results = validateStructuredTags(tags, TAG_DEFINITIONS);
 
-      expect(results.tourism?.isValid).toBe(false);
-      expect(results.height?.isValid).toBe(false);
+  expect(results.tourism?.isValid).toBe(false);
+  expect(results.dimensions?.isValid).toBe(false);
       expect(results.unknown_tag?.isValid).toBe(false);
     });
 
     it('should generate validation summary', () => {
       const validationResults = {
         tourism: { isValid: true, errors: [], warnings: [] },
-        height: { isValid: false, errors: ['Invalid number'], warnings: [] },
+        dimensions: { isValid: false, errors: ['Invalid number'], warnings: [] },
         name: { isValid: true, errors: [], warnings: ['Warning message'] },
       };
 
@@ -319,14 +320,14 @@ describe('Tag Validation', () => {
       const tags = {
         name: '  Test Name  ',
         artwork_type: 'STATUE',
-        height: '5.5',
+        dimensions: '5.5',
       };
 
       const sanitized = sanitizeStructuredTags(tags, TAG_DEFINITIONS);
 
-      expect(sanitized.name).toBe('Test Name');
-      expect(sanitized.artwork_type).toBe('statue');
-      expect(sanitized.height).toBe(5.5);
+  expect(sanitized.name).toBe('Test Name');
+  expect(sanitized.artwork_type).toBe('statue');
+  expect(sanitized.dimensions).toBe('5.5');
     });
   });
 });

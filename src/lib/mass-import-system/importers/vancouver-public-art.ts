@@ -50,7 +50,7 @@ interface VancouverArtworkRecord {
   title_of_work: string;
   descriptionofwork?: string;
   artistprojectstatement?: string;
-  geo_point_2d: {
+  geo_point_2d?: {
     lat: number;
     lon: number;
   };
@@ -485,15 +485,15 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
       tags.type = record.type; // Keep original for reference
     }
 
-    // Map materials from primarymaterial field
+    // Map material from primarymaterial field
     if (record.primarymaterial) {
-      tags.materials = this.normalizeMaterial(record.primarymaterial);
+      tags.material = this.normalizeMaterial(record.primarymaterial);
       tags.primarymaterial = record.primarymaterial; // Keep original for reference
     }
 
-    // Map installation_date from yearofinstallation field
+    // Map start_date from yearofinstallation field
     if (record.yearofinstallation) {
-      tags.installation_date = record.yearofinstallation;
+      tags.start_date = record.yearofinstallation;
       tags.yearofinstallation = record.yearofinstallation; // Keep original for reference
     }
 
@@ -502,10 +502,10 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
       tags.website = record.url;
     }
 
-    // Map condition from status field with specific mappings
+    // Map status field to status tag with specific mappings
     if (record.status) {
-      tags.condition = this.mapVancouverStatusToCondition(record.status);
-      tags.status = record.status; // Keep original for reference
+      tags.status = this.mapVancouverStatusToStatus(record.status);
+      tags.vancouver_status = record.status; // Keep original for reference
     }
 
     return tags;
@@ -666,28 +666,29 @@ export class VancouverPublicArtImporter implements ImporterPlugin {
   }
 
   /**
-   * Map Vancouver status to standard condition values
+   * Map Vancouver status to standard status values
    */
-  private mapVancouverStatusToCondition(status: string): string {
+  private mapVancouverStatusToStatus(status: string): string {
     const normalized = status.toLowerCase().trim();
 
-    // Map based on the specified requirements
+    // Map to the status enum values: ['active', 'removed', 'relocated', 'under_construction', 'planned']
     const statusMap: Record<string, string> = {
       'no longer in place': 'removed',
-      'in place': 'good',
-      'in progress': 'unknown',
+      'in place': 'active',
+      'in progress': 'under_construction',
       deaccessioned: 'removed',
       // Additional common variations
-      installed: 'good',
-      active: 'good',
+      installed: 'active',
+      active: 'active',
       removed: 'removed',
       demolished: 'removed',
-      relocated: 'unknown',
-      'in storage': 'unknown',
-      unknown: 'unknown',
+      relocated: 'relocated',
+      'in storage': 'removed',
+      planned: 'planned',
+      'under construction': 'under_construction',
     };
 
-    return statusMap[normalized] || 'unknown';
+    return statusMap[normalized] || 'active';
   }
 }
 

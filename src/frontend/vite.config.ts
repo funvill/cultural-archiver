@@ -18,6 +18,7 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       port: 5173,
+      strictPort: true,
       host: true,
       open: true,
       proxy: {
@@ -70,6 +71,20 @@ export default defineConfig(({ mode }) => {
             });
           },
           // Don't rewrite the path - keep /photos prefix
+        },
+        // Proxy sitemap requests to the backend worker during local development
+        // so that /sitemap.xml and /sitemap-*.xml are served by the API worker.
+        '/sitemap.xml': {
+          target: 'http://127.0.0.1:8787',
+          changeOrigin: true,
+          secure: false,
+        },
+        '/sitemap-': {
+          // this will match requests like /sitemap-artworks.xml when used with exact prefix
+          target: 'http://127.0.0.1:8787',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path): string => path, // keep path intact
         },
       },
     },

@@ -188,11 +188,11 @@ export class DataPipeline {
     try {
       // Check for importer-specific config file
       const configFileName = `${this.importer.name}-config.json`;
-      const configPath = path.join(
-        path.dirname(fileURLToPath(import.meta.url)),
-        '../importers',
-        configFileName
-      );
+      
+      // Resolve path based on the current file location in the compiled structure
+      const currentDir = path.dirname(fileURLToPath(import.meta.url));
+      // From dist/lib/mass-import-system/lib/data-pipeline.js, go to dist/importers
+      const configPath = path.join(currentDir, '../../../../importers', configFileName);
 
       try {
         const configContent = await fs.readFile(configPath, 'utf-8');

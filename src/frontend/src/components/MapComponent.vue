@@ -4,7 +4,6 @@ import {
   ExclamationTriangleIcon,
   ExclamationCircleIcon,
   XMarkIcon,
-  MapPinIcon,
   PlusIcon,
   MinusIcon,
   Squares2X2Icon,
@@ -20,9 +19,12 @@ import { useMapFilters } from '../composables/useMapFilters';
 import { useRouter } from 'vue-router';
 import MapOptionsModal from './MapOptionsModal.vue';
 import { useMapPreviewStore } from '../stores/mapPreview';
+import { useMapSettings } from '../stores/mapSettings';
 import MapWebGLLayer from './MapWebGLLayer.vue';
 import { useGridCluster } from '../composables/useGridCluster';
 import type { ClusterFeature } from '../composables/useGridCluster';
+import { useAnnouncer } from '../composables/useAnnouncer';
+import { createIconAtlas, DEFAULT_ICONS, type IconAtlas } from '../utils/iconAtlas';
 // Props
 const props = withDefaults(defineProps<MapComponentProps & { suppressFilterBanner?: boolean }>(), {
   zoom: 15,
@@ -48,6 +50,12 @@ const isLoading = ref(true);
 const isLocating = ref(false);
 const error = ref<string | null>(null);
 const showLocationNotice = ref(false);
+// Transient error toast state (used when GPS/watchPosition errors occur)
+const showErrorToast = ref(false);
+const errorToastMessage = ref('');
+
+// Announcer for screen-reader announcements
+const { announceError } = useAnnouncer();
 // Viewport loading state
 const isLoadingViewport = ref(false);
 const lastLoadedBounds = ref<{ north: number; south: number; east: number; west: number } | null>(
@@ -101,15 +109,22 @@ const useProgressiveLoading = ref(false);
 // Tracking state (are we actively following the user's location?)
 const isTracking = computed(() => userWatchId.value !== null);
 
-// Effective clustering: use zoom threshold only (legacy user preference removed)
+// Effective clustering: user preference AND zoom threshold
 const effectiveClusterEnabled = computed(() => {
   const z = map.value?.getZoom() ?? props.zoom ?? 15;
-  return z > 14;
+  // Only cluster if user preference is enabled AND zoom is appropriate
+  const enabled = mapSettings.clusteringEnabled && z > 14;
+  console.log('[MAP DIAGNOSTIC] Clustering state:', {
+    zoom: z,
+    userPreference: mapSettings.clusteringEnabled,
+    zoomThreshold: 14,
+    effectivelyEnabled: enabled
+  });
+  return enabled;
 });
 
 // Router and other listeners used in component
 const router = useRouter();
-let deviceOrientationListener: ((ev: DeviceOrientationEvent) => void) | null = null;
 let debugImmediateRing: L.Circle | null = null;
 
 // LocalStorage keys and basic state persistence helpers
@@ -139,6 +154,7 @@ function readSavedMapState(): { center: Coordinates; zoom: number } | null {
 const artworksStore = useArtworksStore();
 const mapFilters = useMapFilters();
 const mapPreviewStore = useMapPreviewStore();
+const mapSettings = useMapSettings();
 // Artwork type helpers
 useArtworkTypeFilters();
 const { visitedArtworks, starredArtworks } = useUserLists();
@@ -148,6 +164,8 @@ const webglClusters = ref<ClusterFeature[]>([]);
 const webglClustering = useGridCluster({ gridSize: 100, maxZoom: 15 });
 let webglMoveHandler: (() => void) | null = null;
 let webglZoomHandler: (() => void) | null = null;
+// Icon atlas for WebGL marker icons
+const iconAtlas = ref<IconAtlas | null>(null);
 // Map options state
 const showOptionsModal = ref(false);
 
@@ -205,6 +223,10 @@ try {
 function buildWebGLClusters() {
   try {
     if (!map.value || !props.artworks) {
+      console.log('[MAP DIAGNOSTIC] buildWebGLClusters skipped:', {
+        mapExists: !!map.value,
+        artworksCount: props.artworks?.length ?? 0
+      });
       webglClusters.value = [];
       return;
     }
@@ -221,18 +243,40 @@ function buildWebGLClusters() {
   // Determine effective clustering: user preference AND only when zoom > 14
   const currentZoom = map.value?.getZoom() ?? props.zoom ?? 15;
 
+  console.log('[MAP DIAGNOSTIC] buildWebGLClusters:', {
+    totalArtworks: props.artworks.length,
+    currentZoom,
+    effectiveClusterEnabled: effectiveClusterEnabled.value,
+    visitedCount: visitedArtworks.value.size,
+    starredCount: starredArtworks.value.size
+  });
+
   // If clustering is enabled for this zoom level, let the grid clusterer compute clusters to render via WebGL
-  if (effectiveClusterEnabled) {
+  if (effectiveClusterEnabled.value) {
       try {
         // Ensure clusterer has points loaded
-        // Map artworks to clusterer expected format
-        const artworkPoints = (props.artworks || []).map((a: any) => ({
-          id: a.id,
-          lat: a.latitude,
-          lon: a.longitude,
-          title: a.title || 'Untitled',
-          type: a.type || 'default'
-        }));
+        // Map artworks to clusterer expected format, including visited/starred flags
+        const artworkPoints = (props.artworks || []).map((a: any) => {
+          const visited = visitedArtworks.value instanceof Set ? visitedArtworks.value.has(a.id) : false;
+          const starred = starredArtworks.value instanceof Set ? starredArtworks.value.has(a.id) : false;
+          
+          return {
+            id: a.id,
+            lat: a.latitude,
+            lon: a.longitude,
+            title: a.title || 'Untitled',
+            type: a.type || 'default',
+            // Pass visited/starred flags so they're preserved in clustered output
+            visited,
+            starred
+          };
+        });
+
+        console.log('[MAP DIAGNOSTIC] Loading points for clustering:', {
+          totalPoints: artworkPoints.length,
+          visitedInPoints: artworkPoints.filter(p => p.visited).length,
+          starredInPoints: artworkPoints.filter(p => p.starred).length
+        });
 
         webglClustering.loadPoints(artworkPoints);
 
@@ -246,31 +290,57 @@ function buildWebGLClusters() {
   const zoom = currentZoom;
 
         const clusters = webglClustering.getClusters(bbox, zoom);
+        console.log('[MAP DIAGNOSTIC] Clustering enabled - clusters generated:', {
+          totalClusters: clusters.length,
+          actualClusters: clusters.filter(c => c.properties.cluster).length,
+          individualMarkers: clusters.filter(c => !c.properties.cluster).length,
+          visitedMarkers: clusters.filter(c => !c.properties.cluster && c.properties.visited).length,
+          starredMarkers: clusters.filter(c => !c.properties.cluster && c.properties.starred).length,
+          sampleVisited: clusters.filter(c => !c.properties.cluster && c.properties.visited).slice(0, 2).map(c => ({
+            id: c.properties.id,
+            visited: c.properties.visited,
+            starred: c.properties.starred
+          }))
+        });
         webglClusters.value = clusters;
         return;
       } catch (err) {
-        console.warn('webglClustering error:', err);
+        console.warn('[MAP DIAGNOSTIC] webglClustering error:', err);
       }
     }
 
   // Default: no clustering — render all visible artworks as individual WebGL points
     const pts: ClusterFeature[] = (props.artworks || [])
   .filter((a: any) => mapFilters.shouldShowArtwork(a) && viewportBounds.contains(L.latLng(a.latitude, a.longitude)))
-      .map((a: any) => ({
-        type: 'Feature',
-        id: a.id,
-        properties: {
-          cluster: false,
+      .map((a: any) => {
+        const visited = visitedArtworks.value instanceof Set ? visitedArtworks.value.has(a.id) : false;
+        const starred = starredArtworks.value instanceof Set ? starredArtworks.value.has(a.id) : false;
+        
+        return {
+          type: 'Feature',
           id: a.id,
-          type: a.type || 'default',
-          title: a.title || 'Untitled'
-        },
-        geometry: { type: 'Point', coordinates: [a.longitude, a.latitude] }
-      })) as ClusterFeature[];
+          properties: {
+            cluster: false,
+            id: a.id,
+            type: a.type || 'default',
+            title: a.title || 'Untitled',
+            // Include user list flags so WebGL rendering can show visited/starred icons
+            visited,
+            starred
+          },
+          geometry: { type: 'Point', coordinates: [a.longitude, a.latitude] }
+        };
+      }) as ClusterFeature[];
+
+    console.log('[MAP DIAGNOSTIC] Individual markers generated:', {
+      total: pts.length,
+      visited: pts.filter(p => p.properties.visited).length,
+      starred: pts.filter(p => p.properties.starred).length
+    });
 
     webglClusters.value = pts;
   } catch (err) {
-    console.warn('buildWebGLClusters error:', err);
+    console.warn('[MAP DIAGNOSTIC] buildWebGLClusters error:', err);
     webglClusters.value = [];
   }
 }
@@ -913,9 +983,18 @@ async function requestUserLocation() {
     // Update store
     artworksStore.setCurrentLocation(userLocation);
 
-    // Center map on user location
+    // Center map on user location (preserve current zoom)
     if (map.value) {
-      map.value.setView([userLocation.latitude, userLocation.longitude], props.zoom);
+        const currentZoom = map.value.getZoom();
+        try {
+          map.value.setView([userLocation.latitude, userLocation.longitude], currentZoom, {
+            animate: true,
+            duration: 0.5
+          });
+        } catch (e) {
+          // fallback
+          map.value.setView([userLocation.latitude, userLocation.longitude], currentZoom);
+        }
     }
 
     // Add user location marker
@@ -943,11 +1022,22 @@ async function requestUserLocation() {
 
 // Add user location marker
 function addUserLocationMarker(location: Coordinates) {
-  if (!map.value) return;
+  if (!map.value) {
+    console.warn('[MAP DIAGNOSTIC] Cannot add user location marker - map not initialized');
+    return;
+  }
+
+  console.log('[MAP DIAGNOSTIC] Adding user location marker:', {
+    latitude: location.latitude,
+    longitude: location.longitude,
+    heading: userHeading.value,
+    mapExists: !!map.value
+  });
 
   // Remove existing marker
   if (userLocationMarker.value) {
     map.value.removeLayer(userLocationMarker.value as any);
+    console.log('[MAP DIAGNOSTIC] Removed previous user location marker');
   }
 
   // Add new marker
@@ -958,19 +1048,27 @@ function addUserLocationMarker(location: Coordinates) {
     .addTo(map.value!)
     .bindPopup('Your current location');
 
+  console.log('[MAP DIAGNOSTIC] User location marker added to map');
+
   // Ensure user marker is on top visually
   try {
     userLocationMarker.value.getElement()?.style.setProperty('z-index', '10050');
     if ((userLocationMarker.value as any).bringToFront) {
       (userLocationMarker.value as any).bringToFront();
     }
+    console.log('[MAP DIAGNOSTIC] User location marker z-index set to 10050');
   } catch (e) {
-    /* ignore */
+    console.warn('[MAP DIAGNOSTIC] Error setting user marker z-index:', e);
   }
 }
 
 // Create a divIcon that includes a view cone rotated to heading (deg)
 const createUserLocationIconWithCone = (headingDeg: number) => {
+  console.log('[MAP DIAGNOSTIC] Creating user location icon with cone:', {
+    headingDeg,
+    timestamp: new Date().toISOString()
+  });
+  
   const size = 56; // px
   const half = size / 2;
   // Google-maps-like marker: small central circle, subtle ring, cone (faint), and a small arrow/chevron
@@ -1000,7 +1098,7 @@ const createUserLocationIconWithCone = (headingDeg: number) => {
     </svg>
   `;
 
-  return L.divIcon({
+  const icon = L.divIcon({
     html: `
       <div class="user-location-marker-wrapper" style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;">
         ${coneSvg}
@@ -1010,6 +1108,14 @@ const createUserLocationIconWithCone = (headingDeg: number) => {
     iconSize: [size, size],
     iconAnchor: [half, half],
   });
+  
+  console.log('[MAP DIAGNOSTIC] User location icon created:', {
+    iconSize: icon.options.iconSize,
+    iconAnchor: icon.options.iconAnchor,
+    className: icon.options.className
+  });
+  
+  return icon;
 };
 
 // Note: keep legacy createUserLocationIcon available for other code paths
@@ -1388,99 +1494,76 @@ function zoomOut() {
 }
 
 function centerOnUserLocation() {
-  // Toggle live tracking: if already tracking, stop; otherwise start and center
-  if (userWatchId.value !== null) {
-    stopUserTracking();
+  // One-time center action - does NOT continuously track user position
+  // User can pan/zoom away freely after centering
+  if (!hasGeolocation.value) {
+    requestUserLocation();
     return;
   }
 
-  startUserTracking();
+  isLocating.value = true;
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      console.log('[MAP DIAGNOSTIC] GPS position obtained:', {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+        heading: pos.coords.heading,
+        timestamp: new Date(pos.timestamp).toISOString()
+      });
+      
+      const coords: Coordinates = { 
+        latitude: pos.coords.latitude, 
+        longitude: pos.coords.longitude 
+      };
+      
+      console.log('[MAP DIAGNOSTIC] Updating store and adding marker');
+      // Update store and marker
+      artworksStore.setCurrentLocation(coords);
+      addUserLocationMarker(coords);
+      
+      console.log('[MAP DIAGNOSTIC] User location marker should now be visible on map');
+      
+      // Center map on user location (preserve current zoom)
+      if (map.value) {
+        const currentZoom = map.value.getZoom();
+        map.value.setView([coords.latitude, coords.longitude], currentZoom, { 
+          animate: true, 
+          duration: 0.5 
+        });
+        console.log('[MAP DIAGNOSTIC] Map centered on user location at zoom:', currentZoom);
+      }
+      
+      emit('locationFound', coords);
+      isLocating.value = false;
+    },
+    (err) => {
+      console.warn('getCurrentPosition error:', err);
+      try {
+        const msg = err && err.message ? `Location error: ${err.message}` : 'Unable to access your location.';
+        errorToastMessage.value = msg;
+        showErrorToast.value = true;
+        try { announceError(msg); } catch (e) { /* ignore */ }
+      } catch (e) {
+        /* ignore */
+      }
+      isLocating.value = false;
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 10000,
+      maximumAge: 5000,
+    }
+  );
 }
 
 function requestLocation() {
   requestUserLocation();
 }
 
-function startUserTracking() {
-  if (!hasGeolocation.value) {
-    requestUserLocation();
-    return;
-  }
-
-  // Start listening to device orientation if available
-  try {
-    if (window && 'DeviceOrientationEvent' in window) {
-      deviceOrientationListener = (ev: DeviceOrientationEvent) => {
-        if (typeof ev.alpha === 'number') {
-          // alpha is rotation around z axis in degrees (0-360)
-          userHeading.value = 360 - (ev.alpha || 0);
-          // update marker rotation if exists
-          if (userLocationMarker.value) {
-            try {
-              const el = userLocationMarker.value.getElement();
-              if (el) {
-                const svg = el.querySelector('svg');
-                if (svg) svg.style.transform = `rotate(${userHeading.value}deg)`;
-              }
-            } catch {}
-          }
-        }
-      };
-      window.addEventListener('deviceorientation', deviceOrientationListener as EventListener);
-    }
-  } catch (e) {
-    /* ignore */
-  }
-
-  // Use watchPosition for continuous updates
-  try {
-    userWatchId.value = navigator.geolocation.watchPosition(
-      (pos) => {
-        const coords: Coordinates = { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
-        artworksStore.setCurrentLocation(coords);
-        // Update marker and center map
-        addUserLocationMarker(coords);
-        if (map.value) map.value.setView([coords.latitude, coords.longitude], map.value.getZoom());
-        emit('locationFound', coords);
-      },
-      (err) => {
-        console.warn('watchPosition error:', err);
-      },
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 10000 }
-    );
-  } catch (e) {
-    // Fallback to single request and periodic poll
-    requestUserLocation();
-    const poll = setInterval(() => {
-      requestUserLocation().catch(() => {});
-    }, 5000);
-    // Save watch id as negative to indicate interval so stopUserTracking can clear it
-    userWatchId.value = -poll as any as number;
-  }
-}
-
-function stopUserTracking() {
-  // Stop device orientation listener
-  try {
-    if (deviceOrientationListener && window) {
-      window.removeEventListener('deviceorientation', deviceOrientationListener as EventListener);
-    }
-  } catch {}
-
-  // Stop geolocation watch
-  try {
-    if (userWatchId.value !== null) {
-      if (userWatchId.value >= 0) {
-        navigator.geolocation.clearWatch(userWatchId.value);
-      } else {
-        // negative value encodes a setInterval id
-        clearInterval(-userWatchId.value);
-      }
-    }
-  } catch {}
-
-  userWatchId.value = null;
-}
+// Note: Continuous user tracking functions removed in favor of one-time centering.
+// The location button now centers the map once per click without continuous tracking.
 
 function clearError() {
   error.value = null;
@@ -1636,6 +1719,28 @@ watch(
 // Lifecycle
 onMounted(async () => {
   await nextTick();
+  
+  // Initialize icon atlas for WebGL markers
+  try {
+    console.log('[ICON ATLAS] Starting icon atlas creation...');
+    const iconConfigs = [
+      { name: 'default', svg: DEFAULT_ICONS.default || '', size: 64 },
+      { name: 'sculpture', svg: DEFAULT_ICONS.sculpture || '', size: 64 },
+      { name: 'mural', svg: DEFAULT_ICONS.mural || '', size: 64 },
+      { name: 'installation', svg: DEFAULT_ICONS.installation || '', size: 64 },
+      { name: 'cluster', svg: DEFAULT_ICONS.cluster || '', size: 64 },
+      { name: 'visited', svg: DEFAULT_ICONS.visited || '', size: 64 },
+      { name: 'starred', svg: DEFAULT_ICONS.starred || '', size: 64 }
+    ];
+    iconAtlas.value = await createIconAtlas(iconConfigs);
+    console.log('[ICON ATLAS] Icon atlas created successfully:', {
+      atlasExists: !!iconAtlas.value,
+      icons: iconAtlas.value ? Object.keys(iconAtlas.value.icons) : []
+    });
+  } catch (err) {
+    console.error('[ICON ATLAS] Failed to create icon atlas:', err);
+  }
+  
   await initializeMap();
 
   // Add window resize listener (guarded for non-browser envs)
@@ -1712,8 +1817,8 @@ onUnmounted(() => {
     
     map.value = undefined;
   }
-  // Ensure user tracking is stopped when component unmounts
-  try { stopUserTracking(); } catch {}
+  // Note: User tracking no longer used with one-time location button
+  // try { stopUserTracking(); } catch {}
 });
 
 // Rebuild markers when visited/starred sets change
@@ -1787,6 +1892,23 @@ watch(
   { deep: true }
 );
 
+// Rebuild WebGL clusters when user lists change (visited/starred artworks)
+watch(
+  [() => visitedArtworks.value, () => starredArtworks.value],
+  () => {
+    buildWebGLClusters();
+  },
+  { deep: true }
+);
+
+// Watch clustering preference changes
+watch(
+  () => mapSettings.clusteringEnabled,
+  () => {
+    buildWebGLClusters();
+  }
+);
+
 // Persist and react to debug rings toggle
 watch(
   () => debugRingsEnabled.value,
@@ -1819,10 +1941,10 @@ watch(
     <!-- WebGL overlay (always mounted). We pass webglClusters (flat points) and keep Leaflet clustering active.
          The UI CSS hides DOM markers when desired but cluster icons remain visible. -->
     <MapWebGLLayer
-      v-if="map && props.artworks && props.artworks.length > 0"
+      v-if="map && props.artworks && props.artworks.length > 0 && iconAtlas"
       :map="map"
       :clusters="webglClusters"
-      :icon-atlas="null"
+      :icon-atlas="iconAtlas"
       @cluster-click="onWebGLClusterClick"
       @marker-click="onWebGLMarkerClick"
     />
@@ -1856,6 +1978,19 @@ watch(
           aria-hidden="true"
         ></div>
         <p class="text-xs text-gray-600">Loading artworks...</p>
+      </div>
+    </div>
+
+    <!-- Transient Error Toast (GPS / watchPosition failures) -->
+    <div
+      v-if="showErrorToast"
+      class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"
+      role="alert"
+      aria-live="assertive"
+    >
+      <div class="theme-error px-4 py-2 rounded-lg shadow-lg flex items-center space-x-3">
+        <ExclamationCircleIcon class="w-5 h-5" />
+        <span>{{ errorToastMessage }}</span>
       </div>
     </div>
 
@@ -1976,17 +2111,23 @@ watch(
 
 
       </div>
-      <!-- Current Location Button -->
+      <!-- Current Location Button (Person icon, toggles tracking) -->
       <button
         v-if="hasGeolocation"
         @click="centerOnUserLocation"
         :disabled="isLocating"
-        :class="['theme-surface shadow-md rounded-full p-3 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50', isTracking ? 'ring-4 ring-blue-300' : '']"
-        :title="isLocating ? 'Getting location...' : 'Center on current location'"
-        :aria-label="isLocating ? 'Getting current location...' : 'Center map on current location'"
+        :class="['theme-surface shadow-md rounded-full p-3 hover:theme-surface-hover focus:theme-surface-hover focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 relative', isTracking ? 'ring-4 ring-blue-300' : '']"
+        :title="isLocating ? 'Getting location...' : (isTracking ? 'Stop tracking location' : 'Center on current location')"
+        :aria-label="isLocating ? 'Getting current location...' : (isTracking ? 'Stop tracking location' : 'Center map on current location')"
       >
-        <MapPinIcon v-if="!isLocating" class="w-5 h-5 text-gray-700" />
-        <div v-if="isTracking && !isLocating" class="w-3 h-3 rounded-full bg-blue-600 absolute" style="transform: translate(10px, -10px);"></div>
+        <!-- Person glyph (keeps styling consistent and distinct from artwork markers) -->
+        <template v-if="!isLocating">
+          <svg v-if="!isLocating" xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-gray-700" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 20v-1a4 4 0 014-4h4a4 4 0 014 4v1" />
+          </svg>
+          <div v-if="isTracking && !isLocating" class="w-3 h-3 rounded-full bg-blue-600 absolute" style="transform: translate(10px, -10px);"></div>
+        </template>
         <div
           v-else
           class="w-5 h-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"
@@ -2062,8 +2203,9 @@ watch(
 
 /* When WebGL overlay is active we typically want to hide the DOM markers to avoid
    duplicate visuals. Keep marker cluster icons visible (they use .marker-cluster).
+   Also keep user location marker visible.
    The .webgl-active class is applied to the map root when WebGL is mounted. */
-.webgl-active .leaflet-marker-icon:not(.marker-cluster-icon),
+.webgl-active .leaflet-marker-icon:not(.marker-cluster-icon):not(.custom-user-location-icon-wrapper),
 .webgl-active .leaflet-marker-pane .artwork-marker,
 .webgl-active .leaflet-marker-pane .artwork-circle-marker,
 .webgl-active .leaflet-marker-pane .custom-normal-icon,
