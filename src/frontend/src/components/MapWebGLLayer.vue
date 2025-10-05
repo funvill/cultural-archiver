@@ -360,6 +360,19 @@ function updateLayers(): void {
   if (props.iconAtlas && props.iconAtlas.isReady) {
     const markerData = scatterDataPlain.filter((d: any) => !d.properties.cluster && (d.properties.visited || d.properties.starred));
     
+    // Diagnostic logging for visited/starred icons
+    console.log('[MAP DIAGNOSTIC] Icon Atlas Status:', {
+      isReady: props.iconAtlas.isReady,
+      totalMarkers: scatterDataPlain.length,
+      visitedOrStarred: markerData.length,
+      visitedCount: markerData.filter((d: any) => d.properties.visited).length,
+      starredCount: markerData.filter((d: any) => d.properties.starred).length,
+      iconAtlasHasIcons: {
+        visited: props.iconAtlas.icons.has('visited'),
+        starred: props.iconAtlas.icons.has('starred')
+      }
+    });
+    
     if (markerData.length > 0) {
       // Create icon atlas canvas
       const size = 64;
@@ -378,9 +391,14 @@ function updateLayers(): void {
             ctx.drawImage(img as any, x, 0, size, size);
             iconMapping[name] = { x, y: 0, width: size, height: size, mask: false };
             x += size;
+            console.log(`[MAP DIAGNOSTIC] Icon '${name}' added to atlas at x=${x - size}`);
+          } else {
+            console.warn(`[MAP DIAGNOSTIC] Icon '${name}' NOT FOUND in icon atlas`);
           }
         }
       }
+      
+      console.log('[MAP DIAGNOSTIC] Icon Mapping Created:', iconMapping);
       
       iconMarkerLayer = new IconLayer({
         id: 'marker-icons',
@@ -411,7 +429,16 @@ function updateLayers(): void {
           getIcon: scatterUpdateKey
         }
       });
+      
+      console.log('[MAP DIAGNOSTIC] IconLayer created with', markerData.length, 'markers');
+    } else {
+      console.log('[MAP DIAGNOSTIC] No visited or starred markers to display');
     }
+  } else {
+    console.log('[MAP DIAGNOSTIC] Icon Atlas not ready:', {
+      exists: !!props.iconAtlas,
+      isReady: props.iconAtlas?.isReady
+    });
   }
 
   // Finally set deck props with non-reactive data arrays

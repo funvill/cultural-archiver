@@ -18,6 +18,9 @@ export const useMapSettings = defineStore('mapSettings', () => {
     const saved = localStorage.getItem(CLUSTERING_STORAGE_KEY);
     if (saved !== null) {
       clusteringEnabled.value = saved === 'true';
+      console.log('[MAP DIAGNOSTIC] Clustering setting loaded from localStorage:', clusteringEnabled.value);
+    } else {
+      console.log('[MAP DIAGNOSTIC] No saved clustering setting, using default:', clusteringEnabled.value);
     }
   }
 
@@ -27,6 +30,7 @@ export const useMapSettings = defineStore('mapSettings', () => {
   function toggleClustering() {
     clusteringEnabled.value = !clusteringEnabled.value;
     localStorage.setItem(CLUSTERING_STORAGE_KEY, String(clusteringEnabled.value));
+    console.log('[MAP DIAGNOSTIC] Clustering toggled to:', clusteringEnabled.value);
   }
 
   /**
@@ -35,6 +39,7 @@ export const useMapSettings = defineStore('mapSettings', () => {
   function setClusteringEnabled(enabled: boolean) {
     clusteringEnabled.value = enabled;
     localStorage.setItem(CLUSTERING_STORAGE_KEY, String(enabled));
+    console.log('[MAP DIAGNOSTIC] Clustering set to:', enabled);
   }
 
   // Initialize on store creation

@@ -20,9 +20,11 @@ import { getPagesService } from './pages';
  * Returns the main sitemap index that lists all sub-sitemaps
  */
 export async function getSitemapIndex(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  console.log('[SITEMAP DIAGNOSTIC] GET /sitemap.xml requested');
   const baseUrl = c.env.FRONTEND_URL || 'https://publicartregistry.com';
   
   const xml = generateSitemapIndex(baseUrl);
+  console.log('[SITEMAP DIAGNOSTIC] Sitemap index generated, length:', xml.length);
   
   return new Response(xml, {
     headers: {
@@ -37,10 +39,12 @@ export async function getSitemapIndex(c: Context<{ Bindings: WorkerEnv }>): Prom
  * Returns sitemap of all approved artwork detail pages
  */
 export async function getArtworksSitemap(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  console.log('[SITEMAP DIAGNOSTIC] GET /sitemap-artworks.xml requested');
   const baseUrl = c.env.FRONTEND_URL || 'https://publicartregistry.com';
   
   try {
     const xml = await generateArtworksSitemap(c.env.DB, baseUrl);
+    console.log('[SITEMAP DIAGNOSTIC] Artworks sitemap generated, length:', xml.length);
     
     return new Response(xml, {
       headers: {
@@ -49,7 +53,7 @@ export async function getArtworksSitemap(c: Context<{ Bindings: WorkerEnv }>): P
       },
     });
   } catch (error) {
-    console.error('Error generating artworks sitemap:', error);
+    console.error('[SITEMAP DIAGNOSTIC] Error generating artworks sitemap:', error);
     return c.json({ error: 'Failed to generate artworks sitemap' }, 500);
   }
 }
@@ -59,10 +63,12 @@ export async function getArtworksSitemap(c: Context<{ Bindings: WorkerEnv }>): P
  * Returns sitemap of all approved artist profile pages
  */
 export async function getArtistsSitemap(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  console.log('[SITEMAP DIAGNOSTIC] GET /sitemap-artists.xml requested');
   const baseUrl = c.env.FRONTEND_URL || 'https://publicartregistry.com';
   
   try {
     const xml = await generateArtistsSitemap(c.env.DB, baseUrl);
+    console.log('[SITEMAP DIAGNOSTIC] Artists sitemap generated, length:', xml.length);
     
     return new Response(xml, {
       headers: {
@@ -71,7 +77,7 @@ export async function getArtistsSitemap(c: Context<{ Bindings: WorkerEnv }>): Pr
       },
     });
   } catch (error) {
-    console.error('Error generating artists sitemap:', error);
+    console.error('[SITEMAP DIAGNOSTIC] Error generating artists sitemap:', error);
     return c.json({ error: 'Failed to generate artists sitemap' }, 500);
   }
 }
@@ -81,11 +87,13 @@ export async function getArtistsSitemap(c: Context<{ Bindings: WorkerEnv }>): Pr
  * Returns sitemap of static pages and main site pages
  */
 export async function getPagesSitemap(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  console.log('[SITEMAP DIAGNOSTIC] GET /sitemap-pages.xml requested');
   const baseUrl = c.env.FRONTEND_URL || 'https://publicartregistry.com';
   
   try {
     const pagesService = getPagesService();
     const xml = await generatePagesSitemap(pagesService, baseUrl);
+    console.log('[SITEMAP DIAGNOSTIC] Pages sitemap generated, length:', xml.length);
     
     return new Response(xml, {
       headers: {
@@ -94,7 +102,7 @@ export async function getPagesSitemap(c: Context<{ Bindings: WorkerEnv }>): Prom
       },
     });
   } catch (error) {
-    console.error('Error generating pages sitemap:', error);
+    console.error('[SITEMAP DIAGNOSTIC] Error generating pages sitemap:', error);
     return c.json({ error: 'Failed to generate pages sitemap' }, 500);
   }
 }

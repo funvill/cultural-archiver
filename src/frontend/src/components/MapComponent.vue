@@ -968,11 +968,22 @@ async function requestUserLocation() {
 
 // Add user location marker
 function addUserLocationMarker(location: Coordinates) {
-  if (!map.value) return;
+  if (!map.value) {
+    console.warn('[MAP DIAGNOSTIC] Cannot add user location marker - map not initialized');
+    return;
+  }
+
+  console.log('[MAP DIAGNOSTIC] Adding user location marker:', {
+    latitude: location.latitude,
+    longitude: location.longitude,
+    heading: userHeading.value,
+    mapExists: !!map.value
+  });
 
   // Remove existing marker
   if (userLocationMarker.value) {
     map.value.removeLayer(userLocationMarker.value as any);
+    console.log('[MAP DIAGNOSTIC] Removed previous user location marker');
   }
 
   // Add new marker
@@ -983,14 +994,17 @@ function addUserLocationMarker(location: Coordinates) {
     .addTo(map.value!)
     .bindPopup('Your current location');
 
+  console.log('[MAP DIAGNOSTIC] User location marker added to map');
+
   // Ensure user marker is on top visually
   try {
     userLocationMarker.value.getElement()?.style.setProperty('z-index', '10050');
     if ((userLocationMarker.value as any).bringToFront) {
       (userLocationMarker.value as any).bringToFront();
     }
+    console.log('[MAP DIAGNOSTIC] User location marker z-index set to 10050');
   } catch (e) {
-    /* ignore */
+    console.warn('[MAP DIAGNOSTIC] Error setting user marker z-index:', e);
   }
 }
 
