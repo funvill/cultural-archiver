@@ -255,14 +255,28 @@ function buildWebGLClusters() {
   if (effectiveClusterEnabled.value) {
       try {
         // Ensure clusterer has points loaded
-        // Map artworks to clusterer expected format
-        const artworkPoints = (props.artworks || []).map((a: any) => ({
-          id: a.id,
-          lat: a.latitude,
-          lon: a.longitude,
-          title: a.title || 'Untitled',
-          type: a.type || 'default'
-        }));
+        // Map artworks to clusterer expected format, including visited/starred flags
+        const artworkPoints = (props.artworks || []).map((a: any) => {
+          const visited = visitedArtworks.value instanceof Set ? visitedArtworks.value.has(a.id) : false;
+          const starred = starredArtworks.value instanceof Set ? starredArtworks.value.has(a.id) : false;
+          
+          return {
+            id: a.id,
+            lat: a.latitude,
+            lon: a.longitude,
+            title: a.title || 'Untitled',
+            type: a.type || 'default',
+            // Pass visited/starred flags so they're preserved in clustered output
+            visited,
+            starred
+          };
+        });
+
+        console.log('[MAP DIAGNOSTIC] Loading points for clustering:', {
+          totalPoints: artworkPoints.length,
+          visitedInPoints: artworkPoints.filter(p => p.visited).length,
+          starredInPoints: artworkPoints.filter(p => p.starred).length
+        });
 
         webglClustering.loadPoints(artworkPoints);
 
@@ -276,7 +290,18 @@ function buildWebGLClusters() {
   const zoom = currentZoom;
 
         const clusters = webglClustering.getClusters(bbox, zoom);
-        console.log('[MAP DIAGNOSTIC] Clustering enabled - clusters generated:', clusters.length);
+        console.log('[MAP DIAGNOSTIC] Clustering enabled - clusters generated:', {
+          totalClusters: clusters.length,
+          actualClusters: clusters.filter(c => c.properties.cluster).length,
+          individualMarkers: clusters.filter(c => !c.properties.cluster).length,
+          visitedMarkers: clusters.filter(c => !c.properties.cluster && c.properties.visited).length,
+          starredMarkers: clusters.filter(c => !c.properties.cluster && c.properties.starred).length,
+          sampleVisited: clusters.filter(c => !c.properties.cluster && c.properties.visited).slice(0, 2).map(c => ({
+            id: c.properties.id,
+            visited: c.properties.visited,
+            starred: c.properties.starred
+          }))
+        });
         webglClusters.value = clusters;
         return;
       } catch (err) {
@@ -958,14 +983,17 @@ async function requestUserLocation() {
     // Update store
     artworksStore.setCurrentLocation(userLocation);
 
-    // Center map on user location
+    // Center map on user location (preserve current zoom)
     if (map.value) {
-        // Always center to zoom level 15 when user requests their location
+        const currentZoom = map.value.getZoom();
         try {
-          map.value.setView([userLocation.latitude, userLocation.longitude], 15);
+          map.value.setView([userLocation.latitude, userLocation.longitude], currentZoom, {
+            animate: true,
+            duration: 0.5
+          });
         } catch (e) {
           // fallback
-          map.value.setView([userLocation.latitude, userLocation.longitude], props.zoom);
+          map.value.setView([userLocation.latitude, userLocation.longitude], currentZoom);
         }
     }
 
@@ -1036,6 +1064,11 @@ function addUserLocationMarker(location: Coordinates) {
 
 // Create a divIcon that includes a view cone rotated to heading (deg)
 const createUserLocationIconWithCone = (headingDeg: number) => {
+  console.log('[MAP DIAGNOSTIC] Creating user location icon with cone:', {
+    headingDeg,
+    timestamp: new Date().toISOString()
+  });
+  
   const size = 56; // px
   const half = size / 2;
   // Google-maps-like marker: small central circle, subtle ring, cone (faint), and a small arrow/chevron
@@ -1065,7 +1098,7 @@ const createUserLocationIconWithCone = (headingDeg: number) => {
     </svg>
   `;
 
-  return L.divIcon({
+  const icon = L.divIcon({
     html: `
       <div class="user-location-marker-wrapper" style="width:${size}px;height:${size}px;display:flex;align-items:center;justify-content:center;">
         ${coneSvg}
@@ -1075,6 +1108,14 @@ const createUserLocationIconWithCone = (headingDeg: number) => {
     iconSize: [size, size],
     iconAnchor: [half, half],
   });
+  
+  console.log('[MAP DIAGNOSTIC] User location icon created:', {
+    iconSize: icon.options.iconSize,
+    iconAnchor: icon.options.iconAnchor,
+    className: icon.options.className
+  });
+  
+  return icon;
 };
 
 // Note: keep legacy createUserLocationIcon available for other code paths
@@ -1464,21 +1505,34 @@ function centerOnUserLocation() {
 
   navigator.geolocation.getCurrentPosition(
     (pos) => {
+      console.log('[MAP DIAGNOSTIC] GPS position obtained:', {
+        latitude: pos.coords.latitude,
+        longitude: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+        heading: pos.coords.heading,
+        timestamp: new Date(pos.timestamp).toISOString()
+      });
+      
       const coords: Coordinates = { 
         latitude: pos.coords.latitude, 
         longitude: pos.coords.longitude 
       };
       
+      console.log('[MAP DIAGNOSTIC] Updating store and adding marker');
       // Update store and marker
       artworksStore.setCurrentLocation(coords);
       addUserLocationMarker(coords);
       
-      // Center map once at zoom level 15
+      console.log('[MAP DIAGNOSTIC] User location marker should now be visible on map');
+      
+      // Center map on user location (preserve current zoom)
       if (map.value) {
-        map.value.setView([coords.latitude, coords.longitude], 15, { 
+        const currentZoom = map.value.getZoom();
+        map.value.setView([coords.latitude, coords.longitude], currentZoom, { 
           animate: true, 
           duration: 0.5 
         });
+        console.log('[MAP DIAGNOSTIC] Map centered on user location at zoom:', currentZoom);
       }
       
       emit('locationFound', coords);
@@ -2149,8 +2203,9 @@ watch(
 
 /* When WebGL overlay is active we typically want to hide the DOM markers to avoid
    duplicate visuals. Keep marker cluster icons visible (they use .marker-cluster).
+   Also keep user location marker visible.
    The .webgl-active class is applied to the map root when WebGL is mounted. */
-.webgl-active .leaflet-marker-icon:not(.marker-cluster-icon),
+.webgl-active .leaflet-marker-icon:not(.marker-cluster-icon):not(.custom-user-location-icon-wrapper),
 .webgl-active .leaflet-marker-pane .artwork-marker,
 .webgl-active .leaflet-marker-pane .artwork-circle-marker,
 .webgl-active .leaflet-marker-pane .custom-normal-icon,

@@ -10,7 +10,6 @@ import { useAuthStore } from '../stores/auth';
 import { useNotificationsStore } from '../stores/notifications';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import AuthModal from './AuthModal.vue';
-import DevelopmentBanner from './DevelopmentBanner.vue';
 import LiveRegion from './LiveRegion.vue';
 
 // Import new navigation components
@@ -398,8 +397,7 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
       Skip to main content
     </a>
 
-    <!-- Development Warning Banner -->
-    <DevelopmentBanner />
+      <!-- Development Warning Banner removed in production/staging builds -->
 
     <!-- Desktop Navigation Rail (md+ screens) -->
     <NavigationRail

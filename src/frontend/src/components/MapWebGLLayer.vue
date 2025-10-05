@@ -370,7 +370,13 @@ function updateLayers(): void {
       iconAtlasHasIcons: {
         visited: props.iconAtlas.icons.has('visited'),
         starred: props.iconAtlas.icons.has('starred')
-      }
+      },
+      sampleMarkerData: markerData.slice(0, 3).map((d: any) => ({
+        id: d.properties.id,
+        visited: d.properties.visited,
+        starred: d.properties.starred,
+        cluster: d.properties.cluster
+      }))
     });
     
     if (markerData.length > 0) {
@@ -400,13 +406,28 @@ function updateLayers(): void {
       
       console.log('[MAP DIAGNOSTIC] Icon Mapping Created:', iconMapping);
       
+      console.log('[MAP DIAGNOSTIC] IconLayer Configuration:', {
+        markerDataCount: markerData.length,
+        iconMappingKeys: Object.keys(iconMapping),
+        canvasSize: `${canvas.width}x${canvas.height}`
+      });
+      
       iconMarkerLayer = new IconLayer({
         id: 'marker-icons',
         data: markerData,
         pickable: true,
         iconAtlas: canvas as any,
         iconMapping,
-        getIcon: (d: any) => (d.properties.visited ? 'visited' : 'starred'),
+        getIcon: (d: any) => {
+          const icon = d.properties.visited ? 'visited' : 'starred';
+          console.log('[MAP DIAGNOSTIC] getIcon called for marker:', {
+            id: d.properties.id,
+            visited: d.properties.visited,
+            starred: d.properties.starred,
+            selectedIcon: icon
+          });
+          return icon;
+        },
         getPosition: (d: any) => [d.geometry.coordinates[0], d.geometry.coordinates[1]],
         getSize: () => {
           const currentZoom = props.map?.getZoom() || 13;

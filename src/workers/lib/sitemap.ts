@@ -5,13 +5,14 @@
  */
 
 import type { D1Database } from '@cloudflare/workers-types';
-import type { ArtworkRecord, ArtistRecord } from '../../shared/types';
+// import narrow types from shared if needed in future
 import { createDatabaseService } from './database';
 import type { PagesService } from './pages';
 
 interface SitemapUrl {
   loc: string;
-  lastmod?: string;
+  // exactOptionalPropertyTypes is enabled in tsconfig; make undefined explicit
+  lastmod?: string | undefined;
   changefreq?: 'always' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly' | 'never';
   priority?: number;
 }
@@ -31,9 +32,11 @@ function escapeXml(text: string): string {
 /**
  * Format date to W3C Datetime format (YYYY-MM-DD)
  */
-function formatDate(date: Date | string): string {
+function formatDate(date: Date | string | null | undefined): string {
+  if (!date) return '';
   const d = typeof date === 'string' ? new Date(date) : date;
-  return d.toISOString().split('T')[0];
+  if (!(d instanceof Date) || isNaN(d.getTime())) return '';
+  return d.toISOString().split('T')[0] ?? '';
 }
 
 /**
@@ -109,12 +112,14 @@ export async function generateArtworksSitemap(
   `;
   
   const result = await dbService.db.prepare(query).all();
-  const artworks = result.results as Pick<ArtworkRecord, 'id' | 'updated_at'>[];
+  // D1 returns rows with id and updated_at; ArtworkRecord doesn't include updated_at
+  // so use a narrow result type here to reflect the query shape.
+  const artworks = result.results as Array<{ id: string; updated_at?: string | null }>;
   
   const urls: SitemapUrl[] = artworks.map(artwork => ({
     loc: `${baseUrl}/artwork/${artwork.id}`,
     lastmod: artwork.updated_at ? formatDate(artwork.updated_at) : undefined,
-    changefreq: 'weekly',
+    changefreq: 'monthly',
     priority: 0.8,
   }));
   
@@ -140,12 +145,12 @@ export async function generateArtistsSitemap(
   `;
   
   const result = await dbService.db.prepare(query).all();
-  const artists = result.results as Pick<ArtistRecord, 'id' | 'updated_at'>[];
+  const artists = result.results as Array<{ id: string; updated_at?: string | null }>;
   
   const urls: SitemapUrl[] = artists.map(artist => ({
     loc: `${baseUrl}/artist/${artist.id}`,
     lastmod: artist.updated_at ? formatDate(artist.updated_at) : undefined,
-    changefreq: 'weekly',
+    changefreq: 'yearly',
     priority: 0.7,
   }));
   

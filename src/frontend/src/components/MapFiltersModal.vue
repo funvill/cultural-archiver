@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { XMarkIcon } from '@heroicons/vue/24/outline';
 import { AdjustmentsHorizontalIcon } from '@heroicons/vue/24/solid';
 import { useMapFilters } from '../composables/useMapFilters';
+import { useMapSettings } from '../stores/mapSettings';
 import { useAuthStore } from '../stores/auth';
 import { useRouter } from 'vue-router';
 
@@ -22,6 +23,7 @@ const emit = defineEmits(['update:isOpen', 'filtersChanged', 'clearListCaches', 
 
 // Composables
 const mapFilters = useMapFilters();
+const mapSettings = useMapSettings();
 const authStore = useAuthStore();
 const router = useRouter();
 
@@ -264,7 +266,9 @@ onUnmounted(() => {
 
           <!-- Simple Filters Section (Show artworks without photos) -->
           <div class="border-b border-gray-200">
+            <h3 class="text-base font-semibold text-gray-900 mb-4">Display Options</h3>
             <div class="space-y-4">
+              <!-- Show artworks without photos toggle -->
               <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
                 <label class="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" :checked="mapFilters.filtersState.showArtworksWithoutPhotos"
@@ -284,6 +288,28 @@ onUnmounted(() => {
                   </div>
                   <p class="text-xs mt-1 text-gray-600">When off, artworks that do not have photos yet are hidden from
                     the map.</p>
+                </div>
+              </div>
+
+              <!-- Marker clustering toggle -->
+              <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
+                <label class="relative inline-flex items-center cursor-pointer">
+                  <input type="checkbox" :checked="mapSettings.clusteringEnabled"
+                    @change="mapSettings.toggleClustering(); emit('filtersChanged')" class="sr-only peer" />
+                  <div
+                    class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors border-2 cursor-pointer"
+                    :class="mapSettings.clusteringEnabled ? 'bg-blue-600 border-blue-600 shadow-md' : 'bg-gray-100 border-gray-300 shadow-inner'">
+                    <div
+                      class="dot absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform shadow-lg border border-gray-200 pointer-events-none"
+                      :class="mapSettings.clusteringEnabled ? 'translate-x-5 bg-white' : 'translate-x-0 bg-gray-50'">
+                    </div>
+                  </div>
+                </label>
+                <div class="flex-1">
+                  <div class="flex items-center">
+                    <span class="text-sm font-medium text-gray-900">Enable marker clustering</span>
+                  </div>
+                  <p class="text-xs mt-1 text-gray-600">Group nearby markers into clusters when zoomed out to improve map performance and readability.</p>
                 </div>
               </div>
             </div>
