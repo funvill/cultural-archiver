@@ -42,6 +42,7 @@ export interface PageFrontMatter {
   title: string;
   date?: string; // YYYY-MM-DD format
   draft?: boolean;
+  category?: string; // Category for grouping pages
 }
 
 export interface Page {
@@ -49,6 +50,7 @@ export interface Page {
   title: string;
   date: string | undefined;
   draft: boolean;
+  category: string | undefined;
   content: string; // Raw markdown
   html?: string; // Rendered HTML (lazy loaded)
 }
@@ -78,6 +80,7 @@ export class PagesService {
       title: frontMatter.title,
       date: frontMatter.date ?? undefined,
       draft: frontMatter.draft ?? false,
+      category: frontMatter.category ?? undefined,
       content,
     };
 
@@ -107,8 +110,8 @@ export class PagesService {
   }
 
   /**
-   * Get all pages sorted by date (newest first), then by title
-   * Undated pages appear at the top
+   * Get all pages sorted by category, then by date (newest first), then by title
+   * Uncategorized pages appear at the top
    */
   getAllPages(): Page[] {
     const visiblePages = Array.from(this.pages.values()).filter(page => {
@@ -117,7 +120,18 @@ export class PagesService {
     });
 
     return visiblePages.sort((a, b) => {
-      // Undated pages first
+      // Uncategorized pages first
+      if (!a.category && b.category) return -1;
+      if (a.category && !b.category) return 1;
+      
+      // Both have categories, sort by category alphabetically
+      if (a.category && b.category) {
+        const categoryCompare = a.category.localeCompare(b.category);
+        if (categoryCompare !== 0) return categoryCompare;
+      }
+      
+      // Same category (or both uncategorized), sort by date
+      // Undated pages first within category
       if (!a.date && b.date) return -1;
       if (a.date && !b.date) return 1;
       if (!a.date && !b.date) {

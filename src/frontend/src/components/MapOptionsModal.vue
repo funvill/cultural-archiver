@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue';
+import { computed, onMounted, onUnmounted, watch } from 'vue';
 import { XMarkIcon } from '@heroicons/vue/24/outline';
 import { useMapFilters } from '../composables/useMapFilters';
 import { useAuthStore } from '../stores/auth';
+import { useMapSettings } from '../stores/mapSettings';
 
 interface Props {
   isOpen: boolean;
@@ -19,6 +20,7 @@ const emit = defineEmits<Emits>();
 // Composables
 const mapFilters = useMapFilters();
 const authStore = useAuthStore();
+const mapSettings = useMapSettings();
 
 // Computed properties
 const isAuthenticated = computed(() => authStore.isAuthenticated);
@@ -37,6 +39,12 @@ function handleResetAllFilters(): void {
   mapFilters.resetFilters();
 }
 
+function toggleClustering(): void {
+  console.log('[MAP DIAGNOSTIC] Clustering toggle clicked in MapOptionsModal');
+  mapSettings.toggleClustering();
+  console.log('[MAP DIAGNOSTIC] New clustering state:', mapSettings.clusteringEnabled);
+}
+
 // Keyboard handling
 function handleKeydown(event: KeyboardEvent): void {
   if (event.key === 'Escape' && props.isOpen) {
@@ -47,10 +55,18 @@ function handleKeydown(event: KeyboardEvent): void {
 // Lifecycle
 onMounted(() => {
   document.addEventListener('keydown', handleKeydown);
+  console.log('[MAP DIAGNOSTIC] MapOptionsModal mounted, clustering enabled:', mapSettings.clusteringEnabled);
 });
 
 onUnmounted(() => {
   document.removeEventListener('keydown', handleKeydown);
+});
+
+// Watch for modal open/close
+watch(() => props.isOpen, (newVal) => {
+  if (newVal) {
+    console.log('[MAP DIAGNOSTIC] Map Options Modal opened, current clustering state:', mapSettings.clusteringEnabled);
+  }
 });
 </script>
 
@@ -190,6 +206,47 @@ onUnmounted(() => {
         </div>
 
         <!-- Display Options removed: cluster toggle is moved to main map controls -->
+
+        <!-- Display Options Section -->
+        <div>
+          <h3 class="text-base font-semibold text-gray-900 mb-4 flex items-center">
+            <svg class="w-5 h-5 mr-2 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+            Display Options
+          </h3>
+          
+          <div class="space-y-4">
+            <!-- Enable Marker Clustering -->
+            <div class="flex items-start space-x-3 p-4 bg-gray-50 rounded-lg">
+              <label class="relative inline-flex items-center cursor-pointer" @click="toggleClustering()">
+                <input
+                  type="checkbox"
+                  :checked="mapSettings.clusteringEnabled"
+                  class="sr-only peer"
+                />
+                <div
+                  class="w-11 h-6 rounded-full peer peer-focus:ring-2 peer-focus:ring-blue-500 transition-colors border-2 cursor-pointer"
+                  :class="mapSettings.clusteringEnabled ? 'bg-blue-600 border-blue-600 shadow-md' : 'bg-gray-100 border-gray-300 shadow-inner'"
+                >
+                  <div
+                    class="dot absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform shadow-lg border border-gray-200 pointer-events-none"
+                    :class="mapSettings.clusteringEnabled ? 'translate-x-5 bg-white' : 'translate-x-0 bg-gray-50'"
+                  ></div>
+                </div>
+              </label>
+              
+              <div class="flex-1">
+                <div class="flex items-center">
+                  <span class="text-sm font-medium text-gray-900">Enable Marker Clustering</span>
+                </div>
+                <p class="text-xs mt-1 text-gray-600">
+                  Group nearby artworks into numbered clusters at higher zoom levels (zoom > 14).
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <!-- Artwork Type Filters Section -->
         <div>

@@ -156,6 +156,12 @@ import { createFeedback } from './routes/feedback';
 import { listFeedback, reviewFeedback } from './routes/moderation/feedback';
 import { getAllPagesHandler, getPageHandler } from './routes/pages';
 import { initializePages } from './lib/pages-loader';
+import {
+  getSitemapIndex,
+  getArtworksSitemap,
+  getArtistsSitemap,
+  getPagesSitemap,
+} from './routes/sitemap';
 
 // Initialize Hono app
 const app = new Hono<{ Bindings: WorkerEnv }>();
@@ -1082,6 +1088,22 @@ app.post(
   addUserTokenToResponse,
   withErrorHandling(markUserNotificationRead)
 );
+
+// ================================
+// Sitemap Endpoints (SEO)
+// ================================
+
+// Sitemap index - lists all sitemaps
+app.get('/sitemap.xml', getSitemapIndex);
+
+// Individual sitemaps
+app.get('/sitemap-artworks.xml', getArtworksSitemap);
+app.get('/sitemap-artists.xml', getArtistsSitemap);
+app.get('/sitemap-pages.xml', getPagesSitemap);
+
+// ================================
+// 404 Handler
+// ================================
 
 // Development/testing endpoint for email configuration
 app.post('/api/test-email', withErrorHandling(sendTestEmail));

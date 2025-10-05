@@ -16,6 +16,14 @@ export function initializePagesService(isDevelopment: boolean): void {
 }
 
 /**
+ * Get the pages service instance
+ * Used by sitemap generation and other services that need access to pages
+ */
+export function getPagesService(): PagesService | null {
+  return pagesService;
+}
+
+/**
  * Load a page into the service
  * This will be called for each .md file found in the pages directory
  */

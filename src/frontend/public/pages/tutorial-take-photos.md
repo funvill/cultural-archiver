@@ -1,6 +1,7 @@
 ---
 title: Tutorial - Take photos of artworks
 date: 2025-10-03
+category: Tutorials
 ---
 # Take photos of artworks
 
