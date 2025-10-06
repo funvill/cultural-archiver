@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineEmits } from 'vue';
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, defineEmits, createApp } from 'vue';
 import {
   ExclamationTriangleIcon,
   ExclamationCircleIcon,
@@ -8,6 +8,22 @@ import {
   MinusIcon,
   Squares2X2Icon,
 } from '@heroicons/vue/24/outline';
+import { UserIcon } from '@heroicons/vue/24/solid';
+
+// Render a small Heroicons component to an HTML string so we can inline it into a Leaflet divIcon.
+function renderHeroIconToString(iconComponent: any, props: Record<string, any> = {}) {
+  if (typeof document === 'undefined') return '';
+  try {
+    const container = document.createElement('div');
+    const app = createApp(iconComponent, props);
+    app.mount(container);
+    const html = container.innerHTML || '';
+    try { app.unmount(); } catch (e) { /* ignore */ }
+    return html;
+  } catch (e) {
+    return '';
+  }
+}
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 // MarkerCluster (DOM-based) removed: we render markers with WebGL (deck.gl)
@@ -180,22 +196,25 @@ const showOptionsModal = ref(false);
 // Legacy user location icon generator
 const createUserLocationIcon = () => {
   // Inline SVG for a simple person/user glyph (keeps dependency-free)
+  // Double the marker size and use a red background with a hero-like user icon
+  const size = 64;
+  const half = size / 2;
   const personSvg = `
-    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <circle cx="12" cy="8" r="3" fill="white"/>
-      <path d="M4 20c0-3.314 2.686-6 6-6h4c3.314 0 6 2.686 6 6v0H4z" fill="white"/>
+    <svg width="28" height="28" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4z" fill="#ffffff"/>
+      <path d="M6 20a6 6 0 0112 0" fill="#ffffff"/>
     </svg>
   `;
 
   return L.divIcon({
     html: `
-      <div class="user-location-marker flex items-center justify-center bg-blue-600 rounded-full w-8 h-8 border-2 border-white shadow-lg">
-        ${personSvg}
+      <div class="user-location-marker flex items-center justify-center bg-red-600 rounded-full" style="width:${size}px;height:${size}px;border:4px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.25);">
+        ${typeof document !== 'undefined' ? renderHeroIconToString(UserIcon, { class: 'w-7 h-7 text-white', 'aria-hidden': 'true' }) : personSvg}
       </div>
     `,
     className: 'custom-user-location-icon',
-    iconSize: [32, 32],
-    iconAnchor: [16, 16],
+    iconSize: [size, size],
+    iconAnchor: [half, half],
   });
 };
 
@@ -214,6 +233,7 @@ try {
 } catch (e) {
   // ignore in non-setup contexts
 }
+// (No automatic watcher here; MapComponent will add the user marker when it requests location.)
 
 /**
  * Build ClusterFeature-like plain objects from the current artworks for the WebGL layer.
@@ -274,8 +294,8 @@ function buildWebGLClusters() {
 
         console.log('[MAP DIAGNOSTIC] Loading points for clustering:', {
           totalPoints: artworkPoints.length,
-          visitedInPoints: artworkPoints.filter(p => p.visited).length,
-          starredInPoints: artworkPoints.filter(p => p.starred).length
+          visitedInPoints: artworkPoints.filter((p: any) => p.visited).length,
+          starredInPoints: artworkPoints.filter((p: any) => p.starred).length
         });
 
         webglClustering.loadPoints(artworkPoints);
@@ -1069,31 +1089,27 @@ const createUserLocationIconWithCone = (headingDeg: number) => {
     timestamp: new Date().toISOString()
   });
   
-  const size = 56; // px
+  // Double the size for a larger marker
+  const size = 112; // px
   const half = size / 2;
   // Google-maps-like marker: small central circle, subtle ring, cone (faint), and a small arrow/chevron
   const coneSvg = `
     <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <defs>
         <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.25" />
+          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#ef4444" flood-opacity="0.25" />
         </filter>
       </defs>
       <g transform="translate(${half}, ${half}) rotate(${headingDeg})">
-        <!-- Outer faint ring -->
-        <circle cx="0" cy="0" r="18" fill="none" stroke="#2563eb" stroke-opacity="0.12" stroke-width="8" />
+        <!-- Outer faint ring (now red) -->
+        <circle cx="0" cy="0" r="20" fill="#ef4444" fill-opacity="0.3" stroke="#000" stroke-width="2" />
 
-        <!-- Inner solid center -->
-        <circle cx="0" cy="0" r="8" fill="#2563eb" stroke="#fff" stroke-width="2" filter="url(#shadow)" />
-
-        <!-- Forward cone (semi-transparent) -->
-        <path d="M0 -10 L22 -38 L-22 -38 Z" fill="#2563eb" fill-opacity="0.12" stroke="none" />
-
-        <!-- Inner thin cone edge -->
-        <path d="M0 -10 L18 -34 L-18 -34 Z" fill="none" stroke="#2563eb" stroke-opacity="0.22" stroke-width="1" />
-
-        <!-- Small arrow/chevron tip at the cone point -->
-        <path d="M0 -40 L6 -30 L-6 -30 Z" fill="#2563eb" />
+        <!-- Inner solid center replaced by red background; heroicon user will be inlined here -->
+        <foreignObject x="-16" y="-16" width="32" height="32">
+          <div xmlns="http://www.w3.org/1999/xhtml" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;">
+            ${typeof document !== 'undefined' ? renderHeroIconToString(UserIcon, { class: 'w-6 h-6 text-black', 'aria-hidden': 'true' }) : ''}
+          </div>
+        </foreignObject>
       </g>
     </svg>
   `;
