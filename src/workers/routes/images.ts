@@ -21,7 +21,6 @@ import {
   resizeImage,
   validateImageData,
   getContentType,
-  getCacheHeaders,
 } from '../lib/image-processing';
 
 const app = new Hono<{ Bindings: WorkerEnv }>();
@@ -37,10 +36,10 @@ app.get('/:size/*', async (c) => {
     let imagePath = c.req.param('*'); // Everything after /:size/
 
     // Debug logging
-    console.log('[IMAGE ENDPOINT] size:', size);
-    console.log('[IMAGE ENDPOINT] imagePath from param(*):', imagePath);
-    console.log('[IMAGE ENDPOINT] full path:', c.req.path);
-    console.log('[IMAGE ENDPOINT] all params:', c.req.param());
+    // console.log('[IMAGE ENDPOINT] size:', size);
+    // console.log('[IMAGE ENDPOINT] imagePath from param(*):', imagePath);
+    // console.log('[IMAGE ENDPOINT] full path:', c.req.path);
+    // console.log('[IMAGE ENDPOINT] all params:', c.req.param());
 
     // Fallback: Try to extract from full path if wildcard param is empty
     if (!imagePath || imagePath.trim().length === 0) {
@@ -48,7 +47,7 @@ app.get('/:size/*', async (c) => {
       const sizePrefix = `/api/images/${size}/`;
       if (fullPath.startsWith(sizePrefix)) {
         imagePath = fullPath.substring(sizePrefix.length);
-        console.log('[IMAGE ENDPOINT] Extracted from full path:', imagePath);
+        // console.log('[IMAGE ENDPOINT] Extracted from full path:', imagePath);
       }
     }
 
@@ -129,7 +128,9 @@ app.get('/:size/*', async (c) => {
       throw new ApiError('Photo storage not configured', 'STORAGE_NOT_CONFIGURED', 503);
     }
 
-    // Generate the variant key
+    // Generate the variant key with automatic path mapping
+    // This maps: originals/ → artworks/, photos/ → artworks/, submissions/ → submissions/
+    // See generateVariantKey() in lib/image-processing.ts for full mapping logic
     const variantKey = size === 'original' ? imagePath : generateVariantKey(imagePath, size);
 
     // Try to fetch the variant from R2
@@ -166,6 +167,8 @@ app.get('/:size/*', async (c) => {
       // Fetch the original image
       const originalObject = await bucket.get(imagePath);
 
+      console.log(`[IMAGE] Generating variant ${size} for ${imagePath}`);
+
       if (!originalObject) {
         throw new ApiError('Original image not found', 'IMAGE_NOT_FOUND', 404);
       }
@@ -201,14 +204,13 @@ app.get('/:size/*', async (c) => {
         },
       });
 
-      // Return the newly generated image
-      const cacheHeaders = getCacheHeaders(size);
-      return new Response(resized.data, {
-        status: 200,
+      // Redirect to the photos domain so the file is served from R2 with proper caching
+      const photosBaseUrl = c.env.PHOTOS_BASE_URL || 'https://photos.publicartregistry.com';
+      const redirectUrl = `${photosBaseUrl}/${variantKey}`;
+      return new Response(null, {
+        status: 301,
         headers: {
-          'Content-Type': resized.contentType,
-          'Content-Length': resized.size.toString(),
-          ...cacheHeaders,
+          'Location': redirectUrl,
           'X-Image-Variant': size,
           'X-Generated': 'true',
         },
@@ -220,17 +222,13 @@ app.get('/:size/*', async (c) => {
       throw new ApiError('Image not found', 'IMAGE_NOT_FOUND', 404);
     }
 
-    // Serve the existing variant/original
-    const data = await object.arrayBuffer();
-    const contentType = object.httpMetadata?.contentType || getContentType(data);
-    const cacheHeaders = getCacheHeaders(size);
-
-    return new Response(data, {
-      status: 200,
+    // Variant/original exists - redirect to the photos domain
+    const photosBaseUrl = c.env.PHOTOS_BASE_URL || 'https://photos.publicartregistry.com';
+    const redirectUrl = `${photosBaseUrl}/${variantKey}`;
+    return new Response(null, {
+      status: 301,
       headers: {
-        'Content-Type': contentType,
-        'Content-Length': data.byteLength.toString(),
-        ...cacheHeaders,
+        'Location': redirectUrl,
         'X-Image-Variant': size,
         'X-Generated': 'false',
       },

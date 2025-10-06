@@ -43,13 +43,31 @@ export interface ImageProcessingResult {
   height: number;
   size: number;
 }
-
 /**
- * Generate the R2 key for a resized image variant
+ * Generate R2 storage key for image variant with automatic path mapping
  * 
- * @param originalKey - Original image R2 key (e.g., "artworks/2024/01/15/timestamp-uuid.jpg")
- * @param variant - Size variant
- * @returns R2 key for the variant (e.g., "artworks/2024/01/15/timestamp-uuid__400x400.jpg")
+ * This function maps source directories to appropriate variant directories:
+ * - originals/ → artworks/ (generated variants from source images)
+ * - photos/ → artworks/ (legacy path migration)
+ * - artworks/ → artworks/ (already in correct location)
+ * - submissions/ → submissions/ (preserve for pending content)
+ * 
+ * Storage Philosophy:
+ * - originals/ contains ONLY source images (immutable, never store variants)
+ * - artworks/ contains ONLY generated variants (ephemeral cache, can be deleted)
+ * - Generated variants follow pattern: {prefix}{path}{name}__{width}x{height}{ext}
+ * 
+ * @param originalKey - Source image R2 key (e.g., "originals/2025/10/04/filename.jpg")
+ * @param variant - Target size variant (thumbnail, medium, large, original)
+ * @returns Variant R2 key (e.g., "artworks/2025/10/04/filename__1024x1024.jpg")
+ * 
+ * @example
+ * generateVariantKey('originals/2025/10/04/image.jpg', 'medium')
+ * // Returns: 'artworks/2025/10/04/image__1024x1024.jpg'
+ * 
+ * @example
+ * generateVariantKey('submissions/2025/10/04/image.jpg', 'thumbnail')
+ * // Returns: 'submissions/2025/10/04/image__400x400.jpg'
  */
 export function generateVariantKey(originalKey: string, variant: PhotoVariant): string {
   if (variant === 'original') {
@@ -61,24 +79,65 @@ export function generateVariantKey(originalKey: string, variant: PhotoVariant): 
     throw new ApiError(`INVALID_VARIANT: Invalid photo variant: ${variant}`, 'INVALID_VARIANT', 400);
   }
 
-  // Split the key into path and filename
-  const lastSlash = originalKey.lastIndexOf('/');
-  const path = lastSlash >= 0 ? originalKey.substring(0, lastSlash + 1) : '';
-  const filename = lastSlash >= 0 ? originalKey.substring(lastSlash + 1) : originalKey;
+  // Map source directories to variant directories
+  // This ensures variants are stored separately from originals
+  let targetPrefix = '';
+  let cleanPath = originalKey;
+
+  if (originalKey.startsWith('originals/')) {
+    // Source images → generated variants go to artworks/
+    targetPrefix = 'artworks/';
+    cleanPath = originalKey.substring('originals/'.length);
+  } else if (originalKey.startsWith('submissions/')) {
+    // Submissions → keep in submissions/ (different lifecycle)
+    targetPrefix = 'submissions/';
+    cleanPath = originalKey.substring('submissions/'.length);
+  } else if (originalKey.startsWith('artworks/')) {
+    // Already in correct location (rare, but handle gracefully)
+    targetPrefix = 'artworks/';
+    cleanPath = originalKey.substring('artworks/'.length);
+  } else if (originalKey.startsWith('photos/')) {
+    // Legacy path → migrate to artworks/
+    targetPrefix = 'artworks/';
+    cleanPath = originalKey.substring('photos/'.length);
+  } else {
+    // Unknown prefix - keep as-is for backward compatibility
+    // This path should rarely be hit due to validation in images.ts
+    targetPrefix = '';
+    cleanPath = originalKey;
+  }
+
+  // Extract filename from clean path
+  const lastSlash = cleanPath.lastIndexOf('/');
+  const path = lastSlash >= 0 ? cleanPath.substring(0, lastSlash + 1) : '';
+  const filename = lastSlash >= 0 ? cleanPath.substring(lastSlash + 1) : cleanPath;
 
   // Split filename into name and extension
   const lastDot = filename.lastIndexOf('.');
   const name = lastDot >= 0 ? filename.substring(0, lastDot) : filename;
   const ext = lastDot >= 0 ? filename.substring(lastDot) : '';
 
-  return `${path}${name}__${size.width}x${size.height}${ext}`;
+  return `${targetPrefix}${path}${name}__${size.width}x${size.height}${ext}`;
 }
 
 /**
- * Parse a variant key to extract the original key and variant size
+ * Parse a variant key to extract the original source key and variant size
+ * 
+ * This function reverses the path mapping done by generateVariantKey():
+ * - artworks/.../__WxH.ext → originals/....ext (most common case)
+ * - submissions/.../__WxH.ext → submissions/....ext (preserve submissions path)
+ * - Other paths are preserved as-is
  * 
  * @param variantKey - Variant R2 key (e.g., "artworks/2024/01/15/timestamp-uuid__400x400.jpg")
- * @returns Object with originalKey and variant
+ * @returns Object with originalKey (source path) and variant (size type)
+ * 
+ * @example
+ * parseVariantKey('artworks/2025/10/04/image__1024x1024.jpg')
+ * // Returns: { originalKey: 'originals/2025/10/04/image.jpg', variant: 'medium' }
+ * 
+ * @example
+ * parseVariantKey('submissions/2025/10/04/image__400x400.jpg')
+ * // Returns: { originalKey: 'submissions/2025/10/04/image.jpg', variant: 'thumbnail' }
  */
 export function parseVariantKey(variantKey: string): { originalKey: string; variant: PhotoVariant } {
   // Check if this is a variant key (contains __)
@@ -88,9 +147,8 @@ export function parseVariantKey(variantKey: string): { originalKey: string; vari
     return { originalKey: variantKey, variant: 'original' };
   }
 
-  const [, basePath, width, height, ext = ''] = variantMatch;
-  const originalKey = `${basePath}${ext}`;
-
+  const [, basePath = '', width, height, ext = ''] = variantMatch;
+  
   // Determine variant based on dimensions
   const dimensions = `${width}x${height}`;
   let variant: PhotoVariant = 'original';
@@ -101,6 +159,23 @@ export function parseVariantKey(variantKey: string): { originalKey: string; vari
       break;
     }
   }
+
+  // Map variant directories back to source directories
+  let originalKey = `${basePath}${ext}`;
+
+  if (basePath.startsWith('artworks/')) {
+    // Generated variants in artworks/ → source in originals/
+    const cleanPath = basePath.substring('artworks/'.length);
+    originalKey = `originals/${cleanPath}${ext}`;
+  } else if (basePath.startsWith('submissions/')) {
+    // Submissions preserve their path
+    originalKey = `${basePath}${ext}`;
+  } else if (basePath.startsWith('photos/')) {
+    // Legacy photos/ path → map to originals/
+    const cleanPath = basePath.substring('photos/'.length);
+    originalKey = `originals/${cleanPath}${ext}`;
+  }
+  // Other paths: keep as-is
 
   return { originalKey, variant };
 }
@@ -163,11 +238,24 @@ export async function resizeImage(
       throw new Error('Image optimization returned invalid result');
     }
 
-    // Convert Uint8Array to ArrayBuffer
-    const resizedData = result.data.buffer.slice(
-      result.data.byteOffset,
-      result.data.byteOffset + result.data.byteLength
-    );
+    // Convert Uint8Array to a standalone ArrayBuffer copy.
+    // Some WASM/image libs return views into transferable buffers which may be detached
+    // after the call. Make an explicit copy using Uint8Array.slice() to avoid
+    // "detached ArrayBuffer" errors when later manipulating the buffer.
+    let resizedData: ArrayBuffer;
+    try {
+      const copied = result.data instanceof Uint8Array ? result.data.slice() : new Uint8Array(result.data).slice();
+      // If the copied view already covers the whole underlying buffer, reuse it directly to avoid an extra copy.
+      if (copied.byteOffset === 0 && copied.byteLength === copied.buffer.byteLength) {
+        resizedData = copied.buffer;
+      } else {
+        // copied.buffer may be larger than the view; create a tight ArrayBuffer.
+        resizedData = copied.buffer.slice(copied.byteOffset, copied.byteOffset + copied.byteLength);
+      }
+    } catch (copyErr) {
+      // If copying fails (detached buffer etc.), throw and let the outer catch handle fallback.
+      throw copyErr;
+    }
 
     const contentType = `image/${format || 'jpeg'}`;
 
@@ -179,10 +267,11 @@ export async function resizeImage(
       size: resizedData.byteLength,
     };
   } catch (error) {
-    console.error('Image processing error:', error);
+    // Only log detailed errors during local development to avoid log noise/IO overhead in production.
+    if (_isLocalDev) console.error('Image processing error:', error);
     
     // Fallback: Return original image if resizing fails
-    console.warn(`Image resizing failed for variant ${variant}, returning original`);
+    if (_isLocalDev) console.warn(`Image resizing failed for variant ${variant}, returning original`);
     
     return {
       data: imageData,
