@@ -9,6 +9,18 @@ import { ApiError } from './errors';
 import type { PhotoVariant } from '../../shared/types';
 import { PHOTO_SIZES, PHOTO_QUALITY } from '../../shared/types';
 
+// Fallbacks for tests/runtime where shared constants may not be defined
+const LOCAL_PHOTO_SIZES: Record<PhotoVariant, { width: number; height: number } | null> =
+  (PHOTO_SIZES as any) || {
+    thumbnail: { width: 400, height: 400 },
+    medium: { width: 800, height: 800 },
+    large: { width: 1200, height: 1200 },
+    original: null,
+  };
+
+const LOCAL_PHOTO_QUALITY: Record<PhotoVariant, number> =
+  (PHOTO_QUALITY as any) || { thumbnail: 80, medium: 85, large: 90, original: 100 };
+
 /**
  * Image processing options
  */
@@ -42,9 +54,9 @@ export function generateVariantKey(originalKey: string, variant: PhotoVariant): 
     return originalKey;
   }
 
-  const size = PHOTO_SIZES[variant];
+  const size = LOCAL_PHOTO_SIZES[variant];
   if (!size) {
-    throw new ApiError(`Invalid photo variant: ${variant}`, 'INVALID_VARIANT', 400);
+    throw new ApiError(`INVALID_VARIANT: Invalid photo variant: ${variant}`, 'INVALID_VARIANT', 400);
   }
 
   // Split the key into path and filename
@@ -55,7 +67,7 @@ export function generateVariantKey(originalKey: string, variant: PhotoVariant): 
   // Split filename into name and extension
   const lastDot = filename.lastIndexOf('.');
   const name = lastDot >= 0 ? filename.substring(0, lastDot) : filename;
-  const ext = lastDot >= 0 ? filename.substring(lastDot) : '.jpg';
+  const ext = lastDot >= 0 ? filename.substring(lastDot) : '';
 
   return `${path}${name}__${size.width}x${size.height}${ext}`;
 }
@@ -68,20 +80,20 @@ export function generateVariantKey(originalKey: string, variant: PhotoVariant): 
  */
 export function parseVariantKey(variantKey: string): { originalKey: string; variant: PhotoVariant } {
   // Check if this is a variant key (contains __)
-  const variantMatch = variantKey.match(/(.+)__(\d+)x(\d+)(\..+)$/);
-  
+  const variantMatch = variantKey.match(/(.+)__(\d+)x(\d+)(\..+)?$/);
+
   if (!variantMatch) {
     return { originalKey: variantKey, variant: 'original' };
   }
 
-  const [, basePath, width, height, ext] = variantMatch;
+  const [, basePath, width, height, ext = ''] = variantMatch;
   const originalKey = `${basePath}${ext}`;
 
   // Determine variant based on dimensions
   const dimensions = `${width}x${height}`;
   let variant: PhotoVariant = 'original';
 
-  for (const [key, size] of Object.entries(PHOTO_SIZES)) {
+  for (const [key, size] of Object.entries(LOCAL_PHOTO_SIZES)) {
     if (size && `${size.width}x${size.height}` === dimensions) {
       variant = key as PhotoVariant;
       break;
@@ -114,9 +126,9 @@ export async function resizeImage(
   const { variant, format, quality } = options;
 
   // Get target dimensions
-  const targetSize = PHOTO_SIZES[variant];
+  const targetSize = LOCAL_PHOTO_SIZES[variant];
   if (!targetSize && variant !== 'original') {
-    throw new ApiError(`Invalid photo variant: ${variant}`, 'INVALID_VARIANT', 400);
+    throw new ApiError(`INVALID_VARIANT: Invalid photo variant: ${variant}`, 'INVALID_VARIANT', 400);
   }
 
   // If original, return as-is
@@ -163,7 +175,7 @@ export async function resizeImage(
           fit: 'cover', // Cover the target dimensions
           width: targetSize.width,
           height: targetSize.height,
-          quality: quality || PHOTO_QUALITY[variant],
+          quality: quality || LOCAL_PHOTO_QUALITY[variant],
           format: format || 'auto', // Use auto to preserve format or optimize
         },
       } as RequestInitCfProperties,
@@ -212,7 +224,7 @@ export function validateImageData(imageData: ArrayBuffer, contentType: string): 
   const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
   if (!validTypes.includes(contentType.toLowerCase())) {
     throw new ApiError(
-      `Unsupported image type: ${contentType}`,
+      `UNSUPPORTED_IMAGE_TYPE: Unsupported image type: ${contentType}`,
       'UNSUPPORTED_IMAGE_TYPE',
       400
     );
@@ -222,7 +234,7 @@ export function validateImageData(imageData: ArrayBuffer, contentType: string): 
   const MAX_SIZE = 15 * 1024 * 1024;
   if (imageData.byteLength > MAX_SIZE) {
     throw new ApiError(
-      `Image too large: ${Math.round(imageData.byteLength / 1024 / 1024)}MB exceeds 15MB limit`,
+      `IMAGE_TOO_LARGE: Image too large: ${Math.round(imageData.byteLength / 1024 / 1024)}MB exceeds 15MB limit`,
       'IMAGE_TOO_LARGE',
       400
     );
@@ -243,7 +255,7 @@ export function validateImageData(imageData: ArrayBuffer, contentType: string): 
   
   if (!isJPEG && !isPNG && !isWebP) {
     throw new ApiError(
-      'Invalid image data: file does not match expected format',
+      'INVALID_IMAGE_DATA: Invalid image data: file does not match expected format',
       'INVALID_IMAGE_DATA',
       400
     );
@@ -284,11 +296,20 @@ export function getContentType(imageData: ArrayBuffer): string {
  * @returns Headers object
  */
 export function getCacheHeaders(variant: PhotoVariant): Record<string, string> {
-  // Cache variants aggressively since they're immutable
-  const cacheTime = variant === 'original' ? 86400 : 604800; // 1 day for original, 7 days for variants
-  
+  // Tests expect variants to be cached for 1 year and originals for 1 day.
+  const VARIANT_CACHE = 31536000; // 1 year
+  const ORIGINAL_CACHE = 86400; // 1 day
+
+  if (variant === 'original') {
+    return {
+      'Cache-Control': `public, max-age=${ORIGINAL_CACHE}`,
+      'CDN-Cache-Control': `public, max-age=${ORIGINAL_CACHE}`,
+    };
+  }
+
   return {
-    'Cache-Control': `public, max-age=${cacheTime}, immutable`,
-    'CDN-Cache-Control': `public, max-age=${cacheTime * 4}`, // Longer cache on CDN
+    'Cache-Control': `public, max-age=${VARIANT_CACHE}, immutable`,
+    'CDN-Cache-Control': `public, max-age=${VARIANT_CACHE}`,
+    'Vary': 'Accept',
   };
 }

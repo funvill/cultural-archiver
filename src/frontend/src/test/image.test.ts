@@ -23,9 +23,9 @@ describe('Image Utils', () => {
       expect(url).toBe('photos/original.jpg');
     });
 
-    it('should handle full HTTP URLs', () => {
-      const url = getImageSizedURL('https://photos.example.com/test.jpg', 'thumbnail');
-      expect(url).toBe('/api/images/thumbnail/https://photos.example.com/test.jpg');
+    it('should handle full HTTP URLs by extracting R2 key', () => {
+      const url = getImageSizedURL('https://photos.publicartregistry.com/originals/test.jpg', 'thumbnail');
+      expect(url).toBe('/api/images/thumbnail/originals/test.jpg');
     });
 
     it('should handle paths with slashes', () => {
@@ -33,9 +33,9 @@ describe('Image Utils', () => {
       expect(url).toBe('/api/images/medium/photos/2024/03/image.jpg');
     });
 
-    it('should handle URLs without protocol', () => {
-      const url = getImageSizedURL('//cdn.example.com/photo.jpg', 'thumbnail');
-      expect(url).toBe('/api/images/thumbnail///cdn.example.com/photo.jpg');
+    it('should handle URLs without protocol by extracting R2 key', () => {
+      const url = getImageSizedURL('//photos.publicartregistry.com/photos/photo.jpg', 'thumbnail');
+      expect(url).toBe('/api/images/thumbnail/photos/photo.jpg');
     });
   });
 
@@ -50,12 +50,12 @@ describe('Image Utils', () => {
       });
     });
 
-    it('should work with full URLs', () => {
-      const variants = getImageVariantURLs('https://photos.example.com/test.jpg');
-      expect(variants.thumbnail).toBe('/api/images/thumbnail/https://photos.example.com/test.jpg');
-      expect(variants.medium).toBe('/api/images/medium/https://photos.example.com/test.jpg');
-      expect(variants.large).toBe('/api/images/large/https://photos.example.com/test.jpg');
-      expect(variants.original).toBe('https://photos.example.com/test.jpg');
+    it('should work with full photo URLs', () => {
+      const variants = getImageVariantURLs('https://photos.publicartregistry.com/originals/test.jpg');
+      expect(variants.thumbnail).toBe('/api/images/thumbnail/originals/test.jpg');
+      expect(variants.medium).toBe('/api/images/medium/originals/test.jpg');
+      expect(variants.large).toBe('/api/images/large/originals/test.jpg');
+      expect(variants.original).toBe('https://photos.publicartregistry.com/originals/test.jpg');
     });
 
     it('should handle nested paths', () => {

@@ -229,7 +229,9 @@ app.use('*', async (c, next) => {
 });
 
 // Global middleware
-app.use('*', secureHeaders());
+app.use('*', secureHeaders({
+  crossOriginResourcePolicy: 'cross-origin', // Allow cross-origin for images
+}));
 app.use('*', logger());
 app.use('*', prettyJSON());
 

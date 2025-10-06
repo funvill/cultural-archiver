@@ -61,6 +61,48 @@ app.get('/:size/*', async (c) => {
       );
     }
 
+    // Known allowed prefixes (used for security checks and for extracting
+    // an R2 key from full/external URLs). We check these before final
+    // validation so callers may pass absolute URLs and we can map them
+    // to the internal R2 key when possible.
+    const allowedPrefixes = ['artworks/', 'submissions/', 'originals/', 'photos/'];
+
+    // Work on a local string variable to satisfy TypeScript control flow
+    let pathStr: string = imagePath || '';
+
+    // If the wildcard param was percent-encoded by the browser (common when
+    // a full URL is placed inside a path segment) try to decode it and use
+    // the decoded value for downstream checks.
+    try {
+      const decoded = decodeURIComponent(pathStr);
+      if (decoded && decoded !== pathStr) {
+        console.log('[IMAGE ENDPOINT] decoded imagePath:', decoded);
+        pathStr = decoded;
+      }
+    } catch (e) {
+      // ignore malformed encoding
+    }
+
+    // If the client passed a full URL (or a hostname-prefixed path), try to
+    // extract the first allowed prefix substring (e.g. 'photos/' or 'originals/')
+    // so we can map external URLs back to our R2 keys. This handles cases like
+    // `/api/images/thumbnail/https%3A/photos.publicartregistry.com/originals/...`
+    // which decode to `https:/photos.publicartregistry.com/originals/...` or
+    // similar variants.
+    if (!allowedPrefixes.some((p) => pathStr.startsWith(p))) {
+      for (const prefix of allowedPrefixes) {
+        const idx = pathStr.indexOf(prefix);
+        if (idx >= 0) {
+          pathStr = pathStr.substring(idx);
+          console.log('[IMAGE ENDPOINT] extracted imagePath from full URL:', pathStr);
+          break;
+        }
+      }
+    }
+
+    // Reassign sanitized path back to imagePath
+    imagePath = pathStr;
+
     // Validate image path (security check)
     if (!imagePath || imagePath.trim().length === 0) {
       throw new ApiError('Image path is required', 'MISSING_IMAGE_PATH', 400);
@@ -72,7 +114,6 @@ app.get('/:size/*', async (c) => {
     }
 
     // Only allow images from specific prefixes (security)
-    const allowedPrefixes = ['artworks/', 'submissions/', 'originals/', 'photos/'];
     const hasValidPrefix = allowedPrefixes.some((prefix) => imagePath.startsWith(prefix));
     if (!hasValidPrefix) {
       throw new ApiError(

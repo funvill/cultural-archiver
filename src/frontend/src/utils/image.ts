@@ -5,6 +5,7 @@
 import exifr from 'exifr';
 import type { Coordinates } from '../types';
 import type { PhotoVariant } from '../../../shared/types';
+import { getApiBaseUrl } from './api-config';
 
 export interface ExifData {
   latitude?: number;
@@ -410,29 +411,45 @@ export async function processImageBatch(
  * @example
  * ```ts
  * const thumbnailUrl = getImageSizedURL('artworks/2024/01/15/image.jpg', 'thumbnail');
- * // Returns: "https://api.publicartregistry.com/api/images/thumbnail/artworks/2024/01/15/image.jpg"
+ * // Development: "/api/images/thumbnail/artworks/2024/01/15/image.jpg"
+ * // Production: "https://api.publicartregistry.com/api/images/thumbnail/artworks/2024/01/15/image.jpg"
  * ```
  */
 export function getImageSizedURL(originalUrl: string, size: PhotoVariant = 'original'): string {
-  // Remove any leading slashes or domain from the original URL
-  let cleanUrl = originalUrl;
-  
-  // If the URL is a full URL, extract just the path
-  try {
-    const url = new URL(originalUrl);
-    cleanUrl = url.pathname;
-  } catch {
-    // Not a full URL, use as-is
+  // For original variant, return the URL unchanged
+  if (size === 'original') {
+    return originalUrl;
   }
   
-  // Remove leading slash if present
-  cleanUrl = cleanUrl.replace(/^\//, '');
+  let cleanUrl = originalUrl;
   
-  // Remove any 'photos/' prefix if present (legacy format)
-  cleanUrl = cleanUrl.replace(/^photos\//, '');
+  // Check if it's a full URL (http://, https://) or protocol-relative URL (//)
+  if (originalUrl.startsWith('http://') || originalUrl.startsWith('https://') || originalUrl.startsWith('//')) {
+    // Extract the R2 key from full photo URLs
+    // Example: https://photos.publicartregistry.com/originals/2025/10/04/file.jpg
+    //       -> originals/2025/10/04/file.jpg
+    const allowedPrefixes = ['originals/', 'photos/', 'artworks/', 'submissions/'];
+    
+    for (const prefix of allowedPrefixes) {
+      const idx = originalUrl.indexOf(prefix);
+      if (idx >= 0) {
+        cleanUrl = originalUrl.substring(idx);
+        break;
+      }
+    }
+    
+    // If no allowed prefix found, use the full URL as-is
+    // (the backend will handle extraction if needed)
+  } else {
+    // Relative path - remove leading slash if present
+    cleanUrl = originalUrl.replace(/^\//, '');
+  }
   
-  // Construct the API endpoint URL (relative path)
-  const apiUrl = `/api/images/${size}/${cleanUrl}`;
+  // Construct the API endpoint URL
+  // In production: https://api.publicartregistry.com/api/images/thumbnail/...
+  // In development: /api/images/thumbnail/...
+  const apiBaseUrl = getApiBaseUrl();
+  const apiUrl = `${apiBaseUrl}/images/${size}/${cleanUrl}`;
   
   return apiUrl;
 }
@@ -477,14 +494,15 @@ export function preloadImageVariants(
   originalUrl: string,
   sizes: PhotoVariant[] = ['thumbnail', 'medium', 'large']
 ): Promise<void> {
-  const promises = sizes.map(size => {
-    return new Promise<void>((resolve) => {
-      const img = new Image();
-      img.onload = (): void => resolve();
-      img.onerror = (): void => resolve(); // Resolve even on error to not block other loads
-      img.src = getImageSizedURL(originalUrl, size);
-    });
+  // Create link elements for preloading images using browser's prefetch mechanism
+  sizes.forEach(size => {
+    const link = document.createElement('link');
+    link.rel = 'prefetch';
+    link.as = 'image';
+    link.href = getImageSizedURL(originalUrl, size);
+    document.head.appendChild(link);
   });
   
-  return Promise.all(promises).then(() => undefined);
+  // Return resolved promise for compatibility
+  return Promise.resolve();
 }
