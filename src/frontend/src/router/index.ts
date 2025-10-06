@@ -27,6 +27,7 @@ const PublicProfileView = (): Promise<Component> => import('../views/PublicProfi
 const ListView = (): Promise<Component> => import('../views/ListView.vue');
 const PageListView = (): Promise<Component> => import('../views/PageListView.vue');
 const PageDetailView = (): Promise<Component> => import('../views/PageDetailView.vue');
+const NotFoundView = (): Promise<Component> => import('../views/NotFoundView.vue');
 
 const router = createRouter({
   history: createWebHistory(),
@@ -244,6 +245,15 @@ const router = createRouter({
     {
       path: '/home',
       redirect: '/',
+    },
+    // Catch-all 404 route - MUST be last
+    {
+      path: '/:pathMatch(.*)*',
+      name: 'NotFound',
+      component: NotFoundView,
+      meta: {
+        title: '404 - Page Not Found - Public Art Registry',
+      },
     },
   ],
 });

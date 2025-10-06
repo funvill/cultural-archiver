@@ -12,6 +12,24 @@
     "category": "Blog"
   },
   {
+    "slug": "404",
+    "title": "404 - Page Not Found",
+    "date": "Sat Oct 04 2025 17:00:00 GMT-0700 (Pacific Daylight Time)",
+    "category": "Error Pages"
+  },
+  {
+    "slug": "500",
+    "title": "500 - Internal Server Error",
+    "date": "Sat Oct 04 2025 17:00:00 GMT-0700 (Pacific Daylight Time)",
+    "category": "Error Pages"
+  },
+  {
+    "slug": "503",
+    "title": "503 - Service Temporarily Unavailable",
+    "date": "Sat Oct 04 2025 17:00:00 GMT-0700 (Pacific Daylight Time)",
+    "category": "Error Pages"
+  },
+  {
     "slug": "faq",
     "title": "Frequently Asked Questions",
     "date": "Thu Oct 02 2025 17:00:00 GMT-0700 (Pacific Daylight Time)",
