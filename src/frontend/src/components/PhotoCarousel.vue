@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
+import { getImageSizedURL } from '../utils/image';
 
 // Props interface
 interface Props {
@@ -47,7 +48,26 @@ const hasMultiplePhotos = computed(() => props.photos.length > 1);
 
 const currentPhoto = computed(() => {
   if (props.photos.length === 0) return null;
-  return props.photos[currentPhotoIndex.value] || props.photos[0];
+  const original = props.photos[currentPhotoIndex.value] || props.photos[0];
+  if (!original) return null;
+  // Use medium variant for carousel display
+  return getImageSizedURL(original, 'medium');
+});
+
+const nextPhotoUrl = computed(() => {
+  if (props.photos.length <= 1) return null;
+  const nextIndex = (currentPhotoIndex.value + 1) % props.photos.length;
+  const photo = props.photos[nextIndex];
+  if (!photo) return null;
+  return getImageSizedURL(photo, 'medium');
+});
+
+const nextNextPhotoUrl = computed(() => {
+  if (props.photos.length <= 2) return null;
+  const nextNextIndex = (currentPhotoIndex.value + 2) % props.photos.length;
+  const photo = props.photos[nextNextIndex];
+  if (!photo) return null;
+  return getImageSizedURL(photo, 'medium');
 });
 
 const photoAltText = computed(() => {
@@ -87,8 +107,12 @@ function goToPhoto(index: number): void {
 }
 
 function openFullscreen(): void {
-  if (currentPhoto.value) {
-    emit('fullscreen', currentPhoto.value);
+  if (props.photos.length === 0) return;
+  const originalPhoto = props.photos[currentPhotoIndex.value] || props.photos[0];
+  if (originalPhoto) {
+    // Emit original photo URL for fullscreen (use large variant)
+    const largeUrl = getImageSizedURL(originalPhoto, 'large');
+    emit('fullscreen', largeUrl);
     announceInfo('Opened photo in fullscreen view');
   }
 }
@@ -198,7 +222,7 @@ function focusCarousel(): void {
 // Watch for changes to announce updates
 watch(
   () => props.photos.length,
-  (newLength, oldLength) => {
+  (newLength: number, oldLength: number) => {
     if (newLength !== oldLength) {
       announceInfo(
         `Photo gallery updated. ${newLength} ${newLength === 1 ? 'photo' : 'photos'} available`
@@ -240,8 +264,8 @@ onMounted(() => {
       />
 
       <!-- Hidden prefetch images (neighbors) so browsers can lazy-load them -- keeps DOM minimal but allows fetching) -->
-  <img v-if="props.photos.length>1" :src="props.photos[(currentPhotoIndex+1)%props.photos.length] || ''" alt="" style="display:none" loading="lazy" />
-  <img v-if="props.photos.length>2" :src="props.photos[(currentPhotoIndex+2)%props.photos.length] || ''" alt="" style="display:none" loading="lazy" />
+  <img v-if="nextPhotoUrl" :src="nextPhotoUrl" alt="" style="display:none" loading="lazy" />
+  <img v-if="nextNextPhotoUrl" :src="nextNextPhotoUrl" alt="" style="display:none" loading="lazy" />
 
       <!-- Navigation arrows (only shown if multiple photos) -->
       <div

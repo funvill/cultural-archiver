@@ -9,6 +9,7 @@ import {
   Squares2X2Icon,
 } from '@heroicons/vue/24/outline';
 import { UserIcon } from '@heroicons/vue/24/solid';
+import { getImageSizedURL } from '../utils/image';
 
 // Render a small Heroicons component to an HTML string so we can inline it into a Leaflet divIcon.
 function renderHeroIconToString(iconComponent: any, props: Record<string, any> = {}) {
@@ -1421,12 +1422,16 @@ function onWebGLMarkerClick(f: any) {
         const artworkPin = (props.artworks || []).find((a: any) => a.id === markerId) as any;
         if (!artworkPin && !details) return;
 
+        // Convert thumbnail to sized variant
+        const thumbnailOriginal = thumb || (artworkPin && Array.isArray(artworkPin.photos) && artworkPin.photos[0]) || undefined;
+        const thumbnailUrl = thumbnailOriginal ? getImageSizedURL(thumbnailOriginal, 'thumbnail') : undefined;
+
         const previewData = {
           id: markerId,
           title: (details && (details as any).title) || (artworkPin && artworkPin.title) || 'Untitled Artwork',
           description: (details && (details as any).description) || (artworkPin && artworkPin.type) || 'Public artwork',
           type_name: (details && ((details as any).type_name || (details as any).type)) || (artworkPin && (artworkPin.type || (artworkPin as any).type_name)) || 'artwork',
-          thumbnailUrl: thumb || (artworkPin && Array.isArray(artworkPin.photos) && artworkPin.photos[0]) || undefined,
+          thumbnailUrl,
           artistName: (details && ((details as any).artist_name || (details as any).artist || (details as any).created_by)) || (artworkPin && (artworkPin.artist_name || artworkPin.created_by)) || undefined,
           lat: (artworkPin && artworkPin.latitude) || (details && ((details as any).latitude || (details as any).lat)),
           lon: (artworkPin && artworkPin.longitude) || (details && ((details as any).longitude || (details as any).lon)),
@@ -1438,12 +1443,13 @@ function onWebGLMarkerClick(f: any) {
         const artwork = (props.artworks || []).find((a: any) => a.id === markerId);
         if (!artwork) return;
         const thumb = Array.isArray((artwork as any).photos) ? (artwork as any).photos[0] : (artwork as any).recent_photo;
+        const thumbnailUrl = thumb ? getImageSizedURL(thumb, 'thumbnail') : undefined;
         const previewData = {
           id: artwork.id,
           title: artwork.title || 'Untitled Artwork',
           description: artwork.type || 'Public artwork',
           type_name: (artwork as any).type || (artwork as any).type_name || 'artwork',
-          thumbnailUrl: thumb,
+          thumbnailUrl,
           artistName: (artwork as any).artist_name || (artwork as any).created_by || undefined,
           lat: artwork.latitude,
           lon: artwork.longitude,

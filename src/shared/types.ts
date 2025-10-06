@@ -38,6 +38,39 @@ export interface ArtworkApiResponse {
   updated_at?: string | null; // For sorting by last updated
 }
 
+// ================================
+// Photo Variant Types
+// ================================
+
+/**
+ * Photo size variants for responsive image loading
+ * - thumbnail: 400x400px for map markers, cards, search results
+ * - medium: 800x800px for artwork detail pages
+ * - large: 1200x1200px for high-quality detail view
+ * - original: Unchanged archive/reference
+ */
+export type PhotoVariant = 'thumbnail' | 'medium' | 'large' | 'original';
+
+/**
+ * Photo size specifications
+ */
+export const PHOTO_SIZES: Record<PhotoVariant, { width: number; height: number } | null> = {
+  thumbnail: { width: 400, height: 400 },
+  medium: { width: 800, height: 800 },
+  large: { width: 1200, height: 1200 },
+  original: null, // Original size, no resizing
+};
+
+/**
+ * Image quality settings for each variant
+ */
+export const PHOTO_QUALITY: Record<PhotoVariant, number> = {
+  thumbnail: 80, // Lower quality for small thumbnails
+  medium: 85, // Good balance for detail pages
+  large: 90, // High quality for detailed viewing
+  original: 100, // No compression
+};
+
 export interface ArtworkPhoto {
   url: string;
   thumbnail_url?: string | null;

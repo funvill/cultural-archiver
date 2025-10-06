@@ -4,6 +4,7 @@
 
 import exifr from 'exifr';
 import type { Coordinates } from '../types';
+import type { PhotoVariant } from '../../../shared/types';
 
 export interface ExifData {
   latitude?: number;
@@ -393,4 +394,97 @@ export async function processImageBatch(
   }
 
   return results;
+}
+
+/**
+ * Get the sized image URL for on-demand resizing
+ * 
+ * Constructs a URL to the image resizing API endpoint that will serve
+ * the requested size variant. If the variant doesn't exist, it will be
+ * generated on the fly.
+ * 
+ * @param originalUrl - Original image URL (e.g., "artworks/2024/01/15/image.jpg")
+ * @param size - Desired image size variant
+ * @returns API endpoint URL for the sized image
+ * 
+ * @example
+ * ```ts
+ * const thumbnailUrl = getImageSizedURL('artworks/2024/01/15/image.jpg', 'thumbnail');
+ * // Returns: "https://api.publicartregistry.com/api/images/thumbnail/artworks/2024/01/15/image.jpg"
+ * ```
+ */
+export function getImageSizedURL(originalUrl: string, size: PhotoVariant = 'original'): string {
+  // Remove any leading slashes or domain from the original URL
+  let cleanUrl = originalUrl;
+  
+  // If the URL is a full URL, extract just the path
+  try {
+    const url = new URL(originalUrl);
+    cleanUrl = url.pathname;
+  } catch {
+    // Not a full URL, use as-is
+  }
+  
+  // Remove leading slash if present
+  cleanUrl = cleanUrl.replace(/^\//, '');
+  
+  // Remove any 'photos/' prefix if present (legacy format)
+  cleanUrl = cleanUrl.replace(/^photos\//, '');
+  
+  // Construct the API endpoint URL (relative path)
+  const apiUrl = `/api/images/${size}/${cleanUrl}`;
+  
+  return apiUrl;
+}
+
+/**
+ * Get multiple size variants for an image
+ * 
+ * @param originalUrl - Original image URL
+ * @returns Object with URLs for all size variants
+ * 
+ * @example
+ * ```ts
+ * const urls = getImageVariantURLs('artworks/2024/01/15/image.jpg');
+ * // Returns: {
+ * //   thumbnail: "https://api.publicartregistry.com/api/images/thumbnail/artworks/...",
+ * //   medium: "https://api.publicartregistry.com/api/images/medium/artworks/...",
+ * //   large: "https://api.publicartregistry.com/api/images/large/artworks/...",
+ * //   original: "https://api.publicartregistry.com/api/images/original/artworks/..."
+ * // }
+ * ```
+ */
+export function getImageVariantURLs(originalUrl: string): Record<PhotoVariant, string> {
+  return {
+    thumbnail: getImageSizedURL(originalUrl, 'thumbnail'),
+    medium: getImageSizedURL(originalUrl, 'medium'),
+    large: getImageSizedURL(originalUrl, 'large'),
+    original: getImageSizedURL(originalUrl, 'original'),
+  };
+}
+
+/**
+ * Preload image variants to warm the cache
+ * 
+ * This function creates Image elements to trigger browser and CDN caching
+ * for multiple image sizes. Useful after uploading a new image.
+ * 
+ * @param originalUrl - Original image URL
+ * @param sizes - Array of sizes to preload (defaults to all)
+ * @returns Promise that resolves when all images are loaded or fail
+ */
+export function preloadImageVariants(
+  originalUrl: string,
+  sizes: PhotoVariant[] = ['thumbnail', 'medium', 'large']
+): Promise<void> {
+  const promises = sizes.map(size => {
+    return new Promise<void>((resolve) => {
+      const img = new Image();
+      img.onload = (): void => resolve();
+      img.onerror = (): void => resolve(); // Resolve even on error to not block other loads
+      img.src = getImageSizedURL(originalUrl, size);
+    });
+  });
+  
+  return Promise.all(promises).then(() => undefined);
 }

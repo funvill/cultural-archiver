@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { SearchResult } from '../types';
+import { getImageSizedURL } from '../utils/image';
 
 // Props interface
 interface Props {
@@ -63,11 +64,12 @@ const photoUrl = computed(() => {
 
   // Handle different photo URL formats
   if (props.artwork.recent_photo.startsWith('http')) {
-    return props.artwork.recent_photo;
+    // Use thumbnail variant for card images
+    return getImageSizedURL(props.artwork.recent_photo, 'thumbnail');
   }
 
   // Assume it's a relative path from the API
-  return props.artwork.recent_photo;
+  return getImageSizedURL(props.artwork.recent_photo, 'thumbnail');
 });
 
 const distanceText = computed(() => {
