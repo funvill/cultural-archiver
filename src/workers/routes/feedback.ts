@@ -80,22 +80,26 @@ export async function createFeedback(c: Context<{ Bindings: WorkerEnv }>): Promi
       throw new ApiError('Rate limit exceeded. Please try again later.', 'RATE_LIMIT_EXCEEDED', 429);
     }
 
-    // 4. Verify subject exists
-    let subjectExists = false;
-    if (body.subject_type === 'artwork') {
-      const artwork = await c.env.DB.prepare(
-        'SELECT id FROM artwork WHERE id = ?'
-      ).bind(body.subject_id).first();
-      subjectExists = !!artwork;
-    } else if (body.subject_type === 'artist') {
-      const artist = await c.env.DB.prepare(
-        'SELECT id FROM artists WHERE id = ?'
-      ).bind(body.subject_id).first();
-      subjectExists = !!artist;
-    }
+    // 4. Verify subject exists (skip validation for general feedback)
+    const isGeneralFeedback = body.subject_id === 'general-feedback';
+    
+    if (!isGeneralFeedback) {
+      let subjectExists = false;
+      if (body.subject_type === 'artwork') {
+        const artwork = await c.env.DB.prepare(
+          'SELECT id FROM artwork WHERE id = ?'
+        ).bind(body.subject_id).first();
+        subjectExists = !!artwork;
+      } else if (body.subject_type === 'artist') {
+        const artist = await c.env.DB.prepare(
+          'SELECT id FROM artists WHERE id = ?'
+        ).bind(body.subject_id).first();
+        subjectExists = !!artist;
+      }
 
-    if (!subjectExists) {
-      throw new ApiError(`${body.subject_type} not found`, 'NOT_FOUND', 404);
+      if (!subjectExists) {
+        throw new ApiError(`${body.subject_type} not found`, 'NOT_FOUND', 404);
+      }
     }
 
     // 5. Create feedback record
