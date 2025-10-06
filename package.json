@@ -62,7 +62,10 @@
     "admin:grant": "tsx scripts/grant-admin.ts --env dev --email steven@abluestar.com",
     "admin:grant:local": "echo For local development, admin user is created automatically by: && echo npm run database:reset:local && echo && echo To grant admin on remote dev database, use: && echo npm run admin:grant",
     "admin:grant:prod": "tsx scripts/grant-admin.ts --env prod --email steven@abluestar.com",
-    "admin:grant:staging": "tsx scripts/grant-admin.ts --env staging --email steven@abluestar.com"
+    "admin:grant:staging": "tsx scripts/grant-admin.ts --env staging --email steven@abluestar.com",
+    "clear-variants": "tsx scripts/clear-cached-variants.ts",
+    "clear-variants:prod": "tsx scripts/clear-cached-variants.ts --env production",
+    "clear-variants:prod:confirm": "tsx scripts/clear-cached-variants.ts --env production --confirm"
   },
   "devDependencies": {
     "@types/archiver": "^6.0.3",
