@@ -10,6 +10,7 @@ import { useAuthStore } from '../stores/auth';
 import { useNotificationsStore } from '../stores/notifications';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import AuthModal from './AuthModal.vue';
+import FeedbackDialog from './FeedbackDialog.vue';
 import LiveRegion from './LiveRegion.vue';
 
 // Import new navigation components
@@ -32,6 +33,8 @@ const showDrawer = ref(false);
 const showAuthModal = ref(false);
 const authMode = ref<'login' | 'signup'>('login');
 const showAboutModal = ref(false);
+const showFeedbackDialog = ref(false);
+const feedbackDefaultNote = ref('');
 const route = useRoute();
 const router = useRouter();
 const authStore = useAuthStore();
@@ -277,6 +280,24 @@ function setShowDrawer(value: boolean): void {
   showDrawer.value = value;
 }
 
+// Feedback handlers
+function handleFeedbackClick(): void {
+  const currentUrl = window.location.href;
+  const userToken = authStore.token || 'anonymous';
+  feedbackDefaultNote.value = `Feedback url: ${currentUrl}\nUser token: ${userToken}\n\n`;
+  showFeedbackDialog.value = true;
+}
+
+function closeFeedbackDialog(): void {
+  showFeedbackDialog.value = false;
+  feedbackDefaultNote.value = '';
+}
+
+function handleFeedbackSuccess(feedbackId: string): void {
+  console.log('Feedback submitted successfully:', feedbackId);
+  // Could show success toast here
+}
+
 
 
 function handleAboutClick(): void {
@@ -425,6 +446,7 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
       @notificationClick="handleNotificationClick"
       @profileClick="() => router.push('/profile')"
       @loginClick="() => openAuthModal('login')"
+      @feedbackClick="handleFeedbackClick"
     />
 
     <!-- Mobile Navigation Drawer -->
@@ -479,6 +501,17 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
     <AboutModal
       :is-open="showAboutModal"
       @close="handleAboutModalClose"
+    />
+
+    <!-- Feedback Dialog -->
+    <FeedbackDialog
+      :open="showFeedbackDialog"
+      subject-type="general"
+      subject-id="general-feedback"
+      mode="general"
+      :default-note="feedbackDefaultNote"
+      @close="closeFeedbackDialog"
+      @success="handleFeedbackSuccess"
     />
   </div>
 </template>

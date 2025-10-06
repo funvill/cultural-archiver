@@ -29,6 +29,7 @@ interface Emits {
   'profileClick': [];
   'loginClick': [];
   'mapClick': [];
+  'feedbackClick': [];
 }
 
 const emit = defineEmits<Emits>();
@@ -54,6 +55,10 @@ const handleLoginClick = (): void => {
   emit('loginClick');
 };
 
+const handleFeedbackClick = (): void => {
+  emit('feedbackClick');
+};
+
 // (removed unused hasNotifications)
 </script>
 
@@ -74,6 +79,7 @@ const handleLoginClick = (): void => {
       @mapClick="$emit('mapClick')"
       @profileClick="handleProfileClick"
       @loginClick="handleLoginClick"
+      @feedbackClick="handleFeedbackClick"
     />
   </nav>
 </template>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Bars3Icon, BellIcon, CameraIcon, UserIcon, ArrowRightOnRectangleIcon, MapIcon } from '@heroicons/vue/24/outline';
+import { Bars3Icon, BellIcon, CameraIcon, UserIcon, ArrowRightOnRectangleIcon, MapIcon, ChatBubbleLeftRightIcon } from '@heroicons/vue/24/outline';
 
 interface AuthProp {
   isAuthenticated?: boolean;
@@ -35,6 +35,7 @@ const emit = defineEmits([
   'profileClick',
   'loginClick',
   'mapClick',
+  'feedbackClick',
 ]);
 
 const hasNotifications = computed(() => (props.notificationCount ?? 0) > 0);
@@ -56,18 +57,31 @@ const handleFabClick = () => emit('fabClick');
 const handleProfileClick = () => emit('profileClick');
 const handleLoginClick = () => emit('loginClick');
 const handleMapClick = () => emit('mapClick');
+const handleFeedbackClick = () => emit('feedbackClick');
 </script>
 
 <template>
   <div v-if="props.orientation === 'horizontal'" class="flex items-center justify-between h-16 px-4">
-    <!-- Left: Menu Button (hidden on large screens) -->
-    <button
-      @click="handleMenuToggle"
-      class="lg:hidden flex items-center justify-center w-12 h-12 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-      aria-label="Open navigation menu"
-    >
-      <Bars3Icon class="w-6 h-6 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
-    </button>
+    <!-- Left: Menu Button (hidden on large screens) and Feedback Button -->
+    <div class="flex items-center space-x-2">
+      <button
+        @click="handleMenuToggle"
+        class="lg:hidden flex items-center justify-center w-12 h-12 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+        aria-label="Open navigation menu"
+      >
+        <Bars3Icon class="w-6 h-6 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
+      </button>
+      
+      <!-- Feedback Button -->
+      <button
+        @click="handleFeedbackClick"
+        class="flex items-center justify-center w-12 h-12 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors group"
+        aria-label="Send feedback"
+        title="Send Feedback"
+      >
+        <ChatBubbleLeftRightIcon class="w-6 h-6 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
+      </button>
+    </div>
     
     <!-- Left spacer for large screens to keep FAB centered -->
     <div class="hidden lg:block w-12 h-12"></div>

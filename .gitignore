@@ -124,3 +124,5 @@ output.txt
 src/lib/data-collection/richmond/output/artists.json
 
 *.orig_conflict_backup
+
+production-server-logs.txt

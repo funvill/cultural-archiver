@@ -4,6 +4,8 @@
   "include": ["/*"],
   "exclude": [
     "/sitemap.xml",
-    "/sitemap-*.xml"
+    "/sitemap-artworks.xml",
+    "/sitemap-artists.xml",
+    "/sitemap-pages.xml"
   ]
 }
