@@ -13,8 +13,9 @@
 - [x] When trying to send feedback. I get an error saying feedback cannot be sent. Can't send feedback from the feedback dialogue.
 - [x] Add the website to Google. Start a site map. Get SEO going today so it shows up in Google later on.
 - [x] Icons in the bottom bar need to be much larger.
+- [x] Show a difference between visted and submitted artworks on the map
 - [ ] Artwork index is not showing images
-- [ ] None of the artists have a bio even though the imports had bios assoicated with them. 
+- [ ] None of the artists have a bio even though the imports had bios assoicated with them.
 
 - [ ] The map filters are not working as expected and are missing the "Show removed artworks"
 
@@ -53,12 +54,16 @@
 - [ ] 0.0 Generate thumbnails and different size images of artworks as needed
 
 1) 
-When a user submits a photo, we want to store the orginal of the photo for reference. Then create smaller versions of the photo for use within the website. This should signfiganty reduce the bandwidth requirments. These different size images should be stored in the R2 object storage with the originals.
+When a user submits a photo, we want to store the orginal of the photo for reference (in r2 object storage). Then create smaller versions of the photo for use within the website. These smaller versions should signfiganty reduce the bandwidth requirments. These different size images should be stored in the R2 object storage with the originals.
 
 - Create a thumbnail for the artwork card preview (map, search, artwork index, etc...)
 - Create a reduce size image for the artwork details page
+- Create other sizes as well
 
-2) There are 1000+ artworks on the website right now. smaller versions of these images need to be created and the artworks need to be updated to use these smaller versions. Create a nodejs script to help with this migration.
+The system to generate thumbnails should be reuseable for when we need other image sizes in the future.
+
+
+2) There are 1000+ artworks on the website right now that are using the original size images. We need a way of creating the smaller versions of these images, and updating the artwork pages. Create a nodejs script to help with this migration. This is a once off script
 
 
 
