@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
-import { Bars3Icon, BellIcon, CameraIcon, UserIcon, ArrowRightOnRectangleIcon, MapIcon } from '@heroicons/vue/24/outline';
+import { Bars3Icon, BellIcon, UserIcon, ArrowRightOnRectangleIcon, MapIcon, ChatBubbleLeftRightIcon } from '@heroicons/vue/24/outline';
+import { CameraIcon } from '@heroicons/vue/24/solid';
 
 interface AuthProp {
   isAuthenticated?: boolean;
@@ -35,6 +36,7 @@ const emit = defineEmits([
   'profileClick',
   'loginClick',
   'mapClick',
+  'feedbackClick',
 ]);
 
 const hasNotifications = computed(() => (props.notificationCount ?? 0) > 0);
@@ -56,30 +58,40 @@ const handleFabClick = () => emit('fabClick');
 const handleProfileClick = () => emit('profileClick');
 const handleLoginClick = () => emit('loginClick');
 const handleMapClick = () => emit('mapClick');
+const handleFeedbackClick = () => emit('feedbackClick');
 </script>
 
 <template>
-  <div v-if="props.orientation === 'horizontal'" class="flex items-center justify-between h-16 px-4">
-    <!-- Left: Menu Button (hidden on large screens) -->
-    <button
-      @click="handleMenuToggle"
-      class="lg:hidden flex items-center justify-center w-12 h-12 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
-      aria-label="Open navigation menu"
-    >
-      <Bars3Icon class="w-6 h-6 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
-    </button>
-    
-    <!-- Left spacer for large screens to keep FAB centered -->
-    <div class="hidden lg:block w-12 h-12"></div>
+  <div v-if="props.orientation === 'horizontal'" class="relative flex items-center justify-between h-16 px-4">
+    <!-- Left: Menu Button (hidden on large screens) and Feedback Button -->
+    <div class="flex items-center space-x-2">
+      <button
+        @click="handleMenuToggle"
+        class="lg:hidden flex items-center justify-center w-12 h-12 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+        aria-label="Open navigation menu"
+      >
+        <Bars3Icon class="w-10 h-10 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
+      </button>
+      
+      <!-- Feedback Button -->
+      <button
+        @click="handleFeedbackClick"
+        class="flex items-center justify-center w-12 h-12 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors group"
+        aria-label="Send feedback"
+        title="Send Feedback"
+      >
+        <ChatBubbleLeftRightIcon class="w-10 h-10 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
+      </button>
+    </div>
 
-    <!-- Center: FAB -->
-    <div class="relative">
+    <!-- Center: FAB (absolutely positioned to stay centered) -->
+    <div class="absolute left-1/2 -translate-x-1/2 -top-7">
       <button
         @click="handleFabClick"
         class="fab flex items-center justify-center w-14 h-14 theme-primary theme-on-primary rounded-full shadow-lg hover:theme-primary-hover hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-300 hover:scale-105"
         aria-label="Submit new artwork"
       >
-        <CameraIcon class="w-7 h-7 transition-transform duration-200 hover:scale-110" aria-hidden="true" />
+        <CameraIcon class="w-14 h-14" aria-hidden="true" />
       </button>
     </div>
 
@@ -92,7 +104,7 @@ const handleMapClick = () => emit('mapClick');
         class="relative flex items-center justify-center w-12 h-12 rounded-full theme-hover-background focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors group"
         aria-label="View notifications"
       >
-        <BellIcon class="w-6 h-6 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
+        <BellIcon class="w-10 h-10 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
         <span
           v-if="hasNotifications"
           class="absolute -top-1 -right-1 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none theme-on-error theme-error rounded-full min-w-[18px] h-[18px] shadow-sm"
@@ -109,7 +121,7 @@ const handleMapClick = () => emit('mapClick');
         aria-label="Open map"
         title="Map"
       >
-        <MapIcon class="w-6 h-6 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
+        <MapIcon class="w-10 h-10 theme-text-muted theme-nav-icon-hover" aria-hidden="true" />
       </button>
 
       <!-- Profile / Login removed from bottom bar (kept in vertical navigation rail) -->

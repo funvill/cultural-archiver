@@ -11,6 +11,7 @@ export interface UserListsState {
   visited: Set<string>;
   starred: Set<string>;
   loved: Set<string>;
+  submissions: Set<string>;
 }
 
 export interface UserListsApi {
@@ -23,12 +24,13 @@ export interface UserListsApi {
   visitedArtworks: Ref<Set<string>>;
   starredArtworks: Ref<Set<string>>;
   lovedArtworks: Ref<Set<string>>;
+  submissionsArtworks: Ref<Set<string>>;
   
   // Methods
   fetchUserLists: () => Promise<void>;
-  isArtworkInList: (artworkId: string, listType: 'visited' | 'starred' | 'loved') => boolean;
-  addToList: (artworkId: string, listType: 'visited' | 'starred' | 'loved') => Promise<boolean>;
-  removeFromList: (artworkId: string, listType: 'visited' | 'starred' | 'loved') => Promise<boolean>;
+  isArtworkInList: (artworkId: string, listType: 'visited' | 'starred' | 'loved' | 'submissions') => boolean;
+  addToList: (artworkId: string, listType: 'visited' | 'starred' | 'loved' | 'submissions') => Promise<boolean>;
+  removeFromList: (artworkId: string, listType: 'visited' | 'starred' | 'loved' | 'submissions') => Promise<boolean>;
   refreshLists: () => Promise<void>;
 }
 
@@ -71,6 +73,16 @@ export function useUserLists(): UserListsApi {
     if (!lovedList?.items) return new Set<string>();
     
     return new Set(lovedList.items.map(artwork => artwork.id));
+  });
+
+  const submissionsArtworks = computed(() => {
+    const submissionsList = lists.value.find(list =>
+      list.is_system_list && list.name === 'Submissions'
+    );
+
+    if (!submissionsList?.items) return new Set<string>();
+
+    return new Set(submissionsList.items.map(artwork => artwork.id));
   });
 
   // Check if data is cached and still fresh
@@ -141,7 +153,7 @@ export function useUserLists(): UserListsApi {
   };
 
   // Check if artwork is in a specific list
-  const isArtworkInList = (artworkId: string, listType: 'visited' | 'starred' | 'loved'): boolean => {
+  const isArtworkInList = (artworkId: string, listType: 'visited' | 'starred' | 'loved' | 'submissions'): boolean => {
     switch (listType) {
       case 'visited':
         return visitedArtworks.value.has(artworkId);
@@ -149,21 +161,24 @@ export function useUserLists(): UserListsApi {
         return starredArtworks.value.has(artworkId);
       case 'loved':
         return lovedArtworks.value.has(artworkId);
+      case 'submissions':
+        return submissionsArtworks.value.has(artworkId);
       default:
         return false;
     }
   };
 
   // Add artwork to a list
-  const addToList = async (artworkId: string, listType: 'visited' | 'starred' | 'loved'): Promise<boolean> => {
+  const addToList = async (artworkId: string, listType: 'visited' | 'starred' | 'loved' | 'submissions'): Promise<boolean> => {
     const listNames = {
       visited: 'Visited',
       starred: 'Starred', 
-      loved: 'Loved'
-    };
+      loved: 'Loved',
+      submissions: 'Submissions'
+    } as const;
     
     const targetList = lists.value.find(list => 
-      list.is_system_list && list.name === listNames[listType]
+      list.is_system_list && list.name === (listNames as Record<string,string>)[listType]
     );
     
     if (!targetList) {
@@ -197,15 +212,16 @@ export function useUserLists(): UserListsApi {
   };
 
   // Remove artwork from a list
-  const removeFromList = async (artworkId: string, listType: 'visited' | 'starred' | 'loved'): Promise<boolean> => {
+  const removeFromList = async (artworkId: string, listType: 'visited' | 'starred' | 'loved' | 'submissions'): Promise<boolean> => {
     const listNames = {
       visited: 'Visited',
       starred: 'Starred',
-      loved: 'Loved'
-    };
+      loved: 'Loved',
+      submissions: 'Submissions'
+    } as const;
     
     const targetList = lists.value.find(list => 
-      list.is_system_list && list.name === listNames[listType]
+      list.is_system_list && list.name === (listNames as Record<string,string>)[listType]
     );
     
     if (!targetList) {
@@ -261,6 +277,7 @@ export function useUserLists(): UserListsApi {
     visitedArtworks,
     starredArtworks,
     lovedArtworks,
+    submissionsArtworks,
     
     // Methods
     fetchUserLists,

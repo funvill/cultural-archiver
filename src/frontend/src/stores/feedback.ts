@@ -7,6 +7,7 @@ import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { CreateFeedbackRequest, CreateFeedbackResponse } from '../../../shared/types';
 import { useAuthStore } from './auth';
+import { createApiUrl } from '../utils/api-config';
 
 export const useFeedbackStore = defineStore('feedback', () => {
   // State
@@ -30,7 +31,7 @@ export const useFeedbackStore = defineStore('feedback', () => {
         user_token: userToken,
       };
 
-      const response = await fetch('/api/feedback', {
+      const response = await fetch(createApiUrl('/feedback'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

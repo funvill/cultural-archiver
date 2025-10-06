@@ -7,13 +7,15 @@ import type { CreateFeedbackRequest } from '../../../shared/types';
 // Props
 interface Props {
   open: boolean;
-  subjectType: 'artwork' | 'artist';
+  subjectType: 'artwork' | 'artist' | 'general';
   subjectId: string;
-  mode: 'missing' | 'comment';
+  mode: 'missing' | 'comment' | 'general';
+  defaultNote?: string;
 }
 
 const props = withDefaults(defineProps<Props>(), {
   mode: 'comment',
+  defaultNote: '',
 });
 
 // Emits
@@ -37,6 +39,9 @@ const initialNote = ref<string>(''); // Track original note value
 
 // Computed
 const title = computed(() => {
+  if (props.mode === 'general') {
+    return 'Send Feedback';
+  }
   if (props.mode === 'missing') {
     return props.subjectType === 'artwork' ? 'Report Missing Artwork' : 'Report Missing Artist';
   }
@@ -44,6 +49,9 @@ const title = computed(() => {
 });
 
 const placeholder = computed(() => {
+  if (props.mode === 'general') {
+    return 'Share your feedback, report a bug, or suggest an improvement...';
+  }
   if (props.mode === 'missing') {
     return 'Add additional details (optional)';
   }
@@ -66,6 +74,9 @@ watch(() => props.open, (isOpen: boolean) => {
     if (props.mode === 'missing') {
       note.value = DEFAULT_MISSING_TEXT;
       initialNote.value = DEFAULT_MISSING_TEXT;
+    } else if (props.mode === 'general' && props.defaultNote) {
+      note.value = props.defaultNote;
+      initialNote.value = props.defaultNote;
     } else {
       note.value = '';
       initialNote.value = '';
@@ -96,9 +107,13 @@ async function onSend() {
   error.value = null;
 
   try {
+    // For general feedback, use 'artwork' type with a special ID
+    const subjectType: 'artwork' | 'artist' = props.mode === 'general' ? 'artwork' : props.subjectType as 'artwork' | 'artist';
+    const subjectId = props.mode === 'general' ? 'general-feedback' : props.subjectId;
+    
     const request: CreateFeedbackRequest = {
-      subject_type: props.subjectType,
-      subject_id: props.subjectId,
+      subject_type: subjectType,
+      subject_id: subjectId,
       issue_type: props.mode === 'missing' ? 'missing' : 'comment',
       note: note.value.trim(),
     };
@@ -147,8 +162,11 @@ function onKeydown(event: KeyboardEvent) {
         >
           {{ title }}
         </h3>
-        <p class="text-sm text-gray-600 mb-4">
+        <p v-if="mode !== 'general'" class="text-sm text-gray-600 mb-4">
           This feedback will be sent privately to moderators who will review and update the content.
+        </p>
+        <p v-else class="text-sm text-gray-600 mb-4">
+          Your feedback helps us improve the site. Thank you for taking the time to share your thoughts!
         </p>
 
         <!-- Textarea -->

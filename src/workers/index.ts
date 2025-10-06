@@ -154,7 +154,7 @@ import { debugStevenPermissions } from './routes/debug-permissions';
 import { fixPermissionsSchema } from './routes/fix-schema';
 import { createFeedback } from './routes/feedback';
 import { listFeedback, reviewFeedback } from './routes/moderation/feedback';
-import { getAllPagesHandler, getPageHandler } from './routes/pages';
+import { getAllPagesHandler, getPageHandler, renderErrorPage } from './routes/pages';
 import { initializePages } from './lib/pages-loader';
 import {
   getSitemapIndex,
@@ -1329,74 +1329,96 @@ app.get('/api/logbook', async c => {
 
 // 404 handler
 app.notFound(c => {
-  return c.json(
-    {
-      error: 'Not Found',
-      message: 'The requested resource was not found',
-      path: c.req.path,
-      available_endpoints: [
-        'GET /photos/*',
-        'POST /api/logbook',
-        'GET /api/artworks/nearby',
-        'GET /api/artworks/:id',
-        'POST /api/artwork/:id/edit',
-        'GET /api/artwork/:id/pending-edits',
-        'POST /api/artwork/:id/edit/validate',
-        'GET /api/artwork/:id/export/osm',
-        'GET /api/artwork/:id/membership',
-        'POST /api/artwork/:id/lists/:listType',
-        'GET /api/artwork/:id/counts',
-        'GET /api/artists',
-        'GET /api/artists/:id',
-        'POST /api/artists',
-        'PUT /api/artists/:id',
-        'GET /api/artists/:id/pending-edits',
-        'GET /api/export/osm',
-        'GET /api/export/osm/stats',
-        'GET /api/search',
-        'GET /api/search/suggestions',
-        'GET /api/pages',
-        'GET /api/pages/:slug',
-        'GET /api/me/submissions',
-        'GET /api/me/profile',
-        'PUT /api/me/preferences',
-        'POST /api/consent',
-        'GET /api/consent',
-        'GET /api/consent/form-data',
-        'DELETE /api/consent',
-        'POST /api/auth/request-magic-link',
-        'POST /api/auth/verify-magic-link',
-        'POST /api/auth/logout',
-        'GET /api/auth/status',
-        'POST /api/auth/magic-link',
-        'GET /api/review/queue',
-        'POST /api/review/approve/:id',
-        'POST /api/review/reject/:id',
-        'GET /api/review/artwork-edits',
-        'GET /api/review/artwork-edits/:editId',
-        'POST /api/review/artwork-edits/:editId/approve',
-        'POST /api/review/artwork-edits/:editId/reject',
-        'GET /api/admin/permissions',
-        'POST /api/admin/permissions/grant',
-        'POST /api/admin/permissions/revoke',
-        'GET /api/admin/audit',
-        'GET /api/admin/statistics',
-        'GET /api/admin/badges',
-        'POST /api/admin/badges',
-        'PUT /api/admin/badges/:id',
-        'DELETE /api/admin/badges/:id',
-      ],
-    },
-    404
-  );
+  const path = c.req.path;
+  
+  // For API routes, return JSON with endpoint list
+  if (path.startsWith('/api/')) {
+    return c.json(
+      {
+        error: 'Not Found',
+        message: 'The requested resource was not found',
+        path: path,
+        available_endpoints: [
+          'GET /photos/*',
+          'POST /api/logbook',
+          'GET /api/artworks/nearby',
+          'GET /api/artworks/:id',
+          'POST /api/artwork/:id/edit',
+          'GET /api/artwork/:id/pending-edits',
+          'POST /api/artwork/:id/edit/validate',
+          'GET /api/artwork/:id/export/osm',
+          'GET /api/artwork/:id/membership',
+          'POST /api/artwork/:id/lists/:listType',
+          'GET /api/artwork/:id/counts',
+          'GET /api/artists',
+          'GET /api/artists/:id',
+          'POST /api/artists',
+          'PUT /api/artists/:id',
+          'GET /api/artists/:id/pending-edits',
+          'GET /api/export/osm',
+          'GET /api/export/osm/stats',
+          'GET /api/search',
+          'GET /api/search/suggestions',
+          'GET /api/pages',
+          'GET /api/pages/:slug',
+          'GET /api/me/submissions',
+          'GET /api/me/profile',
+          'PUT /api/me/preferences',
+          'POST /api/consent',
+          'GET /api/consent',
+          'GET /api/consent/form-data',
+          'DELETE /api/consent',
+          'POST /api/auth/request-magic-link',
+          'POST /api/auth/verify-magic-link',
+          'POST /api/auth/logout',
+          'GET /api/auth/status',
+          'POST /api/auth/magic-link',
+          'GET /api/review/queue',
+          'POST /api/review/approve/:id',
+          'POST /api/review/reject/:id',
+          'GET /api/review/artwork-edits',
+          'GET /api/review/artwork-edits/:editId',
+          'POST /api/review/artwork-edits/:editId/approve',
+          'POST /api/review/artwork-edits/:editId/reject',
+          'GET /api/admin/permissions',
+          'POST /api/admin/permissions/grant',
+          'POST /api/admin/permissions/revoke',
+          'GET /api/admin/audit',
+          'GET /api/admin/statistics',
+          'GET /api/admin/badges',
+          'POST /api/admin/badges',
+          'PUT /api/admin/badges/:id',
+          'DELETE /api/admin/badges/:id',
+        ],
+      },
+      404
+    );
+  }
+
+  // For non-API routes, return HTML error page
+  return renderErrorPage(c, 404, 'The requested page was not found');
 });
 
 // Global error handler
 app.onError((err, c) => {
   console.error('Worker error:', err);
 
-  // Use our error handling system
-  return sendErrorResponse(c, err);
+  const path = c.req.path;
+  const statusCode = err instanceof ApiError ? err.statusCode : 500;
+  
+  // For API routes, return JSON error response
+  if (path.startsWith('/api/')) {
+    return sendErrorResponse(c, err);
+  }
+
+  // For non-API routes, return HTML error page
+  // Use 503 for service unavailable errors, 500 for everything else
+  const errorCode = statusCode === 503 ? 503 : 500;
+  const fallbackMessage = errorCode === 503 
+    ? 'Service temporarily unavailable' 
+    : 'An internal server error occurred';
+  
+  return renderErrorPage(c, errorCode, fallbackMessage);
 });
 
 // Export for Cloudflare Workers

@@ -190,7 +190,11 @@ export const DEFAULT_ICONS: Record<string, string> = {
   </svg>`,
   
   visited: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-    <circle cx="32" cy="32" r="28" fill="#9CA3AF" stroke="#6B7280" stroke-width="3"/>
+    <rect x="4" y="4" width="56" height="56" rx="4" ry="4" fill="#9CA3AF" stroke="#6B7280" stroke-width="3"/>
+    <path d="M20 32 L28 40 L44 24" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  </svg>`,
+  submissions: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+    <rect x="4" y="4" width="56" height="56" rx="4" ry="4" fill="#10B981" stroke="#047857" stroke-width="3"/>
     <path d="M20 32 L28 40 L44 24" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
   </svg>`,
   

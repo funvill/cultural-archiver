@@ -48,7 +48,7 @@ export interface PageFrontMatter {
 export interface Page {
   slug: string;
   title: string;
-  date: string | undefined;
+  date: string | Date | undefined;
   draft: boolean;
   category: string | undefined;
   content: string; // Raw markdown
@@ -140,7 +140,10 @@ export class PagesService {
       }
 
       // Both have dates, sort by date descending (newest first)
-      const dateCompare = b.date!.localeCompare(a.date!);
+      // Convert to string in case gray-matter parsed it as a Date object
+      const aDateStr = String(a.date);
+      const bDateStr = String(b.date);
+      const dateCompare = bDateStr.localeCompare(aDateStr);
       if (dateCompare !== 0) return dateCompare;
 
       // Same date, sort by title ascending

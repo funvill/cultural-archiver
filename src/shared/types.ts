@@ -804,7 +804,8 @@ export interface ListItemsResponse extends PaginatedResponse<ArtworkApiResponse>
 export const SPECIAL_LIST_NAMES = {
   LOVED: 'Loved',
   VISITED: 'Visited', 
-  STARRED: 'Starred'
+  STARRED: 'Starred',
+  SUBMISSIONS: 'Submissions'
 } as const;
 
 export type SpecialListName = typeof SPECIAL_LIST_NAMES[keyof typeof SPECIAL_LIST_NAMES];

@@ -30,7 +30,8 @@
     "type-check:frontend": "cd src/frontend && npm run type-check",
     "type-check:workers": "cd src/workers && npm run type-check",
     "type-check:shared": "tsc --noEmit --project src/shared/tsconfig.json",
-    "log": "npx wrangler tail public-art-registry-api --format pretty --env production",
+    "log": "powershell -Command \"npx wrangler tail public-art-registry-api --format pretty --env production | Tee-Object production-server-logs.txt\"",
+
     "test": "npm run test:frontend && npm run test:workers",
     "test:frontend": "cd src/frontend && npm run test",
     "test:workers": "cd src/workers && npm run test",

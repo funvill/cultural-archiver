@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick, toRaw } from 'vue'
 import { Deck } from '@deck.gl/core'
 import { ScatterplotLayer, TextLayer, IconLayer } from '@deck.gl/layers'
 import type { ClusterFeature } from '../composables/useGridCluster'
@@ -163,14 +163,16 @@ function updateLayers(): void {
     default: [107, 114, 128] // gray-500
   }
   // To avoid deck.gl reacting to Vue proxies we deep-clone the incoming
-  // `props.clusters` into plain JS structures. JSON-based cloning is safe for
-  // this dataset (numbers/strings) and strips Vue Proxy wrappers.
+  // `props.clusters` into plain JS structures using toRaw to unwrap all Vue reactivity.
+  const rawClusters = toRaw(props.clusters || [])
+  
+  // Deep clone to ensure no nested proxies remain
   let rawClone: any[] = []
   try {
-    rawClone = JSON.parse(JSON.stringify(props.clusters || []))
+    rawClone = JSON.parse(JSON.stringify(rawClusters))
   } catch (e) {
     // Fallback: shallow copy if structured cloning fails for some reason
-    rawClone = (props.clusters || []).map((c: any) => ({ ...c }))
+    rawClone = rawClusters.map((c: any) => ({ ...c }))
   }
 
   const clustersDataPlain: any[] = rawClone.map((c: any) => ({
@@ -281,6 +283,10 @@ function updateLayers(): void {
       if (d.properties.cluster) {
         return [251, 146, 60]
       }
+      // If the artwork is in the user's Submissions list, use green
+      if (d.properties.submissions) {
+        return [16, 185, 129] // green-500
+      }
       // If the artwork is marked visited, use a muted gray circle so it appears subdued
       if (d.properties.visited) {
         return [156, 163, 175] // gray-400
@@ -355,26 +361,29 @@ function updateLayers(): void {
     }
   })
 
-  // IconLayer for visited/starred markers using icon atlas
+  // IconLayer for visited/starred/submissions markers using icon atlas
   let iconMarkerLayer: any = null;
   if (props.iconAtlas && props.iconAtlas.isReady) {
-    const markerData = scatterDataPlain.filter((d: any) => !d.properties.cluster && (d.properties.visited || d.properties.starred));
+    const markerData = scatterDataPlain.filter((d: any) => !d.properties.cluster && (d.properties.visited || d.properties.starred || d.properties.submissions));
     
-    // Diagnostic logging for visited/starred icons
+    // Diagnostic logging for visited/starred/submissions icons
     console.log('[MAP DIAGNOSTIC] Icon Atlas Status:', {
       isReady: props.iconAtlas.isReady,
       totalMarkers: scatterDataPlain.length,
-      visitedOrStarred: markerData.length,
+      visitedOrStarredOrSubmissions: markerData.length,
       visitedCount: markerData.filter((d: any) => d.properties.visited).length,
       starredCount: markerData.filter((d: any) => d.properties.starred).length,
+      submissionsCount: markerData.filter((d: any) => d.properties.submissions).length,
       iconAtlasHasIcons: {
         visited: props.iconAtlas.icons.has('visited'),
-        starred: props.iconAtlas.icons.has('starred')
+        starred: props.iconAtlas.icons.has('starred'),
+        submissions: props.iconAtlas.icons.has('submissions')
       },
       sampleMarkerData: markerData.slice(0, 3).map((d: any) => ({
         id: d.properties.id,
         visited: d.properties.visited,
         starred: d.properties.starred,
+        submissions: d.properties.submissions,
         cluster: d.properties.cluster
       }))
     });
@@ -382,9 +391,9 @@ function updateLayers(): void {
     if (markerData.length > 0) {
       // Create icon atlas canvas
       const size = 64;
-      const iconNames = ['visited', 'starred'];
+      const iconNames = ['visited', 'starred', 'submissions'];
       const canvas = document.createElement('canvas');
-      canvas.width = size * 2; // 2 icons side by side
+      canvas.width = size * 3; // 3 icons side by side
       canvas.height = size;
       const ctx = canvas.getContext('2d');
       
@@ -419,11 +428,13 @@ function updateLayers(): void {
         iconAtlas: canvas as any,
         iconMapping,
         getIcon: (d: any) => {
-          const icon = d.properties.visited ? 'visited' : 'starred';
+          // Priority: submissions > visited > starred
+          const icon = d.properties.submissions ? 'submissions' : (d.properties.visited ? 'visited' : 'starred');
           console.log('[MAP DIAGNOSTIC] getIcon called for marker:', {
             id: d.properties.id,
             visited: d.properties.visited,
             starred: d.properties.starred,
+            submissions: d.properties.submissions,
             selectedIcon: icon
           });
           return icon;

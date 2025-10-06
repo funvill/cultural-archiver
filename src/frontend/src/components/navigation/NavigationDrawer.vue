@@ -230,7 +230,7 @@ onUnmounted(() => {
           class="flex items-center justify-center w-10 h-10 rounded-full hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-blue-600 transition-colors"
           aria-label="Close navigation menu"
         >
-          <XMarkIcon class="w-6 h-6" aria-hidden="true" />
+          <XMarkIcon class="w-10 h-10" aria-hidden="true" />
         </button>
       </div>
 
@@ -252,7 +252,7 @@ onUnmounted(() => {
               >
                 <component
                   :is="item.icon"
-                  class="flex-shrink-0 w-6 h-6 mr-3"
+                  class="flex-shrink-0 w-10 h-10 mr-3"
                   :class="{
                     'text-blue-600': isActiveRoute(item.path),
                     'text-gray-400 group-hover:text-gray-500': !isActiveRoute(item.path),
@@ -284,7 +284,7 @@ onUnmounted(() => {
               >
                 <component
                   :is="item.icon"
-                  class="flex-shrink-0 w-6 h-6 mr-3"
+                  class="flex-shrink-0 w-10 h-10 mr-3"
                   :class="{
                     'text-red-600': isActiveRoute(item.path),
                     'text-gray-400 group-hover:text-gray-500': !isActiveRoute(item.path),
@@ -307,7 +307,7 @@ onUnmounted(() => {
             @click="handleProfileClick"
             class="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
           >
-            <UserIcon class="flex-shrink-0 w-6 h-6 mr-3 text-gray-400" aria-hidden="true" />
+            <UserIcon class="flex-shrink-0 w-10 h-10 mr-3 text-gray-400" aria-hidden="true" />
             <span class="truncate">Profile</span>
           </button>
 
@@ -316,7 +316,7 @@ onUnmounted(() => {
             @click="handleLoginClick"
             class="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200"
           >
-            <ArrowRightOnRectangleIcon class="flex-shrink-0 w-6 h-6 mr-3 text-gray-400" aria-hidden="true" />
+            <ArrowRightOnRectangleIcon class="flex-shrink-0 w-10 h-10 mr-3 text-gray-400" aria-hidden="true" />
             <span class="truncate">Login</span>
           </button>
 
@@ -326,7 +326,7 @@ onUnmounted(() => {
             @click="handleLogoutClick"
             class="w-full flex items-center px-4 py-3 text-sm font-medium text-gray-700 rounded-lg hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200"
           >
-            <ArrowLeftOnRectangleIcon class="flex-shrink-0 w-6 h-6 mr-3 text-gray-400" aria-hidden="true" />
+            <ArrowLeftOnRectangleIcon class="flex-shrink-0 w-10 h-10 mr-3 text-gray-400" aria-hidden="true" />
             <span class="truncate">Logout</span>
           </button>
         </div>
