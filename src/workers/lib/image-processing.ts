@@ -3,8 +3,10 @@
  *
  * This module provides on-demand image resizing capabilities for Cloudflare Workers.
  * It supports multiple size variants and maintains aspect ratio while optimizing quality.
+ * Uses wasm-image-optimization library for WASM-based image processing.
  */
 
+import { optimizeImageExt } from 'wasm-image-optimization';
 import { ApiError } from './errors';
 import type { PhotoVariant } from '../../shared/types';
 import { PHOTO_SIZES, PHOTO_QUALITY } from '../../shared/types';
@@ -13,7 +15,7 @@ import { PHOTO_SIZES, PHOTO_QUALITY } from '../../shared/types';
 const LOCAL_PHOTO_SIZES: Record<PhotoVariant, { width: number; height: number } | null> =
   (PHOTO_SIZES as any) || {
     thumbnail: { width: 400, height: 400 },
-    medium: { width: 800, height: 800 },
+    medium: { width: 1024, height: 1024 },
     large: { width: 1200, height: 1200 },
     original: null,
   };
@@ -104,24 +106,22 @@ export function parseVariantKey(variantKey: string): { originalKey: string; vari
 }
 
 /**
- * Resize image using Cloudflare's Image Resizing API
+ * Resize image using WASM-based image optimization
  * 
- * This function uses Cloudflare's built-in image transformation via fetch with cf.image.
- * This approach is more efficient than bundling WASM libraries and leverages Cloudflare's
- * optimized image processing infrastructure.
+ * This function uses the wasm-image-optimization library which is specifically
+ * designed for Cloudflare Workers and other edge environments.
  * 
- * NOTE: Cloudflare Image Resizing only works in production Workers environment.
- * In local development (wrangler dev), this function returns the original image.
+ * Supports JPEG, PNG, WebP, and AVIF formats with quality control.
  * 
  * @param imageData - Original image data
  * @param options - Resize options
- * @param isLocalDev - Whether running in local development (optional, will try to detect)
- * @returns Processed image data
+ * @param _isLocalDev - Unused parameter kept for compatibility
+ * @returns Processed image data with actual dimensions
  */
 export async function resizeImage(
   imageData: ArrayBuffer,
   options: ImageProcessingOptions,
-  isLocalDev = false
+  _isLocalDev = false
 ): Promise<ImageProcessingResult> {
   const { variant, format, quality } = options;
 
@@ -142,58 +142,40 @@ export async function resizeImage(
     };
   }
 
-  // In local development, Cloudflare Image Resizing doesn't work
-  // Return original image with a warning
-  if (isLocalDev) {
-    console.warn(`[LOCAL DEV] Skipping image resizing for ${variant} - cf.image only works in production`);
-    return {
-      data: imageData,
-      contentType: format ? `image/${format}` : 'image/jpeg',
-      width: targetSize?.width || 0,
-      height: targetSize?.height || 0,
-      size: imageData.byteLength,
-    };
-  }
-
   try {
     // Ensure we have valid target dimensions
     if (!targetSize) {
       throw new Error('Invalid target size configuration');
     }
-    
-    // Create base64 data URL for Cloudflare Image Resizing
-    // We convert the ArrayBuffer to base64 to create a data URL
-    const base64Data = btoa(
-      String.fromCharCode(...new Uint8Array(imageData))
-    );
-    const dataUrl = `data:${format ? `image/${format}` : 'image/jpeg'};base64,${base64Data}`;
 
-    // Use Cloudflare's Image Resizing API via fetch
-    const response = await fetch(dataUrl, {
-      cf: {
-        image: {
-          fit: 'cover', // Cover the target dimensions
-          width: targetSize.width,
-          height: targetSize.height,
-          quality: quality || LOCAL_PHOTO_QUALITY[variant],
-          format: format || 'auto', // Use auto to preserve format or optimize
-        },
-      } as RequestInitCfProperties,
+    // Use wasm-image-optimization to resize the image
+    // This library returns both the resized data and actual dimensions
+    const result = await optimizeImageExt({
+      image: imageData,
+      width: targetSize.width,
+      height: targetSize.height,
+      quality: quality || LOCAL_PHOTO_QUALITY[variant],
+      format: format || 'jpeg', // Default to JPEG if not specified
     });
 
-    if (!response.ok) {
-      throw new Error(`Image resizing failed: ${response.status} ${response.statusText}`);
+    // Verify we got a valid result
+    if (!result || !result.data) {
+      throw new Error('Image optimization returned invalid result');
     }
 
-    // Get the resized image data
-    const resizedData = await response.arrayBuffer();
-    const contentType = response.headers.get('content-type') || `image/${format || 'jpeg'}`;
+    // Convert Uint8Array to ArrayBuffer
+    const resizedData = result.data.buffer.slice(
+      result.data.byteOffset,
+      result.data.byteOffset + result.data.byteLength
+    );
+
+    const contentType = `image/${format || 'jpeg'}`;
 
     return {
       data: resizedData,
       contentType,
-      width: targetSize.width,
-      height: targetSize.height,
+      width: result.width, // Actual output width
+      height: result.height, // Actual output height
       size: resizedData.byteLength,
     };
   } catch (error) {

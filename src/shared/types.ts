@@ -45,7 +45,7 @@ export interface ArtworkApiResponse {
 /**
  * Photo size variants for responsive image loading
  * - thumbnail: 400x400px for map markers, cards, search results
- * - medium: 800x800px for artwork detail pages
+ * - medium: 1024x1024px for artwork detail pages
  * - large: 1200x1200px for high-quality detail view
  * - original: Unchanged archive/reference
  */
@@ -56,7 +56,7 @@ export type PhotoVariant = 'thumbnail' | 'medium' | 'large' | 'original';
  */
 export const PHOTO_SIZES: Record<PhotoVariant, { width: number; height: number } | null> = {
   thumbnail: { width: 400, height: 400 },
-  medium: { width: 800, height: 800 },
+  medium: { width: 1024, height: 1024 },
   large: { width: 1200, height: 1200 },
   original: null, // Original size, no resizing
 };

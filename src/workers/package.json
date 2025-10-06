@@ -27,6 +27,7 @@
     "isomorphic-dompurify": "^2.28.0",
     "marked": "^12.0.2",
     "piexifjs": "^1.0.6",
+    "wasm-image-optimization": "^1.3.1",
     "zod": "^3.23.0"
   },
   "devDependencies": {

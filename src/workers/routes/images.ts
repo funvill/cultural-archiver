@@ -15,6 +15,7 @@ import { Hono } from 'hono';
 import type { WorkerEnv } from '../types';
 import { ApiError, formatErrorResponse } from '../lib/errors';
 import type { PhotoVariant } from '../../shared/types';
+import { PHOTO_SIZES } from '../../shared/types';
 import {
   generateVariantKey,
   resizeImage,
@@ -134,8 +135,34 @@ app.get('/:size/*', async (c) => {
     // Try to fetch the variant from R2
     let object = await bucket.get(variantKey);
 
-    // If variant doesn't exist and it's not the original, generate it
-    if (!object && size !== 'original') {
+    // Check if the variant needs to be regenerated (wrong size or doesn't exist)
+    let needsRegeneration = !object && size !== 'original';
+    
+    // If variant exists, check if it has the correct dimensions
+    if (object && size !== 'original') {
+      const expectedSize = PHOTO_SIZES[size];
+      if (expectedSize) {
+        const storedWidth = object.customMetadata?.Width;
+        const storedHeight = object.customMetadata?.Height;
+        
+        // Regenerate if metadata is missing or dimensions don't match expected size
+        if (!storedWidth || !storedHeight) {
+          console.log(`[IMAGE] Variant ${variantKey} missing size metadata, regenerating`);
+          needsRegeneration = true;
+        } else {
+          const actualMaxDimension = Math.max(parseInt(storedWidth), parseInt(storedHeight));
+          const expectedMaxDimension = Math.max(expectedSize.width, expectedSize.height);
+          
+          if (actualMaxDimension !== expectedMaxDimension) {
+            console.log(`[IMAGE] Variant ${variantKey} has wrong size (${actualMaxDimension}px vs ${expectedMaxDimension}px), regenerating`);
+            needsRegeneration = true;
+          }
+        }
+      }
+    }
+
+    // If variant doesn't exist or needs regeneration, generate it
+    if (needsRegeneration) {
       // Fetch the original image
       const originalObject = await bucket.get(imagePath);
 

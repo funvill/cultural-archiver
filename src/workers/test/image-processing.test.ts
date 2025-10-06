@@ -17,7 +17,7 @@ describe('Image Processing', () => {
 
     it('should generate correct variant key for PNG', () => {
       const result = generateVariantKey('photos/xyz789.png', 'medium');
-      expect(result).toBe('photos/xyz789__800x800.png');
+      expect(result).toBe('photos/xyz789__1024x1024.png');
     });
 
     it('should generate correct variant key for large variant', () => {
@@ -32,7 +32,7 @@ describe('Image Processing', () => {
 
     it('should handle nested paths', () => {
       const result = generateVariantKey('photos/2024/03/image.jpg', 'medium');
-      expect(result).toBe('photos/2024/03/image__800x800.jpg');
+      expect(result).toBe('photos/2024/03/image__1024x1024.jpg');
     });
 
     it('should return original key for "original" variant', () => {
@@ -49,7 +49,7 @@ describe('Image Processing', () => {
     });
 
     it('should parse medium variant', () => {
-      const result = parseVariantKey('photos/xyz__800x800.png');
+      const result = parseVariantKey('photos/xyz__1024x1024.png');
       expect(result.originalKey).toBe('photos/xyz.png');
       expect(result.variant).toBe('medium');
     });
@@ -78,7 +78,7 @@ describe('Image Processing', () => {
     });
 
     it('should handle nested paths in variant keys', () => {
-      const result = parseVariantKey('photos/2024/03/image__800x800.jpg');
+      const result = parseVariantKey('photos/2024/03/image__1024x1024.jpg');
       expect(result.originalKey).toBe('photos/2024/03/image.jpg');
       expect(result.variant).toBe('medium');
     });

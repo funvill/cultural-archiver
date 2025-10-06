@@ -4,37 +4,189 @@
 
 This document outlines the development plan for implementing an image thumbnail generation system for the Cultural Archiver project. The system will automatically generate optimized image variants when photos are uploaded, and provide a migration script to process existing images.
 
-**Status:** Planning Phase  
+**Status:** Research Phase - Investigating WASM Image Resizing Solutions  
 **Created:** October 5, 2025  
+**Updated:** October 6, 2025  
 **Target Release:** TBD
+
+---
+
+## Current Status (October 6, 2025)
+
+### What We've Done
+- ✅ Updated medium image size from 800px to 1024px
+- ✅ Fixed CORS headers for cross-origin image loading (`Cross-Origin-Resource-Policy: cross-origin`)
+- ✅ Implemented smart variant regeneration logic (checks metadata and regenerates if size mismatches)
+- ✅ All tests passing with new 1024px size (692 tests total)
+- ✅ Backend deployed (version `30a96933-25e2-4adf-9111-51068511fcd5`)
+- ✅ **Implemented WASM image resizing using `wasm-image-optimization`**
+  - Replaced non-functional Cloudflare Image Resizing API
+  - Uses `optimizeImageExt()` to resize images and return actual dimensions
+  - Supports JPEG, PNG, WebP, AVIF formats with quality control
+  - Build successful with zero errors
+
+### Previous Problem (RESOLVED)
+**Cloudflare Image Resizing API was not working** because:
+- `CLOUDFLARE_IMAGES_ENABLED = "false"` in production
+- The `fetch` with `cf.image` API requires Cloudflare Image Resizing to be enabled on the account
+- Without it, system returned original full-size images even for "medium" requests
+- Example: Requesting 1024px medium variant returned 3072x4080 original (3.3MB instead of ~200KB)
+
+**Solution Implemented:** Option 3 - WASM Image Resizing using `wasm-image-optimization`
+
+### Next Step
+🚀 Deploy backend worker to production and test with real images to verify resizing works
+
+### Solution Options
+
+#### Option 1: Enable Cloudflare Image Resizing (NOT CHOSEN)
+- Requires paid Cloudflare Images subscription
+- Would enable `fetch` with `cf.image` API
+- Pros: Native Cloudflare solution, well-integrated, fast
+- Cons: Additional cost, requires account upgrade
+
+#### Option 2: Serve Originals (NOT CHOSEN)
+- Keep current setup, browser handles client-side resizing
+- Pros: No code changes needed
+- Cons: Wastes bandwidth, slower page loads, poor mobile experience
+
+#### Option 3: Integrate WASM Image Resizing Library ⭐ **SELECTED**
+- Use WebAssembly-based image processing in Workers
+- Pros: No additional Cloudflare costs, full control, works offline
+- Cons: More complex implementation, WASM bundle size, CPU usage
+
+---
+
+## Research: WASM Image Resizing for Cloudflare Workers
+
+### Requirement Constraints
+- **Environment**: Cloudflare Workers (V8 isolate, not Node.js)
+- **Memory Limit**: 128MB default (can be increased)
+- **CPU Time Limit**: 50ms on free plan, 30s on paid plans
+- **No Node.js APIs**: Cannot use `fs`, `child_process`, `os.cpus()`, etc.
+- **WASM Support**: Full WebAssembly support available
+- **Bundle Size**: Should be reasonable (<1MB ideally)
+
+### Libraries Investigated
+
+#### ❌ `@squoosh/lib`
+- **Status**: Tested and rejected
+- **Issue**: Requires Node.js APIs (`node:os`, `node:fs`)
+- **Why it failed**: `import { cpus } from 'node:os'` - not available in Workers
+- **Bundle size**: ~500KB
+- **Conclusion**: Designed for Node.js, not Workers-compatible
+
+#### ✅ `wasm-image-optimization` - **SELECTED FOR IMPLEMENTATION**
+- **Status**: ✅ Installed and tested successfully
+- **Package**: https://www.npmjs.com/package/wasm-image-optimization
+- **Description**: WASM-based image optimization specifically designed for Cloudflare Workers
+- **Size**: Small WASM bundle (~150KB)
+- **Features**: Resize, compress, format conversion (JPEG, PNG, WebP, AVIF)
+- **Compatibility**: ✅ Designed for browser/Workers environments (explicitly supports Cloudflare Workers)
+- **API**:
+  ```typescript
+  optimizeImage({
+    image: BufferSource | Buffer | string,
+    width?: number,
+    height?: number,
+    quality?: number, // 0-100
+    format?: "jpeg" | "png" | "webp" | "avif",
+    speed?: number, // 0-10 (slow-fast)
+    filter?: boolean // resize filter (default true)
+  }): Promise<ArrayBuffer>
+  
+  optimizeImageExt({
+    // same params as optimizeImage
+  }): Promise<{
+    data: Uint8Array,
+    originalWidth: number,
+    originalHeight: number,
+    width: number,
+    height: number
+  }>
+  ```
+- **Test Results**:
+  - ✅ Successfully imports in Workers environment
+  - ✅ Exports `optimizeImage` and `optimizeImageExt` functions
+  - ✅ Supports JPEG, PNG, WebP, AVIF, thumbhash formats
+  - ✅ Returns both data and dimensions with `optimizeImageExt`
+  - ✅ No Node.js dependencies
+- **Decision**: This library meets all requirements and will be used for implementation
+
+#### 🔍 Other Options to Research
+
+1. **`wasm-imagemagick`**
+   - Full ImageMagick compiled to WASM
+   - Pro: Feature-complete image processing
+   - Con: Large bundle size (2-5MB)
+   - Use case: If we need advanced features beyond resize
+
+2. **`@cf/image` (Cloudflare Workers AI)**
+   - Cloudflare's AI/ML models including image processing
+   - Pro: Native Cloudflare integration
+   - Con: Requires Workers AI subscription
+   - Need to research: Pricing and capabilities
+
+3. **`photon-rs` WASM bindings**
+   - Rust-based image processing library
+   - Pro: Fast, efficient, designed for WASM
+   - Con: Need to compile Rust to WASM, larger bundle
+   - GitHub: https://github.com/silvia-odwyer/photon
+
+4. **Custom canvas-based resizing**
+   - Use HTML5 Canvas API (available in Workers via `HTMLRewriter`)
+   - Pro: No dependencies, lightweight
+   - Con: Limited to basic resizing, no advanced compression
+   - Viability: Need to verify Canvas API availability in Workers
+
+5. **`image-js/image-js`**
+   - Pure JavaScript image processing library
+   - Pro: No WASM needed, works everywhere
+   - Con: Slower than WASM, larger bundle
+   - Use case: Fallback option if WASM solutions fail
+
+### Real-World Examples (Need Research)
+
+**Projects to investigate:**
+- [ ] Cloudflare Images Resizing Worker examples
+- [ ] Cloudflare Workers showcase - image processing examples
+- [ ] GitHub search: `cloudflare workers image resize wasm`
+- [ ] Cloudflare Community forums for image processing patterns
+- [ ] Check Cloudflare Workers examples repository
 
 ---
 
 ## Milestone 1: Thumbnail Generation System
 
-**Goal:** Implement automatic thumbnail generation for new photo uploads with support for multiple image sizes.
+**Goal:** Implement automatic thumbnail generation for new photo uploads with support for multiple image sizes using WASM-based resizing.
 
-### 1.1 - Research and Design Phase
+### 1.1 - Research and Design Phase ⏳ IN PROGRESS
 
-**Objective:** Determine the best approach for image processing in Cloudflare Workers environment.
+**Objective:** Determine the best WASM-based image processing solution for Cloudflare Workers.
 
 **Tasks:**
 
-- [ ] Research Cloudflare Workers image processing capabilities
-  - Do not do - Investigate `wrangler/cloudflare:image` library compatibility
-  - Evaluate sharp.js alternatives for Workers environment
-  - Consider WebAssembly-based image processing libraries
-- [ ] Define image size specifications
+- [x] Research Cloudflare Workers image processing capabilities
+  - [x] ~~Investigate `wrangler/cloudflare:image` library compatibility~~ - Requires paid subscription
+  - [x] ~~Evaluate sharp.js alternatives~~ - Requires Node.js
+  - [x] ~~Test `@squoosh/lib`~~ - Failed: Requires Node.js APIs
+  - [ ] **Test `wasm-image-optimization`** - Currently installed
+  - [ ] Research `@cf/image` Workers AI capabilities and pricing
+  - [ ] Investigate `photon-rs` WASM bindings
+  - [ ] Research `wasm-imagemagick` feasibility
+  - [ ] Test `image-js` as pure JS fallback
+- [x] Define image size specifications
   - **Thumbnail**: 400x400px (map markers, cards, search results)
-  - **Medium**: 800x800px (current standard, artwork detail pages)
-  - **Large**: 1200x1200px (high-quality detail view, optional)
+  - **Medium**: 1024x1024px ✅ Updated from 800px (artwork detail pages)
+  - **Large**: 1200x1200px (high-quality detail view)
   - **Original**: Unchanged (archive/reference)
-- [ ] Design R2 storage structure for variants
-  - Extend existing folder structure: `artworks/YYYY/MM/DD/`
-  - Naming convention: `timestamp-uuid-SIZE.ext` (e.g., `20240115-143052-uuid-thumb.jpg`)
+- [x] Design R2 storage structure for variants
+  - Using existing folder structure: `artworks/YYYY/MM/DD/`
+  - Naming convention: `timestamp-uuid__SIZExSIZE.ext` (e.g., `20240115-143052-uuid__1024x1024.jpg`)
 - [ ] Document performance considerations
   - Memory limits in Workers (128MB default)
-  - Processing time limits (CPU time limits)
+  - Processing time limits (CPU time: 50ms free, 30s paid)
+  - WASM bundle size impact on cold starts
   - Batch processing strategy for multiple photos
 - [ ] Update database schema documentation
   - Define photo metadata structure in `photos` JSON field
@@ -42,9 +194,93 @@ This document outlines the development plan for implementing an image thumbnail 
 
 **Deliverables:**
 
-- Technical design document: `docs/image-processing.md`
-- Updated database schema documentation
-- Size specification reference table
+- [ ] Technical design document: `docs/image-processing-wasm.md`
+- [ ] Performance benchmark comparison of WASM libraries
+- [ ] Bundle size analysis
+- [x] Updated database schema documentation (see `docs/database.md`)
+- [x] Size specification reference table (updated to 1024px medium)
+
+---
+
+## Research Action Plan (Next Steps)
+
+### Phase 1: Quick Wins (1-2 hours)
+1. **Test `wasm-image-optimization`** (already installed)
+   - Create test implementation
+   - Benchmark performance with 3072x4080 test image
+   - Measure bundle size impact
+   - Test memory usage
+
+2. **Research Cloudflare Workers AI `@cf/image`**
+   - Check documentation: https://developers.cloudflare.com/workers-ai/
+   - Determine pricing model
+   - Evaluate if it includes image resizing
+   - Compare cost vs implementation complexity
+
+### Phase 2: Deeper Investigation (2-4 hours)
+3. **Search real-world examples**
+   - GitHub: Search for "cloudflare workers image resize"
+   - Cloudflare Workers Showcase
+   - Cloudflare Community forums
+   - Stack Overflow solutions
+
+4. **Benchmark alternatives**
+   - If `wasm-image-optimization` fails, try `photon-rs`
+   - Test `image-js` as pure JS fallback
+   - Document performance: time, memory, bundle size
+
+### Phase 3: Implementation (4-8 hours)
+5. **Implement chosen solution**
+   - Update `src/workers/lib/image-processing.ts`
+   - Add WASM loading logic
+   - Handle errors gracefully (fallback to original if resize fails)
+   - Add telemetry/logging
+
+6. **Testing**
+   - Unit tests for resize function
+   - Integration test with R2 storage
+   - Load test with multiple concurrent requests
+   - Test with various image formats (JPEG, PNG, WebP)
+
+7. **Deployment**
+   - Update wrangler.toml with WASM module if needed
+   - Deploy to staging
+   - Verify with real production images
+   - Monitor performance metrics
+
+---
+
+## Success Criteria
+
+- [ ] Medium variant (1024px) successfully generated from 3072x4080 originals
+- [ ] Image file size reduced by 80-90% (3.3MB → ~200-400KB)
+- [ ] Resize operation completes in <2 seconds per image
+- [ ] WASM bundle size <500KB
+- [ ] Memory usage stays under 128MB
+- [ ] Graceful fallback to original if resize fails
+- [ ] Works with JPEG, PNG, WebP formats
+
+---
+
+## Open Questions
+
+1. **Workers AI Pricing**: What's the cost per image resize with `@cf/image`?
+2. **Bundle Size**: Will WASM bundle cause cold start issues?
+3. **Caching**: Should we cache WASM module between requests?
+4. **Format Support**: Do we need HEIC/HEIF support for iPhone photos?
+5. **Quality Settings**: What JPEG quality gives best size/quality tradeoff?
+6. **Concurrent Processing**: Can we resize multiple images in parallel?
+7. **Error Handling**: Should failed resizes block upload or fall back to originals?
+
+---
+
+## References
+
+- Cloudflare Workers Limits: https://developers.cloudflare.com/workers/platform/limits/
+- WebAssembly in Workers: https://developers.cloudflare.com/workers/runtime-apis/webassembly/
+- R2 Storage: https://developers.cloudflare.com/r2/
+- Current implementation: `src/workers/lib/image-processing.ts`
+- Image endpoint: `src/workers/routes/images.ts`
 
 ---
 
