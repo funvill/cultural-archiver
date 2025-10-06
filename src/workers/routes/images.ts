@@ -33,7 +33,23 @@ const app = new Hono<{ Bindings: WorkerEnv }>();
 app.get('/:size/*', async (c) => {
   try {
     const size = c.req.param('size') as PhotoVariant;
-    const imagePath = c.req.param('*'); // Everything after /:size/
+    let imagePath = c.req.param('*'); // Everything after /:size/
+
+    // Debug logging
+    console.log('[IMAGE ENDPOINT] size:', size);
+    console.log('[IMAGE ENDPOINT] imagePath from param(*):', imagePath);
+    console.log('[IMAGE ENDPOINT] full path:', c.req.path);
+    console.log('[IMAGE ENDPOINT] all params:', c.req.param());
+
+    // Fallback: Try to extract from full path if wildcard param is empty
+    if (!imagePath || imagePath.trim().length === 0) {
+      const fullPath = c.req.path;
+      const sizePrefix = `/api/images/${size}/`;
+      if (fullPath.startsWith(sizePrefix)) {
+        imagePath = fullPath.substring(sizePrefix.length);
+        console.log('[IMAGE ENDPOINT] Extracted from full path:', imagePath);
+      }
+    }
 
     // Validate size parameter
     const validSizes: PhotoVariant[] = ['thumbnail', 'medium', 'large', 'original'];
@@ -56,11 +72,11 @@ app.get('/:size/*', async (c) => {
     }
 
     // Only allow images from specific prefixes (security)
-    const allowedPrefixes = ['artworks/', 'submissions/'];
+    const allowedPrefixes = ['artworks/', 'submissions/', 'originals/', 'photos/'];
     const hasValidPrefix = allowedPrefixes.some((prefix) => imagePath.startsWith(prefix));
     if (!hasValidPrefix) {
       throw new ApiError(
-        'Image path must start with artworks/ or submissions/',
+        'Image path must start with artworks/, submissions/, originals/, or photos/',
         'INVALID_IMAGE_PREFIX',
         403
       );
@@ -93,11 +109,15 @@ app.get('/:size/*', async (c) => {
       // Validate the image
       validateImageData(originalData, contentType);
 
+      // Detect local development environment
+      // Cloudflare Image Resizing doesn't work in wrangler dev
+      const isLocalDev = c.env.ENVIRONMENT === 'development' || !c.env.ENVIRONMENT;
+
       // Resize the image
       const resized = await resizeImage(originalData, {
         variant: size,
         format: contentType.split('/')[1] as 'jpeg' | 'png' | 'webp',
-      });
+      }, isLocalDev);
 
       // Store the resized variant in R2
       await bucket.put(variantKey, resized.data, {

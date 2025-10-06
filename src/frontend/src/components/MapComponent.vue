@@ -9,7 +9,6 @@ import {
   Squares2X2Icon,
 } from '@heroicons/vue/24/outline';
 import { UserIcon } from '@heroicons/vue/24/solid';
-import { getImageSizedURL } from '../utils/image';
 
 // Render a small Heroicons component to an HTML string so we can inline it into a Leaflet divIcon.
 function renderHeroIconToString(iconComponent: any, props: Record<string, any> = {}) {
@@ -1422,9 +1421,8 @@ function onWebGLMarkerClick(f: any) {
         const artworkPin = (props.artworks || []).find((a: any) => a.id === markerId) as any;
         if (!artworkPin && !details) return;
 
-        // Convert thumbnail to sized variant
-        const thumbnailOriginal = thumb || (artworkPin && Array.isArray(artworkPin.photos) && artworkPin.photos[0]) || undefined;
-        const thumbnailUrl = thumbnailOriginal ? getImageSizedURL(thumbnailOriginal, 'thumbnail') : undefined;
+        // Get original thumbnail URL (don't size it here - let ArtworkCard handle sizing)
+        const thumbnailUrl = thumb || (artworkPin && Array.isArray(artworkPin.photos) && artworkPin.photos[0]) || undefined;
 
         const previewData = {
           id: markerId,
@@ -1443,7 +1441,8 @@ function onWebGLMarkerClick(f: any) {
         const artwork = (props.artworks || []).find((a: any) => a.id === markerId);
         if (!artwork) return;
         const thumb = Array.isArray((artwork as any).photos) ? (artwork as any).photos[0] : (artwork as any).recent_photo;
-        const thumbnailUrl = thumb ? getImageSizedURL(thumb, 'thumbnail') : undefined;
+        // Don't size thumbnail here - let ArtworkCard handle sizing
+        const thumbnailUrl = thumb || undefined;
         const previewData = {
           id: artwork.id,
           title: artwork.title || 'Untitled Artwork',

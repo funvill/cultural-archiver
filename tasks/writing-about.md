@@ -75,4 +75,38 @@ Yes, I am hopeful that I can expand this tool to work for as many different grou
 
 ## If someone came back and looked at this project 50 years from now, what would you hope they see?
 
- A good history of culture though the ages. Millions of artworks and artists who gave the world a little bit of their creative self for the world to see.
+A good history of culture though the ages. Millions of artworks and artists who gave the world a little bit of their creative self for the world to see.
+
+
+> Why is now the right moment to share this project publicly?
+
+The website just launched.
+
+> Is the site officially launching soon, or are you soft-launching to gather contributors first? 
+
+soft-launching to gather contributors first 
+
+> Have you already documented a specific number of artworks (e.g., 1,000+ in Vancouver)? 1200 artworks but only 400 of them have photos. we need more photos > Is there a recent event that makes this relevant I was looking at one of the wonderful murals that were created for the Vancouver Mural Festival that has been running for 9 years in Vancouver but lost funding this year. I wanted to know who the artist was but the Vancouver Mural Festival has also shut down. Lost knowledge. This made me realize how fragile public art really is. With Vancouver Mural Festival shutdown these murals won't be maintained and will slowly disappear over the next few years. I didn't want this creativity to be lost to the sands of time. > How do you describe yourself when speaking to the public — technologist, artist, archivist, or community builder? Someone who cares about the public good, a tools builder. > Have you done other creative or civic projects that show your long-term commitment to open data, culture, or art? During covid I visited every park in Vancouver and documented it on my Instagram. I am also active with the backyard birders and iNaturalist > What part of this project has felt the most personal or emotional to you? The loss of culture, the lost of history and knowledge, The community will suffer because of the loss of Vancouver Mural festival and it makes me mad that part of Vancouver's history might be lost for good. > What do you hope an interview would focus on — your personal story, the tech behind it, or the cultural mission? cultural mission then my personal story > Why start with Vancouver — what makes the city’s art scene unique or worth preserving? I live in this city, I love this city, it seems like a good place to start. I hope to expand it to more cities in the future but I plan to focus on Vancouver and the GVRD for now > Are there any Vancouver-based artworks or artists you’d love to highlight as examples in the story?
+
+
+> Can you name 2–3 specific artworks or artists you’d love to see featured in the article (murals, sculptures, etc.) — especially ones tied to the Vancouver Mural Festival or local neighborhoods? To help build the database I been taking bike rides out around the city to photograph the artworks without photos. The mosaic circles in the side walk were a special treat. I don't think i noticed them before but there are dozens across the whole city. There is a rough artist name oxid that makes these green robots out of bolts and scrap metal that are wonderful. I have found 6 of them so far.
+
+> What’s the one thing you’d like readers to do after reading a news story about your project? 
+
+Take photos of art and submit them to the website. Explore art in your city,
+
+> Do you have any high-quality photos of artworks (that you or volunteers took) that can be shared with the press?
+
+Yes. XXXX, YYYY, ZZZZ,
+
+> Would you be comfortable being photographed or filmed by CBC or a journalist while exploring an artwork?
+
+Yes
+
+> How would you summarize your “big dream” headline — the ideal impact story you’d love to see 2–3 years from now?
+
+A million Canadian public artworks preserved. After we reach the millionth photo of public artworks submitted.
+
+> When you talk about the project, how do you want to come across
+
+Kind and hopefull

@@ -50,6 +50,41 @@ interface MagicLinkConsumeRequest {
 const API_BASE_URL = getApiBaseUrl();
 const API_TIMEOUT = parseInt(import.meta.env.VITE_API_TIMEOUT) || 30000;
 
+// Cache for list details to prevent redundant API calls
+interface ListDetailsCacheEntry {
+  data: ApiResponse<Record<string, unknown>>;
+  timestamp: number;
+}
+
+const listDetailsCache = new Map<string, ListDetailsCacheEntry>();
+const LIST_DETAILS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Generate cache key for list details
+ */
+function getListDetailsCacheKey(listId: string, page: number, limit: number): string {
+  return `${listId}:${page}:${limit}`;
+}
+
+/**
+ * Clear list details cache (useful after mutations)
+ */
+function clearListDetailsCache(listId?: string): void {
+  if (listId) {
+    // Clear cache entries for specific list
+    const keysToDelete: string[] = [];
+    listDetailsCache.forEach((_, key) => {
+      if (key.startsWith(`${listId}:`)) {
+        keysToDelete.push(key);
+      }
+    });
+    keysToDelete.forEach(key => listDetailsCache.delete(key));
+  } else {
+    // Clear entire cache
+    listDetailsCache.clear();
+  }
+}
+
 /**
  * API Error class for handling structured error responses
  */
@@ -1052,38 +1087,68 @@ export const apiService = {
    * Create a new list
    */
   async createList(name: string): Promise<ApiResponse<{ id: string; name: string; created_at: string }>> {
-    return client.post('/lists', { name });
+    const result = await client.post('/lists', { name });
+    // Clear all list caches since the list of lists has changed
+    clearListDetailsCache();
+    return result as ApiResponse<{ id: string; name: string; created_at: string }>;
   },
 
   /**
-   * Get list details with items
+   * Get list details with items (with caching to prevent redundant requests)
    */
   async getListDetails(listId: string, page = 1, limit = 50): Promise<ApiResponse<Record<string, unknown>>> {
-    return client.get(`/lists/${listId}`, { 
+    // Check cache first
+    const cacheKey = getListDetailsCacheKey(listId, page, limit);
+    const cached = listDetailsCache.get(cacheKey);
+    
+    if (cached && (Date.now() - cached.timestamp) < LIST_DETAILS_CACHE_TTL) {
+      console.log(`[API Cache] Hit for list details: ${cacheKey}`);
+      return cached.data;
+    }
+    
+    console.log(`[API Cache] Miss for list details: ${cacheKey}`);
+    const response = await client.get(`/lists/${listId}`, { 
       page: page.toString(), 
       limit: limit.toString() 
+    }) as ApiResponse<Record<string, unknown>>;
+    
+    // Cache the response
+    listDetailsCache.set(cacheKey, {
+      data: response,
+      timestamp: Date.now()
     });
+    
+    return response;
   },
 
   /**
    * Add artwork to list
    */
   async addArtworkToList(listId: string, artworkId: string): Promise<ApiResponse<{ message: string; item_id: string }>> {
-    return client.post(`/lists/${listId}/items`, { artwork_id: artworkId });
+    const result = await client.post(`/lists/${listId}/items`, { artwork_id: artworkId });
+    // Invalidate cache for this list
+    clearListDetailsCache(listId);
+    return result as ApiResponse<{ message: string; item_id: string }>;
   },
 
   /**
    * Remove artworks from list (bulk operation)
    */
   async removeArtworksFromList(listId: string, artworkIds: string[]): Promise<ApiResponse<{ message: string; removed_count: number }>> {
-    return client.delete(`/lists/${listId}/items`, { artwork_ids: artworkIds });
+    const result = await client.delete(`/lists/${listId}/items`, { artwork_ids: artworkIds });
+    // Invalidate cache for this list
+    clearListDetailsCache(listId);
+    return result as ApiResponse<{ message: string; removed_count: number }>;
   },
 
   /**
    * Delete list
    */
   async deleteList(listId: string): Promise<ApiResponse<{ message: string }>> {
-    return client.delete(`/lists/${listId}`);
+    const result = await client.delete(`/lists/${listId}`);
+    // Invalidate cache for this list
+    clearListDetailsCache(listId);
+    return result as ApiResponse<{ message: string }>;
   },
 
   // ================================

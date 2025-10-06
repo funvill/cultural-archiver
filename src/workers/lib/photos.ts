@@ -560,11 +560,14 @@ export async function warmImageCache(
           const contentType =
             originalObject.httpMetadata?.contentType || getContentType(originalData);
 
+          // Detect local development - Cloudflare Image Resizing doesn't work in wrangler dev
+          const isLocalDev = env.ENVIRONMENT === 'development' || !env.ENVIRONMENT;
+
           // Resize the image
           const resized = await resizeImage(originalData, {
             variant,
             format: contentType.split('/')[1] as 'jpeg' | 'png' | 'webp',
-          });
+          }, isLocalDev);
 
           // Store the resized variant in R2
           await bucket.put(variantKey, resized.data, {

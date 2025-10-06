@@ -98,13 +98,18 @@ export function parseVariantKey(variantKey: string): { originalKey: string; vari
  * This approach is more efficient than bundling WASM libraries and leverages Cloudflare's
  * optimized image processing infrastructure.
  * 
+ * NOTE: Cloudflare Image Resizing only works in production Workers environment.
+ * In local development (wrangler dev), this function returns the original image.
+ * 
  * @param imageData - Original image data
  * @param options - Resize options
+ * @param isLocalDev - Whether running in local development (optional, will try to detect)
  * @returns Processed image data
  */
 export async function resizeImage(
   imageData: ArrayBuffer,
-  options: ImageProcessingOptions
+  options: ImageProcessingOptions,
+  isLocalDev = false
 ): Promise<ImageProcessingResult> {
   const { variant, format, quality } = options;
 
@@ -121,6 +126,19 @@ export async function resizeImage(
       contentType: format ? `image/${format}` : 'image/jpeg',
       width: 0, // Unknown without processing
       height: 0, // Unknown without processing
+      size: imageData.byteLength,
+    };
+  }
+
+  // In local development, Cloudflare Image Resizing doesn't work
+  // Return original image with a warning
+  if (isLocalDev) {
+    console.warn(`[LOCAL DEV] Skipping image resizing for ${variant} - cf.image only works in production`);
+    return {
+      data: imageData,
+      contentType: format ? `image/${format}` : 'image/jpeg',
+      width: targetSize?.width || 0,
+      height: targetSize?.height || 0,
       size: imageData.byteLength,
     };
   }
