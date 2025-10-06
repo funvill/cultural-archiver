@@ -162,6 +162,7 @@ import {
   getArtistsSitemap,
   getPagesSitemap,
 } from './routes/sitemap';
+import imagesRouter from './routes/images';
 
 // Initialize Hono app
 const app = new Hono<{ Bindings: WorkerEnv }>();
@@ -750,6 +751,13 @@ app.get('/photos/*', async c => {
     );
   }
 });
+
+// ================================
+// Dynamic Image Resizing Endpoint
+// ================================
+
+// Mount the images router for on-demand resizing
+app.route('/api/images', imagesRouter);
 
 // ================================
 // Submission Endpoints

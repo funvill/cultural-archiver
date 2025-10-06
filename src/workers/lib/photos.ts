@@ -8,6 +8,8 @@
 import type { WorkerEnv } from '../types';
 import { ApiError } from './errors';
 import { processExifData, getDefaultExifOptions, type ExifProcessingOptions } from './exif';
+import { generateVariantKey } from './image-processing';
+import type { PhotoVariant } from '../../shared/types';
 
 // Configuration constants
 const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB
@@ -465,6 +467,16 @@ export async function processAndUploadPhotos(
     }
 
     debug('All files processed successfully', { total: results.length });
+
+    // Warm the cache for image variants (fire and forget - don't block response)
+    if (results.length > 0) {
+      const photoKeys = results.map((r) => r.originalKey);
+      // Don't await - run in background
+      warmImageCache(env, photoKeys, ['thumbnail', 'medium']).catch((error) => {
+        console.error('Background cache warming failed:', error);
+      });
+    }
+
     return results;
   } catch (error) {
     console.error('Photo processing error:', error);
@@ -485,6 +497,118 @@ export async function processAndUploadPhotos(
     }
 
     throw new ApiError('Failed to process and upload photos', 'PHOTO_PROCESSING_ERROR', 500);
+  }
+}
+
+/**
+ * Warm the cache for image variants by pre-generating them
+ * 
+ * This function triggers the image resizing API to generate all size variants
+ * for the uploaded photos. This ensures the first user doesn't experience
+ * the performance penalty of on-demand generation.
+ * 
+ * @param env - Worker environment
+ * @param photoKeys - Array of R2 keys for uploaded photos
+ * @param variants - Array of variants to generate (default: thumbnail, medium)
+ */
+export async function warmImageCache(
+  env: WorkerEnv,
+  photoKeys: string[],
+  variants: PhotoVariant[] = ['thumbnail', 'medium']
+): Promise<void> {
+  const debugEnabled = env.PHOTO_DEBUG === '1' || env.PHOTO_DEBUG === 'true';
+  const debug = (...args: unknown[]): void => {
+    if (debugEnabled) console.info('[PHOTO][CACHE_WARM]', ...args);
+  };
+
+  debug('Starting cache warming', { photoCount: photoKeys.length, variants });
+
+  try {
+    const bucket = env.PHOTOS_BUCKET;
+    if (!bucket) {
+      console.warn('Photo storage not configured, skipping cache warming');
+      return;
+    }
+
+    // Process all photos and variants in parallel
+    const warmingPromises = photoKeys.flatMap((originalKey) =>
+      variants.map(async (variant) => {
+        try {
+          // Generate the variant key
+          const variantKey = generateVariantKey(originalKey, variant);
+
+          // Check if variant already exists
+          const existing = await bucket.head(variantKey);
+          if (existing) {
+            debug('Variant already exists', { originalKey, variant, variantKey });
+            return;
+          }
+
+          // Fetch the original image
+          const originalObject = await bucket.get(originalKey);
+          if (!originalObject) {
+            console.warn('Original image not found for cache warming', { originalKey });
+            return;
+          }
+
+          // Read the original image data
+          const originalData = await originalObject.arrayBuffer();
+
+          // Import resizeImage here to avoid circular dependencies
+          const { resizeImage, getContentType } = await import('./image-processing');
+
+          const contentType =
+            originalObject.httpMetadata?.contentType || getContentType(originalData);
+
+          // Resize the image
+          const resized = await resizeImage(originalData, {
+            variant,
+            format: contentType.split('/')[1] as 'jpeg' | 'png' | 'webp',
+          });
+
+          // Store the resized variant in R2
+          await bucket.put(variantKey, resized.data, {
+            httpMetadata: {
+              contentType: resized.contentType,
+            },
+            customMetadata: {
+              'Original-Key': originalKey,
+              'Variant': variant,
+              'Generated-At': new Date().toISOString(),
+              'Width': resized.width.toString(),
+              'Height': resized.height.toString(),
+              'Cache-Warmed': 'true',
+            },
+          });
+
+          debug('Variant generated and cached', {
+            originalKey,
+            variant,
+            variantKey,
+            size: resized.size,
+          });
+        } catch (error) {
+          console.error('Failed to warm cache for variant', {
+            originalKey,
+            variant,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          // Continue with other variants even if one fails
+        }
+      })
+    );
+
+    // Wait for all warming operations to complete
+    await Promise.all(warmingPromises);
+
+    debug('Cache warming completed', {
+      photoCount: photoKeys.length,
+      variantCount: variants.length,
+      totalOperations: warmingPromises.length,
+    });
+  } catch (error) {
+    console.error('Cache warming error:', error);
+    // Don't throw - cache warming is optional optimization
   }
 }
 
