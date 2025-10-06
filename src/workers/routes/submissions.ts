@@ -226,6 +226,40 @@ export async function createSubmission(c: Context<{ Bindings: WorkerEnv }>): Pro
       nearbyArtworks: nearbyArtworkInfo.length,
     });
 
+    // Add the referenced artwork (if any) to the user's Submissions system list
+    try {
+      if ((submissionEntry as any).artwork_id) {
+        const artworkId = (submissionEntry as any).artwork_id;
+        const listName = 'Submissions';
+        const existingList = await c.env.DB.prepare(
+          `SELECT id FROM lists WHERE owner_user_id = ? AND name = ? AND is_system_list = 1`
+        )
+          .bind(userToken, listName)
+          .first();
+
+        let actualListId: string;
+        if (existingList && (existingList as any).id) {
+          actualListId = (existingList as any).id;
+        } else {
+          const listId = crypto.randomUUID();
+          await c.env.DB.prepare(
+            `INSERT INTO lists (id, owner_user_id, name, visibility, is_readonly, is_system_list, created_at, updated_at) VALUES (?, ?, ?, 'unlisted', 0, 1, datetime('now'), datetime('now'))`
+          )
+            .bind(listId, userToken, listName)
+            .run();
+          actualListId = listId;
+        }
+
+        await c.env.DB.prepare(
+          `INSERT OR IGNORE INTO list_items (id, list_id, artwork_id, added_by_user_id, created_at) VALUES (?, ?, ?, ?, datetime('now'))`
+        )
+          .bind(crypto.randomUUID(), actualListId, artworkId, userToken)
+          .run();
+      }
+    } catch (err) {
+      console.warn('Failed to update Submissions system list:', err);
+    }
+
     return c.json(createSuccessResponse(response), 201);
   } catch (error) {
     console.error('Failed to create logbook submission:', error);

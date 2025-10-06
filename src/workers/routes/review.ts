@@ -497,6 +497,43 @@ export async function approveSubmission(
       finalArtworkId = await insertArtwork(c.env.DB, artworkData);
       newArtworkCreated = true;
 
+      // Add the new artwork to the user's Submissions system list
+      try {
+        const listName = 'Submissions';
+        const existingList = await c.env.DB.prepare(
+          `SELECT id FROM lists WHERE owner_user_id = ? AND name = ? AND is_system_list = 1`
+        )
+          .bind(submission.user_token, listName)
+          .first();
+
+        let actualListId: string;
+        if (existingList && (existingList as any).id) {
+          actualListId = (existingList as any).id;
+        } else {
+          const listId = crypto.randomUUID();
+          await c.env.DB.prepare(
+            `INSERT INTO lists (id, owner_user_id, name, visibility, is_readonly, is_system_list, created_at, updated_at) VALUES (?, ?, ?, 'unlisted', 0, 1, datetime('now'), datetime('now'))`
+          )
+            .bind(listId, submission.user_token, listName)
+            .run();
+          actualListId = listId;
+        }
+
+        await c.env.DB.prepare(
+          `INSERT OR IGNORE INTO list_items (id, list_id, artwork_id, added_by_user_id, created_at) VALUES (?, ?, ?, ?, datetime('now'))`
+        )
+          .bind(crypto.randomUUID(), actualListId, finalArtworkId, submission.user_token)
+          .run();
+
+        console.info('Added approved artwork to Submissions list:', {
+          artworkId: finalArtworkId,
+          userToken: submission.user_token,
+          listId: actualListId,
+        });
+      } catch (err) {
+        console.warn('Failed to add artwork to Submissions system list:', err);
+      }
+
       // Create consent record for the new artwork
       // Use the original submission's consent information to create artwork consent
       try {
@@ -561,6 +598,43 @@ export async function approveSubmission(
       }
 
       finalArtworkId = artwork_id;
+
+      // Add the linked artwork to the user's Submissions system list
+      try {
+        const listName = 'Submissions';
+        const existingList = await c.env.DB.prepare(
+          `SELECT id FROM lists WHERE owner_user_id = ? AND name = ? AND is_system_list = 1`
+        )
+          .bind(submission.user_token, listName)
+          .first();
+
+        let actualListId: string;
+        if (existingList && (existingList as any).id) {
+          actualListId = (existingList as any).id;
+        } else {
+          const listId = crypto.randomUUID();
+          await c.env.DB.prepare(
+            `INSERT INTO lists (id, owner_user_id, name, visibility, is_readonly, is_system_list, created_at, updated_at) VALUES (?, ?, ?, 'unlisted', 0, 1, datetime('now'), datetime('now'))`
+          )
+            .bind(listId, submission.user_token, listName)
+            .run();
+          actualListId = listId;
+        }
+
+        await c.env.DB.prepare(
+          `INSERT OR IGNORE INTO list_items (id, list_id, artwork_id, added_by_user_id, created_at) VALUES (?, ?, ?, ?, datetime('now'))`
+        )
+          .bind(crypto.randomUUID(), actualListId, finalArtworkId, submission.user_token)
+          .run();
+
+        console.info('Added linked artwork to Submissions list:', {
+          artworkId: finalArtworkId,
+          userToken: submission.user_token,
+          listId: actualListId,
+        });
+      } catch (err) {
+        console.warn('Failed to add linked artwork to Submissions system list:', err);
+      }
     }
 
     // Move photos from submission to artwork

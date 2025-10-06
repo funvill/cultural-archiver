@@ -205,6 +205,42 @@ export async function createLogbookSubmission(
       },
     });
 
+    // If the submission references an artwork, ensure the artwork is added to the user's Submissions system list
+    try {
+      if (logbookData.artworkId) {
+        // Ensure system list exists for this user
+        const listName = 'Submissions';
+        const existingList = await c.env.DB.prepare(
+          `SELECT id FROM lists WHERE owner_user_id = ? AND name = ? AND is_system_list = 1`
+        )
+          .bind(userToken, listName)
+          .first();
+
+        let actualListId: string;
+        if (existingList && (existingList as any).id) {
+          actualListId = (existingList as any).id;
+        } else {
+          const listId = crypto.randomUUID();
+          await c.env.DB.prepare(
+            `INSERT INTO lists (id, owner_user_id, name, visibility, is_readonly, is_system_list, created_at, updated_at) VALUES (?, ?, ?, 'unlisted', 0, 1, datetime('now'), datetime('now'))`
+          )
+            .bind(listId, userToken, listName)
+            .run();
+          actualListId = listId;
+        }
+
+        // Insert into list_items (idempotent)
+        await c.env.DB.prepare(
+          `INSERT OR IGNORE INTO list_items (id, list_id, artwork_id, added_by_user_id, created_at) VALUES (?, ?, ?, ?, datetime('now'))`
+        )
+          .bind(crypto.randomUUID(), actualListId, logbookData.artworkId, userToken)
+          .run();
+      }
+    } catch (err) {
+      // Adding to Submissions list should not block submission creation
+      console.warn('Failed to add artwork to Submissions list:', err);
+    }
+
     const response: SubmissionResponse = {
       id: submissionId,
       status: 'pending',
