@@ -13,7 +13,11 @@ All 10 planned tasks completed:
 1. **Image Processing Module** (`src/workers/lib/image-processing.ts`)
    - `generateVariantKey()` - Creates R2 keys with size suffix (e.g., `photo__400x400.jpg`)
    - `parseVariantKey()` - Extracts original key and dimensions from variant
-   - `resizeImage()` - Image processing function (currently returns original, ready for WASM integration)
+   - `resizeImage()` - **✅ IMPLEMENTED**: Uses Cloudflare Image Resizing API via `fetch` with `cf.image` property
+     - Converts image to base64 data URL
+     - Uses `cf.image` options: fit, width, height, quality, format
+     - Falls back to original if resizing fails
+     - Supports JPEG, PNG, WebP with quality optimization
    - `validateImageData()` - Validates image format and size using magic bytes
    - `getContentType()` - Detects image type from binary data
    - `getCacheHeaders()` - Optimized cache headers for CDN
@@ -332,11 +336,12 @@ export const PHOTO_QUALITY = {
 
 ## Known Limitations
 
-1. **No Actual Resizing Yet:** `resizeImage()` is a placeholder returning originals
+1. **Cloudflare Image Resizing Dependency:** Uses Cloudflare's built-in Image Resizing via `fetch` with `cf.image` property. Requires base64 encoding for processing and falls back to original if resizing fails.
 2. **Test Suite Mismatch:** Tests need updating to match current implementation
-3. **No Format Conversion:** All variants maintain original format (JPEG stays JPEG)
-4. **No Smart Cropping:** Simple center crop, no face detection
+3. **Format Optimization:** Uses 'auto' format by default - can convert to WebP automatically for supporting browsers
+4. **No Smart Cropping:** Simple 'cover' fit mode, no face detection
 5. **Migration Dependency:** Requires manual execution on existing images
+6. **Base64 Encoding Overhead:** Converting to base64 for processing adds temporary memory overhead
 
 ## Documentation
 
@@ -348,8 +353,8 @@ export const PHOTO_QUALITY = {
 ---
 
 **Implementation Date:** January 2025  
-**Status:** ✅ Complete - Ready for WebAssembly integration  
+**Status:** ✅ Complete - Image resizing implemented with Cloudflare Image Resizing API  
 **Build Status:** ✅ Passing  
 **Frontend Components:** ✅ Updated  
-**Backend API:** ✅ Functional  
+**Backend API:** ✅ Functional with actual resizing  
 **Migration Script:** ✅ Ready
