@@ -888,3 +888,18 @@ Art lives through connection. By choosing what inspires you, you pass that spark
 👉 Action: Share What Moves You
 
 ----
+
+
+1) 
+When a user submits a photo, we want to store the orginal of the photo for reference (in r2 object storage). Then create smaller versions of the photo for use within the website. These smaller versions should signfiganty reduce the bandwidth requirments. These different size images should be stored in the R2 object storage with the originals.
+
+- Create a thumbnail for the artwork card preview (map, search, artwork index, etc...)
+- Create a reduce size image for the artwork details page
+- Create other sizes as well
+
+The system to generate thumbnails should be reuseable for when we need other image sizes in the future.
+
+
+2) There are 1000+ artworks on the website right now that are using the original size images. We need a way of creating the smaller versions of these images, and updating the artwork pages. Create a nodejs script to help with this migration. This is a once off script
+
+----

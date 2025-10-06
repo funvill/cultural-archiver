@@ -7,20 +7,18 @@
 - [x] Links in the pages are not underlined.
 - [x] The action buttons on the artwork details page, if a user clicks one of these buttons when they are not logged in show the login dialog.
 - [x] When a user is not logged in the "report an issue", and "report missing" dialogs. The cancel button doesn't close the dialogs. If the user updated the text, then show a "are you sure" prompt when trying to close. The user should be able to click outside the dialog to close the window as well.
-- [X] When the user clicks the Map button "location" icon. The map should show their current location zoomed 15. A person icon should be shown at the users location. This icon should look different then the circle icons used for artworks, it should be bigger and look like a person. There should be a view cone that shows the users orentation on the map (what they are looking at).
-- [X] The map location buton should be a one time action, not a toggle. The map should focuse on the users location once, then allow the user to pan and zoom around the map. The users location icons should update indpendenly of the map viewing box. the persion icon is not showing on the map. I want an icon for the users current location with a view cone. It should be ontop of all other icons and it should look vistually distinct from the other icons.
-- [X] Map icons. The "visted" artworks on the map should appear like a checkbox or flag in a gray circle. This helps users know what artworks they have already seen. The "stared" artworks should appear as "star" icon. If an an artwork has both "star", and "visted". The visted icon is shown.
+- [x] When the user clicks the Map button "location" icon. The map should show their current location zoomed 15. A person icon should be shown at the users location. This icon should look different then the circle icons used for artworks, it should be bigger and look like a person. There should be a view cone that shows the users orentation on the map (what they are looking at).
+- [x] The map location buton should be a one time action, not a toggle. The map should focuse on the users location once, then allow the user to pan and zoom around the map. The users location icons should update indpendenly of the map viewing box. the persion icon is not showing on the map. I want an icon for the users current location with a view cone. It should be ontop of all other icons and it should look vistually distinct from the other icons.
+- [x] Map icons. The "visted" artworks on the map should appear like a checkbox or flag in a gray circle. This helps users know what artworks they have already seen. The "stared" artworks should appear as "star" icon. If an an artwork has both "star", and "visted". The visted icon is shown.
 - [x] When trying to send feedback. I get an error saying feedback cannot be sent. Can't send feedback from the feedback dialogue.
 - [x] Add the website to Google. Start a site map. Get SEO going today so it shows up in Google later on.
 - [x] Icons in the bottom bar need to be much larger.
 - [x] Show a difference between visted and submitted artworks on the map
 - [ ] Artwork index is not showing images
 - [ ] None of the artists have a bio even though the imports had bios assoicated with them.
-
 - [ ] The map filters are not working as expected and are missing the "Show removed artworks"
-
 - [ ] Add filter for artworks with the following tags Physical Properties (1), Condition:removed
-
+- [ ] Allow for 5 or more photos to be uploaded at a time. or give a good warning if they have uploaded too many
 
 - make the hitboxes for the markers on the map larger. People are struggling with tapping the map markers
 - The welcome screen needs a way of closing it without going to the help screen. Or the help screen needs. Learn more about this feature button.
@@ -36,7 +34,6 @@
 - [x] 1.0 Update the welcome popup
   - [x] 1.1 Add a link that repops up this welcome page. (?)
 - [ ] 2.0 Import all the artworks for each city
-  - [ ] 2.1 Cache the images on import
   - [x] 2.2 Vancouver Public Data
   - [x] 2.3 OSM
   - [ ] 2.4 Burnaby Art Gallery
@@ -51,24 +48,24 @@
 - [X] 6.0 Logo?
 - [x] HTTP Error pages
   - [x] HTTP 404 error page
-- [ ] 0.0 Generate thumbnails and different size images of artworks as needed
+- [x] 7.0 Generate thumbnails and different size images of artworks as needed
+- [x] 8.0 Create social media accounts
+  - [x] Instagram @publicartregistry
+  - [x] Bluesky https://bsky.app/profile/publicartregistry.com
+  - [x] Facebook https://www.facebook.com/profile.php?id=61581784564913 
+  - [x] Twitter @PubArtRegistry
+- [ ] 9.0 Media call outs
+  - [x] https://stickvancouver.substack.com/
+  - [ ] CBC
+  - [ ] Vancouver is Awesome
+  - [ ] https://www.createastir.ca
+  - [ ] https://www.destinationvancouver.com/
+  - [ ] https://culturecrawl.ca/
+  - [ ] https://secretvancouver.co/culture/
+  - [ ] https://miss604.com/
 
-1) 
-When a user submits a photo, we want to store the orginal of the photo for reference (in r2 object storage). Then create smaller versions of the photo for use within the website. These smaller versions should signfiganty reduce the bandwidth requirments. These different size images should be stored in the R2 object storage with the originals.
-
-- Create a thumbnail for the artwork card preview (map, search, artwork index, etc...)
-- Create a reduce size image for the artwork details page
-- Create other sizes as well
-
-The system to generate thumbnails should be reuseable for when we need other image sizes in the future.
-
-
-2) There are 1000+ artworks on the website right now that are using the original size images. We need a way of creating the smaller versions of these images, and updating the artwork pages. Create a nodejs script to help with this migration. This is a once off script
-
-
-
-
-
+- Funding
+  - https://www.vancouverfoundation.ca/
 
 
 ----

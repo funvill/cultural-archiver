@@ -67,7 +67,7 @@ I knew that there was a lot of art in Vancouver, BC. But I never knew how much u
 
 ## Do you think of yourself as more of an “artist,” “archivist,” or “builder of tools for others”?
 
-Builder of tools ## Beyond being a database, what do you want Public Art Registry to inspire people to do? Go see more art, fall in love with art, be passionate about things, participate in life 
+Builder of tools ## Beyond being a database, what do you want Public Art Registry to inspire people to do? Go see more art, fall in love with art, be passionate about things, participate in life
 
 ## Do you see collaborations in the future — with schools, museums, city planners, or artists themselves? 
 
@@ -77,21 +77,47 @@ Yes, I am hopeful that I can expand this tool to work for as many different grou
 
 A good history of culture though the ages. Millions of artworks and artists who gave the world a little bit of their creative self for the world to see.
 
-
 > Why is now the right moment to share this project publicly?
 
 The website just launched.
 
-> Is the site officially launching soon, or are you soft-launching to gather contributors first? 
+> Is the site officially launching soon, or are you soft-launching to gather contributors first?
 
-soft-launching to gather contributors first 
+soft-launching to gather contributors first
 
-> Have you already documented a specific number of artworks (e.g., 1,000+ in Vancouver)? 1200 artworks but only 400 of them have photos. we need more photos > Is there a recent event that makes this relevant I was looking at one of the wonderful murals that were created for the Vancouver Mural Festival that has been running for 9 years in Vancouver but lost funding this year. I wanted to know who the artist was but the Vancouver Mural Festival has also shut down. Lost knowledge. This made me realize how fragile public art really is. With Vancouver Mural Festival shutdown these murals won't be maintained and will slowly disappear over the next few years. I didn't want this creativity to be lost to the sands of time. > How do you describe yourself when speaking to the public — technologist, artist, archivist, or community builder? Someone who cares about the public good, a tools builder. > Have you done other creative or civic projects that show your long-term commitment to open data, culture, or art? During covid I visited every park in Vancouver and documented it on my Instagram. I am also active with the backyard birders and iNaturalist > What part of this project has felt the most personal or emotional to you? The loss of culture, the lost of history and knowledge, The community will suffer because of the loss of Vancouver Mural festival and it makes me mad that part of Vancouver's history might be lost for good. > What do you hope an interview would focus on — your personal story, the tech behind it, or the cultural mission? cultural mission then my personal story > Why start with Vancouver — what makes the city’s art scene unique or worth preserving? I live in this city, I love this city, it seems like a good place to start. I hope to expand it to more cities in the future but I plan to focus on Vancouver and the GVRD for now > Are there any Vancouver-based artworks or artists you’d love to highlight as examples in the story?
+> Have you already documented a specific number of artworks (e.g., 1,000+ in Vancouver)?
 
+1200 artworks but only 400 of them have photos. we need more photos
 
-> Can you name 2–3 specific artworks or artists you’d love to see featured in the article (murals, sculptures, etc.) — especially ones tied to the Vancouver Mural Festival or local neighborhoods? To help build the database I been taking bike rides out around the city to photograph the artworks without photos. The mosaic circles in the side walk were a special treat. I don't think i noticed them before but there are dozens across the whole city. There is a rough artist name oxid that makes these green robots out of bolts and scrap metal that are wonderful. I have found 6 of them so far.
+> Is there a recent event that makes this relevant
 
-> What’s the one thing you’d like readers to do after reading a news story about your project? 
+I was looking at one of the wonderful murals that were created for the Vancouver Mural Festival that has been running for 9 years in Vancouver but lost funding this year. I wanted to know who the artist was but the Vancouver Mural Festival has also shut down. Lost knowledge. This made me realize how fragile public art really is. With Vancouver Mural Festival shutdown these murals won't be maintained and will slowly disappear over the next few years. I didn't want this creativity to be lost to the sands of time.
+
+> How do you describe yourself when speaking to the public — technologist, artist, archivist, or community builder?
+
+Someone who cares about the public good, a tools builder.
+
+> Have you done other creative or civic projects that show your long-term commitment to open data, culture, or art?
+
+During covid I visited every park in Vancouver and documented it on my Instagram. I am also active with the backyard birders and iNaturalist 
+
+> What part of this project has felt the most personal or emotional to you?
+
+The loss of culture, the lost of history and knowledge, The community will suffer because of the loss of Vancouver Mural festival and it makes me mad that part of Vancouver's history might be lost for good.
+
+> What do you hope an interview would focus on — your personal story, the tech behind it, or the cultural mission?
+
+cultural mission then my personal story
+
+> Why start with Vancouver — what makes the city’s art scene unique or worth preserving?
+
+I live in this city, I love this city, it seems like a good place to start. I hope to expand it to more cities in the future but I plan to focus on Vancouver and the GVRD for now
+
+> Can you name 2–3 specific artworks or artists you’d love to see featured in the article (murals, sculptures, etc.) — especially ones tied to the Vancouver Mural Festival or local neighborhoods?
+
+To help build the database I been taking bike rides out around the city to photograph the artworks without photos. The mosaic circles in the side walk were a special treat. I don't think i noticed them before but there are dozens across the whole city. There is a rough artist name oxid that makes these green robots out of bolts and scrap metal that are wonderful. I have found 6 of them so far.
+
+> What’s the one thing you’d like readers to do after reading a news story about your project?
 
 Take photos of art and submit them to the website. Explore art in your city,
 
@@ -110,3 +136,30 @@ A million Canadian public artworks preserved. After we reach the millionth photo
 > When you talk about the project, how do you want to come across
 
 Kind and hopefull
+
+> Do you have a personal favorite piece or pieces from around the city?
+
+Oxid’s green robots
+Oxid’s green robots made from scrap metal and bolts. These are a bit of a hunt and seek around the city. They are installed without permission in beautiful locations. It makes my day when ever I stumble upon one of these around the city.
+
+https://publicartregistry.com/artwork/cec232e8-fcf2-48c7-96dc-42ae3c1e6459
+https://www.instagram.com/p/DIu-Qh1xDaD/
+
+Brush With Illumination by Buster Simpson.
+I have always loved this artwork. Its beautiful on its own but it use track the movements of the tides and send these movements to a website where a illustration would be generated from the data. The website is no longer functioning but i really like the idea behind it.
+https://publicartregistry.com/artwork/cdf24221-f3a3-4705-8a95-6a8f56db3b38
+http://www.bustersimpson.net/brushwithillumination/
+You sent
+
+> What can people learn about our city from its public art?
+
+The creation of public art shows what people in the city care about. You can see what they were thinking about when they made it — what they loved, what worried them, what caught their attention. It’s like a snapshot of the city’s mindset at that time.
+
+As the city changes, so does the public art. New pieces appear, old ones fade, and together they tell the story of how Vancouver keeps growing and changing. It’s an honest record of what people are passionate about.
+You sent
+
+> Why do you personally care about public art?
+
+The Vancouver Mural Festival left a lasting legacy across the city. It has changed the way people think about this city and has become part of the personal identity of Vancouver. Even after the murals fade, the people who experienced them will forever be changed and they will go on to make more art and change the city again.
+
+These stories matter. Public art gives a city its soul, and we need to honor the artists who put their work out there for everyone to see. Most artists make public art because they want to share something — a message, a feeling, an idea. If nobody sees it, that purpose isn’t fulfilled. Experiencing their work is how we complete the circle.
