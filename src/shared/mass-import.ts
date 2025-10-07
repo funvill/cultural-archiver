@@ -628,7 +628,7 @@ export interface MassImportResponseV2 {
         name: string;
         existingId: string;
         confidenceScore: number;
-        error: 'DUPLICATE_DETECTED';
+        error: 'DUPLICATE_DETECTED' | 'DUPLICATE_DETECTED_BIO_UPDATED';
       }>;
       failed: Array<{
         name: string;

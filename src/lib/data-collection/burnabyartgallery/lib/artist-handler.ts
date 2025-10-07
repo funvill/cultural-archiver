@@ -7,6 +7,32 @@
 import type { ArtistData } from './parser.js';
 import { logger } from './logger.js';
 
+/**
+ * Normalize artist names so that "Last, First" becomes "First Last".
+ * Handles multiple artists separated by " and " or " & ".
+ */
+export function normalizeArtistName(name: string | undefined): string {
+  if (!name) return '';
+  // Split combined artist strings like "Last, One and Last, Two" or "A & B"
+  const parts = name.split(/\s+(?:and|&)\s+/i).map(p => p.trim()).filter(Boolean);
+
+  const normalizedParts = parts.map((part) => {
+    if (part.includes(',')) {
+      // "Last, First Middle" -> "First Middle Last"
+      const pieces = part.split(',').map(s => s.trim()).filter(Boolean);
+      if (pieces.length >= 2) {
+        const last = pieces[0];
+        const rest = pieces.slice(1).join(', ');
+        return `${rest} ${last}`.replace(/\s+/g, ' ').trim();
+      }
+    }
+    return part;
+  });
+
+  // Join multiple artists back using ' and '
+  return normalizedParts.join(' and ');
+}
+
 export interface ArtistRecord {
   source: string;
   source_url: string;
@@ -39,10 +65,13 @@ export class ArtistHandler {
       return;
     }
 
+    // Normalize the stored artist name (e.g. "Fafard, Joe" -> "Joe Fafard")
+    const normalized = normalizeArtistName(artistData.name);
+
     const artist: ArtistRecord = {
       source: this.source,
       source_url: artistData.sourceUrl,
-      name: artistData.name,
+      name: normalized || (artistData.name as string),
       type: 'Artist',
       biography: artistData.biography || '',
       'birth date': artistData.birthDate || '',

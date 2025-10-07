@@ -75,6 +75,7 @@ Burnabyartgallery
 src\lib\data-collection\burnabyartgallery
 
 The photo field needs a full url, not a realtive url.
+The photo field ends with a `?width=280` remove the width parameter from the url. Hopfully this will give us the full size image. for example: https://collections.burnabyartgallery.ca/media/hpo/_Data/_Art_Gallery/_Unrestricted/2014/NA/NA_2014_SFU_Arc2.jpg?width=280 becomes https://collections.burnabyartgallery.ca/media/hpo/_Data/_Art_Gallery/_Unrestricted/2014/NA/NA_2014_SFU_Arc2.jpg
 
 medium => material
 date => start_date
@@ -82,6 +83,13 @@ date => start_date
 - Add a fixed field "city" with the value of "burnaby"
 - Add a fixed field "country" with the value of "Canada"
 - Add a fixed field "province" with the value of "Britsh Columbia"
+
+
+The artist for https://collections.burnabyartgallery.ca/link/publicart46 is `Jacques Huet`. The artist detail page is https://collections.burnabyartgallery.ca/link/artists1272 
+
+This artwork https://collections.burnabyartgallery.ca/link/publicart144 has a keywords list. "public art, Burnaby, permanent collection, sculpture, civic art, animal, horse, farm", but only "public art" is in the output.
+
+The artist name has "," in them. this will cause my system to think of these as two people, when in fact they are a single person. Example: https://collections.burnabyartgallery.ca/link/publicart144 has a artist name of "Fafard, Joe", with a ",". I would like this to be stored in the artist table and the artwork table as "Joe Fafard"
 
 ----
 

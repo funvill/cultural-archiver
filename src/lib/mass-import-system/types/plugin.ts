@@ -160,6 +160,8 @@ export interface ProcessingOptions {
   importerConfig?: ImporterConfig;
   exporterOptions?: ExporterOptions;
   exporterConfig?: ExporterConfig;
+  // Maximum consecutive errors before aborting (default: 5)
+  maxConsecutiveErrors?: number;
   // Location enhancement options
   locationEnhancement?: {
     enabled?: boolean;

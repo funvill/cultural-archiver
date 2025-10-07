@@ -238,6 +238,43 @@ _production-api-config.json_ (Production):
 
 4. **Rate Limits**: The API has built-in rate limiting and batch processing. Use smaller batch sizes for initial testing.
 
+## 📦 Output formats & recommended workflow
+
+The mass-import system expects OSM-style GeoJSON as the canonical input format for geographic artwork datasets. Data-collection scripts should produce these files under `src/lib/data-collection/<site>/output/`.
+
+- `artworks.geojson` — GeoJSON FeatureCollection. Each feature should be a Point geometry with properties that include at least `title`, `sourceUrl`, and (when available) `artist` (string). Recommended additional properties: `start_date`, `material`, `tags` (object), `photos` (array).
+- `artists.json` (optional) — an array of artist objects or a lookup keyed by normalized artist name. When present, this file can be used to enrich artwork imports by resolving artist IDs, bios, and canonical URLs.
+
+If your data-collection script can produce both `artworks.geojson` and `artists.json`, pass the artworks file as `--input` and configure the importer (see below) to point to the `artists.json` location.
+
+Example directory layout produced by collectors:
+
+```text
+src/lib/data-collection/burnabyartgallery/output/
+  ├─ artworks.geojson
+  └─ artists.json
+```
+
+### Importer configuration keys (use via `--config`)
+
+Importers accept an importer-specific `config` object. For the `osm-artwork` importer we recommend these optional keys:
+
+- `artistLookupPath` (string): path to an `artists.json` file that the importer can load to resolve or create artists during import.
+- `createMissingArtists` (boolean): whether to auto-create artists not found in the provided lookup (default: false).
+- `mergeConfidenceThreshold` (number 0-1): threshold for automatic merge of an incoming artwork into an existing one (default: 0.85).
+
+Example config file to pass to the CLI (`burnaby-osm-config.json`):
+
+```json
+{
+  "artistLookupPath": "src/lib/data-collection/burnabyartgallery/output/artists.json",
+  "createMissingArtists": true,
+  "mergeConfidenceThreshold": 0.85
+}
+```
+
+If an importer doesn't natively support `artistLookupPath`, please add it to the importer config or use the Vancouver importer approach (which already searches for `public-art-artists.json` at a few well-known paths).
+
 #### Plugin Information
 
 ```bash

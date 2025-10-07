@@ -36,6 +36,9 @@ interface CLIOptions {
   reportPath?: string;
   listPlugins?: boolean;
   validateConfig?: boolean;
+  locationEnhancement?: boolean;
+  locationCache?: string;
+  maxConsecutiveErrors?: number;
 }
 
 // ================================
@@ -86,6 +89,9 @@ export class PluginCLI {
       .option('--verbose', 'Enable verbose logging', false)
       .option('--generate-report', 'Generate processing report', false)
       .option('--report-path <path>', 'Path for generated report')
+      .option('--location-enhancement', 'Enable location enhancement (adds human-readable location fields)', false)
+      .option('--location-cache <path>', 'Path to location cache database', './_data/location-cache.sqlite')
+      .option('--max-consecutive-errors <number>', 'Maximum consecutive errors before aborting', '5')
       .action(async (options: CLIOptions) => {
         await this.handleImportCommand(options);
       });
@@ -199,6 +205,9 @@ export class PluginCLI {
         ...(options.generateReport !== undefined && { generateReport: options.generateReport }),
         ...(options.reportPath !== undefined && { reportPath: options.reportPath }),
         ...(options.input !== undefined && { inputFile: options.input }),
+        ...(options.maxConsecutiveErrors !== undefined && { 
+          maxConsecutiveErrors: parseInt(options.maxConsecutiveErrors.toString()) 
+        }),
         ...(options.verbose !== undefined && {
           exporterOptions: {
             verbose: options.verbose,
@@ -209,6 +218,23 @@ export class PluginCLI {
           ...finalExporterConfig,
           ...(options.output && { outputPath: options.output }),
         },
+        // Location enhancement configuration
+        ...(options.locationEnhancement && {
+          locationEnhancement: {
+            enabled: true,
+            cacheDbPath: options.locationCache ?? './_data/location-cache.sqlite',
+            requestTimeout: 10000,
+            failOnErrors: false,
+            tagFields: {
+              displayName: 'location_display_name',
+              country: 'location_country',
+              state: 'location_state',
+              city: 'location_city',
+              suburb: 'location_suburb',
+              neighbourhood: 'location_neighbourhood',
+            },
+          },
+        }),
       };
 
       spinner.text = 'Creating data pipeline...';

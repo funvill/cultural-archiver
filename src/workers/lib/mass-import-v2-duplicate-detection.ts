@@ -176,6 +176,8 @@ export class MassImportV2DuplicateDetectionService {
     for (const candidate of candidates) {
       const breakdown = this.calculateArtistSimilarity(request, candidate, weights);
 
+      console.log(`[DUPLICATE_V2] Artist "${request.name}" vs "${candidate.name}": score=${breakdown.total.toFixed(3)} (threshold=${request.threshold})`);
+
       if (breakdown.total > (bestMatch?.score || 0)) {
         bestMatch = {
           score: breakdown.total,
@@ -386,8 +388,8 @@ export class MassImportV2DuplicateDetectionService {
     weights: DuplicateDetectionWeights
   ): DuplicationScore {
     // Name similarity (primary indicator)
-    const nameScore =
-      this.calculateTextSimilarity(incoming.name, candidate.name || '') * weights.title; // Using title weight for name
+    const nameSimilarity = this.calculateTextSimilarity(incoming.name, candidate.name || '');
+    const nameScore = nameSimilarity * weights.title; // Using title weight for name
 
     // Website/reference similarity
     const refScore = incoming.externalId
@@ -402,6 +404,8 @@ export class MassImportV2DuplicateDetectionService {
         : 0;
 
     const total = nameScore + refScore + descriptionScore;
+
+    console.log(`[DUPLICATE_V2] Artist similarity breakdown: name=${nameSimilarity.toFixed(3)}*${weights.title}=${nameScore.toFixed(3)}, ref=${refScore.toFixed(3)}, desc=${descriptionScore.toFixed(3)}, total=${total.toFixed(3)}`);
 
     return {
       gps: 0, // Not applicable for artists

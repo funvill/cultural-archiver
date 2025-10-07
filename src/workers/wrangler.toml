@@ -108,7 +108,7 @@ EMAIL_FROM_ADDRESS = "noreply@publicartregistry.com"
 EMAIL_FROM_NAME = "Public Art Registry (Dev)"
 EMAIL_REPLY_TO = "support@publicartregistry.com"
 EMAIL_ENABLED = "true"
-PHOTOS_BASE_URL = "/photos"
+PHOTOS_BASE_URL = ""
 R2_PUBLIC_URL = "/photos"
 CLOUDFLARE_ACCOUNT_ID = "development"
 # Cloudflare Images configuration (set via secrets for production)
