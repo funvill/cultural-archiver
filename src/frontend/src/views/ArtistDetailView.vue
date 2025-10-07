@@ -9,7 +9,8 @@ import PhotoCarousel from '../components/PhotoCarousel.vue';
 import TagBadge from '../components/TagBadge.vue';
 import FeedbackDialog from '../components/FeedbackDialog.vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
-import type { ArtistApiResponse } from '../../../shared/types';
+import { apiService } from '../services/api';
+import type { ArtistApiResponse, ApiResponse } from '../../../shared/types';
 
 // Props
 interface Props {
@@ -106,18 +107,14 @@ async function loadArtist() {
     loading.value = true;
     error.value = null;
 
-    const response = await fetch(`/api/artists/${props.id}`);
+    const response = await apiService.get<ApiResponse<ArtistApiResponse>>(`/artists/${props.id}`);
 
-    if (!response.ok) {
-      if (response.status === 404) {
-        error.value = 'Artist not found';
-        return;
-      }
-      throw new Error(`HTTP ${response.status}`);
+    if (!response.success || !response.data) {
+      error.value = response.message || 'Failed to load artist';
+      return;
     }
 
-    const result = await response.json();
-    artist.value = result.data;
+    artist.value = response.data;
 
     // Set form data
     if (artist.value) {
@@ -141,11 +138,10 @@ async function checkPendingEdits() {
   if (!authStore.isAuthenticated) return;
 
   try {
-    const response = await fetch(`/api/artists/${props.id}/pending-edits`);
-    if (response.ok) {
-      const result = await response.json();
-      hasPendingEdits.value = result.data.has_pending_edits;
-      pendingEditSubmittedAt.value = result.data.submitted_at || null;
+    const response = await apiService.get<ApiResponse<{ has_pending_edits: boolean; submitted_at?: string }>>(`/artists/${props.id}/pending-edits`);
+    if (response.success && response.data) {
+      hasPendingEdits.value = response.data.has_pending_edits;
+      pendingEditSubmittedAt.value = response.data.submitted_at || null;
     }
   } catch (err) {
     console.error('Failed to check pending edits:', err);
@@ -224,17 +220,10 @@ async function saveEdit() {
       return;
     }
 
-    const response = await fetch(`/api/artists/${props.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ edits }),
-    });
+    const response = await apiService.put<ApiResponse<unknown>>(`/artists/${props.id}`, { edits });
 
-    if (!response.ok) {
-      const result = await response.json();
-      throw new Error(result.error || `HTTP ${response.status}`);
+    if (!response.success) {
+      throw new Error(response.message || 'Failed to save edits');
     }
 
     // Success

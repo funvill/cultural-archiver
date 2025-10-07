@@ -30,6 +30,36 @@
 
 
 
+Clean up production database artwork's artist field.
+
+Milestone 1
+
+This artwork
+https://publicartregistry.com/artwork/faedaf8e-1197-454a-9aa1-1de308149853
+
+Has a artist name of "Unknown Artist".
+But has a tag "artist_name" with the artist's name "Ralph Sketch"
+
+There are hundereds of simlare artworks.
+See the production database here `_backup_database\database_production_2025-10-07_0439.sql`
+
+Create a plan for updating the production database artwork's artist name, with the "artist_name" from the tags.
+
+
+Milestone 2
+
+This artwork https://publicartregistry.com/artwork/712120c9-1d18-4f77-a072-d3f4984a281c Has a artist name of "Unknown Artist".
+
+The artwork has a tag "artist_ids" that contains the list of artists associated with this artwork. "90,144,145" comma seperated.
+
+The ids in the artist_id tag of the artwork, reference the artist tag of artist_id on the artist details page https://publicartregistry.com/artist/25e38c05-2eef-42fc-a080-37cfda7969c1 (artist_id: 145)
+
+Create a plan for updating the production database artwork's artist name by finding the artist with the assoicated artist_id, the linking the artwork and the artist together
+
+
+
+
+
 ## Release
 
 - [x] 1.0 Update the welcome popup
