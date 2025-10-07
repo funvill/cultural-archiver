@@ -702,13 +702,18 @@ async function processSingleArtist(
   const submissionId = generateUUID();
   const timestamp = new Date().toISOString();
 
+  // Determine desired status: honor request-level autoApproveArtists if present
+  const desiredArtistStatus = (request.config && (request.config as any).autoApproveArtists)
+    ? 'approved'
+    : ((artistData.status as string) || 'pending');
+
   // Create artist record FIRST (to satisfy foreign key constraint)
   await db.db
     .prepare(
       `
     INSERT INTO artists (
-      id, name, description, tags, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?)
+      id, name, description, tags, status, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
   `
     )
     .bind(
@@ -720,6 +725,8 @@ async function processSingleArtist(
         source: artistData.source,
         import_batch: request.metadata.importId,
       }),
+      // Respect explicit status from importer (e.g., 'approved') or default to 'pending'
+  desiredArtistStatus,
       timestamp,
       timestamp
     )

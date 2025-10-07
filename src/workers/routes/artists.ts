@@ -53,6 +53,17 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
   const offset = (page - 1) * limit;
   const status = validatedQuery.status || 'approved';
 
+  // Respect sort parameter from query (frontend exposes updated_desc | name_asc | created_desc)
+  const sort = (validatedQuery.sort as string) || 'updated_desc';
+  let orderClause = 'a.name ASC';
+  if (sort === 'updated_desc') {
+    orderClause = "a.updated_at DESC";
+  } else if (sort === 'created_desc') {
+    orderClause = "a.created_at DESC";
+  } else if (sort === 'name_asc') {
+    orderClause = "a.name ASC";
+  }
+
   try {
     const db = createDatabaseService(c.env.DB);
 
@@ -69,7 +80,7 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
                 WHERE aa.artist_id = a.id AND aw.status = 'approved') as artwork_count
         FROM artists a
         WHERE a.status = ? AND a.name LIKE ?
-        ORDER BY a.name ASC
+        ORDER BY ${orderClause}
         LIMIT ? OFFSET ?
       `;
       params = [status, `%${validatedQuery.search}%`, limit, offset];
@@ -83,7 +94,7 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
                 WHERE aa.artist_id = a.id AND aw.status = 'approved') as artwork_count
         FROM artists a
         WHERE a.status = ?
-        ORDER BY a.name ASC
+        ORDER BY ${orderClause}
         LIMIT ? OFFSET ?
       `;
       params = [status, limit, offset];

@@ -14,6 +14,7 @@
 - [x] Add the website to Google. Start a site map. Get SEO going today so it shows up in Google later on.
 - [x] Icons in the bottom bar need to be much larger.
 - [x] Show a difference between visted and submitted artworks on the map
+- [x] Update `src\lib\mass-import-system\docs\formats.md` with example formats for both the `artwork.geojson` used by `src\lib\mass-import-system\importers\osm-artwork.ts`, and the `artists.json` used by `src\lib\mass-import-system\importers\artist-json.ts` This file should contain documnetation about how these files are formated, what are the expected fields, etc... This document will be used when generating new data-collection scripts that generate these files that will be used by the mass-import-system.
 - [ ] Artwork index is not showing images
 - [ ] None of the artists have a bio even though the imports had bios assoicated with them.
 - [ ] The map filters are not working as expected and are missing the "Show removed artworks"
@@ -52,7 +53,7 @@
 - [x] 8.0 Create social media accounts
   - [x] Instagram @publicartregistry
   - [x] Bluesky https://bsky.app/profile/publicartregistry.com
-  - [x] Facebook https://www.facebook.com/profile.php?id=61581784564913 
+  - [x] Facebook https://www.facebook.com/profile.php?id=61581784564913
   - [x] Twitter @PubArtRegistry
 - [ ] 9.0 Media call outs
   - [x] https://stickvancouver.substack.com/

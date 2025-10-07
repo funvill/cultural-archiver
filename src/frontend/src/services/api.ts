@@ -543,7 +543,9 @@ export const apiService = {
     page: number = 1,
     limit: number = 30,
     sort: 'updated_desc' | 'name_asc' | 'created_desc' = 'updated_desc',
-    search?: string
+    search?: string,
+    // Optional cache buster to avoid browser returning stale cached responses
+    cacheBuster?: string
   ): Promise<
     ApiResponse<{
       totalItems: number;
@@ -560,6 +562,10 @@ export const apiService = {
 
     if (search && search.trim()) {
       params.search = search.trim();
+    }
+
+    if (cacheBuster) {
+      params._cb = cacheBuster;
     }
 
     return client.get('/artists', params);

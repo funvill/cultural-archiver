@@ -89,10 +89,16 @@ async function loadArtists(): Promise<void> {
   error.value = null;
 
   try {
+    // If the URL does not include a limit param (bare /artists), append a short
+    // cache-buster so the browser won't return a stale cached /api/artists response.
+    const cacheBuster = route.query.limit ? undefined : String(Date.now());
+
     const response = await apiService.getArtistsList(
       currentPage.value,
       pageSize.value,
-      currentSort.value
+      currentSort.value,
+      undefined,
+      cacheBuster
     );
 
     if (response.data) {
@@ -153,7 +159,9 @@ function handlePageSizeChange(newSize: number): void {
 
 function handleSortChange(newSort: string): void {
   currentSort.value = newSort as typeof currentSort.value;
+  // Reset to first page and default page size when sorting
   currentPage.value = 1; // Reset to first page when sorting
+  pageSize.value = 30; // Ensure default page size (prevents 10-item views persisting)
   updateUrl();
   loadArtists();
 }
