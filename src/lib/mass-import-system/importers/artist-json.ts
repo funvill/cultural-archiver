@@ -59,6 +59,7 @@ interface ArtistJsonRecord {
   'birth date'?: string;
   'death date'?: string;
   websites?: string;
+  artists_id?: string;
   // Allow additional fields
   [key: string]: any;
 }
@@ -165,36 +166,25 @@ export class ArtistJsonImporter implements ImporterPlugin {
    * Map a single artist record
    */
   private mapSingleArtist(artist: ArtistJsonRecord): RawImportData {
-    // Build tags from metadata
-    const tags: Record<string, string> = {
-      source: artist.source,
-    };
+    // Build tags from all fields except name and biography
+    // This allows for arbitrary fields to be preserved from the source data
+    const excludedFields = ['name', 'biography', 'title'];
+    const tags: Record<string, string> = {};
 
-    // Add optional source URL
-    if (artist.source_url) {
-      tags.source_url = artist.source_url;
+    // Add all fields from artist record to tags (except excluded fields)
+    for (const [key, value] of Object.entries(artist)) {
+      if (!excludedFields.includes(key) && value !== undefined && value !== null && value !== '') {
+        // Convert key to snake_case for consistency
+        const tagKey = key.replace(/\s+/g, '_').toLowerCase();
+        tags[tagKey] = String(value);
+      }
     }
 
-    // Add type if available
-    if (artist.type) {
-      tags.type = artist.type;
-    }
-
-    // Add birth/death dates if available
-    if (artist['birth date']) {
-      tags.birth_date = artist['birth date'];
-    }
-    if (artist['death date']) {
-      tags.death_date = artist['death date'];
-    }
-
-    // Add websites if available
-    if (artist.websites && artist.websites.trim()) {
-      tags.websites = artist.websites;
-    }
-
-    // Generate external ID from name (for deduplication)
-    const externalId = `artist-json-${artist.name.toLowerCase().replace(/\s+/g, '-')}`;
+    // Use source_url as external ID if available (unique identifier from source system)
+    // Otherwise fall back to name-based ID
+    const externalId = artist.source_url 
+      ? artist.source_url 
+      : `artist-json-${artist.name.toLowerCase().replace(/\s+/g, '-')}`;
 
     return {
       lat: 0, // Artists don't have geographic location

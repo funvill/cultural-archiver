@@ -16,6 +16,7 @@
     "validateResponse": true,
     "transformData": false,
     "logRequests": true,
-    "logResponses": true
+    "logResponses": true,
+    "autoApproveArtists": true
   }
 }

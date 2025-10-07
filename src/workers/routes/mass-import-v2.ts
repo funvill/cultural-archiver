@@ -722,6 +722,7 @@ async function processSingleArtist(
       artistData.description || null,
       JSON.stringify({
         ...artistData.tags,
+        external_id: artistData.externalId, // Store externalId in tags for duplicate detection
         source: artistData.source,
         import_batch: request.metadata.importId,
       }),
