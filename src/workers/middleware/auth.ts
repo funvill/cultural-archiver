@@ -80,7 +80,8 @@ export async function ensureUserToken(
 
   // Get user permissions from database
   try {
-    const permissions = await getUserPermissions(c.env.DB, userToken);
+    const db = c.env.DB;
+    const permissions = await getUserPermissions(db, userToken);
     const isAdmin = permissions.includes('admin');
     const isModerator = permissions.includes('moderator');
 
@@ -125,7 +126,8 @@ export async function requireReviewer(
 
   try {
     // Check if user has moderator OR admin role (both can review)
-    const permissions = await getUserPermissions(c.env.DB, userToken);
+    const db = c.env.DB;
+    const permissions = await getUserPermissions(db, userToken);
     const hasReviewPermission = permissions.includes('moderator') || permissions.includes('admin');
 
     if (!hasReviewPermission) {
@@ -172,7 +174,8 @@ export async function requireAdmin(
     // Check database-backed admin permissions
     const { isAdmin } = await import('../lib/permissions');
     console.log('[REQUIRE ADMIN DEBUG] Calling isAdmin function with token:', userToken);
-    const hasAdminPermission = await isAdmin(c.env.DB, userToken);
+    const db = c.env.DB;
+    const hasAdminPermission = await isAdmin(db, userToken);
 
     console.log('[REQUIRE ADMIN DEBUG] isAdmin result:', {
       hasAdminPermission,
@@ -219,7 +222,8 @@ export async function checkEmailVerification(
 
       // First, check database for permanent user record with email verification
       try {
-        const stmt = c.env.DB.prepare(`
+        const db = c.env.DB;
+        const stmt = db.prepare(`
           SELECT email_verified_at 
           FROM users 
           WHERE uuid = ? AND email_verified_at IS NOT NULL

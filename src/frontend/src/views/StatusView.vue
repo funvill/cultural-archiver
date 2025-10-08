@@ -4,6 +4,7 @@ import { computed as vueComputed } from 'vue';
 import { apiService, getErrorMessage } from '../services/api';
 import { getApiBaseUrl } from '../utils/api-config';
 import { useNotificationsStore } from '../stores/notifications';
+import { useToasts } from '../composables/useToasts';
 
 const isLoading = ref(true);
 const status = ref<string>('');
@@ -160,9 +161,26 @@ function triggerTestNotification() {
     related_id: 'test-badge-123',
   };
 
-  // Add to notification store
-  notificationsStore.addNotification(mockBadgeNotification);
-  alert('Test notification added! Check the notification icon in the header.');
+  // Push as a badge toast through the central toast system so it shows the BadgeToast UI
+  try {
+    const { badge: pushBadge } = useToasts();
+    pushBadge(
+      {
+        badge_id: mockBadgeNotification.metadata.badge_id,
+        badge_key: mockBadgeNotification.metadata.badge_key,
+        title: mockBadgeNotification.metadata.badge_title || mockBadgeNotification.title,
+        description: mockBadgeNotification.metadata.award_reason,
+        icon_emoji: mockBadgeNotification.metadata.badge_icon_emoji,
+      },
+      8000
+    );
+    alert('Test badge toast pushed! You should see the BadgeToast animation.');
+  } catch (e) {
+    // Fallback to notifications store if something goes wrong
+    console.error('Failed to push badge toast, falling back to notifications store', e);
+    notificationsStore.addNotification(mockBadgeNotification);
+    alert('Test notification added to notification panel.');
+  }
 }
 
 function startConfetti() {

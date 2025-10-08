@@ -9,7 +9,11 @@ import type { Context } from 'hono';
 
 // Audit decision types
 export type ModerationDecision = 'approved' | 'rejected' | 'skipped';
-export type AdminActionType = 'grant_permission' | 'revoke_permission' | 'view_audit_logs';
+export type AdminActionType =
+  | 'grant_permission'
+  | 'revoke_permission'
+  | 'view_audit_logs'
+  | 'manual_social_post';
 
 // Interfaces for audit records
 export interface ModerationAuditData {
@@ -490,7 +494,12 @@ export async function getAuditStatistics(
       : [];
 
     // Process admin statistics
-    const adminCounts = { grant_permission: 0, revoke_permission: 0, view_audit_logs: 0 };
+    const adminCounts = {
+      grant_permission: 0,
+      revoke_permission: 0,
+      view_audit_logs: 0,
+      manual_social_post: 0,
+    };
     if (adminStats.success) {
       for (const row of adminStats.results) {
         const record = row as { action_type: AdminActionType; count: number };

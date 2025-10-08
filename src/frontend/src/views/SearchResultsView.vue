@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { MagnifyingGlassIcon, PhotoIcon } from '@heroicons/vue/24/outline';
 import { apiService } from '../services/api';
+import { useToasts } from '../composables/useToasts';
 
 // Router
 const route = useRoute();
@@ -48,7 +49,10 @@ async function performSearch(page = 1, append = false): Promise<void> {
     }
   } catch (error) {
     console.error('Search failed:', error);
-    // Handle error (could show toast notification)
+    // Show a global toast notification for search errors
+  const { error: toastError } = useToasts();
+  const errMsg = (error as any)?.message || String(error || 'Unknown error');
+  toastError(`Search failed: ${errMsg}`);
   } finally {
     isLoading.value = false;
   }

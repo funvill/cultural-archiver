@@ -463,6 +463,27 @@ export class AdminService {
     
     return result.data.date;
   }
+
+  /**
+   * Manual test trigger for a scheduled post - attempts to post immediately but does not modify schedule state
+   */
+  async testSocialMediaSchedule(
+    id: string,
+    options?: { commit?: boolean }
+  ): Promise<{ result: unknown; note?: string }>
+  {
+    const payload = options?.commit ? { commit: true } : {};
+    const result = await apiService.post<{ success: boolean; data: { result: unknown; note?: string } }>(
+      `/admin/social-media/schedule/${id}/test`,
+      payload
+    );
+
+    if (!result.success || !result.data) {
+      throw new Error('Failed to run manual social media test');
+    }
+
+    return result.data;
+  }
 }
 
 // Export singleton instance

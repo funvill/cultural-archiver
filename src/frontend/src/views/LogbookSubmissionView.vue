@@ -9,6 +9,7 @@ import { PhotoIcon, ExclamationTriangleIcon, CheckCircleIcon } from '@heroicons/
 import { useLogbookSubmissionStore } from '../stores/logbookSubmission';
 import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 import ConsentSection from '../components/FastWorkflow/ConsentSection.vue';
+import { useToasts } from '../composables/useToasts';
 
 const route = useRoute();
 const router = useRouter();
@@ -133,11 +134,13 @@ async function handleSubmit() {
     const result = await store.submitLogbookEntry(artworkId.value);
 
     if (result.success) {
-      // Redirect to artwork page with success parameter to show toast there
-      router.push({
-        path: `/artwork/${artworkId.value}`,
-        query: { submitted: 'true' },
-      });
+        // Show a global success toast and redirect to artwork page
+        const { success: toastSuccess } = useToasts();
+        toastSuccess('Logbook entry submitted — thank you!');
+        router.push({
+          path: `/artwork/${artworkId.value}`,
+          query: { submitted: 'true' },
+        });
     }
   } catch (error) {
     console.error('Submission failed:', error);

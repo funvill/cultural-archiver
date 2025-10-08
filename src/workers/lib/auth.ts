@@ -54,7 +54,8 @@ export async function generateUniqueUUID(env: WorkerEnv): Promise<string> {
     const uuid = generateUUID();
 
     // Check for collision in users table
-    const stmt = env.DB.prepare('SELECT uuid FROM users WHERE uuid = ?');
+    const db = env.DB;
+    const stmt = db.prepare('SELECT uuid FROM users WHERE uuid = ?');
     const existing = await stmt.bind(uuid).first();
 
     if (!existing) {
@@ -111,7 +112,8 @@ export async function createUserWithUUIDClaim(
     }
 
     // Create the user with claimed UUID
-    const stmt = env.DB.prepare(`
+    const db = env.DB;
+    const stmt = db.prepare(`
       INSERT INTO users (uuid, email, created_at, status)
       VALUES (?, ?, ?, 'active')
     `);
@@ -168,7 +170,8 @@ export async function getUUIDClaimInfo(
   }
 
   // Count existing submissions for this UUID
-  const stmt = env.DB.prepare(`
+  const db = env.DB;
+  const stmt = db.prepare(`
     SELECT COUNT(*) as count 
     FROM submissions 
     WHERE user_token = ? AND submission_type = 'logbook_entry'
@@ -192,7 +195,8 @@ export async function getUUIDClaimInfo(
  * Get user by UUID
  */
 export async function getUserByUUID(env: WorkerEnv, uuid: string): Promise<UserRecord | null> {
-  const stmt = env.DB.prepare('SELECT * FROM users WHERE uuid = ?');
+  const db = env.DB;
+  const stmt = db.prepare('SELECT * FROM users WHERE uuid = ?');
   const result = await stmt.bind(uuid).first();
   return result as UserRecord | null;
 }
@@ -201,7 +205,8 @@ export async function getUserByUUID(env: WorkerEnv, uuid: string): Promise<UserR
  * Get user by email address
  */
 export async function getUserByEmail(env: WorkerEnv, email: string): Promise<UserRecord | null> {
-  const stmt = env.DB.prepare('SELECT * FROM users WHERE email = ?');
+  const db = env.DB;
+  const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
   const result = await stmt.bind(email.toLowerCase().trim()).first();
   return result as UserRecord | null;
 }
@@ -211,7 +216,8 @@ export async function getUserByEmail(env: WorkerEnv, email: string): Promise<Use
  */
 export async function updateUserLastLogin(env: WorkerEnv, uuid: string): Promise<void> {
   const now = new Date().toISOString();
-  const stmt = env.DB.prepare('UPDATE users SET last_login = ? WHERE uuid = ?');
+  const db = env.DB;
+  const stmt = db.prepare('UPDATE users SET last_login = ? WHERE uuid = ?');
   await stmt.bind(now, uuid).run();
 }
 
@@ -220,12 +226,13 @@ export async function updateUserLastLogin(env: WorkerEnv, uuid: string): Promise
  */
 export async function updateUserEmailVerified(env: WorkerEnv, uuid: string): Promise<void> {
   const now = new Date().toISOString();
-  const stmt = env.DB.prepare('UPDATE users SET email_verified_at = ? WHERE uuid = ?');
+  const db = env.DB;
+  const stmt = db.prepare('UPDATE users SET email_verified_at = ? WHERE uuid = ?');
   await stmt.bind(now, uuid).run();
 
   // Check for email verification badges (non-blocking)
   try {
-    const badgeService = new BadgeService(env.DB);
+    const badgeService = new BadgeService(db);
     const badgeAwards = await badgeService.checkEmailVerificationBadge(uuid);
 
     if (badgeAwards.length > 0) {
@@ -280,7 +287,8 @@ export async function createSession(
   const tokenHash = await hashToken(sessionToken);
   const now = new Date().toISOString();
 
-  const stmt = env.DB.prepare(`
+  const db = env.DB;
+  const stmt = db.prepare(`
     INSERT INTO auth_sessions (
       id, user_uuid, token_hash, created_at, last_accessed_at,
       ip_address, user_agent, is_active, device_info
@@ -328,7 +336,8 @@ export async function validateSession(
   try {
     const tokenHash = await hashToken(token);
 
-    const stmt = env.DB.prepare(`
+    const db = env.DB;
+    const stmt = db.prepare(`
       SELECT * FROM auth_sessions 
       WHERE token_hash = ? AND is_active = TRUE
     `);
@@ -338,7 +347,7 @@ export async function validateSession(
     if (session) {
       // Update last accessed timestamp
       const now = new Date().toISOString();
-      const updateStmt = env.DB.prepare(`
+      const updateStmt = db.prepare(`
         UPDATE auth_sessions 
         SET last_accessed_at = ? 
         WHERE id = ?
@@ -359,7 +368,8 @@ export async function validateSession(
  * Deactivate a session (logout)
  */
 export async function deactivateSession(env: WorkerEnv, sessionId: string): Promise<void> {
-  const stmt = env.DB.prepare('UPDATE auth_sessions SET is_active = FALSE WHERE id = ?');
+  const db = env.DB;
+  const stmt = db.prepare('UPDATE auth_sessions SET is_active = FALSE WHERE id = ?');
   await stmt.bind(sessionId).run();
 }
 
@@ -367,7 +377,8 @@ export async function deactivateSession(env: WorkerEnv, sessionId: string): Prom
  * Deactivate all sessions for a user (global logout)
  */
 export async function deactivateAllUserSessions(env: WorkerEnv, userUUID: string): Promise<void> {
-  const stmt = env.DB.prepare('UPDATE auth_sessions SET is_active = FALSE WHERE user_uuid = ?');
+  const db = env.DB;
+  const stmt = db.prepare('UPDATE auth_sessions SET is_active = FALSE WHERE user_uuid = ?');
   await stmt.bind(userUUID).run();
 }
 
@@ -375,7 +386,8 @@ export async function deactivateAllUserSessions(env: WorkerEnv, userUUID: string
  * Get active sessions for a user
  */
 export async function getUserSessions(env: WorkerEnv, userUUID: string): Promise<SessionInfo[]> {
-  const stmt = env.DB.prepare(`
+  const db = env.DB;
+  const stmt = db.prepare(`
     SELECT id, user_uuid, created_at, last_accessed_at, ip_address, user_agent
     FROM auth_sessions 
     WHERE user_uuid = ? AND is_active = TRUE
@@ -446,7 +458,8 @@ export async function cleanupExpiredSessions(env: WorkerEnv): Promise<number> {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const stmt = env.DB.prepare(`
+  const db = env.DB;
+  const stmt = db.prepare(`
     DELETE FROM auth_sessions 
     WHERE is_active = FALSE 
     AND last_accessed_at < ?
@@ -470,13 +483,14 @@ export async function getAuthStats(env: WorkerEnv): Promise<{
 }> {
   const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
+  const db = env.DB;
   const queries = await Promise.all([
-    env.DB.prepare('SELECT COUNT(*) as count FROM users').first(),
-    env.DB.prepare(
+    db.prepare('SELECT COUNT(*) as count FROM users').first(),
+    db.prepare(
       'SELECT COUNT(*) as count FROM users WHERE email_verified_at IS NOT NULL'
     ).first(),
-    env.DB.prepare('SELECT COUNT(*) as count FROM auth_sessions WHERE is_active = TRUE').first(),
-    env.DB.prepare('SELECT COUNT(*) as count FROM users WHERE created_at LIKE ?')
+    db.prepare('SELECT COUNT(*) as count FROM auth_sessions WHERE is_active = TRUE').first(),
+    db.prepare('SELECT COUNT(*) as count FROM users WHERE created_at LIKE ?')
       .bind(`${today}%`)
       .first(),
   ]);

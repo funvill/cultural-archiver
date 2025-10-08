@@ -4,6 +4,6 @@
 // Then run: npm run bundle:templates
 
 export const BUNDLED_TEMPLATES: Record<string, string> = {
-  "bluesky": "{{title}}{{#if artist}} by {{artist}}{{/if}}\n\n{{#if location}}📍 {{location}}{{/if}}\n{{#if year}}📅 {{year}}{{/if}}\n\n{{#if description}}\n{{description}}\n{{/if}}\n\nMore information: {{url}}\n\n#PublicArt #UrbanArt #Art {{#if location}}#{{location}}{{/if}} {{#if location}}#{{tag:artwork_type}}{{/if}} {{#if keywords}}#{{keywords}}{{/if}}",
-  "instagram": "{{title}}{{#if artist}} by {{artist}}{{/if}}\n\n{{#if location}}📍 {{location}}{{/if}}\n{{#if year}}📅 {{year}}{{/if}}\n\n{{#if description}}\n{{description}}\n{{/if}}\n\nMore information: {{url}}\n\n#PublicArt #UrbanArt #Art {{#if location}}#{{location}}{{/if}} {{#if location}}#{{artwork_type}}{{/if}} {{#if keywords}}#{{keywords}}{{/if}}"
+  "bluesky": "{{title}}{{#if artist}} by {{artist}}{{/if}}\r\n\r\n{{#if location}}📍 {{location}}{{/if}}\r\n{{#if year}}📅 {{year}}{{/if}}\r\n\r\n{{#if description}}\r\n{{description}}\r\n{{/if}}\r\n\r\nMore information: {{url}}\r\n\r\n#PublicArt #UrbanArt #Art {{#if location}}#{{location}}{{/if}} {{#if location}}#{{tag:artwork_type}}{{/if}} {{#if keywords}}#{{keywords}}{{/if}}",
+  "instagram": "{{title}}{{#if artist}} by {{artist}}{{/if}}\r\n\r\n{{#if location}}📍 {{location}}{{/if}}\r\n{{#if year}}📅 {{year}}{{/if}}\r\n\r\n{{#if description}}\r\n{{description}}\r\n{{/if}}\r\n\r\nMore information: {{url}}\r\n\r\n#PublicArt #UrbanArt #Art {{#if location}}#{{location}}{{/if}} {{#if location}}#{{artwork_type}}{{/if}} {{#if keywords}}#{{keywords}}{{/if}}"
 };

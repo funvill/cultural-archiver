@@ -9,6 +9,7 @@ import PhotoCarousel from '../components/PhotoCarousel.vue';
 import TagBadge from '../components/TagBadge.vue';
 import FeedbackDialog from '../components/FeedbackDialog.vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
+import { useToasts } from '../composables/useToasts';
 import { apiService } from '../services/api';
 import type { ArtistApiResponse, ApiResponse } from '../../../shared/types';
 
@@ -34,8 +35,7 @@ const artist = ref<ArtistApiResponse | null>(null);
 // Feedback dialog state
 const showFeedbackDialog = ref(false);
 const feedbackMode = ref<'missing' | 'comment'>('comment');
-const showToast = ref(false);
-const toastMessage = ref('');
+const { success: toastSuccess } = useToasts();
 
 // Template refs
 const keyInput = ref<HTMLInputElement>();
@@ -254,11 +254,7 @@ function handleReportIssue(): void {
 function handleFeedbackSuccess(): void {
   showFeedbackDialog.value = false;
   announceSuccess('Thank you for your feedback! Moderators will review it shortly.');
-  showToast.value = true;
-  toastMessage.value = 'Feedback submitted successfully';
-  setTimeout(() => {
-    showToast.value = false;
-  }, 3000);
+  toastSuccess('Feedback submitted successfully');
 }
 
 function handleFeedbackCancel(): void {
@@ -662,23 +658,7 @@ onMounted(() => {
     </div>
   </div>
 
-  <!-- Success Toast -->
-  <div
-    v-if="showToast"
-    class="fixed bottom-4 left-1/2 transform -translate-x-1/2 transition-transform duration-300 ease-in-out z-50"
-    :class="{ 'translate-y-0': showToast, 'translate-y-full': !showToast }"
-  >
-    <div class="bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center">
-      <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-        <path
-          fill-rule="evenodd"
-          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-          clip-rule="evenodd"
-        ></path>
-      </svg>
-      <span>{{ toastMessage }}</span>
-    </div>
-  </div>
+  <!-- Global toasts are rendered by <Toasts /> in AppShell -->
 
   <!-- Feedback Dialog -->
   <FeedbackDialog

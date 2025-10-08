@@ -40,6 +40,7 @@ import MapWebGLLayer from './MapWebGLLayer.vue';
 import { useGridCluster } from '../composables/useGridCluster';
 import type { ClusterFeature } from '../composables/useGridCluster';
 import { useAnnouncer } from '../composables/useAnnouncer';
+import { useToasts } from '../composables/useToasts';
 import { createIconAtlas, DEFAULT_ICONS, type IconAtlas } from '../utils/iconAtlas';
 // Props
 const props = withDefaults(defineProps<MapComponentProps & { suppressFilterBanner?: boolean }>(), {
@@ -66,9 +67,8 @@ const isLoading = ref(true);
 const isLocating = ref(false);
 const error = ref<string | null>(null);
 const showLocationNotice = ref(false);
-// Transient error toast state (used when GPS/watchPosition errors occur)
-const showErrorToast = ref(false);
-const errorToastMessage = ref('');
+// Transient error toast state is handled by global toasts
+const { error: toastError } = useToasts();
 
 // Announcer for screen-reader announcements
 const { announceError } = useAnnouncer();
@@ -1572,8 +1572,7 @@ function centerOnUserLocation() {
       console.warn('getCurrentPosition error:', err);
       try {
         const msg = err && err.message ? `Location error: ${err.message}` : 'Unable to access your location.';
-        errorToastMessage.value = msg;
-        showErrorToast.value = true;
+        toastError(msg);
         try { announceError(msg); } catch (e) { /* ignore */ }
       } catch (e) {
         /* ignore */
@@ -2012,18 +2011,7 @@ watch(
       </div>
     </div>
 
-    <!-- Transient Error Toast (GPS / watchPosition failures) -->
-    <div
-      v-if="showErrorToast"
-      class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-50"
-      role="alert"
-      aria-live="assertive"
-    >
-      <div class="theme-error px-4 py-2 rounded-lg shadow-lg flex items-center space-x-3">
-        <ExclamationCircleIcon class="w-5 h-5" />
-        <span>{{ errorToastMessage }}</span>
-      </div>
-    </div>
+    <!-- GPS/location errors use the global toast system -->
 
     <!-- Progressive Loading Indicator -->
     <div

@@ -4,6 +4,7 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useArtworksStore } from '../stores/artworks';
 import { globalModal } from '../composables/useModal';
+import { useToasts } from '../composables/useToasts';
 import { apiService, getErrorMessage } from '../services/api';
 import { createApiUrl } from '../utils/api-config';
 import ArtworkEditDiffs from '../components/ArtworkEditDiffs.vue';
@@ -271,6 +272,10 @@ async function loadArtworkEdits() {
       `Failed to load artwork edits for review: ${getErrorMessage(err)}`,
       'Review Queue Error'
     );
+
+    // Also surface a transient toast for non-critical load issues
+    const { error: toastError } = useToasts();
+    toastError(`Could not load artwork edits: ${getErrorMessage(err)}`);
 
     // Don't throw - let the submission loading continue
   }

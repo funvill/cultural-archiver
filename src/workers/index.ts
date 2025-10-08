@@ -157,6 +157,7 @@ import {
   deleteSocialMediaSchedule,
   updateSocialMediaSchedule,
   getNextAvailableDate,
+  testSocialMediaSchedule,
 } from './routes/social-media-admin';
 import { debugStevenPermissions } from './routes/debug-permissions';
 import { fixPermissionsSchema } from './routes/fix-schema';
@@ -179,17 +180,32 @@ const app = new Hono<{ Bindings: WorkerEnv }>();
 const isDevelopment = typeof process !== 'undefined' && process.env.NODE_ENV === 'development';
 initializePages(isDevelopment);
 
+// Helper function to get the database binding
+const getDatabase = (env: WorkerEnv): D1Database | undefined => {
+  return env.DB;
+};
+
+// Helper function to get the photos bucket binding
+const getPhotosBucket = (env: WorkerEnv): R2Bucket | undefined => {
+  return env.PHOTOS_BUCKET;
+};
+
 // Add binding validation middleware - CRITICAL for deployment diagnosis
 app.use('*', async (c, next) => {
   const missingBindings = [];
 
-  // Check critical bindings
-  if (!c.env.DB) missingBindings.push('DB (D1 Database)');
+  // Check critical bindings using helper functions
+  const db = getDatabase(c.env);
+  const photosBucket = getPhotosBucket(c.env);
+  
+  if (!db) missingBindings.push('DB (D1 Database)');
   if (!c.env.SESSIONS) missingBindings.push('SESSIONS (KV)');
   if (!c.env.CACHE) missingBindings.push('CACHE (KV)');
   if (!c.env.RATE_LIMITS) missingBindings.push('RATE_LIMITS (KV)');
   if (!c.env.MAGIC_LINKS) missingBindings.push('MAGIC_LINKS (KV)');
-  if (!c.env.PHOTOS_BUCKET) missingBindings.push('PHOTOS_BUCKET (R2)');
+  if (!photosBucket) missingBindings.push('PHOTOS_BUCKET (R2)');
+
+  // Continue with request processing - bindings are validated above
 
   // If critical bindings are missing, return a helpful error instead of "hello world"
   if (missingBindings.length > 0) {
@@ -1303,6 +1319,12 @@ app.patch('/api/admin/social-media/schedule/:id', withErrorHandling(updateSocial
 
 // GET /api/admin/social-media/next-available-date - Find next available posting date
 app.get('/api/admin/social-media/next-available-date', withErrorHandling(getNextAvailableDate));
+
+// POST /api/admin/social-media/schedule/:id/test - Manual test trigger for a scheduled post
+app.post(
+  '/api/admin/social-media/schedule/:id/test',
+  withErrorHandling(testSocialMediaSchedule)
+);
 
 // Temporarily commented out - missing admin-update route file
 // app.post('/api/dev/update-steven-permissions', ensureUserToken, withErrorHandling(updateStevenPermissions));

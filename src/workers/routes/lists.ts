@@ -506,10 +506,10 @@ export async function getOrCreateSystemList(
   userToken: string, 
   listName: SpecialListName
 ): Promise<ListRecord> {
-  const db = createDatabaseService(c.env.DB);
+  const database = c.env.DB;
 
   // Check if system list already exists
-  const existingListStmt = db.db.prepare(
+  const existingListStmt = database.prepare(
     'SELECT * FROM lists WHERE owner_user_id = ? AND name = ? AND is_system_list = 1'
   );
   const existingList = await existingListStmt.bind(userToken, listName).first<ListRecord>();
@@ -522,7 +522,7 @@ export async function getOrCreateSystemList(
   const listId = generateUUID();
   const now = new Date().toISOString();
 
-  const insertStmt = db.db.prepare(`
+  const insertStmt = database.prepare(`
     INSERT INTO lists (id, owner_user_id, name, visibility, is_readonly, is_system_list, created_at, updated_at)
     VALUES (?, ?, ?, 'unlisted', 0, 1, ?, ?)
   `);

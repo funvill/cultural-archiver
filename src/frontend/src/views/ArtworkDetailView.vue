@@ -32,9 +32,9 @@ const route = useRoute();
 // Announcer for screen reader feedback
 const { announceError, announceSuccess } = useAnnouncer();
 
-// Toast state for submission success
-const showToast = ref(false);
-const toastMessage = ref('');
+// Global toast helpers (success/info/error)
+import { useToasts } from '../composables/useToasts';
+const { success: toastSuccess } = useToasts();
 
 // Add to list dialog state
 const showAddToListDialog = ref(false);
@@ -447,7 +447,7 @@ onMounted(async () => {
 
     // Check for submission success parameter
     if (route.query.submitted === 'true') {
-      showSuccessToast('Logbook entry submitted for review!');
+        toastSuccess('Logbook entry submitted for review!');
       // Clean up the URL parameter
       router.replace({ path: route.path });
     }
@@ -455,13 +455,6 @@ onMounted(async () => {
 });
 
 // Methods
-function showSuccessToast(message: string) {
-  toastMessage.value = message;
-  showToast.value = true;
-  setTimeout(() => {
-    showToast.value = false;
-  }, 5000);
-}
 
 function handlePhotoFullscreen(photoUrl: string): void {
   fullscreenPhotoUrl.value = photoUrl;
@@ -508,11 +501,7 @@ function goToMap(): void {
 // Add-to-list dialog is opened by the action bar component; removed local opener
 
 function handleAddedToList(listNames: string): void {
-  showToast.value = true;
-  toastMessage.value = `Added to list: ${listNames}`;
-  setTimeout(() => {
-    showToast.value = false;
-  }, 3000);
+  toastSuccess(`Added to list: ${listNames}`);
 }
 
 // Edit mode methods
@@ -682,11 +671,7 @@ function handleReportIssue(): void {
 function handleFeedbackSuccess(): void {
   showFeedbackDialog.value = false;
   announceSuccess('Thank you for your feedback! Moderators will review it shortly.');
-  showToast.value = true;
-  toastMessage.value = 'Feedback submitted successfully';
-  setTimeout(() => {
-    showToast.value = false;
-  }, 3000);
+  toastSuccess('Feedback submitted successfully');
 }
 
 function handleFeedbackCancel(): void {
@@ -1171,19 +1156,7 @@ function handleFeedbackCancel(): void {
     </div>
   </div>
 
-  <!-- Success Toast -->
-  <div v-if="showToast" data-testid="success-toast"
-    class="fixed bottom-4 left-1/2 transform -translate-x-1/2 transition-transform duration-300 ease-in-out z-50"
-    :class="{ 'translate-y-0': showToast, 'translate-y-full': !showToast }">
-  <div class="theme-success px-6 py-3 rounded-lg shadow-lg flex items-center">
-      <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-        <path fill-rule="evenodd"
-          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-          clip-rule="evenodd"></path>
-      </svg>
-      <span>{{ toastMessage }}</span>
-    </div>
-  </div>
+  <!-- Global toasts are rendered by <Toasts /> in AppShell -->
 
   <!-- Add to List Dialog -->
   <AddToListDialog 

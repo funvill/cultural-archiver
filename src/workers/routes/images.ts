@@ -22,6 +22,7 @@ import {
   validateImageData,
   getContentType,
 } from '../lib/image-processing';
+import { extractR2KeyFromRef } from '../lib/photos';
 
 const app = new Hono<{ Bindings: WorkerEnv }>();
 
@@ -114,7 +115,7 @@ app.get('/:size/*', async (c) => {
     }
 
     // Only allow images from specific prefixes (security)
-    const hasValidPrefix = allowedPrefixes.some((prefix) => imagePath.startsWith(prefix));
+    const hasValidPrefix = allowedPrefixes.some((prefix) => imagePath?.startsWith(prefix));
     if (!hasValidPrefix) {
       throw new ApiError(
         'Image path must start with artworks/, submissions/, originals/, or photos/',
@@ -122,6 +123,16 @@ app.get('/:size/*', async (c) => {
         403
       );
     }
+
+    // Extract the actual R2 key from the image path
+    // This handles cases where the path includes '/photos/' prefix that needs to be stripped
+    const r2Key = extractR2KeyFromRef(imagePath);
+    if (!r2Key) {
+      throw new ApiError('Unable to determine R2 key from image path', 'INVALID_R2_KEY', 400);
+    }
+    
+    // Use the extracted R2 key for all operations
+    imagePath = r2Key;
 
     const bucket = c.env.PHOTOS_BUCKET;
     if (!bucket) {
@@ -204,7 +215,21 @@ app.get('/:size/*', async (c) => {
         },
       });
 
-      // Redirect to the photos domain so the file is served from R2 with proper caching
+      // In local development, serve the image directly instead of redirecting
+      // This avoids issues with R2 public URL not being available locally
+      if (isLocalDev) {
+        return new Response(resized.data, {
+          status: 200,
+          headers: {
+            'Content-Type': resized.contentType,
+            'X-Image-Variant': size,
+            'X-Generated': 'true',
+            'Cache-Control': 'public, max-age=31536000, immutable',
+          },
+        });
+      }
+
+      // In production, redirect to the photos domain so the file is served from R2 with proper caching
       const photosBaseUrl = c.env.PHOTOS_BASE_URL || 'https://photos.publicartregistry.com';
       const redirectUrl = `${photosBaseUrl}/${variantKey}`;
       return new Response(null, {
@@ -222,7 +247,26 @@ app.get('/:size/*', async (c) => {
       throw new ApiError('Image not found', 'IMAGE_NOT_FOUND', 404);
     }
 
-    // Variant/original exists - redirect to the photos domain
+    // Detect local development environment
+    const isLocalDev = c.env.ENVIRONMENT === 'development' || !c.env.ENVIRONMENT;
+
+    // In local development, serve the image directly from R2
+    if (isLocalDev) {
+      const imageData = await object.arrayBuffer();
+      const contentType = object.httpMetadata?.contentType || 'image/jpeg';
+      
+      return new Response(imageData, {
+        status: 200,
+        headers: {
+          'Content-Type': contentType,
+          'X-Image-Variant': size,
+          'X-Generated': 'false',
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      });
+    }
+
+    // In production, variant/original exists - redirect to the photos domain
     const photosBaseUrl = c.env.PHOTOS_BASE_URL || 'https://photos.publicartregistry.com';
     const redirectUrl = `${photosBaseUrl}/${variantKey}`;
     return new Response(null, {

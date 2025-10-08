@@ -181,6 +181,8 @@ function getActionColor(action: string): string {
       return 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-400';
     case 'revoke_permission':
       return 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400';
+    case 'manual_social_post':
+      return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400';
     case 'view_audit_logs':
       return 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400';
     default:
@@ -260,6 +262,7 @@ function getActionColor(action: string): string {
             <option value="">All Actions</option>
             <option value="grant_permission">Grant Permission</option>
             <option value="revoke_permission">Revoke Permission</option>
+            <option value="manual_social_post">Manual Social Post</option>
             <option value="view_audit_logs">View Audit Logs</option>
           </select>
         </div>

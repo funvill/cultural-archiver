@@ -1,4 +1,10 @@
 <script setup lang="ts">
+// Note: BadgeToast is a presentational component that renders badge celebration
+// notifications (confetti, large visual treatment). It is intentionally
+// standalone and not wired directly into the global `useToasts()` store.
+// If centralized behavior is needed in future, consider adding an adapter that
+// pushes a structured toast payload into the store and letting the global
+// `Toasts.vue` render or delegate to this component.
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 

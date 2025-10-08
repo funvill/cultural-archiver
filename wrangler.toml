@@ -19,7 +19,7 @@ zone_name = "publicartregistry.com"
 
 # D1 Database bindings
 [[env.development.d1_databases]]
-binding = "DevDB"
+binding = "DB"
 database_name = "development-public-art-registry"
 database_id = "fbc97d1f-4b42-4eba-8759-c69f21be7819"
 
@@ -49,23 +49,23 @@ id = "5b69d7c338734f3aa56cea9c1f3930f7"
 
 [[env.production.kv_namespaces]]
 binding = "SESSIONS"
-id = "c991e608759d45bdae4198b72955da5f"  # Must be replaced with actual production KV namespace ID
+id = "c991e608759d45bdae4198b72955da5f"  
 
 [[env.production.kv_namespaces]]
 binding = "CACHE"
-id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  # Must be replaced with actual production KV namespace ID
+id = "91052eaeeef24b6fab6ac2b3c75b8b0b"  
 
 [[env.production.kv_namespaces]]
 binding = "RATE_LIMITS"
-id = "81aa51ca054d46b18977670c3dff6c04"  # Must be replaced with actual production KV namespace ID
+id = "81aa51ca054d46b18977670c3dff6c04"  
 
 [[env.production.kv_namespaces]]
 binding = "MAGIC_LINKS"
-id = "5b69d7c338734f3aa56cea9c1f3930f7"  # Must be replaced with actual production KV namespace ID
+id = "5b69d7c338734f3aa56cea9c1f3930f7"  
 
 # R2 bucket bindings
 [[env.development.r2_buckets]]
-binding = "DEV_PHOTOS_BUCKET"
+binding = "PHOTOS_BUCKET"
 bucket_name = "development-public-art-registry-photos"
 
 [[env.production.r2_buckets]]

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { adminService } from '../services/admin';
+import { useToasts } from '../composables/useToasts';
 import type { SocialMediaScheduleApiResponse } from '../../../shared/types';
 
 /**
@@ -23,7 +24,12 @@ const selectedSchedule = ref<SocialMediaScheduleApiResponse | null>(null);
 const showModal = ref(false);
 const isDeleting = ref(false);
 const isUpdating = ref(false);
+const isTesting = ref(false);
+const testResult = ref<any | null>(null);
+const commitResult = ref(false);
 const error = ref<string | null>(null);
+// Use global toast helpers for transient feedback
+const { success: toastSuccess, error: toastError } = useToasts();
 
 // Editable fields
 const editedBody = ref('');
@@ -79,6 +85,9 @@ function closeModal(): void {
   editedBody.value = '';
   editedDate.value = '';
   error.value = null;
+  isTesting.value = false;
+  testResult.value = null;
+  commitResult.value = false;
 }
 
 // Delete schedule
@@ -137,6 +146,44 @@ async function updateSchedule(): Promise<void> {
     error.value = err instanceof Error ? err.message : 'Failed to update schedule';
   } finally {
     isUpdating.value = false;
+  }
+}
+
+// Run manual test (commit optional)
+async function runTest(): Promise<void> {
+  if (!selectedSchedule.value) return;
+
+  if (commitResult.value && !window.confirm('This will mark the schedule as posted/failed in the database. Continue?')) {
+    return;
+  }
+
+  isTesting.value = true;
+  testResult.value = null;
+
+  try {
+    const res = await adminService.testSocialMediaSchedule(selectedSchedule.value.id, { commit: commitResult.value });
+    testResult.value = res;
+    // If commit was requested, refresh schedules in parent and show a toast
+    if (commitResult.value) {
+      // Emit an event to let parent reload schedules (matches defined emit)
+      emit('scheduleUpdated');
+      // Show toast based on result - check known fields safely
+      const resultObj = (res && (res as any).result) || (res && (res as any).data && (res as any).data.result) || null;
+      const hadUrl = !!(resultObj && (resultObj as any).post_url);
+      const hadError = !!(resultObj && (resultObj as any).error);
+      if (hadUrl || (resultObj && !hadError)) {
+        toastSuccess('Post committed and schedule updated.');
+      } else {
+        toastError('Commit attempted but failed. See details below.');
+      }
+    }
+  } catch (e) {
+    testResult.value = { success: false, error: e instanceof Error ? e.message : String(e) };
+    if (commitResult.value) {
+  toastError('Commit attempted but an error occurred.');
+    }
+  } finally {
+    isTesting.value = false;
   }
 }
 
@@ -335,6 +382,21 @@ function getPlatformColor(platform: string): string {
             >
               {{ isUpdating ? 'Saving...' : 'Save Changes' }}
             </button>
+                    <div class="mt-3 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm space-y-2">
+                      <label class="inline-flex items-center space-x-2">
+                        <input type="checkbox" v-model="commitResult" class="form-checkbox h-4 w-4 text-yellow-600" />
+                        <span class="text-sm text-gray-700 dark:text-gray-200">Commit result</span>
+                      </label>
+
+                      <button
+                        @click="runTest"
+                        :disabled="isUpdating || isDeleting || isTesting"
+                        type="button"
+                        class="w-full inline-flex justify-center rounded-md border border-yellow-300 dark:border-yellow-600 shadow-sm px-4 py-2 bg-white dark:bg-yellow-800 text-base font-medium text-yellow-700 dark:text-yellow-300 hover:bg-yellow-50 dark:hover:bg-yellow-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 sm:ml-0 sm:w-auto sm:text-sm disabled:opacity-50"
+                      >
+                        {{ isTesting ? 'Testing...' : commitResult ? 'Test & Commit' : 'Test Now' }}
+                      </button>
+                    </div>
             <button
               @click="deleteSchedule"
               :disabled="isUpdating || isDeleting"
@@ -351,6 +413,43 @@ function getPlatformColor(platform: string): string {
             >
               Cancel
             </button>
+          </div>
+          <!-- Toasts now handled globally by <Toasts /> -->
+          <!-- Test result -->
+          <div v-if="testResult" class="px-6 pb-4">
+            <h5 class="text-sm font-medium text-gray-900 dark:text-white">Test Result</h5>
+            <div class="mt-2 text-sm text-gray-700 dark:text-gray-200">
+              <div v-if="testResult.data && testResult.data.result">
+                <div v-if="testResult.data.result.post_url">
+                  <p>Post published:</p>
+                  <a :href="testResult.data.result.post_url" target="_blank" rel="noopener" class="text-blue-600 dark:text-blue-300 break-all">{{ testResult.data.result.post_url }}</a>
+                </div>
+                <div v-else-if="testResult.data.result.error">
+                  <p class="font-semibold text-red-700 dark:text-red-300">Error:</p>
+                  <pre class="mt-2 text-xs bg-gray-100 dark:bg-gray-800 rounded p-2 overflow-x-auto">{{ testResult.data.result.error }}</pre>
+                </div>
+                <div v-else>
+                  <pre class="mt-2 text-xs bg-gray-100 dark:bg-gray-800 rounded p-2 overflow-x-auto">{{ JSON.stringify(testResult.data.result, null, 2) }}</pre>
+                </div>
+              </div>
+              <div v-else-if="testResult.result">
+                <!-- Response shape from earlier implementations -->
+                <div v-if="testResult.result.post_url">
+                  <p>Post published:</p>
+                  <a :href="testResult.result.post_url" target="_blank" rel="noopener" class="text-blue-600 dark:text-blue-300 break-all">{{ testResult.result.post_url }}</a>
+                </div>
+                <div v-else-if="testResult.result.error">
+                  <p class="font-semibold text-red-700 dark:text-red-300">Error:</p>
+                  <pre class="mt-2 text-xs bg-gray-100 dark:bg-gray-800 rounded p-2 overflow-x-auto">{{ testResult.result.error }}</pre>
+                </div>
+                <div v-else>
+                  <pre class="mt-2 text-xs bg-gray-100 dark:bg-gray-800 rounded p-2 overflow-x-auto">{{ JSON.stringify(testResult.result, null, 2) }}</pre>
+                </div>
+              </div>
+              <div v-else>
+                <pre class="mt-2 text-xs bg-gray-100 dark:bg-gray-800 rounded p-2 overflow-x-auto">{{ JSON.stringify(testResult, null, 2) }}</pre>
+              </div>
+            </div>
           </div>
         </div>
       </div>
