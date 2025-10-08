@@ -1102,7 +1102,7 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
     // Get artworks with type information and primary artist
     const artworksQuery = `
       SELECT a.id, a.lat, a.lon, a.created_at, a.status, a.tags, 
-             a.title, a.description,
+             a.title, a.description, a.photos,
              COALESCE(json_extract(a.tags, '$.artwork_type'), 'unknown') as type_name,
              COALESCE(art.name, 'Unknown Artist') as primary_artist_name
       FROM artwork a
@@ -1123,17 +1123,33 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
           primary_artist_name?: string;
         })[]) || []
       ).map(async artwork => {
-        // Get logbook entries for this artwork to find photos
+        // Get photos from artwork record and logbook entries
+        const allPhotos: string[] = [];
+
+        // First, add photos from the artwork record itself
+        if (artwork.photos) {
+          try {
+            const artworkPhotos = safeJsonParse<string[]>(artwork.photos, []);
+            artworkPhotos.forEach(p => {
+              if (typeof p === 'string' && !allPhotos.includes(p)) allPhotos.push(p);
+            });
+          } catch (e) {
+            console.warn('Failed to parse artwork-level photos for artworks list', e);
+          }
+        }
+
+        // Then, get logbook entries for this artwork to find additional photos
         const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(
           c.env.DB,
           artwork.id
         );
-        const allPhotos: string[] = [];
 
         logbookEntries.forEach(entry => {
           if (entry.photos) {
             const photos = safeJsonParse<string[]>(entry.photos, []);
-            allPhotos.push(...photos);
+            photos.forEach(p => {
+              if (typeof p === 'string' && !allPhotos.includes(p)) allPhotos.push(p);
+            });
           }
         });
 
