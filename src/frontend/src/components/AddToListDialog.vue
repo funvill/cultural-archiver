@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue';
-import { useAuthStore } from '../stores/auth';
+import { ref, computed, watch } from 'vue';
+import { useUserLists } from '../composables/useUserLists';
 import { apiService } from '../services/api';
+import type { ListApiResponse } from '../../../shared/types';
 
 // Props
 interface Props {
@@ -14,48 +15,28 @@ const props = defineProps<Props>();
 // Emits
 const emit = defineEmits<{
   'update:modelValue': [value: boolean];
-
   addedToList: [listName: string];
 }>();
 
-// Stores
-const authStore = useAuthStore();
+// Use cached user lists composable
+const { lists, fetchUserLists, refreshLists } = useUserLists();
 
 // State
 const loading = ref(false);
 const error = ref<string | null>(null);
-const userLists = ref<any[]>([]);
 const newListName = ref('');
 const selectedLists = ref<Set<string>>(new Set());
+
+// Computed - filter to show only custom user lists (not system lists)
+const userLists = computed(() => {
+  return lists.value.filter((list: ListApiResponse) => !list.is_system_list);
+});
 
 // Computed
 const isOpen = computed({
   get: () => props.modelValue,
   set: (value: boolean) => emit('update:modelValue', value)
 });
-
-// Load user's lists
-const loadUserLists = async () => {
-  if (!authStore.isAuthenticated) return;
-  
-  loading.value = true;
-  error.value = null;
-  
-  try {
-    const response = await apiService.getUserLists();
-    if (response.success && response.data) {
-      userLists.value = response.data.filter((list: any) => 
-        !list.is_system_list // Only show user lists, hide all system lists
-      );
-    } else {
-      error.value = response.error || 'Failed to load lists';
-    }
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load lists';
-  } finally {
-    loading.value = false;
-  }
-};
 
 // Create new list
 const createList = async () => {
@@ -68,14 +49,8 @@ const createList = async () => {
     const response = await apiService.createList(newListName.value.trim());
     
     if (response.success && response.data) {
-      // Add the new list to the local array
-      userLists.value.push({
-        id: response.data.id,
-        name: response.data.name,
-        item_count: 0,
-        is_system_list: false,
-        is_readonly: false
-      });
+      // Refresh the lists cache to include the new list
+      await refreshLists();
       
       // Select the new list
       selectedLists.value.add(response.data.id);
@@ -105,7 +80,7 @@ const addToLists = async () => {
   
   try {
     const promises = Array.from(selectedLists.value).map(listId => 
-      apiService.addArtworkToList(listId, props.artworkId)
+      apiService.addArtworkToList(String(listId), props.artworkId)
     );
     
     const results = await Promise.allSettled(promises);
@@ -115,9 +90,11 @@ const addToLists = async () => {
     
     if (failures.length === 0) {
       const listNames = Array.from(selectedLists.value).map(listId => 
-        userLists.value.find(list => list.id === listId)?.name || 'Unknown List'
+        userLists.value.find((list: ListApiResponse) => list.id === String(listId))?.name || 'Unknown List'
       );
       
+      // Refresh lists to update item counts
+      await refreshLists();
 
       emit('addedToList', listNames.join(', '));
       closeDialog();
@@ -148,17 +125,11 @@ const closeDialog = () => {
   error.value = null;
 };
 
-// Load lists when dialog opens
-// Load lists when dialog opens (watch v-model) so lists appear whenever the
-// dialog is toggled open. Also load once on mount in case it's already open.
-onMounted(() => {
-  if (isOpen.value) {
-    loadUserLists();
+// Load lists when dialog opens - the composable will use cache if available
+watch(isOpen, (val: boolean) => {
+  if (val) {
+    fetchUserLists();
   }
-});
-
-watch(isOpen, (val) => {
-  if (val) loadUserLists();
 });
 </script>
 
@@ -218,22 +189,22 @@ watch(isOpen, (val) => {
                 v-for="list in userLists" 
                 :key="list.id"
                 class="flex items-center p-2 rounded-lg hover:bg-gray-50 cursor-pointer"
-                :class="{ 'opacity-50': list.item_count >= 1000 }"
+                :class="{ 'opacity-50': (list.item_count ?? 0) >= 1000 }"
               >
                 <input 
                   type="checkbox"
                   :checked="selectedLists.has(list.id)"
                   @change="toggleList(list.id)"
-                  :disabled="list.item_count >= 1000"
+                  :disabled="(list.item_count ?? 0) >= 1000"
                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
                 />
                 <div class="ml-3 flex-1">
                   <div class="flex items-center justify-between">
                     <span class="text-sm font-medium text-gray-900">
                       {{ list.name }}
-                      <span v-if="list.item_count >= 1000" class="text-xs text-gray-500">(full)</span>
+                      <span v-if="(list.item_count ?? 0) >= 1000" class="text-xs text-gray-500">(full)</span>
                     </span>
-                    <span class="text-xs text-gray-500">{{ list.item_count }} items</span>
+                    <span class="text-xs text-gray-500">{{ list.item_count ?? 0 }} items</span>
                   </div>
                 </div>
               </label>

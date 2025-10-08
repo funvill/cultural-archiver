@@ -4,6 +4,8 @@
 
 import exifr from 'exifr';
 import type { Coordinates } from '../types';
+import type { PhotoVariant } from '../../../shared/types';
+import { getApiBaseUrl } from './api-config';
 
 export interface ExifData {
   latitude?: number;
@@ -393,4 +395,114 @@ export async function processImageBatch(
   }
 
   return results;
+}
+
+/**
+ * Get the sized image URL for on-demand resizing
+ * 
+ * Constructs a URL to the image resizing API endpoint that will serve
+ * the requested size variant. If the variant doesn't exist, it will be
+ * generated on the fly.
+ * 
+ * @param originalUrl - Original image URL (e.g., "artworks/2024/01/15/image.jpg")
+ * @param size - Desired image size variant
+ * @returns API endpoint URL for the sized image
+ * 
+ * @example
+ * ```ts
+ * const thumbnailUrl = getImageSizedURL('artworks/2024/01/15/image.jpg', 'thumbnail');
+ * // Development: "/api/images/thumbnail/artworks/2024/01/15/image.jpg"
+ * // Production: "https://api.publicartregistry.com/api/images/thumbnail/artworks/2024/01/15/image.jpg"
+ * ```
+ */
+export function getImageSizedURL(originalUrl: string, size: PhotoVariant = 'original'): string {
+  // For original variant, return the URL unchanged
+  if (size === 'original') {
+    return originalUrl;
+  }
+  
+  let cleanUrl = originalUrl;
+  
+  // Check if it's a full URL (http://, https://) or protocol-relative URL (//)
+  if (originalUrl.startsWith('http://') || originalUrl.startsWith('https://') || originalUrl.startsWith('//')) {
+    // Extract the R2 key from full photo URLs
+    // Example: https://photos.publicartregistry.com/originals/2025/10/04/file.jpg
+    //       -> originals/2025/10/04/file.jpg
+    const allowedPrefixes = ['originals/', 'photos/', 'artworks/', 'submissions/'];
+    
+    for (const prefix of allowedPrefixes) {
+      const idx = originalUrl.indexOf(prefix);
+      if (idx >= 0) {
+        cleanUrl = originalUrl.substring(idx);
+        break;
+      }
+    }
+    
+    // If no allowed prefix found, use the full URL as-is
+    // (the backend will handle extraction if needed)
+  } else {
+    // Relative path - remove leading slash if present
+    cleanUrl = originalUrl.replace(/^\//, '');
+  }
+  
+  // Construct the API endpoint URL
+  // In production: https://api.publicartregistry.com/api/images/thumbnail/...
+  // In development: /api/images/thumbnail/...
+  const apiBaseUrl = getApiBaseUrl();
+  const apiUrl = `${apiBaseUrl}/images/${size}/${cleanUrl}`;
+  
+  return apiUrl;
+}
+
+/**
+ * Get multiple size variants for an image
+ * 
+ * @param originalUrl - Original image URL
+ * @returns Object with URLs for all size variants
+ * 
+ * @example
+ * ```ts
+ * const urls = getImageVariantURLs('artworks/2024/01/15/image.jpg');
+ * // Returns: {
+ * //   thumbnail: "https://api.publicartregistry.com/api/images/thumbnail/artworks/...",
+ * //   medium: "https://api.publicartregistry.com/api/images/medium/artworks/...",
+ * //   large: "https://api.publicartregistry.com/api/images/large/artworks/...",
+ * //   original: "https://api.publicartregistry.com/api/images/original/artworks/..."
+ * // }
+ * ```
+ */
+export function getImageVariantURLs(originalUrl: string): Record<PhotoVariant, string> {
+  return {
+    thumbnail: getImageSizedURL(originalUrl, 'thumbnail'),
+    medium: getImageSizedURL(originalUrl, 'medium'),
+    large: getImageSizedURL(originalUrl, 'large'),
+    original: getImageSizedURL(originalUrl, 'original'),
+  };
+}
+
+/**
+ * Preload image variants to warm the cache
+ * 
+ * This function creates Image elements to trigger browser and CDN caching
+ * for multiple image sizes. Useful after uploading a new image.
+ * 
+ * @param originalUrl - Original image URL
+ * @param sizes - Array of sizes to preload (defaults to all)
+ * @returns Promise that resolves when all images are loaded or fail
+ */
+export function preloadImageVariants(
+  originalUrl: string,
+  sizes: PhotoVariant[] = ['thumbnail', 'medium', 'large']
+): Promise<void> {
+  // Create link elements for preloading images using browser's prefetch mechanism
+  sizes.forEach(size => {
+    const link = document.createElement('link');
+    link.rel = 'prefetch';
+    link.as = 'image';
+    link.href = getImageSizedURL(originalUrl, size);
+    document.head.appendChild(link);
+  });
+  
+  // Return resolved promise for compatibility
+  return Promise.resolve();
 }

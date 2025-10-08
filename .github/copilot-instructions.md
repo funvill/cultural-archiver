@@ -2,14 +2,12 @@
 
 ## Very important, Read and understand these first.
 
-- Developed on a Windows computer using PowerShell. Commands should be PowerShell compliant. Use PowerShell syntax instead
-  - Use `Invoke-WebRequest` instead of `curl`
 - Use Playwright-MCP over `simple browser` to debugging
 - When starting a devlopment server for testing, use `npm run devout`. This produces a log file `dev-server-logs.txt` that contains the server logs
 - [ ] `npm run test` passes with 0 failures
 - [ ] `npm run build` completes with 0 errors
-- The project is in pre-release. We can recreate the database and lose data at this stage. In backward compatibility is not required. I prefer database replacement over migration
-- When working with Wrangler, use `CI=true` environment variable to ensure that its set to non interactive mode. This asks me less questions
+- The project has been released. Double check and review all changes to the database. Check the `docs\database.md` document for field and table names. Keep this document up to date after each migration.
+- Artwork table is called "artwork" (singular) not artworks (plural) with a s
 
 ## Settings
 
@@ -124,7 +122,6 @@ The project includes a comprehensive database migration system for managing Clou
 ```powershell
 npm run database:export:dev     # Export development database
 npm run database:export:prod    # Export production database
-npm run database:export:staging # Export staging database
 ```
 
 **Apply Migrations:**
@@ -132,7 +129,6 @@ npm run database:export:staging # Export staging database
 ```powershell
 npm run database:migration:dev     # Apply migrations to development
 npm run database:migration:prod    # Apply migrations to production
-npm run database:migration:staging # Apply migrations to staging
 ```
 
 **Import SQL Files:**
@@ -140,7 +136,6 @@ npm run database:migration:staging # Apply migrations to staging
 ```powershell
 npm run database:import:dev <file.sql>     # Import to development
 npm run database:import:prod <file.sql>    # Import to production
-npm run database:import:staging <file.sql> # Import to staging
 ```
 
 **Migration Status:**

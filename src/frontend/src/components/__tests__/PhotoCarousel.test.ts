@@ -182,7 +182,8 @@ describe('PhotoCarousel', () => {
       await photoContainer.trigger('click');
 
       expect(wrapper.emitted('fullscreen')).toBeTruthy();
-      expect(wrapper.emitted('fullscreen')?.[0]).toEqual([mockPhotos[0]]);
+      // PhotoCarousel emits the large variant URL for fullscreen
+      expect(wrapper.emitted('fullscreen')?.[0]).toEqual(['/api/images/large/https://example.com/photo1.jpg']);
     });
   });
 
@@ -290,7 +291,8 @@ describe('PhotoCarousel', () => {
       await carousel.trigger('keydown', { key: 'Enter' });
 
       expect(wrapper.emitted('fullscreen')).toBeTruthy();
-      expect(wrapper.emitted('fullscreen')?.[0]).toEqual([mockPhotos[0]]);
+      // PhotoCarousel emits the large variant URL for fullscreen
+      expect(wrapper.emitted('fullscreen')?.[0]).toEqual(['/api/images/large/https://example.com/photo1.jpg']);
     });
   });
 

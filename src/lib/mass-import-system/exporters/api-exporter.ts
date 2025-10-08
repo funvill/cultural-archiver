@@ -19,6 +19,11 @@ import type { RawImportData, ValidationResult } from '../types/index.js';
 
 export interface ApiExporterConfig extends ExporterConfig {
   apiEndpoint: string;
+  /**
+   * When true, artists created by this exporter will be created with status 'approved'.
+   * Use with caution; intended for trusted/imported datasets.
+   */
+  autoApproveArtists?: boolean;
   method?: 'POST' | 'PUT' | 'PATCH'; // HTTP method
   headers?: Record<string, string>; // Custom headers
   authentication?: {
@@ -83,6 +88,7 @@ export class ApiExporter implements ExporterPlugin {
       'method',
       'headers',
       'authentication',
+      'autoApproveArtists',
       'timeout',
       'retryAttempts',
       'retryDelay',
@@ -377,10 +383,58 @@ export class ApiExporter implements ExporterPlugin {
               }
             } else {
               totalSuccessful++;
+
+              // Attempt to extract created resource IDs from the API response and
+              // construct a canonical URL for the newly created resource. The
+              // mass-import v2 API returns created items under
+              // response.data.results.artworks.created or .artists.created arrays.
+              const recordDataWithUrl = { ...(record as Record<string, unknown>) } as Record<string, unknown>;
+
+              try {
+                const parsed = response.data as any;
+
+                // Responses sometimes nest payload under `data` (response.data.data.results)
+                const results = parsed?.data?.results ?? parsed?.results;
+
+                // Prefer artworks, then artists
+                const createdArtwork = results?.artworks?.created?.[0];
+                const createdArtist = results?.artists?.created?.[0];
+
+                const base = this.config?.apiEndpoint ? String(this.config.apiEndpoint) : undefined;
+
+                if (createdArtwork && createdArtwork.id) {
+                  if (base) {
+                    // If apiEndpoint points to the API root, build a full URL
+                    try {
+                      recordDataWithUrl.createdUrl = new URL(`/api/artworks/${createdArtwork.id}`, base).toString();
+                    } catch {
+                      recordDataWithUrl.createdUrl = `/api/artworks/${createdArtwork.id}`;
+                    }
+                  } else {
+                    recordDataWithUrl.createdUrl = `/api/artworks/${createdArtwork.id}`;
+                  }
+                } else if (createdArtist && createdArtist.id) {
+                  if (base) {
+                    try {
+                      recordDataWithUrl.createdUrl = new URL(`/api/artists/${createdArtist.id}`, base).toString();
+                    } catch {
+                      recordDataWithUrl.createdUrl = `/api/artists/${createdArtist.id}`;
+                    }
+                  } else {
+                    recordDataWithUrl.createdUrl = `/api/artists/${createdArtist.id}`;
+                  }
+                }
+              } catch (e) {
+                // Non-fatal - if we can't parse response data, continue without URL
+                if (this.options.verbose) {
+                  console.warn('Could not extract created ID from API response', e);
+                }
+              }
+
               processedRecords.push({
                 externalId,
                 status: 'success',
-                recordData: record,
+                recordData: recordDataWithUrl as RawImportData,
               });
             }
           } else {
@@ -524,6 +578,55 @@ export class ApiExporter implements ExporterPlugin {
     // Generate a unique import ID for this batch
     const importId = `mass-import-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+    // Heuristic: if this record looks like an artist-only record (no location and
+    // explicit artist importer externalId or tag), send it under data.artists so the
+    // server runs artist duplicate detection instead of artwork duplicate detection.
+    const isLatZero = Number(recordData.lat) === 0 && Number(recordData.lon) === 0;
+    const externalId = String(recordData.externalId || '');
+    const tags = (recordData.tags as Record<string, unknown>) || {};
+    const tagType = (tags && (tags.type as string)) || '';
+
+    const looksLikeArtist =
+      isLatZero && (externalId.startsWith('artist-json-') || tagType.toLowerCase() === 'artist');
+
+    if (looksLikeArtist) {
+      return {
+        metadata: {
+          importId,
+          source: {
+            pluginName: 'mass-import-system',
+            pluginVersion: '1.0.0',
+            originalDataSource: String(recordData.source || 'unknown'),
+          },
+          timestamp: new Date().toISOString(),
+        },
+        config: {
+          duplicateThreshold: 0.7,
+          enableTagMerging: true,
+          createMissingArtists: true,
+          batchSize: 1,
+          // When we detect an artist-like record, request server auto-approval
+          autoApproveArtists: true,
+        },
+        data: {
+            artists: [
+              {
+                // Use the RawImportData shape expected by the API
+                  title: String(recordData.title || ''),
+                  description: String(recordData.description || ''),
+                  lat: Number(recordData.lat),
+                  lon: Number(recordData.lon),
+                  source: String(recordData.source || ''),
+                  externalId: String(recordData.externalId || ''),
+                  tags: tags,
+                  photos: (recordData.photos as unknown[]) || [],
+                  ...(this.config?.autoApproveArtists ? { status: 'approved' } : {}),
+              },
+            ],
+          },
+      };
+    }
+
     return {
       metadata: {
         importId,
@@ -550,7 +653,7 @@ export class ApiExporter implements ExporterPlugin {
             artist: String(recordData.artist || ''),
             source: String(recordData.source || ''),
             externalId: String(recordData.externalId || ''),
-            tags: (recordData.tags as Record<string, unknown>) || {},
+            tags: tags,
             photos: (recordData.photos as unknown[]) || [],
           },
         ],

@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 import { WebScraper } from './lib/scraper.js';
 import { HTMLParser } from './lib/parser.js';
 import { DataMapper } from './lib/mapper.js';
-import { ArtistHandler } from './lib/artist-handler.js';
+import { ArtistHandler, normalizeArtistName } from './lib/artist-handler.js';
 import { logger } from './lib/logger.js';
 import type { ArtworkData } from './lib/parser.js';
 
@@ -214,6 +214,36 @@ async function main(): Promise<void> {
 
     // Step 5: Transform to GeoJSON
     logger.info('\n🗺️  Step 5: Transforming to GeoJSON...');
+    // Build a lookup from artist source_url -> artist name
+    const collectedArtists = artistHandler.getAllArtists();
+    const artistByUrl = new Map<string, string>();
+    for (const a of collectedArtists) {
+      if (a.source_url) {
+        // Ensure the name in the lookup is normalized to "First Last"
+        artistByUrl.set(a.source_url, normalizeArtistName(a.name));
+      }
+    }
+
+    // Attach artist names to artworks when possible (use artwork.artist if parser found it,
+    // otherwise try to map via artistLinks to the collected artists)
+    for (const artwork of artworks) {
+      if (!artwork.artist || artwork.artist.trim() === '') {
+        const names: string[] = [];
+        if (artwork.artistLinks && artwork.artistLinks.length > 0) {
+          for (const link of artwork.artistLinks) {
+            const name = artistByUrl.get(link);
+            if (name) names.push(name);
+          }
+        }
+
+        if (names.length > 0) {
+          // Join multiple artist names with comma, but normalize each name
+          const normalizedNames = names.map(n => normalizeArtistName(n));
+          artwork.artist = normalizedNames.join(', ');
+        }
+      }
+    }
+
     const geoJSON = mapper.createFeatureCollection(artworks);
     logger.info(`Created GeoJSON with ${geoJSON.features.length} features`);
 
@@ -229,16 +259,16 @@ async function main(): Promise<void> {
     await fs.writeFile(artworksPath, JSON.stringify(geoJSON, null, 2), 'utf-8');
     logger.info(`✅ Wrote ${artworksPath}`);
 
-    // Write artists JSON
-    const artists = artistHandler.getAllArtists();
-    const artistsPath = path.join(outputDir, config.output.artistsFile);
-    await fs.writeFile(artistsPath, JSON.stringify(artists, null, 2), 'utf-8');
-    logger.info(`✅ Wrote ${artistsPath}`);
+  // Write artists JSON
+  const allArtists = artistHandler.getAllArtists();
+  const artistsPath = path.join(outputDir, config.output.artistsFile);
+  await fs.writeFile(artistsPath, JSON.stringify(allArtists, null, 2), 'utf-8');
+  logger.info(`✅ Wrote ${artistsPath}`);
 
     // Print final summary
     logger.printSummary({
       artworksFound: geoJSON.features.length,
-      artistsFound: artists.length,
+  artistsFound: allArtists.length,
       filesWritten: [artworksPath, artistsPath],
     });
 

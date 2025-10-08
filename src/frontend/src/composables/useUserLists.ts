@@ -37,16 +37,19 @@ export interface UserListsApi {
 // Global cache to avoid fetching multiple times
 const globalUserListsCache = ref<ListApiResponse[]>([]);
 const globalCacheTimestamp = ref<number>(0);
+const globalIsLoading = ref(false);
+const globalError = ref<string | null>(null);
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export function useUserLists(): UserListsApi {
-  const lists = ref<ListApiResponse[]>([]);
-  const isLoading = ref(false);
-  const error = ref<string | null>(null);
+  // Use global refs instead of creating new local ones
+  const lists = globalUserListsCache;
+  const isLoading = globalIsLoading;
+  const error = globalError;
 
   // Computed sets for fast O(1) artwork membership lookup
   const visitedArtworks = computed(() => {
-    const visitedList = lists.value.find(list => 
+    const visitedList = globalUserListsCache.value.find(list => 
       list.is_system_list && list.name === 'Visited'
     );
     
@@ -56,7 +59,7 @@ export function useUserLists(): UserListsApi {
   });
 
   const starredArtworks = computed(() => {
-    const starredList = lists.value.find(list => 
+    const starredList = globalUserListsCache.value.find(list => 
       list.is_system_list && list.name === 'Starred'
     );
     
@@ -66,7 +69,7 @@ export function useUserLists(): UserListsApi {
   });
 
   const lovedArtworks = computed(() => {
-    const lovedList = lists.value.find(list => 
+    const lovedList = globalUserListsCache.value.find(list => 
       list.is_system_list && list.name === 'Loved'
     );
     
@@ -76,7 +79,7 @@ export function useUserLists(): UserListsApi {
   });
 
   const submissionsArtworks = computed(() => {
-    const submissionsList = lists.value.find(list =>
+    const submissionsList = globalUserListsCache.value.find(list =>
       list.is_system_list && list.name === 'Submissions'
     );
 
@@ -95,12 +98,17 @@ export function useUserLists(): UserListsApi {
   const fetchUserLists = async (): Promise<void> => {
     // Use cache if available and fresh
     if (isCacheFresh()) {
-      lists.value = globalUserListsCache.value;
       return;
     }
 
-    isLoading.value = true;
-    error.value = null;
+    // Prevent concurrent requests
+    if (globalIsLoading.value) {
+      console.log('[useUserLists] Already loading, skipping duplicate request');
+      return;
+    }
+
+    globalIsLoading.value = true;
+    globalError.value = null;
 
     try {
       const response = await api.getUserLists();
@@ -135,20 +143,26 @@ export function useUserLists(): UserListsApi {
         const customLists = (userLists as ListApiResponse[]).filter((list: ListApiResponse) => !list.is_system_list);
         listsWithItems.push(...customLists);
         
-        lists.value = listsWithItems;
+        globalUserListsCache.value = listsWithItems;
         
         // Update global cache
-        globalUserListsCache.value = listsWithItems;
         globalCacheTimestamp.value = Date.now();
         
+        console.log('[useUserLists] Fetched and cached user lists:', {
+          totalLists: listsWithItems.length,
+          systemLists: systemLists.length,
+          customLists: customLists.length,
+          timestamp: new Date().toISOString()
+        });
+        
       } else {
-        error.value = 'Failed to fetch user lists';
+        globalError.value = 'Failed to fetch user lists';
       }
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Failed to fetch user lists';
+      globalError.value = err instanceof Error ? err.message : 'Failed to fetch user lists';
       console.error('Error fetching user lists:', err);
     } finally {
-      isLoading.value = false;
+      globalIsLoading.value = false;
     }
   };
 
@@ -177,7 +191,7 @@ export function useUserLists(): UserListsApi {
       submissions: 'Submissions'
     } as const;
     
-    const targetList = lists.value.find(list => 
+    const targetList = globalUserListsCache.value.find(list => 
       list.is_system_list && list.name === (listNames as Record<string,string>)[listType]
     );
     
@@ -220,7 +234,7 @@ export function useUserLists(): UserListsApi {
       submissions: 'Submissions'
     } as const;
     
-    const targetList = lists.value.find(list => 
+    const targetList = globalUserListsCache.value.find(list => 
       list.is_system_list && list.name === (listNames as Record<string,string>)[listType]
     );
     
@@ -241,8 +255,7 @@ export function useUserLists(): UserListsApi {
           }
         }
         
-        // Update global cache
-        globalUserListsCache.value = lists.value;
+        // Update global cache timestamp to indicate fresh data
         globalCacheTimestamp.value = Date.now();
         
         return true;
@@ -262,8 +275,8 @@ export function useUserLists(): UserListsApi {
     await fetchUserLists();
   };
 
-  // Initialize lists on first access
-  if (lists.value.length === 0 && !isLoading.value) {
+  // Initialize lists on first access - only if cache is empty and not already loading
+  if (globalUserListsCache.value.length === 0 && !globalIsLoading.value && globalCacheTimestamp.value === 0) {
     fetchUserLists();
   }
 

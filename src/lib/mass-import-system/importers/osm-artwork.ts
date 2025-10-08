@@ -5,6 +5,8 @@
  * with support for artwork, monument, and other art-related features.
  */
 
+import * as fs from 'fs/promises';
+import * as path from 'path';
 import type { ImporterPlugin, ImporterConfig, PluginMetadata } from '../types/plugin.js';
 import type { RawImportData, ValidationResult, ValidationError } from '../types/index.js';
 
@@ -20,6 +22,8 @@ export interface OSMImporterConfig extends ImporterConfig {
   descriptionFields: string[];
   artistFields: string[];
   yearFields: string[];
+  // Optional path to an artists.json lookup file to resolve artist IDs/names
+  artistLookupPath?: string;
 }
 
 // ================================
@@ -58,6 +62,9 @@ export class OSMImporter implements ImporterPlugin {
     optionalFields: ['properties.name', 'properties.artist_name', 'properties.start_date'],
   };
 
+  // Artist lookup map (keyed by lowercase id or normalized name)
+  private artistLookup: Map<string, string> = new Map();
+
   // Configuration schema for validation
   configSchema = {
     type: 'object',
@@ -69,6 +76,7 @@ export class OSMImporter implements ImporterPlugin {
       descriptionFields: { type: 'array', items: { type: 'string' } },
       artistFields: { type: 'array', items: { type: 'string' } },
       yearFields: { type: 'array', items: { type: 'string' } },
+      artistLookupPath: { type: 'string' },
     },
     required: ['preset', 'includeFeatureTypes', 'tagMappings'],
   };
@@ -105,6 +113,13 @@ export class OSMImporter implements ImporterPlugin {
       throw new Error('Invalid GeoJSON: missing or invalid features array');
     }
 
+    // Load artist lookup if configured (optional)
+    try {
+      await this.loadArtistLookupFromConfig(config);
+    } catch (err) {
+      console.warn('Failed to load artist lookup:', err instanceof Error ? err.message : String(err));
+    }
+
     const mappedData: RawImportData[] = [];
 
     for (const feature of geoJsonData.features) {
@@ -125,6 +140,86 @@ export class OSMImporter implements ImporterPlugin {
     }
 
     return mappedData;
+  }
+
+  /**
+   * Load artists lookup file based on config or common locations.
+   * The lookup will be a map keyed by lowercase identifier (artistid or normalized name)
+   * with the value being the preferred display name.
+   */
+  private async loadArtistLookupFromConfig(config: OSMImporterConfig): Promise<void> {
+    if (this.artistLookup.size > 0) return; // already loaded
+
+    const possiblePaths: string[] = [];
+    if (config && typeof config.artistLookupPath === 'string' && config.artistLookupPath.trim()) {
+      possiblePaths.push(path.resolve(String(config.artistLookupPath)));
+    }
+
+    // Common fallback locations relative to project
+    possiblePaths.push(path.resolve('src/lib/data-collection/burnabyartgallery/output/artists.json'));
+    possiblePaths.push(path.resolve('src/lib/mass-import-system/importers/public-art-artists.json'));
+    possiblePaths.push(path.join(process.cwd(), 'src/lib/data-collection/burnabyartgallery/output/artists.json'));
+
+    let dataStr: string | null = null;
+    for (const p of possiblePaths) {
+      try {
+        dataStr = await fs.readFile(p, 'utf-8');
+        console.log(`📋 Loaded artist lookup from: ${p}`);
+        break;
+      } catch (e) {
+        // ignore and try next
+        continue;
+      }
+    }
+
+    if (!dataStr) {
+      // No lookup found — not an error, just optional
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(dataStr);
+
+      // If it's an array of artist records
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          try {
+            if (item == null) continue;
+            // If there's an artistid field, use it as key
+            if (item.artistid || item.id) {
+              const id = String(item.artistid || item.id).toLowerCase();
+              const name = (item.name || `${item.firstname || ''} ${item.lastname || ''}`).trim();
+              if (name) this.artistLookup.set(id, name);
+            }
+
+            // If there's a name field, index by lowercase name as well
+            if (item.name) {
+              this.artistLookup.set(String(item.name).toLowerCase(), item.name);
+            }
+          } catch (e) {
+            continue;
+          }
+        }
+      } else if (typeof parsed === 'object' && parsed !== null) {
+        // If it's an object keyed by name or id
+        for (const [k, v] of Object.entries(parsed)) {
+          if (typeof v === 'string') {
+            this.artistLookup.set(k.toLowerCase(), v);
+          } else if (v && typeof v === 'object') {
+            const obj = v as Record<string, unknown>;
+            const nameField = typeof obj.name === 'string' ? obj.name : '';
+            const firstname = typeof obj.firstname === 'string' ? obj.firstname : '';
+            const lastname = typeof obj.lastname === 'string' ? obj.lastname : '';
+            const name = (nameField || `${firstname} ${lastname}`).trim();
+            if (name) this.artistLookup.set(k.toLowerCase(), name);
+          }
+        }
+      }
+
+      console.log(`📋 Artist lookup contains ${this.artistLookup.size} entries`);
+    } catch (e) {
+      console.warn('Failed to parse artist lookup JSON:', e instanceof Error ? e.message : String(e));
+    }
   }
 
   /**
@@ -373,17 +468,22 @@ export class OSMImporter implements ImporterPlugin {
     const osmAttribution = `\n\nImported from Open Street Maps (node: ${externalId})`;
     description = description ? description + osmAttribution : osmAttribution.trim();
 
+    // Extract source and photos from properties
+    const source = (props.source as string) || 'openstreetmap';
+    const photos = this.extractPhotos(props);
+
     // Map to standardized format
     const mappedRecord: RawImportData = {
       lat,
       lon,
       title: title || 'Unnamed Artwork',
       description,
-      source: 'openstreetmap',
+      source,
       externalId,
       tags,
       ...(artist && { artist }),
       ...(year && { yearOfInstallation: year }),
+      ...(photos.length > 0 && { photos }),
     };
 
     return mappedRecord;
@@ -429,7 +529,24 @@ export class OSMImporter implements ImporterPlugin {
       const value = props[field];
       if (value && typeof value === 'string' && value.trim()) {
         // Replace " and " with "," to properly separate multiple artists
-        return value.trim().replace(/ and /g, ', ');
+        const raw = value.trim().replace(/ and /g, ', ');
+
+        // Split into candidates and try to resolve via artistLookup
+        const candidates = raw.split(/,\s*/).map(s => s.trim()).filter(Boolean);
+        const resolved: string[] = [];
+        for (const c of candidates) {
+          const key = c.toLowerCase();
+          if (this.artistLookup.has(key)) {
+            resolved.push(this.artistLookup.get(key) as string);
+          } else if (this.artistLookup.has(key.replace(/[^a-z0-9]/g, ''))) {
+            resolved.push(this.artistLookup.get(key.replace(/[^a-z0-9]/g, '')) as string);
+          } else {
+            // Not found in lookup — use the raw value
+            resolved.push(c);
+          }
+        }
+
+        return resolved.join(', ');
       }
     }
 
@@ -453,6 +570,30 @@ export class OSMImporter implements ImporterPlugin {
     }
 
     return '';
+  }
+
+  /**
+   * Extract photos from properties
+   */
+  private extractPhotos(props: Record<string, unknown>): Array<{ url: string; caption?: string; credit?: string }> {
+    const photos = props.photos;
+    
+    // Handle photos as array
+    if (Array.isArray(photos)) {
+      return photos
+        .filter(p => typeof p === 'string' && p.trim())
+        .map(p => ({ url: p.trim() }));
+    }
+    
+    // Handle photos as string (comma-separated URLs)
+    if (typeof photos === 'string' && photos.trim()) {
+      return photos.split(',')
+        .map(p => p.trim())
+        .filter(Boolean)
+        .map(p => ({ url: p }));
+    }
+    
+    return [];
   }
 
   /**

@@ -156,8 +156,8 @@ export class MassImportV2DuplicateDetectionService {
   async checkArtistDuplicates(request: ArtistDuplicateRequest): Promise<DuplicateDetectionResult> {
     const weights = { ...DEFAULT_ARTIST_WEIGHTS, ...request.weights };
 
-    // 1. Find existing artists with similar names
-    const candidates = await this.findSimilarArtists(request.name);
+    // 1. Find existing artists with similar names or exact external ID match
+    const candidates = await this.findSimilarArtists(request.name, request.externalId);
 
     if (candidates.length === 0) {
       return {
@@ -175,6 +175,8 @@ export class MassImportV2DuplicateDetectionService {
 
     for (const candidate of candidates) {
       const breakdown = this.calculateArtistSimilarity(request, candidate, weights);
+
+      console.log(`[DUPLICATE_V2] Artist "${request.name}" vs "${candidate.name}": score=${breakdown.total.toFixed(3)} (threshold=${request.threshold})`);
 
       if (breakdown.total > (bestMatch?.score || 0)) {
         bestMatch = {
@@ -310,10 +312,39 @@ export class MassImportV2DuplicateDetectionService {
   }
 
   /**
-   * Find artists with similar names
+   * Find artists with similar names or matching external ID
    */
-  private async findSimilarArtists(name: string): Promise<any[]> {
-    // Use LIKE for basic fuzzy matching - can be enhanced with more sophisticated algorithms
+  private async findSimilarArtists(name: string, externalId?: string): Promise<any[]> {
+    // First check for exact external ID match if provided
+    if (externalId) {
+      const exactIdResult = await this.db.db
+        .prepare(
+          `
+        SELECT id, name, description, tags
+        FROM artists 
+        WHERE status = 'approved'
+      `
+        )
+        .all();
+
+      // Parse tags to check for external_id match
+      const exactMatch = (exactIdResult.results || []).find((artist: any) => {
+        try {
+          const tags = typeof artist.tags === 'string' ? JSON.parse(artist.tags) : artist.tags;
+          return tags?.external_id === externalId || tags?.externalId === externalId;
+        } catch {
+          return false;
+        }
+      });
+
+      // If found exact match, return only that artist for comparison
+      if (exactMatch) {
+        console.log(`[DUPLICATE_V2] Found exact externalId match: ${externalId}`);
+        return [exactMatch];
+      }
+    }
+
+    // Fallback to fuzzy name matching
     const searchPattern = `%${name.toLowerCase()}%`;
 
     const result = await this.db.db
@@ -386,13 +417,28 @@ export class MassImportV2DuplicateDetectionService {
     weights: DuplicateDetectionWeights
   ): DuplicationScore {
     // Name similarity (primary indicator)
-    const nameScore =
-      this.calculateTextSimilarity(incoming.name, candidate.name || '') * weights.title; // Using title weight for name
+    const nameSimilarity = this.calculateTextSimilarity(incoming.name, candidate.name || '');
+    const nameScore = nameSimilarity * weights.title; // Using title weight for name
 
-    // Website/reference similarity
-    const refScore = incoming.externalId
-      ? this.calculateTextSimilarity(incoming.externalId, candidate.id || '') * weights.referenceIds
-      : 0;
+    // Website/reference similarity - compare against external_id in tags
+    let refScore = 0;
+    if (incoming.externalId) {
+      try {
+        const tags = typeof candidate.tags === 'string' ? JSON.parse(candidate.tags) : candidate.tags;
+        const candidateExternalId = tags?.external_id || tags?.externalId || '';
+        
+        if (candidateExternalId === incoming.externalId) {
+          // Exact match on external ID
+          refScore = 1.0 * weights.referenceIds;
+        } else if (candidateExternalId) {
+          // Partial match using text similarity
+          refScore = this.calculateTextSimilarity(incoming.externalId, candidateExternalId) * weights.referenceIds;
+        }
+      } catch {
+        // If tags parsing fails, fall back to comparing against id
+        refScore = this.calculateTextSimilarity(incoming.externalId, candidate.id || '') * weights.referenceIds;
+      }
+    }
 
     // Description similarity (if available)
     const descriptionScore =
@@ -402,6 +448,8 @@ export class MassImportV2DuplicateDetectionService {
         : 0;
 
     const total = nameScore + refScore + descriptionScore;
+
+    console.log(`[DUPLICATE_V2] Artist similarity breakdown: name=${nameSimilarity.toFixed(3)}*${weights.title}=${nameScore.toFixed(3)}, ref=${refScore.toFixed(3)}, desc=${descriptionScore.toFixed(3)}, total=${total.toFixed(3)}`);
 
     return {
       gps: 0, // Not applicable for artists

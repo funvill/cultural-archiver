@@ -20,8 +20,8 @@ export interface GeoJSONFeature {
     name: string;
     artwork_type: string;
     location: string;
-    date: string;
-    medium: string;
+    start_date: string;
+    material: string;
     technique: string;
     dimensions: string;
     keywords: string;
@@ -31,6 +31,10 @@ export interface GeoJSONFeature {
     collection: string;
     description: string;
     photos: string[];
+    city: string;
+    country: string;
+    province: string;
+    artist?: string | undefined;
   };
 }
 
@@ -75,8 +79,9 @@ export class DataMapper {
         name: artwork.title,
         artwork_type: artwork.artworkType || 'unknown',
         location: artwork.location || '',
-        date: artwork.date || '',
-        medium: artwork.medium || '',
+        // Map original fields to our canonical names
+        start_date: artwork.date || '',
+        material: artwork.medium || '',
         technique: artwork.technique || '',
         dimensions: artwork.dimensions || '',
         keywords: artwork.keywords || '',
@@ -86,6 +91,11 @@ export class DataMapper {
         collection: artwork.collection || '',
         description: artwork.description || '',
         photos: artwork.photos || [],
+        // Fixed location fields for Burnaby dataset
+        city: 'burnaby',
+        country: 'Canada',
+  province: 'British Columbia',
+        artist: artwork.artist || undefined,
       },
     };
 

@@ -1,0 +1,12 @@
+{{title}}{{#if artist}} by {{artist}}{{/if}}
+
+{{#if location}}📍 {{location}}{{/if}}
+{{#if year}}📅 {{year}}{{/if}}
+
+{{#if description}}
+{{description}}
+{{/if}}
+
+More information: {{url}}
+
+#PublicArt #UrbanArt #Art {{#if location}}#{{location}}{{/if}} {{#if location}}#{{tag:artwork_type}}{{/if}} {{#if keywords}}#{{keywords}}{{/if}}

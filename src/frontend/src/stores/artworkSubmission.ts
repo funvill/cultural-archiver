@@ -5,6 +5,7 @@
 
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
+import { createApiUrl } from '../utils/api-config';
 import { CONSENT_VERSION } from '../../../shared/consent';
 
 // Remove unused import
@@ -273,7 +274,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
 
     try {
       // API call to check similarity
-      const response = await fetch('/api/artworks/check-similarity', {
+  const response = await fetch(createApiUrl('/artworks/check-similarity'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -381,7 +382,7 @@ export const useArtworkSubmissionStore = defineStore('artworkSubmission', () => 
         formData.append('notes', state.value.note); // Fix: send as 'notes' not 'note'
       }
 
-      const response = await fetch('/api/artworks/fast', {
+  const response = await fetch(createApiUrl('/artworks/fast'), {
         method: 'POST',
         body: formData,
       });

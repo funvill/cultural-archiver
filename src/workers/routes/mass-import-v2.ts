@@ -641,6 +641,41 @@ async function processSingleArtist(
   if (duplicateResult.isDuplicate && duplicateResult.existingId) {
     console.log(`[MASS_IMPORT_V2] Duplicate artist detected: ${artistData.title}`);
 
+    // Check if we need to update the biography
+    let bioUpdated = false;
+    if (artistData.description && artistData.description.trim().length > 0) {
+      // Fetch existing artist record
+      const existingArtist = await db.db
+        .prepare('SELECT description FROM artists WHERE id = ?')
+        .bind(duplicateResult.existingId)
+        .first<{ description: string | null }>();
+
+      if (existingArtist) {
+        const existingDesc = existingArtist.description || '';
+        const newDesc = artistData.description.trim();
+
+        // Update if: 
+        // 1. Existing description is empty, OR
+        // 2. New description has content that isn't already in the existing description
+        const shouldUpdate = !existingDesc || !existingDesc.includes(newDesc);
+
+        if (shouldUpdate) {
+          // Append new content to existing description with separator
+          const updatedDesc = existingDesc
+            ? `${existingDesc}\n\n--- Additional Information ---\n\n${newDesc}`
+            : newDesc;
+
+          await db.db
+            .prepare('UPDATE artists SET description = ?, updated_at = ? WHERE id = ?')
+            .bind(updatedDesc, new Date().toISOString(), duplicateResult.existingId)
+            .run();
+
+          bioUpdated = true;
+          console.log(`[MASS_IMPORT_V2] Updated biography for artist: ${artistData.title}`);
+        }
+      }
+    }
+
     // Merge tags if enabled
     if (request.config.enableTagMerging && artistData.tags) {
       const mergeResult = await duplicateService.mergeTagsIntoExisting(
@@ -655,7 +690,7 @@ async function processSingleArtist(
       name: artistData.title,
       existingId: duplicateResult.existingId,
       confidenceScore: duplicateResult.confidenceScore!,
-      error: 'DUPLICATE_DETECTED',
+      error: bioUpdated ? 'DUPLICATE_DETECTED_BIO_UPDATED' : 'DUPLICATE_DETECTED',
     });
 
     response.summary.totalDuplicates++;
@@ -667,7 +702,38 @@ async function processSingleArtist(
   const submissionId = generateUUID();
   const timestamp = new Date().toISOString();
 
-  // Create submission record
+  // Determine desired status: honor request-level autoApproveArtists if present
+  const desiredArtistStatus = (request.config && (request.config as any).autoApproveArtists)
+    ? 'approved'
+    : ((artistData.status as string) || 'pending');
+
+  // Create artist record FIRST (to satisfy foreign key constraint)
+  await db.db
+    .prepare(
+      `
+    INSERT INTO artists (
+      id, name, description, tags, status, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+  `
+    )
+    .bind(
+      artistId,
+      artistData.title,
+      artistData.description || null,
+      JSON.stringify({
+        ...artistData.tags,
+        external_id: artistData.externalId, // Store externalId in tags for duplicate detection
+        source: artistData.source,
+        import_batch: request.metadata.importId,
+      }),
+      // Respect explicit status from importer (e.g., 'approved') or default to 'pending'
+  desiredArtistStatus,
+      timestamp,
+      timestamp
+    )
+    .run();
+
+  // Create submission record AFTER (references artist_id foreign key)
   await db.db
     .prepare(
       `
@@ -687,29 +753,6 @@ async function processSingleArtist(
         source: artistData.source,
         import_batch: request.metadata.importId,
         plugin_name: request.metadata.source.pluginName,
-      }),
-      timestamp,
-      timestamp
-    )
-    .run();
-
-  // Create artist record
-  await db.db
-    .prepare(
-      `
-    INSERT INTO artists (
-      id, name, description, tags, status, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, 'approved', ?, ?)
-  `
-    )
-    .bind(
-      artistId,
-      artistData.title,
-      artistData.description || null,
-      JSON.stringify({
-        ...artistData.tags,
-        source: artistData.source,
-        import_batch: request.metadata.importId,
       }),
       timestamp,
       timestamp

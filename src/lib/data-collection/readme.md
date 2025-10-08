@@ -1,121 +1,27 @@
-See TAG_DEFINITIONS in src\shared\tag-schema.ts for a list of default tags
-
-
 # Data Collection Scripts — How to add a new site
 
-This document explains how we build small TypeScript data-collection scripts (like the Burnaby Art Gallery collector) inside `src/lib/data-collection`. It gives a pragmatic checklist, recommended structure, patterns, and examples so you can create new collectors for other museum, gallery, or public art websites.
+See TAG_DEFINITIONS in src\shared\tag-schema.ts for a list of default tags
 
-## Goals for a collector
-
-- Produce reproducible, versioned output files under `src/lib/data-collection/<site>/output/`, typically:
-  - artworks.geojson (GeoJSON FeatureCollection)
-  - artists.json (array of artist metadata)
-  - optional debug HTML snapshots for tricky pages
-- Be resilient to minor HTML template differences and network flakiness.
-- Prefer zero runtime dependencies beyond Node.js and TypeScript when possible (use built-in fetch + fs/promises).
-- Be easy to maintain: clear logging, small modules, a single orchestrator script with a configurable limit for development runs.
-
-## Recommended project layout (follow the existing example)
-
-`src/lib/data-collection/<site>/`
-
-- `index.ts`                 — Orchestrator: load config, run steps, write outputs
-- `config.json`              — Site-specific configuration (baseUrl, expected counts, throttles)
-- `lib/`                     — Small helper modules (scraper, parser, mapper, logger)
-   - `scraper.ts`             — fetch wrapper (headers, retry/backoff, rate-limit)
-   - `parser.ts`              — HTML parsing functions (artifact and artist detail extractors)
-   - `mapper.ts`              — Map parsed data to GeoJSON/features
-   - `artist-handler.ts`      — Deduplicate & normalize artist records, handle permalink flow
-   - `logger.ts`              — Small structured logger (debug/info/warn/error)
-- `test/`                    — Small tests (vitest) for parsers & mappers
-- `output/`                  — Consumer output files (ignored by git or committed per policy)
-   - `artworks.geojson`
-   - `artists.json`
-
-## Design contract (tiny)
-
- - Input: site base URL + optional CLI `--limit=N`
- - Outputs: `artworks.geojson` and `artists.json` in `output/`
- - Error modes: transient network failures (retry/backoff), missing required fields (log & skip), unknown HTML templates (log warning and save debug snapshot)
- - Success: scripts finish with files written and zero runtime exceptions
-
-## Engineering checklist — steps to implement a new collector
-
-1) Inspect the site manually
-   - Use your browser to find the index/list pages. Look for: paginated list, search/list query parameters, and the shape of item links.
-   - Find one artwork detail page URL and one artist detail page URL (permalink if available).
-   - Save at least one HTML snapshot for each page type to aid parser dev (Tools → Save As).
-
-2) Create minimal config
-   - `baseUrl`: root origin (e.g. `https://collections.example.org`)
-   - `indexPath`: path or query to list artworks (match what you saw in the browser)
-   - `expectedArtworkCount`: optional integer used to detect failures
-   - `rateLimitMs`: how long to wait between requests (start 400–600ms)
-   - `limitArtworks`: `null | number` (overrideable by CLI)
-
-3) Implement a small fetch wrapper (scraper)
-   - Add browser-like request headers (User-Agent, Accept-Language, Accept)
-   - Implement retries with exponential backoff for 429/5xx errors
-   - Implement a short throttle: await delay(rateLimitMs) between requests
-   - Optionally dump HTML to output/debug-*.html when parsing fails
-
-4) Parse index pages to collect artwork URLs
-   - Use conservative regex or search for known link anchors
-   - Support absolute and relative URLs
-   - Deduplicate URLs and normalize (remove trailing slash, decode HTML entities)
-
-5) Parse artwork detail pages
-   - Extract title, coordinates (lat/lon), photos, artist links, and other metadata
-   - Be defensive: check regex match results before using capture groups
-   - If artist links are search/list pages or expand links, prefer finding a permalink to the final artist page and let the orchestrator re-fetch it
-
-6) Artist flow and permalink handling
-   - Many sites expose a short summary in search/list pages and a full biography in a permalink detail page. When you detect a permalink on the search/expand page, return it to the orchestrator and fetch the permalink page for final parsing.
-   - Normalize artist names and deduplicate by canonical URL if available
-
-7) Mapping to GeoJSON
-    - Use a simple mapper that builds Feature objects like:
-
-```json
-{
-   "type": "Feature",
-   "id": "node-id-or-permalink-slug",
-   "geometry": { "type": "Point", "coordinates": [lon, lat] },
-   "properties": { 
-      "title": "...", 
-      "artistId": "...", 
-      "photos": [], 
-      "sourceUrl": "..." 
-   }
-}
-```
-
-    - Validate coordinates exist before writing features (log & skip otherwise)
-
-8) Output and verification
-   - Write output files to output/ and include a small final summary log (counts, warnings)
-   - For development runs, support --limit=N to only fetch a small number of artworks
-   - Add a post-run data quality check (e.g., warn if expectedArtworkCount !== exported count)
-
-9) Testing and QA
-   - Add parser unit tests: pass saved HTML snapshots to parser functions and assert the parsed fields
-   - Add a simple bio-quality check test: assert no biographies end with an ellipsis and that they exceed N characters
-   - Run tests with Vitest (project convention) and add the new test files under test/
-
-10) Deployment and maintenance notes
-
-- Keep rate limits conservative. If running large imports, coordinate with the site.
-- Save debug snapshots for any parsing anomalies and add tests to cover them.
-- When site templates change, update parsers and re-run snapshot-based tests.
-
-## Implementation tips & pitfalls
-
-- Prefer simple, robust parsing rules over brittle DOM assumptions. Look for labelled `dt`/`dd` pairs or specific semantic sections rather than relying only on element positions.
 - Always check capture groups exist before using them.
 - Be careful with HTML entities (e.g. `&amp;`, `&nbsp;`) and encoding; decode before using text.
 - When in doubt, prefer the longest text candidate for a biography field (search-views often truncate text).
 - Avoid heavy dependencies. If parsing becomes complex, you may add a small DOM parser (cheerio) but keep it isolated to `parser.ts`.
 - Add logs at debug/info levels that can be toggled. Save HTML of pages that fail to parse for later inspection.
+
+## Output formats (required)
+
+Collectors must produce an OSM-style GeoJSON `FeatureCollection` as the canonical artwork output and may optionally produce an `artists.json` lookup file. Place outputs under the collector's `output/` folder.
+
+- `artworks.geojson` — required. GeoJSON FeatureCollection where each Feature has:
+  - `geometry`: Point with `[lon, lat]` coordinates
+  - `properties`: object containing `title`, `sourceUrl` and (when available) `artist` (string), `start_date`, `material`, `tags`, and `photos` (array)
+- `artists.json` — optional. An array of artist records (or an object keyed by normalized artist name) with fields such as `name`, `bio`, `source_url`, and optional identifiers used by the importer.
+
+Example (run mass-import from repo root):
+
+```powershell
+node dist/lib/mass-import-system/cli/cli-entry.js import --importer osm-artwork --input src\lib\data-collection\burnabyartgallery\output\artworks.geojson --config burnaby-osm-config.json --exporter console --limit 10
+```
 
 ## Pagination strategies (lessons learned)
 
@@ -186,7 +92,7 @@ Different sites use different pagination patterns. Here are common approaches an
    - Strategy: Follow "Next" button until it disappears (safest approach)
    - Fallback: Try fetching subsequent pages until you get 404 or empty results
 
-### Best practices for pagination:
+### Best practices for pagination
 
 1. **Always use browser inspection first** (Playwright MCP or browser DevTools)
    - Navigate to page 2 manually to see actual URL structure

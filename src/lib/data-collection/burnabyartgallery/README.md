@@ -131,14 +131,91 @@ Artists are stored in a single JSON file with deduplication:
 
 ## Integration with Mass Import System
 
-After generating the output files, import them using the mass import system:
+The generated GeoJSON file is compatible with the OSM-artwork importer. After generating the output files, import them using:
+
+### Step 1: Collect Data
 
 ```powershell
-# Future integration (requires creating a Burnaby Art Gallery importer)
-npx tsx src/lib/mass-import-system/cli/index.ts import --importer burnabyartgallery src/lib/data-collection/burnabyartgallery/output/artworks.geojson
+# Run the data collector to scrape and generate GeoJSON
+npx tsx src/lib/data-collection/burnabyartgallery/index.ts
+
+# Optional: Limit to first 10 records for testing
+npx tsx src/lib/data-collection/burnabyartgallery/index.ts --limit=10
 ```
 
-Note: A new importer may need to be created in `src/lib/mass-import-system/importers/burnabyartgallery.ts` if the GeoJSON structure differs from existing importers.
+### Step 2: Import to Development Server
+
+**Prerequisites:**
+- Development server must be running (`npm run dev`)
+- Database should be initialized
+
+```powershell
+# Import all artworks with location enhancement enabled
+npx tsx src/lib/mass-import-system/cli/cli-entry.ts import \
+  --importer osm-artwork \
+  --exporter api \
+  --input src/lib/data-collection/burnabyartgallery/output/artworks.geojson \
+  --config src/lib/mass-import-system/api-config-dev.json \
+  --location-enhancement \
+  --generate-report \
+  --batch-size 10
+
+# Import with limit for testing (first 10 records)
+npx tsx src/lib/mass-import-system/cli/cli-entry.ts import \
+  --importer osm-artwork \
+  --exporter api \
+  --input src/lib/data-collection/burnabyartgallery/output/artworks.geojson \
+  --config src/lib/mass-import-system/api-config-dev.json \
+  --location-enhancement \
+  --limit 10 \
+  --batch-size 10 \
+  --max-consecutive-errors 3 \
+  --generate-report
+```
+
+### Step 3: Import to Production Server
+
+```powershell
+# Production import (use with caution!)
+npx tsx src/lib/mass-import-system/cli/cli-entry.ts import \
+  --importer osm-artwork \
+  --exporter api \
+  --input src/lib/data-collection/burnabyartgallery/output/artworks.geojson \
+  --config src/lib/mass-import-system/api-config-production.json \
+  --location-enhancement \
+  --generate-report \
+  --batch-size 10
+```
+
+### Import Options Explained
+
+- `--importer osm-artwork` - Uses OpenStreetMap/GeoJSON importer (compatible with Burnaby output)
+- `--exporter api` - Exports to API endpoint (local dev server or production)
+- `--input <path>` - Path to generated artworks.geojson file
+- `--config <path>` - API configuration file (api-config-dev.json or api-config-production.json)
+- `--location-enhancement` - Enables location enrichment (adds location_display_name, location_country, location_state, location_city, location_suburb, location_neighbourhood tags)
+- `--location-cache <path>` - Path to location cache database (default: ./_data/location-cache.sqlite)
+- `--limit <number>` - Process only first N records (useful for testing)
+- `--batch-size <number>` - Number of records to process per batch (default: 50)
+- `--max-consecutive-errors <number>` - Abort after N consecutive batch failures (default: 5)
+- `--generate-report` - Create JSON report of import results in ./reports/ directory
+- `--dry-run` - Validate data without actually importing
+
+### What Location Enhancement Does
+
+When `--location-enhancement` is enabled, the system:
+
+1. Checks the location cache database first (instant lookup)
+2. Falls back to Nominatim reverse geocoding API if not cached
+3. Adds these tags to each artwork:
+   - `location_display_name` - Full human-readable address
+   - `location_country` - Country name
+   - `location_state` - Province/state name
+   - `location_city` - City name
+   - `location_suburb` - Suburb/district name
+   - `location_neighbourhood` - Neighbourhood name
+
+This provides better search and filtering capabilities in the application.
 
 ## Troubleshooting
 

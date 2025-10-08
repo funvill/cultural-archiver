@@ -108,8 +108,8 @@ export class DataPipeline {
 
       console.log(`✅ Transformed ${unifiedData.length} records`);
 
-      // 4.3. Enhance with location data if enabled
-      if (options.locationEnhancement?.enabled !== false) {
+      // 4.3. Enhance with location data only when explicitly enabled (opt-in)
+      if (options.locationEnhancement && options.locationEnhancement.enabled === true) {
         console.log(`🌍 Enhancing records with location data...`);
         const locationEnhancer = new LocationEnhancer(options.locationEnhancement);
 
@@ -136,7 +136,8 @@ export class DataPipeline {
       const exportResult = await this.exportWithTracking(
         unifiedData,
         options.exporterConfig ?? {},
-        reportTracker
+        reportTracker,
+        options
       );
 
       // 6a. Track duplicate count in report tracker
@@ -220,7 +221,8 @@ export class DataPipeline {
   private async exportWithTracking(
     unifiedData: RawImportData[],
     exportConfig: ExporterConfig,
-    tracker: ReportTracker
+    tracker: ReportTracker,
+    options: ProcessingOptions
   ): Promise<ExportResult> {
     try {
       // Validate exporter configuration
@@ -244,6 +246,8 @@ export class DataPipeline {
       let totalSkipped = 0;
       let totalDuplicates = 0;
       const allErrors: string[] = [];
+      let consecutiveErrors = 0;
+      const maxConsecutiveErrors = options.maxConsecutiveErrors ?? 5;
 
       // Process each batch
       for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
@@ -261,6 +265,24 @@ export class DataPipeline {
           totalFailed += batchResult.recordsFailed;
           totalSkipped += batchResult.recordsSkipped;
           totalDuplicates += batchResult.recordsDuplicate || 0;
+
+          // Check for batch-level failures
+          if (batchResult.recordsFailed === batch.length) {
+            // All records in batch failed - increment consecutive errors
+            consecutiveErrors++;
+            console.error(
+              `⚠️  All ${batch.length} records in batch ${batchIndex + 1} failed (consecutive errors: ${consecutiveErrors}/${maxConsecutiveErrors})`
+            );
+
+            if (consecutiveErrors >= maxConsecutiveErrors) {
+              const errorMsg = `Aborting: ${consecutiveErrors} consecutive batch failures detected. This usually indicates the API server is down or misconfigured.`;
+              console.error(`🛑 ${errorMsg}`);
+              throw new Error(errorMsg);
+            }
+          } else if (batchResult.recordsSuccessful > 0) {
+            // At least some records succeeded - reset counter
+            consecutiveErrors = 0;
+          }
 
           if (batchResult.errors) {
             allErrors.push(...batchResult.errors.map(e => e.message));

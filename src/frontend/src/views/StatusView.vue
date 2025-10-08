@@ -85,30 +85,28 @@ const checkSystemHealth = async (): Promise<void> => {
 // Clear local settings (except user token) to allow first-time popup to show again
 const clearLocalSettings = (): void => {
   const confirmMessage =
-    'This will clear all local settings (map preferences, search history, etc.) except your user account. The welcome popup will show again on next page load. Are you sure?';
+    'This will clear ALL local data (map cache, preferences, search history, etc.) except your user account. The welcome popup will show again on next page load. Are you sure?';
 
   if (!confirm(confirmMessage)) {
     return;
   }
 
   try {
-    // Get all localStorage keys
-    const keys = Object.keys(localStorage);
+    // Preserve the user token before clearing
+    const userToken = localStorage.getItem('user-token');
 
-    // Keys to preserve (do not clear)
-    const preserveKeys = ['user-token'];
+    // Clear ALL localStorage
+    localStorage.clear();
 
-    // Clear all keys except preserved ones
-    keys.forEach(key => {
-      if (!preserveKeys.includes(key)) {
-        localStorage.removeItem(key);
-      }
-    });
+    // Restore the user token
+    if (userToken) {
+      localStorage.setItem('user-token', userToken);
+    }
 
-    alert('Local settings cleared successfully! Refresh the page to see the welcome popup again.');
+    alert('All local data cleared successfully! Refresh the page to see the welcome popup again.');
   } catch (err) {
-    console.error('Failed to clear local settings:', err);
-    alert('Failed to clear local settings. Please try again.');
+    console.error('Failed to clear local data:', err);
+    alert('Failed to clear local data. Please try again.');
   }
 };
 

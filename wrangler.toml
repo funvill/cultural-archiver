@@ -19,9 +19,9 @@ zone_name = "publicartregistry.com"
 
 # D1 Database bindings
 [[env.development.d1_databases]]
-binding = "DB"
-database_name = "public-art-registry"
-database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"
+binding = "DevDB"
+database_name = "development-public-art-registry"
+database_id = "fbc97d1f-4b42-4eba-8759-c69f21be7819"
 
 [[env.production.d1_databases]]
 binding = "DB"
@@ -65,8 +65,8 @@ id = "5b69d7c338734f3aa56cea9c1f3930f7"  # Must be replaced with actual producti
 
 # R2 bucket bindings
 [[env.development.r2_buckets]]
-binding = "PHOTOS_BUCKET"
-bucket_name = "public-art-registry-photos"
+binding = "DEV_PHOTOS_BUCKET"
+bucket_name = "development-public-art-registry-photos"
 
 [[env.production.r2_buckets]]
 binding = "PHOTOS_BUCKET"
@@ -81,7 +81,7 @@ API_VERSION = "1.0.0"
 # CORS configuration for development
 CORS_ORIGINS = "http://localhost:5173,http://localhost:5174,http://localhost:8787"
 # Email configuration
-EMAIL_FROM_ADDRESS = "noreply@publicartregistry.com"
+EMAIL_FROM_ADDRESS = "support@publicartregistry.com"
 EMAIL_FROM_NAME = "Public Art Registry (Dev)"
 EMAIL_REPLY_TO = "support@publicartregistry.com"
 EMAIL_ENABLED = "true"

@@ -5,6 +5,7 @@ import ArtworkCard from '../components/ArtworkCard.vue';
 import BadgeGrid from '../components/BadgeGrid.vue';
 import ProfileNameEditor from '../components/ProfileNameEditor.vue';
 import { apiService } from '../services/api';
+import { useUserLists } from '../composables/useUserLists';
 import ThemeToggle from '../components/ThemeToggle.vue';
 import type { SubmissionRecord, UserBadgeResponse, ListApiResponse } from '../../../shared/types';
 import type {
@@ -39,10 +40,8 @@ const userBadges = ref<UserBadgeResponse['user_badges']>([]);
 const badgesLoading = ref(false);
 const currentProfileName = ref<string | null>(null);
 
-// Lists management state  
-const userLists = ref<ListApiResponse[]>([]);
-const listsLoading = ref(false);
-const listsError = ref<string | null>(null);
+// Lists management - use cached composable
+const { lists: userLists, isLoading: listsLoading, error: listsError, fetchUserLists } = useUserLists();
 
 function toSearchResult(submission: SubmissionWithData): SearchResult {
   // If this submission is linked to an artwork, prefer the artwork details for card display
@@ -312,27 +311,6 @@ const customUserLists = computed(() => {
 });
 
 // Lists management methods
-async function fetchUserLists() {
-  try {
-    listsLoading.value = true;
-    listsError.value = null;
-    const response = await apiService.getUserLists();
-
-    if (response && (response as any).success && (response as any).data) {
-      const listsData = (response as any).data as any[];
-      // Filter out private lists (server may use visibility or is_private)
-      userLists.value = listsData.filter((list) => !list.is_private && list.visibility !== 'private') as ListApiResponse[];
-    } else {
-      listsError.value = (response as any)?.error || 'Failed to load lists';
-    }
-  } catch (err) {
-    console.error('Failed to fetch user lists:', err);
-    listsError.value = 'Failed to load lists';
-  } finally {
-    listsLoading.value = false;
-  }
-}
-
 function handleListClick(list: ListApiResponse) {
   router.push(`/lists/${list.id}`);
 }

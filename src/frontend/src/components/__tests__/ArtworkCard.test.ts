@@ -47,7 +47,8 @@ describe('ArtworkCard', () => {
 
     const img = wrapper.find('img');
     expect(img.exists()).toBe(true);
-    expect(img.attributes('src')).toBe(mockArtwork.recent_photo);
+    // ArtworkCard uses getImageSizedURL with 'thumbnail' variant
+    expect(img.attributes('src')).toBe('/api/images/thumbnail/https://example.com/photo.jpg');
     expect(img.attributes('alt')).toContain('Beautiful Mural');
   });
 

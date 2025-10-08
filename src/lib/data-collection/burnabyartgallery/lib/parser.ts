@@ -26,6 +26,8 @@ export interface ArtworkData {
   artworkType: string;
   photos: string[];
   artistLinks: string[];
+  // Optional artist name(s) parsed directly from the artwork page
+  artist?: string;
 }
 
 export interface ArtistData {
@@ -54,13 +56,7 @@ export class HTMLParser {
       .trim();
   }
 
-  /**
-   * Extract attribute value from HTML tag
-   */
-  private extractAttribute(html: string, pattern: RegExp): string {
-    const match = html.match(pattern);
-    return match && match[1] ? match[1].trim() : '';
-  }
+  // ...existing code... (attribute extractor removed because it's unused in this parser)
 
   /**
    * Decode HTML entities
@@ -172,9 +168,10 @@ export class HTMLParser {
     logger.debug(`  Title: ${data.title || '(not found)'}`);
 
     // Extract coordinates from embedded map or structured data
-    data.coordinates = this.extractCoordinates(html);
-    if (data.coordinates) {
-      logger.debug(`  Coordinates: ${data.coordinates.lat}, ${data.coordinates.lon}`);
+    const coords = this.extractCoordinates(html);
+    if (coords) {
+      data.coordinates = coords;
+      logger.debug(`  Coordinates: ${coords.lat}, ${coords.lon}`);
     } else {
       logger.warn(`  No coordinates found for: ${url}`);
     }
@@ -203,6 +200,27 @@ export class HTMLParser {
     data.artistLinks = this.extractArtistLinks(html);
     logger.debug(`  Artist links found: ${data.artistLinks.length}`);
 
+    // Attempt to extract artist name(s) from the artwork page itself.
+    // Look for label 'Artist:' or anchor text for linked artist(s).
+    let artistName = this.extractFieldByLabel(html, 'artist') || '';
+    if (!artistName) {
+      // Try to locate an anchor around the artist link and capture the link text
+      const artistAnchorPattern = /<a[^>]+href=["'](?:[^"']*\/link\/artists\d+|\/list[^"']*artist_facet=[^"']+)["'][^>]*>([^<]+)<\/a>/i;
+      const m = html.match(artistAnchorPattern);
+      if (m && m[1]) {
+        artistName = this.decodeHtmlEntities(m[1]).replace(/<[^>]+>/g, '').trim();
+      }
+    }
+
+    if (artistName) {
+      // Normalize simple "Last, First" to "First Last"
+      const normalized = artistName.includes(',')
+        ? artistName.split(',').map(s => s.trim()).reverse().join(' ').replace(/\s+/g, ' ').trim()
+        : artistName.trim();
+      data.artist = normalized;
+      logger.debug(`  Artist parsed from artwork page: ${normalized}`);
+    }
+
     return data;
   }
 
@@ -223,7 +241,7 @@ export class HTMLParser {
     // Pattern 1: Direct coordinate pair in paragraph (e.g., "49.278845,-122.915511")
     const coordPairPattern = /<p[^>]*>\s*([-+]?\d+\.\d+)\s*,\s*([-+]?\d+\.\d+)\s*<\/p>/;
     let match = html.match(coordPairPattern);
-    if (match && match[1] && match[2]) {
+    if (match && typeof match[1] === 'string' && typeof match[2] === 'string') {
       const lat = parseFloat(match[1]);
       const lon = parseFloat(match[2]);
       if (this.isValidCoordinate(lat, lon)) {
@@ -234,7 +252,7 @@ export class HTMLParser {
     // Pattern 2: Google Maps query parameter
     const gmapsPattern = /[?&]query=([-+]?\d+\.\d+)\s*,\s*([-+]?\d+\.\d+)/;
     match = html.match(gmapsPattern);
-    if (match && match[1] && match[2]) {
+    if (match && typeof match[1] === 'string' && typeof match[2] === 'string') {
       const lat = parseFloat(match[1]);
       const lon = parseFloat(match[2]);
       if (this.isValidCoordinate(lat, lon)) {
@@ -249,7 +267,7 @@ export class HTMLParser {
     const latMatch = html.match(latPattern);
     const lonMatch = html.match(lonPattern);
     
-    if (latMatch && latMatch[1] && lonMatch && lonMatch[1]) {
+    if (latMatch && typeof latMatch[1] === 'string' && lonMatch && typeof lonMatch[1] === 'string') {
       const lat = parseFloat(latMatch[1]);
       const lon = parseFloat(lonMatch[1]);
       if (this.isValidCoordinate(lat, lon)) {
@@ -260,7 +278,7 @@ export class HTMLParser {
     // Pattern 4: JSON-LD or structured data
     const jsonLdPattern = /"latitude"\s*:\s*([+-]?\d+\.?\d*)\s*,\s*"longitude"\s*:\s*([+-]?\d+\.?\d*)/;
     match = html.match(jsonLdPattern);
-    if (match) {
+    if (match && typeof match[1] === 'string' && typeof match[2] === 'string') {
       const lat = parseFloat(match[1]);
       const lon = parseFloat(match[2]);
       if (this.isValidCoordinate(lat, lon)) {
@@ -282,6 +300,67 @@ export class HTMLParser {
    * Extract field by label (e.g., "Date:", "Medium:", etc.)
    */
   private extractFieldByLabel(html: string, label: string): string {
+    const lower = label.toLowerCase();
+    // Special handling for keywords: try to collect anchors or comma-separated lists
+    if (lower === 'keywords') {
+      // Collect all <dd> elements that follow a <dt>Keywords</dt>
+      // Some pages list each keyword in its own <dd> with an <a> inside.
+      const ddAllPattern = /<dt[^>]*>\s*Keywords\s*<\/dt>\s*([\s\S]*?)(?=<dt|<h|<section|<\/dl|<\/table|$)/i;
+      let m = html.match(ddAllPattern);
+      const collected: string[] = [];
+
+      if (m && m[1]) {
+        const block = m[1];
+        // Find all <dd>...</dd> inside the block
+        const ddPattern = /<dd[^>]*>([\s\S]*?)<\/dd>/gi;
+        let ddMatch;
+        while ((ddMatch = ddPattern.exec(block)) !== null) {
+          if (!ddMatch[1]) continue;
+          const inner = ddMatch[1];
+          // Prefer anchor texts
+          const anchors: string[] = [];
+          let aMatch;
+          const aPattern = /<a[^>]*>([^<]+)<\/a>/gi;
+          while ((aMatch = aPattern.exec(inner)) !== null) {
+            if (aMatch[1]) anchors.push(this.decodeHtmlEntities(aMatch[1].trim()));
+          }
+          if (anchors.length > 0) {
+            collected.push(...anchors.map(s => s.replace(/\s+/g, ' ').trim()));
+            continue;
+          }
+
+          // Fallback: strip tags and split by commas
+          const text = this.decodeHtmlEntities(inner).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          if (text) collected.push(...text.split(',').map(s => s.trim()).filter(Boolean));
+        }
+      }
+
+      // As a fallback, look for inline lists after a Keywords label
+      if (collected.length === 0) {
+        const inlinePattern = /(?:Keywords)\s*:?([\s\S]{0,300}?)(?:<\/p>|<br|<\/div>|<dt|<h|$)/i;
+        m = html.match(inlinePattern);
+        if (m && m[1]) {
+          const text = this.decodeHtmlEntities(m[1]).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          if (text) collected.push(...text.split(',').map(s => s.trim()).filter(Boolean));
+        }
+      }
+
+      if (collected.length > 0) {
+        // Deduplicate while preserving order
+        const seenSet = new Set<string>();
+        const result: string[] = [];
+        for (const k of collected) {
+          const key = k.trim();
+          if (!seenSet.has(key) && key !== '') {
+            seenSet.add(key);
+            result.push(key);
+          }
+        }
+        return result.join(', ');
+      }
+
+      return '';
+    }
     // Special handling for biography: capture multi-paragraph content and sections
     if (label.toLowerCase() === 'biography') {
       const bioPatterns = [
@@ -339,8 +418,29 @@ export class HTMLParser {
       let match;
       while ((match = pattern.exec(html)) !== null) {
         if (!match[1]) continue;
-        const url = String(match[1]);
-        if (!seen.has(url) && !url.includes('thumbnail')) {
+        let url = String(match[1]);
+
+        // Convert relative media paths to absolute URLs hosted at collections.burnabyartgallery.ca
+        if (!url.startsWith('http')) {
+          // Ensure leading slash
+          url = url.startsWith('/') ? `https://collections.burnabyartgallery.ca${url}` : `https://collections.burnabyartgallery.ca/${url}`;
+        }
+
+        // Strip width query parameter (e.g., ?width=280) or any width= param
+        try {
+          const u = new URL(url);
+          if (u.searchParams.has('width')) {
+            u.searchParams.delete('width');
+          }
+          // Also remove any empty trailing ?
+          url = u.origin + u.pathname + (u.search ? `?${u.searchParams.toString()}` : '');
+        } catch (e) {
+          // If URL parsing fails, fallback to simple regex removal
+          url = url.replace(/\?width=\d+/i, '');
+        }
+
+        // Filter thumbnails or derivative images
+        if (!seen.has(url) && !url.toLowerCase().includes('thumbnail')) {
           seen.add(url);
           photos.push(url);
         }
@@ -475,7 +575,8 @@ export class HTMLParser {
 
         if (bioPairs.length > 0) {
           bioPairs.sort((a, b) => b.length - a.length);
-          data.biography = bioPairs[0];
+          // Ensure we assign a defined string (fallback to empty string)
+          data.biography = bioPairs[0] || '';
         }
       }
     }

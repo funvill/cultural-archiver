@@ -6,15 +6,15 @@
  */
 
 import { PluginRegistry } from '../lib/plugin-registry.js';
-import { vancouverPublicArtImporter } from './vancouver-public-art.js';
 import { osmImporter } from './osm-artwork.js';
+import { artistJsonImporter } from './artist-json.js';
 
 // ================================
 // Plugin Exports
 // ================================
 
-export { vancouverPublicArtImporter } from './vancouver-public-art.js';
 export { osmImporter } from './osm-artwork.js';
+export { artistJsonImporter } from './artist-json.js';
 
 // ================================
 // Registration Helper
@@ -24,15 +24,15 @@ export { osmImporter } from './osm-artwork.js';
  * Register all core importer plugins with the registry
  */
 export function registerCoreImporters(registry: PluginRegistry): void {
-  // Register Vancouver Public Art importer
-  registry.registerImporter(vancouverPublicArtImporter);
-
-  // Register OSM importer
+    // Register OSM importer
   registry.registerImporter(osmImporter);
 
+  // Register Artist JSON importer
+  registry.registerImporter(artistJsonImporter);
+
   console.log('Registered core importer plugins:', [
-    vancouverPublicArtImporter.name,
     osmImporter.name,
+    artistJsonImporter.name,
   ]);
 }
 
@@ -40,4 +40,7 @@ export function registerCoreImporters(registry: PluginRegistry): void {
 // Plugin List
 // ================================
 
-export const coreImporters = [vancouverPublicArtImporter, osmImporter] as const;
+export const coreImporters = [
+  osmImporter,
+  artistJsonImporter,
+] as const;

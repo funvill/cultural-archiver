@@ -1884,6 +1884,56 @@ GET /photos/\*
 
 Serves images stored in R2. Example URL: `/photos/originals/2025/09/14/file.jpg`. Returns the raw image bytes with appropriate Content-Type (image/jpeg, image/png, etc.) or 404 when missing.
 
+### Image Resizing (On-Demand Thumbnails)
+
+GET /api/images/:size/\*
+
+**Description**: On-demand image resizing endpoint that generates and caches multiple size variants of photos. Reduces bandwidth and improves load times by serving appropriately-sized images.
+
+**Path Parameters**:
+- `:size` - Image variant size: `thumbnail` | `medium` | `large` | `original`
+- `*` - Full image path (supports nested paths and external URLs)
+
+**Size Variants**:
+- `thumbnail`: 400x400px (quality: 80) - For cards, previews, map markers
+- `medium`: 800x800px (quality: 85) - For carousels, galleries
+- `large`: 1200x1200px (quality: 90) - For fullscreen viewing
+- `original`: Original size (quality: 95) - Unmodified source
+
+**Examples**:
+```http
+GET /api/images/thumbnail/photos/abc123.jpg
+GET /api/images/medium/photos/2024/03/image.png
+GET /api/images/large/artworks/2025/01/artwork.jpg
+GET /api/images/original/photos/external.jpg
+```
+
+**Response**: Image binary data with appropriate Content-Type header
+
+**Caching**:
+- Variants: `Cache-Control: public, max-age=31536000, immutable` (1 year)
+- Original: `Cache-Control: public, max-age=86400` (24 hours)
+- CDN-aware with `CDN-Cache-Control` headers
+
+**Behavior**:
+1. Checks R2 for existing variant
+2. If not found, fetches original from R2
+3. Generates variant (currently returns original, pending WASM integration)
+4. Stores variant in R2 with metadata
+5. Returns image with optimized cache headers
+
+**Security**:
+- Path traversal prevention (blocks `..`, absolute paths)
+- Prefix validation (only configured photo sources)
+- Size validation (only defined variants accepted)
+
+**Error Responses**:
+- `400 Bad Request` - Invalid size variant or malformed path
+- `404 Not Found` - Original image not found in R2
+- `500 Internal Server Error` - Image processing failure
+
+**Note**: Actual image resizing requires WebAssembly library integration. Current implementation returns originals unchanged but caches them at variant paths.
+
 ### Public Artwork Pages
 
 `/p/artwork/{id}` is a public-facing path handled by the frontend worker that renders an artwork detail page for web browsers. This is not an API JSON endpoint but an HTML page route.

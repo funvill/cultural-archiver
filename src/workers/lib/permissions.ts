@@ -38,12 +38,20 @@ export async function hasPermission(
   userUuid: string,
   permission: Permission
 ): Promise<PermissionCheckResult> {
+  console.log('[HAS PERMISSION DEBUG] Starting permission check:', {
+    userUuid,
+    permission,
+  });
+
   try {
     // Check cache first
     const cached = getCachedPermissions(userUuid);
     if (cached && cached.permissions.includes(permission)) {
+      console.log('[HAS PERMISSION DEBUG] Found in cache:', { userUuid, permission });
       return { hasPermission: true, permission };
     }
+
+    console.log('[HAS PERMISSION DEBUG] Not in cache, querying user_roles table');
 
     // Query database using new user_roles table
     const stmt = db.prepare(`
@@ -59,6 +67,11 @@ export async function hasPermission(
       granted_by?: string;
     } | null;
 
+    console.log('[HAS PERMISSION DEBUG] user_roles query result:', {
+      found: !!result,
+      result,
+    });
+
     if (result && typeof result.role === 'string') {
       // Update cache
       updatePermissionCache(userUuid, [result.role as Permission]);
@@ -71,6 +84,44 @@ export async function hasPermission(
       };
     }
 
+    console.log('[HAS PERMISSION DEBUG] Not found in user_roles, trying legacy user_permissions table');
+
+    // Fallback: some deployments still use the legacy `user_permissions` table
+    // which stores permissions under `user_token` OR `user_uuid` columns.
+    try {
+      const legacyStmt = db.prepare(`
+        SELECT permission as role, granted_at, granted_by
+        FROM user_permissions
+        WHERE (user_token = ? OR user_uuid = ?) AND permission = ? AND is_active = 1
+        LIMIT 1
+      `);
+
+      const legacyResult = (await legacyStmt.bind(userUuid, userUuid, permission).first()) as {
+        role: string;
+        granted_at?: string;
+        granted_by?: string;
+      } | null;
+
+      console.log('[HAS PERMISSION DEBUG] user_permissions query result:', {
+        found: !!legacyResult,
+        legacyResult,
+      });
+
+      if (legacyResult && typeof legacyResult.role === 'string') {
+        updatePermissionCache(userUuid, [legacyResult.role as Permission]);
+        return {
+          hasPermission: true,
+          permission: legacyResult.role as Permission,
+          grantedAt: legacyResult.granted_at as string,
+          grantedBy: legacyResult.granted_by as string,
+        };
+      }
+    } catch (legacyErr) {
+      // Ignore legacy lookup errors and continue returning no permission
+      console.warn('[HAS PERMISSION DEBUG] Legacy permission lookup failed:', legacyErr);
+    }
+
+    console.log('[HAS PERMISSION DEBUG] Permission not found in any table');
     return { hasPermission: false };
   } catch (error) {
     console.error('Permission check error:', error);
@@ -130,6 +181,36 @@ export async function hasAnyPermission(
       };
     }
 
+    // Fallback to legacy user_permissions table
+    try {
+      const placeholdersLegacy = permissions.map(() => '?').join(',');
+      const legacyStmt = db.prepare(`
+        SELECT permission as role, granted_at, granted_by
+        FROM user_permissions
+        WHERE user_uuid = ? AND permission IN (${placeholdersLegacy}) AND is_active = 1
+        ORDER BY CASE permission WHEN 'admin' THEN 1 WHEN 'moderator' THEN 2 ELSE 3 END
+        LIMIT 1
+      `);
+
+      const legacyResult = (await legacyStmt.bind(userUuid, ...permissions).first()) as {
+        role: string;
+        granted_at?: string;
+        granted_by?: string;
+      } | null;
+
+      if (legacyResult && typeof legacyResult.role === 'string') {
+        updatePermissionCache(userUuid, [legacyResult.role as Permission]);
+        return {
+          hasPermission: true,
+          permission: legacyResult.role as Permission,
+          grantedAt: legacyResult.granted_at as string,
+          grantedBy: legacyResult.granted_by as string,
+        };
+      }
+    } catch (legacyErr) {
+      console.warn('Legacy multi-permission lookup failed:', legacyErr);
+    }
+
     return { hasPermission: false };
   } catch (error) {
     console.error('Multi-permission check error:', error);
@@ -163,10 +244,35 @@ export async function getUserPermissions(db: D1Database, userUuid: string): Prom
 
     const results = await stmt.bind(userUuid).all();
 
-    if (results.success) {
+    if (results.success && results.results.length > 0) {
       const permissions = results.results.map(row => (row as { role: Permission }).role);
       updatePermissionCache(userUuid, permissions);
       return permissions;
+    }
+
+    // Fallback: Check legacy user_permissions table
+    try {
+      const legacyStmt = db.prepare(`
+        SELECT permission as role
+        FROM user_permissions
+        WHERE (user_token = ? OR user_uuid = ?) AND is_active = 1
+        ORDER BY 
+          CASE permission 
+            WHEN 'admin' THEN 1 
+            WHEN 'moderator' THEN 2 
+            ELSE 3 
+          END
+      `);
+
+      const legacyResults = await legacyStmt.bind(userUuid, userUuid).all();
+
+      if (legacyResults.success && legacyResults.results.length > 0) {
+        const permissions = legacyResults.results.map(row => (row as { role: Permission }).role);
+        updatePermissionCache(userUuid, permissions);
+        return permissions;
+      }
+    } catch (legacyErr) {
+      console.warn('Legacy permission lookup failed in getUserPermissions:', legacyErr);
     }
 
     return [];

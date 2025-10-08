@@ -38,6 +38,39 @@ export interface ArtworkApiResponse {
   updated_at?: string | null; // For sorting by last updated
 }
 
+// ================================
+// Photo Variant Types
+// ================================
+
+/**
+ * Photo size variants for responsive image loading
+ * - thumbnail: 400x400px for map markers, cards, search results
+ * - medium: 1024x1024px for artwork detail pages
+ * - large: 1200x1200px for high-quality detail view
+ * - original: Unchanged archive/reference
+ */
+export type PhotoVariant = 'thumbnail' | 'medium' | 'large' | 'original';
+
+/**
+ * Photo size specifications
+ */
+export const PHOTO_SIZES: Record<PhotoVariant, { width: number; height: number } | null> = {
+  thumbnail: { width: 400, height: 400 },
+  medium: { width: 1024, height: 1024 },
+  large: { width: 1200, height: 1200 },
+  original: null, // Original size, no resizing
+};
+
+/**
+ * Image quality settings for each variant
+ */
+export const PHOTO_QUALITY: Record<PhotoVariant, number> = {
+  thumbnail: 80, // Lower quality for small thumbnails
+  medium: 85, // Good balance for detail pages
+  large: 90, // High quality for detailed viewing
+  original: 100, // No compression
+};
+
 export interface ArtworkPhoto {
   url: string;
   thumbnail_url?: string | null;
@@ -1655,6 +1688,93 @@ export const isValidFeedbackIssueType = (t: string): t is FeedbackRecord['issue_
 
 export const isValidFeedbackStatus = (s: string): s is FeedbackRecord['status'] =>
   FEEDBACK_STATUSES.includes(s as FeedbackRecord['status']);
+
+// ================================
+// Social Media Scheduling Types
+// ================================
+
+export type SocialMediaType = 'bluesky' | 'instagram' | 'twitter' | 'facebook' | 'other';
+
+export interface SocialMediaScheduleRecord {
+  id: string;
+  user_id: string;
+  artwork_id: string | null;
+  scheduled_date: string;
+  social_type: SocialMediaType;
+  status: 'scheduled' | 'posted' | 'failed';
+  body: string;
+  photos: string | null; // JSON array of photo URLs
+  last_attempt_at: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface SocialMediaScheduleApiResponse extends SocialMediaScheduleRecord {
+  artwork?: ArtworkApiResponse | null;
+  user?: UserRecord | null;
+  photos_parsed?: string[];
+}
+
+export interface CreateSocialMediaScheduleRequest {
+  artwork_id: string;
+  scheduled_date: string;
+  social_type: SocialMediaType;
+  body: string;
+  photos?: string[];
+}
+
+export interface UpdateSocialMediaScheduleRequest {
+  id: string;
+  scheduled_date?: string;
+  body?: string;
+  photos?: string[];
+}
+
+export interface SocialMediaSuggestion {
+  artwork: ArtworkApiResponse;
+  artists: ArtistApiResponse[];
+  suggested_posts: {
+    [key in SocialMediaType]?: {
+      body: string;
+      photos: string[];
+    };
+  };
+}
+
+export interface SocialMediaScheduleListResponse {
+  schedules: SocialMediaScheduleApiResponse[];
+  total: number;
+  page: number;
+  per_page: number;
+  has_more: boolean;
+}
+
+export interface SocialMediaSuggestionsResponse {
+  suggestions: SocialMediaSuggestion[];
+  total: number;
+  page: number;
+  per_page: number;
+  has_more: boolean;
+}
+
+// Constants
+export const SOCIAL_MEDIA_TYPES: SocialMediaType[] = [
+  'bluesky',
+  'instagram',
+  'twitter',
+  'facebook',
+  'other',
+];
+export const SOCIAL_MEDIA_SCHEDULE_STATUSES = ['scheduled', 'posted', 'failed'] as const;
+
+// Validators
+export const isValidSocialMediaType = (t: string): t is SocialMediaType =>
+  SOCIAL_MEDIA_TYPES.includes(t as SocialMediaType);
+
+export const isValidSocialMediaScheduleStatus = (
+  s: string
+): s is SocialMediaScheduleRecord['status'] =>
+  SOCIAL_MEDIA_SCHEDULE_STATUSES.includes(s as SocialMediaScheduleRecord['status']);
 
 // ================================
 // LEGACY TYPES (Maintaining for compatibility)
