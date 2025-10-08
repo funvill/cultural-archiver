@@ -75,7 +75,7 @@ Create a plan for updating the production database artwork's artist name by find
   - [x] 3.2 Add about page
   - [x] 3.3 Why I am doing this
 - [ ] 4.0 Update help page
-- [x] 5.0 Remove the "Devlopment banner"
+- [x] 5.0 Remove the "Devlopment Banner"
 - [X] 6.0 Logo?
 - [x] HTTP Error pages
   - [x] HTTP 404 error page
@@ -134,7 +134,7 @@ year => start_date
 - Add a fixed field "province" with the value of "Britsh Columbia"
 
 ----
-richmond
+Richmond
 src\lib\data-collection\richmond
 
 - artistNames, and artistIds needs to be comma seperated instead of a array.
