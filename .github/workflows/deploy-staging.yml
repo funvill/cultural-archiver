@@ -27,6 +27,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
         
+      - name: Bundle social media templates
+        run: npx tsx scripts/bundle-templates.ts
+
       - name: Run tests
         run: npm run test
         

@@ -44,7 +44,7 @@ export async function processSocialMediaSchedules(env: WorkerEnv): Promise<void>
           a.tags,
           a.photos as artwork_photos
         FROM social_media_schedules s
-        JOIN artworks a ON s.artwork_id = a.id
+        JOIN artwork a ON s.artwork_id = a.id
         WHERE s.status = 'scheduled' 
           AND s.scheduled_date <= ?
         ORDER BY s.scheduled_date ASC

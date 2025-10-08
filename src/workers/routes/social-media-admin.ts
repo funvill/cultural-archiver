@@ -63,14 +63,17 @@ export async function getSocialMediaSuggestions(
     // Find artworks that:
     // - Have at least one photo
     // - Have at least one associated artist
+    // - Have at least one logbook entry (updated since mass import)
     // - Have NOT been successfully posted to social media
     const query = `
       SELECT DISTINCT a.*
       FROM artwork a
       INNER JOIN artwork_artists aa ON a.id = aa.artwork_id
+      INNER JOIN submissions s ON a.id = s.artwork_id
       WHERE a.status = 'approved'
         AND a.photos IS NOT NULL
         AND json_array_length(a.photos) > 0
+        AND s.submission_type = 'logbook_entry'
         AND NOT EXISTS (
           SELECT 1 FROM social_media_schedules sms
           WHERE sms.artwork_id = a.id AND sms.status = 'posted'
@@ -87,9 +90,11 @@ export async function getSocialMediaSuggestions(
       SELECT COUNT(DISTINCT a.id) as total
       FROM artwork a
       INNER JOIN artwork_artists aa ON a.id = aa.artwork_id
+      INNER JOIN submissions s ON a.id = s.artwork_id
       WHERE a.status = 'approved'
         AND a.photos IS NOT NULL
         AND json_array_length(a.photos) > 0
+        AND s.submission_type = 'logbook_entry'
         AND NOT EXISTS (
           SELECT 1 FROM social_media_schedules sms
           WHERE sms.artwork_id = a.id AND sms.status = 'posted'

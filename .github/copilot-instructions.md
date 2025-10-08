@@ -6,8 +6,7 @@
 - When starting a devlopment server for testing, use `npm run devout`. This produces a log file `dev-server-logs.txt` that contains the server logs
 - [ ] `npm run test` passes with 0 failures
 - [ ] `npm run build` completes with 0 errors
-- The project is in pre-release. We can recreate the database and lose data at this stage. In backward compatibility is not required. I prefer database replacement over migration
-- When working with Wrangler, use `CI=true` environment variable to ensure that its set to non interactive mode. This asks me less questions
+- The project has been released. Double check and review all changes to the database. Check the `docs\database.md` document for field and table names. Keep this document up to date after each migration.
 - Artwork table is called "artwork" (singular) not artworks (plural) with a s
 
 ## Settings

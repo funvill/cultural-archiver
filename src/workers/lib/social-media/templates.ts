@@ -6,6 +6,7 @@
  */
 
 import type { ArtworkApiResponse, ArtistApiResponse, SocialMediaType } from '../../../shared/types';
+import { BUNDLED_TEMPLATES as GENERATED_BUNDLED_TEMPLATES } from './bundled-templates.generated';
 
 /**
  * Template context with all available variables
@@ -29,8 +30,12 @@ export interface TemplateContext {
  */
 export async function readTemplate(type: SocialMediaType): Promise<string | null> {
   try {
-    // In a Cloudflare Worker, we'll need to bundle templates as strings
-    // For now, return default templates
+    // Use the generated bundled templates (from scripts/bundle-templates.ts)
+    if (GENERATED_BUNDLED_TEMPLATES && GENERATED_BUNDLED_TEMPLATES[type]) {
+      return GENERATED_BUNDLED_TEMPLATES[type] as string;
+    }
+
+    // Fall back to built-in default templates
     return getDefaultTemplate(type);
   } catch (error) {
     console.error(`Error reading template for ${type}:`, error);
@@ -93,19 +98,38 @@ Discover more at {{url}}`;
  * @param context Template context with variable values
  * @returns Rendered string
  */
-export function renderTemplate(template: string, context: TemplateContext): string {
+export function renderTemplate(template: string, context: TemplateContext & Record<string, unknown>): string {
   let result = template;
 
   // Handle conditional blocks first: {{#if variable}}...{{/if}}
-  result = result.replace(/\{\{#if\s+(\w+)\}\}(.*?)\{\{\/if\}\}/gs, (_match, varName, content) => {
-    const value = context[varName as keyof TemplateContext];
+  // Supports both simple vars and tag:key format
+  result = result.replace(/\{\{#if\s+([\w:]+)\}\}(.*?)\{\{\/if\}\}/gs, (_match, varName, content) => {
+    let value: unknown;
+    
+    // Check if it's a tag:key format
+    if (varName.startsWith('tag:')) {
+      const tagKey = varName.substring(4); // Remove 'tag:' prefix
+      value = context[`tag:${tagKey}`];
+    } else {
+      value = context[varName as keyof TemplateContext];
+    }
+    
     return value ? content : '';
   });
 
-  // Replace variables: {{variable}}
-  result = result.replace(/\{\{(\w+)\}\}/g, (_match, varName) => {
-    const value = context[varName as keyof TemplateContext];
-    return value !== undefined ? String(value) : '';
+  // Replace variables: {{variable}} and {{tag:key}}
+  result = result.replace(/\{\{([\w:]+)\}\}/g, (_match, varName) => {
+    let value: unknown;
+    
+    // Check if it's a tag:key format
+    if (varName.startsWith('tag:')) {
+      const tagKey = varName.substring(4); // Remove 'tag:' prefix
+      value = context[`tag:${tagKey}`];
+    } else {
+      value = context[varName as keyof TemplateContext];
+    }
+    
+    return value !== undefined && value !== null ? String(value) : '';
   });
 
   // Clean up extra blank lines (more than 2 consecutive newlines)
@@ -123,13 +147,13 @@ export function renderTemplate(template: string, context: TemplateContext): stri
  * @param artwork Artwork data
  * @param artists Array of artist data
  * @param baseUrl Base URL for the site (e.g., 'https://publicartregistry.com')
- * @returns Template context
+ * @returns Template context with all available variables including tag:* variables
  */
 export function buildTemplateContext(
   artwork: ArtworkApiResponse,
   artists: ArtistApiResponse[],
   baseUrl: string
-): TemplateContext {
+): TemplateContext & Record<string, unknown> {
   // Parse tags if needed
   let tags: Record<string, unknown> = {};
   if (artwork.tags) {
@@ -154,7 +178,8 @@ export function buildTemplateContext(
   // Build URL
   const url = `${baseUrl}/artwork/${artwork.id}`;
 
-  return {
+  // Build base context
+  const context: TemplateContext & Record<string, unknown> = {
     title: artwork.title || 'Untitled',
     artist: primaryArtist || undefined,
     artists: allArtists || undefined,
@@ -164,6 +189,15 @@ export function buildTemplateContext(
     year: tags.year_created ? String(tags.year_created) : undefined,
     medium: tags.medium ? String(tags.medium) : undefined,
   };
+
+  // Add all tags as tag:* variables
+  for (const [key, value] of Object.entries(tags)) {
+    if (value !== null && value !== undefined) {
+      context[`tag:${key}`] = String(value);
+    }
+  }
+
+  return context;
 }
 
 /**

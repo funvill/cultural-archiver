@@ -25,6 +25,25 @@ The following variables are available for use in templates:
 - `{{year}}` - Year created (if available in tags)
 - `{{medium}}` - Medium/material (if available in tags)
 
+### Tag Variables
+
+You can access **any artwork tag** using the `{{tag:key}}` syntax:
+
+- `{{tag:artwork_type}}` - Type of artwork (sculpture, mural, installation, etc.)
+- `{{tag:dimensions}}` - Physical dimensions
+- `{{tag:material}}` - Construction material
+- `{{tag:year_created}}` - Same as `{{year}}`
+- `{{tag:city}}` - Same as `{{location}}`
+- `{{tag:condition}}` - Current condition
+- `{{tag:any_other_tag}}` - Any custom tag key
+
+**Example usage:**
+```
+Check out this {{tag:artwork_type}} by {{artist}}! {{#if tag:material}}Made of {{tag:material}}.{{/if}}
+```
+
+Tag variables work in both substitutions and conditionals.
+
 ## Conditional Blocks
 
 Use Handlebars-style conditionals:

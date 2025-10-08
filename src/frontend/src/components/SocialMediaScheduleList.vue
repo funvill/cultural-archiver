@@ -32,33 +32,36 @@ const editedDate = ref('');
 // Computed minimum date for date inputs
 const minDate = computed(() => new Date().toISOString().split('T')[0] ?? '');
 
-// Group schedules by month
+// Group schedules by date (not just month)
 const groupedSchedules = computed(() => {
-  const groups: Record<string, SocialMediaScheduleApiResponse[]> = {};
+  const groups: Record<string, Record<string, SocialMediaScheduleApiResponse[]>> = {};
 
   props.schedules.forEach((schedule) => {
     const date = new Date(schedule.scheduled_date);
     const monthKey = date.toLocaleDateString('en-US', { year: 'numeric', month: 'long' });
+    const dayKey = schedule.scheduled_date; // Use ISO date as key (YYYY-MM-DD)
 
     if (!groups[monthKey]) {
-      groups[monthKey] = [];
+      groups[monthKey] = {};
     }
-    groups[monthKey].push(schedule);
-  });
-
-  // Sort within each group
-  Object.keys(groups).forEach((key) => {
-    const groupSchedules = groups[key];
-    if (groupSchedules) {
-      groupSchedules.sort(
-        (a, b) =>
-          new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime()
-      );
+    if (!groups[monthKey]![dayKey]) {
+      groups[monthKey]![dayKey] = [];
     }
+    groups[monthKey]![dayKey]!.push(schedule);
   });
 
   return groups;
 });
+
+// Format date headers
+function formatDayHeader(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  });
+}
 
 // Open modal
 function openModal(schedule: SocialMediaScheduleApiResponse): void {
@@ -137,16 +140,6 @@ async function updateSchedule(): Promise<void> {
   }
 }
 
-// Format date for display
-function formatDate(dateStr: string): string {
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-  });
-}
-
 // Get platform badge color
 function getPlatformColor(platform: string): string {
   const colors: Record<string, string> = {
@@ -185,21 +178,29 @@ function getPlatformColor(platform: string): string {
       </p>
     </div>
 
-    <!-- Grouped Schedule List -->
-    <div v-for="(monthSchedules, month) in groupedSchedules" :key="month" class="space-y-4">
-      <!-- Month Header -->
-      <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ month }}</h3>
+    <!-- Grouped Schedule List by Month → Date → Platforms -->
+    <div v-for="(dateGroups, monthKey) in groupedSchedules" :key="monthKey" class="space-y-6">
+      <!-- Month/Year Header (h3) -->
+      <h3 class="text-xl font-bold text-gray-900 dark:text-white border-b-2 border-gray-300 dark:border-gray-600 pb-2">
+        {{ monthKey }}
+      </h3>
 
-      <!-- Schedule Items -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow divide-y divide-gray-200 dark:divide-gray-700">
-        <button
-          v-for="schedule in monthSchedules"
-          :key="schedule.id"
-          @click="openModal(schedule)"
-          class="w-full px-4 py-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors text-left"
-        >
-          <div class="flex items-center justify-between">
-            <div class="flex items-start space-x-4 flex-1 min-w-0">
+      <!-- Date Groups within Month -->
+      <div v-for="(daySchedules, dateKey) in dateGroups" :key="dateKey" class="space-y-3 ml-4">
+        <!-- Day Header (h4) -->
+        <h4 class="text-lg font-semibold text-gray-800 dark:text-gray-200">
+          {{ formatDayHeader(dateKey) }}
+        </h4>
+
+        <!-- Platform Cards (Side by Side) -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <button
+            v-for="schedule in daySchedules"
+            :key="schedule.id"
+            @click="openModal(schedule)"
+            class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700 hover:border-blue-500 dark:hover:border-blue-400 transition-colors p-4 text-left"
+          >
+            <div class="flex items-start space-x-3">
               <!-- Artwork Thumbnail -->
               <div v-if="schedule.artwork?.photos" class="flex-shrink-0">
                 <img
@@ -209,46 +210,45 @@ function getPlatformColor(platform: string): string {
                 />
               </div>
 
-              <!-- Schedule Info -->
+              <!-- Post Content -->
               <div class="flex-1 min-w-0">
-                <div class="flex items-center space-x-2 mb-1">
-                  <span class="text-sm font-medium text-gray-900 dark:text-white">
-                    {{ formatDate(schedule.scheduled_date) }}
-                  </span>
-                  <span
-                    :class="[
-                      'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium capitalize',
-                      getPlatformColor(schedule.social_type),
-                    ]"
-                  >
-                    {{ schedule.social_type }}
-                  </span>
-                </div>
-                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                <!-- Platform Badge -->
+                <span
+                  :class="[
+                    'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize mb-2',
+                    getPlatformColor(schedule.social_type),
+                  ]"
+                >
+                  {{ schedule.social_type === 'bluesky' ? '🦋 Bluesky' : '📷 Instagram' }}
+                </span>
+
+                <!-- Artwork Title -->
+                <p class="text-sm font-semibold text-gray-900 dark:text-white truncate mb-1">
                   {{ schedule.artwork?.title || 'Untitled' }}
                 </p>
-                <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2 mt-1">
+
+                <!-- Post Body Preview -->
+                <p class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
                   {{ schedule.body }}
                 </p>
+
+                <!-- Status Badge (if not scheduled) -->
+                <div v-if="schedule.status !== 'scheduled'" class="mt-2">
+                  <span
+                    :class="[
+                      'inline-flex items-center px-2 py-0.5 rounded text-xs font-medium',
+                      schedule.status === 'posted'
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                        : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+                    ]"
+                  >
+                    {{ schedule.status }}
+                  </span>
+                </div>
               </div>
             </div>
-
-            <!-- Arrow Icon -->
-            <svg
-              class="flex-shrink-0 h-5 w-5 text-gray-400"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M9 5l7 7-7 7"
-              />
-            </svg>
-          </div>
-        </button>
+          </button>
+        </div>
       </div>
     </div>
 
