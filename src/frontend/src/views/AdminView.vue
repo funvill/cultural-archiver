@@ -5,6 +5,7 @@ import { adminService } from '../services/admin';
 import PermissionManager from '../components/PermissionManager.vue';
 import AuditLogViewer from '../components/AuditLogViewer.vue';
 import BadgeManager from '../components/BadgeManager.vue';
+import SocialMediaScheduler from '../components/SocialMediaScheduler.vue';
 import type { AuditStatistics } from '../../../shared/types';
 
 /**
@@ -28,6 +29,7 @@ const tabs = [
   { id: 'permissions', name: 'Permission Management' },
   { id: 'audit', name: 'Audit Logs' },
   { id: 'badges', name: 'Badge Management' },
+  { id: 'social-media', name: 'Social Media' },
   // Data Dumps feature removed
 ];
 
@@ -311,6 +313,11 @@ onMounted(async () => {
           <!-- Badge Management Tab -->
           <div v-if="activeTab === 'badges'" class="space-y-6">
             <BadgeManager />
+          </div>
+
+          <!-- Social Media Scheduler Tab -->
+          <div v-if="activeTab === 'social-media'" class="space-y-6">
+            <SocialMediaScheduler />
           </div>
 
           <!-- Data Dumps Tab removed -->

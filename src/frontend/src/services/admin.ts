@@ -15,6 +15,12 @@ import type {
   AuditLogsResponse,
   AuditLogEntry,
   AuditStatistics,
+  SocialMediaSuggestionsResponse,
+  SocialMediaScheduleListResponse,
+  SocialMediaScheduleApiResponse,
+  CreateSocialMediaScheduleRequest,
+  UpdateSocialMediaScheduleRequest,
+  SocialMediaType,
 } from '../../../shared/types';
 import type { BadgeRecord } from '../../../shared/types';
 import { apiService } from './api';
@@ -337,6 +343,125 @@ export class AdminService {
     if (!result.success) {
       throw new Error(result.error || 'Failed to deactivate badge');
     }
+  }
+
+  // ================================
+  // Social Media Scheduling Methods
+  // ================================
+
+  /**
+   * Get artwork suggestions for social media posts
+   */
+  async getSocialMediaSuggestions(params?: {
+    page?: number;
+    per_page?: number;
+  }): Promise<SocialMediaSuggestionsResponse> {
+    const queryParams: Record<string, string> = {};
+    if (params?.page) queryParams.page = params.page.toString();
+    if (params?.per_page) queryParams.per_page = params.per_page.toString();
+
+    const result = await apiService.get<{ success: boolean; data: SocialMediaSuggestionsResponse }>(
+      '/admin/social-media/suggestions',
+      queryParams
+    );
+    
+    if (!result.success || !result.data) {
+      throw new Error('Failed to get social media suggestions');
+    }
+    
+    return result.data;
+  }
+
+  /**
+   * Schedule a new social media post
+   */
+  async createSocialMediaSchedule(
+    request: CreateSocialMediaScheduleRequest
+  ): Promise<{ schedule: SocialMediaScheduleApiResponse; warning?: string }> {
+    const result = await apiService.post<{
+      success: boolean;
+      data: { schedule: SocialMediaScheduleApiResponse; warning?: string };
+    }>('/admin/social-media/schedule', request);
+    
+    if (!result.success || !result.data) {
+      throw new Error('Failed to create social media schedule');
+    }
+    
+    return result.data;
+  }
+
+  /**
+   * Get list of scheduled posts
+   */
+  async getSocialMediaSchedules(params?: {
+    page?: number;
+    per_page?: number;
+    status?: 'scheduled' | 'posted' | 'failed';
+    social_type?: SocialMediaType;
+  }): Promise<SocialMediaScheduleListResponse> {
+    const queryParams: Record<string, string> = {};
+    if (params?.page) queryParams.page = params.page.toString();
+    if (params?.per_page) queryParams.per_page = params.per_page.toString();
+    if (params?.status) queryParams.status = params.status;
+    if (params?.social_type) queryParams.social_type = params.social_type;
+
+    const result = await apiService.get<{ success: boolean; data: SocialMediaScheduleListResponse }>(
+      '/admin/social-media/schedule',
+      queryParams
+    );
+    
+    if (!result.success || !result.data) {
+      throw new Error('Failed to get social media schedules');
+    }
+    
+    return result.data;
+  }
+
+  /**
+   * Update a scheduled post
+   */
+  async updateSocialMediaSchedule(
+    id: string,
+    updates: Partial<UpdateSocialMediaScheduleRequest>
+  ): Promise<SocialMediaScheduleApiResponse> {
+    const result = await apiService.put<{ success: boolean; data: { schedule: SocialMediaScheduleApiResponse } }>(
+      `/admin/social-media/schedule/${id}`,
+      updates
+    );
+    
+    if (!result.success || !result.data) {
+      throw new Error('Failed to update social media schedule');
+    }
+    
+    return result.data.schedule;
+  }
+
+  /**
+   * Delete a scheduled post
+   */
+  async deleteSocialMediaSchedule(id: string): Promise<void> {
+    const result = await apiService.delete<{ success: boolean; message: string }>(
+      `/admin/social-media/schedule/${id}`
+    );
+    
+    if (!result.success) {
+      throw new Error(result.message || 'Failed to delete social media schedule');
+    }
+  }
+
+  /**
+   * Get the next available date with no scheduled posts
+   */
+  async getNextAvailableDate(): Promise<string> {
+    const result = await apiService.get<{ success: boolean; data: { date: string } }>(
+      '/admin/social-media/next-available-date'
+    );
+    
+    if (!result.success || !result.data) {
+      throw new Error('Failed to get next available date');
+    }
+    
+    return result.data.date;
   }
 }
 

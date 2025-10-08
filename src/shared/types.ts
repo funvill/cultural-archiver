@@ -1690,6 +1690,93 @@ export const isValidFeedbackStatus = (s: string): s is FeedbackRecord['status'] 
   FEEDBACK_STATUSES.includes(s as FeedbackRecord['status']);
 
 // ================================
+// Social Media Scheduling Types
+// ================================
+
+export type SocialMediaType = 'bluesky' | 'instagram' | 'twitter' | 'facebook' | 'other';
+
+export interface SocialMediaScheduleRecord {
+  id: string;
+  user_id: string;
+  artwork_id: string | null;
+  scheduled_date: string;
+  social_type: SocialMediaType;
+  status: 'scheduled' | 'posted' | 'failed';
+  body: string;
+  photos: string | null; // JSON array of photo URLs
+  last_attempt_at: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+
+export interface SocialMediaScheduleApiResponse extends SocialMediaScheduleRecord {
+  artwork?: ArtworkApiResponse | null;
+  user?: UserRecord | null;
+  photos_parsed?: string[];
+}
+
+export interface CreateSocialMediaScheduleRequest {
+  artwork_id: string;
+  scheduled_date: string;
+  social_type: SocialMediaType;
+  body: string;
+  photos?: string[];
+}
+
+export interface UpdateSocialMediaScheduleRequest {
+  id: string;
+  scheduled_date?: string;
+  body?: string;
+  photos?: string[];
+}
+
+export interface SocialMediaSuggestion {
+  artwork: ArtworkApiResponse;
+  artists: ArtistApiResponse[];
+  suggested_posts: {
+    [key in SocialMediaType]?: {
+      body: string;
+      photos: string[];
+    };
+  };
+}
+
+export interface SocialMediaScheduleListResponse {
+  schedules: SocialMediaScheduleApiResponse[];
+  total: number;
+  page: number;
+  per_page: number;
+  has_more: boolean;
+}
+
+export interface SocialMediaSuggestionsResponse {
+  suggestions: SocialMediaSuggestion[];
+  total: number;
+  page: number;
+  per_page: number;
+  has_more: boolean;
+}
+
+// Constants
+export const SOCIAL_MEDIA_TYPES: SocialMediaType[] = [
+  'bluesky',
+  'instagram',
+  'twitter',
+  'facebook',
+  'other',
+];
+export const SOCIAL_MEDIA_SCHEDULE_STATUSES = ['scheduled', 'posted', 'failed'] as const;
+
+// Validators
+export const isValidSocialMediaType = (t: string): t is SocialMediaType =>
+  SOCIAL_MEDIA_TYPES.includes(t as SocialMediaType);
+
+export const isValidSocialMediaScheduleStatus = (
+  s: string
+): s is SocialMediaScheduleRecord['status'] =>
+  SOCIAL_MEDIA_SCHEDULE_STATUSES.includes(s as SocialMediaScheduleRecord['status']);
+
+// ================================
 // LEGACY TYPES (Maintaining for compatibility)
 // ================================
 

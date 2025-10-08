@@ -1,0 +1,13 @@
+🎨 {{title}}{{#if artist}} by {{artist}}{{/if}}
+{{#if description}}
+
+{{description}}
+{{/if}}{{#if location}}
+
+📍 {{location}}{{/if}}{{#if year}}
+📅 {{year}}{{/if}}{{#if medium}}
+🖌️ {{medium}}{{/if}}
+
+Discover more public art at {{url}}
+
+#PublicArt #UrbanArt #CulturalHeritage #ArtInPublicSpaces #StreetArt #OutdoorArt #CommunityArt

@@ -150,6 +150,14 @@ import {
   updateAdminBadge,
   deactivateAdminBadge,
 } from './routes/admin';
+import {
+  getSocialMediaSuggestions,
+  createSocialMediaSchedule,
+  getSocialMediaSchedules,
+  deleteSocialMediaSchedule,
+  updateSocialMediaSchedule,
+  getNextAvailableDate,
+} from './routes/social-media-admin';
 import { debugStevenPermissions } from './routes/debug-permissions';
 import { fixPermissionsSchema } from './routes/fix-schema';
 import { createFeedback } from './routes/feedback';
@@ -1277,6 +1285,25 @@ app.put('/api/admin/badges/:id', withErrorHandling(updateAdminBadge));
 // DELETE /api/admin/badges/:id - Deactivate a badge
 app.delete('/api/admin/badges/:id', withErrorHandling(deactivateAdminBadge));
 
+// Social media scheduling endpoints for administrators
+// GET /api/admin/social-media/suggestions - Get artwork suggestions for posts
+app.get('/api/admin/social-media/suggestions', withErrorHandling(getSocialMediaSuggestions));
+
+// POST /api/admin/social-media/schedule - Schedule a new post
+app.post('/api/admin/social-media/schedule', withErrorHandling(createSocialMediaSchedule));
+
+// GET /api/admin/social-media/schedule - Get list of scheduled posts
+app.get('/api/admin/social-media/schedule', withErrorHandling(getSocialMediaSchedules));
+
+// DELETE /api/admin/social-media/schedule/:id - Unschedule a post
+app.delete('/api/admin/social-media/schedule/:id', withErrorHandling(deleteSocialMediaSchedule));
+
+// PATCH /api/admin/social-media/schedule/:id - Update a scheduled post
+app.patch('/api/admin/social-media/schedule/:id', withErrorHandling(updateSocialMediaSchedule));
+
+// GET /api/admin/social-media/next-available-date - Find next available posting date
+app.get('/api/admin/social-media/next-available-date', withErrorHandling(getNextAvailableDate));
+
 // Temporarily commented out - missing admin-update route file
 // app.post('/api/dev/update-steven-permissions', ensureUserToken, withErrorHandling(updateStevenPermissions));
 
@@ -1433,4 +1460,31 @@ app.onError((err, c) => {
 
 // Export for Cloudflare Workers
 export default app;
+
+/**
+ * Scheduled event handler for cron triggers
+ * 
+ * This handler processes scheduled social media posts when the cron trigger fires.
+ * To enable, uncomment the [triggers] section in wrangler.toml.
+ */
+export async function scheduled(
+  event: ScheduledEvent,
+  env: WorkerEnv,
+  _ctx: ExecutionContext
+): Promise<void> {
+  try {
+    console.log('[SCHEDULED] Social media cron job triggered at', new Date(event.scheduledTime).toISOString());
+    
+    // Import the cron handler
+    const { processSocialMediaSchedules } = await import('./lib/social-media/cron');
+    
+    // Process scheduled posts
+    await processSocialMediaSchedules(env);
+    
+    console.log('[SCHEDULED] Social media cron job completed successfully');
+  } catch (error) {
+    console.error('[SCHEDULED] Error in scheduled handler:', error);
+    throw error; // Re-throw to mark the job as failed
+  }
+}
 

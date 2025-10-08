@@ -8,6 +8,7 @@
 - [ ] `npm run build` completes with 0 errors
 - The project is in pre-release. We can recreate the database and lose data at this stage. In backward compatibility is not required. I prefer database replacement over migration
 - When working with Wrangler, use `CI=true` environment variable to ensure that its set to non interactive mode. This asks me less questions
+- Artwork table is called "artwork" (singular) not artworks (plural) with a s
 
 ## Settings
 

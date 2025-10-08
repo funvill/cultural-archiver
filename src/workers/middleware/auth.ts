@@ -158,18 +158,33 @@ export async function requireAdmin(
 ): Promise<void | Response> {
   const userToken = c.get('userToken');
 
+  console.log('[REQUIRE ADMIN DEBUG] Starting admin check:', {
+    userToken,
+    hasToken: !!userToken,
+  });
+
   if (!userToken) {
+    console.error('[REQUIRE ADMIN DEBUG] No user token found');
     throw new UnauthorizedError('User token required');
   }
 
   try {
     // Check database-backed admin permissions
     const { isAdmin } = await import('../lib/permissions');
+    console.log('[REQUIRE ADMIN DEBUG] Calling isAdmin function with token:', userToken);
     const hasAdminPermission = await isAdmin(c.env.DB, userToken);
 
+    console.log('[REQUIRE ADMIN DEBUG] isAdmin result:', {
+      hasAdminPermission,
+      userToken,
+    });
+
     if (!hasAdminPermission) {
+      console.error('[REQUIRE ADMIN DEBUG] Permission denied - not an admin:', userToken);
       throw new ForbiddenError('Administrator permissions required');
     }
+
+    console.log('[REQUIRE ADMIN DEBUG] Admin check passed, updating auth context');
 
     // Update auth context
     const authContext = c.get('authContext');
@@ -180,6 +195,7 @@ export async function requireAdmin(
 
     await next();
   } catch (error) {
+    console.error('[REQUIRE ADMIN DEBUG] Error in requireAdmin:', error);
     if (error instanceof ForbiddenError) {
       throw error;
     }

@@ -412,6 +412,11 @@ interface BaseWorkerEnv {
   CLOUDFLARE_IMAGES_ENABLED?: string;
   CLOUDFLARE_IMAGES_HASH?: string;
   CLOUDFLARE_IMAGES_API_TOKEN?: string;
+  // Social Media API credentials
+  BSKY_IDENTIFIER?: string; // Bluesky handle or DID
+  BSKY_APP_PASSWORD?: string; // Bluesky app password
+  INSTAGRAM_ACCESS_TOKEN?: string; // Instagram/Facebook access token
+  INSTAGRAM_ACCOUNT_ID?: string; // Instagram account ID
 }
 
 // Cloudflare Workers Environment with proper types

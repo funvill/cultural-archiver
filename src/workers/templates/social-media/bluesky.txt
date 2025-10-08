@@ -1,0 +1,5 @@
+🎨 {{title}}{{#if artist}} by {{artist}}{{/if}}
+
+Discover more public art at {{url}}
+
+#PublicArt #UrbanArt #CulturalHeritage #ArtInPublicSpaces

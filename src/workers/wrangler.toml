@@ -3,29 +3,34 @@ main = "index.ts"
 compatibility_date = "2024-11-06"
 compatibility_flags = ["nodejs_compat"]
 
+# Scheduled tasks (cron triggers)
+# Uncomment to enable automatic social media posting
+# Note: Requires environment variables: BSKY_IDENTIFIER, BSKY_APP_PASSWORD, INSTAGRAM_ACCESS_TOKEN, INSTAGRAM_ACCOUNT_ID
+# [triggers]
+# crons = ["0 9 * * *"]  # Run daily at 9:00 AM UTC
+
 # Routes for custom domains
 [[env.production.routes]]
 pattern = "api.publicartregistry.com/*"
 zone_name = "publicartregistry.com"
 
-[[env.staging.routes]]
+# Ensure sitemap endpoints on the public domain are routed to the API worker
+[[env.production.routes]]
+pattern = "publicartregistry.com/sitemap.xml"
+zone_name = "publicartregistry.com"
+
+[[env.development.routes]]
 pattern = "test.publicartregistry.com/*"
 zone_name = "publicartregistry.com"
 
 # D1 Database bindings
 [[env.development.d1_databases]]
-binding = "DB"
-database_name = "public-art-registry"
-database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"
+binding = "DevDB"
+database_name = "development-public-art-registry"
+database_id = "fbc97d1f-4b42-4eba-8759-c69f21be7819"
 migrations_dir = "./migrations"
 
 [[env.production.d1_databases]]
-binding = "DB"
-database_name = "public-art-registry"
-database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"
-migrations_dir = "./migrations"
-
-[[env.staging.d1_databases]]
 binding = "DB"
 database_name = "public-art-registry"
 database_id = "b64d04af-79d9-4573-8adb-97f0e3946962"
@@ -66,32 +71,12 @@ id = "81aa51ca054d46b18977670c3dff6c04"  # Must be replaced with actual producti
 binding = "MAGIC_LINKS"
 id = "5b69d7c338734f3aa56cea9c1f3930f7"  # Must be replaced with actual production KV namespace ID
 
-[[env.staging.kv_namespaces]]
-binding = "SESSIONS"
-id = "c991e608759d45bdae4198b72955da5f"
-
-[[env.staging.kv_namespaces]]
-binding = "CACHE"
-id = "91052eaeeef24b6fab6ac2b3c75b8b0b"
-
-[[env.staging.kv_namespaces]]
-binding = "RATE_LIMITS"
-id = "81aa51ca054d46b18977670c3dff6c04"
-
-[[env.staging.kv_namespaces]]
-binding = "MAGIC_LINKS"
-id = "5b69d7c338734f3aa56cea9c1f3930f7"
-
 # R2 bucket bindings
 [[env.development.r2_buckets]]
-binding = "PHOTOS_BUCKET"
-bucket_name = "public-art-registry-photos"
+binding = "DEV_PHOTOS_BUCKET"
+bucket_name = "development-public-art-registry-photos"
 
 [[env.production.r2_buckets]]
-binding = "PHOTOS_BUCKET"
-bucket_name = "public-art-registry-photos"
-
-[[env.staging.r2_buckets]]
 binding = "PHOTOS_BUCKET"
 bucket_name = "public-art-registry-photos"
 
@@ -104,7 +89,7 @@ API_VERSION = "1.0.0"
 # CORS configuration for development
 CORS_ORIGINS = "http://localhost:5173,http://localhost:5174,http://localhost:8787"
 # Email configuration
-EMAIL_FROM_ADDRESS = "noreply@publicartregistry.com"
+EMAIL_FROM_ADDRESS = "support@publicartregistry.com"
 EMAIL_FROM_NAME = "Public Art Registry (Dev)"
 EMAIL_REPLY_TO = "support@publicartregistry.com"
 EMAIL_ENABLED = "true"
@@ -137,21 +122,4 @@ CLOUDFLARE_IMAGES_ENABLED = "false"
 # CLOUDFLARE_IMAGES_HASH set via `wrangler secret put CLOUDFLARE_IMAGES_HASH`
 PHOTO_DEBUG = "true"
 # Disable logbook submission cooldown for production testing
-LOGBOOK_COOLDOWN_ENABLED = "false"
-
-[env.staging.vars]
-ENVIRONMENT = "staging"
-FRONTEND_URL = "https://test.publicartregistry.com"
-LOG_LEVEL = "debug"
-API_VERSION = "1.0.0"
-# CORS configuration for staging
-CORS_ORIGINS = "https://test.publicartregistry.com,https://api.publicartregistry.com,https://photos.publicartregistry.com"
-# Email configuration
-EMAIL_FROM_ADDRESS = "noreply@publicartregistry.com"
-EMAIL_FROM_NAME = "Public Art Registry (Staging)"
-EMAIL_REPLY_TO = "support@publicartregistry.com"
-EMAIL_ENABLED = "true"
-PHOTOS_BASE_URL = "https://photos.publicartregistry.com"
-CLOUDFLARE_IMAGES_ENABLED = "false"
-PHOTO_DEBUG = "true"
 LOGBOOK_COOLDOWN_ENABLED = "false"
