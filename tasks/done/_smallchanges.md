@@ -903,3 +903,19 @@ The system to generate thumbnails should be reuseable for when we need other ima
 2) There are 1000+ artworks on the website right now that are using the original size images. We need a way of creating the smaller versions of these images, and updating the artwork pages. Create a nodejs script to help with this migration. This is a once off script
 
 ----
+
+
+Milestone 1
+
+This artwork
+https://publicartregistry.com/artwork/faedaf8e-1197-454a-9aa1-1de308149853
+
+Has a artist name of "Unknown Artist".
+But has a tag "artist_name" with the artist's name "Ralph Sketch"
+
+There are hundereds of simlare artworks.
+See the production database here `_backup_database\database_production_2025-10-07_0439.sql`
+
+Create a plan for updating the production database artwork's artist name, with the "artist_name" from the tags.
+
+----

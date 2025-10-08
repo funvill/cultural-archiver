@@ -30,23 +30,7 @@
 
 
 
-Clean up production database artwork's artist field.
-
-Milestone 1
-
-This artwork
-https://publicartregistry.com/artwork/faedaf8e-1197-454a-9aa1-1de308149853
-
-Has a artist name of "Unknown Artist".
-But has a tag "artist_name" with the artist's name "Ralph Sketch"
-
-There are hundereds of simlare artworks.
-See the production database here `_backup_database\database_production_2025-10-07_0439.sql`
-
-Create a plan for updating the production database artwork's artist name, with the "artist_name" from the tags.
-
-
-Milestone 2
+Create a plan for this issue `tasks\plan-fix-unknown-artist-milestone-2.md`
 
 This artwork https://publicartregistry.com/artwork/712120c9-1d18-4f77-a072-d3f4984a281c Has a artist name of "Unknown Artist".
 
@@ -56,7 +40,13 @@ The ids in the artist_id tag of the artwork, reference the artist tag of artist_
 
 Create a plan for updating the production database artwork's artist name by finding the artist with the assoicated artist_id, the linking the artwork and the artist together
 
+This is a backup of the current state of the production database `_backup_database/database_production_2025-10-08-03-57-56.sql`
 
+Create a migration file that adds the artwork to artist association into the `artwork_artists` table. 
+
+Don't use complex SQL statments. Instead this migration should include `INSERT OR IGNORE INTO` or UPDATE statments for  artwork_artists table. 
+
+See previouse notes on a simlare issue `tasks/done/plan-fix-unknown-artist.md`
 
 
 
