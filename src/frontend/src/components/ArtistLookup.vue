@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
+import { createApiUrl } from '../utils/api-config';
 
 type Artist = { id: string; name: string; description_short?: string };
 
@@ -34,7 +35,7 @@ async function fetchResults() {
 
   try {
     const q = encodeURIComponent(query.value.trim());
-    const res = await fetch(`/api/artists/search?q=${q}&limit=${limit}`);
+  const res = await fetch(createApiUrl(`/artists/search?q=${q}&limit=${limit}`));
     if (!res.ok) {
       results.value = [];
       return;

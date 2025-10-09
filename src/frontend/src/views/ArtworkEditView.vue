@@ -6,6 +6,7 @@ import ArtistLookup from '../components/ArtistLookup.vue';
 import MiniMap from '../components/MiniMap.vue';
 import LocationPickerModal from '../components/FastWorkflow/LocationPickerModal.vue';
 import ConsentSection from '../components/FastWorkflow/ConsentSection.vue';
+import { createApiUrl } from '../utils/api-config';
 
 type ArtistRef = { id: string; name: string };
 
@@ -77,7 +78,7 @@ onMounted(async () => {
   window.addEventListener('beforeunload', handleBeforeUnload);
   
   try {
-    const res = await fetch(`/api/artworks/${id}`);
+  const res = await fetch(createApiUrl(`/artworks/${id}`));
     if (res.ok) {
       const response = await res.json();
       const data = response.data; // Extract the nested data object
@@ -163,7 +164,7 @@ async function saveEdit() {
       consent_version: '1.0',
     };
 
-    const res = await fetch('/api/submissions/artwork-edit', {
+    const res = await fetch(createApiUrl('/submissions/artwork-edit'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
