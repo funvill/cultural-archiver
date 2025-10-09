@@ -5,7 +5,7 @@
  * MVP focus: Activity badges only (submission count, photo count, email verification, account age)
  */
 
-import { generateUUID } from '../../shared/constants.js';
+import { generateUUID } from '../../shared/utils/uuid.js';
 import { NotificationService } from './notifications.js';
 import type { D1Database } from '@cloudflare/workers-types';
 import type { BadgeRecord, UserRecord } from '../../shared/types.js';

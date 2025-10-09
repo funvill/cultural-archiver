@@ -3,7 +3,7 @@
  * Provides prepared statements and helper functions for artwork, logbook, and tag operations
  */
 
-import { generateUUID } from '../../shared/constants.js';
+import { generateUUID } from '../../shared/utils/uuid.js';
 import type {
   ArtworkRecord,
   LogbookRecord,

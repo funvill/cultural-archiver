@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
+import { isValidUUID } from '../../shared/utils/uuid';
 
 describe('Cultural Archiver API Performance Tests', (): void => {
   let testCoordinates: Array<{ lat: number; lon: number }>;
@@ -177,18 +178,17 @@ describe('Cultural Archiver API Performance Tests', (): void => {
     });
 
     it('should validate UUIDs efficiently', (): void => {
-      const uuids = Array.from({ length: 1000 }, () => crypto.randomUUID());
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const uuids = Array.from({ length: 1000 }, () => crypto.randomUUID());
 
-      const startTime = performance.now();
+  const startTime = performance.now();
 
-      const validUuids = uuids.filter(uuid => uuidRegex.test(uuid));
+  const validUuids = uuids.filter(uuid => isValidUUID(uuid));
 
-      const endTime = performance.now();
-      const duration = endTime - startTime;
+  const endTime = performance.now();
+  const duration = endTime - startTime;
 
-      expect(duration).toBeLessThan(200); // UUID validation should be reasonable
-      expect(validUuids.length).toBe(uuids.length); // All should be valid
+  expect(duration).toBeLessThan(200); // UUID validation should be reasonable
+  expect(validUuids.length).toBe(uuids.length); // All should be valid
     });
   });
 

@@ -13,7 +13,7 @@
  */
 
 import { z } from 'zod';
-import { generateUUID } from '../../shared/constants.js';
+import { generateUUID } from '../../shared/utils/uuid.js';
 import type { D1Database } from '@cloudflare/workers-types';
 import type {
   NotificationRecord,

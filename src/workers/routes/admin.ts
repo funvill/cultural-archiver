@@ -8,6 +8,7 @@
 import type { Context } from 'hono';
 import type { WorkerEnv, AuthContext } from '../types';
 import type {} from '../../shared/types';
+import { isValidUUID } from '../../shared/utils/uuid.js';
 import { ApiError } from '../lib/errors';
 import { BadgeService } from '../lib/badges';
 import {
@@ -156,8 +157,7 @@ export async function grantUserPermission(
     }
 
     // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(userUuid)) {
+    if (!isValidUUID(userUuid)) {
       throw new ApiError('Invalid UUID format for userUuid', 'INVALID_UUID_FORMAT', 400);
     }
 
@@ -261,8 +261,7 @@ export async function revokeUserPermission(
     }
 
     // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(userUuid)) {
+    if (!isValidUUID(userUuid)) {
       throw new ApiError('Invalid UUID format for userUuid', 'INVALID_UUID_FORMAT', 400);
     }
 
