@@ -6,7 +6,7 @@
 - [x] `src/workers/routes/auth.ts:443`: dev magic-link endpoint now only responds outside production.
 
 **Duplication & Organization**
-- [ ] `src/workers/routes/discovery.ts:109` `163` `594` `650` `703` `759` `872` `1142` and `src/workers/routes/discovery-new.ts:69` `330` repeat the same 'collect logbook photos + safeJsonParse' block; pull this into `lib/database` or helper service.
+- [x] `src/workers/routes/discovery.ts:109` `163` `594` `650` `703` `759` `872` `1142` and `src/workers/routes/discovery-new.ts:69` `330` repeat the same 'collect logbook photos + safeJsonParse' block; shared helpers `collectArtworkPhotoSources`/`combineArtworkPhotos` (`src/workers/lib/artwork-photos.ts`) now consolidate the logic.
 - [ ] `src/workers/routes/submissions.ts:1` and `src/workers/routes/submissions-new.ts:1` implement parallel submission pipelines with overlapping consent/photo logic; converge behind a unified service to avoid drift.
 - [ ] `src/shared/types.ts:1`, `src/shared/types.d.ts:1`, and `src/shared/types.js:1` are three copies of the same model definitions; keep the `.ts` source and generate outputs at build time instead of committing artifacts.
 - [ ] `src/frontend/src/services/api.ts:1` centralizes every endpoint in one 1.2k-line module with bespoke caching; split per domain (auth, lists, reviews, etc.) or generate clients to cut repetition.
@@ -21,7 +21,7 @@
 - [ ] `src/frontend/src/composables/useApi.ts` duplicates retry/loading/error logic already centralized in `src/frontend/src/services/api.ts`; pick one abstraction (or replace with vue-query) so fixes propagate everywhere.
 
 **Targets to Tackle**
-- [ ] Extract a reusable `collectArtworkPhotos` helper covering submissions/logbook blending and reuse it from every discovery handler (`src/workers/routes/discovery.ts:109`, `163`, etc.).
+- [x] Extract a reusable `collectArtworkPhotos` helper covering submissions/logbook blending and reuse it from every discovery handler (`src/workers/routes/discovery.ts:109`, `163`, etc.).
 - [ ] Collapse the legacy/new submission routes into a single orchestrator that hands off to `lib/submissions` variants (`src/workers/routes/submissions.ts:1`, `submissions-new.ts:1`).
 - [ ] Modularize the API layer (`src/frontend/src/services/api.ts:1`) into domain clients and remove inline caching in favor of shared fetch utilities.
 - [ ] Split `MapComponent` into map shell, clustering overlay, filter banner, and telemetry composables (`src/frontend/src/components/MapComponent.vue:1`).
@@ -60,3 +60,6 @@
 - Add a lint rule or custom ESLint plugin to reject committed `console.log`/emoji usage and ensure that only the centralized logger is used in production builds.
 - Wire the workers package into CI (Wrangler's `miniflare` test harness or Cloudflare Pages integration) so route-level tests exercise the same bindings/kv mocks you use in production, catching missing binding regressions earlier.
 - Add regression tests for environment-gated helpers (`src/workers/routes/auth.ts:443`, `src/workers/routes/debug-permissions.ts:17`) to assert the endpoints fail fast outside development; prevent inverted guards from landing unnoticed.
+
+
+
