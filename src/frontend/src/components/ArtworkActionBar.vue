@@ -5,6 +5,7 @@ import AddToListDialog from './AddToListDialog.vue';
 import { useAuthStore } from '../stores/auth';
 import { apiService } from '../services/api';
 import { useAnnouncer } from '../composables/useAnnouncer';
+import { createLogger } from '../../../shared/logger';
 
 // Props interface
 interface Props {
@@ -38,6 +39,7 @@ const emit = defineEmits<EmitMap>() as unknown as ((event: string, ...args: any[
 // Composables
 const authStore = useAuthStore();
 const { announceError, announceSuccess } = useAnnouncer();
+const log = createLogger({ module: 'frontend:ArtworkActionBar' });
 
 // Local state
 const listStates = ref({
@@ -187,7 +189,7 @@ onMounted(async () => {
     await fetchPublicCounts();
   } catch (error) {
     // Don't fail the component if counts fail
-    console.error('Failed to fetch public counts:', error);
+    log.error('Failed to fetch public counts', { error });
   }
   
   // Fetch membership states if needed
@@ -195,7 +197,7 @@ onMounted(async () => {
     try {
       await fetchMembershipStates();
     } catch (error) {
-      console.error('Failed to fetch membership states:', error);
+      log.error('Failed to fetch membership states', { error });
       initialLoading.value = false;
     }
   } else if (!props.initialListStates) {
@@ -231,15 +233,17 @@ async function fetchMembershipStates(): Promise<void> {
     }>(`/artwork/${props.artworkId}/membership`);
     if (response.success && response.data) {
       // Update each property individually to preserve reactivity
-      console.debug('[ArtworkActionBar] fetchMembershipStates response', response.data);
+      log.debug('[ArtworkActionBar] fetchMembershipStates response', { data: response.data });
       listStates.value.loved = response.data.loved || false;
       listStates.value.visited = response.data.visited || false;
       listStates.value.starred = response.data.starred || false;
       listStates.value.inAnyList = response.data.inAnyList || false;
-      console.debug('[ArtworkActionBar] After fetchMembershipStates: listStates', JSON.parse(JSON.stringify(listStates.value)));
+      log.debug('[ArtworkActionBar] After fetchMembershipStates: listStates', {
+        listStates: JSON.parse(JSON.stringify(listStates.value)),
+      });
     }
   } catch (error) {
-    console.error('Failed to fetch membership states:', error);
+    log.error('Failed to fetch membership states', { error });
     // Keep default states and allow interactions
   } finally {
     initialLoading.value = false;
@@ -266,7 +270,7 @@ async function fetchPublicCounts() {
       };
     }
   } catch (error) {
-    console.error('Failed to fetch public counts:', error);
+    log.error('Failed to fetch public counts', { error });
     // Keep default counts (0) - not critical for functionality
   }
 }
@@ -289,10 +293,12 @@ async function toggleListMembership(listType: 'loved' | 'visited' | 'starred'): 
 
   // Store original state for potential revert
   const originalState = listStates.value[listType];
-  console.debug(`[ArtworkActionBar] Before optimistic update: listStates.${listType} =`, originalState);
+  log.debug(`[ArtworkActionBar] Before optimistic update: listStates.${listType}`, { originalState });
   // Optimistic update
   listStates.value[listType] = !originalState;
-  console.debug(`[ArtworkActionBar] After optimistic update: listStates.${listType} =`, listStates.value[listType]);
+  log.debug(`[ArtworkActionBar] After optimistic update: listStates.${listType}`, {
+    newState: listStates.value[listType],
+  });
 
   try {
     // This endpoint would need to be implemented in the backend
@@ -328,7 +334,7 @@ async function toggleListMembership(listType: 'loved' | 'visited' | 'starred'): 
       await fetchMembershipStates();
     }
   } catch (error) {
-    console.error(`Failed to toggle ${listType}:`, error);
+    log.error(`Failed to toggle ${listType}`, { error });
     
     // Revert optimistic update
     listStates.value[listType] = originalState;
@@ -407,16 +413,16 @@ async function handleShare(): Promise<void> {
 
     emit('shareArtwork');
   } catch (error) {
-    console.error('Failed to share:', error);
+    log.error('Failed to share', { error });
     
     // Fallback: try to copy to clipboard
     try {
-      await navigator.clipboard.writeText(window.location.href);
-      announceSuccess('Link copied to clipboard');
-    } catch (clipboardError) {
-      console.error('Failed to copy to clipboard:', clipboardError);
-      announceError('Failed to share. Please copy the URL manually.');
-    }
+    await navigator.clipboard.writeText(window.location.href);
+    announceSuccess('Link copied to clipboard');
+  } catch (clipboardError) {
+    log.error('Failed to copy to clipboard', { error: clipboardError });
+    announceError('Failed to share. Please copy the URL manually.');
+  }
   } finally {
     loadingStates.value.share = false;
   }

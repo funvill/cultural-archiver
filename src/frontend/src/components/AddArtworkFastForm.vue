@@ -13,6 +13,7 @@ import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useArtworkSubmissionStore } from '../stores/artworkSubmission';
 import { CheckIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/vue/24/outline';
+import { createLogger } from '../../../shared/logger';
 
 // Components (these would be imported from separate files)
 import StepHeader from './FastWorkflow/StepHeader.vue';
@@ -28,6 +29,7 @@ import LoadingSpinner from './LoadingSpinner.vue';
 const submission = useArtworkSubmissionStore();
 const router = useRouter();
 const route = useRoute();
+const log = createLogger({ module: 'frontend:AddArtworkFastForm' });
 
 // Local State
 const currentStep = ref<string>('photos');
@@ -115,7 +117,7 @@ async function handleLocationDetected() {
       currentStep.value = 'selection';
     }
   } catch (error) {
-    console.error('Failed to get location:', error);
+    log.error('Failed to get location', { error });
   }
 }
 
@@ -131,13 +133,13 @@ async function handleCheckSimilarity() {
   try {
     await submission.checkSimilarity();
   } catch (error) {
-    console.error('Similarity check failed:', error);
+    log.error('Similarity check failed', { error });
   }
 }
 
 function handleConsentUpdated(version: string) {
   // Consent version is already handled in the store
-  console.log('Consent updated to version:', version);
+  log.debug('Consent updated', { version });
 }
 
 function handleConsentChanged(consents: any) {
@@ -154,7 +156,7 @@ async function handleSubmit() {
     };
 
     // Log consent data for audit trail (would be included in actual submission)
-    console.log('Submitting with consent data:', consentData);
+    log.debug('Submitting with consent data', { consentData });
 
     await submission.submitArtwork();
     submissionComplete.value = true;
@@ -164,7 +166,7 @@ async function handleSubmit() {
       router.push('/');
     }, 1500); // Give user 1.5 seconds to see the success message
   } catch (error) {
-    console.error('Submission failed:', error);
+    log.error('Submission failed', { error });
   }
 }
 

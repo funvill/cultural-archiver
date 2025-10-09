@@ -442,7 +442,7 @@ export async function getAuthStatus(
  */
 export async function getDevMagicLink(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   try {
-    if (c.env.ENVIRONMENT === 'production') {
+    if (c.env.ENVIRONMENT !== 'production') {
       // Only allow in development or when Resend is failing
       const email = c.req.query('email');
       if (!email) {

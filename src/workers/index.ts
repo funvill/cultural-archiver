@@ -15,6 +15,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { prettyJSON } from 'hono/pretty-json';
 import { secureHeaders } from 'hono/secure-headers';
+import { createLogger } from '../shared/logger';
 
 // Import types
 import type { WorkerEnv } from './types';
@@ -183,6 +184,7 @@ import imagesRouter from './routes/images';
 
 // Initialize Hono app
 const app = new Hono<{ Bindings: WorkerEnv }>();
+const log = createLogger({ module: 'workers:index' });
 
 // Initialize pages service (called once at worker startup)
 const isDevelopment = typeof process !== 'undefined' && process.env.NODE_ENV === 'development';
@@ -217,7 +219,7 @@ app.use('*', async (c, next) => {
 
   // If critical bindings are missing, return a helpful error instead of "hello world"
   if (missingBindings.length > 0) {
-    console.error('❌ CRITICAL: Missing Cloudflare bindings:', missingBindings);
+    log.error('❌ CRITICAL: Missing Cloudflare bindings', { missingBindings });
 
     // Return a helpful error response instead of failing silently
     return c.json(
@@ -319,16 +321,16 @@ app.get('/health', async c => {
 
   // Test 1: Database (D1) connectivity
   try {
-    console.log('[HEALTH] Testing D1 database...');
+    log.info('[HEALTH] Testing D1 database…');
     const dbResult = await c.env.DB.prepare('SELECT 1 as test, datetime() as current_time').first();
     checks.database = {
       status: 'healthy',
       test_query: dbResult,
       test_time: Date.now() - startTime,
     };
-    console.log('[HEALTH] D1 database: OK');
+    log.info('[HEALTH] D1 database: OK');
   } catch (error) {
-    console.error('[HEALTH] D1 database failed:', error);
+    log.error('[HEALTH] D1 database failed', { error });
     checks.database = {
       status: 'unhealthy',
       error: error instanceof Error ? error.message : 'Unknown database error',
@@ -339,16 +341,16 @@ app.get('/health', async c => {
 
   // Test 2: Database statistics
   try {
-    console.log('[HEALTH] Getting database statistics...');
+    log.info('[HEALTH] Getting database statistics…');
     const stats = await getArtworkStats(c.env.DB);
     checks.database_stats = {
       status: 'healthy',
       stats,
       test_time: Date.now() - startTime,
     };
-    console.log('[HEALTH] Database stats: OK');
+    log.info('[HEALTH] Database stats: OK');
   } catch (error) {
-    console.error('[HEALTH] Database stats failed:', error);
+    log.warn('[HEALTH] Database stats failed', { error });
     checks.database_stats = {
       status: 'unhealthy',
       error: error instanceof Error ? error.message : 'Stats query failed',
@@ -367,7 +369,7 @@ app.get('/health', async c => {
 
   for (const { name, binding } of kvTests) {
     try {
-      console.log(`[HEALTH] Testing KV namespace: ${name}...`);
+      log.info(`[HEALTH] Testing KV namespace: ${name}…`);
       const testKey = `health-check-${Date.now()}`;
       const testValue = 'health-test';
 
@@ -384,9 +386,9 @@ app.get('/health', async c => {
         test_read: readValue === testValue,
         test_time: Date.now() - startTime,
       };
-      console.log(`[HEALTH] KV ${name}: OK`);
+      log.info(`[HEALTH] KV ${name}: OK`);
     } catch (error) {
-      console.error(`[HEALTH] KV ${name} failed:`, error);
+      log.error(`[HEALTH] KV ${name} failed`, { error });
       checks[`kv_${name.toLowerCase()}`] = {
         status: 'unhealthy',
         error: error instanceof Error ? error.message : 'KV operation failed',
@@ -398,7 +400,7 @@ app.get('/health', async c => {
 
   // Test 4: R2 Storage
   try {
-    console.log('[HEALTH] Testing R2 bucket...');
+    log.info('[HEALTH] Testing R2 bucket…');
     const testKey = `health-check-${Date.now()}.txt`;
     const testContent = 'health-test';
 
@@ -418,9 +420,9 @@ app.get('/health', async c => {
       test_read: readContent === testContent,
       test_time: Date.now() - startTime,
     };
-    console.log('[HEALTH] R2 storage: OK');
+    log.info('[HEALTH] R2 storage: OK');
   } catch (error) {
-    console.error('[HEALTH] R2 storage failed:', error);
+    log.error('[HEALTH] R2 storage failed', { error });
     checks.r2_storage = {
       status: 'unhealthy',
       error: error instanceof Error ? error.message : 'R2 operation failed',
@@ -437,7 +439,7 @@ app.get('/health', async c => {
 
   for (const { name, path } of endpointTests) {
     try {
-      console.log(`[HEALTH] Testing endpoint: ${path}...`);
+      log.info(`[HEALTH] Testing endpoint: ${path}…`);
 
       // Test the endpoint based on path
       let result: Record<string, unknown>;
@@ -460,9 +462,9 @@ app.get('/health', async c => {
         response_preview: typeof result === 'object' ? Object.keys(result) : 'non-object',
         test_time: Date.now() - startTime,
       };
-      console.log(`[HEALTH] Endpoint ${path}: OK`);
+      log.info(`[HEALTH] Endpoint ${path}: OK`);
     } catch (error) {
-      console.error(`[HEALTH] Endpoint ${path} failed:`, error);
+      log.error(`[HEALTH] Endpoint ${path} failed`, { error });
       checks[`endpoint_${name}`] = {
         status: 'unhealthy',
         path,
@@ -498,7 +500,7 @@ app.get('/health', async c => {
   };
 
   if (missingBindings.length > 0) {
-    console.warn('[HEALTH] Missing bindings:', missingBindings);
+  log.warn('[HEALTH] Missing bindings', { missingBindings });
   }
 
   // Overall health assessment
@@ -566,14 +568,14 @@ app.get('/health', async c => {
     },
   };
 
-  console.log(`[HEALTH] Health check completed in ${totalTestTime}ms: ${healthResponse.status}`);
+log.info(`[HEALTH] Health check completed in ${totalTestTime}ms: ${healthResponse.status}`);
 
   return c.json(healthResponse, allHealthy ? 200 : 503);
 });
 
 // Enhanced test endpoint with debug information
 app.get('/test', c => {
-  console.log('Test endpoint called');
+log.debug('Test endpoint called');
   return c.json({
     message: 'Test endpoint working',
     timestamp: new Date().toISOString(),
@@ -597,15 +599,15 @@ app.get('/test', c => {
 
 // Permissions diagnostic endpoint for debugging reviewer access
 app.get('/api/debug/permissions/:userToken', async c => {
-  console.log('[DEBUG] Permissions diagnostic endpoint called');
+log.debug('[DEBUG] Permissions diagnostic endpoint called');
 
   const userToken = c.req.param('userToken');
-  console.log('[DEBUG] Testing permissions for user:', userToken);
+  log.debug('[DEBUG] Testing permissions for user', { userToken });
 
   try {
     // Test 1: Basic database connection
     const dbTest = await c.env.DB.prepare('SELECT 1 as test').first();
-    console.log('[DEBUG] Database test result:', dbTest);
+    log.debug('[DEBUG] Database test result', { dbTest });
 
     // Test 2: Check user_permissions table
     const permStmt = c.env.DB.prepare(`
@@ -613,7 +615,7 @@ app.get('/api/debug/permissions/:userToken', async c => {
       WHERE user_uuid = ? AND is_active = 1
     `);
     const permissions = await permStmt.bind(userToken).all();
-    console.log('[DEBUG] Direct permissions query result:', permissions);
+    log.debug('[DEBUG] Direct permissions query result', { permissions });
 
     // Test 3: Check legacy logbook count
     const logbookStmt = c.env.DB.prepare(`
@@ -621,12 +623,12 @@ app.get('/api/debug/permissions/:userToken', async c => {
       WHERE user_token = ? AND status = 'approved' AND submission_type = 'logbook_entry'
     `);
     const logbookResult = await logbookStmt.bind(userToken).first();
-    console.log('[DEBUG] Legacy logbook count:', logbookResult);
+    log.debug('[DEBUG] Legacy logbook count', { logbookResult });
 
     // Test 4: Import and test isModerator function
     const { isModerator } = await import('./lib/permissions');
     const isModeratorResult = await isModerator(c.env.DB, userToken);
-    console.log('[DEBUG] isModerator function result:', isModeratorResult);
+    log.debug('[DEBUG] isModerator function result', { isModeratorResult });
 
     // Test 5: Test requireReviewer middleware logic manually
     let legacyReviewerCheck = false;
@@ -662,7 +664,7 @@ app.get('/api/debug/permissions/:userToken', async c => {
       },
     });
   } catch (error) {
-    console.error('[DEBUG] Permissions diagnostic error:', error);
+    log.error('[DEBUG] Permissions diagnostic error', { error });
     return c.json(
       {
         error: 'Permissions diagnostic failed',
@@ -677,7 +679,7 @@ app.get('/api/debug/permissions/:userToken', async c => {
 
 // API status endpoint (no auth required)
 app.get('/api/status', ensureUserToken, addUserTokenToResponse, c => {
-  console.log('API status endpoint called'); // Add logging
+  log.debug('API status endpoint called'); // Add logging
   return c.json({
     message: 'Cultural Archiver API is running',
     environment: c.env.ENVIRONMENT || 'development',
@@ -719,11 +721,11 @@ app.get('/photos/*', async c => {
     // URL: /photos/originals/2025/09/14/file.jpg -> Key: originals/2025/09/14/file.jpg
     const fullPath = c.req.path; // /photos/originals/2025/09/14/file.jpg
     const key = fullPath.substring('/photos/'.length); // originals/2025/09/14/file.jpg
-    console.log(`[PHOTO DEBUG] Looking for key: ${key}`);
+    log.debug(`[PHOTO DEBUG] Looking for key: ${key}`);
 
     // Get object from R2
     const object = await c.env.PHOTOS_BUCKET.get(key);
-    console.log(`[PHOTO DEBUG] Object found: ${!!object}`);
+    log.debug(`[PHOTO DEBUG] Object found: ${!!object}`);
 
     if (!object) {
       return c.json(
@@ -775,7 +777,7 @@ app.get('/photos/*', async c => {
       headers: c.res.headers,
     });
   } catch (error) {
-    console.error('Photo serving error:', error);
+    log.error('Photo serving error', { error });
     return c.json(
       {
         error: 'Photo serving failed',
@@ -1380,6 +1382,7 @@ app.post(
 app.get(
   '/api/dev/debug-steven-permissions',
   ensureUserToken,
+  requireAdmin,
   withErrorHandling(debugStevenPermissions)
 );
 
@@ -1387,6 +1390,7 @@ app.get(
 app.post(
   '/api/dev/fix-permissions-schema',
   ensureUserToken,
+  requireAdmin,
   withErrorHandling(fixPermissionsSchema)
 );
 
@@ -1403,11 +1407,11 @@ app.get('/p/artwork/:id', validateUUID('id'), async c => {
     // Redirect to frontend artwork detail page
     const redirectUrl = `${frontendUrl}/artwork/${artworkId}`;
 
-    console.info('Permalink redirect:', { artworkId, redirectUrl });
+    log.info('Permalink redirect', { artworkId, redirectUrl });
 
     return c.redirect(redirectUrl, 302);
   } catch (error) {
-    console.error('Permalink redirect error:', error);
+    log.error('Permalink redirect error', { error });
     return sendErrorResponse(c, new ApiError('INVALID_PERMALINK', 'Invalid permalink', 400));
   }
 });
@@ -1508,7 +1512,7 @@ app.notFound(c => {
 
 // Global error handler
 app.onError((err, c) => {
-  console.error('Worker error:', err);
+  log.error('Worker error', { error: err });
 
   const path = c.req.path;
   const statusCode = err instanceof ApiError ? err.statusCode : 500;
@@ -1543,7 +1547,9 @@ export async function scheduled(
   _ctx: ExecutionContext
 ): Promise<void> {
   try {
-    console.log('[SCHEDULED] Social media cron job triggered at', new Date(event.scheduledTime).toISOString());
+    log.info('[SCHEDULED] Social media cron job triggered', {
+      scheduledAt: new Date(event.scheduledTime).toISOString(),
+    });
     
     // Import the cron handler
     const { processSocialMediaSchedules } = await import('./lib/social-media/cron');
@@ -1551,9 +1557,9 @@ export async function scheduled(
     // Process scheduled posts
     await processSocialMediaSchedules(env);
     
-    console.log('[SCHEDULED] Social media cron job completed successfully');
+    log.info('[SCHEDULED] Social media cron job completed successfully');
   } catch (error) {
-    console.error('[SCHEDULED] Error in scheduled handler:', error);
+    log.error('[SCHEDULED] Error in scheduled handler', { error });
     throw error; // Re-throw to mark the job as failed
   }
 }
