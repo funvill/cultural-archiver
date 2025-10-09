@@ -478,6 +478,20 @@ export const apiService = {
   },
 
   /**
+   * Submit artwork edit via submissions endpoint (uses unified submissions API)
+   * This ensures the ApiClient adds the X-User-Token header from localStorage
+   */
+  async submitArtworkEditSubmission(payload: {
+    artwork_id: string;
+    old_data: Record<string, unknown>;
+    new_data: Record<string, unknown>;
+    notes?: string;
+    consent_version?: string;
+  }): Promise<ApiResponse<{ submission_id: string }>> {
+    return client.post('/submissions/artwork-edit', payload);
+  },
+
+  /**
    * Check pending edits for an artwork
    */
   async getPendingEdits(artworkId: string): Promise<

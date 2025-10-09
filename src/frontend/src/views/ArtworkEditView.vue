@@ -164,31 +164,18 @@ async function saveEdit() {
       consent_version: '1.0',
     };
 
-    const res = await fetch(createApiUrl('/submissions/artwork-edit'), {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) {
-      // Clear dirty flag on successful save
-      isDirty.value = false;
-      
-      const data = await res.json().catch(() => ({}));
-      // navigate to artwork detail with success param
-      // prefer named route if available
-      router.push({ name: 'ArtworkDetail', params: { id }, query: { submitted: String((data as any).submission_id || true) } }).catch(() => {});
-    } else {
-      const err = await res.json().catch(() => ({}));
-      // eslint-disable-next-line no-console
-      console.error('Submission failed', err);
-      // eslint-disable-next-line no-alert
-      alert('Submission failed: ' + (err.message || res.statusText));
-    }
+    const response = await (await import('../services/api')).apiService.submitArtworkEditSubmission(body);
+    // Clear dirty flag on successful save
+    isDirty.value = false;
+    const data = response.data || {};
+    // navigate to artwork detail with success param
+    // prefer named route if available
+    router.push({ name: 'ArtworkDetail', params: { id }, query: { submitted: String((data as any).submission_id || true) } }).catch(() => {});
   } catch (e) {
     // eslint-disable-next-line no-console
     console.error('Submission error', e);
     // eslint-disable-next-line no-alert
-    alert('Submission error');
+    alert('Submission error: ' + (e instanceof Error ? e.message : String(e)));
   } finally {
     submitting.value = false;
   }
