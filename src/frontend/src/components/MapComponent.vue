@@ -38,6 +38,7 @@ import { useMapPreviewStore } from '../stores/mapPreview';
 import { useMapSettings } from '../stores/mapSettings';
 import MapWebGLLayer from './MapWebGLLayer.vue';
 import { useGridCluster } from '../composables/useGridCluster';
+import { createLogger } from '../../../shared/logger';
 import type { ClusterFeature } from '../composables/useGridCluster';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { useToasts } from '../composables/useToasts';
@@ -59,6 +60,8 @@ const emit = defineEmits([
   // Telemetry events emitted by the map for external listeners (e.g., analytics)
   'telemetryUpdate'
 ]);
+
+const log = createLogger({ module: 'frontend:MapComponent' });
 
 // State
 const mapContainer = ref<HTMLDivElement>();
@@ -130,7 +133,7 @@ const effectiveClusterEnabled = computed(() => {
   const z = map.value?.getZoom() ?? props.zoom ?? 15;
   // Only cluster if user preference is enabled AND zoom is appropriate
   const enabled = mapSettings.clusteringEnabled && z > 14;
-  console.log('[MAP DIAGNOSTIC] Clustering state:', {
+  log.debug('[MAP DIAGNOSTIC] Clustering state:', {
     zoom: z,
     userPreference: mapSettings.clusteringEnabled,
     zoomThreshold: 14,
@@ -243,7 +246,7 @@ try {
 function buildWebGLClusters() {
   try {
     if (!map.value || !props.artworks) {
-      console.log('[MAP DIAGNOSTIC] buildWebGLClusters skipped:', {
+      log.debug('[MAP DIAGNOSTIC] buildWebGLClusters skipped:', {
         mapExists: !!map.value,
         artworksCount: props.artworks?.length ?? 0
       });
@@ -263,7 +266,7 @@ function buildWebGLClusters() {
   // Determine effective clustering: user preference AND only when zoom > 14
   const currentZoom = map.value?.getZoom() ?? props.zoom ?? 15;
 
-  console.log('[MAP DIAGNOSTIC] buildWebGLClusters:', {
+  log.debug('[MAP DIAGNOSTIC] buildWebGLClusters:', {
     totalArtworks: props.artworks.length,
     currentZoom,
     effectiveClusterEnabled: effectiveClusterEnabled.value,
@@ -295,7 +298,7 @@ function buildWebGLClusters() {
           };
         });
 
-        console.log('[MAP DIAGNOSTIC] Loading points for clustering:', {
+        log.debug('[MAP DIAGNOSTIC] Loading points for clustering:', {
           totalPoints: artworkPoints.length,
           visitedInPoints: artworkPoints.filter((p: any) => p.visited).length,
           starredInPoints: artworkPoints.filter((p: any) => p.starred).length,
@@ -314,7 +317,7 @@ function buildWebGLClusters() {
   const zoom = currentZoom;
 
         const clusters = webglClustering.getClusters(bbox, zoom);
-        console.log('[MAP DIAGNOSTIC] Clustering enabled - clusters generated:', {
+        log.debug('[MAP DIAGNOSTIC] Clustering enabled - clusters generated:', {
           totalClusters: clusters.length,
           actualClusters: clusters.filter(c => c.properties.cluster).length,
           individualMarkers: clusters.filter(c => !c.properties.cluster).length,
@@ -331,7 +334,7 @@ function buildWebGLClusters() {
         webglClusters.value = clusters;
         return;
       } catch (err) {
-        console.warn('[MAP DIAGNOSTIC] webglClustering error:', err);
+        log.warn('[MAP DIAGNOSTIC] webglClustering error:', err);
       }
     }
 
@@ -360,7 +363,7 @@ function buildWebGLClusters() {
         };
       }) as ClusterFeature[];
 
-    console.log('[MAP DIAGNOSTIC] Individual markers generated:', {
+    log.debug('[MAP DIAGNOSTIC] Individual markers generated:', {
       total: pts.length,
       visited: pts.filter(p => p.properties.visited).length,
       starred: pts.filter(p => p.properties.starred).length,
@@ -369,7 +372,7 @@ function buildWebGLClusters() {
 
     webglClusters.value = pts;
   } catch (err) {
-    console.warn('[MAP DIAGNOSTIC] buildWebGLClusters error:', err);
+    log.warn('[MAP DIAGNOSTIC] buildWebGLClusters error:', err);
     webglClusters.value = [];
   }
 }
@@ -378,17 +381,17 @@ function buildWebGLClusters() {
 async function initializeMap() {
   // Skip initialization in non-browser environments (e.g., unit tests / SSR) to avoid window usage errors
   if (typeof window === 'undefined' || typeof document === 'undefined') {
-    console.warn('Map initialization skipped: non-browser environment');
+    log.warn('Map initialization skipped: non-browser environment');
     isLoading.value = false;
     return;
   }
   if (!mapContainer.value) {
-    console.error('Map container not found');
+    log.error('Map container not found');
     return;
   }
 
-  console.log('Initializing map with container:', mapContainer.value);
-  console.log('Container dimensions:', {
+  log.debug('Initializing map with container:', mapContainer.value);
+  log.debug('Container dimensions:', {
     offsetWidth: mapContainer.value.offsetWidth,
     offsetHeight: mapContainer.value.offsetHeight,
     clientWidth: mapContainer.value.clientWidth,
@@ -399,7 +402,7 @@ async function initializeMap() {
     isLoading.value = true;
     error.value = null;
 
-    console.log('Creating Leaflet map...');
+    log.debug('Creating Leaflet map...');
 
     // Check for saved map state first
     const saved = readSavedMapState();
@@ -425,7 +428,7 @@ async function initializeMap() {
       attributionControl: true,
     });
 
-    console.log('Map created successfully:', map.value);
+    log.debug('Map created successfully:', map.value);
 
     // Install persistent Leaflet guards to prevent popup zoom crashes
     installLeafletPopupGuards();
@@ -441,7 +444,7 @@ async function initializeMap() {
     if (mapContainer.value) {
       mapContainer.value.classList.add('leaflet-container');
       mapContainer.value.style.position = 'relative';
-      console.log('Added leaflet-container class to map container');
+      log.debug('Added leaflet-container class to map container');
     }
 
     // Add tile layer with error handling
@@ -455,8 +458,8 @@ async function initializeMap() {
 
     // Add error handling for tile loading
     tileLayer.on('tileerror', e => {
-      console.error('Tile loading error:', e);
-      console.error('Tile error details:', {
+      log.error('Tile loading error:', e);
+      log.error('Tile error details:', {
         coords: e.coords,
         error: e.error,
         tile: e.tile,
@@ -470,7 +473,7 @@ async function initializeMap() {
       });
     });
 
-    console.log('Tile layer added to map');
+    log.debug('Tile layer added to map');
 
     // Force Leaflet containers to have proper classes and dimensions
     const forceMapDimensions = () => {
@@ -507,7 +510,7 @@ async function initializeMap() {
             });
           }
         });
-        console.log('Applied dimension fixes to Leaflet containers');
+        log.debug('Applied dimension fixes to Leaflet containers');
       }
     };
 
@@ -521,10 +524,10 @@ async function initializeMap() {
     setTimeout(() => {
       if (mapContainer.value) {
         const leafletContainer = mapContainer.value.querySelector('.leaflet-container');
-        console.log('Leaflet container found:', leafletContainer);
+        log.debug('Leaflet container found:', leafletContainer);
         if (leafletContainer) {
           const styles = (leafletContainer as HTMLElement).style;
-          console.log('Leaflet container styles:', {
+          log.debug('Leaflet container styles:', {
             position: styles.position,
             width: styles.width,
             height: styles.height,
@@ -534,10 +537,10 @@ async function initializeMap() {
 
         // Check for tile layers
         const tileLayers = mapContainer.value.querySelectorAll('.leaflet-tile-pane img');
-        console.log('Tile images found:', tileLayers.length);
+        log.debug('Tile images found:', tileLayers.length);
         if (tileLayers.length > 0) {
           const firstTile = tileLayers[0] as HTMLImageElement;
-          console.log('First tile image:', {
+          log.debug('First tile image:', {
             src: firstTile.src,
             width: firstTile.width,
             height: firstTile.height,
@@ -551,22 +554,22 @@ async function initializeMap() {
     // Force map to resize after initialization
     setTimeout(() => {
       if (map.value) {
-        console.log('Forcing map resize...');
+        log.debug('Forcing map resize...');
         map.value.invalidateSize();
 
         // Safe debug logging with error handling
         try {
           if (typeof map.value.getBounds === 'function') {
-            console.log('Map bounds after resize:', map.value.getBounds());
+            log.debug('Map bounds after resize:', map.value.getBounds());
           }
           if (typeof map.value.getCenter === 'function') {
-            console.log('Map center after resize:', map.value.getCenter());
+            log.debug('Map center after resize:', map.value.getCenter());
           }
           if (typeof map.value.getZoom === 'function') {
-            console.log('Map zoom after resize:', map.value.getZoom());
+            log.debug('Map zoom after resize:', map.value.getZoom());
           }
         } catch (error) {
-          console.warn('Debug logging failed:', error);
+          log.warn('Debug logging failed:', error);
         }
       }
     }, 100);
@@ -773,7 +776,7 @@ async function initializeMap() {
 
   // popup closure attempts completed (debug suppressed)
       } catch (overallError) {
-  console.error('Critical error in zoomstart handler:', overallError);
+  log.error('Critical error in zoomstart handler:', overallError);
         // Ensure zoom state is set so other logic knows animation may be happening
         isZoomAnimating.value = true;
       }
@@ -865,7 +868,7 @@ async function initializeMap() {
       updateArtworkMarkersDebounced(50);
       
       } catch (zoomEndError) {
-  console.error('Critical error in zoomend handler:', zoomEndError);
+  log.error('Critical error in zoomend handler:', zoomEndError);
         // Ensure zoom state is cleared even if restoration fails
         isZoomAnimating.value = false;
       }
@@ -945,7 +948,7 @@ async function initializeMap() {
           }
         } catch (err) {
           // In case of any errors querying permissions, fall back to requesting location
-          console.warn('Permissions API check failed:', err);
+          log.warn('Permissions API check failed:', err);
           await requestUserLocation();
         }
       } else {
@@ -970,7 +973,7 @@ async function initializeMap() {
       updateArtworkMarkersDebounced(100);
     }, 50);
   } catch (err) {
-    console.error('Map initialization error:', err);
+    log.error('Map initialization error:', err);
     error.value = 'Failed to initialize map. Please check your internet connection and try again.';
     // Dismiss location notice on error to show map
     showLocationNotice.value = false;
@@ -1036,7 +1039,7 @@ async function requestUserLocation() {
     showLocationNotice.value = false;
   } catch (err) {
     // On error (denied, unavailable, etc): set default location, show notice, allow map to work
-    console.warn('Geolocation error:', err);
+    log.warn('Geolocation error:', err);
     artworksStore.setCurrentLocation(DEFAULT_CENTER);
     if (map.value) {
       map.value.setView([DEFAULT_CENTER.latitude, DEFAULT_CENTER.longitude], props.zoom);
@@ -1052,11 +1055,11 @@ async function requestUserLocation() {
 // Add user location marker
 function addUserLocationMarker(location: Coordinates) {
   if (!map.value) {
-    console.warn('[MAP DIAGNOSTIC] Cannot add user location marker - map not initialized');
+    log.warn('[MAP DIAGNOSTIC] Cannot add user location marker - map not initialized');
     return;
   }
 
-  console.log('[MAP DIAGNOSTIC] Adding user location marker:', {
+  log.debug('[MAP DIAGNOSTIC] Adding user location marker:', {
     latitude: location.latitude,
     longitude: location.longitude,
     heading: userHeading.value,
@@ -1066,7 +1069,7 @@ function addUserLocationMarker(location: Coordinates) {
   // Remove existing marker
   if (userLocationMarker.value) {
     map.value.removeLayer(userLocationMarker.value as any);
-    console.log('[MAP DIAGNOSTIC] Removed previous user location marker');
+    log.debug('[MAP DIAGNOSTIC] Removed previous user location marker');
   }
 
   // Add new marker
@@ -1077,7 +1080,7 @@ function addUserLocationMarker(location: Coordinates) {
     .addTo(map.value!)
     .bindPopup('Your current location');
 
-  console.log('[MAP DIAGNOSTIC] User location marker added to map');
+  log.debug('[MAP DIAGNOSTIC] User location marker added to map');
 
   // Ensure user marker is on top visually
   try {
@@ -1085,15 +1088,15 @@ function addUserLocationMarker(location: Coordinates) {
     if ((userLocationMarker.value as any).bringToFront) {
       (userLocationMarker.value as any).bringToFront();
     }
-    console.log('[MAP DIAGNOSTIC] User location marker z-index set to 10050');
+    log.debug('[MAP DIAGNOSTIC] User location marker z-index set to 10050');
   } catch (e) {
-    console.warn('[MAP DIAGNOSTIC] Error setting user marker z-index:', e);
+    log.warn('[MAP DIAGNOSTIC] Error setting user marker z-index:', e);
   }
 }
 
 // Create a divIcon that includes a view cone rotated to heading (deg)
 const createUserLocationIconWithCone = (headingDeg: number) => {
-  console.log('[MAP DIAGNOSTIC] Creating user location icon with cone:', {
+  log.debug('[MAP DIAGNOSTIC] Creating user location icon with cone:', {
     headingDeg,
     timestamp: new Date().toISOString()
   });
@@ -1134,7 +1137,7 @@ const createUserLocationIconWithCone = (headingDeg: number) => {
     iconAnchor: [half, half],
   });
   
-  console.log('[MAP DIAGNOSTIC] User location icon created:', {
+  log.debug('[MAP DIAGNOSTIC] User location icon created:', {
     iconSize: icon.options.iconSize,
     iconAnchor: icon.options.iconAnchor,
     className: icon.options.className
@@ -1199,7 +1202,7 @@ async function loadArtworks() {
   // After nextTick, updating markers
     updateArtworkMarkers();
   } catch (err) {
-    console.error('Error loading artworks:', err);
+    log.error('Error loading artworks:', err);
   } finally {
     isLoadingViewport.value = false;
   }
@@ -1535,7 +1538,7 @@ function centerOnUserLocation() {
 
   navigator.geolocation.getCurrentPosition(
     (pos) => {
-      console.log('[MAP DIAGNOSTIC] GPS position obtained:', {
+      log.debug('[MAP DIAGNOSTIC] GPS position obtained:', {
         latitude: pos.coords.latitude,
         longitude: pos.coords.longitude,
         accuracy: pos.coords.accuracy,
@@ -1548,12 +1551,12 @@ function centerOnUserLocation() {
         longitude: pos.coords.longitude 
       };
       
-      console.log('[MAP DIAGNOSTIC] Updating store and adding marker');
+      log.debug('[MAP DIAGNOSTIC] Updating store and adding marker');
       // Update store and marker
       artworksStore.setCurrentLocation(coords);
       addUserLocationMarker(coords);
       
-      console.log('[MAP DIAGNOSTIC] User location marker should now be visible on map');
+      log.debug('[MAP DIAGNOSTIC] User location marker should now be visible on map');
       
       // Center map on user location (preserve current zoom)
       if (map.value) {
@@ -1562,14 +1565,14 @@ function centerOnUserLocation() {
           animate: true, 
           duration: 0.5 
         });
-        console.log('[MAP DIAGNOSTIC] Map centered on user location at zoom:', currentZoom);
+        log.debug('[MAP DIAGNOSTIC] Map centered on user location at zoom:', currentZoom);
       }
       
       emit('locationFound', coords);
       isLocating.value = false;
     },
     (err) => {
-      console.warn('getCurrentPosition error:', err);
+      log.warn('getCurrentPosition error:', err);
       try {
         const msg = err && err.message ? `Location error: ${err.message}` : 'Unable to access your location.';
         toastError(msg);
@@ -1751,7 +1754,7 @@ onMounted(async () => {
   
   // Initialize icon atlas for WebGL markers
   try {
-    console.log('[ICON ATLAS] Starting icon atlas creation...');
+    log.debug('[ICON ATLAS] Starting icon atlas creation...');
     const iconConfigs = [
       { name: 'default', svg: DEFAULT_ICONS.default || '', size: 64 },
       { name: 'sculpture', svg: DEFAULT_ICONS.sculpture || '', size: 64 },
@@ -1763,12 +1766,12 @@ onMounted(async () => {
       { name: 'submissions', svg: DEFAULT_ICONS.submissions || '', size: 64 }
     ];
     iconAtlas.value = await createIconAtlas(iconConfigs);
-    console.log('[ICON ATLAS] Icon atlas created successfully:', {
+    log.debug('[ICON ATLAS] Icon atlas created successfully:', {
       atlasExists: !!iconAtlas.value,
       icons: iconAtlas.value ? Object.keys(iconAtlas.value.icons) : []
     });
   } catch (err) {
-    console.error('[ICON ATLAS] Failed to create icon atlas:', err);
+    log.error('[ICON ATLAS] Failed to create icon atlas:', err);
   }
   
   await initializeMap();
@@ -1827,7 +1830,7 @@ onUnmounted(() => {
       map.value.off('locationfound');
       map.value.off('locationerror');
     } catch (e) {
-      console.warn('Error removing map event listeners:', e);
+      log.warn('Error removing map event listeners:', e);
     }
 
     // Remove webgl listeners if present
@@ -1842,7 +1845,7 @@ onUnmounted(() => {
     try {
       map.value.remove();
     } catch (e) {
-      console.warn('Error removing map:', e);
+      log.warn('Error removing map:', e);
     }
     
     map.value = undefined;
@@ -2404,3 +2407,4 @@ watch(
   z-index: 11000 !important;
 }
 </style>
+
