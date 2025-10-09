@@ -134,9 +134,14 @@ export async function createLogbookSubmission(
       `Cultural Archiver Consent v${consentVersion} - Logbook Submission`
     );
 
-    const isAuthenticated = userToken && userToken.length > 36;
+    // Check if user exists in users table (authenticated) or is anonymous
+    const userExists = await c.env.DB
+      .prepare('SELECT uuid FROM users WHERE uuid = ?')
+      .bind(userToken)
+      .first();
+
     const consentParams = {
-      ...(isAuthenticated ? { userId: userToken } : { anonymousToken: userToken }),
+      ...(userExists ? { userId: userToken } : { anonymousToken: userToken }),
       contentType: 'logbook' as const,
       contentId,
       consentVersion,
@@ -301,8 +306,14 @@ export async function createArtworkEditSubmission(
       `Cultural Archiver Consent v${consentVersion} - Artwork Edit`
     );
 
+    // Check if user exists in users table (authenticated) or is anonymous
+    const userExists = await c.env.DB
+      .prepare('SELECT uuid FROM users WHERE uuid = ?')
+      .bind(userToken)
+      .first();
+
     const consentRecord = await recordConsent({
-      userId: userToken,
+      ...(userExists ? { userId: userToken } : { anonymousToken: userToken }),
       contentType: 'artwork' as const,
       contentId: validatedData.artwork_id,
       consentVersion,
@@ -318,6 +329,57 @@ export async function createArtworkEditSubmission(
       oldData: validatedData.old_data,
       newData: validatedData.new_data,
     };
+
+    // Server-side validation for known fields inside new_data
+    const nd = validatedData.new_data as Record<string, any> | undefined;
+    if (nd) {
+      // Title validation
+      if (nd.title && typeof nd.title === 'string' && nd.title.length > 200) {
+        throw new ApiError('Title must be 200 characters or less', 'VALIDATION_ERROR', 400);
+      }
+
+      // Description validation
+      if (nd.description && typeof nd.description === 'string' && nd.description.length > 10000) {
+        throw new ApiError('Description must be 10000 characters or less', 'VALIDATION_ERROR', 400);
+      }
+
+      // Keywords validation: accept string or array; normalize to comma-separated string
+      if (nd.keywords) {
+        if (Array.isArray(nd.keywords)) {
+          // join and ensure length
+          const joined = nd.keywords.join(',');
+          if (joined.length > 500) {
+            throw new ApiError('Keywords must be 500 characters or less', 'VALIDATION_ERROR', 400);
+          }
+          nd.keywords = joined;
+        } else if (typeof nd.keywords === 'string') {
+          if (nd.keywords.length > 500) {
+            throw new ApiError('Keywords must be 500 characters or less', 'VALIDATION_ERROR', 400);
+          }
+        } else {
+          throw new ApiError('Keywords must be a comma-separated string or an array of strings', 'VALIDATION_ERROR', 400);
+        }
+      }
+
+      // Validate artist IDs if provided: expect new_data.artists as array of { id: string } or array of ids
+      if (nd.artists) {
+        const artistIds: string[] = Array.isArray(nd.artists)
+          ? nd.artists.map((a: any) => (typeof a === 'string' ? a : a && a.id ? a.id : null)).filter(Boolean)
+          : [];
+
+        if (artistIds.length > 0) {
+          // Query artists table to ensure all IDs exist
+          const placeholders = artistIds.map(() => '?').join(',');
+          const query = `SELECT id FROM artists WHERE id IN (${placeholders})`;
+          const rows = await c.env.DB.prepare(query).bind(...artistIds).all();
+          const found = (rows.results || []).map((r: any) => r.id);
+          const missing = artistIds.filter(id => !found.includes(id));
+          if (missing.length > 0) {
+            throw new ApiError(`Invalid artist IDs: ${missing.join(', ')}`, 'VALIDATION_ERROR', 400);
+          }
+        }
+      }
+    }
 
     if (validatedData.notes) {
       artworkEditData.notes = validatedData.notes;

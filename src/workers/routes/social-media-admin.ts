@@ -16,6 +16,8 @@ import type {
 import { ApiError } from '../lib/errors';
 import { hasPermission } from '../lib/permissions';
 import { generatePostText } from '../lib/social-media/templates';
+import { createSocialMediaService } from '../lib/social-media/factory';
+import { logAdminAction } from '../lib/audit';
 import { isValidSocialMediaType } from '../../shared/types';
 
 // Constants
@@ -563,5 +565,128 @@ export async function getNextAvailableDate(
     }
 
     throw new ApiError('Failed to find next available date', 'NEXT_DATE_ERROR', 500);
+  }
+}
+
+/**
+ * POST /api/admin/social-media/schedule/:id/test
+ * Manual test trigger to attempt posting a scheduled item immediately.
+ * NOTE: This is a manual test endpoint and DOES NOT modify the schedule row state.
+ */
+export async function testSocialMediaSchedule(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+    const db = c.env.DB;
+
+    // Check admin permissions
+    const adminCheck = await hasPermission(db, authContext.userToken, 'admin');
+    if (!adminCheck.hasPermission) {
+      throw new ApiError('Administrator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    const id = c.req.param('id');
+    if (!id) {
+      throw new ApiError('Schedule ID is required', 'INVALID_REQUEST', 400);
+    }
+
+    // Fetch schedule with artwork
+    const schedule = await db
+      .prepare(
+        `SELECT s.*, a.title, a.photos as artwork_photos FROM social_media_schedules s LEFT JOIN artwork a ON s.artwork_id = a.id WHERE s.id = ?`
+      )
+      .bind(id)
+      .first<any>();
+
+    if (!schedule) {
+      throw new ApiError('Schedule not found', 'SCHEDULE_NOT_FOUND', 404);
+    }
+
+    // Ensure social_type is valid
+    if (!isValidSocialMediaType(schedule.social_type)) {
+      throw new ApiError('Invalid social media type for schedule', 'INVALID_SOCIAL_TYPE', 400);
+    }
+
+    // Create service for this platform using environment variables
+    const service = createSocialMediaService(schedule.social_type, {
+      ...(c.env.BSKY_IDENTIFIER && { BSKY_IDENTIFIER: c.env.BSKY_IDENTIFIER }),
+      ...(c.env.BSKY_APP_PASSWORD && { BSKY_APP_PASSWORD: c.env.BSKY_APP_PASSWORD }),
+      ...(c.env.INSTAGRAM_ACCESS_TOKEN && { INSTAGRAM_ACCESS_TOKEN: c.env.INSTAGRAM_ACCESS_TOKEN }),
+      ...(c.env.INSTAGRAM_ACCOUNT_ID && { INSTAGRAM_ACCOUNT_ID: c.env.INSTAGRAM_ACCOUNT_ID }),
+    });
+
+    if (!service) {
+      throw new ApiError('No service configured for this social platform', 'SERVICE_NOT_CONFIGURED', 500);
+    }
+
+    // Read commit flag from query or body. commit=true will update DB state (mark posted/failed)
+    const urlCommit = c.req.query('commit');
+    let bodyCommit = false;
+    try {
+      const parsedBody = await c.req.json().catch(() => ({}));
+      bodyCommit = Boolean(parsedBody && (parsedBody as any).commit === true);
+    } catch {
+      bodyCommit = false;
+    }
+    const commit = urlCommit === 'true' || bodyCommit === true;
+
+    // Parse photos
+    let photos: string[] = [];
+    try {
+      photos = schedule.photos ? JSON.parse(schedule.photos) : [];
+    } catch (err) {
+      console.error('Failed to parse photos for manual test:', err);
+    }
+
+    // Attempt to post
+    const result = await service.post({ body: schedule.body, photos: photos.slice(0, service.maxPhotos) });
+
+    // Record admin audit action (who ran the manual test)
+    try {
+      await logAdminAction(db, {
+        adminUuid: authContext.userToken,
+        actionType: 'manual_social_post',
+        targetUuid: schedule.id,
+        reason: commit ? 'Manual post executed with commit' : 'Manual post executed (dry-run)',
+        metadata: {
+          social_type: schedule.social_type,
+          artwork_id: schedule.artwork_id,
+          commit: commit,
+          result: result.success ? 'success' : 'failure',
+        },
+      });
+    } catch (e) {
+      console.warn('Failed to write admin audit record for manual social post test:', e);
+    }
+
+    // If commit=true, update the schedule row to reflect the attempt
+    if (commit) {
+      if (result.success) {
+        await db
+          .prepare(
+            `UPDATE social_media_schedules SET status = 'posted', error_message = NULL, last_attempt_at = CURRENT_TIMESTAMP WHERE id = ?`
+          )
+          .bind(schedule.id)
+          .run();
+      } else {
+        await db
+          .prepare(
+            `UPDATE social_media_schedules SET status = 'failed', error_message = ?, last_attempt_at = CURRENT_TIMESTAMP WHERE id = ?`
+          )
+          .bind(result.error || (result as any).message || 'Unknown error', schedule.id)
+          .run();
+      }
+    }
+
+    return c.json({ success: true, data: { result, note: commit ? 'Manual test executed and committed' : 'Manual test run did not modify schedule state' } });
+  } catch (error) {
+    console.error('Test social media schedule error:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError('Failed to run manual test', 'TEST_RUN_ERROR', 500);
   }
 }

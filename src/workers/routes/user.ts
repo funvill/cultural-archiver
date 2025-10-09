@@ -104,11 +104,9 @@ export async function getUserProfile(c: Context<{ Bindings: WorkerEnv }>): Promi
     throw new UnauthorizedError('User token required');
   }
 
-  const db = createDatabaseService(c.env.DB);
-
   try {
     // Get user submission statistics
-    const submissionStats = await getUserSubmissionStats(db.db, userToken);
+    const submissionStats = await getUserSubmissionStats(c.env.DB, userToken);
 
     // Get rate limit status
     const rateLimitStatus = await getRateLimitStatus(c.env.RATE_LIMITS, userToken);
@@ -122,8 +120,9 @@ export async function getUserProfile(c: Context<{ Bindings: WorkerEnv }>): Promi
 
     // Check database-backed permissions for accurate display
     const { isAdmin, isModerator } = await import('../lib/permissions');
-    const isUserAdmin = await isAdmin(c.env.DB, userToken);
-    const isUserModerator = await isModerator(c.env.DB, userToken);
+    const database = c.env.DB;
+    const isUserAdmin = await isAdmin(database, userToken);
+    const isUserModerator = await isModerator(database, userToken);
 
     const profile = {
       user_token: userToken,
@@ -228,14 +227,14 @@ export async function deleteUserAccount(c: Context<{ Bindings: WorkerEnv }>): Pr
     throw new UnauthorizedError('User token required');
   }
 
-  const db = createDatabaseService(c.env.DB);
+  const database = c.env.DB;
 
   try {
     // Note: This is a soft delete - we mark submissions as deleted but keep for audit
     // In a production system, you might want to anonymize rather than delete
 
     // Update all user submissions to remove personal data
-    const deleteStmt = db.db.prepare(`
+    const deleteStmt = database.prepare(`
       UPDATE submissions 
       SET user_token = 'deleted-user', notes = '[deleted]'
       WHERE user_token = ? AND status != 'approved' AND submission_type = 'logbook_entry'
@@ -594,11 +593,11 @@ export async function getUserActivity(
   activity_score: number;
   last_active: string | null;
 }> {
-  const db = createDatabaseService(c.env.DB);
+  const database = c.env.DB;
 
   try {
     // Get recent submission activity (last 30 days)
-    const recentSubmissionsStmt = db.db.prepare(`
+    const recentSubmissionsStmt = database.prepare(`
       SELECT COUNT(*) as count
       FROM submissions 
       WHERE user_token = ? 
@@ -617,7 +616,7 @@ export async function getUserActivity(
     const activityScore = Math.min(100, submissionCount * 10 + queryActivity * 0.5);
 
     // Get last submission time as proxy for last active
-    const lastActiveStmt = db.db.prepare(`
+    const lastActiveStmt = database.prepare(`
       SELECT MAX(created_at) as last_active
       FROM submissions
       WHERE user_token = ?
@@ -654,11 +653,11 @@ export async function exportUserData(c: Context<{ Bindings: WorkerEnv }>): Promi
     throw new UnauthorizedError('User token required');
   }
 
-  const db = createDatabaseService(c.env.DB);
+  const database = c.env.DB;
 
   try {
     // Get all user submissions
-    const submissionsStmt = db.db.prepare(`
+    const submissionsStmt = database.prepare(`
       SELECT * FROM submissions WHERE user_token = ?
     `);
     const submissions = await submissionsStmt.bind(userToken).all();
@@ -667,7 +666,7 @@ export async function exportUserData(c: Context<{ Bindings: WorkerEnv }>): Promi
     const preferences = await getUserPreferences(c.env.SESSIONS, userToken);
 
     // Get submission statistics
-    const stats = await getUserSubmissionStats(db.db, userToken);
+    const stats = await getUserSubmissionStats(database, userToken);
 
     const exportData = {
       export_date: new Date().toISOString(),
@@ -759,7 +758,8 @@ async function getUserDetailedInfo(
   updated_at: string | null;
 } | null> {
   try {
-    const stmt = env.DB.prepare(`
+    const db = env.DB;
+    const stmt = db.prepare(`
       SELECT uuid, email, created_at, last_login, email_verified_at, status
       FROM users 
       WHERE uuid = ?
@@ -803,7 +803,8 @@ async function getUserPermissionsInfo(
   }>
 > {
   try {
-    const stmt = env.DB.prepare(`
+    const db = env.DB;
+    const stmt = db.prepare(`
       SELECT ur.role as permission, ur.granted_at, ur.granted_by,
              u_granter.email as granted_by_email, ur.revoked_at, ur.notes
       FROM user_roles ur

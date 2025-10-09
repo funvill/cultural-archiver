@@ -9,6 +9,7 @@ import {
   createArtist,
   submitArtistEdit,
   getUserPendingArtistEdits,
+  searchArtists,
 } from '../artists';
 import type { WorkerEnv } from '../../types';
 import type { Context } from 'hono';
@@ -348,6 +349,112 @@ describe('Artist Routes', () => {
     await getUserPendingArtistEdits(c);
 
       expect(c.json).toHaveBeenCalled();
+    });
+  });
+
+  describe('searchArtists', () => {
+    test('should return search results for query', async () => {
+      const mockResults = [
+        {
+          id: 'artist-1',
+          name: 'Vincent van Gogh',
+          description: 'Dutch post-impressionist painter who is among the most famous and influential figures in the history of Western art.',
+          aliases: '["Van Gogh", "Vincent"]',
+          tags: '{"birth_year": 1853, "death_year": 1890}',
+          created_at: '2025-01-01T00:00:00Z',
+          updated_at: '2025-01-01T00:00:00Z',
+        },
+        {
+          id: 'artist-2',
+          name: 'Pablo Picasso',
+          description: 'Spanish painter, sculptor, printmaker, ceramicist and theatre designer.',
+          aliases: null,
+          tags: '{"birth_year": 1881, "death_year": 1973}',
+          created_at: '2025-01-01T00:00:00Z',
+          updated_at: '2025-01-01T00:00:00Z',
+        },
+      ];
+
+      const mockDbStmt = {
+        bind: vi.fn().mockReturnThis(),
+        all: vi.fn().mockResolvedValue({ results: mockResults }),
+      };
+      mockDb.prepare.mockReturnValue(mockDbStmt);
+
+      // Mock getValidatedData
+      const { getValidatedData } = await import('../../middleware/validation');
+      vi.mocked(getValidatedData).mockReturnValue({ q: 'van', limit: 10 });
+
+      const c = createMockContext();
+      await searchArtists(c);
+
+      expect(mockDb.prepare).toHaveBeenCalled();
+      expect(c.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          data: expect.objectContaining({
+            results: expect.arrayContaining([
+              expect.objectContaining({
+                id: 'artist-1',
+                name: 'Vincent van Gogh',
+                description_short: expect.any(String),
+              }),
+            ]),
+          }),
+        })
+      );
+    });
+
+    test('should return empty results for empty query', async () => {
+      const { getValidatedData } = await import('../../middleware/validation');
+      vi.mocked(getValidatedData).mockReturnValue({ q: '', limit: 10 });
+
+      const c = createMockContext();
+      await searchArtists(c);
+
+      expect(c.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          data: expect.objectContaining({
+            results: [],
+            count: 0,
+          }),
+        })
+      );
+    });
+
+    test('should limit results to specified limit', async () => {
+      const mockResults = Array.from({ length: 5 }, (_, i) => ({
+        id: `artist-${i}`,
+        name: `Artist ${i}`,
+        description: 'Test artist',
+        aliases: null,
+        tags: null,
+        created_at: '2025-01-01T00:00:00Z',
+        updated_at: '2025-01-01T00:00:00Z',
+      }));
+
+      const mockDbStmt = {
+        bind: vi.fn().mockReturnThis(),
+        all: vi.fn().mockResolvedValue({ results: mockResults }),
+      };
+      mockDb.prepare.mockReturnValue(mockDbStmt);
+
+      const { getValidatedData } = await import('../../middleware/validation');
+      vi.mocked(getValidatedData).mockReturnValue({ q: 'artist', limit: 5 });
+
+      const c = createMockContext();
+      await searchArtists(c);
+
+      expect(mockDb.prepare).toHaveBeenCalled();
+      expect(c.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          success: true,
+          data: expect.objectContaining({
+            count: 5,
+          }),
+        })
+      );
     });
   });
 });

@@ -203,6 +203,13 @@ const count = computed(() => props.count);
       </svg>
     </template>
 
+    <!-- Bug icon (for report issue) -->
+    <template v-else-if="icon === 'bug'">
+      <svg :class="iconClasses" fill="currentColor" viewBox="0 0 24 24">
+        <path d="M19 8h-1.26A7.97 7.97 0 0013 6.11V4h1a1 1 0 100-2h-4a1 1 0 100 2h1v2.11A7.97 7.97 0 006.26 8H5a1 1 0 100 2h.22A6.002 6.002 0 0011 16v3H9a1 1 0 100 2h6a1 1 0 100-2h-2v-3a6.002 6.002 0 005.78-6H19a1 1 0 100-2zM12 14a4 4 0 110-8 4 4 0 010 8z" />
+      </svg>
+    </template>
+
     <!-- Default fallback icon -->
     <template v-else>
       <svg :class="iconClasses" fill="currentColor" viewBox="0 0 24 24">

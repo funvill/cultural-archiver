@@ -42,6 +42,7 @@ import {
   validateCheckSimilarity,
   artworkListSchema,
   artistListSchema,
+  artistSearchSchema,
   validateUnifiedSubmission,
   profileNameUpdateSchema,
   profileNameCheckSchema,
@@ -52,6 +53,7 @@ import {
   validateRemoveFromList,
   validateListQuery,
   validateListId,
+  artworkEditSubmissionSchema,
 } from './middleware/validation';
 import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
@@ -61,6 +63,7 @@ import {
   createFastArtworkSubmission,
   createUnifiedSubmission,
 } from './routes/submissions';
+import { createArtworkEditSubmission } from './routes/submissions-new';
 import {
   getNearbyArtworks,
   getArtworkDetails,
@@ -84,6 +87,7 @@ import {
   createArtist,
   submitArtistEdit,
   getUserPendingArtistEdits,
+  searchArtists,
 } from './routes/artists';
 import { bulkExportToOSM, getExportStats } from './routes/export';
 import {
@@ -157,6 +161,7 @@ import {
   deleteSocialMediaSchedule,
   updateSocialMediaSchedule,
   getNextAvailableDate,
+  testSocialMediaSchedule,
 } from './routes/social-media-admin';
 import { debugStevenPermissions } from './routes/debug-permissions';
 import { fixPermissionsSchema } from './routes/fix-schema';
@@ -179,17 +184,32 @@ const app = new Hono<{ Bindings: WorkerEnv }>();
 const isDevelopment = typeof process !== 'undefined' && process.env.NODE_ENV === 'development';
 initializePages(isDevelopment);
 
+// Helper function to get the database binding
+const getDatabase = (env: WorkerEnv): D1Database | undefined => {
+  return env.DB;
+};
+
+// Helper function to get the photos bucket binding
+const getPhotosBucket = (env: WorkerEnv): R2Bucket | undefined => {
+  return env.PHOTOS_BUCKET;
+};
+
 // Add binding validation middleware - CRITICAL for deployment diagnosis
 app.use('*', async (c, next) => {
   const missingBindings = [];
 
-  // Check critical bindings
-  if (!c.env.DB) missingBindings.push('DB (D1 Database)');
+  // Check critical bindings using helper functions
+  const db = getDatabase(c.env);
+  const photosBucket = getPhotosBucket(c.env);
+  
+  if (!db) missingBindings.push('DB (D1 Database)');
   if (!c.env.SESSIONS) missingBindings.push('SESSIONS (KV)');
   if (!c.env.CACHE) missingBindings.push('CACHE (KV)');
   if (!c.env.RATE_LIMITS) missingBindings.push('RATE_LIMITS (KV)');
   if (!c.env.MAGIC_LINKS) missingBindings.push('MAGIC_LINKS (KV)');
-  if (!c.env.PHOTOS_BUCKET) missingBindings.push('PHOTOS_BUCKET (R2)');
+  if (!photosBucket) missingBindings.push('PHOTOS_BUCKET (R2)');
+
+  // Continue with request processing - bindings are validated above
 
   // If critical bindings are missing, return a helpful error instead of "hello world"
   if (missingBindings.length > 0) {
@@ -804,6 +824,16 @@ app.post(
   withErrorHandling(createUnifiedSubmission)
 );
 
+// Artwork edit submission endpoint
+app.post(
+  '/api/submissions/artwork-edit',
+  ensureUserToken,
+  rateLimitSubmissions,
+  validateSchema(artworkEditSubmissionSchema, 'body'),
+  addUserTokenToResponse,
+  withErrorHandling(createArtworkEditSubmission)
+);
+
 // ================================
 // Discovery Endpoints
 // ================================
@@ -902,6 +932,14 @@ app.get(
   rateLimitQueries,
   validateSchema(artistListSchema, 'query'),
   withErrorHandling(getArtistsList)
+);
+
+// Artist search endpoint for typeahead (must come before /:id route)
+app.get(
+  '/api/artists/search',
+  rateLimitQueries,
+  validateSchema(artistSearchSchema, 'query'),
+  withErrorHandling(searchArtists)
 );
 
 app.get(
@@ -1304,6 +1342,12 @@ app.patch('/api/admin/social-media/schedule/:id', withErrorHandling(updateSocial
 // GET /api/admin/social-media/next-available-date - Find next available posting date
 app.get('/api/admin/social-media/next-available-date', withErrorHandling(getNextAvailableDate));
 
+// POST /api/admin/social-media/schedule/:id/test - Manual test trigger for a scheduled post
+app.post(
+  '/api/admin/social-media/schedule/:id/test',
+  withErrorHandling(testSocialMediaSchedule)
+);
+
 // Temporarily commented out - missing admin-update route file
 // app.post('/api/dev/update-steven-permissions', ensureUserToken, withErrorHandling(updateStevenPermissions));
 
@@ -1388,6 +1432,7 @@ app.notFound(c => {
           'POST /api/artwork/:id/lists/:listType',
           'GET /api/artwork/:id/counts',
           'GET /api/artists',
+          'GET /api/artists/search',
           'GET /api/artists/:id',
           'POST /api/artists',
           'PUT /api/artists/:id',

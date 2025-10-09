@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
+import { useAuthStore } from '../stores/auth';
 import { useRouter } from 'vue-router';
 import ArtworkCard from '../components/ArtworkCard.vue';
 import BadgeGrid from '../components/BadgeGrid.vue';
@@ -321,6 +322,18 @@ onMounted(() => {
   fetchUserLists();
   // Theme initialization moved to main.ts (applies saved localStorage theme on startup)
 });
+
+// Auth store for developer info (token & permissions)
+const authStore = useAuthStore();
+
+// Computed display token (prefer store token, fallback to localStorage)
+const displayToken = computed(() => {
+  try {
+    return authStore.token || (typeof window !== 'undefined' ? localStorage.getItem('user-token') : null) || null;
+  } catch (e) {
+    return authStore.token || null;
+  }
+});
 </script>
 
 <template>
@@ -374,6 +387,24 @@ onMounted(() => {
           <!-- Theme selector -->
           <div class="mt-6">
             <ThemeToggle />
+          </div>
+        </div>
+      </section>
+
+      <!-- Developer Info (token & permissions) -->
+      <section class="mb-8">
+        <div class="p-6 rounded-lg shadow theme-surface">
+          <h2 class="text-xl font-semibold theme-on-surface mb-4">Developer Info</h2>
+          <p class="text-sm theme-muted mb-2">This section shows your local user token and active permissions (useful for debugging).</p>
+          <div class="text-sm">
+            <div class="mb-2">
+              <span class="font-medium">User token:</span>
+              <code class="ml-2 truncate block max-w-full">{{ displayToken || 'none' }}</code>
+            </div>
+            <div>
+              <span class="font-medium">Permissions:</span>
+              <span class="ml-2">{{ authStore.permissions && authStore.permissions.length ? authStore.permissions.join(', ') : 'none' }}</span>
+            </div>
           </div>
         </div>
       </section>

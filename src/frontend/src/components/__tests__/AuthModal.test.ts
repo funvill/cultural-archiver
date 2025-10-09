@@ -41,7 +41,7 @@ describe('AuthModal', () => {
         props: { isOpen: true, mode: 'signup' },
       });
 
-      expect(wrapper.props('mode')).toBe('signup');
+  expect((wrapper.props() as any).mode).toBe('signup');
     });
 
     it('can emit close event', async () => {

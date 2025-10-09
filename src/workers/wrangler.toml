@@ -25,7 +25,7 @@ zone_name = "publicartregistry.com"
 
 # D1 Database bindings
 [[env.development.d1_databases]]
-binding = "DevDB"
+binding = "DB"
 database_name = "development-public-art-registry"
 database_id = "fbc97d1f-4b42-4eba-8759-c69f21be7819"
 migrations_dir = "./migrations"
@@ -73,7 +73,7 @@ id = "5b69d7c338734f3aa56cea9c1f3930f7"  # Must be replaced with actual producti
 
 # R2 bucket bindings
 [[env.development.r2_buckets]]
-binding = "DEV_PHOTOS_BUCKET"
+binding = "PHOTOS_BUCKET"
 bucket_name = "development-public-art-registry-photos"
 
 [[env.production.r2_buckets]]

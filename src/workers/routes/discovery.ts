@@ -1051,7 +1051,7 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
     };
   }
 
-  const db = createDatabaseService(c.env.DB);
+  const database = c.env.DB;
 
   // Set defaults per PRD
   const page = Math.max(validatedQuery.page || 1, 1);
@@ -1084,7 +1084,7 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
       WHERE a.status = 'approved'
     `;
 
-    const countResult = (await db.db.prepare(countQuery).first()) as { total: number };
+    const countResult = (await database.prepare(countQuery).first()) as { total: number };
     const totalItems = countResult.total;
     const totalPages = Math.ceil(totalItems / limit);
 
@@ -1113,7 +1113,7 @@ export async function getArtworksList(c: Context<{ Bindings: WorkerEnv }>): Prom
       LIMIT ? OFFSET ?
     `;
 
-    const artworks = await db.db.prepare(artworksQuery).bind(limit, offset).all();
+    const artworks = await database.prepare(artworksQuery).bind(limit, offset).all();
 
     // Get photos for each artwork
     const artworksWithPhotos = await Promise.all(

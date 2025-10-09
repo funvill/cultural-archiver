@@ -24,13 +24,28 @@ export function getApiBaseUrl(): string {
   // Check if we're in production mode (set by Vite build)
   const isProduction = import.meta.env.PROD;
 
+  // Primary detection: Vite's PROD flag
   if (isProduction) {
-    // Production: Use the full API domain with /api path
     return 'https://api.publicartregistry.com/api';
-  } else {
-    // Development: Use relative path (proxied by Vite dev server)
-    return '/api';
   }
+
+  // Fallback detection: hostname-based check for pages served from the production domain.
+  // This covers cases where environment flags may not be correctly set in the deployed build
+  // but the page is still served from publicartregistry.com (e.g., misconfigured worker that
+  // serves static assets but doesn't set import.meta.env.PROD).
+  try {
+    if (typeof window !== 'undefined' && window.location && typeof window.location.hostname === 'string') {
+      const hostname = window.location.hostname.toLowerCase();
+      if (hostname.endsWith('publicartregistry.com')) {
+        return 'https://api.publicartregistry.com/api';
+      }
+    }
+  } catch (e) {
+    // ignore any errors and fall back to dev-style relative path
+  }
+
+  // Default (development / local): Use relative path (proxied by Vite dev server)
+  return '/api';
 }
 
 /**

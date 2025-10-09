@@ -8,6 +8,7 @@ const HelpView = (): Promise<Component> => import('../views/HelpView.vue');
 const StatusView = (): Promise<Component> => import('../views/StatusView.vue');
 const MapView = (): Promise<Component> => import('../views/MapView.vue');
 const ArtworkDetailView = (): Promise<Component> => import('../views/ArtworkDetailView.vue');
+const ArtworkEditView = (): Promise<Component> => import('../views/ArtworkEditView.vue');
 const ArtworkIndexView = (): Promise<Component> => import('../views/ArtworkIndexView.vue');
 const ArtistIndexView = (): Promise<Component> => import('../views/ArtistIndexView.vue');
 const ProfileView = (): Promise<Component> => import('../views/ProfileView.vue');
@@ -105,6 +106,16 @@ const router = createRouter({
       props: true,
       meta: {
         title: 'Artwork Details - Public Art Registry',
+      },
+    },
+    {
+      path: '/artwork/:id/edit',
+      name: 'ArtworkEdit',
+      component: ArtworkEditView,
+      props: true,
+      meta: {
+        title: 'Edit Artwork - Public Art Registry',
+        requiresAuth: true,
       },
     },
     {

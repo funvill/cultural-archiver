@@ -68,18 +68,15 @@ export async function getUserRole(db: D1Database, id: string): Promise<UserRoleR
 export async function getUserRolesByToken(
   db: D1Database,
   userToken: string,
-  includeExpired: boolean = false
+  _includeExpired: boolean = false
 ): Promise<UserRoleRecord[]> {
-  let query = `
+  // Note: user_roles table doesn't have expires_at column in schema
+  // Roles are managed via is_active and revoked_at fields
+  const query = `
     SELECT * FROM user_roles 
-    WHERE user_token = ? AND status = 'active'
+    WHERE user_token = ? AND is_active = 1
+    ORDER BY granted_at DESC
   `;
-
-  if (!includeExpired) {
-    query += ` AND (expires_at IS NULL OR expires_at > datetime('now'))`;
-  }
-
-  query += ` ORDER BY granted_at DESC`;
 
   const results = await db.prepare(query).bind(userToken).all<UserRoleRecord>();
   return results.results || [];
@@ -120,12 +117,12 @@ export async function revokeUserRole(
     .prepare(
       `
     UPDATE user_roles 
-    SET status = 'revoked', revoked_by = ?, revoked_at = datetime('now'),
-        metadata = json_patch(COALESCE(metadata, '{}'), ?)
+    SET is_active = 0, revoked_by = ?, revoked_at = datetime('now'),
+        notes = COALESCE(notes || '; ', '') || ?
     WHERE id = ?
   `
     )
-    .bind(revokedBy, JSON.stringify({ revokeReason: reason || 'No reason provided' }), id)
+    .bind(revokedBy, 'Revoked: ' + (reason || 'No reason provided'), id)
     .run();
 
   return result.success;
@@ -140,21 +137,42 @@ export async function hasPermission(
   userToken: string,
   requiredPermission: string
 ): Promise<boolean> {
+  // Check if user has admin role - admins have all permissions
   const roles = await getUserRolesByToken(db, userToken, false);
-
-  for (const role of roles) {
-    try {
-      if (!role.permissions) continue; // Skip roles without permissions
-      const permissions = JSON.parse(role.permissions) as string[];
-      if (permissions.includes(requiredPermission) || permissions.includes('*')) {
-        return true;
-      }
-    } catch (error) {
-      console.error('Error parsing permissions for role:', role.id, error);
-    }
+  console.log('[PERMISSION CHECK]', {
+    userToken,
+    requiredPermission,
+    roles: roles.map(r => ({ role: r.role, is_active: r.is_active })),
+  });
+  
+  const isAdmin = roles.some(role => role.role === 'admin');
+  if (isAdmin) {
+    console.log('[PERMISSION CHECK] User is admin - granting permission');
+    return true;
   }
 
-  return false;
+  // Check user_permissions table for specific permissions
+  const permissionQuery = `
+    SELECT COUNT(*) as count 
+    FROM user_permissions 
+    WHERE user_token = ? 
+      AND permission = ? 
+      AND is_active = 1
+      AND (expires_at IS NULL OR expires_at > datetime('now'))
+  `;
+  
+  const result = await db.prepare(permissionQuery)
+    .bind(userToken, requiredPermission)
+    .first<{ count: number }>();
+
+  const hasPermission = (result?.count ?? 0) > 0;
+  console.log('[PERMISSION CHECK]', { 
+    hasPermission, 
+    count: result?.count,
+    requiredPermission 
+  });
+  
+  return hasPermission;
 }
 
 export async function hasRole(
@@ -195,17 +213,28 @@ export async function getUserPermissions(
   const allPermissions = new Set<string>();
   const userRoles = new Set<string>();
 
+  // Collect roles
   for (const role of roles) {
     userRoles.add(role.role);
-    try {
-      if (!role.permissions) continue; // Skip roles without permissions
-      const permissions = JSON.parse(role.permissions) as string[];
-      permissions.forEach(permission => allPermissions.add(permission));
-    } catch (error) {
-      console.error('Error parsing permissions for role:', role.id, error);
-    }
   }
 
+  // Get permissions from user_permissions table
+  const permissionsQuery = `
+    SELECT DISTINCT permission 
+    FROM user_permissions 
+    WHERE user_token = ? 
+      AND is_active = 1
+      AND (expires_at IS NULL OR expires_at > datetime('now'))
+  `;
+  
+  const permissionResults = await db.prepare(permissionsQuery)
+    .bind(userToken)
+    .all<{ permission: string }>();
+
+  for (const row of (permissionResults.results || [])) {
+    allPermissions.add(row.permission);
+  }
+  
   return {
     roles: Array.from(userRoles),
     permissions: Array.from(allPermissions),
@@ -240,8 +269,8 @@ export async function getAllRoles(
   }
 
   if (filters.status) {
-    query += ` AND status = ?`;
-    params.push(filters.status);
+    query += ` AND is_active = ?`;
+    params.push(filters.status === 'active' ? 1 : 0);
   } else if (!filters.includeExpired) {
     query += ` AND (expires_at IS NULL OR expires_at > datetime('now'))`;
   }
@@ -404,10 +433,10 @@ export async function cleanExpiredRoles(db: D1Database): Promise<number> {
     .prepare(
       `
     UPDATE user_roles 
-    SET status = 'expired', updated_at = datetime('now')
+    SET is_active = 0, revoked_at = datetime('now'), notes = COALESCE(notes || '; ', '') || 'Auto-expired'
     WHERE expires_at IS NOT NULL 
     AND expires_at < datetime('now') 
-    AND status = 'active'
+    AND is_active = 1
   `
     )
     .run();
@@ -425,18 +454,13 @@ export async function extendRoleExpiry(
     .prepare(
       `
     UPDATE user_roles 
-    SET expires_at = ?, updated_at = datetime('now'),
-        metadata = json_patch(COALESCE(metadata, '{}'), ?)
-    WHERE id = ? AND status = 'active'
+    SET expires_at = ?, notes = COALESCE(notes || '; ', '') || ?
+    WHERE id = ? AND is_active = 1
   `
     )
     .bind(
       newExpiryDate,
-      JSON.stringify({
-        extendedBy,
-        extendedAt: new Date().toISOString(),
-        previousExpiry: null, // Will be filled by trigger if needed
-      }),
+      `Extended by ${extendedBy} to ${newExpiryDate}`,
       id
     )
     .run();

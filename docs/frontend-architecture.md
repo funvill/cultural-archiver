@@ -80,6 +80,11 @@ src/frontend/
 
 ## Badge System Components
 
+## Notifications & Toasts
+
+Transient UI notifications (toasts) are handled by a centralized system. See `docs/toasts.md` for details on the `useToasts()` composable, store types, and the badge payload convention.
+
+
 The badge system provides gamification and profile management through a set of Vue components that integrate seamlessly with the existing design system.
 
 ### BadgeGrid.vue

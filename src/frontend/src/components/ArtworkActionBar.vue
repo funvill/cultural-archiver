@@ -20,18 +20,20 @@ interface Props {
 }
 
 // Emits interface
-interface Emits {
-  (e: 'authRequired'): void;
-  (e: 'editArtwork'): void;
-  (e: 'addLog'): void;
-  (e: 'shareArtwork'): void;
-}
+type EmitMap = {
+  authRequired: () => void;
+  editArtwork: () => void;
+  addLog: () => void;
+  shareArtwork: () => void;
+  reportMissing: () => void;
+  reportIssue: () => void;
+};
 
-const props = withDefaults(defineProps<Props>(), {
-  permissions: () => ({ canEdit: false }),
-});
+const props = defineProps<Props>();
+// Provide a runtime default for permissions to avoid undefined usage
+if (!props.permissions) (props as any).permissions = { canEdit: false };
 
-const emit = defineEmits<Emits>();
+const emit = defineEmits<EmitMap>() as unknown as ((event: string, ...args: any[]) => void);
 
 // Composables
 const authStore = useAuthStore();
@@ -75,7 +77,6 @@ const pendingRequests = ref(new Set<string>());
 
 // Computed properties
 const isAuthenticated = computed(() => authStore.isAuthenticated);
-const canEdit = computed(() => props.permissions?.canEdit || false);
 
 const chipData = computed(() => [
   {
@@ -143,16 +144,26 @@ const chipData = computed(() => [
     loading: loadingStates.value.share,
     ariaLabel: 'Share this artwork',
     action: () => handleShare(),
-  },
-  ...(canEdit.value ? [{
-    id: 'edit',
-    icon: 'pencil',
-    label: 'Edit',
+  }
+  ,
+  {
+    id: 'reportMissing',
+    icon: 'flag',
+    label: 'Report Missing',
     active: false,
     loading: false,
-    ariaLabel: 'Edit this artwork',
-    action: () => handleEdit(),
-  }] : []),
+    ariaLabel: 'Report missing artwork',
+    action: () => emit('reportMissing'),
+  },
+  {
+    id: 'reportIssue',
+    icon: 'bug',
+    label: 'Report Issue',
+    active: false,
+    loading: false,
+    ariaLabel: 'Report an issue with this artwork',
+    action: () => emit('reportIssue'),
+  }
 ]);
 
 // Lifecycle
@@ -193,7 +204,7 @@ onMounted(async () => {
 });
 
 // Watch for authentication changes
-watch(() => authStore.isAuthenticated, async (newAuth) => {
+watch(() => authStore.isAuthenticated, async (newAuth: boolean) => {
   if (newAuth && !props.initialListStates) {
     await fetchMembershipStates();
   }
@@ -372,15 +383,6 @@ function handleAddLog(): void {
   }
   
   emit('addLog');
-}
-
-function handleEdit(): void {
-  if (!isAuthenticated.value) {
-    emit('authRequired');
-    return;
-  }
-
-  emit('editArtwork');
 }
 
 async function handleShare(): Promise<void> {

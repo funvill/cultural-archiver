@@ -34,7 +34,7 @@ const sampleArtists: ArtistApiResponse[] = [
     description: null,
     aliases: null,
     tags: null,
-    status: 'active',
+    status: 'approved',
     created_at: '2024-01-01T00:00:00Z',
     updated_at: '2024-01-01T00:00:00Z',
   },

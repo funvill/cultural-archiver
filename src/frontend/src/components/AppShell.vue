@@ -12,6 +12,7 @@ import { useBreakpoint } from '../composables/useBreakpoint';
 import AuthModal from './AuthModal.vue';
 import FeedbackDialog from './FeedbackDialog.vue';
 import LiveRegion from './LiveRegion.vue';
+import Toasts from './Toasts.vue';
 
 // Import new navigation components
 import BottomNavigation from './navigation/BottomNavigation.vue';
@@ -513,6 +514,9 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
       @close="closeFeedbackDialog"
       @success="handleFeedbackSuccess"
     />
+
+    <!-- Global Toasts -->
+    <Toasts />
   </div>
 </template>
 

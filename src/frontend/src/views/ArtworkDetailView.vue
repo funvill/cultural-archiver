@@ -8,10 +8,12 @@ import PhotoCarousel from '../components/PhotoCarousel.vue';
 import MiniMap from '../components/MiniMap.vue';
 import TagBadge from '../components/TagBadge.vue';
 import TagEditor from '../components/TagEditor.vue';
+import ArtistLookup from '../components/ArtistLookup.vue';
 import AddToListDialog from '../components/AddToListDialog.vue';
 import ArtworkActionBar from '../components/ArtworkActionBar.vue';
 import FeedbackDialog from '../components/FeedbackDialog.vue';
 import AuthModal from '../components/AuthModal.vue';
+import { PencilIcon } from '@heroicons/vue/24/outline';
 // import LogbookTimeline from '../components/LogbookTimeline.vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { apiService } from '../services/api';
@@ -32,9 +34,9 @@ const route = useRoute();
 // Announcer for screen reader feedback
 const { announceError, announceSuccess } = useAnnouncer();
 
-// Toast state for submission success
-const showToast = ref(false);
-const toastMessage = ref('');
+// Global toast helpers (success/info/error)
+import { useToasts } from '../composables/useToasts';
+const { success: toastSuccess } = useToasts();
 
 // Add to list dialog state
 const showAddToListDialog = ref(false);
@@ -69,6 +71,8 @@ const editData = ref({
   title: '',
   description: '',
   creators: '',
+  // artists: array of { id, name }
+  artists: [] as Array<{ id: string; name: string }>,
   tags: { keywords: '' } as Record<string, string>, // Structured tags instead of string array
 });
 
@@ -447,7 +451,7 @@ onMounted(async () => {
 
     // Check for submission success parameter
     if (route.query.submitted === 'true') {
-      showSuccessToast('Logbook entry submitted for review!');
+        toastSuccess('Logbook entry submitted for review!');
       // Clean up the URL parameter
       router.replace({ path: route.path });
     }
@@ -455,13 +459,6 @@ onMounted(async () => {
 });
 
 // Methods
-function showSuccessToast(message: string) {
-  toastMessage.value = message;
-  showToast.value = true;
-  setTimeout(() => {
-    showToast.value = false;
-  }, 5000);
-}
 
 function handlePhotoFullscreen(photoUrl: string): void {
   fullscreenPhotoUrl.value = photoUrl;
@@ -508,11 +505,7 @@ function goToMap(): void {
 // Add-to-list dialog is opened by the action bar component; removed local opener
 
 function handleAddedToList(listNames: string): void {
-  showToast.value = true;
-  toastMessage.value = `Added to list: ${listNames}`;
-  setTimeout(() => {
-    showToast.value = false;
-  }, 3000);
+  toastSuccess(`Added to list: ${listNames}`);
 }
 
 // Edit mode methods
@@ -524,6 +517,7 @@ function enterEditMode(): void {
     title: artworkTitle.value,
     description: artworkDescription.value || '',
     creators: artworkCreators.value,
+    artists: (artworkArtists.value || []).map((a: any) => ({ id: String(a.id), name: String(a.name) })),
     tags: { keywords: '', ...artworkTags.value }, // Copy structured tags, ensure keywords key exists
   };
 
@@ -559,6 +553,17 @@ async function saveEdit(): Promise<void> {
   editError.value = null;
 
   try {
+    // Client-side validation - mirror server limits
+    if (editData.value.title && editData.value.title.length > 200) {
+      throw new Error('Title must be 200 characters or less');
+    }
+    if (editData.value.description && editData.value.description.length > 10000) {
+      throw new Error('Description must be 10000 characters or less');
+    }
+    const kw = (editData.value.tags as any).keywords || '';
+    if (typeof kw === 'string' && kw.length > 500) {
+      throw new Error('Keywords must be 500 characters or less');
+    }
     // Prepare edit changes
     const edits = [];
 
@@ -600,6 +605,22 @@ async function saveEdit(): Promise<void> {
         field_value_old: JSON.stringify(originalTags),
         field_value_new: JSON.stringify(editData.value.tags),
       });
+    }
+
+    // Artists edit - compare arrays of ids
+    try {
+      const originalArtistIds = (artworkArtists.value || []).map((a: any) => String(a.id));
+      const newArtistIds = (editData.value.artists || []).map((a: any) => String(a.id));
+      const artistsChanged = JSON.stringify(originalArtistIds) !== JSON.stringify(newArtistIds);
+      if (artistsChanged) {
+        edits.push({
+          field_name: 'artists',
+          field_value_old: JSON.stringify(originalArtistIds),
+          field_value_new: JSON.stringify(newArtistIds),
+        });
+      }
+    } catch (err) {
+      // ignore artist diff errors and continue
     }
 
     if (edits.length === 0) {
@@ -682,11 +703,7 @@ function handleReportIssue(): void {
 function handleFeedbackSuccess(): void {
   showFeedbackDialog.value = false;
   announceSuccess('Thank you for your feedback! Moderators will review it shortly.');
-  showToast.value = true;
-  toastMessage.value = 'Feedback submitted successfully';
-  setTimeout(() => {
-    showToast.value = false;
-  }, 3000);
+  toastSuccess('Feedback submitted successfully');
 }
 
 function handleFeedbackCancel(): void {
@@ -787,50 +804,31 @@ function handleFeedbackCancel(): void {
         @edit-artwork="handleActionBarEditArtwork"
         @add-log="handleActionBarAddLog"
         @share-artwork="handleActionBarShare"
+        @reportMissing="handleReportMissing"
+        @reportIssue="handleReportIssue"
       />
 
-      <!-- Feedback Buttons -->
-      <div v-if="!isEditMode" class="flex gap-2 mb-6">
-        <button
-          @click="handleReportMissing"
-          class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
-          :style="{ 
-            background: 'rgba(var(--md-error-container), 0.1)', 
-            color: 'rgb(var(--md-error))',
-            border: '1px solid rgba(var(--md-error), 0.2)'
-          }"
-          type="button"
-        >
-          <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.964-1.333-2.732 0L3.082 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-          Report Missing
-        </button>
-        <button
-          @click="handleReportIssue"
-          class="inline-flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors"
-          :style="{ 
-            background: 'rgba(var(--md-surface-variant), 0.5)', 
-            color: 'rgb(var(--md-on-surface-variant))',
-            border: '1px solid rgba(var(--md-outline), 0.3)'
-          }"
-          type="button"
-        >
-          <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
-          </svg>
-          Report Issue
-        </button>
-      </div>
-
       <!-- Artwork Details - Title, Artist, and Description -->
-  <section aria-labelledby="artwork-details-heading" class="mb-6 theme-surface rounded-lg border theme-border p-6">
+  <section aria-labelledby="artwork-details-heading" class="mb-6 theme-surface rounded-lg border theme-border p-6 relative">
         <h2 id="artwork-details-heading" class="sr-only">Artwork Details</h2>
         
+        <!-- Edit button - top right corner -->
+        <button
+          v-if="authStore.isAuthenticated && !isEditMode"
+          aria-label="Edit artwork details"
+          @click="() => router.push({ name: 'ArtworkEdit', params: { id: props.id } })"
+          :disabled="hasPendingEdits"
+          class="absolute top-4 right-4 inline-flex items-center px-3 py-2 text-sm font-medium rounded-md border hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+          type="button"
+        >
+          <PencilIcon class="w-4 h-4 mr-1.5" />
+          Edit
+        </button>
+
         <!-- Title (editable in edit mode) -->
         <div v-if="!isEditMode">
           <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-2">
-            <div class="flex items-center gap-3">
+            <div class="flex items-center gap-3 pr-20">
               <h1 class="text-2xl sm:text-3xl lg:text-4xl font-bold theme-on-background leading-tight">
                 {{ displayTitle }}
               </h1>
@@ -892,6 +890,13 @@ function handleFeedbackCancel(): void {
           <input id="edit-creators" v-model="editData.creators" type="text"
             class="block w-full text-base sm:text-lg text-gray-600 bg-white border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             placeholder="Enter creators (comma separated)..." />
+        </div>
+
+        <!-- Artist lookup component for new linked artists -->
+        <div v-if="isEditMode" class="mb-4">
+          <label class="block text-sm font-medium text-gray-700 mb-1">Linked Artists</label>
+          <ArtistLookup v-model="editData.artists" />
+          <p class="mt-1 text-xs text-gray-500">Select one or more linked artists. Creating new artists is done elsewhere.</p>
         </div>
 
         <!-- Description (combined with title and artist) -->
@@ -1171,19 +1176,7 @@ function handleFeedbackCancel(): void {
     </div>
   </div>
 
-  <!-- Success Toast -->
-  <div v-if="showToast" data-testid="success-toast"
-    class="fixed bottom-4 left-1/2 transform -translate-x-1/2 transition-transform duration-300 ease-in-out z-50"
-    :class="{ 'translate-y-0': showToast, 'translate-y-full': !showToast }">
-  <div class="theme-success px-6 py-3 rounded-lg shadow-lg flex items-center">
-      <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-        <path fill-rule="evenodd"
-          d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-          clip-rule="evenodd"></path>
-      </svg>
-      <span>{{ toastMessage }}</span>
-    </div>
-  </div>
+  <!-- Global toasts are rendered by <Toasts /> in AppShell -->
 
   <!-- Add to List Dialog -->
   <AddToListDialog 

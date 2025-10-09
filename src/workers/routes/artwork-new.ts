@@ -181,8 +181,14 @@ export async function submitArtworkEdit(c: Context<{ Bindings: WorkerEnv }>): Pr
       `Cultural Archiver Consent v${consentVersion} - Artwork Edit`
     );
 
+    // Check if user exists in users table (authenticated) or is anonymous
+    const userExists = await c.env.DB
+      .prepare('SELECT uuid FROM users WHERE uuid = ?')
+      .bind(userToken)
+      .first();
+
     const consentRecord = await recordConsent({
-      userId: userToken,
+      ...(userExists ? { userId: userToken } : { anonymousToken: userToken }),
       contentType: 'artwork' as const,
       contentId: artworkId,
       consentVersion,

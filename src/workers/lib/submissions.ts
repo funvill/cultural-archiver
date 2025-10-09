@@ -386,20 +386,37 @@ async function applySubmissionChanges(
   db: D1Database,
   submission: SubmissionRecord
 ): Promise<boolean> {
+  console.log('[APPLY CHANGES] Starting:', {
+    submissionId: submission.id,
+    submissionType: submission.submission_type,
+    artworkId: submission.artwork_id,
+    hasNewData: !!submission.new_data,
+    newDataPreview: submission.new_data ? submission.new_data.substring(0, 200) : null,
+  });
+
   try {
     switch (submission.submission_type) {
       case 'new_artwork':
         // Create new artwork from submission data
-        if (!submission.new_data) return false;
+        if (!submission.new_data) {
+          console.warn('[APPLY CHANGES] No new_data for new_artwork submission');
+          return false;
+        }
         return await createArtworkFromSubmission(db, submission);
 
       case 'artwork_edit':
-        if (!submission.artwork_id || !submission.new_data) return false;
-        return await applyArtworkChanges(
-          db,
-          submission.artwork_id,
-          JSON.parse(submission.new_data as string)
-        );
+        if (!submission.artwork_id || !submission.new_data) {
+          console.warn('[APPLY CHANGES] Missing artwork_id or new_data:', {
+            hasArtworkId: !!submission.artwork_id,
+            hasNewData: !!submission.new_data,
+          });
+          return false;
+        }
+        const parsedData = JSON.parse(submission.new_data as string);
+        console.log('[APPLY CHANGES] Parsed new_data for artwork edit:', parsedData);
+        const result = await applyArtworkChanges(db, submission.artwork_id, parsedData);
+        console.log('[APPLY CHANGES] Artwork changes applied:', result);
+        return result;
 
       case 'artist_edit':
         if (!submission.artist_id || !submission.new_data) return false;
@@ -414,10 +431,11 @@ async function applySubmissionChanges(
         return await createArtistFromSubmission(db, submission);
 
       default:
+        console.warn('[APPLY CHANGES] Unknown submission type:', submission.submission_type);
         return false;
     }
   } catch (error) {
-    console.error('Error applying submission changes:', error);
+    console.error('[APPLY CHANGES] Error applying submission changes:', error);
     return false;
   }
 }
@@ -427,14 +445,55 @@ async function applyArtworkChanges(
   artworkId: string,
   newData: Record<string, unknown>
 ): Promise<boolean> {
-  const setClause = Object.keys(newData)
-    .filter(key => key !== 'id') // Don't allow ID changes
+  console.log('[APPLY ARTWORK CHANGES] Starting update:', {
+    artworkId,
+    newDataKeys: Object.keys(newData),
+    newData,
+  });
+
+  // Extract artists array before filtering (it's handled separately in artwork_artists table)
+  const artistIds = Array.isArray(newData.artists) ? newData.artists : [];
+  console.log('[APPLY ARTWORK CHANGES] Extracted artist IDs:', artistIds);
+
+  // Whitelist of allowed artwork columns (excluding id, created_at, updated_at which shouldn't be changed)
+  const allowedColumns = ['title', 'description', 'lat', 'lon', 'tags', 'photos', 'status', 'created_by'];
+  
+  // Filter to only include columns that exist in the artwork table
+  const filteredData: Record<string, unknown> = {};
+  for (const key of Object.keys(newData)) {
+    if (!allowedColumns.includes(key)) {
+      console.warn(`[APPLY ARTWORK CHANGES] Skipping unknown column: ${key}`);
+      continue;
+    }
+    
+    const value = newData[key];
+    // Skip empty strings, null, and undefined - don't update with invalid values
+    if (value === '' || value === null || value === undefined) {
+      console.warn(`[APPLY ARTWORK CHANGES] Skipping empty value for column: ${key}`);
+      continue;
+    }
+    
+    filteredData[key] = value;
+  }
+
+  if (Object.keys(filteredData).length === 0) {
+    console.warn('[APPLY ARTWORK CHANGES] No valid columns to update');
+    return false;
+  }
+
+  const setClause = Object.keys(filteredData)
     .map(key => `${key} = ?`)
     .join(', ');
 
-  const values = Object.keys(newData)
-    .filter(key => key !== 'id')
-    .map(key => newData[key]);
+  const values = Object.keys(filteredData)
+    .map(key => filteredData[key]);
+
+  console.log('[APPLY ARTWORK CHANGES] SQL update:', {
+    setClause,
+    values,
+    artworkId,
+    skippedFields: Object.keys(newData).filter(k => !allowedColumns.includes(k)),
+  });
 
   const result = await db
     .prepare(
@@ -446,6 +505,43 @@ async function applyArtworkChanges(
     )
     .bind(...values, artworkId)
     .run();
+
+  console.log('[APPLY ARTWORK CHANGES] Update result:', {
+    success: result.success,
+    meta: result.meta,
+  });
+
+  // Update artist associations if artists array was provided
+  if (artistIds.length > 0) {
+    console.log('[APPLY ARTWORK CHANGES] Updating artist associations:', {
+      artworkId,
+      artistIds,
+      count: artistIds.length,
+    });
+
+    try {
+      // Delete existing artist associations
+      await db
+        .prepare('DELETE FROM artwork_artists WHERE artwork_id = ?')
+        .bind(artworkId)
+        .run();
+
+      // Insert new artist associations
+      for (const artistId of artistIds) {
+        if (artistId && String(artistId).trim()) {
+          await db
+            .prepare('INSERT INTO artwork_artists (artwork_id, artist_id) VALUES (?, ?)')
+            .bind(artworkId, String(artistId).trim())
+            .run();
+        }
+      }
+
+      console.log('[APPLY ARTWORK CHANGES] Artist associations updated successfully');
+    } catch (error) {
+      console.error('[APPLY ARTWORK CHANGES] Error updating artist associations:', error);
+      // Don't fail the whole operation if artist update fails
+    }
+  }
 
   return result.success;
 }
