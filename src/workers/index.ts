@@ -42,6 +42,7 @@ import {
   validateCheckSimilarity,
   artworkListSchema,
   artistListSchema,
+  artistSearchSchema,
   validateUnifiedSubmission,
   profileNameUpdateSchema,
   profileNameCheckSchema,
@@ -52,6 +53,7 @@ import {
   validateRemoveFromList,
   validateListQuery,
   validateListId,
+  artworkEditSubmissionSchema,
 } from './middleware/validation';
 import { withErrorHandling, sendErrorResponse, ApiError } from './lib/errors';
 
@@ -61,6 +63,7 @@ import {
   createFastArtworkSubmission,
   createUnifiedSubmission,
 } from './routes/submissions';
+import { createArtworkEditSubmission } from './routes/submissions-new';
 import {
   getNearbyArtworks,
   getArtworkDetails,
@@ -84,6 +87,7 @@ import {
   createArtist,
   submitArtistEdit,
   getUserPendingArtistEdits,
+  searchArtists,
 } from './routes/artists';
 import { bulkExportToOSM, getExportStats } from './routes/export';
 import {
@@ -820,6 +824,16 @@ app.post(
   withErrorHandling(createUnifiedSubmission)
 );
 
+// Artwork edit submission endpoint
+app.post(
+  '/api/submissions/artwork-edit',
+  ensureUserToken,
+  rateLimitSubmissions,
+  validateSchema(artworkEditSubmissionSchema, 'body'),
+  addUserTokenToResponse,
+  withErrorHandling(createArtworkEditSubmission)
+);
+
 // ================================
 // Discovery Endpoints
 // ================================
@@ -918,6 +932,14 @@ app.get(
   rateLimitQueries,
   validateSchema(artistListSchema, 'query'),
   withErrorHandling(getArtistsList)
+);
+
+// Artist search endpoint for typeahead (must come before /:id route)
+app.get(
+  '/api/artists/search',
+  rateLimitQueries,
+  validateSchema(artistSearchSchema, 'query'),
+  withErrorHandling(searchArtists)
 );
 
 app.get(
@@ -1410,6 +1432,7 @@ app.notFound(c => {
           'POST /api/artwork/:id/lists/:listType',
           'GET /api/artwork/:id/counts',
           'GET /api/artists',
+          'GET /api/artists/search',
           'GET /api/artists/:id',
           'POST /api/artists',
           'PUT /api/artists/:id',

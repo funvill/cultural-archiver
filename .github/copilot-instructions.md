@@ -7,8 +7,8 @@
 - [ ] `npm run test` passes with 0 failures
 - [ ] `npm run build` completes with 0 errors
 - The project has been released. Double check and review all changes to the database. Check the `docs\database.md` document for field and table names. Keep this document up to date after each migration.
-- Artwork table is called "artwork" (singular) not artworks (plural) with a s
-
+- Artwork table is called "artwork" (singular) not artworks (plural) with a `s`
+- When I say "update documentation", review and update the `docs` folder. 
 ## Settings
 
 - Primary domain: `publicartregistry.com`

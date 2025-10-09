@@ -97,9 +97,9 @@ export interface ArtistRecord {
   description: string | null; // Markdown biography/artist statement
   aliases: string | null; // JSON array of alternative names for "also known as"
   tags: string | null; // JSON object for metadata (website, birth_year, etc.)
+  status: 'pending' | 'approved' | 'rejected'; // Artist approval workflow status
   created_at: string;
   updated_at: string;
-  status: 'active' | 'inactive';
 }
 
 export interface ArtworkArtistRecord {
@@ -229,7 +229,7 @@ export interface CreateArtistRequest {
   name: string;
   description?: string;
   tags?: Record<string, unknown>;
-  status?: ArtistRecord['status'];
+  status?: 'pending' | 'approved' | 'rejected'; // Optional status field for artist creation
 }
 
 export interface UpdateArtistRequest extends Partial<CreateArtistRequest> {
@@ -1448,9 +1448,8 @@ export interface UserRoleRecord {
   granted_at: string;
   revoked_at: string | null;
   revoked_by: string | null;
-  is_active: boolean;
+  is_active: number; // SQLite uses INTEGER (0 or 1) for boolean
   notes: string | null;
-  permissions?: string; // JSON array of permission strings
 }
 
 // ================================

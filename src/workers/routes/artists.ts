@@ -150,6 +150,106 @@ export async function getArtistsList(c: Context<{ Bindings: WorkerEnv }>): Promi
 }
 
 /**
+ * GET /api/artists/search - Artist Search (Typeahead)
+ * Fast fuzzy search endpoint for artist lookup in edit forms
+ * Searches name and aliases fields with case-insensitive matching
+ * Target: <200ms response time
+ */
+export async function searchArtists(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
+  const validatedQuery = getValidatedData<{
+    q?: string;
+    limit?: number;
+  }>(c, 'query');
+
+  const searchQuery = (validatedQuery.q || '').trim();
+  const limit = Math.min(validatedQuery.limit || 10, 50);
+
+  // If no search query, return empty results quickly
+  if (!searchQuery) {
+    return c.json(
+      createSuccessResponse({
+        results: [],
+        count: 0,
+      })
+    );
+  }
+
+  try {
+    const db = createDatabaseService(c.env.DB);
+
+    // Fuzzy search on name and aliases (JSON field)
+    // Use LIKE for case-insensitive matching on name
+    // Parse aliases JSON and search within it
+    // Note: artists table no longer has status field (removed in migration 0020)
+    const query = `
+      SELECT 
+        id, 
+        name, 
+        description,
+        aliases,
+        tags,
+        created_at,
+        updated_at
+      FROM artists
+      WHERE (
+        name LIKE ? COLLATE NOCASE
+        OR aliases LIKE ? COLLATE NOCASE
+      )
+      ORDER BY 
+        CASE 
+          WHEN name LIKE ? COLLATE NOCASE THEN 1
+          ELSE 2
+        END,
+        name ASC
+      LIMIT ?
+    `;
+
+    const searchPattern = `%${searchQuery}%`;
+    const exactPattern = `${searchQuery}%`;
+
+    const stmt = db.db.prepare(query);
+    const result = await stmt.bind(searchPattern, searchPattern, exactPattern, limit).all();
+    const artists = result.results as ArtistRecord[];
+
+    // Format results for typeahead UI
+    const formattedResults = artists.map(artist => {
+      const tagsParsed = safeJsonParse(artist.tags, {}) as Record<string, unknown>;
+      const aliasesParsed = safeJsonParse(artist.aliases, []) as string[];
+
+      // Extract short bio (first 100 chars of description)
+      const descriptionShort =
+        artist.description && artist.description.length > 100
+          ? artist.description.substring(0, 100) + '...'
+          : artist.description || '';
+
+      return {
+        id: artist.id,
+        name: artist.name,
+        description_short: descriptionShort,
+        aliases: aliasesParsed,
+        tags_parsed: tagsParsed,
+        // Optional: include birth/death years if in tags
+        birth_year: (tagsParsed.birth_year as number) || null,
+        death_year: (tagsParsed.death_year as number) || null,
+      };
+    });
+
+    // Fast response with short cache (5 minutes for search results)
+    c.header('Cache-Control', 'public, max-age=300');
+
+    return c.json(
+      createSuccessResponse({
+        results: formattedResults,
+        count: formattedResults.length,
+      })
+    );
+  } catch (error) {
+    console.error('Failed to search artists:', error);
+    throw error;
+  }
+}
+
+/**
  * GET /api/artists/:id - Get Artist Profile
  * Returns artist details with their artworks
  */
@@ -301,7 +401,7 @@ export async function createArtist(c: Context<{ Bindings: WorkerEnv }>): Promise
         request.name.trim(),
         request.description?.trim() || null,
         request.tags ? JSON.stringify(request.tags) : '{}',
-        request.status || 'active'
+        request.status || 'pending'
       )
       .run();
 

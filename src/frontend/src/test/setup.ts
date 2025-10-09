@@ -123,3 +123,19 @@ Object.defineProperty(import.meta, 'env', {
   },
   writable: true,
 });
+
+// Provide test-friendly stubs for URL.createObjectURL / revokeObjectURL which
+// are not available in jsdom / Node. Some utilities (icon rasterization,
+// image processing) rely on these APIs. Return a predictable blob: URL string
+// and make revokeObjectURL a no-op.
+if (typeof (global as any).URL === 'undefined') {
+  (global as any).URL = {};
+}
+
+if (typeof (global as any).URL.createObjectURL !== 'function') {
+  (global as any).URL.createObjectURL = (_blob: unknown) => 'blob:mock';
+}
+
+if (typeof (global as any).URL.revokeObjectURL !== 'function') {
+  (global as any).URL.revokeObjectURL = (_url: string) => {};
+}

@@ -18,22 +18,30 @@ export async function createAuditLog(
     entityId: string;
     action: 'create' | 'update' | 'delete' | 'approve' | 'reject' | 'view' | 'export';
     userToken?: string | undefined;
+    moderatorToken?: string | undefined;
     ipAddress?: string | undefined;
     userAgent?: string | undefined;
     oldData?: Record<string, unknown> | undefined;
     newData?: Record<string, unknown> | undefined;
     metadata?: Record<string, unknown> | undefined;
+    reason?: string | undefined;
   }
 ): Promise<string> {
   const id = generateUUID();
   const now = new Date().toISOString();
 
+  // Combine old_data, new_data, and metadata into action_data JSON
+  const actionData: Record<string, unknown> = {};
+  if (logData.oldData) actionData.old_data = logData.oldData;
+  if (logData.newData) actionData.new_data = logData.newData;
+  if (logData.metadata) actionData.metadata = logData.metadata;
+
   await db
     .prepare(
       `
     INSERT INTO audit_log (
-      id, entity_type, entity_id, action, user_token, ip_address, user_agent,
-      old_data, new_data, metadata, created_at
+      id, entity_type, entity_id, action_type, user_token, moderator_token,
+      action_data, reason, ip_address, user_agent, created_at
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `
     )
@@ -43,11 +51,11 @@ export async function createAuditLog(
       logData.entityId,
       logData.action,
       logData.userToken || null,
+      logData.moderatorToken || null,
+      Object.keys(actionData).length > 0 ? JSON.stringify(actionData) : null,
+      logData.reason || null,
       logData.ipAddress || null,
       logData.userAgent || null,
-      logData.oldData ? JSON.stringify(logData.oldData) : null,
-      logData.newData ? JSON.stringify(logData.newData) : null,
-      logData.metadata ? JSON.stringify(logData.metadata) : null,
       now
     )
     .run();
@@ -96,7 +104,7 @@ export async function getAuditLogs(
   }
 
   if (filters.action) {
-    query += ` AND action = ?`;
+    query += ` AND action_type = ?`;
     params.push(filters.action);
   }
 

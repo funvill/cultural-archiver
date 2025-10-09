@@ -263,6 +263,11 @@ export const artistListSchema = z.object({
   status: z.enum(['active', 'inactive']).optional(),
 });
 
+export const artistSearchSchema = z.object({
+  q: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(50).optional(),
+});
+
 // ================================
 // Fast Workflow Schemas
 // ================================
@@ -286,6 +291,18 @@ export const checkSimilaritySchema = z.object({
   radius: z.number().positive().optional(),
   limit: z.number().int().min(1).max(50).optional(),
   dev_mode: z.boolean().optional(),
+});
+
+// ================================
+// Artwork Edit Submission Schema
+// ================================
+
+export const artworkEditSubmissionSchema = z.object({
+  artwork_id: z.string().uuid('Artwork ID must be a valid UUID'),
+  old_data: z.record(z.unknown()),
+  new_data: z.record(z.unknown()),
+  notes: z.string().max(500).optional(),
+  consent_version: z.string().min(1).optional(),
 });
 
 // ================================

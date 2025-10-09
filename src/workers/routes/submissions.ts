@@ -76,10 +76,14 @@ export async function createSubmission(c: Context<{ Bindings: WorkerEnv }>): Pro
       `Cultural Archiver Consent v${consentVersion} - Logbook Submission`
     );
 
-    // Determine user identity (authenticated vs anonymous)
-    const isAuthenticated = userToken && userToken.length > 36; // Simple heuristic
+    // Check if user exists in users table (authenticated) or is anonymous
+    const userExists = await c.env.DB
+      .prepare('SELECT uuid FROM users WHERE uuid = ?')
+      .bind(userToken)
+      .first();
+
     const consentParams = {
-      ...(isAuthenticated ? { userId: userToken } : { anonymousToken: userToken }),
+      ...(userExists ? { userId: userToken } : { anonymousToken: userToken }),
       contentType: 'logbook' as const,
       contentId,
       consentVersion,
@@ -92,7 +96,7 @@ export async function createSubmission(c: Context<{ Bindings: WorkerEnv }>): Pro
       userToken,
       contentId,
       consentVersion,
-      isAuthenticated,
+      isAuthenticated: !!userExists,
       ipAddress: clientIP,
     });
 
@@ -474,10 +478,14 @@ export async function createFastArtworkSubmission(
       `Cultural Archiver Consent v${consentVersion} - Fast Artwork Submission`
     );
 
-    // Determine user identity (authenticated vs anonymous)
-    const isAuthenticated = userToken && userToken.length > 36; // Simple heuristic
+    // Check if user exists in users table (authenticated) or is anonymous
+    const userExists = await c.env.DB
+      .prepare('SELECT uuid FROM users WHERE uuid = ?')
+      .bind(userToken)
+      .first();
+
     const consentParams = {
-      ...(isAuthenticated ? { userId: userToken } : { anonymousToken: userToken }),
+      ...(userExists ? { userId: userToken } : { anonymousToken: userToken }),
       contentType: 'logbook' as const,
       contentId,
       consentVersion,
@@ -490,7 +498,7 @@ export async function createFastArtworkSubmission(
       userToken,
       contentId,
       consentVersion,
-      isAuthenticated,
+      isAuthenticated: !!userExists,
       ipAddress: clientIP,
     });
 
