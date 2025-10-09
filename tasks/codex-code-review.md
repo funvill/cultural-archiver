@@ -36,7 +36,7 @@
 - [ ] Use `openapi-typescript-codegen` or `orval` to emit typed clients for the Hono routes, replacing the manual client in `src/frontend/src/services/api.ts`.
 - [ ] Adopt `@tanstack/vue-query` for data fetching/caching to retire bespoke caches in the Pinia stores and API layer.
 - [ ] Consider `drizzle-orm` or `kysely` with Cloudflare D1 adapters to express SQL logic once and derive Zod schemas, reducing boilerplate across `src/workers/lib/database.ts`.
-- [ ] Lean on the existing `supercluster` dependency (`src/frontend/src/composables/useSupercluster.ts:1`) instead of maintaining a parallel grid clustering implementation.
+- [x] Lean on the existing `supercluster` dependency (`src/frontend/src/composables/useSupercluster.ts:1`) instead of maintaining a parallel grid clustering implementation.
 - [ ] Pair `vee-validate` (with its Zod resolver) on the frontend forms to reuse the backend's schemas and drop hand-rolled validation/watchers.
 - [ ] Evaluate `zod-to-json-schema` (or `zod-openapi`) to generate OpenAPI specs directly from existing validation middleware, enabling shared clients without re-describing schemas.
 - [ ] Pull in a structured logging package (`pino`, `consola`, or `@vercel/og/logger`) that supports browser + worker targets; configure transport hooks for Cloudflare Workers and optionally forward browser logs to Sentry/DataDog only when opt-in.

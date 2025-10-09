@@ -37,9 +37,8 @@ import MapOptionsModal from './MapOptionsModal.vue';
 import { useMapPreviewStore } from '../stores/mapPreview';
 import { useMapSettings } from '../stores/mapSettings';
 import MapWebGLLayer from './MapWebGLLayer.vue';
-import { useGridCluster } from '../composables/useGridCluster';
+import { useSupercluster, type ClusterFeature } from '../composables/useSupercluster';
 import { createLogger } from '../../../shared/logger';
-import type { ClusterFeature } from '../composables/useGridCluster';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { useToasts } from '../composables/useToasts';
 import { createIconAtlas, DEFAULT_ICONS, type IconAtlas } from '../utils/iconAtlas';
@@ -180,7 +179,14 @@ const { visitedArtworks, starredArtworks, submissionsArtworks } = useUserLists()
 
 // WebGL cluster state
 const webglClusters = ref<ClusterFeature[]>([]);
-const webglClustering = useGridCluster({ gridSize: 100, maxZoom: 15 });
+const webglClustering = useSupercluster({
+  radius: 160,
+  maxZoom: 15,
+  minZoom: 0,
+  minPoints: 2,
+  nodeSize: 64,
+  log: false,
+});
 let webglMoveHandler: (() => void) | null = null;
 let webglZoomHandler: (() => void) | null = null;
 // Icon atlas for WebGL marker icons
@@ -312,24 +318,62 @@ function buildWebGLClusters() {
           viewportBounds.getSouth(),
           viewportBounds.getEast(),
           viewportBounds.getNorth()
-        ];
+        ];        const clustersRaw = webglClustering.getClusters(bbox, currentZoom);
+        const clusters = clustersRaw.map(feature => {
+          const isCluster = Boolean(feature.properties?.cluster);
+          const pointCount = isCluster ? (feature.properties?.point_count as number | undefined) ?? 0 : 1;
+          const pointCountAbbreviated = isCluster
+            ? (feature.properties?.point_count_abbreviated as string | undefined) ??
+              (pointCount >= 1000 ? `${(pointCount / 1000).toFixed(1)}k` : pointCount.toString())
+            : undefined;
 
-  const zoom = currentZoom;
+          const properties: ClusterFeature['properties'] = {
+            ...feature.properties,
+            cluster: isCluster,
+          };
 
-        const clusters = webglClustering.getClusters(bbox, zoom);
+          if (isCluster) {
+            properties.point_count = pointCount;
+            if (pointCountAbbreviated !== undefined) {
+              properties.point_count_abbreviated = pointCountAbbreviated;
+            }
+            properties.cluster_radius_pixels = Math.min(Math.max(Math.sqrt(pointCount) * 8, 28), 160);
+          } else {
+            (properties as any).visited = (properties as any).visited ?? false;
+            (properties as any).starred = (properties as any).starred ?? false;
+            (properties as any).submissions = (properties as any).submissions ?? false;
+          }
+          const coordinates = feature.geometry?.coordinates || [0, 0];
+
+          return {
+            type: 'Feature',
+            id: isCluster
+              ? `cluster-${String(feature.properties?.cluster_id ?? feature.id ?? Math.random())}`
+              : String(feature.properties?.id ?? feature.id ?? ''),
+            properties,
+            geometry: {
+              type: 'Point',
+              coordinates: [coordinates[0], coordinates[1]],
+            },
+          } as ClusterFeature;
+        });
+
         log.debug('[MAP DIAGNOSTIC] Clustering enabled - clusters generated:', {
           totalClusters: clusters.length,
-          actualClusters: clusters.filter(c => c.properties.cluster).length,
-          individualMarkers: clusters.filter(c => !c.properties.cluster).length,
-          visitedMarkers: clusters.filter(c => !c.properties.cluster && c.properties.visited).length,
-          starredMarkers: clusters.filter(c => !c.properties.cluster && c.properties.starred).length,
-          submissionsMarkers: clusters.filter(c => !c.properties.cluster && c.properties.submissions).length,
-          sampleVisited: clusters.filter(c => !c.properties.cluster && c.properties.visited).slice(0, 2).map(c => ({
-            id: c.properties.id,
-            visited: c.properties.visited,
-            starred: c.properties.starred,
-            submissions: c.properties.submissions
-          }))
+          actualClusters: clusters.filter(c => c.properties?.cluster).length,
+          individualMarkers: clusters.filter(c => !c.properties?.cluster).length,
+          visitedMarkers: clusters.filter(c => !c.properties?.cluster && (c.properties as any).visited).length,
+          starredMarkers: clusters.filter(c => !c.properties?.cluster && (c.properties as any).starred).length,
+          submissionsMarkers: clusters.filter(c => !c.properties?.cluster && (c.properties as any).submissions).length,
+          sampleVisited: clusters
+            .filter(c => !c.properties?.cluster && (c.properties as any).visited)
+            .slice(0, 2)
+            .map(c => ({
+              id: (c.properties as any).id,
+              visited: (c.properties as any).visited,
+              starred: (c.properties as any).starred,
+              submissions: (c.properties as any).submissions,
+            })),
         });
         webglClusters.value = clusters;
         return;
@@ -340,15 +384,15 @@ function buildWebGLClusters() {
 
   // Default: no clustering — render all visible artworks as individual WebGL points
     const pts: ClusterFeature[] = (props.artworks || [])
-  .filter((a: any) => mapFilters.shouldShowArtwork(a) && viewportBounds.contains(L.latLng(a.latitude, a.longitude)))
+    .filter((a: any) => mapFilters.shouldShowArtwork(a) && viewportBounds.contains(L.latLng(a.latitude, a.longitude)))
       .map((a: any) => {
   const visited = visitedArtworks.value instanceof Set ? visitedArtworks.value.has(a.id) : false;
   const starred = starredArtworks.value instanceof Set ? starredArtworks.value.has(a.id) : false;
-  const submissions = (useUserLists().submissionsArtworks.value instanceof Set) ? useUserLists().submissionsArtworks.value.has(a.id) : false;
+  const submissions = submissionsArtworks.value instanceof Set ? submissionsArtworks.value.has(a.id) : false;
         
         return {
           type: 'Feature',
-          id: a.id,
+          id: String(a.id),
           properties: {
             cluster: false,
             id: a.id,
@@ -365,9 +409,9 @@ function buildWebGLClusters() {
 
     log.debug('[MAP DIAGNOSTIC] Individual markers generated:', {
       total: pts.length,
-      visited: pts.filter(p => p.properties.visited).length,
-      starred: pts.filter(p => p.properties.starred).length,
-      submissions: pts.filter(p => p.properties.submissions).length
+      visited: pts.filter(p => (p.properties as any).visited).length,
+      starred: pts.filter(p => (p.properties as any).starred).length,
+      submissions: pts.filter(p => (p.properties as any).submissions).length,
     });
 
     webglClusters.value = pts;

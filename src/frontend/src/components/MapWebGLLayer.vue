@@ -2,7 +2,7 @@
 import { ref, watch, onMounted, onUnmounted, nextTick, toRaw } from 'vue'
 import { Deck } from '@deck.gl/core'
 import { ScatterplotLayer, TextLayer, IconLayer } from '@deck.gl/layers'
-import type { ClusterFeature } from '../composables/useGridCluster'
+import type { ClusterFeature } from '../composables/useSupercluster'
 import type { IconAtlas } from '../utils/iconAtlas'
 import type L from 'leaflet'
 import { createLogger } from '../../../shared/logger'
