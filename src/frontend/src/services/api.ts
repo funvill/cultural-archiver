@@ -914,6 +914,28 @@ export const apiService = {
     return client.post(`/review/artwork-edits/${editId}/reject`, { reason });
   },
 
+  /**
+   * Artist edit moderation endpoints
+   */
+  async getArtistEdits(page?: number, per_page?: number): Promise<PaginatedResponse<unknown>> {
+    const params: Record<string, string> = {};
+    if (page) params.page = page.toString();
+    if (per_page) params.per_page = per_page.toString();
+    return client.get('/review/artist-edits', params);
+  },
+
+  async getArtistEditForReview(editId: string): Promise<ApiResponse<unknown>> {
+    return client.get(`/review/artist-edits/${editId}`);
+  },
+
+  async approveArtistEdit(editId: string): Promise<ApiResponse<{ message: string }>> {
+    return client.post(`/review/artist-edits/${editId}/approve`, {});
+  },
+
+  async rejectArtistEdit(editId: string, reason: string): Promise<ApiResponse<{ message: string }>> {
+    return client.post(`/review/artist-edits/${editId}/reject`, { reason });
+  },
+
   // ================================
   // Admin Endpoints
   // ================================

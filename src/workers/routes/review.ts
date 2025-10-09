@@ -1112,6 +1112,169 @@ export async function getArtworkEditsForReview(
 }
 
 /**
+ * GET /api/review/artist-edits
+ * Get pending artist edits for moderation queue
+ */
+export async function getArtistEditsForReview(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+
+    if (!authContext.canReview) {
+      throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    const per_page = parseInt(c.req.query('per_page') || c.req.query('limit') || '50');
+    const page = parseInt(c.req.query('page') || '1');
+    const limit = per_page;
+    const offset = (page - 1) * per_page;
+
+    // Reuse submissions lib to fetch artist edits (new unified submissions)
+    const edits = await getSubmissionsByStatus(c.env.DB, 'pending', 'artist_edit', limit, offset);
+
+    const formattedFromSubmissions = edits.map((s: any) => ({
+      edit_ids: [s.id],
+      artist_id: s.artist_id,
+      user_token: s.user_token,
+      submitted_at: s.created_at,
+      diffs: Object.entries(s.new_data ? JSON.parse(s.new_data as string) : {}).map(([k, v]) => ({
+        field_name: k,
+        old_value: s.old_data ? JSON.parse(s.old_data as string)[k] : null,
+        new_value: typeof v === 'string' ? v : JSON.stringify(v),
+      })),
+    }));
+
+    // Only use unified submissions for artist edits. Legacy `artist_edits` rows are no longer read here.
+    const combined = formattedFromSubmissions;
+
+    return c.json({ edits: combined, pagination: { limit, offset, total_items: combined.length, has_more: combined.length === limit } });
+  } catch (error) {
+    console.error('Get artist edits error:', error);
+    if (error instanceof ApiError) throw error;
+    throw new ApiError('Failed to get artist edits', 'ARTIST_EDITS_ERROR', 500);
+  }
+}
+
+/**
+ * GET /api/review/artist-edits/:editId
+ * Get specific artist edit submission for detailed review
+ */
+export async function getArtistEditForReview(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+    if (!authContext.canReview) {
+      throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    const editId = c.req.param('editId');
+
+    // Try unified submissions first
+    const submission = await getSubmission(c.env.DB, editId);
+    if (submission && submission.submission_type === 'artist_edit') {
+      // Get artist details
+      const artistStmt = c.env.DB.prepare('SELECT * FROM artists WHERE id = ?');
+      const artist = await artistStmt.bind(submission.artist_id).first();
+
+      const diffs: any[] = [];
+      const fieldChanges = submission.field_changes ? JSON.parse(submission.field_changes as string) : null;
+      if (fieldChanges) {
+        for (const [k, change] of Object.entries(fieldChanges)) {
+          const ch = change as { old?: unknown; new?: unknown };
+          diffs.push({ field_name: k, old_value: ch.old ?? null, new_value: typeof ch.new === 'string' ? ch.new : JSON.stringify(ch.new) });
+        }
+      } else {
+        const newData = submission.new_data ? JSON.parse(submission.new_data as string) : {};
+        const oldData = submission.tags ? JSON.parse(submission.tags as string) : {};
+        for (const [k, v] of Object.entries(newData)) {
+          diffs.push({ field_name: k, old_value: oldData[k] ?? null, new_value: typeof v === 'string' ? v : JSON.stringify(v) });
+        }
+      }
+
+      return c.json({ edit_submission: { edit_ids: [submission.id], artist_id: submission.artist_id, submitted_at: submission.created_at, diffs }, artist: artist || null });
+    }
+
+    // If unified submission is not found or not an artist_edit, treat as not found.
+    throw new ApiError('Edit submission not found', 'EDIT_NOT_FOUND', 404);
+  } catch (error) {
+    console.error('Get artist edit error:', error);
+    if (error instanceof ApiError) throw error;
+    throw new ApiError('Failed to get artist edit', 'ARTIST_EDIT_ERROR', 500);
+  }
+}
+
+/**
+ * POST /api/review/artist-edits/:editId/approve
+ */
+export async function approveArtistEdit(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+    if (!authContext.canReview) {
+      throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    const editId = c.req.param('editId');
+    const submission = await getSubmission(c.env.DB, editId);
+    if (submission && submission.submission_type === 'artist_edit') {
+      await approveSubmissionInDb(c.env.DB, submission.id, authContext.userToken, 'Approved artist edits');
+
+      // Audit log
+      const { logModerationDecision, createModerationAuditContext } = await import('../lib/audit');
+      const auditContext = createModerationAuditContext(c, editId, authContext.userToken, 'approved', { reason: 'Approved artist edits' });
+      await logModerationDecision(c.env.DB, auditContext);
+
+      return c.json({ message: 'Artist edit approved', edit_id: editId, approved_at: new Date().toISOString() });
+    }
+
+    // If we reach here, no unified submission existed to approve.
+    throw new ApiError('Edit submission not found', 'EDIT_NOT_FOUND', 404);
+  } catch (error) {
+    console.error('Approve artist edit error:', error);
+    if (error instanceof ApiError) throw error;
+    throw new ApiError('Failed to approve artist edit', 'ARTIST_EDIT_APPROVAL_ERROR', 500);
+  }
+}
+
+/**
+ * POST /api/review/artist-edits/:editId/reject
+ */
+export async function rejectArtistEdit(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+    if (!authContext.canReview) {
+      throw new ApiError('Moderator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    const editId = c.req.param('editId');
+    const { reason } = await c.req.json();
+
+    const submission = await getSubmission(c.env.DB, editId);
+    if (submission && submission.submission_type === 'artist_edit') {
+      await rejectSubmissionInDb(c.env.DB, submission.id, authContext.userToken, reason || undefined);
+
+      const { logModerationDecision, createModerationAuditContext } = await import('../lib/audit');
+      const auditContext = createModerationAuditContext(c, editId, authContext.userToken, 'rejected', { reason: reason || 'No reason provided' });
+      await logModerationDecision(c.env.DB, auditContext);
+
+      return c.json({ message: 'Artist edit rejected', edit_id: editId, rejected_at: new Date().toISOString() });
+    }
+
+    // If we reach here, no unified submission existed to reject.
+    throw new ApiError('Edit submission not found', 'EDIT_NOT_FOUND', 404);
+  } catch (error) {
+    console.error('Reject artist edit error:', error);
+    if (error instanceof ApiError) throw error;
+    throw new ApiError('Failed to reject artist edit', 'ARTIST_EDIT_REJECTION_ERROR', 500);
+  }
+}
+
+/**
  * GET /api/review/artwork-edits/:editId
  * Get specific artwork edit submission for detailed review
  */

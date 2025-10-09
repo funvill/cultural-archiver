@@ -8,6 +8,7 @@ import { useToasts } from '../composables/useToasts';
 import { apiService, getErrorMessage } from '../services/api';
 import { createApiUrl } from '../utils/api-config';
 import ArtworkEditDiffs from '../components/ArtworkEditDiffs.vue';
+import ArtistEditDiffs from '../components/ArtistEditDiffs.vue';
 import type { ArtworkEditReviewData, FeedbackRecord } from '../../../shared/types';
 
 // Types
@@ -49,7 +50,7 @@ const submissions = ref<ReviewSubmission[]>([]);
 const artworkEdits = ref<ArtworkEditReviewData[]>([]);
 const feedback = ref<FeedbackRecord[]>([]);
 const feedbackTotal = ref(0);
-const currentTab = ref<'submissions' | 'edits' | 'feedback'>('submissions');
+const currentTab = ref<'submissions' | 'edits' | 'artist-edits' | 'feedback'>('submissions');
 const statistics = ref<Statistics>({
   pending: 0,
   approvedToday: 0,
@@ -149,6 +150,21 @@ const paginatedArtworkEdits = computed(() =>
   filteredArtworkEdits.value.slice(startIndex.value, endIndex.value)
 );
 
+const filteredArtistEdits = computed(() => {
+  if (currentTab.value !== 'artist-edits') return [];
+  let filtered = artistEdits.value.slice();
+  if (searchId.value.trim()) {
+    const term = searchId.value.trim().toLowerCase();
+    filtered = filtered.filter(
+      (e: any) => (e.id && e.id.toLowerCase().includes(term)) || (e.artist_id && e.artist_id.toLowerCase().includes(term))
+    );
+  }
+  filtered.sort((a: any, b: any) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime());
+  return filtered;
+});
+
+const paginatedArtistEdits = computed(() => filteredArtistEdits.value.slice(startIndex.value, endIndex.value));
+
 // Lifecycle
 onMounted(() => {
   // Pre-populate search from query parameter (deep link support)
@@ -187,7 +203,7 @@ async function loadData() {
   error.value = null;
 
   try {
-    await Promise.all([loadSubmissions(), loadArtworkEdits(), loadFeedback()]);
+  await Promise.all([loadSubmissions(), loadArtworkEdits(), loadArtistEdits(), loadFeedback()]);
     // After initial load, if a deep link searchId was provided ensure it's loaded
     if (searchId.value.trim()) {
       await ensureSubmissionLoaded(searchId.value.trim());
@@ -205,6 +221,33 @@ async function loadData() {
     loading.value = false;
   }
 }
+
+async function loadArtistEdits() {
+  try {
+    console.log('[ReviewView] Loading artist edits for moderation...');
+    const response = await apiService.getArtistEdits(1, 100);
+    const data = response as any;
+    if (data && data.edits) {
+      // Normalize items so each edit has a top-level `id` (fallback to edit_ids[0])
+      const normalized = (data.edits || []).map((e: any) => ({
+        ...e,
+        id: e.id || (Array.isArray(e.edit_ids) && e.edit_ids.length > 0 ? e.edit_ids[0] : undefined),
+      }));
+
+      // store artist edits separately on a new ref
+      (artistEdits as any).value = normalized;
+      console.log('[ReviewView] Loaded artist edits:', (artistEdits as any).value.length);
+    } else {
+      (artistEdits as any).value = [];
+    }
+  } catch (err) {
+    console.error('[ReviewView] Error loading artist edits:', err);
+    (artistEdits as any).value = [];
+  }
+}
+
+// New ref to hold artist edits
+const artistEdits = ref<any[]>([]);
 
 /**
  * Ensure a submission for the given ID is loaded (deep-link support).
@@ -723,6 +766,74 @@ async function rejectArtworkEdit(edit: ArtworkEditReviewData) {
   }
 }
 
+// Artist Edit Methods
+async function approveArtistEditItem(edit: any) {
+  const editId = edit.id || (Array.isArray(edit.edit_ids) ? edit.edit_ids[0] : undefined);
+  if (!editId) return;
+
+  processingId.value = editId;
+  action.value = 'approve';
+
+  try {
+    await apiService.approveArtistEdit(editId);
+    console.log('[ReviewView] Artist edit approved successfully');
+
+  // Remove from list (support legacy edit_ids shape)
+  artistEdits.value = artistEdits.value.filter((e: any) => (e.id || (Array.isArray(e.edit_ids) ? e.edit_ids[0] : undefined)) !== editId);
+
+    // Update stats
+    statistics.value.pending = Math.max(0, statistics.value.pending - 1);
+    statistics.value.approvedToday++;
+  } catch (err) {
+    console.error('[ReviewView] Error approving artist edit:', err);
+    error.value = getErrorMessage(err);
+  } finally {
+    processingId.value = null;
+    action.value = null;
+  }
+}
+
+async function rejectArtistEditItem(edit: any) {
+  const editId = edit.id || (Array.isArray(edit.edit_ids) ? edit.edit_ids[0] : undefined);
+  if (!editId) return;
+
+  const reason = await globalModal.showPrompt({
+    title: 'Reject Artist Edit',
+    message: 'Please provide a reason for rejecting this edit (optional):',
+    inputLabel: 'Reason',
+    placeholder: 'Enter rejection reason...',
+    multiline: true,
+    maxLength: 500,
+    required: false,
+    variant: 'danger',
+    confirmText: 'Reject',
+    cancelText: 'Cancel',
+  });
+
+  if (reason === null) return;
+
+  processingId.value = editId;
+  action.value = 'reject';
+
+  try {
+    await apiService.rejectArtistEdit(editId, reason || '');
+    console.log('[ReviewView] Artist edit rejected successfully');
+
+  // Remove from list (support legacy edit_ids shape)
+  artistEdits.value = artistEdits.value.filter((e: any) => (e.id || (Array.isArray(e.edit_ids) ? e.edit_ids[0] : undefined)) !== editId);
+
+    // Update stats
+    statistics.value.pending = Math.max(0, statistics.value.pending - 1);
+    statistics.value.rejectedToday++;
+  } catch (err) {
+    console.error('[ReviewView] Error rejecting artist edit:', err);
+    error.value = getErrorMessage(err);
+  } finally {
+    processingId.value = null;
+    action.value = null;
+  }
+}
+
 // Feedback review functions
 async function resolveFeedback(item: FeedbackRecord) {
   const notes = await globalModal.showPrompt({
@@ -942,6 +1053,26 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
               ]"
             >
               {{ filteredArtworkEdits.length }}
+            </span>
+          </button>
+          <button
+            :class="[
+              'whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors',
+              currentTab === 'artist-edits'
+                ? 'theme-primary theme-on-primary-container'
+                : 'border-transparent theme-outline hover:theme-on-surface hover:border-gray-300',
+            ]"
+            @click="currentTab = 'artist-edits'; currentPage = 1;"
+          >
+            Artist Edits
+            <span
+              v-if="artistEdits.length > 0"
+              :class="[
+                'ml-2 py-0.5 px-2 rounded-full text-xs font-medium',
+                currentTab === 'artist-edits' ? 'theme-primary-container theme-on-primary-container' : 'bg-gray-100 text-gray-600',
+              ]"
+            >
+              {{ artistEdits.length }}
             </span>
           </button>
           <button
@@ -1514,6 +1645,77 @@ function formatArtworkEditSummary(edit: ArtworkEditReviewData): string {
 
             <!-- Enhanced Diff Display with Structured Tag Support -->
             <ArtworkEditDiffs :diffs="edit.diffs" />
+          </div>
+        </div>
+      </template>
+
+      <!-- Artist Edits Tab Content -->
+      <template v-else-if="currentTab === 'artist-edits'">
+        <div v-if="filteredArtistEdits.length === 0" class="text-center py-12">
+          <p class="text-gray-600 mb-4">No artist edits pending review</p>
+          <p class="text-sm text-gray-600">All artist edits have been reviewed.</p>
+        </div>
+
+        <div v-else class="space-y-6">
+          <div
+            v-for="edit in paginatedArtistEdits"
+            :key="edit.id"
+            class="bg-white rounded-lg border border-gray-200 shadow-sm p-6"
+          >
+            <div class="flex items-start justify-between mb-4">
+              <div class="flex-1">
+                <div class="flex items-center space-x-2 mb-1">
+                  <h3 class="text-lg font-medium text-gray-900">{{ edit.artist_name || edit.artist_id }}</h3>
+                  <router-link
+                    v-if="edit.artist_id"
+                    :to="`/artists/${edit.artist_id}`"
+                    class="theme-primary text-sm underline flex items-center"
+                    target="_blank"
+                  >
+                    View Artist
+                  </router-link>
+                </div>
+                <p class="text-sm text-gray-600">
+                  Submitted {{ formatDate(edit.submitted_at) }}
+                </p>
+              </div>
+              <div class="flex items-center space-x-2 ml-4">
+                <button
+                  @click="approveArtistEditItem(edit)"
+                  :disabled="processingId === edit.id"
+                  class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md theme-success theme-on-success focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style="--tw-ring-color: var(--md-sys-color-success);"
+                >
+                  <span v-if="processingId === edit.id && action === 'approve'" class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Approving...
+                  </span>
+                  <span v-else>Approve</span>
+                </button>
+
+                <button
+                  @click="rejectArtistEditItem(edit)"
+                  :disabled="processingId === edit.id"
+                  class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md theme-error theme-on-error focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  style="--tw-ring-color: var(--md-sys-color-error);"
+                >
+                  <span v-if="processingId === edit.id && action === 'reject'" class="flex items-center">
+                    <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2-647z"></path>
+                    </svg>
+                    Rejecting...
+                  </span>
+                  <span v-else>Reject</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Diffs -->
+            <ArtistEditDiffs :diffs="edit.diffs || []" />
           </div>
         </div>
       </template>

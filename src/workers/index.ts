@@ -136,6 +136,10 @@ import {
   getArtworkEditForReview,
   approveArtworkEdit,
   rejectArtworkEdit,
+  getArtistEditsForReview,
+  getArtistEditForReview,
+  approveArtistEdit,
+  rejectArtistEdit,
 } from './routes/review';
 import {
   submitConsent,
@@ -1270,6 +1274,27 @@ app.post(
   '/api/review/artwork-edits/:editId/reject',
   validateUUID('editId'),
   withErrorHandling(rejectArtworkEdit)
+);
+
+// Artist Edit Review Endpoints
+app.get('/api/review/artist-edits', withErrorHandling(getArtistEditsForReview));
+
+app.get(
+  '/api/review/artist-edits/:editId',
+  validateUUID('editId'),
+  withErrorHandling(getArtistEditForReview)
+);
+
+app.post(
+  '/api/review/artist-edits/:editId/approve',
+  validateUUID('editId'),
+  withErrorHandling(approveArtistEdit)
+);
+
+app.post(
+  '/api/review/artist-edits/:editId/reject',
+  validateUUID('editId'),
+  withErrorHandling(rejectArtistEdit)
 );
 
 // ================================

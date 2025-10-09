@@ -19,6 +19,7 @@ import type {
 } from '../../shared/types';
 import type { WorkerEnv } from '../types';
 import { createDatabaseService } from '../lib/database';
+import { createArtistEdit as createArtistEditSubmission } from '../lib/submissions';
 import { createSuccessResponse, ValidationApiError, NotFoundError } from '../lib/errors';
 import { getUserToken } from '../middleware/auth';
 import { getValidatedData } from '../middleware/validation';
@@ -484,15 +485,21 @@ export async function submitArtistEdit(c: Context<{ Bindings: WorkerEnv }>): Pro
       throw new NotFoundError(`Artist not found: ${artistId}`);
     }
 
-    // Check for existing pending edits by this user
-    const existingEditStmt = db.db.prepare(`
-      SELECT edit_id FROM artist_edits 
-      WHERE artist_id = ? AND user_token = ? AND status = 'pending'
-      LIMIT 1
+    // Check for existing pending edits by this user in unified submissions
+    const existingSubmissionStmt = db.db.prepare(`
+      SELECT id FROM submissions WHERE submission_type = 'artist_edit' AND artist_id = ? AND user_token = ? AND status = 'pending' LIMIT 1
     `);
-    const existingEdit = await existingEditStmt.bind(artistId, userToken).first();
+    // Support DB mocks that expose either .first() or .all()
+    let existingSubmission: any = null;
+    const boundExisting = existingSubmissionStmt.bind(artistId, userToken) as any;
+    if (typeof boundExisting.first === 'function') {
+      existingSubmission = await boundExisting.first();
+    } else if (typeof boundExisting.all === 'function') {
+      const res = await boundExisting.all();
+      existingSubmission = (res && (res.results || [])[0]) || null;
+    }
 
-    if (existingEdit) {
+    if (existingSubmission) {
       throw new ValidationApiError([
         {
           field: 'pending_edits',
@@ -502,31 +509,27 @@ export async function submitArtistEdit(c: Context<{ Bindings: WorkerEnv }>): Pro
       ]);
     }
 
-    // Insert edit records
-    const insertEditStmt = db.db.prepare(`
-      INSERT INTO artist_edits (
-        edit_id, artist_id, user_token, field_name, 
-        field_value_old, field_value_new
-      ) VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    const editId = generateUUID();
-
+    // Build unified newData/oldData objects from per-field edits
+    const newData: Record<string, unknown> = {};
+    const oldData: Record<string, unknown> = {};
     for (const edit of request.edits) {
-      await insertEditStmt
-        .bind(
-          editId,
-          artistId,
-          userToken,
-          edit.field_name,
-          edit.field_value_old,
-          edit.field_value_new
-        )
-        .run();
+      newData[edit.field_name] = edit.field_value_new;
+      oldData[edit.field_name] = edit.field_value_old;
     }
 
+    // Create a unified submissions entry for this artist edit
+    const submissionPayload: any = {
+      userToken,
+      artistId,
+      oldData,
+      newData,
+    };
+    if ((request as any).notes) submissionPayload.notes = (request as any).notes;
+
+    const submissionId = await createArtistEditSubmission(c.env.DB, submissionPayload);
+
     const response: ArtistEditSubmissionResponse = {
-      edit_id: editId,
+      edit_id: submissionId,
       status: 'pending',
       message: 'Artist edits submitted for moderation',
     };
@@ -574,26 +577,34 @@ export async function getUserPendingArtistEdits(
   const db = createDatabaseService(c.env.DB);
 
   try {
-    // Get pending edits for this user and artist
-    const pendingEditsStmt = db.db.prepare(`
-      SELECT edit_id, submitted_at 
-      FROM artist_edits 
-      WHERE artist_id = ? AND user_token = ? AND status = 'pending'
-      ORDER BY submitted_at DESC
+    // Check unified submissions table for pending artist_edit entries by this user
+    // Check unified submissions table for pending artist_edit entries by this user
+    const pendingStmt = db.db.prepare(`
+      SELECT id, created_at FROM submissions
+      WHERE submission_type = 'artist_edit' AND artist_id = ? AND user_token = ? AND status = 'pending'
+      ORDER BY created_at DESC
     `);
 
-    const pendingEdits = await pendingEditsStmt.bind(artistId, userToken).all();
+    // Support DB mocks that expose either .first() or .all()
+    const boundPending = pendingStmt.bind(artistId, userToken) as any;
+    let pendingResults: any[] = [];
+    if (typeof boundPending.all === 'function') {
+      const res = await boundPending.all();
+      pendingResults = res && res.results ? res.results : [];
+    } else if (typeof boundPending.first === 'function') {
+      const first = await boundPending.first();
+      pendingResults = first ? [first] : [];
+    }
+
+    const hasPending = pendingResults.length > 0;
 
     const response: ArtistPendingEditsResponse = {
-      has_pending_edits: pendingEdits.results && pendingEdits.results.length > 0,
+      has_pending_edits: !!hasPending,
     };
 
-    // Add submission timestamp if there are pending edits
-    if (response.has_pending_edits && pendingEdits.results && pendingEdits.results.length > 0) {
-      const firstEdit = pendingEdits.results[0] as { submitted_at?: string };
-      if (firstEdit?.submitted_at) {
-        response.submitted_at = firstEdit.submitted_at;
-      }
+    if (hasPending) {
+      const first = pendingResults[0];
+      if (first && first.created_at) response.submitted_at = first.created_at;
     }
 
     return c.json(createSuccessResponse(response));
