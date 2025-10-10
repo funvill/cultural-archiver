@@ -412,6 +412,7 @@ interface BaseWorkerEnv {
   CLOUDFLARE_IMAGES_ENABLED?: string;
   CLOUDFLARE_IMAGES_HASH?: string;
   CLOUDFLARE_IMAGES_API_TOKEN?: string;
+  SITEMAP_HOST?: string; // Optional override for sitemap host (e.g. https://api.publicartregistry.com)
   // Social Media API credentials
   BSKY_IDENTIFIER?: string; // Bluesky handle or DID
   BSKY_APP_PASSWORD?: string; // Bluesky app password

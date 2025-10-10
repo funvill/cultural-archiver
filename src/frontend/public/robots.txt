@@ -1,0 +1,21 @@
+# Public Art Registry - Robots.txt
+User-agent: *
+Allow: /
+Allow: /api/
+Disallow: /admin
+Disallow: /review
+
+# Sitemap (served from API worker)
+Sitemap: https://api.publicartregistry.com/sitemap.xml
+
+# AI crawlers guidance
+User-agent: GPTBot
+Allow: /
+Allow: /api/
+
+User-agent: Claude-Web
+Allow: /
+Allow: /api/
+
+# Polite crawl delay
+Crawl-delay: 1

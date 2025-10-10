@@ -16,7 +16,7 @@ zone_name = "publicartregistry.com"
 
 # Ensure sitemap endpoints on the public domain are routed to the API worker
 [[env.production.routes]]
-pattern = "publicartregistry.com/sitemap.xml"
+pattern = "api.publicartregistry.com/sitemap.xml"
 zone_name = "publicartregistry.com"
 
 [[env.development.routes]]

@@ -21,9 +21,11 @@ import { getPagesService } from './pages';
  */
 export async function getSitemapIndex(c: Context<{ Bindings: WorkerEnv }>): Promise<Response> {
   console.log('[SITEMAP DIAGNOSTIC] GET /sitemap.xml requested');
-  const baseUrl = c.env.FRONTEND_URL || 'https://publicartregistry.com';
-  
-  const xml = generateSitemapIndex(baseUrl);
+  // Sitemap index file should reference the sitemap files hosted on the API domain
+  // Allow runtime override via SITEMAP_HOST env binding; otherwise default to the API host.
+  const sitemapHost = c.env.SITEMAP_HOST || 'https://api.publicartregistry.com';
+
+  const xml = generateSitemapIndex(c.env.FRONTEND_URL || 'https://publicartregistry.com', sitemapHost);
   console.log('[SITEMAP DIAGNOSTIC] Sitemap index generated, length:', xml.length);
   
   return new Response(xml, {
