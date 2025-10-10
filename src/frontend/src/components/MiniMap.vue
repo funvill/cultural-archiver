@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue';
 import type { Map, Marker } from 'leaflet';
+import { createLogger } from '../../../shared/logger';
 
 // Props interface
 interface Props {
@@ -28,6 +29,7 @@ const props = withDefaults(defineProps<Props>(), {
 });
 
 const emit = defineEmits<Emits>();
+const log = createLogger({ module: 'frontend:MiniMap' });
 
 // State
 const mapContainer = ref<HTMLElement>();
@@ -72,7 +74,23 @@ async function initializeMap(): Promise<void> {
 
     // Dynamic import of Leaflet to avoid SSR issues
     const imported = await import('leaflet');
-    const L: any = (imported && (imported as any).default) ? (imported as any).default : imported;
+    const L: any =
+      imported && (imported as any).default ? (imported as any).default : imported;
+
+    if (!L || typeof L.map !== 'function') {
+      log.error('Leaflet API missing required map function', {
+        hasMap: !!(L && L.map),
+      });
+      hasError.value = true;
+      isLoading.value = false;
+      return;
+    }
+
+    const hasDivIcon = typeof L.divIcon === 'function';
+    if (!hasDivIcon) {
+      log.warn('Leaflet divIcon missing, using fallback');
+      (L as any).divIcon = (options: unknown) => ({ options });
+    }
 
     // Create a fresh inner container on each init to guarantee no leftover
     // Leaflet state exists on that element. If a previous inner exists,
@@ -165,7 +183,7 @@ async function initializeMap(): Promise<void> {
           (L as any).control.zoom({ position: 'topright' }).addTo(mapInstance);
         }
       } catch (err) {
-        console.warn('Could not add zoom control:', err);
+        log.warn('Could not add zoom control', { error: err });
       }
     }
 
@@ -177,7 +195,7 @@ async function initializeMap(): Promise<void> {
 
     isLoading.value = false;
   } catch (error) {
-    console.error('Failed to initialize map:', error);
+    log.error('Failed to initialize map', { error });
     hasError.value = true;
     isLoading.value = false;
   } finally {

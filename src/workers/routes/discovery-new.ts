@@ -16,7 +16,10 @@ import { createSimilarityService } from '../lib/similarity';
 import type { SimilarityQuery } from '../../shared/similarity';
 
 // Import new database patch for submissions compatibility
-import { getAllLogbookEntriesForArtworkFromSubmissions } from '../lib/database-patch.js';
+import {
+  collectArtworkPhotoSources,
+  combineArtworkPhotos,
+} from '../lib/artwork-photos';
 
 /**
  * GET /api/artworks/nearby - Find Nearby Artworks
@@ -65,42 +68,17 @@ export async function getNearbyArtworks(c: Context<{ Bindings: WorkerEnv }>): Pr
     // Format response with photos and additional info
     const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
       artworks.map(async artwork => {
-        // Get logbook entries for this artwork to find photos - UPDATED: using submissions
-        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(
-          c.env.DB,
-          artwork.id
-        );
-
-        // Extract photos from logbook entries
-        const combinedPhotos: string[] = [];
-        logbookEntries.forEach(entry => {
-          if (entry.photos) {
-            const photos = safeJsonParse<string[]>(entry.photos, []);
-            for (const p of photos) {
-              if (typeof p === 'string' && !combinedPhotos.includes(p)) combinedPhotos.push(p);
-            }
-          }
+        const photoSources = await collectArtworkPhotoSources(c.env.DB, {
+          id: artwork.id,
+          photos: artwork.photos,
+          tags: artwork.tags,
         });
-
-        // Also include artwork-level photos stored under _photos in tags (set during approval)
-        try {
-          if (artwork.tags) {
-            // Parse artwork tags (unknown -> record)
-            const raw = safeJsonParse<Record<string, unknown>>(artwork.tags, {});
-            if (raw && Array.isArray(raw._photos)) {
-              for (const p of raw._photos) {
-                if (typeof p === 'string' && !combinedPhotos.includes(p)) combinedPhotos.push(p);
-              }
-            }
-          }
-        } catch (e) {
-          console.warn('Failed to parse artwork-level photos for nearby listing', e);
-        }
+        const combinedPhotos = combineArtworkPhotos(photoSources, 'logbook-first');
 
         if (photoDebugEnabled) {
           console.info('[PHOTO][NEARBY] Artwork aggregation', {
             artwork_id: artwork.id,
-            logbook_entries: logbookEntries.length,
+            logbook_entries: photoSources.logbookEntryCount,
             aggregated_photos: combinedPhotos.length,
             has_artwork_tags: !!artwork.tags,
           });
@@ -326,19 +304,12 @@ export async function listArtworks(c: Context<{ Bindings: WorkerEnv }>): Promise
           primary_artist_name?: string;
         })[]) || []
       ).map(async artwork => {
-        // Get logbook entries for this artwork to find photos
-        const logbookEntries = await getAllLogbookEntriesForArtworkFromSubmissions(
-          c.env.DB,
-          artwork.id
-        );
-        const allPhotos: string[] = [];
-
-        logbookEntries.forEach(entry => {
-          if (entry.photos) {
-            const photos = safeJsonParse<string[]>(entry.photos, []);
-            allPhotos.push(...photos);
-          }
+        const photoSources = await collectArtworkPhotoSources(c.env.DB, {
+          id: artwork.id,
+          photos: artwork.photos,
+          tags: artwork.tags,
         });
+        const allPhotos = combineArtworkPhotos(photoSources, 'artwork-first');
 
         // Use primary artist name from JOIN query, with fallback to tags
         let artistName = artwork.primary_artist_name || 'Unknown Artist';

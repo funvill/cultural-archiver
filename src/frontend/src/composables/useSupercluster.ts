@@ -4,6 +4,7 @@
  */
 import { ref, computed, type ComputedRef } from 'vue'
 import Supercluster from 'supercluster'
+import { createLogger } from '../../../shared/logger'
 
 export interface ArtworkPoint {
   id: string
@@ -16,12 +17,13 @@ export interface ArtworkPoint {
 
 export interface ClusterFeature {
   type: 'Feature'
-  id?: number
+  id?: number | string
   properties: {
     cluster?: boolean
     cluster_id?: number
     point_count?: number
     point_count_abbreviated?: string
+    cluster_radius_pixels?: number
     [key: string]: unknown
   }
   geometry: {
@@ -69,6 +71,7 @@ export function useSupercluster(config: SuperclusterConfig = {}): UseSupercluste
   const indexingTime = ref(0)
 
   const mergedConfig = { ...DEFAULT_CONFIG, ...config }
+  const log = createLogger({ module: 'frontend:useSupercluster' })
 
   /**
    * Initialize Supercluster index with artwork points
@@ -77,19 +80,24 @@ export function useSupercluster(config: SuperclusterConfig = {}): UseSupercluste
     const startTime = performance.now()
 
     // Convert artwork data to GeoJSON features
-    const geoJsonPoints: ClusterFeature[] = artworkData.map((artwork) => ({
-      type: 'Feature',
-      properties: {
-        id: artwork.id,
-        title: artwork.title,
-        type: artwork.type,
-        cluster: false
-      },
-      geometry: {
-        type: 'Point',
-        coordinates: [artwork.lon, artwork.lat]
+    const geoJsonPoints: ClusterFeature[] = artworkData.map((artwork) => {
+      const { lat, lon, ...metadata } = artwork
+      const properties = {
+        ...metadata,
+        cluster: false,
+        latitude: lat,
+        longitude: lon
       }
-    }))
+
+      return {
+        type: 'Feature',
+        properties,
+        geometry: {
+          type: 'Point',
+          coordinates: [lon, lat]
+        }
+      }
+    })
 
     // Create Supercluster index
     const cluster = new Supercluster(mergedConfig)
@@ -101,7 +109,10 @@ export function useSupercluster(config: SuperclusterConfig = {}): UseSupercluste
     indexingTime.value = performance.now() - startTime
 
     if (mergedConfig.log) {
-      console.log(`Supercluster indexed ${pointCount.value} points in ${indexingTime.value.toFixed(2)}ms`)
+      log.debug('Supercluster indexed points', {
+        count: pointCount.value,
+        duration_ms: Number(indexingTime.value.toFixed(2))
+      })
     }
   }
 
@@ -112,7 +123,9 @@ export function useSupercluster(config: SuperclusterConfig = {}): UseSupercluste
    */
   function getClusters(bbox: [number, number, number, number], zoom: number): ClusterFeature[] {
     if (!index.value || !isReady.value) {
-      console.warn('Supercluster not ready')
+      if (mergedConfig.log) {
+        log.warn('Supercluster not ready')
+      }
       return []
     }
 
@@ -120,7 +133,10 @@ export function useSupercluster(config: SuperclusterConfig = {}): UseSupercluste
     const clusters = index.value.getClusters(bbox, Math.floor(zoom))
     
     if (mergedConfig.log) {
-      console.log(`getClusters returned ${clusters.length} items in ${(performance.now() - startTime).toFixed(2)}ms`)
+      log.debug('Supercluster getClusters', {
+        items: clusters.length,
+        duration_ms: Number((performance.now() - startTime).toFixed(2))
+      })
     }
 
     return clusters as ClusterFeature[]
@@ -173,6 +189,10 @@ export function useSupercluster(config: SuperclusterConfig = {}): UseSupercluste
     isReady.value = false
     pointCount.value = 0
     indexingTime.value = 0
+
+    if (mergedConfig.log) {
+      log.debug('Supercluster cleared')
+    }
   }
 
   return {

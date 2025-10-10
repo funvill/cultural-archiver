@@ -16,6 +16,7 @@ import {
   ApiError,
   UnauthorizedError,
 } from '../lib/errors';
+import { isValidUUID } from '../../shared/utils/uuid.js';
 import { processAndUploadPhotos } from '../lib/photos';
 import { createDatabaseService } from '../lib/database';
 import { createMassImportDuplicateDetectionService } from '../lib/mass-import-duplicate-detection';
@@ -151,9 +152,7 @@ export async function processMassImport(c: Context<{ Bindings: WorkerEnv }>): Pr
     }
 
     // Validate user UUID format (basic validation for now)
-    // TODO: Implement proper role-based authorization check for moderators/admins
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(payload.user_uuid)) {
+    if (!isValidUUID(payload.user_uuid)) {
       throw new UnauthorizedError('Invalid user UUID format');
     }
 

@@ -6,6 +6,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NotificationService } from '../notifications';
 import type { CreateNotificationInput } from '../../../shared/types';
+import { isValidUUID } from '../../../shared/utils/uuid';
 
 // Mock D1Database for testing
 interface _MockDBStatement {
@@ -93,7 +94,7 @@ describe('NotificationService', () => {
         related_id: 'submission-456',
       });
 
-      expect(result.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  expect(isValidUUID(result.id)).toBe(true);
       expect(result.metadata).toEqual({
         badge_id: 'badge-123',
         badge_key: 'first_submission',

@@ -28,7 +28,8 @@ import { processAndUploadPhotos } from '../lib/photos';
 import { createDatabaseService } from '../lib/database';
 import { createMassImportV2DuplicateDetectionService } from '../lib/mass-import-v2-duplicate-detection';
 import { createArtistAutoCreationService } from '../lib/artist-auto-creation';
-import { SYSTEM_ADMIN_USER_UUID, generateUUID } from '../../shared/constants';
+import { SYSTEM_ADMIN_USER_UUID } from '../../shared/constants';
+import { generateUUID } from '../../shared/utils/uuid';
 import type {
   MassImportRequestV2,
   MassImportResponseV2,

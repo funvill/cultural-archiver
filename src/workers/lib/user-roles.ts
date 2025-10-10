@@ -5,7 +5,7 @@
 
 import type { D1Database } from '@cloudflare/workers-types';
 import type { UserRoleRecord } from '../../shared/types.js';
-import { generateUUID } from '../../shared/constants.js';
+import { generateUUID } from '../../shared/utils/uuid.js';
 
 // ================================
 // Core Role Management Functions

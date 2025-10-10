@@ -14,7 +14,7 @@ import { getValidatedData, getValidatedFiles } from '../middleware/validation';
 import { processAndUploadPhotos } from '../lib/photos';
 import { CONSENT_VERSION } from '../../shared/consent';
 import { DEFAULT_ARTWORK_SEARCH_RADIUS } from '../../shared/geo';
-import { generateUUID } from '../../shared/constants';
+import { generateUUID } from '../../shared/utils/uuid';
 
 // Import new unified services
 import {

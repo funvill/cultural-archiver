@@ -15,7 +15,7 @@ import type {
 } from '../../shared/types';
 import type { D1Database } from '@cloudflare/workers-types';
 import { ApiError } from './errors';
-import { generateUUID } from '../../shared/constants.js';
+import { generateUUID } from '../../shared/utils/uuid.js';
 
 /**
  * Current consent version - update when legal terms change

@@ -25,7 +25,7 @@ import {
   ConflictError,
 } from '../lib/errors';
 import { getUserToken } from '../middleware/auth';
-import { generateUUID } from '../../shared/constants';
+import { generateUUID } from '../../shared/utils/uuid';
 import { SPECIAL_LIST_NAMES } from '../types';
 import { safeJsonParse } from '../lib/errors';
 

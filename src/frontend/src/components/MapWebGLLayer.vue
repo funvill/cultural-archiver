@@ -2,9 +2,10 @@
 import { ref, watch, onMounted, onUnmounted, nextTick, toRaw } from 'vue'
 import { Deck } from '@deck.gl/core'
 import { ScatterplotLayer, TextLayer, IconLayer } from '@deck.gl/layers'
-import type { ClusterFeature } from '../composables/useGridCluster'
+import type { ClusterFeature } from '../composables/useSupercluster'
 import type { IconAtlas } from '../utils/iconAtlas'
 import type L from 'leaflet'
+import { createLogger } from '../../../shared/logger'
 
 interface WebGLLayerProps {
   map: L.Map | null
@@ -18,6 +19,7 @@ const props = withDefaults(defineProps<WebGLLayerProps>(), {
 })
 
 const emit = defineEmits(['markerClick', 'clusterClick'])
+const log = createLogger({ module: 'frontend:MapWebGLLayer' })
 
 const containerRef = ref<HTMLDivElement>()
 const deck = ref<Deck | null>(null)
@@ -367,7 +369,7 @@ function updateLayers(): void {
     const markerData = scatterDataPlain.filter((d: any) => !d.properties.cluster && (d.properties.visited || d.properties.starred || d.properties.submissions));
     
     // Diagnostic logging for visited/starred/submissions icons
-    console.log('[MAP DIAGNOSTIC] Icon Atlas Status:', {
+    log.debug('[MAP DIAGNOSTIC] Icon Atlas Status:', {
       isReady: props.iconAtlas.isReady,
       totalMarkers: scatterDataPlain.length,
       visitedOrStarredOrSubmissions: markerData.length,
@@ -406,16 +408,16 @@ function updateLayers(): void {
             ctx.drawImage(img as any, x, 0, size, size);
             iconMapping[name] = { x, y: 0, width: size, height: size, mask: false };
             x += size;
-            console.log(`[MAP DIAGNOSTIC] Icon '${name}' added to atlas at x=${x - size}`);
+            log.debug(`[MAP DIAGNOSTIC] Icon '${name}' added to atlas at x=${x - size}`);
           } else {
-            console.warn(`[MAP DIAGNOSTIC] Icon '${name}' NOT FOUND in icon atlas`);
+            log.warn(`[MAP DIAGNOSTIC] Icon '${name}' NOT FOUND in icon atlas`);
           }
         }
       }
       
-      console.log('[MAP DIAGNOSTIC] Icon Mapping Created:', iconMapping);
+      log.debug('[MAP DIAGNOSTIC] Icon Mapping Created:', iconMapping);
       
-      console.log('[MAP DIAGNOSTIC] IconLayer Configuration:', {
+      log.debug('[MAP DIAGNOSTIC] IconLayer Configuration:', {
         markerDataCount: markerData.length,
         iconMappingKeys: Object.keys(iconMapping),
         canvasSize: `${canvas.width}x${canvas.height}`
@@ -430,7 +432,7 @@ function updateLayers(): void {
         getIcon: (d: any) => {
           // Priority: submissions > visited > starred
           const icon = d.properties.submissions ? 'submissions' : (d.properties.visited ? 'visited' : 'starred');
-          console.log('[MAP DIAGNOSTIC] getIcon called for marker:', {
+          log.debug('[MAP DIAGNOSTIC] getIcon called for marker:', {
             id: d.properties.id,
             visited: d.properties.visited,
             starred: d.properties.starred,
@@ -462,12 +464,12 @@ function updateLayers(): void {
         }
       });
       
-      console.log('[MAP DIAGNOSTIC] IconLayer created with', markerData.length, 'markers');
+      log.debug('[MAP DIAGNOSTIC] IconLayer created with', markerData.length, 'markers');
     } else {
-      console.log('[MAP DIAGNOSTIC] No visited or starred markers to display');
+      log.debug('[MAP DIAGNOSTIC] No visited or starred markers to display');
     }
   } else {
-    console.log('[MAP DIAGNOSTIC] Icon Atlas not ready:', {
+    log.debug('[MAP DIAGNOSTIC] Icon Atlas not ready:', {
       exists: !!props.iconAtlas,
       isReady: props.iconAtlas?.isReady
     });
@@ -586,3 +588,4 @@ onUnmounted(() => {
   z-index: 400;
 }
 </style>
+

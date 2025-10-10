@@ -8,6 +8,7 @@ import { z } from 'zod';
 import type { WorkerEnv } from '../types';
 import { ValidationApiError } from '../lib/errors';
 import { isValidLatitude, isValidLongitude } from '../lib/spatial';
+import { isValidUUID, isSampleUUID } from '../../shared/utils/uuid.js';
 import { tagValidationService, convertToValidationApiError } from '../lib/tag-validation';
 import type { StructuredTags } from '../../shared/tag-schema';
 import { MAX_PHOTOS_PER_SUBMISSION, MIN_SEARCH_RADIUS, MAX_SEARCH_RADIUS } from '../types';
@@ -120,9 +121,7 @@ export const nearbyArtworksQuerySchema = z.object({
 
 export const artworkIdSchema = z.object({
   id: z.string().refine(value => {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    const sampleDataRegex = /^(SAMPLE-[a-zA-Z0-9-]+|[a-f]0000000-1000-4000-8000-[0-9a-f]{12})$/;
-    return uuidRegex.test(value) || sampleDataRegex.test(value);
+    return isValidUUID(value) || isSampleUUID(value);
   }, 'Artwork ID must be a valid UUID or sample data format'),
 });
 

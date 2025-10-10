@@ -4,6 +4,7 @@
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
+import { isValidUUID } from '../../shared/utils/uuid';
 
 // Mock environment for testing
 const createMockEnv = (): Record<string, unknown> => ({
@@ -216,10 +217,8 @@ describe('Cultural Archiver API Integration Tests', (): void => {
 
   describe('UUID Generation and Validation', (): void => {
     it('should generate valid UUIDs', (): void => {
-      const uuid = crypto.randomUUID();
-      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-      expect(uuid).toMatch(uuidRegex);
+  const uuid = crypto.randomUUID();
+  expect(isValidUUID(uuid)).toBe(true);
     });
 
     it('should generate unique UUIDs', (): void => {

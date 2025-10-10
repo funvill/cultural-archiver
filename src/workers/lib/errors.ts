@@ -6,6 +6,7 @@
 import type { Context } from 'hono';
 import type { ApiErrorResponse, ValidationError, WorkerEnv } from '../types';
 import { createApiErrorResponse } from '../../shared/types';
+import { createLogger, toLogLevel } from '../../shared/logger';
 
 export interface ErrorOptions {
   showDetails?: boolean;
@@ -105,7 +106,7 @@ export class UnauthorizedError extends ApiError {
  */
 export class ForbiddenError extends ApiError {
   constructor(message = 'Access forbidden') {
-    super('FORBIDDEN', message, 403, {
+    super(message, 'FORBIDDEN', 403, {
       showDetails: false,
     });
   }
@@ -116,7 +117,7 @@ export class ForbiddenError extends ApiError {
  */
 export class InternalServerError extends ApiError {
   constructor(message = 'Internal server error', details?: Record<string, unknown>) {
-    super('INTERNAL_ERROR', message, 500, {
+    super(message, 'INTERNAL_ERROR', 500, {
       ...(details && { details }),
       showDetails: false, // Don't expose internal details in production
     });
@@ -128,9 +129,10 @@ export class InternalServerError extends ApiError {
  */
 export class ConflictError extends ApiError {
   constructor(message = 'Conflict occurred') {
-    super('CONFLICT_ERROR', message, 409, { showDetails: true });
+    super(message, 'CONFLICT_ERROR', 409, { showDetails: true });
   }
 }
+const baseLogger = createLogger({ module: 'workers:errors' });
 
 /**
  * Create validation error for a single field
@@ -227,17 +229,17 @@ export function sendErrorResponse(
   // Generate correlation ID for debugging
   const correlationId = options.correlationId || crypto.randomUUID().substring(0, 8);
 
-  // Log error for debugging
-  const logLevel = c.env?.LOG_LEVEL || 'warn';
-  if (['debug', 'info', 'warn', 'error'].includes(logLevel)) {
-    console.error(`[${correlationId}] API Error:`, {
-      error: error.message,
-      stack: error.stack,
-      statusCode,
-      path: c.req.path,
-      method: c.req.method,
-    });
-  }
+  const requestLogger = createLogger({
+    module: 'workers:errors',
+    level: toLogLevel(c.env?.LOG_LEVEL) ?? 'warn',
+  });
+  requestLogger.error(`[${correlationId}] API Error`, {
+    message: error.message,
+    stack: error.stack,
+    statusCode,
+    path: c.req.path,
+    method: c.req.method,
+  });
 
   const errorResponse = formatErrorResponse(error, environment, {
     ...options,
@@ -272,11 +274,11 @@ export function withErrorHandling<T extends Context>(
       return await handler(c);
     } catch (error) {
       if (error instanceof ApiError) {
-        return sendErrorResponse(c as Context<{ Bindings: WorkerEnv }>, error);
-      }
+      return sendErrorResponse(c as Context<{ Bindings: WorkerEnv }>, error);
+    }
 
-      // Log unexpected errors
-      console.error('Unexpected error in route handler:', error);
+    // Log unexpected errors
+    baseLogger.error('Unexpected error in route handler', { error });
 
       return sendErrorResponse(
         c as Context<{ Bindings: WorkerEnv }>,

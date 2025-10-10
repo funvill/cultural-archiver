@@ -12,8 +12,9 @@ import type {
   CreateSessionRequest,
   SessionInfo,
 } from '../../shared/types';
-import { isValidUUID, isValidEmail } from '../../shared/types';
-import { generateUUID as generateUUIDFromConstants } from '../../shared/constants.js';
+import { isValidEmail } from '../../shared/types';
+import { isValidUUID } from '../../shared/utils/uuid.js';
+import { generateUUID } from '../../shared/utils/uuid.js';
 import { BadgeService } from './badges';
 
 // ================================
@@ -24,9 +25,8 @@ import { BadgeService } from './badges';
  * Generate a cryptographically secure UUID v4
  * Uses the Web Crypto API for secure random generation
  */
-export function generateUUID(): string {
-  return generateUUIDFromConstants();
-}
+// Re-export generateUUID from shared/constants
+export { generateUUID };
 
 /**
  * Validate UUID format and return validation result

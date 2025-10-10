@@ -7,6 +7,7 @@ import type { Context, Next } from 'hono';
 import type { WorkerEnv } from '../types';
 import { UnauthorizedError, ForbiddenError } from '../lib/errors';
 import { getUserPermissions } from '../lib/permissions';
+import { isValidUUID } from '../../shared/utils/uuid.js';
 
 export interface AuthContext {
   userToken: string;
@@ -62,9 +63,7 @@ export async function ensureUserToken(
   }
 
   // Validate token format if we have one (should be UUID v4 only)
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-
-  if (userToken && !uuidRegex.test(userToken)) {
+  if (userToken && !isValidUUID(userToken)) {
     userToken = undefined; // Clear invalid token
   }
 

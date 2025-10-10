@@ -116,23 +116,28 @@ class ApiClient {
    * Get user token from localStorage
    */
   private getUserToken(): string | null {
-    const token = localStorage.getItem('user-token');
-    console.log('[API DEBUG] Getting user token from localStorage:', {
-      token: token,
-      timestamp: new Date().toISOString(),
-    });
-    return token;
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return null;
+    }
+    try {
+      return window.localStorage.getItem('user-token');
+    } catch {
+      return null;
+    }
   }
 
   /**
    * Set user token in localStorage
    */
   private setUserToken(token: string): void {
-    console.log('[API DEBUG] Setting user token in localStorage:', {
-      token: token,
-      timestamp: new Date().toISOString(),
-    });
-    localStorage.setItem('user-token', token);
+    if (typeof window === 'undefined' || !window.localStorage) {
+      return;
+    }
+    try {
+      window.localStorage.setItem('user-token', token);
+    } catch {
+      /* ignore storage errors */
+    }
   }
 
   /**
@@ -148,11 +153,6 @@ class ApiClient {
     }
 
     const token = this.getUserToken();
-    console.log('[API DEBUG] Creating request headers:', {
-      hasToken: !!token,
-      token: token,
-      customHeaders: Object.keys(customHeaders),
-    });
 
     if (token) {
       headers.set('X-User-Token', token);
@@ -167,16 +167,8 @@ class ApiClient {
   private async handleResponse<T>(response: Response): Promise<T> {
     // Update user token if provided in response
     const newToken = response.headers.get('X-User-Token');
-    console.log('[API DEBUG] Handling response:', {
-      status: response.status,
-      statusText: response.statusText,
-      hasNewToken: !!newToken,
-      newToken: newToken,
-      url: response.url,
-    });
 
     if (newToken) {
-      console.log('[API DEBUG] Response contains new token, updating localStorage');
       this.setUserToken(newToken);
     }
 
@@ -215,19 +207,10 @@ class ApiClient {
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseURL}${endpoint}`;
 
-    // Enhanced diagnostic logging
-    console.log('[ApiClient.request] Constructing URL:', {
-      baseURL: this.baseURL,
-      endpoint: endpoint,
-      fullURL: url,
-      method: options.method || 'GET',
-    });
-
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
     try {
-      console.log('[ApiClient.request] Making fetch request to:', url);
       const headers = this.createHeaders(options.headers as Record<string, string>);
       // If body is FormData remove any JSON content type so browser sets proper multipart boundary
       if (options.body instanceof FormData) {
@@ -239,24 +222,10 @@ class ApiClient {
         signal: controller.signal,
       });
 
-      console.log('[ApiClient.request] Response received:', {
-        status: response.status,
-        statusText: response.statusText,
-        url: response.url,
-        headers: Object.fromEntries(response.headers.entries()),
-      });
-
       clearTimeout(timeoutId);
       return this.handleResponse<T>(response);
     } catch (error) {
       clearTimeout(timeoutId);
-
-      console.error('[ApiClient.request] Fetch error:', {
-        error: error,
-        url: url,
-        isNetworkError: error instanceof TypeError,
-        isAbortError: error instanceof DOMException && error.name === 'AbortError',
-      });
 
       if (error instanceof ApiError) {
         throw error;
@@ -274,16 +243,6 @@ class ApiClient {
    * GET request
    */
   async get<T>(endpoint: string, params?: Record<string, string>): Promise<T> {
-    // Log the current API configuration
-    console.log(
-      '[ApiClient.get] API Base URL:',
-      this.baseURL,
-      'endpoint:',
-      endpoint,
-      'params:',
-      params
-    );
-
     let requestEndpoint = endpoint;
     if (params) {
       const url = new URL(endpoint, 'http://dummy.com');
@@ -1144,16 +1103,14 @@ export const apiService = {
     const cached = listDetailsCache.get(cacheKey);
     
     if (cached && (Date.now() - cached.timestamp) < LIST_DETAILS_CACHE_TTL) {
-      console.log(`[API Cache] Hit for list details: ${cacheKey}`);
       return cached.data;
     }
-    
-    console.log(`[API Cache] Miss for list details: ${cacheKey}`);
-    const response = await client.get(`/lists/${listId}`, { 
-      page: page.toString(), 
-      limit: limit.toString() 
+
+    const response = await client.get(`/lists/${listId}`, {
+      page: page.toString(),
+      limit: limit.toString()
     }) as ApiResponse<Record<string, unknown>>;
-    
+
     // Cache the response
     listDetailsCache.set(cacheKey, {
       data: response,

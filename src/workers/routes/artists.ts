@@ -24,15 +24,9 @@ import { createSuccessResponse, ValidationApiError, NotFoundError } from '../lib
 import { getUserToken } from '../middleware/auth';
 import { getValidatedData } from '../middleware/validation';
 import { safeJsonParse } from '../lib/errors';
+import { generateUUID } from '../../shared/utils/uuid';
 
-// UUID generation function
-function generateUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c == 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
-}
+// generateUUID is imported from shared/constants
 
 /**
  * GET /api/artists - List Artists (Index Page)

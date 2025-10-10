@@ -9,6 +9,7 @@ import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 import { useAuthStore } from '../stores/auth';
 import { useNotificationsStore } from '../stores/notifications';
 import { useBreakpoint } from '../composables/useBreakpoint';
+import { createLogger } from '../../../shared/logger';
 import AuthModal from './AuthModal.vue';
 import FeedbackDialog from './FeedbackDialog.vue';
 import LiveRegion from './LiveRegion.vue';
@@ -41,6 +42,7 @@ const router = useRouter();
 const authStore = useAuthStore();
 const notificationsStore = useNotificationsStore();
 const { showNavigationRail } = useBreakpoint();
+const log = createLogger({ module: 'frontend:AppShell' });
 
 // Local state for navigation rail expanded/collapsed on desktop
 const navExpanded = ref(true);
@@ -155,7 +157,7 @@ async function fastProcessFiles(files: File[]) {
         fastFinalLocation.value = fastLocationSources.value.exif.coordinates;
       }
     } catch (err) {
-      console.warn('[FAST ADD] Failed to process file', file.name, err);
+      log.warn('[FAST ADD] Failed to process file', { fileName: file.name, error: err });
     }
   }
   fastIsProcessing.value = false;
@@ -254,7 +256,7 @@ function closeAuthModal(): void {
 function handleAuthSuccess(payload: { isNewAccount: boolean; email: string }): void {
   closeAuthModal();
   // Could show success toast here if needed
-  console.log('Authentication successful:', payload);
+  log.info('Authentication successful', { payload });
 }
 
 async function handleLogout(): Promise<void> {
@@ -268,7 +270,7 @@ async function handleLogout(): Promise<void> {
     await authStore.logout();
     // Could show logout success message here
   } catch (error) {
-    console.error('Logout failed:', error);
+    log.error('Logout failed', { error });
   }
 }
 
@@ -295,7 +297,7 @@ function closeFeedbackDialog(): void {
 }
 
 function handleFeedbackSuccess(feedbackId: string): void {
-  console.log('Feedback submitted successfully:', feedbackId);
+  log.info('Feedback submitted successfully', { feedbackId });
   // Could show success toast here
 }
 
