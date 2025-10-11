@@ -1,3 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /review
+
+Sitemap: https://api.publicartregistry.com/sitemap.xml
 # Public Art Registry - Robots.txt
 User-agent: *
 Allow: /

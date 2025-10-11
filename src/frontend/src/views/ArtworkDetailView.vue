@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watchEffect } from 'vue';
 import { marked } from 'marked';
 import { useRouter, useRoute } from 'vue-router';
 import { useArtworksStore } from '../stores/artworks';
@@ -17,6 +17,7 @@ import { PencilIcon } from '@heroicons/vue/24/outline';
 // import LogbookTimeline from '../components/LogbookTimeline.vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { apiService } from '../services/api';
+import { useRouteMeta, createArtworkSchema } from '@/lib/meta';
 
 // Props
 interface Props {
@@ -79,6 +80,40 @@ const editData = ref({
 // Computed
 const artwork = computed(() => {
   return artworksStore.artworkById(props.id);
+});
+
+// Update meta tags when artwork changes
+watchEffect(() => {
+  if (artwork.value) {
+    const a = artwork.value as any;
+    const title = `${a.title || 'Artwork'} - Public Art Registry`;
+    const description = ((a.title ? a.title + (a.artist_name ? ' by ' + a.artist_name : '') : a.description) || '').substring(0, 160);
+    const metadata = {
+      title,
+      description: description || 'Public art documentation and photos',
+      canonical: `https://publicartregistry.com/artwork/${props.id}`,
+      ogImage: (a.photos && a.photos[0] && (a.photos[0].url || a.photos[0])) || undefined,
+      ogType: 'article',
+    };
+
+    const images = (a.photos || []).map((p: any) => (typeof p === 'string' ? p : p.url || p.thumbnail_url || '')).filter(Boolean) as string[];
+    const tagsArr = Array.isArray(a.tags) ? a.tags : (typeof a.tags === 'string' && a.tags.length ? a.tags.split(',').map((s: string) => s.trim()) : []);
+
+    const schema = createArtworkSchema({
+      id: props.id,
+      title: String(a.title || title),
+      artistName: a.artist_name || a.creator || undefined,
+      artistUrl: a.artist_id ? `https://publicartregistry.com/artist/${a.artist_id}` : '',
+      images,
+      lat: Number(a.lat) || 0,
+      lon: Number(a.lon) || 0,
+      city: a.city || a.locality || undefined,
+      tags: tagsArr,
+      description: a.description || undefined,
+    });
+
+    useRouteMeta(metadata as any, schema as any);
+  }
 });
 
 const artworkTitle = computed(() => {

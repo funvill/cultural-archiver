@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, nextTick } from 'vue';
+import { useRouteMeta } from '@/lib/meta';
 import { useRoute, useRouter } from 'vue-router';
 import { marked } from 'marked';
 import DOMPurify from 'isomorphic-dompurify';
@@ -119,7 +120,12 @@ const loadPage = async (): Promise<void> => {
 
     // Set page title for SEO
     if (page.value && page.value.title) {
-      document.title = `${page.value.title} - Public Art Registry`;
+      const metadata = {
+        title: `${page.value.title} - Public Art Registry`,
+        description: (page.value.html || '').replace(/<[^>]+>/g, '').slice(0, 160),
+        canonical: `https://publicartregistry.com/pages/${page.value.slug}`,
+      } as any;
+      useRouteMeta(metadata);
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unknown error';

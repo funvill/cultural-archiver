@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
+import { useRouteMeta } from '@/lib/meta';
+import { getMetaForRoute } from '@/lib/seo-config';
 import AddArtworkFastForm from '../components/AddArtworkFastForm.vue';
 import { useAuthStore } from '../stores/auth';
 
@@ -11,6 +13,14 @@ onMounted(async () => {
   // Ensure user token is available for fast workflow
   await authStore.ensureUserToken();
 });
+
+// Page meta
+const metadata = getMetaForRoute('submit') as any || {
+  title: 'Submit Artwork - Public Art Registry',
+  description: 'Submit photos and details of public artwork using our fast, photo-first workflow.',
+  canonical: 'https://publicartregistry.com/submit',
+};
+useRouteMeta(metadata);
 </script>
 
 <template>

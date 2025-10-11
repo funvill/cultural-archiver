@@ -11,11 +11,13 @@ describe('Sitemap Generation', () => {
     const baseUrl = 'https://publicartregistry.com';
     const xml = generateSitemapIndex(baseUrl);
     
+    // Implementation generates sitemap index pointing to the API host by default
+    const expectedHost = 'https://api.publicartregistry.com';
     expect(xml).toContain('<?xml version="1.0" encoding="UTF-8"?>');
     expect(xml).toContain('<sitemapindex');
-    expect(xml).toContain(`${baseUrl}/sitemap-pages.xml`);
-    expect(xml).toContain(`${baseUrl}/sitemap-artworks.xml`);
-    expect(xml).toContain(`${baseUrl}/sitemap-artists.xml`);
+    expect(xml).toContain(`${expectedHost}/sitemap-pages.xml`);
+    expect(xml).toContain(`${expectedHost}/sitemap-artworks.xml`);
+    expect(xml).toContain(`${expectedHost}/sitemap-artists.xml`);
   });
 
   it('should generate artworks sitemap', async () => {

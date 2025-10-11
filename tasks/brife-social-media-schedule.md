@@ -113,7 +113,7 @@ All core tasks have been completed successfully. The social media scheduler is f
 
 ---
 
-## � Production Debugging Session (October 8, 2025)
+## Production Debugging Session (October 8, 2025)
 
 ### Issues Encountered and Resolved
 
@@ -202,7 +202,7 @@ Applied migration to production.
 
 ---
 
-## �🚀 Deployment Checklist
+## 🚀 Deployment Checklist
 
 ### Immediate Next Steps
 

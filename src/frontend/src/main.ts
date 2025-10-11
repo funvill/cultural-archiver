@@ -1,5 +1,6 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
+import { createHead } from '@vueuse/head';
 import App from './App.vue';
 import router from './router';
 import './style.css';
@@ -11,6 +12,9 @@ const app = createApp(App);
 // Install plugins
 app.use(createPinia());
 app.use(router);
+// Head manager for dynamic meta tags
+const head = createHead();
+app.use(head);
 
 // Try to apply a saved user theme first (from localStorage). This avoids a
 // brief flash of the default theme when a user has previously selected one.
