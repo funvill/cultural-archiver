@@ -4,6 +4,7 @@
  */
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
+import { canUseLocalStorage } from '../lib/isClient';
 
 const CLUSTERING_STORAGE_KEY = 'map_clustering_enabled';
 
@@ -12,9 +13,14 @@ export const useMapSettings = defineStore('mapSettings', () => {
   const clusteringEnabled = ref(true);
 
   /**
-   * Initialize settings from localStorage
+   * Initialize settings from localStorage (safe to call on client)
    */
-  function initializeSettings() {
+  function initializeSettings(): void {
+    if (!canUseLocalStorage()) {
+      console.log('[MAP DIAGNOSTIC] localStorage unavailable; skipping map settings initialization');
+      return;
+    }
+
     const saved = localStorage.getItem(CLUSTERING_STORAGE_KEY);
     if (saved !== null) {
       clusteringEnabled.value = saved === 'true';
@@ -27,27 +33,40 @@ export const useMapSettings = defineStore('mapSettings', () => {
   /**
    * Toggle clustering on/off
    */
-  function toggleClustering() {
+  function toggleClustering(): void {
     clusteringEnabled.value = !clusteringEnabled.value;
-    localStorage.setItem(CLUSTERING_STORAGE_KEY, String(clusteringEnabled.value));
+    if (canUseLocalStorage()) {
+      try {
+        localStorage.setItem(CLUSTERING_STORAGE_KEY, String(clusteringEnabled.value));
+      } catch (e) {
+        console.warn('[MAP DIAGNOSTIC] Failed to persist clustering setting:', e);
+      }
+    }
     console.log('[MAP DIAGNOSTIC] Clustering toggled to:', clusteringEnabled.value);
   }
 
   /**
    * Set clustering enabled state
    */
-  function setClusteringEnabled(enabled: boolean) {
+  function setClusteringEnabled(enabled: boolean): void {
     clusteringEnabled.value = enabled;
-    localStorage.setItem(CLUSTERING_STORAGE_KEY, String(enabled));
+    if (canUseLocalStorage()) {
+      try {
+        localStorage.setItem(CLUSTERING_STORAGE_KEY, String(enabled));
+      } catch (e) {
+        console.warn('[MAP DIAGNOSTIC] Failed to persist clustering setting:', e);
+      }
+    }
     console.log('[MAP DIAGNOSTIC] Clustering set to:', enabled);
   }
 
-  // Initialize on store creation
-  initializeSettings();
+  // Note: Do not initialize automatically on store creation to keep SSR safe.
+  // Call initializeSettings() from client-side entry or components (onMounted) if desired.
 
   return {
     clusteringEnabled,
     toggleClustering,
     setClusteringEnabled,
+    initializeSettings,
   };
 });

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, watch } from 'vue';
+import { isClient } from '../lib/isClient';
 import { XMarkIcon } from '@heroicons/vue/24/outline';
 import { useMapFilters } from '../composables/useMapFilters';
 import { useAuthStore } from '../stores/auth';
@@ -54,12 +55,16 @@ function handleKeydown(event: KeyboardEvent): void {
 
 // Lifecycle
 onMounted(() => {
-  document.addEventListener('keydown', handleKeydown);
-  console.log('[MAP DIAGNOSTIC] MapOptionsModal mounted, clustering enabled:', mapSettings.clusteringEnabled);
+  if (isClient) {
+    document.addEventListener('keydown', handleKeydown);
+    console.log('[MAP DIAGNOSTIC] MapOptionsModal mounted, clustering enabled:', mapSettings.clusteringEnabled);
+  }
 });
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown);
+  if (isClient) {
+    document.removeEventListener('keydown', handleKeydown);
+  }
 });
 
 // Watch for modal open/close

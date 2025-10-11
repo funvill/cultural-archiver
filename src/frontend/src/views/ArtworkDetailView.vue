@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { marked } from 'marked';
 import { useRouter, useRoute } from 'vue-router';
 import { useArtworksStore } from '../stores/artworks';
@@ -17,6 +17,8 @@ import { PencilIcon } from '@heroicons/vue/24/outline';
 // import LogbookTimeline from '../components/LogbookTimeline.vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { apiService } from '../services/api';
+import { getMetaForRoute } from '../lib/seo-config';
+import { useRouteMeta, createArtworkSchema } from '../lib/meta';
 
 // Props
 interface Props {
@@ -315,6 +317,48 @@ function sanitizeMarkdownHtml(input: string): string {
       .replace(/href\s*=\s*'javascript:[^']*'/gi, "href='#'")
   );
 }
+
+// --- SEO: dynamic metadata for artwork ---
+const routeMetaBase = getMetaForRoute('artwork');
+
+function buildArtworkMeta() {
+  const title = artworkTitle.value || routeMetaBase.title;
+  const description = (artworkDescription.value && artworkDescription.value.slice(0, 160)) || routeMetaBase.description;
+  const canonical = typeof window !== 'undefined' && window.location ? `${window.location.origin}${route.fullPath}` : route.fullPath;
+  const image = artworkPhotos.value[0] || '';
+
+  const metadata = {
+    title,
+    description,
+    canonical,
+    ogImage: image,
+    ogType: 'article',
+  } as import('../lib/seo-config').RouteMetadata;
+
+  const jsonld = createArtworkSchema({
+    id: artwork.value?.id || '',
+    title,
+    images: image ? [image] : [],
+    lat: artwork.value?.lat || 0,
+    lon: artwork.value?.lon || 0,
+    tags: Object.keys(artworkTags.value || {}),
+    description: description || '',
+  });
+
+  return { metadata, jsonld };
+}
+
+// Apply meta when artwork loads/changes
+watch(
+  () => artwork.value && artwork.value.id,
+  (newId: string | undefined) => {
+    if (newId) {
+      const { metadata, jsonld } = buildArtworkMeta();
+      useRouteMeta(metadata, jsonld);
+    }
+  },
+  { immediate: true }
+);
 
 const displayCreators = computed(() => {
   return isEditMode.value ? editData.value.creators : artworkCreators.value;

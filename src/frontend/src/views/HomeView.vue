@@ -2,6 +2,8 @@
 import { ref, onMounted } from 'vue';
 import { apiService, getErrorMessage } from '../services/api';
 import { getApiBaseUrl } from '../utils/api-config';
+import { getMetaForRoute } from '@/lib/seo-config';
+import { useRouteMeta, createOrganizationSchema, createWebSiteSchema } from '@/lib/meta';
 
 const isLoading = ref(true);
 const status = ref<string>('');
@@ -24,6 +26,14 @@ const checkWorkerStatus = async (): Promise<void> => {
 
 onMounted(() => {
   checkWorkerStatus();
+  // Initialize SEO metadata for home page
+  const metadata = getMetaForRoute('home');
+  const structured = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    '@graph': [createOrganizationSchema(), createWebSiteSchema()],
+  };
+  useRouteMeta(metadata, structured);
 });
 </script>
 

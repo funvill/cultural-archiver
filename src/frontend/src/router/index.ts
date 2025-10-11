@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import type { Component } from 'vue';
+import { isClient } from '../lib/isClient';
 import { useAuthStore } from '../stores/auth';
 
 // Lazy load components for better performance
@@ -271,15 +272,24 @@ const router = createRouter({
 
 // Set page titles and handle authentication/reviewer permissions
 router.beforeEach(async (to, _from, next) => {
-  // Set page title
-  if (to.meta.title) {
+  // Set page title (only in browser)
+  if (to.meta.title && isClient) {
     document.title = to.meta.title as string;
+  }
+
+  // Authentication and permission checks should only run in the browser
+  // during client-side navigation. When rendering on the server (SSR)
+  // we skip these checks to avoid accessing browser globals (localStorage,
+  // window) and to keep prerendering deterministic for anonymous users.
+  if (!isClient) {
+    next();
+    return;
   }
 
   // Get auth store - ensure it's initialized
   const authStore = useAuthStore();
 
-  // Wait for auth initialization if needed
+  // Wait for auth initialization if needed (client only)
   if (!authStore.user && !authStore.isLoading) {
     try {
       await authStore.initializeAuth();

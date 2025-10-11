@@ -173,11 +173,17 @@ async function handleSubmit() {
     // Clear consent checkboxes and disable submit button
     consentSection.value?.resetConsents();
 
-    // Scroll to top to show success notification
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Scroll to top to show success notification (client-only)
+    if (typeof window !== 'undefined' && window.scrollTo) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
 
-    // Clear session data
-    sessionStorage.removeItem('fast-upload-session');
+    // Clear session data (client-only)
+    try {
+      if (typeof sessionStorage !== 'undefined') sessionStorage.removeItem('fast-upload-session');
+    } catch (e) {
+      // ignore
+    }
 
     // Start countdown and redirect to map page after 5 seconds
     redirectCountdown.value = 5;
@@ -319,23 +325,34 @@ onMounted(async () => {
     if (fastStore.location) {
       formData.value.location = fastStore.location;
     }
-  } else {
-    const sessionData = sessionStorage.getItem('fast-upload-session');
-    if (sessionData && isFromFastUpload.value) {
-      try {
-        const parsed = JSON.parse(sessionData);
-        fastUploadSession.value = parsed;
-        if (parsed?.location) formData.value.location = parsed.location;
-      } catch (error) {
-        console.error('Failed to load session data:', error);
+  } else if (typeof window !== 'undefined') {
+    try {
+      const sessionData = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('fast-upload-session') : null;
+      if (sessionData && isFromFastUpload.value) {
+        try {
+          const parsed = JSON.parse(sessionData);
+          fastUploadSession.value = parsed;
+          if (parsed?.location) formData.value.location = parsed.location;
+        } catch (error) {
+          console.error('Failed to load session data:', error);
+          router.push('/add');
+        }
+      } else if (isFromFastUpload.value) {
         router.push('/add');
       }
-    } else if (isFromFastUpload.value) {
-      router.push('/add');
+    } catch (e) {
+      console.warn('Session storage unavailable or blocked:', e);
+      if (isFromFastUpload.value) router.push('/add');
+    }
+  } else {
+    // Not running in a client environment
+    if (isFromFastUpload.value) {
+      // Can't recover session on server; redirect will be handled client-side
+      console.warn('[NEW ARTWORK] SSR environment - skipping session restore');
     }
   }
 
-  // Ensure user token is available
+  // Ensure user token is available (safe to call in SSR - auth store guards storage access)
   await authStore.ensureUserToken();
 });
 

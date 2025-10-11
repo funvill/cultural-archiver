@@ -14,6 +14,12 @@ export default defineConfig(({ mode }) => {
       alias: {
         '@': resolve(__dirname, './src'),
         '@shared': resolve(__dirname, '../shared'),
+          // Provide a browser-safe shim for Node-only modules that some
+          // upstream libraries attempt to import (e.g. child_process).
+          // This lets the client bundle avoid Node-specific exports at
+          // build time while still allowing server builds to use the
+          // real module when available.
+          'child_process': resolve(__dirname, './src/shims/child_process.ts'),
       },
     },
     server: {
@@ -92,14 +98,11 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist',
       sourcemap: true,
       target: 'esnext',
-      rollupOptions: {
-        output: {
-          manualChunks: {
-            vendor: ['vue', 'vue-router', 'pinia'],
-            ui: ['@headlessui/vue', '@heroicons/vue'],
-          },
-        },
-      },
+      // Do not customize manualChunks here — let Vite choose sensible
+      // chunking for both client and SSR builds. Explicit manualChunks
+      // caused Rollup errors during SSR build where some dependencies are
+      // externalized.
+      rollupOptions: {},
     },
     define: {
       __VUE_OPTIONS_API__: false,

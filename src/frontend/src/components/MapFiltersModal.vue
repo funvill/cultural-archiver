@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
+import { isClient } from '../lib/isClient';
 import { XMarkIcon } from '@heroicons/vue/24/outline';
 import { AdjustmentsHorizontalIcon } from '@heroicons/vue/24/solid';
 import { useMapFilters } from '../composables/useMapFilters';
@@ -130,6 +131,10 @@ function createNewPreset() {
 }
 
 function exportConfiguration() {
+  if (!isClient) {
+    console.warn('Export configuration is client-only');
+    return;
+  }
   const configData = mapFilters.exportFilters();
   const blob = new Blob([configData], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
@@ -144,6 +149,10 @@ function exportConfiguration() {
 }
 
 function handleImportFile(event: Event) {
+  if (!isClient) {
+    console.warn('Import requires a browser environment');
+    return;
+  }
   const target = event.target as HTMLInputElement;
   const file = target.files?.[0];
   if (!file) return;
@@ -196,11 +205,11 @@ const handleKeydown = (event: KeyboardEvent) => {
 
 // Mount/unmount keyboard listeners
 onMounted(() => {
-  document.addEventListener('keydown', handleKeydown);
+  if (isClient) document.addEventListener('keydown', handleKeydown);
 });
 
 onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown);
+  if (isClient) document.removeEventListener('keydown', handleKeydown);
 });
 </script>
 

@@ -4,6 +4,7 @@ import type { ArtworkPin, Coordinates, MapBounds, ArtworkDetails } from '../type
 import type { MinimalArtworkPin, ArtworkWithPhotos } from '../../../shared/types';
 import { apiService, getErrorMessage, isNetworkError } from '../services/api';
 import { mapCache } from '../utils/mapCache';
+import { canUseLocalStorage } from '../lib/isClient';
 
 /**
  * Artwork and map state management store
@@ -55,14 +56,14 @@ export const useArtworksStore = defineStore('artworks', () => {
 
   // Persist map state to localStorage
   function persistMapState(): void {
-    if (typeof window === 'undefined') return;
+    if (!canUseLocalStorage()) return;
     try {
       window.localStorage.setItem(
         'map:lastState',
         JSON.stringify({ center: mapCenter.value, zoom: mapZoom.value })
       );
-    } catch {
-      /* ignore */
+    } catch (e) {
+      console.warn('[ARTWORKS] Failed to persist map state to localStorage:', e);
     }
   }
 
@@ -650,13 +651,17 @@ export const useArtworksStore = defineStore('artworks', () => {
               { minimal: true }
             );
             const apiArtworks = resp.data?.artworks || [];
-            const pins = apiArtworks.map((artwork: any): ArtworkPin => ({
-              id: artwork.id,
-              latitude: artwork.lat,
-              longitude: artwork.lon,
-              type: artwork.type_name || 'unknown',
-              photos: artwork.recent_photo ? [artwork.recent_photo] : [],
-            }));
+            const pins = apiArtworks.map((artwork: unknown): ArtworkPin => {
+              const a = artwork as MinimalArtworkPin | ArtworkWithPhotos;
+              const optional = a as unknown as { type_name?: string; recent_photo?: string };
+              return {
+                id: a.id,
+                latitude: a.lat,
+                longitude: a.lon,
+                type: optional.type_name || 'unknown',
+                photos: optional.recent_photo ? [optional.recent_photo] : [],
+              };
+            });
 
             // Merge into shared results and reactive store
             results.push(...pins);

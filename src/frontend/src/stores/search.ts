@@ -2,6 +2,7 @@ import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
 import type { SearchResult } from '../types';
 import { apiService, getErrorMessage, isNetworkError } from '../services/api';
+import { canUseLocalStorage } from '../lib/isClient';
 import { parseListFilters, type ListFilter } from '../utils/listFilters';
 
 /**
@@ -117,15 +118,22 @@ export const useSearchStore = defineStore('search', () => {
       recentQueries.value = recentQueries.value.slice(0, 10);
     }
 
-    // Persist to localStorage
-    try {
-      localStorage.setItem('search-recent-queries', JSON.stringify(recentQueries.value));
-    } catch (err: unknown) {
-      console.warn('Failed to save recent queries to localStorage:', err);
+    // Persist to localStorage (if available)
+    if (canUseLocalStorage()) {
+      try {
+        localStorage.setItem('search-recent-queries', JSON.stringify(recentQueries.value));
+      } catch (err: unknown) {
+        console.warn('Failed to save recent queries to localStorage:', err);
+      }
     }
   }
 
   function loadRecentQueries(): void {
+    if (!canUseLocalStorage()) {
+      recentQueries.value = [];
+      return;
+    }
+
     try {
       const stored = localStorage.getItem('search-recent-queries');
       if (stored) {
@@ -139,10 +147,12 @@ export const useSearchStore = defineStore('search', () => {
 
   function clearRecentQueries(): void {
     recentQueries.value = [];
-    try {
-      localStorage.removeItem('search-recent-queries');
-    } catch (err: unknown) {
-      console.warn('Failed to clear recent queries from localStorage:', err);
+    if (canUseLocalStorage()) {
+      try {
+        localStorage.removeItem('search-recent-queries');
+      } catch (err: unknown) {
+        console.warn('Failed to clear recent queries from localStorage:', err);
+      }
     }
   }
 

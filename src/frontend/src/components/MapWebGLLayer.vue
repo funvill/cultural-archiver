@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onUnmounted, nextTick, toRaw } from 'vue'
+import { isClient } from '../lib/isClient'
 import { Deck } from '@deck.gl/core'
 import { ScatterplotLayer, TextLayer, IconLayer } from '@deck.gl/layers'
 import type { ClusterFeature } from '../composables/useSupercluster'
@@ -28,7 +29,7 @@ const deck = ref<Deck | null>(null)
  * Initialize deck.gl with Leaflet map sync
  */
 function initDeck() {
-  if (!containerRef.value || !props.map) return
+  if (!isClient || !containerRef.value || !props.map) return
 
   const mapContainer = props.map.getContainer()
   const canvas = document.createElement('canvas')
@@ -39,7 +40,7 @@ function initDeck() {
   // we'll listen on the map container and query deck for picks.
   canvas.style.pointerEvents = 'none'
   canvas.style.zIndex = '400' // Above markers (200) but below controls (800+)
-  mapContainer.appendChild(canvas)
+  try { mapContainer.appendChild(canvas) } catch (e) { /* ignore in constrained env */ }
 
   // Cast Deck constructor to any to avoid TypeScript instantiation depth errors
   deck.value = new (Deck as any)({
@@ -52,7 +53,7 @@ function initDeck() {
   // Add container-level mouse listeners so we can pick deck objects without
   // blocking Leaflet's pan/drag handling. The canvas remains pointer-events:none.
   try {
-    const container = props.map.getContainer();
+  const container = props.map.getContainer();
 
   // track hover id if needed in future (not used currently)
 
@@ -94,8 +95,10 @@ function initDeck() {
       }
     };
 
-    container.addEventListener('mousemove', handleMove);
-    container.addEventListener('click', handleClick);
+    try {
+      container.addEventListener('mousemove', handleMove);
+      container.addEventListener('click', handleClick);
+    } catch (e) { /* ignore in constrained env */ }
 
     // cleanup on unmount
     const removeHandlers = () => {

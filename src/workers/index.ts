@@ -181,6 +181,7 @@ import {
   getPagesSitemap,
 } from './routes/sitemap';
 import imagesRouter from './routes/images';
+import { handlePrerenderRequest } from './lib/prerender';
 
 // Initialize Hono app
 const app = new Hono<{ Bindings: WorkerEnv }>();
@@ -1438,7 +1439,7 @@ app.get('/api/logbook', async c => {
 // ================================
 
 // 404 handler
-app.notFound(c => {
+app.notFound(async c => {
   const path = c.req.path;
   
   // For API routes, return JSON with endpoint list
@@ -1506,7 +1507,26 @@ app.notFound(c => {
     );
   }
 
-  // For non-API routes, return HTML error page
+  // For non-API routes, try prerendering HTML if the client expects HTML
+  const accept = c.req.header('Accept') || '';
+  if (accept.includes('text/html') && !path.startsWith('/photos/')) {
+    // Delegate to prerender handler which will check KV and optionally SSR
+    try {
+      const envAny = c.env as any;
+      const resp = await handlePrerenderRequest(c.req.raw, {
+        PRERENDER_SNAPSHOTS: envAny.PRERENDER_SNAPSHOTS,
+        PRERENDER_INDEX: envAny.PRERENDER_INDEX,
+        PRERENDER_JSONLD: envAny.PRERENDER_JSONLD,
+        DB: envAny.DB,
+      });
+      return resp;
+    } catch (err) {
+      log.error('Prerender handler failed', { error: err });
+      return renderErrorPage(c, 500, 'Prerender failed');
+    }
+  }
+
+  // Fallback to the rendered error page for non-HTML or if prerender isn't applicable
   return renderErrorPage(c, 404, 'The requested page was not found');
 });
 

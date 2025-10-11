@@ -6,6 +6,7 @@
 import { ref, computed, type Ref } from 'vue';
 import { apiService as api } from '../services/api';
 import type { ListApiResponse, ArtworkApiResponse } from '../../../shared/types';
+import { isClient } from '../lib/isClient';
 
 export interface UserListsState {
   visited: Set<string>;
@@ -275,9 +276,13 @@ export function useUserLists(): UserListsApi {
     await fetchUserLists();
   };
 
-  // Initialize lists on first access - only if cache is empty and not already loading
-  if (globalUserListsCache.value.length === 0 && !globalIsLoading.value && globalCacheTimestamp.value === 0) {
-    fetchUserLists();
+  // Initialize lists on first access - only in client runtimes.
+  // Avoid network calls during SSR/module-evaluation by deferring the fetch.
+  if (isClient && globalUserListsCache.value.length === 0 && !globalIsLoading.value && globalCacheTimestamp.value === 0) {
+    // schedule after current microtask to avoid synchronous network during module init
+    Promise.resolve().then(() => {
+      void fetchUserLists();
+    });
   }
 
   return {

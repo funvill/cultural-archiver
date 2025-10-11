@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
+import { isClient } from '../lib/isClient';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -32,7 +33,7 @@ export const useToastsStore = defineStore('toasts', () => {
     toasts.value.push(item);
 
     const ms = toast.timeoutMs ?? 4000;
-    if (ms > 0) {
+    if (ms > 0 && isClient) {
       setTimeout(() => removeToast(id), ms);
     }
     return id;

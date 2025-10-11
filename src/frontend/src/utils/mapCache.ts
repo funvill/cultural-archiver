@@ -10,6 +10,7 @@
  * ~5-10MB limits, consider migrating to IndexedDB with an identical API surface.
  */
 import type { ArtworkPin, MapBounds } from '../types';
+import { canUseLocalStorage } from '../lib/isClient';
 
 export interface CachedPin extends ArtworkPin {
   cachedAt: number; // epoch ms
@@ -25,9 +26,9 @@ function now(): number {
 }
 
 function loadAll(): CacheShape {
-  if (typeof window === 'undefined') return {};
+  if (!canUseLocalStorage()) return {};
   try {
-    const raw = window.localStorage.getItem(CACHE_KEY);
+    const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw) as CacheShape;
     if (parsed && typeof parsed === 'object') return parsed;
@@ -38,9 +39,9 @@ function loadAll(): CacheShape {
 }
 
 function saveAll(data: CacheShape): void {
-  if (typeof window === 'undefined') return;
+  if (!canUseLocalStorage()) return;
   try {
-    window.localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
   } catch {
     // Storage quota exceeded or disabled; ignore to avoid breaking UX
   }
@@ -106,9 +107,9 @@ export const mapCache = {
 
   // Clear cache completely
   clear(): void {
-    if (typeof window === 'undefined') return;
+    if (!canUseLocalStorage()) return;
     try {
-      window.localStorage.removeItem(CACHE_KEY);
+      localStorage.removeItem(CACHE_KEY);
     } catch {
       /* ignore */
     }

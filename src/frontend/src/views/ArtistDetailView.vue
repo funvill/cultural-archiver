@@ -11,6 +11,8 @@ import FeedbackDialog from '../components/FeedbackDialog.vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { useToasts } from '../composables/useToasts';
 import { apiService } from '../services/api';
+import { getMetaForRoute } from '../lib/seo-config';
+import { useRouteMeta, createArtistSchema } from '../lib/meta';
 import type { ArtistApiResponse, ApiResponse } from '../../../shared/types';
 
 // Props
@@ -124,6 +126,47 @@ async function loadArtist() {
         tags: artist.value.tags_parsed || {},
       };
       originalData.value = { ...editData.value };
+      // --- SEO: dynamic metadata for artist ---
+      try {
+        const base = getMetaForRoute('artist');
+        const title = `${artist.value.name} - Public Art Registry`;
+        const description = (artist.value.description && (artist.value.description as string).slice(0, 160)) || base.description;
+  const canonical = typeof window !== 'undefined' && window.location ? `${window.location.origin}${router.currentRoute.value.fullPath}` : router.currentRoute.value.fullPath;
+
+
+        const metadata = {
+          title,
+          description,
+          canonical,
+          ogImage: (artist.value.artworks && artist.value.artworks[0]?.recent_photo) || undefined,
+          ogType: 'profile',
+        } as import('../lib/seo-config').RouteMetadata;
+
+        // Derive sameAs links from parsed tags if available (tags_parsed may include website/social links)
+        let sameAs: string[] = [];
+        try {
+          const tagsParsed = artist.value.tags_parsed || {};
+          if (Array.isArray((tagsParsed as any).sameAs)) {
+            sameAs = (tagsParsed as any).sameAs as string[];
+          } else if (typeof (tagsParsed as any).website === 'string') {
+            sameAs = [(tagsParsed as any).website];
+          }
+        } catch (err) {
+          // ignore
+        }
+
+        const jsonld = createArtistSchema({
+          id: artist.value.id,
+          name: artist.value.name,
+          bio: artist.value.description || '',
+          sameAs,
+        });
+
+        useRouteMeta(metadata, jsonld);
+      } catch (err) {
+        // Don't block rendering on SEO helper failures
+        console.warn('Failed to set artist SEO metadata', err);
+      }
     }
   } catch (err) {
     console.error('Failed to load artist:', err);

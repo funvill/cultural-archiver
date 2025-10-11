@@ -79,7 +79,17 @@ export const artworkSubmissionService = {
       };
     } catch (e) {
       console.error('[FAST SUBMIT] Submission failed', e);
-      return { id: crypto.randomUUID(), message: 'Submission failed offline' };
+      // crypto.randomUUID may not be available in SSR or older runtimes
+      try {
+        const maybeCrypto = crypto as unknown as { randomUUID?: () => string } | undefined;
+        if (maybeCrypto && typeof maybeCrypto.randomUUID === 'function') {
+          return { id: maybeCrypto.randomUUID(), message: 'Submission failed offline' };
+        }
+      } catch (err) {
+        // ignore
+      }
+      // Fallback deterministic-ish id
+      return { id: 'offline-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 100000).toString(36), message: 'Submission failed offline' };
     }
   },
 };

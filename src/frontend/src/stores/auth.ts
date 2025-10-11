@@ -2,6 +2,7 @@ import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
 import type { User, MagicLinkRequest, MagicLinkConsumeRequest, Permission } from '../types';
 import { apiService, getErrorMessage } from '../services/api';
+import { canUseLocalStorage, isClient } from '../lib/isClient';
 
 /**
  * Authentication store for managing user state and tokens
@@ -39,7 +40,13 @@ export const useAuthStore = defineStore('auth', () => {
   function setToken(tokenValue: string): void {
     token.value = tokenValue;
     // Store token in localStorage for persistence
-    localStorage.setItem('user-token', tokenValue);
+    if (canUseLocalStorage()) {
+      try {
+        localStorage.setItem('user-token', tokenValue);
+      } catch (e) {
+        console.warn('[AUTH DEBUG] Failed to persist token to localStorage:', e);
+      }
+    }
   }
 
   function setPermissions(userPermissions: Permission[]): void {
@@ -50,7 +57,13 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null;
     token.value = null;
     permissions.value = [];
-    localStorage.removeItem('user-token');
+    if (canUseLocalStorage()) {
+      try {
+        localStorage.removeItem('user-token');
+      } catch (e) {
+        console.warn('[AUTH DEBUG] Failed to remove token from localStorage:', e);
+      }
+    }
     error.value = null;
   }
 
@@ -78,8 +91,8 @@ export const useAuthStore = defineStore('auth', () => {
     try {
       setLoading(true);
 
-      // Check for existing token in localStorage first
-      const storedToken = localStorage.getItem('user-token');
+  // Check for existing token in localStorage first (client only)
+  const storedToken = canUseLocalStorage() ? localStorage.getItem('user-token') : null;
       console.log('[AUTH DEBUG] Checking localStorage for existing token:', {
         storedToken: storedToken,
         currentToken: token.value,
@@ -330,22 +343,41 @@ export const useAuthStore = defineStore('auth', () => {
         error: err,
         message: err instanceof Error ? err.message : 'Unknown error',
       });
-      // Fallback to client-generated UUID
-      const fallbackToken = crypto.randomUUID();
-      setToken(fallbackToken);
-      const userData: User = {
-        id: fallbackToken,
-        email: '',
-        emailVerified: false,
-        isModerator: false,
-        canReview: false,
-        createdAt: new Date().toISOString(),
-      };
-      setUser(userData);
-      console.log('[AUTH DEBUG] Using fallback client-generated token:', {
-        token: fallbackToken,
-        user_id: userData.id,
-      });
+      // Fallback to client-generated UUID when available
+      if (isClient && typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        const fallbackToken = crypto.randomUUID();
+        setToken(fallbackToken);
+        const userData: User = {
+          id: fallbackToken,
+          email: '',
+          emailVerified: false,
+          isModerator: false,
+          canReview: false,
+          createdAt: new Date().toISOString(),
+        };
+        setUser(userData);
+        console.log('[AUTH DEBUG] Using fallback client-generated token:', {
+          token: fallbackToken,
+          user_id: userData.id,
+        });
+      } else {
+        // As a last resort for non-client environments, generate a simple UUID-like fallback
+        const fallbackToken = 'anon-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 100000).toString(36);
+        setToken(fallbackToken);
+        const userData: User = {
+          id: fallbackToken,
+          email: '',
+          emailVerified: false,
+          isModerator: false,
+          canReview: false,
+          createdAt: new Date().toISOString(),
+        };
+        setUser(userData);
+        console.log('[AUTH DEBUG] Using server-safe fallback token:', {
+          token: fallbackToken,
+          user_id: userData.id,
+        });
+      }
     }
   }
 

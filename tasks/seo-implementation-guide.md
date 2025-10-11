@@ -88,9 +88,9 @@ Get-ChildItem -Recurse -Include *.vue,*.md | Select-String -Pattern "�|â€�
    ```
 
 **Acceptance**:
-- [ ] `@vueuse/head` in `package.json` dependencies
-- [ ] Head manager registered in `src/frontend/src/main.ts`
-- [ ] No errors when running `npm run dev`
+- [x] `@vueuse/head` in `package.json` dependencies
+- [x] Head manager registered in `src/frontend/src/main.ts`
+- [x] No errors when running `npm run dev`
 
 **Testing**:
 ```powershell
@@ -143,10 +143,10 @@ npm run dev
    ```
 
 **Acceptance**:
-- [ ] File created at `src/frontend/src/lib/seo-config.ts`
-- [ ] Contains metadata for at least: home, map, artwork detail, artist pages
+- [x] File created at `src/frontend/src/lib/seo-config.ts`
+- [x] Contains metadata for at least: home, map, artwork detail, artist pages
 - [ ] All descriptions between 120-160 characters
-- [ ] All canonical URLs use production domain
+- [x] All canonical URLs use production domain
 
 ---
 
@@ -203,10 +203,10 @@ npm run dev
    ```
 
 **Acceptance**:
-- [ ] File created at `src/frontend/src/lib/meta.ts`
-- [ ] Exports `useRouteMeta` function
-- [ ] Includes Open Graph tags for Slack compatibility
-- [ ] Supports optional JSON-LD structured data
+- [x] File created at `src/frontend/src/lib/meta.ts`
+- [x] Exports `useRouteMeta` function
+- [x] Includes Open Graph tags for Slack compatibility
+- [x] Supports optional JSON-LD structured data
 
 ---
 
@@ -303,9 +303,9 @@ npm run dev
    ```
 
 **Acceptance**:
-- [ ] Helper functions added to `src/frontend/src/lib/meta.ts`
-- [ ] Functions return valid Schema.org JSON-LD
-- [ ] Handle optional fields gracefully (artist, description, etc.)
+- [x] Helper functions added to `src/frontend/src/lib/meta.ts`
+- [x] Functions return valid Schema.org JSON-LD
+- [x] Handle optional fields gracefully (artist, description, etc.)
 
 ---
 
@@ -338,10 +338,10 @@ npm run dev
    ```
 
 **Acceptance**:
-- [ ] Home page has `<title>` tag visible in browser
-- [ ] Meta description present
-- [ ] Open Graph tags present (verify in browser dev tools)
-- [ ] JSON-LD script present with Organization and WebSite types
+- [x] Home page has `<title>` tag visible in browser
+- [x] Meta description present
+- [x] Open Graph tags present (verify in browser dev tools)
+- [x] JSON-LD script present with Organization and WebSite types
 
 **Testing**:
 ```javascript
@@ -402,11 +402,11 @@ document.querySelector('script[type="application/ld+json"]').textContent
    ```
 
 **Acceptance**:
-- [ ] Artwork pages show artwork title in browser tab
-- [ ] Meta description includes artist name and title
-- [ ] `og:image` uses first photo from artwork
-- [ ] JSON-LD contains VisualArtwork schema
-- [ ] Meta tags update when navigating between artworks
+- [x] Artwork pages show artwork title in browser tab
+- [x] Meta description includes artist name and title
+- [x] `og:image` uses first photo from artwork
+- [x] JSON-LD contains VisualArtwork schema
+- [x] Meta tags update when navigating between artworks
 
 **Testing**:
 ```powershell
@@ -436,9 +436,9 @@ document.querySelector('script[type="application/ld+json"]').textContent
    ```
 
 **Acceptance**:
-- [ ] Map page has descriptive title
-- [ ] Meta description present
-- [ ] Canonical URL points to `/map`
+- [x] Map page has descriptive title
+- [x] Meta description present
+- [x] Canonical URL points to `/map`
 
 ---
 
@@ -591,10 +591,10 @@ wrangler dev
    ```
 
 **Acceptance**:
-- [ ] File created at `src/workers/lib/kv-cache.ts`
-- [ ] Exports `getSnapshot`, `saveSnapshot`, `hashContent`, `canonicalize`
-- [ ] Handles missing snapshots gracefully
-- [ ] Enforces KV size limits
+- [x] File created at `src/workers/lib/kv-cache.ts`
+- [x] Exports `getSnapshot`, `saveSnapshot`, `hashContent`, `canonicalize`
+- [x] Handles missing snapshots gracefully
+- [x] Enforces KV size limits
 
 ---
 
@@ -614,8 +614,8 @@ wrangler dev
    ```
 
 **Acceptance**:
-- [ ] `@vue/server-renderer` in `package.json`
-- [ ] Version matches Vue version (e.g., both 3.x)
+- [x] `@vue/server-renderer` in `package.json`
+- [x] Version matches Vue version (e.g., both 3.x)
 
 ---
 
@@ -762,10 +762,10 @@ wrangler dev
 - Consider rendering simplified HTML for SSR and hydrating on client
 
 **Acceptance**:
-- [ ] File created at `src/workers/lib/ssr.ts`
-- [ ] Exports `renderSSR` function
-- [ ] Returns HTML with meta tags and JSON-LD
-- [ ] Handles different route types (home, artwork, artist, etc.)
+- [x] File created at `src/workers/lib/ssr.ts`
+- [x] Exports `renderSSR` function
+- [x] Returns HTML with meta tags and JSON-LD
+- [x] Handles different route types (home, artwork, artist, etc.)
 
 ---
 
@@ -852,12 +852,12 @@ wrangler dev
    ```
 
 **Acceptance**:
-- [ ] File created at `src/workers/lib/prerender.ts`
-- [ ] Exports `handlePrerenderRequest` function
-- [ ] Returns 304 when ETag matches
-- [ ] Serves KV snapshot when available
-- [ ] Falls back to SSR when no snapshot exists
-- [ ] Saves new snapshots to KV asynchronously
+- [x] File created at `src/workers/lib/prerender.ts`
+- [x] Exports `handlePrerenderRequest` function
+- [x] Returns 304 when ETag matches
+- [x] Serves KV snapshot when available
+- [x] Falls back to SSR when no snapshot exists
+- [x] Saves new snapshots to KV asynchronously
 
 ---
 
@@ -948,7 +948,7 @@ wrangler dev
    ```
 
 **Acceptance**:
-- [ ] `invalidateSnapshot` function added to `kv-cache.ts`
+- [x] `invalidateSnapshot` function added to `kv-cache.ts`
 - [ ] Called after artwork approval
 - [ ] Called after artist updates
 - [ ] Called after photo changes
@@ -1089,10 +1089,10 @@ npm run test -- src/test/seo.meta.spec.ts
    ```
 
 **Acceptance**:
-- [ ] Artist pages show artist name in title
-- [ ] Static pages (About, etc.) have descriptive titles
-- [ ] Submit page has appropriate title
-- [ ] All pages have canonical URLs
+- [x] Artist pages show artist name in title
+- [x] Static pages (About, etc.) have descriptive titles
+- [x] Submit page has appropriate title
+- [x] All pages have canonical URLs
 
 ---
 
@@ -1261,3 +1261,160 @@ After implementation, you should see:
 - Submit sitemap to Google Search Console
 - Request re-indexing for key pages
 - Set up analytics to track organic traffic improvements
+
+---
+
+## Progress & Handoff
+
+This section documents what has been implemented so far, the immediate next steps, and practical notes for a developer taking over the SEO/SSR work.
+
+### What has been implemented (high-level)
+
+- Chosen SSR strategy: Full SSR (Option A) — we build a Vite SSR server bundle and invoke it from the Worker at runtime.
+- SSR server bundle: a server entry was added and an SSR build produces `dist-ssr/ssr-entry-server.js` (frontend). The Worker dynamically imports this compiled bundle at runtime to avoid cross-package TypeScript build issues.
+- Worker prerender flow: `src/workers/lib/prerender.ts` now checks KV (`PRERENDER_INDEX`, `PRERENDER_SNAPSHOTS`), returns cached HTML with ETag when available, falls back to SSR rendering, and saves snapshots asynchronously.
+- KV helpers: `src/workers/lib/kv-cache.ts` contains `getSnapshot`, `saveSnapshot`, `hashContent`, `canonicalize`, and an `invalidateSnapshot` helper for cache invalidation.
+- Metadata helpers: `src/frontend/src/lib/meta.ts` provides `useRouteMeta(...)` and Schema.org JSON-LD helpers for Organization, WebSite, VisualArtwork, and Person.
+- Head manager added: `@vueuse/head` is used for dynamic head management (registered in `main.ts`), and views were wired to use `useRouteMeta` (home, artwork, map, artist pages).
+- Partial SSR-safety fixes: several frontend modules were patched to guard browser globals that break server rendering (examples: `NotFoundView.vue`, `ArtworkDetailView.vue`, `ArtistDetailView.vue`).
+- Tooling and type-safety: Vite SSR build configuration was adjusted (manualChunks removed) and the workspace TypeScript checks were iteratively fixed — `npm run type-check` now passes after these changes.
+
+### Important files to review first
+
+- `src/frontend/src/ssr-entry-server.ts` — server entry that exposes `render(url)` (used by SSR bundle).
+- `src/frontend/vite.config.ts` — SSR build config (note: manualChunks adjustment was required).
+- `src/frontend/package.json` — scripts for building client/SSR bundles (e.g., `build:client`, `build:ssr`, `build:all`).
+- `src/frontend/src/lib/meta.ts` — meta tag + JSON-LD helpers used by views.
+- `src/workers/lib/ssr.ts` — worker-side SSR adapter (dynamically imports compiled SSR bundle and calls `render()`).
+- `src/workers/lib/prerender.ts` — main prerender request handler (KV check → SSR → save snapshot → response with ETag).
+- `src/workers/lib/kv-cache.ts` — KV snapshot helpers (hashing, save/get canonical snapshots, invalidateSnapshot).
+- `src/workers/global.d.ts` or similar ambient typings for the compiled SSR module (keeps TypeScript happy).
+
+### KV bindings required (Cloudflare names)
+
+Be sure your `wrangler.toml` (or Cloudflare dashboard) has these KV namespace bindings:
+
+- `PRERENDER_SNAPSHOTS`
+- `PRERENDER_INDEX`
+- `PRERENDER_JSONLD` (optional but recommended)
+
+These names are referenced directly in the worker code.
+
+### How to run locally (quick commands)
+
+- Build frontend client + SSR bundles (from repo root):
+
+```powershell
+# from repo root
+cd src/frontend
+npm install
+# either of the following depending on scripts available
+npm run build:all   # builds client + SSR if present
+# --or--
+npm run build:client && npm run build:ssr
+```
+
+- Run TypeScript checks across workspace (helpful before edits):
+
+```powershell
+# from repo root
+npm run type-check
+```
+
+- Start Worker locally (requires wrangler configured):
+
+```powershell
+wrangler dev
+# then visit http://localhost:8787/ or use curl with Accept: text/html
+```
+
+- Run frontend tests (Vitest):
+
+```powershell
+npm run test
+```
+
+Notes:
+- The Worker relies on the compiled SSR bundle in `src/frontend/dist-ssr/` (a runtime `import()` in the Worker loads it). Make sure the SSR build output is present before starting `wrangler dev` for Worker rendering to work.
+- When iterating on server rendering, rebuild the SSR bundle and restart the Worker.
+
+### What still needs to be done (high priority)
+
+1. Finish the frontend SSR-safety audit
+   - Search the codebase for top-level uses of `window`, `document`, `localStorage`, `navigator`, and `import.meta.env` that run during module evaluation. Either guard them behind runtime checks (e.g., if (typeof window !== 'undefined')) or move usage into lifecycle hooks so SSR evaluation won't throw.
+   - Specific spots to check: map/Leaflet integrations, any code that uses `window.location` at module scope, and stores that access `localStorage` on import.
+
+2. Implement cache invalidation and re-render-on-update flows
+   - Call `invalidateSnapshot()` (or delete the index entry) after operations that change content (artwork approval, artist updates, photo changes).
+   - Consider background re-render tasks or an authenticated admin endpoint to trigger re-render of affected paths.
+
+3. Implement stale-while-revalidate (optional but recommended)
+   - Serve a stale snapshot immediately and queue an async re-render to update KV. This improves latency on cache misses and makes updates less disruptive.
+
+4. Add automated tests (Vitest + Miniflare)
+   - Tests should cover: KV hit returns stored HTML and ETag (and 304 behavior), KV miss triggers SSR and saves snapshot, SSR output includes expected head/meta/JSON-LD for sample routes.
+
+5. CI & deployment updates
+   - Ensure CI runs `npm run build:ssr` and packages `dist-ssr/` with the Worker deployment artifacts.
+   - Update deployment docs and `wrangler.toml` so the Worker sees the compiled SSR bundle and KV bindings in production.
+
+### Operational notes & gotchas
+
+- KV size limit: Cloudflare KV values must be <25 MB. `saveSnapshot()` checks this and will throw if exceeded.
+- ETag format: the Worker code quotes ETag values (e.g., `"etag"`) — be consistent when comparing `If-None-Match` headers.
+- Absolute image URLs: ensure `og:image` and images in JSON-LD are absolute (start with https://) so Slack, Twitter, and crawlers can fetch them.
+- Browser-only libs: Leaflet, certain map libs, and DOM-manipulating utilities won't run in SSR. For those routes, either render a simplified server-side markup or skip SSR for that part and rely on client hydration.
+- TypeScript cross-package imports: do not import `.vue` or frontend source files directly from the worker package. The current approach compiles the SSR bundle and the Worker dynamically imports the compiled JS to avoid tsc pulling SFCs into worker compilation.
+
+### Suggested immediate handoff tasks for the next developer
+
+- Complete the SSR-safety audit and make a small PR that guards found issues; run `npm run type-check` and `npm run build:ssr` to verify.
+- Add one or two Vitest + Miniflare tests covering / and /artwork/:id to prove end-to-end prerender + KV snapshot behavior.
+- Add a CI step that runs `cd src/frontend && npm run build:ssr && npm run build:client` before the worker build step, and ensure the worker packaging includes the `dist-ssr/` directory.
+
+### Contact points in this repo
+
+- README and docs: `docs/` (see `docs/database.md`, `photo-processing.md`, and `frontend-architecture.md` for related context).
+- SEO tasks: `tasks/seo.md` and this `tasks/seo-implementation-guide.md`.
+- For any runtime/Cloudflare questions, check `dev-server-logs.txt` and `production-server-logs.txt` for earlier run outputs.
+
+---
+
+If you want, I can also:
+- Run a repo-wide search for remaining `window`/`document` usages and produce a short actionable list of files to patch next.
+- Create starter Vitest + Miniflare test files and a small CI snippet to run the SSR build before worker packaging.
+
+Let me know which of these you'd like me to do next.
+
+---
+
+## Handoff (2025-10-11)
+
+Status: Core SSR + SEO plumbing implemented. The repository contains:
+
+- Frontend meta helpers: `src/frontend/src/lib/meta.ts` (useRouteMeta, JSON-LD helpers).
+- SEO config: `src/frontend/src/lib/seo-config.ts`.
+- Worker SSR and prerender helpers: `src/workers/lib/ssr.ts`, `src/workers/lib/prerender.ts`, `src/workers/lib/kv-cache.ts`.
+- Several frontend files patched for SSR-safety (guards for `window`, `document`, `localStorage`). Type-check and both client + SSR builds have been run successfully in this session.
+
+High-priority next steps for the incoming developer:
+
+1. Finish the SSR-safety audit: search for remaining unguarded top-level uses of `window`, `document`, `localStorage`, `navigator`, and `BroadcastChannel` and guard or defer them. Files to prioritize: `StatusView.vue`, `NewArtworkView.vue`, `ArtworkEditView.vue`, `stores/notifications.ts`.
+
+2. Add Vitest + Miniflare tests to validate Worker prerender flows for `/` and `/artwork/:id` (verify `x-prerender-source`, ETag/304, and JSON-LD presence).
+
+3. Wire cache invalidation into content update flows (artwork approval, artist updates, photo changes) so KV snapshots are refreshed after content changes.
+
+4. (Optional) Address client bundle size warnings by code-splitting heavy modules (MapView, leaflet) or configuring `build.rollupOptions.output.manualChunks` in `vite.config.ts`.
+
+Quick commands to get started locally:
+
+```powershell
+cd src/frontend
+npm run build:all   # builds client + SSR bundles
+cd ../..
+wrangler dev
+```
+
+If you want, I can take one of these tasks now — either continue the SSR-safety patch pass or scaffold the Vitest + Miniflare tests and run them. Reply with which you'd like next.
+

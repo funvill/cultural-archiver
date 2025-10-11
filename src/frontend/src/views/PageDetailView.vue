@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, nextTick } from 'vue';
+import { isClient } from '../lib/isClient';
 import { useRoute, useRouter } from 'vue-router';
 import { marked } from 'marked';
 import DOMPurify from 'isomorphic-dompurify';
@@ -117,9 +118,13 @@ const loadPage = async (): Promise<void> => {
     await nextTick();
     addHeadingAnchors();
 
-    // Set page title for SEO
-    if (page.value && page.value.title) {
-      document.title = `${page.value.title} - Public Art Registry`;
+    // Set page title for SEO (client-only)
+    if (isClient && page.value && page.value.title) {
+      try {
+        document.title = `${page.value.title} - Public Art Registry`;
+      } catch (e) {
+        console.warn('Unable to set document.title during hydration:', e);
+      }
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unknown error';
@@ -136,14 +141,25 @@ const goBack = (): void => {
 // Add anchor buttons to headings inside the rendered markdown, copy link to clipboard
 const copyToClipboard = async (text: string) => {
   try {
-    await navigator.clipboard.writeText(text);
+    if (isClient && navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
   } catch (err) {
-    // Fallback for older browsers
+    // fallthrough to DOM fallback
+  }
+
+  // Fallback for older browsers or non-clipboard environments (client-only)
+  if (isClient) {
     const ta = document.createElement('textarea');
     ta.value = text;
     document.body.appendChild(ta);
     ta.select();
-    document.execCommand('copy');
+    try {
+      document.execCommand('copy');
+    } catch (e) {
+      console.warn('Clipboard fallback failed:', e);
+    }
     document.body.removeChild(ta);
   }
 };
@@ -162,11 +178,15 @@ const addHeadingAnchors = (): void => {
     btn.innerHTML = `<svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M7.775 3.275a.75.75 0 011.06 1.06L6.56 6.61a2 2 0 102.829 2.828l1.312-1.312a.75.75 0 111.06 1.06L10.45 10.5a3.5 3.5 0 11-4.95-4.95l2.276-2.276z"/></svg>`;
     btn.addEventListener('click', (e: MouseEvent) => {
       e.stopPropagation();
-      const url = `${location.origin}${location.pathname}#${id}`;
+      const origin = (typeof location !== 'undefined' && location.origin) ? location.origin : '';
+      const path = (typeof location !== 'undefined' && location.pathname) ? location.pathname : '';
+      const url = `${origin}${path}#${id}`;
       copyToClipboard(url);
-      // small visual feedback
-      btn.classList.add('copied');
-      setTimeout(() => btn.classList.remove('copied'), 1200);
+      // small visual feedback (client-only)
+      if (isClient) {
+        btn.classList.add('copied');
+        setTimeout(() => btn.classList.remove('copied'), 1200);
+      }
     });
     h.appendChild(btn);
     h.dataset.anchorAttached = '1';

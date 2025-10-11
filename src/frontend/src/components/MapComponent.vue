@@ -24,7 +24,9 @@ function renderHeroIconToString(iconComponent: any, props: Record<string, any> =
     return '';
   }
 }
-import L from 'leaflet';
+// Leaflet is browser-only; do not import synchronously during SSR. We'll dynamically
+// load it on the client in lifecycle hooks. Keep CSS import for bundlers.
+let L: any = undefined;
 import 'leaflet/dist/leaflet.css';
 // MarkerCluster (DOM-based) removed: we render markers with WebGL (deck.gl)
 import type { Coordinates, ArtworkPin, MapComponentProps } from '../types/index';
@@ -64,7 +66,7 @@ const log = createLogger({ module: 'frontend:MapComponent' });
 
 // State
 const mapContainer = ref<HTMLDivElement>();
-const map = ref<L.Map>();
+const map = ref<any>(null);
 const isLoading = ref(true);
 const isLocating = ref(false);
 const error = ref<string | null>(null);
@@ -107,7 +109,7 @@ const isProgressiveLoading = ref(false);
 
 // Small helper placeholders and shared refs
 const hasGeolocation = ref(typeof navigator !== 'undefined' && !!navigator.geolocation);
-const userLocationMarker = ref<L.Marker | null>(null);
+const userLocationMarker = ref<any>(null);
 const userWatchId = ref<number | null>(null);
 const userHeading = ref<number>(0);
 
@@ -152,7 +154,10 @@ function saveMapState() {
   const center = map.value.getCenter();
   const zoom = map.value.getZoom();
   try {
-    localStorage.setItem(MAP_STATE_KEY, JSON.stringify({ center: { latitude: center.lat, longitude: center.lng }, zoom }));
+    // guard localStorage access for SSR
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(MAP_STATE_KEY, JSON.stringify({ center: { latitude: center.lat, longitude: center.lng }, zoom }));
+    }
   } catch (e) {
     // ignore
   }
@@ -160,6 +165,7 @@ function saveMapState() {
 
 function readSavedMapState(): { center: Coordinates; zoom: number } | null {
   try {
+    if (typeof localStorage === 'undefined') return null;
     const raw = localStorage.getItem(MAP_STATE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
@@ -214,17 +220,28 @@ const createUserLocationIcon = () => {
       <path d="M6 20a6 6 0 0112 0" fill="#ffffff"/>
     </svg>
   `;
-
-  return L.divIcon({
-    html: `
+  // Use the Leaflet instance if available, otherwise return a plain object that
+  // is safe to create during SSR. Callers that require a real Leaflet Icon should
+  // only call this on the client after Leaflet is loaded.
+  const leafletGlobal = getLeafletGlobal();
+  const innerHtml = `
       <div class="user-location-marker flex items-center justify-center bg-red-600 rounded-full" style="width:${size}px;height:${size}px;border:4px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.25);">
         ${typeof document !== 'undefined' ? renderHeroIconToString(UserIcon, { class: 'w-7 h-7 text-white', 'aria-hidden': 'true' }) : personSvg}
       </div>
-    `,
+    `;
+
+  if (leafletGlobal && typeof leafletGlobal.divIcon === 'function') {
+    return leafletGlobal.divIcon({ html: innerHtml, className: 'custom-user-location-icon', iconSize: [size, size], iconAnchor: [half, half] });
+  }
+
+  // Fallback: return a lightweight object compatible enough for templates or
+  // non-interactive usage during SSR.
+  return {
+    html: innerHtml,
     className: 'custom-user-location-icon',
     iconSize: [size, size],
     iconAnchor: [half, half],
-  });
+  } as any;
 };
 
 // Expose a no-op clearListCaches so parent components can call it safely
@@ -318,7 +335,8 @@ function buildWebGLClusters() {
           viewportBounds.getSouth(),
           viewportBounds.getEast(),
           viewportBounds.getNorth()
-        ];        const clustersRaw = webglClustering.getClusters(bbox, currentZoom);
+        ];
+        const clustersRaw = webglClustering.getClusters(bbox, currentZoom);
         const clusters = clustersRaw.map(feature => {
           const isCluster = Boolean(feature.properties?.cluster);
           const pointCount = isCluster ? (feature.properties?.point_count as number | undefined) ?? 0 : 1;
@@ -501,7 +519,7 @@ async function initializeMap() {
     }).addTo(map.value);
 
     // Add error handling for tile loading
-    tileLayer.on('tileerror', e => {
+    tileLayer.on('tileerror', (e: any) => {
       log.error('Tile loading error:', e);
       log.error('Tile error details:', {
         coords: e.coords,

@@ -249,10 +249,12 @@ const previewAsSearchResult = computed((): SearchResult | null => {
   };
 });
 
+import { isClient, canUseLocalStorage } from '../lib/isClient';
+
 // Expose a small hook to allow automated tests to show a preview from the page context.
-// Intentionally attach in browser environments so tests can reliably call it.
-try {
-  if (typeof window !== 'undefined') {
+// Attach only in browser environments so SSR won't attempt to set globals.
+if (isClient) {
+  try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).__ca_test_show_preview = (preview: any) => {
       try {
@@ -261,9 +263,9 @@ try {
         // ignore
       }
     };
+  } catch (e) {
+    // ignore in constrained environments
   }
-} catch (e) {
-  // ignore in constrained environments
 }
 
 // Event handlers
@@ -500,17 +502,19 @@ function handlePreviewClick(artwork: SearchResult) {
 onMounted(() => {
   // Restore last map position from localStorage if available
   try {
-    const saved = localStorage.getItem('map:lastState');
-    if (saved) {
-      const parsed = JSON.parse(saved) as { center: Coordinates; zoom: number };
-      if (
-        parsed?.center?.latitude &&
-        parsed?.center?.longitude &&
-        typeof parsed.zoom === 'number'
-      ) {
-        // Set store first so MapComponent receives the props at initial render
-        artworksStore.setMapCenter(parsed.center);
-        artworksStore.setMapZoom(parsed.zoom);
+    if (canUseLocalStorage()) {
+      const saved = localStorage.getItem('map:lastState');
+      if (saved) {
+        const parsed = JSON.parse(saved) as { center: Coordinates; zoom: number };
+        if (
+          parsed?.center?.latitude &&
+          parsed?.center?.longitude &&
+          typeof parsed.zoom === 'number'
+        ) {
+          // Set store first so MapComponent receives the props at initial render
+          artworksStore.setMapCenter(parsed.center);
+          artworksStore.setMapZoom(parsed.zoom);
+        }
       }
     }
   } catch (e) {
@@ -526,25 +530,29 @@ onMounted(() => {
   displayedArtworks.value = artworksStore.artworks;
 
   // Watch for changes to persist (simple interval to avoid adding watchers here)
-  const persist = () => {
-    try {
-      localStorage.setItem(
-        'map:lastState',
-        JSON.stringify({ center: artworksStore.mapCenter, zoom: artworksStore.mapZoom })
-      );
-    } catch (e) {
-      /* ignore */
-    }
-  };
-  // Persist immediately and then periodically
-  persist();
-  const interval = setInterval(persist, 4000);
-  window.addEventListener('beforeunload', persist);
+  if (isClient) {
+    const persist = () => {
+      try {
+        if (canUseLocalStorage()) {
+          localStorage.setItem(
+            'map:lastState',
+            JSON.stringify({ center: artworksStore.mapCenter, zoom: artworksStore.mapZoom })
+          );
+        }
+      } catch (e) {
+        /* ignore */
+      }
+    };
+    // Persist immediately and then periodically
+    persist();
+    const interval = setInterval(persist, 4000);
+    window.addEventListener('beforeunload', persist);
 
-  onUnmounted(() => {
-    clearInterval(interval);
-    window.removeEventListener('beforeunload', persist);
-  });
+    onUnmounted(() => {
+      clearInterval(interval);
+      try { window.removeEventListener('beforeunload', persist); } catch (e) { /* ignore */ }
+    });
+  }
 
   // Initialize displayed artworks
   updateDisplayedArtworks();

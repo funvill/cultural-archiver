@@ -25,10 +25,16 @@ const environment = import.meta.env.MODE;
 // Stores
 const notificationsStore = useNotificationsStore();
 
-// Check for reduced motion preference
+// imported above
+
+// Check for reduced motion preference (client-only)
 const prefersReducedMotion = computed(() => {
-  if (typeof window === 'undefined') return true;
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!isClient) return true;
+  try {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch (e) {
+    return true;
+  }
 });
 
 // Confetti configuration
@@ -83,31 +89,34 @@ const checkSystemHealth = async (): Promise<void> => {
   }
 };
 
+import { isClient, canUseLocalStorage } from '../lib/isClient';
+
 // Clear local settings (except user token) to allow first-time popup to show again
 const clearLocalSettings = (): void => {
   const confirmMessage =
     'This will clear ALL local data (map cache, preferences, search history, etc.) except your user account. The welcome popup will show again on next page load. Are you sure?';
 
-  if (!confirm(confirmMessage)) {
+  // confirm is client-only
+  if (!isClient || !confirm(confirmMessage)) {
     return;
   }
 
   try {
     // Preserve the user token before clearing
-    const userToken = localStorage.getItem('user-token');
+    const userToken = canUseLocalStorage() ? localStorage.getItem('user-token') : null;
 
     // Clear ALL localStorage
-    localStorage.clear();
+    if (canUseLocalStorage()) localStorage.clear();
 
     // Restore the user token
-    if (userToken) {
+    if (userToken && canUseLocalStorage()) {
       localStorage.setItem('user-token', userToken);
     }
 
-    alert('All local data cleared successfully! Refresh the page to see the welcome popup again.');
+    if (isClient) alert('All local data cleared successfully! Refresh the page to see the welcome popup again.');
   } catch (err) {
     console.error('Failed to clear local data:', err);
-    alert('Failed to clear local data. Please try again.');
+    if (isClient) alert('Failed to clear local data. Please try again.');
   }
 };
 
@@ -190,6 +199,7 @@ function startConfetti() {
 
   // Create canvas element if it doesn't exist
   if (!confettiCanvas.value) {
+    if (!isClient) return;
     const canvas = document.createElement('canvas');
     canvas.style.position = 'fixed';
     canvas.style.top = '0';
@@ -198,10 +208,14 @@ function startConfetti() {
     canvas.style.height = '100%';
     canvas.style.pointerEvents = 'none';
     canvas.style.zIndex = '9999';
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-
-    document.body.appendChild(canvas);
+    try {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      document.body.appendChild(canvas);
+    } catch (e) {
+      console.warn('Failed to create confetti canvas:', e);
+      return;
+    }
     confettiCanvas.value = canvas;
   }
 
@@ -272,13 +286,14 @@ function stopConfetti() {
   isConfettiActive.value = false;
   confettiParticles.value = [];
 
-  if (confettiCanvas.value) {
-    document.body.removeChild(confettiCanvas.value);
-    confettiCanvas.value = null;
-  }
+    if (confettiCanvas.value) {
+      if (isClient) document.body.removeChild(confettiCanvas.value);
+      confettiCanvas.value = null;
+    }
 }
 
 function handleResize() {
+  if (!isClient) return;
   if (confettiCanvas.value) {
     confettiCanvas.value.width = window.innerWidth;
     confettiCanvas.value.height = window.innerHeight;
@@ -405,7 +420,7 @@ async function copyToClipboard(text: string | null) {
   try {
     if (typeof navigator !== 'undefined' && (navigator as any).clipboard && (navigator as any).clipboard.writeText) {
       await (navigator as any).clipboard.writeText(text);
-      alert('Copied to clipboard');
+      if (isClient) alert('Copied to clipboard');
       return;
     }
   } catch (e) {
@@ -413,6 +428,7 @@ async function copyToClipboard(text: string | null) {
   }
   // Fallback
   try {
+    if (!isClient) return;
     const ta = document.createElement('textarea');
     ta.value = text;
     document.body.appendChild(ta);
@@ -421,7 +437,7 @@ async function copyToClipboard(text: string | null) {
     document.body.removeChild(ta);
     alert('Copied to clipboard');
   } catch (e) {
-    alert('Copy failed');
+    if (isClient) alert('Copy failed');
   }
 }
 
@@ -486,6 +502,11 @@ function inferDateFromValue(raw: string | null): string | null {
 
 function loadLocalDataDiagnostics() {
   try {
+    if (!canUseLocalStorage()) {
+      localDataList.value = [];
+      expandedKeys.value = {};
+      return;
+    }
     const keys = Object.keys(localStorage).sort();
     localDataList.value = keys.map(k => {
       const raw = localStorage.getItem(k);
@@ -539,12 +560,12 @@ onMounted(() => {
   checkSystemHealth();
   updateGeoPermissionState();
   loadLocalDataDiagnostics();
-  window.addEventListener('resize', handleResize);
+  if (isClient) window.addEventListener('resize', handleResize);
 });
 
 onUnmounted(() => {
   stopConfetti();
-  window.removeEventListener('resize', handleResize);
+  if (isClient) window.removeEventListener('resize', handleResize);
 });
 </script>
 

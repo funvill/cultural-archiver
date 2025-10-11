@@ -2,6 +2,7 @@ import { computed, reactive, watch, ref, type ComputedRef, type Ref } from 'vue'
 import { useUserLists } from './useUserLists';
 import type { ListApiResponse } from '../../../shared/types';
 import type { ArtworkPin } from '../types';
+import { canUseLocalStorage, isClient } from '../lib/isClient';
 
 // ArtworkPin is the frontend map marker shape; some filtering code expects extra fields
 // present on API artwork objects. Define a wider type for filtering that includes
@@ -166,9 +167,15 @@ export function useMapFilters(): UseMapFiltersReturn {
   // A simple numeric trigger we can increment to force reactivity where needed
   const refreshTriggerRef = { value: 0 };
 
-  // Initialize from localStorage on first use
+  // Initialize from localStorage on first use (but only in client environments)
   if (!isInitialized) {
-    loadFiltersFromStorage();
+    if (isClient && canUseLocalStorage()) {
+      try {
+        loadFiltersFromStorage();
+      } catch (e) {
+        // ignore storage errors during initialization
+      }
+    }
     isInitialized = true;
   }
 
@@ -270,6 +277,7 @@ export function useMapFilters(): UseMapFiltersReturn {
   // Methods
   function loadFiltersFromStorage(): void {
     try {
+      if (!canUseLocalStorage()) return;
       const saved = localStorage.getItem('mapFilters:state');
       if (saved) {
         const parsed = JSON.parse(saved);
@@ -322,9 +330,10 @@ export function useMapFilters(): UseMapFiltersReturn {
 
   function saveFiltersToStorage(): void {
     try {
+      if (!canUseLocalStorage()) return;
       localStorage.setItem('mapFilters:state', JSON.stringify(globalFiltersState));
-  // Bump refresh trigger so callers depending on mapFilters.refreshTrigger get notified
-  refreshTriggerRef.value += 1;
+      // Bump refresh trigger so callers depending on mapFilters.refreshTrigger get notified
+      refreshTriggerRef.value += 1;
     } catch (error) {
       console.warn('Failed to save map filters to storage:', error);
     }
@@ -471,10 +480,16 @@ export function useMapFilters(): UseMapFiltersReturn {
   function createPreset(name: string, note?: string): void {
     // For now, store minimal preset data in localStorage
     try {
-  const raw = localStorage.getItem('mapFilters:presets');
-  const existing: FilterPreset[] = raw ? JSON.parse(raw) as FilterPreset[] : [];
-  existing.push({ id: Date.now().toString(), name, note, state: { ...globalFiltersState } });
-  localStorage.setItem('mapFilters:presets', JSON.stringify(existing));
+      const key = 'mapFilters:presets';
+      if (canUseLocalStorage()) {
+        const raw = localStorage.getItem(key);
+        const existing: FilterPreset[] = raw ? JSON.parse(raw) as FilterPreset[] : [];
+        existing.push({ id: Date.now().toString(), name, note, state: { ...globalFiltersState } });
+        localStorage.setItem(key, JSON.stringify(existing));
+      } else {
+        // Fallback to in-memory presets for non-client environments
+        filterPresetsRef.value.push({ id: Date.now().toString(), name, note, state: { ...globalFiltersState } });
+      }
       // bump trigger
       refreshTriggerRef.value += 1;
     } catch (e) {
@@ -484,8 +499,15 @@ export function useMapFilters(): UseMapFiltersReturn {
 
   function applyPreset(id: string): void {
     try {
-      const raw = localStorage.getItem('mapFilters:presets');
-      const existing: FilterPreset[] = raw ? JSON.parse(raw) as FilterPreset[] : [];
+      const key = 'mapFilters:presets';
+      let existing: FilterPreset[] = [];
+      if (canUseLocalStorage()) {
+        const raw = localStorage.getItem(key);
+        existing = raw ? JSON.parse(raw) as FilterPreset[] : [];
+      } else {
+        existing = filterPresetsRef.value.slice();
+      }
+
       const p = existing.find(x => x.id === id);
       if (p && p.state) {
         Object.assign(globalFiltersState, p.state);
@@ -498,10 +520,15 @@ export function useMapFilters(): UseMapFiltersReturn {
 
   function deletePreset(id: string): void {
     try {
-      const raw = localStorage.getItem('mapFilters:presets');
-      const existing: FilterPreset[] = raw ? JSON.parse(raw) as FilterPreset[] : [];
-      const filtered = existing.filter(x => x.id !== id);
-      localStorage.setItem('mapFilters:presets', JSON.stringify(filtered));
+      const key = 'mapFilters:presets';
+      if (canUseLocalStorage()) {
+        const raw = localStorage.getItem(key);
+        const existing: FilterPreset[] = raw ? JSON.parse(raw) as FilterPreset[] : [];
+        const filtered = existing.filter(x => x.id !== id);
+        localStorage.setItem(key, JSON.stringify(filtered));
+      } else {
+        filterPresetsRef.value = filterPresetsRef.value.filter(x => x.id !== id);
+      }
     } catch (e) {
       console.warn('Failed to delete preset', e);
     }

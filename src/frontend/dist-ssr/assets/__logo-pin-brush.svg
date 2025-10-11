@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="par-logo" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <defs>
+    <style>
+      :root{
+        /* Default to black so external use shows as black unless overridden */
+        --pin-stroke: #000000;
+        --inner: #000000;
+        --handle: #000000;
+        --ferrule: #000000;
+        --bristle: #000000;
+      }
+      .pin { fill: none; stroke: var(--pin-stroke); stroke-width: 14; stroke-linecap: round; stroke-linejoin: round; }
+      .inner { fill: var(--inner); }
+      .handle { fill: var(--handle); }
+      .ferrule { fill: var(--ferrule); }
+      .bristle { fill: var(--bristle); }
+    </style>
+  </defs>
+
+  <path class="pin" d="M128 24c-44 0-80 36-80 80 0 58 80 168 80 168s80-110 80-168c0-44-36-80-80-80z"/>
+  <circle class="inner" cx="128" cy="104" r="16"/>
+  <rect class="handle" x="118" y="124" width="20" height="36" rx="6"/>
+  <rect class="ferrule" x="112" y="156" width="32" height="18" rx="4"/>
+  <path class="bristle" d="M128 176c-16 18-16 40 0 56 16-16 16-38 0-56z"/>
+</svg>

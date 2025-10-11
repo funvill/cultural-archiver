@@ -1,3 +1,15 @@
+declare module '../../frontend/dist-ssr/ssr-entry-server' {
+  export interface RenderResult {
+    html: string;
+    headTags?: string;
+    htmlAttrs?: string;
+    bodyAttrs?: string;
+    jsonld?: object | null;
+    status?: number;
+  }
+
+  export function render(url: string, opts?: { env?: any }): Promise<RenderResult>;
+}
 /**
  * Global type declarations for Cloudflare Workers
  * This file ensures worker types are available during compilation

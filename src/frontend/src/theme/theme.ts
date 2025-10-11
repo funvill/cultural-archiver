@@ -52,8 +52,11 @@ export type Theme = {
   badgeText?: string;
 };
 
+import { isClient } from '../lib/isClient';
+
 const setCssVar = (name: string, value: string | undefined): void => {
   if (!value) return;
+  if (!isClient) return;
   try {
     document.documentElement.style.setProperty(name, value);
   } catch (e) {
@@ -124,8 +127,10 @@ export function applyTheme(theme: Theme): void {
 
   // Update mobile browser theme color meta tag if present
   try {
-    const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
-    if (meta && theme.primary) meta.content = theme.primary;
+    if (isClient) {
+      const meta = document.querySelector('meta[name="theme-color"]') as HTMLMetaElement | null;
+      if (meta && theme.primary) meta.content = theme.primary;
+    }
   } catch (e) {
     // ignore
   }

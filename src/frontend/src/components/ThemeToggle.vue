@@ -1,35 +1,43 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, onMounted } from 'vue';
 import { themes, applyThemeByName } from '../theme/theme';
 import { apiService } from '../services/api';
+import { canUseLocalStorage, isClient } from '../lib/isClient';
 
 const available = computed(() => Object.keys(themes));
-const selected = ref<string | ''>('');
+const selected = ref<string>('');
 
-// Initialize selected from localStorage if present
-try {
-  const saved = localStorage.getItem('user-theme');
-  if (saved) selected.value = saved;
-} catch (e) {
-  // ignore
-}
+// Initialize selected from localStorage on client mount
+onMounted(() => {
+  if (!canUseLocalStorage()) return;
+  try {
+    const saved = localStorage.getItem('user-theme');
+    if (saved) selected.value = saved;
+  } catch (e) {
+    // ignore
+  }
+});
 
-watch(selected, async (val) => {
+watch(selected, async (val: string) => {
   if (!val) return;
-  // Apply immediately
-  applyThemeByName(val);
+  // Apply immediately (safe on client)
+  if (isClient) applyThemeByName(val);
 
   // Try to persist to server, fallback to localStorage
   try {
     await apiService.updateUserPreferences({ theme: val });
-    try {
-      localStorage.setItem('user-theme', val);
-    } catch (e) {}
+    if (canUseLocalStorage()) {
+      try {
+        localStorage.setItem('user-theme', val);
+      } catch (e) {}
+    }
   } catch (err) {
-    try {
-      localStorage.setItem('user-theme', val);
-    } catch (e) {
-      // ignore
+    if (canUseLocalStorage()) {
+      try {
+        localStorage.setItem('user-theme', val);
+      } catch (e) {
+        // ignore
+      }
     }
   }
 });

@@ -5,7 +5,9 @@ import { useRoute } from 'vue-router';
 const route = useRoute();
 
 const requestedPath = computed(() => {
-  return route.path || window.location.pathname;
+  if (route.path) return route.path;
+  if (typeof window !== 'undefined' && window.location) return window.location.pathname;
+  return '/';
 });
 </script>
 

@@ -435,6 +435,10 @@ export interface WorkerEnv
   CORS_ORIGINS?: string; // comma-separated origins from env
   // Enable extra verbose photo pipeline debug logging when set to '1' or 'true'
   PHOTO_DEBUG?: string;
+  // Prerender KV namespaces (used by SSR/prerender pipeline)
+  PRERENDER_SNAPSHOTS?: KVNamespace;
+  PRERENDER_INDEX?: KVNamespace;
+  PRERENDER_JSONLD?: KVNamespace;
 }
 
 // ================================

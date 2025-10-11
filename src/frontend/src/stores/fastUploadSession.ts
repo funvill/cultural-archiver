@@ -37,8 +37,12 @@ export const useFastUploadSessionStore = defineStore('fastUploadSession', () => 
     location.value = null;
     detectedSources.value = null;
     try {
-      sessionStorage.removeItem('fast-upload-session');
-    } catch {}
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('fast-upload-session');
+      }
+    } catch (e) {
+      // ignore
+    }
   }
 
   const hasPhotos = computed(() => photos.value.length > 0);

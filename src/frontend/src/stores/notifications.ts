@@ -7,6 +7,7 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import type { NotificationResponse } from '../../../shared/types';
 import { NotificationService } from '../services/notifications';
+import { isClient } from '../lib/isClient';
 
 export const useNotificationsStore = defineStore('notifications', () => {
   // State
@@ -166,6 +167,7 @@ export const useNotificationsStore = defineStore('notifications', () => {
   }
 
   function startPolling(): void {
+    if (!isClient) return;
     if (pollInterval.value) return; // Already polling
 
     // Initial fetch
@@ -204,8 +206,8 @@ export const useNotificationsStore = defineStore('notifications', () => {
     stopPolling();
   }
 
-  // Auto-cleanup on window unload
-  if (typeof window !== 'undefined') {
+  // Auto-cleanup on window unload (client only)
+  if (isClient) {
     window.addEventListener('beforeunload', stopPolling);
   }
 
