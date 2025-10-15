@@ -88,10 +88,16 @@ vi.mock('crypto', () => ({
 function createMockEnv(): WorkerEnv {
   return {
     DB: {} as any,
-    BUCKET: {} as any,
-    KV: {} as any,
+    SESSIONS: {} as any,
+    CACHE: {} as any,
+    RATE_LIMITS: {} as any,
+    MAGIC_LINKS: {} as any,
+    PHOTOS_BUCKET: {} as any,
     ENVIRONMENT: 'test',
-  };
+    FRONTEND_URL: 'http://localhost',
+    LOG_LEVEL: 'debug',
+    API_VERSION: 'v2',
+  } as any;
 }
 
 function createMockContext(body: any) {
@@ -220,6 +226,24 @@ describe('Mass Import V2 API', () => {
         expect(error.code).toBe('VALIDATION_ERROR');
         expect(error.validationErrors.some((e: any) => e.field.includes('batchSize'))).toBe(true);
       }
+    });
+
+    it('should accept unknown artwork types (e.g., "water feature")', async () => {
+      const unknownTypeRequest = JSON.parse(JSON.stringify(validRequest));
+      unknownTypeRequest.data.artworks[0].tags = { artwork_type: 'water feature', material: 'aluminum' };
+
+      const context = createMockContext(unknownTypeRequest);
+
+      const response = await processMassImportV2(context);
+      expect(response.status).toBe(201);
+      const responseData = await response.json();
+
+      // Should process and create the artwork even though artwork_type is not in a fixed whitelist
+      expect(responseData.success).toBe(true);
+      expect(responseData.data.summary.totalRequested).toBe(1);
+      expect(responseData.data.summary.totalSucceeded).toBe(1);
+      expect(responseData.data.results.artworks.created).toHaveLength(1);
+      expect(responseData.data.results.artworks.created[0].title).toBe(validRequest.data.artworks![0].title);
     });
   });
 

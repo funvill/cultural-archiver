@@ -15,6 +15,7 @@ import type {
   ProcessingSummary,
   ExportResult,
   ProcessingReport,
+  ReportRecord,
 } from '../types/plugin.js';
 import type { RawImportData } from '../types/index.js';
 import { ReportTracker } from './report-tracker.js';
@@ -311,7 +312,8 @@ export class DataPipeline {
                   tracker.recordSkipped(
                     recordResult.externalId,
                     recordResult.reason ?? 'skipped',
-                    recordResult.recordData
+                    recordResult.recordData,
+                    recordResult.duplicateInfo as ReportRecord['duplicateInfo']
                   );
                   break;
               }

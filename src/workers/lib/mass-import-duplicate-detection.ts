@@ -26,7 +26,7 @@ export interface MassImportDuplicateRequest {
   description?: string;
   lat: number;
   lon: number;
-  artist?: string; // From created_by or artist field
+  artist?: string; // Artist name(s) for comparison (comma-separated for multiple artists)
   tags?: Record<string, string>;
   duplicateThreshold?: number; // Default: 0.7
 }
@@ -171,22 +171,26 @@ export class MassImportDuplicateDetectionService {
 
     try {
       // Query using spatial index for initial filtering
+      // JOIN with artists table to get actual artist names (not submitter UUIDs)
       const results = await db.db
         .prepare(
           `
         SELECT 
-          id,
-          lat,
-          lon,
-          title,
-          created_by,
-          tags
-        FROM artwork 
-        WHERE status = 'approved'
-          AND lat BETWEEN ? AND ?
-          AND lon BETWEEN ? AND ?
+          a.id,
+          a.lat,
+          a.lon,
+          a.title,
+          a.tags,
+          GROUP_CONCAT(ar.name, ', ') as artist_names
+        FROM artwork a
+        LEFT JOIN artwork_artists aa ON a.id = aa.artwork_id
+        LEFT JOIN artists ar ON aa.artist_id = ar.id
+        WHERE a.status = 'approved'
+          AND a.lat BETWEEN ? AND ?
+          AND a.lon BETWEEN ? AND ?
+        GROUP BY a.id
         ORDER BY 
-          (lat - ?) * (lat - ?) + (lon - ?) * (lon - ?)
+          (a.lat - ?) * (a.lat - ?) + (a.lon - ?) * (a.lon - ?)
         LIMIT 50
       `
         )
@@ -202,7 +206,7 @@ export class MassImportDuplicateDetectionService {
           lat: number;
           lon: number;
           title: string | null;
-          created_by: string | null;
+          artist_names: string | null;
           tags: string | null;
         };
 
@@ -214,7 +218,7 @@ export class MassImportDuplicateDetectionService {
             id: record.id,
             coordinates: { lat: record.lat, lon: record.lon },
             title: record.title,
-            created_by: record.created_by,
+            created_by: record.artist_names, // Use actual artist names, not submitter UUID
             tags: record.tags,
           });
         }

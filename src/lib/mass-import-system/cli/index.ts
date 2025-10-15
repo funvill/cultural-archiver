@@ -12,7 +12,6 @@ import chalk from 'chalk';
 import ora from 'ora';
 import fs from 'fs/promises';
 import { MassImportProcessor, setCancellationState } from './processor.js';
-import { VancouverMapper } from '../importers/vancouver.js';
 import { loadOSMData, getOSMProcessingStats } from '../importers/osm.js';
 import { ImporterRegistry } from '../lib/importer-registry.js';
 import type { MassImportConfig, DryRunReport } from '../types/index.js';
@@ -57,12 +56,6 @@ process.on('SIGTERM', () => handleCancellation('SIGTERM'));
 
 // Export cancellation state for use in processor
 export { isCancelled };
-
-// Helper to track spinners for cancellation
-const trackSpinner = (spinner: ReturnType<typeof ora>): ReturnType<typeof ora> => {
-  currentSpinner = spinner;
-  return spinner;
-};
 
 // ================================
 // CLI Configuration
@@ -247,94 +240,10 @@ program
 // Vancouver Import Command
 // ================================
 
-program
-  .command('vancouver')
-  .description('Import Vancouver Open Data public art dataset')
-  .option('--input <file>', 'Vancouver JSON data file', './public-art.json')
-  .option('--dry-run', 'Perform validation only without importing', false)
-  .option('--output <file>', 'Output report file path')
-  .action(async options => {
-    try {
-      const globalOptions = program.opts();
-      const mergedOptions = { ...globalOptions, ...options };
-      const config = await loadConfig(mergedOptions);
-      const processor = new MassImportProcessor(config);
-
-      console.log(chalk.blue('🏢 Starting Vancouver Open Data import...'));
-      console.log(chalk.gray(`Input: ${options.input}`));
-      console.log(chalk.gray(`Mode: ${options.dryRun ? 'DRY RUN' : 'IMPORT'}`));
-
-      // Load Vancouver data
-      const spinner = trackSpinner(ora('Loading Vancouver data...').start());
-      const data = await loadInputFile(options.input);
-      let limitedData = data;
-      const offset = mergedOptions.offset ? parseInt(mergedOptions.offset, 10) : 0;
-      if (!isNaN(offset) && offset > 0) {
-        if (offset >= data.length) {
-          console.log(
-            chalk.red(
-              `⚠️ Offset ${offset} exceeds Vancouver dataset length (${data.length}). No records to process.`
-            )
-          );
-          limitedData = [];
-        } else {
-          limitedData = data.slice(offset);
-          console.log(
-            chalk.yellow(`⚠️ Offset applied: skipping first ${offset} Vancouver records`)
-          );
-        }
-      }
-      if (mergedOptions.limit) {
-        const limit = parseInt(mergedOptions.limit, 10);
-        if (!isNaN(limit) && limit > 0 && limitedData.length > limit) {
-          limitedData = limitedData.slice(0, limit);
-          console.log(
-            chalk.yellow(
-              `⚠️ Record limit applied: processing ${limit} Vancouver records (window ${offset}-${offset + limit - 1})`
-            )
-          );
-        }
-      }
-      spinner.succeed(`Loaded ${data.length} Vancouver artworks`);
-
-      // Use Vancouver-specific mapper
-      processor.setMapper(VancouverMapper);
-
-      // Process Vancouver data
-      const results = await processor.processData(limitedData, {
-        source: 'vancouver-opendata',
-        dryRun: options.dryRun,
-        continueOnError: true,
-      });
-
-      // Display results
-      displayResults(results);
-
-      // Always save a detailed report (auto-generate filename if not specified)
-      const reportFile = options.output || `vancouver-report-${Date.now()}.json`;
-      await saveDetailedReport(
-        results,
-        reportFile,
-        options.dryRun ? 'vancouver-validation' : 'vancouver-import'
-      );
-      console.log(chalk.green(`📄 Detailed Vancouver report saved to ${reportFile}`));
-
-      if (!options.dryRun && mergedOptions.newArtworkReport) {
-        await saveNewArtworkReport(results, mergedOptions, 'vancouver');
-      }
-    } catch (error) {
-      // Don't treat cancellation as an error - the processor will handle partial results
-      if (isCancelled) {
-        console.log(chalk.yellow('\n⚠️ Vancouver operation completed with partial results'));
-        process.exit(0);
-      }
-      console.error(
-        chalk.red('❌ Vancouver import failed:'),
-        error instanceof Error ? error.message : error
-      );
-      process.exit(1);
-    }
-  });
+// Legacy Vancouver command removed - use plugin system instead with 'import' command
+// program
+//   .command('vancouver')
+//   ...
 
 // ================================
 // Dry Run Command

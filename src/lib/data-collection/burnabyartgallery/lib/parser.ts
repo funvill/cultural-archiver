@@ -162,7 +162,9 @@ export class HTMLParser {
     if (!data.title) {
       // Fallback to title tag
       const titleTagPattern = /<title>(.*?)<\/title>/is;
-      data.title = this.extractText(html, titleTagPattern).replace(' - Burnaby Art Gallery', '');
+      data.title = this.extractText(html, titleTagPattern)
+        .replace(' - Burnaby Art Gallery', '')
+        .replace(' - Collections', '');
     }
 
     logger.debug(`  Title: ${data.title || '(not found)'}`);

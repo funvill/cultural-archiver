@@ -107,6 +107,7 @@ export interface ExportRecordResult {
   reason?: string;
   error?: string;
   recordData?: RawImportData;
+  duplicateInfo?: Record<string, unknown>;
 }
 
 export interface ExporterPlugin {
@@ -209,6 +210,21 @@ export interface ReportRecord {
   data?: RawImportData;
   timestamp: string;
   processingTime?: number;
+  duplicateInfo?: {
+    type: 'artwork' | 'artist';
+    existingId: string;
+    existingTitle?: string;
+    confidenceScore?: number;
+    scoreBreakdown?: {
+      gps?: number;
+      title?: number;
+      artist?: number;
+      referenceIds?: number;
+      tagSimilarity?: number;
+      total?: number;
+    };
+    reason?: string;
+  };
 }
 
 export interface ReportSummary {

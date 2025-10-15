@@ -17,6 +17,9 @@
     "transformData": false,
     "logRequests": true,
     "logResponses": true,
-    "autoApproveArtists": true
+    "duplicateThreshold": 0.75,
+    "photoCacheDir": ".cache/photos",
+    "skipDuplicateDetection": true,
+    "autoApproveArtists": true    
   }
 }

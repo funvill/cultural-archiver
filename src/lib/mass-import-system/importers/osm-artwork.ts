@@ -17,6 +17,8 @@ import type { RawImportData, ValidationResult, ValidationError } from '../types/
 export interface OSMImporterConfig extends ImporterConfig {
   preset: string;
   includeFeatureTypes: string[];
+  /** If true, include features whose type values are not listed in includeFeatureTypes */
+  includeUnknownFeatureTypes?: boolean;
   excludeTags?: Record<string, string[]>;
   tagMappings: Record<string, string>;
   descriptionFields: string[];
@@ -81,6 +83,16 @@ export class OSMImporter implements ImporterPlugin {
     required: ['preset', 'includeFeatureTypes', 'tagMappings'],
   };
 
+  // Default include list used when importer config doesn't provide one
+  private DEFAULT_INCLUDE_FEATURE_TYPES = [
+    'artwork',
+    'monument',
+    'sculpture',
+    'statue',
+    'mural',
+    'installation',
+  ];
+
   // Plugin capabilities
   supportedFormats = ['geojson', 'json'];
   requiredFields = ['geometry.coordinates', 'properties'];
@@ -113,25 +125,121 @@ export class OSMImporter implements ImporterPlugin {
       throw new Error('Invalid GeoJSON: missing or invalid features array');
     }
 
+    // Build an effective config by applying sensible defaults so downstream
+    // logic can assume arrays/objects exist (avoids undefined.includes errors)
+    // Start with a shallow clone so we don't mutate the original config
+    const effectiveConfig = Object.assign({}, config) as OSMImporterConfig;
+
+    if (!effectiveConfig.preset) effectiveConfig.preset = 'general';
+    if (!Array.isArray(effectiveConfig.includeFeatureTypes) || effectiveConfig.includeFeatureTypes.length === 0)
+      effectiveConfig.includeFeatureTypes = this.DEFAULT_INCLUDE_FEATURE_TYPES;
+    if (!effectiveConfig.tagMappings || Object.keys(effectiveConfig.tagMappings).length === 0)
+      effectiveConfig.tagMappings = {
+        artwork_type: 'artwork_type',
+        material: 'material',
+        subject: 'subject',
+        style: 'style',
+      } as any;
+    if (!effectiveConfig.descriptionFields || effectiveConfig.descriptionFields.length === 0)
+      effectiveConfig.descriptionFields = ['description', 'inscription', 'subject'];
+    if (!effectiveConfig.artistFields || effectiveConfig.artistFields.length === 0)
+      effectiveConfig.artistFields = ['artist_name', 'artist', 'created_by'];
+    if (!effectiveConfig.yearFields || effectiveConfig.yearFields.length === 0)
+      effectiveConfig.yearFields = ['start_date', 'year', 'date'];
+    if (effectiveConfig.includeUnknownFeatureTypes === undefined)
+      effectiveConfig.includeUnknownFeatureTypes = !!config?.includeUnknownFeatureTypes;
+
     // Load artist lookup if configured (optional)
     try {
-      await this.loadArtistLookupFromConfig(config);
+      await this.loadArtistLookupFromConfig(effectiveConfig as OSMImporterConfig);
     } catch (err) {
       console.warn('Failed to load artist lookup:', err instanceof Error ? err.message : String(err));
     }
 
     const mappedData: RawImportData[] = [];
+    let loggedFirstMappingError = false;
 
-    for (const feature of geoJsonData.features) {
+    for (let fi = 0; fi < geoJsonData.features.length; fi++) {
+      const feature = geoJsonData.features[fi];
+      if (!feature) continue;
       try {
-        // Filter features based on configuration
-        if (!this.shouldIncludeFeature(feature, config)) {
+        // Filter features based on effective configuration
+        try {
+          if (!this.shouldIncludeFeature(feature, effectiveConfig)) {
+            continue;
+          }
+        } catch (err) {
+          // Log stack for shouldIncludeFeature failures
+          if (!loggedFirstMappingError) {
+            console.error('📌 Error in shouldIncludeFeature for feature index:', fi);
+            console.error(err && (err as Error).stack ? (err as Error).stack : String(err));
+            loggedFirstMappingError = true;
+          }
+          console.warn(`Failed to map OSM feature (shouldIncludeFeature): ${err instanceof Error ? err.message : String(err)}`);
           continue;
         }
 
-        const mappedRecord = await this.mapSingleFeature(feature, config);
-        mappedData.push(mappedRecord);
+        try {
+          const mappedRecord = await this.mapSingleFeature(feature, effectiveConfig);
+          mappedData.push(mappedRecord);
+        } catch (err) {
+          // Log stack for mapSingleFeature failures
+          if (!loggedFirstMappingError) {
+            try {
+              const propsPreview = feature && feature.properties ? feature.properties : {};
+              console.error('📌 First failing feature index (mapSingleFeature):', fi);
+              console.error('📌 First failing feature id:', (propsPreview as any).id || (propsPreview as any).osm_id || '<unknown>');
+              console.error('📌 First failing feature properties:', JSON.stringify(propsPreview, null, 2));
+              const cfgPreview = {
+                includeFeatureTypes: effectiveConfig.includeFeatureTypes,
+                includeUnknownFeatureTypes: effectiveConfig.includeUnknownFeatureTypes,
+                tagMappings: effectiveConfig.tagMappings,
+                descriptionFields: effectiveConfig.descriptionFields,
+                artistFields: effectiveConfig.artistFields,
+                yearFields: effectiveConfig.yearFields,
+                excludeTags: effectiveConfig.excludeTags,
+              };
+              console.error('📌 Effective importer config (preview):', JSON.stringify(cfgPreview, null, 2));
+            } catch (logErr) {
+              // ignore
+            }
+            console.error(err && (err as Error).stack ? (err as Error).stack : String(err));
+            loggedFirstMappingError = true;
+          }
+          console.warn(`Failed to map OSM feature (mapSingleFeature): ${err instanceof Error ? err.message : String(err)}`);
+          continue;
+        }
       } catch (error) {
+        // One-time debug output to capture the first failing feature and the
+        // effective configuration in use. This helps track down calls to
+        // `.includes` on unexpected undefined values.
+        if (!loggedFirstMappingError) {
+          try {
+            const propsPreview = feature && feature.properties ? feature.properties : {};
+            console.error('📌 First failing feature index:', fi);
+            console.error('📌 First failing feature id:', (propsPreview as any).id || (propsPreview as any).osm_id || '<unknown>');
+            console.error('📌 First failing feature properties:', JSON.stringify(propsPreview, null, 2));
+            try {
+              // Print only relevant effectiveConfig fields to avoid noisy output
+              const cfgPreview = {
+                includeFeatureTypes: effectiveConfig.includeFeatureTypes,
+                includeUnknownFeatureTypes: effectiveConfig.includeUnknownFeatureTypes,
+                tagMappings: effectiveConfig.tagMappings,
+                descriptionFields: effectiveConfig.descriptionFields,
+                artistFields: effectiveConfig.artistFields,
+                yearFields: effectiveConfig.yearFields,
+                excludeTags: effectiveConfig.excludeTags,
+              };
+              console.error('📌 Effective importer config (preview):', JSON.stringify(cfgPreview, null, 2));
+            } catch (cfgErr) {
+              // ignore
+            }
+          } catch (logErr) {
+            // ignore logging failure
+          }
+          loggedFirstMappingError = true;
+        }
+
         console.warn(
           `Failed to map OSM feature: ${error instanceof Error ? error.message : String(error)}`
         );
@@ -416,24 +524,34 @@ export class OSMImporter implements ImporterPlugin {
    */
   private shouldIncludeFeature(feature: GeoJSONFeature, config: OSMImporterConfig): boolean {
     const props = feature.properties || {};
-
     // Check if feature type is included
-    const tourism = props.tourism as string;
-    const historic = props.historic as string;
-    const artworkType = props.artwork_type as string;
+    const tourism = props.tourism as string | undefined;
+    const historic = props.historic as string | undefined;
+    const artworkType = props.artwork_type as string | undefined;
 
-    const featureTypes = [tourism, historic, artworkType].filter(Boolean);
-    const hasIncludedType = featureTypes.some(type => config.includeFeatureTypes.includes(type));
+    const featureTypes = [tourism, historic, artworkType].filter(Boolean) as string[];
 
-    if (!hasIncludedType) {
-      return false;
+    // Use provided includeFeatureTypes or fall back to sensible defaults
+    const includeList: string[] =
+      config && Array.isArray(config.includeFeatureTypes) && config.includeFeatureTypes.length > 0
+        ? config.includeFeatureTypes
+        : this.DEFAULT_INCLUDE_FEATURE_TYPES;
+
+    // Defensive: ensure includeList is an array before calling .includes
+    const includeListArr = Array.isArray(includeList) ? includeList : this.DEFAULT_INCLUDE_FEATURE_TYPES;
+
+    // If configured to include unknown feature types, accept features that have an artwork_type
+    if (!(config && config.includeUnknownFeatureTypes && artworkType)) {
+      // If any of the feature's type tags match the configured include list, include it
+      const hasIncludedType = featureTypes.some(type => includeListArr.includes(type));
+      if (!hasIncludedType) return false;
     }
 
     // Check exclusion rules
-    if (config.excludeTags) {
+    if (config && config.excludeTags && typeof config.excludeTags === 'object') {
       for (const [tag, excludeValues] of Object.entries(config.excludeTags)) {
-        const value = props[tag] as string;
-        if (value && excludeValues.includes(value)) {
+        const value = props[tag] as string | undefined;
+        if (value && Array.isArray(excludeValues) && excludeValues.includes(value)) {
           return false;
         }
       }
@@ -454,12 +572,12 @@ export class OSMImporter implements ImporterPlugin {
 
     // Extract core fields
     const title = this.extractTitle(props);
-    let description = this.extractDescription(props, config.descriptionFields);
-    const artist = this.extractArtist(props, config.artistFields);
-    const year = this.extractYear(props, config.yearFields);
+  let description = this.extractDescription(props, config.descriptionFields || []);
+  const artist = this.extractArtist(props, config.artistFields || []);
+  const year = this.extractYear(props, config.yearFields || []);
 
     // Build tags using configured mappings (exclude description fields)
-    const tags = this.buildTags(props, config.tagMappings, config.descriptionFields);
+  const tags = this.buildTags(props, config.tagMappings || {}, config.descriptionFields || []);
 
     // Generate external ID first so we can use it in the description
     const externalId = this.generateImportId(feature);
@@ -610,7 +728,7 @@ export class OSMImporter implements ImporterPlugin {
     for (const [key, value] of Object.entries(props)) {
       if (value && typeof value === 'string' && value.trim()) {
         // Skip description fields - they should not be in tags
-        if (!descriptionFields.includes(key)) {
+        if (!Array.isArray(descriptionFields) || !descriptionFields.includes(key)) {
           tags[key] = value.trim();
         }
       }
@@ -621,7 +739,7 @@ export class OSMImporter implements ImporterPlugin {
       const value = props[sourceField];
       if (value && typeof value === 'string' && value.trim()) {
         // Skip description fields - they should not be in tags
-        if (!descriptionFields.includes(sourceField)) {
+        if (!Array.isArray(descriptionFields) || !descriptionFields.includes(sourceField)) {
           tags[outputTag] = value.trim();
         }
       }

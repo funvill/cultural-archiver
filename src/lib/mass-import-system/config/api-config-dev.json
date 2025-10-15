@@ -1,5 +1,7 @@
 {
-  "importer": {},
+  "importer": {
+    "includeUnknownFeatureTypes": true
+  },
   "exporter": {
     "apiEndpoint": "http://localhost:8787/api/mass-import/v2",
     "method": "POST",
@@ -14,9 +16,11 @@
     "retryAttempts": 3,
     "retryDelay": 1000,
     "validateResponse": true,
-    "transformData": false,
+    "transformData": true,
     "logRequests": true,
     "logResponses": true,
-    "autoApproveArtists": true    
+    "photoCacheDir": ".cache/photos",
+    "skipDuplicateDetection": true,
+    "autoApproveArtists": true
   }
 }

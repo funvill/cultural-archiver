@@ -5,9 +5,9 @@
  * a registry system for dynamic importer discovery and selection.
  */
 
-import type { DataSourceMapper } from '../types';
-import { VancouverMapper } from '../importers/vancouver.js';
-import { OSMMapper } from '../importers/osm.js';
+import type { ImporterPlugin } from '../types/plugin.js';
+import { osmImporter } from '../importers/osm-artwork.js';
+import { artistJsonImporter } from '../importers/artist-json.js';
 
 // ================================
 // Importer Registry
@@ -15,7 +15,7 @@ import { OSMMapper } from '../importers/osm.js';
 
 interface ImporterInfo {
   name: string;
-  mapper: DataSourceMapper;
+  mapper: ImporterPlugin;
   description: string;
   supportedFileTypes: string[];
   defaultDataPath?: string;
@@ -34,22 +34,23 @@ export class ImporterRegistry {
   private static initialize(): void {
     if (this.initialized) return;
 
-    // Register Vancouver importer
-    this.importers.set('vancouver', {
-      name: 'vancouver',
-      mapper: VancouverMapper,
-      description: 'Vancouver Open Data public art dataset importer',
-      supportedFileTypes: ['.json'],
-      defaultDataPath: 'public-art.json',
-    });
-
-    // Register OSM importer
+    // Register OSM importer (core)
     this.importers.set('osm', {
       name: 'osm',
-      mapper: OSMMapper,
+      mapper: osmImporter,
       description: 'OpenStreetMap GeoJSON artwork data importer',
       supportedFileTypes: ['.geojson', '.json'],
-      defaultDataPath: 'src/data-collection/osm/output/merged/merged-artworks.geojson',
+      defaultDataPath: 'src/lib/data-collection/osm/output/merged/merged-artworks.geojson',
+    });
+
+    // Register generic Artist JSON importer (used by Burnaby output and similar)
+    this.importers.set('artist-json', {
+      name: 'artist-json',
+      mapper: artistJsonImporter,
+      description: 'Generic Artist JSON importer (Burnaby format)',
+      supportedFileTypes: ['.json'],
+      // Point at the artists.json output produced by the Burnaby scraper
+      defaultDataPath: 'src/lib/data-collection/burnabyartgallery/output/artists.json',
     });
 
     this.initialized = true;
@@ -82,7 +83,7 @@ export class ImporterRegistry {
   /**
    * Get importer mapper by name
    */
-  static getMapper(name: string): DataSourceMapper | undefined {
+  static getMapper(name: string): ImporterPlugin | undefined {
     const importer = this.get(name);
     return importer?.mapper;
   }

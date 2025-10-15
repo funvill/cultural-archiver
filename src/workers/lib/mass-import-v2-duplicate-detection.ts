@@ -288,6 +288,7 @@ export class MassImportV2DuplicateDetectionService {
 
   /**
    * Find nearby artworks using spatial index
+   * JOIN with artists table to get actual artist names
    */
   private async findNearbyArtworks(lat: number, lon: number): Promise<any[]> {
     const minLat = lat - GPS_SEARCH_RADIUS_DEGREES;
@@ -298,11 +299,20 @@ export class MassImportV2DuplicateDetectionService {
     const result = await this.db.db
       .prepare(
         `
-      SELECT id, title, created_by, lat, lon, tags
-      FROM artwork 
-      WHERE status = 'approved'
-        AND lat BETWEEN ? AND ?
-        AND lon BETWEEN ? AND ?
+      SELECT 
+        a.id, 
+        a.title, 
+        a.lat, 
+        a.lon, 
+        a.tags,
+        GROUP_CONCAT(ar.name, ', ') as artist_names
+      FROM artwork a
+      LEFT JOIN artwork_artists aa ON a.id = aa.artwork_id
+      LEFT JOIN artists ar ON aa.artist_id = ar.id
+      WHERE a.status = 'approved'
+        AND a.lat BETWEEN ? AND ?
+        AND a.lon BETWEEN ? AND ?
+      GROUP BY a.id
     `
       )
       .bind(minLat, maxLat, minLon, maxLon)
@@ -383,9 +393,9 @@ export class MassImportV2DuplicateDetectionService {
     const titleScore =
       this.calculateTextSimilarity(incoming.title, candidate.title || '') * weights.title;
 
-    // Artist similarity
+    // Artist similarity - use artist_names from JOIN with artists table
     const incomingArtist = incoming.artist || incoming.created_by || '';
-    const candidateArtist = candidate.created_by || '';
+    const candidateArtist = candidate.artist_names || '';
     const artistScore =
       this.calculateTextSimilarity(incomingArtist, candidateArtist) * weights.artist;
 

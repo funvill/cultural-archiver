@@ -10,13 +10,6 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     
-    // Redirect common typo: /robot.txt → /robots.txt
-    if (url.pathname === '/robot.txt') {
-      const correctUrl = new URL(request.url);
-      correctUrl.pathname = '/robots.txt';
-      return Response.redirect(correctUrl.toString(), 301);
-    }
-    
     // Redirect sitemap requests to the API subdomain
     if (url.pathname === '/sitemap.xml' || url.pathname.match(/^\/sitemap-.*\.xml$/)) {
       const apiUrl = `https://api.publicartregistry.com${url.pathname}`;

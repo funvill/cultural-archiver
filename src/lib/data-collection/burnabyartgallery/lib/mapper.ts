@@ -17,6 +17,7 @@ export interface GeoJSONFeature {
   properties: {
     source: string;
     source_url: string;
+    osm_id: string; // Used by OSM importer for externalId
     name: string;
     artwork_type: string;
     location: string;
@@ -76,6 +77,7 @@ export class DataMapper {
       properties: {
         source: this.source,
         source_url: artwork.url || '',
+        osm_id: artwork.url || '', // Used by OSM importer for externalId
         name: artwork.title,
         artwork_type: artwork.artworkType || 'unknown',
         location: artwork.location || '',
@@ -98,7 +100,28 @@ export class DataMapper {
         artist: artwork.artist || undefined,
       },
     };
-
+    
+    // Remove empty-string or empty-array properties from feature.properties so
+    // the exported JSON doesn't contain empty tags.
+    for (const key of Object.keys(feature.properties) as Array<keyof GeoJSONFeature['properties']>) {
+      const val = feature.properties[key];
+      // Remove empty strings, empty arrays, and explicit undefined (except artist which may be undefined intentionally)
+      if (typeof val === 'string' && val.trim() === '') {
+        // @ts-ignore - deleting dynamic property
+        delete feature.properties[key];
+        continue;
+      }
+      if (Array.isArray(val) && val.length === 0) {
+        // @ts-ignore
+        delete feature.properties[key];
+        continue;
+      }
+      if (val === undefined) {
+        // @ts-ignore
+        delete feature.properties[key];
+        continue;
+      }
+    }
     logger.debug(`Mapped artwork to GeoJSON: ${feature.id} - ${feature.properties.name}`);
     return feature;
   }

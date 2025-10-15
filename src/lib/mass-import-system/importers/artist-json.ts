@@ -180,6 +180,9 @@ export class ArtistJsonImporter implements ImporterPlugin {
       }
     }
 
+    // Ensure type tag is always set to 'artist' for proper detection
+    tags.type = 'artist';
+
     // Use source_url as external ID if available (unique identifier from source system)
     // Otherwise fall back to name-based ID
     const externalId = artist.source_url 

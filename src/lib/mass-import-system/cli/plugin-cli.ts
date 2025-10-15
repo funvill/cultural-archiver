@@ -196,6 +196,32 @@ export class PluginCLI {
         }
       }
 
+      // Debug: show the resolved exporter config that will be passed to exporters
+      console.log('[PLUGIN-CLI] finalExporterConfig:', JSON.stringify(finalExporterConfig || {}));
+
+      // Backwards-compatibility: allow exporter-level includeUnknownFeatureTypes to
+      // be forwarded into the importer config. Some configs previously placed this
+      // flag under exporter by mistake — forward it so the importer honors it.
+      try {
+        if (
+          finalExporterConfig &&
+          typeof finalExporterConfig === 'object' &&
+          'includeUnknownFeatureTypes' in finalExporterConfig &&
+          finalExporterConfig.includeUnknownFeatureTypes !== undefined
+        ) {
+          // Only set it on importer config if not explicitly set there
+          if (!('includeUnknownFeatureTypes' in finalImporterConfig)) {
+            (finalImporterConfig as any).includeUnknownFeatureTypes =
+              (finalExporterConfig as any).includeUnknownFeatureTypes;
+            if (options.verbose) {
+              console.log(chalk.gray('⚙️  Forwarded includeUnknownFeatureTypes from exporter to importer config'));
+            }
+          }
+        }
+      } catch (e) {
+        // non-fatal; don't block import
+      }
+
       // Setup processing options
       const processingOptions: ProcessingOptions = {
         ...(options.dryRun !== undefined && { dryRun: options.dryRun }),

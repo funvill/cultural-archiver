@@ -53,7 +53,7 @@
     "database:import:prod": "node scripts/database_import_prod.cjs",
     "database:import:dev": "node scripts/database_import_dev.cjs",
     "database:reset:dev": "echo 'Error: To reset local database use database:reset:local",
-    "database:reset:prod": "tsx scripts/reset-database.ts --env prod",
+    "database:reset:prod": "echo 'Error: No what are you doing?~'",
     "database:reset:local": "tsx scripts/reset-local-database.ts --create-admin",
     "database:reset:local:comment": "echo 'Resets LOCAL SQLite database used by wrangler dev (not remote). Use this for local development reset.'",
     "database:reset:dev:dry-run": "tsx scripts/reset-database.ts --env dev --dry-run",

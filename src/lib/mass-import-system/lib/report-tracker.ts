@@ -151,7 +151,12 @@ export class ReportTracker {
   /**
    * Record a skipped operation for a specific record
    */
-  recordSkipped(externalId: string, reason: string, data?: RawImportData): void {
+  recordSkipped(
+    externalId: string, 
+    reason: string, 
+    data?: RawImportData, 
+    duplicateInfo?: ReportRecord['duplicateInfo']
+  ): void {
     if (!this.enabled) return;
 
     const processingTime = this.calculateRecordTime(externalId);
@@ -164,6 +169,7 @@ export class ReportTracker {
       timestamp: new Date().toISOString(),
       ...(data && { data }),
       ...(processingTime !== undefined && { processingTime }),
+      ...(duplicateInfo && { duplicateInfo }),
     };
 
     this.records.push(record);

@@ -19,6 +19,8 @@ export interface MassImportConfig {
   duplicateDetectionRadius: number; // meters
   titleSimilarityThreshold: number; // 0-1
   dryRun: boolean;
+  /** Optional local directory to cache fetched photos during imports */
+  photoCacheDir?: string;
 }
 
 export interface ImportProgress {
@@ -52,7 +54,7 @@ export const RawImportDataSchema = z.object({
   lat: z.number().min(-90).max(90),
   lon: z.number().min(-180).max(180),
   title: z.string().min(1).max(200),
-  description: z.string().max(1000).optional(),
+  description: z.string().max(10000).optional(),
 
   // Artist and creation info
   artist: z.string().max(500).optional(),

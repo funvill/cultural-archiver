@@ -24,6 +24,18 @@ export interface ApiExporterConfig extends ExporterConfig {
    * Use with caution; intended for trusted/imported datasets.
    */
   autoApproveArtists?: boolean;
+  /**
+   * Duplicate detection confidence threshold (0-1).
+   * Records with similarity scores above this threshold are considered duplicates.
+   * Default: 0.75
+   */
+  duplicateThreshold?: number;
+  /**
+   * When true, completely disables duplicate detection and imports all records.
+   * Use when re-importing datasets or when you want to create duplicate records.
+   * Default: false
+   */
+  skipDuplicateDetection?: boolean;
   method?: 'POST' | 'PUT' | 'PATCH'; // HTTP method
   headers?: Record<string, string>; // Custom headers
   authentication?: {
@@ -89,6 +101,8 @@ export class ApiExporter implements ExporterPlugin {
       'headers',
       'authentication',
       'autoApproveArtists',
+      'duplicateThreshold',
+      'skipDuplicateDetection',
       'timeout',
       'retryAttempts',
       'retryDelay',
@@ -244,6 +258,14 @@ export class ApiExporter implements ExporterPlugin {
       console.log(
         `📤 Starting API export of ${data.length} records to ${this.config.apiEndpoint}...`
       );
+      console.log(
+        `[API-EXPORTER] Full config received:`,
+        JSON.stringify({
+          skipDuplicateDetection: this.config.skipDuplicateDetection,
+          duplicateThreshold: this.config.duplicateThreshold,
+          autoApproveArtists: this.config.autoApproveArtists,
+        })
+      );
 
       // Handle dry run mode
       if (this.options.dryRun) {
@@ -371,15 +393,25 @@ export class ApiExporter implements ExporterPlugin {
             // Check if this is a duplicate detection from the API
             if (this.isDuplicateResponse(response)) {
               totalDuplicates++;
+              
+              // Extract duplicate detection details from API response
+              const duplicateDetails = this.extractDuplicateDetails(response);
+              
               processedRecords.push({
                 externalId,
                 status: 'skipped',
                 reason: 'duplicate',
                 recordData: record,
+                ...(duplicateDetails && { duplicateInfo: duplicateDetails }),
               });
 
               if (this.options.verbose) {
                 console.log(`✅ Detected duplicate for record ${i}`);
+                if (duplicateDetails) {
+                  console.log(`   Match: ${duplicateDetails.existingTitle || 'unknown'} (ID: ${duplicateDetails.existingId || 'unknown'})`);
+                  console.log(`   Confidence: ${duplicateDetails.confidenceScore || 'unknown'}`);
+                  console.log(`   Score breakdown: ${JSON.stringify(duplicateDetails.scoreBreakdown || {})}`);
+                }
               }
             } else {
               totalSuccessful++;
@@ -571,6 +603,66 @@ export class ApiExporter implements ExporterPlugin {
     }
   }
 
+  /**
+   * Extract duplicate detection details from API response for diagnostic purposes
+   * Returns information about the matched artwork/artist including confidence scores
+   */
+  private extractDuplicateDetails(response: ApiResponse): Record<string, unknown> | null {
+    if (!response.success || !response.data) {
+      return null;
+    }
+
+    try {
+      const data = response.data as Record<string, unknown>;
+
+      // Handle nested response structure: response.data.data.results
+      let results = data.results as Record<string, unknown>;
+      if (!results && data.data) {
+        const nestedData = data.data as Record<string, unknown>;
+        results = nestedData.results as Record<string, unknown>;
+      }
+
+      if (!results) {
+        return null;
+      }
+
+      // Check for duplicate in artworks
+      const artworks = results.artworks as Record<string, unknown>;
+      if (artworks && artworks.duplicates && Array.isArray(artworks.duplicates) && artworks.duplicates.length > 0) {
+        const duplicate = artworks.duplicates[0] as Record<string, unknown>;
+        return {
+          type: 'artwork',
+          existingId: duplicate.existingId || duplicate.id,
+          existingTitle: duplicate.title,
+          confidenceScore: duplicate.confidenceScore,
+          scoreBreakdown: duplicate.scoreBreakdown,
+          reason: duplicate.error || duplicate.reason || 'DUPLICATE_DETECTED',
+        };
+      }
+
+      // Check for duplicate in artists
+      const artists = results.artists as Record<string, unknown>;
+      if (artists && artists.duplicates && Array.isArray(artists.duplicates) && artists.duplicates.length > 0) {
+        const duplicate = artists.duplicates[0] as Record<string, unknown>;
+        return {
+          type: 'artist',
+          existingId: duplicate.existingId || duplicate.id,
+          existingTitle: duplicate.title || duplicate.name,
+          confidenceScore: duplicate.confidenceScore,
+          scoreBreakdown: duplicate.scoreBreakdown,
+          reason: duplicate.error || duplicate.reason || 'DUPLICATE_DETECTED',
+        };
+      }
+
+      return null;
+    } catch (e) {
+      if (this.options.verbose) {
+        console.warn('Could not extract duplicate details from API response', e);
+      }
+      return null;
+    }
+  }
+
   private transformToApiFormat(record: RawImportData | Record<string, unknown>): unknown {
     // Transform single record to mass-import v2 API format
     const recordData = record as Record<string, unknown>;
@@ -586,10 +678,24 @@ export class ApiExporter implements ExporterPlugin {
     const tags = (recordData.tags as Record<string, unknown>) || {};
     const tagType = (tags && (tags.type as string)) || '';
 
+    console.log(`[API-EXPORTER-DEBUG] Artist detection for "${recordData.title}":`, {
+      isLatZero,
+      lat: recordData.lat,
+      lon: recordData.lon,
+      externalId,
+      tagType,
+      tags,
+      startsWithArtistJson: externalId.startsWith('artist-json-'),
+      tagTypeIsArtist: tagType.toLowerCase() === 'artist',
+    });
+
     const looksLikeArtist =
       isLatZero && (externalId.startsWith('artist-json-') || tagType.toLowerCase() === 'artist');
 
+    console.log(`[API-EXPORTER] Artist detection result for "${recordData.title}": ${looksLikeArtist}`);
+
     if (looksLikeArtist) {
+      console.log(`[API-EXPORTER] Detected artist record: ${recordData.title}, sending to data.artists`);
       return {
         metadata: {
           importId,
@@ -601,7 +707,8 @@ export class ApiExporter implements ExporterPlugin {
           timestamp: new Date().toISOString(),
         },
         config: {
-          duplicateThreshold: 0.7,
+          duplicateThreshold: this.config?.duplicateThreshold ?? 0.75,
+          skipDuplicateDetection: this.config?.skipDuplicateDetection ?? false,
           enableTagMerging: true,
           createMissingArtists: true,
           batchSize: 1,
@@ -627,6 +734,8 @@ export class ApiExporter implements ExporterPlugin {
       };
     }
 
+    console.log(`[API-EXPORTER] Not detected as artist: lat=${recordData.lat}, lon=${recordData.lon}, externalId=${externalId}, sending to data.artworks`);
+
     return {
       metadata: {
         importId,
@@ -638,7 +747,8 @@ export class ApiExporter implements ExporterPlugin {
         timestamp: new Date().toISOString(),
       },
       config: {
-        duplicateThreshold: 0.7,
+        duplicateThreshold: this.config?.duplicateThreshold ?? 0.75,
+        skipDuplicateDetection: this.config?.skipDuplicateDetection ?? false,
         enableTagMerging: true,
         createMissingArtists: true,
         batchSize: 1,

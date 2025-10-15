@@ -12,8 +12,9 @@ import type {
   ImportSession,
   BatchResult,
   ImportResult,
-  DataSourceMapper,
 } from '../types';
+import type { ImporterPlugin, ImporterConfig } from '../types/plugin.js';
+import type { RawImportData } from '../types/index.js';
 import { MassImportAPIClient, DryRunAPIClient } from '../lib/api-client.js';
 import { validateImportData } from '../lib/validation.js';
 import { RawImportDataSchema } from '../types/index.js';
@@ -35,7 +36,7 @@ export const checkCancellation = (): boolean => {
 export class MassImportProcessor {
   private config: MassImportConfig;
   private apiClient: MassImportAPIClient | DryRunAPIClient;
-  private mapper?: DataSourceMapper;
+  private mapper?: ImporterPlugin;
 
   constructor(config: MassImportConfig) {
     this.config = config;
@@ -45,7 +46,7 @@ export class MassImportProcessor {
   /**
    * Set data source mapper
    */
-  setMapper(mapper: DataSourceMapper): void {
+  setMapper(mapper: ImporterPlugin): void {
     this.mapper = mapper;
   }
 
@@ -256,22 +257,46 @@ export class MassImportProcessor {
     console.log(`[RECORD_PROCESSING_DEBUG] Starting record ${recordId}: "${title}"`);
 
     // Step 1: Use mapper if available (for non-standard data formats like Vancouver)
-    let validationResult;
+    let mappedData: RawImportData;
     if (this.mapper) {
       console.log(`[RECORD_PROCESSING_DEBUG] Using mapper for record ${recordId}`);
-      validationResult = this.mapper.mapData(rawRecord);
+      
+      // Get mapper config from options, using empty config as fallback
+      const mapperConfig: ImporterConfig = {
+        source: options.source,
+        ...this.config
+      };
+      
+      const mappedRecords = await this.mapper.mapData(rawRecord, mapperConfig);
+      
+      // Use the first mapped record (most mappers return single-item arrays)
+      if (!mappedRecords || mappedRecords.length === 0 || !mappedRecords[0]) {
+        console.log(`[RECORD_PROCESSING_DEBUG] Mapper returned no records for ${recordId}`);
+        return {
+          id: recordId,
+          title: title,
+          success: false,
+          error: 'Mapper returned no records',
+          warnings: [],
+          duplicateDetection: { isDuplicate: false, candidates: [] },
+          photosProcessed: 0,
+          photosFailed: 0,
+        };
+      }
+      
+      mappedData = mappedRecords[0];
 
       // Update title from mapped data if available
-      if (validationResult.isValid && validationResult.data?.title) {
-        title = validationResult.data.title;
+      if (mappedData.title) {
+        title = mappedData.title;
         console.log(
           `[RECORD_PROCESSING_DEBUG] Updated title from mapper for record ${recordId}: "${title}"`
         );
       }
 
-      if (validationResult.isValid && validationResult.data?.tags) {
+      if (mappedData.tags) {
         const artistFromTags =
-          validationResult.data.tags.artist || validationResult.data.tags.created_by;
+          mappedData.tags.artist || mappedData.tags.created_by;
         if (artistFromTags) {
           console.log(
             `[RECORD_PROCESSING_DEBUG] Mapped artist for record ${recordId}: "${artistFromTags}"`
@@ -299,7 +324,7 @@ export class MassImportProcessor {
           id: recordId,
           title: title,
           success: false,
-          error: `Invalid data format: ${parseResult.error.errors.map(e => e.message).join(', ')}`,
+          error: `Invalid data format: ${parseResult.error.errors.map((e: { message: string }) => e.message).join(', ')}`,
           warnings: [],
           duplicateDetection: { isDuplicate: false, candidates: [] },
           photosProcessed: 0,
@@ -307,8 +332,11 @@ export class MassImportProcessor {
         };
       }
 
-      validationResult = validateImportData(parseResult.data, this.config);
+      mappedData = parseResult.data;
     }
+
+    // Step 2: Validate the mapped data
+    const validationResult = validateImportData(mappedData, this.config);
 
     if (!validationResult.isValid) {
       console.log(
@@ -319,8 +347,8 @@ export class MassImportProcessor {
         id: recordId,
         title: title,
         success: false,
-        error: `Validation failed: ${validationResult.errors.map(e => e.message).join(', ')}`,
-        warnings: validationResult.warnings.map(w => w.message),
+        error: `Validation failed: ${validationResult.errors.map((e: { message: string }) => e.message).join(', ')}`,
+        warnings: validationResult.warnings.map((w: { message: string }) => w.message),
         duplicateDetection: { isDuplicate: false, candidates: [] },
         photosProcessed: 0,
         photosFailed: 0,
@@ -331,7 +359,7 @@ export class MassImportProcessor {
       `[RECORD_PROCESSING_DEBUG] Record ${recordId} validation successful, submitting to API...`
     );
 
-    // Step 2: Submit to API (server will handle duplicate detection and tag merging)
+    // Step 3: Submit to API (server will handle duplicate detection and tag merging)
     const result = await this.apiClient.submitImportRecord(validationResult.data!);
 
     return result;

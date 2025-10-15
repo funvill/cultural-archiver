@@ -6,6 +6,7 @@
  */
 
 import axios, { type AxiosInstance, AxiosError } from 'axios';
+import { fetchImageToCache } from './photo-cache.js';
 import type { ProcessedImportData, ImportResult, MassImportConfig, PhotoInfo } from '../types';
 import type { ExistingArtwork } from './duplicate-detection.js';
 import { detectDuplicates, checkExternalIdDuplicate } from './duplicate-detection.js';
@@ -390,6 +391,19 @@ export class DryRunAPIClient extends MassImportAPIClient {
 
     for (const photo of photos) {
       try {
+        // If a photo cache directory is configured, try to use it first.
+        if (this.config.photoCacheDir) {
+          const cached = await fetchImageToCache(photo.url, this.config.photoCacheDir, {
+            timeoutMs: 15000, // 15 second timeout for photo downloads
+          });
+
+          if (cached) {
+            // Cached copy available - treat as valid without hitting remote again
+            validPhotos++;
+            continue;
+          }
+        }
+
         // Quick HEAD request to validate URL
         await axios.head(photo.url, { timeout: 5000 });
         validPhotos++;

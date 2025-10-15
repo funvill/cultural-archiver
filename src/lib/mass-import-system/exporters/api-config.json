@@ -12,5 +12,6 @@
   "retryAttempts": 2,
   "retryDelay": 1000,
   "validateResponse": true,
-  "transformData": true
+  "transformData": true,
+  "duplicateThreshold": 0.75
 }

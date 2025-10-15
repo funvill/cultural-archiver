@@ -57,7 +57,8 @@ export { MassImportAPIClient, DryRunAPIClient } from './lib/api-client.js';
 // Data Source Importers
 // ================================
 
-export { VancouverMapper, validateVancouverData } from './importers/vancouver.js';
+// Legacy Vancouver importer removed - use plugin system instead
+// export { VancouverMapper, validateVancouverData } from './importers/vancouver.js';
 
 // ================================
 // CLI and Processing

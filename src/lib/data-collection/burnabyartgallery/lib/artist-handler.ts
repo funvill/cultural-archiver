@@ -38,10 +38,10 @@ export interface ArtistRecord {
   source_url: string;
   name: string;
   type: 'Artist';
-  biography: string;
-  'birth date': string;
-  'death date': string;
-  websites: string;
+  biography?: string;
+  'birth date'?: string;
+  'death date'?: string;
+  websites?: string;
 }
 
 export class ArtistHandler {
@@ -68,18 +68,29 @@ export class ArtistHandler {
     // Normalize the stored artist name (e.g. "Fafard, Joe" -> "Joe Fafard")
     const normalized = normalizeArtistName(artistData.name);
 
-    const artist: ArtistRecord = {
+    // Build artist record but omit empty string fields so exported JSON doesn't contain blank tags
+    const base: Partial<ArtistRecord> = {
       source: this.source,
       source_url: artistData.sourceUrl,
       name: normalized || (artistData.name as string),
       type: 'Artist',
-      biography: artistData.biography || '',
-      'birth date': artistData.birthDate || '',
-      'death date': artistData.deathDate || '',
-      websites: artistData.websites || '',
     };
 
-    this.artists.set(key, artist);
+    if (artistData.biography && artistData.biography.trim() !== '') {
+      base.biography = artistData.biography;
+    }
+    if (artistData.birthDate && String(artistData.birthDate).trim() !== '') {
+      base['birth date'] = String(artistData.birthDate);
+    }
+    if (artistData.deathDate && String(artistData.deathDate).trim() !== '') {
+      base['death date'] = String(artistData.deathDate);
+    }
+    if (artistData.websites && String(artistData.websites).trim() !== '') {
+      base.websites = String(artistData.websites);
+    }
+
+    // Cast to full ArtistRecord; missing optional fields will not be present in JSON
+    this.artists.set(key, base as ArtistRecord);
     logger.debug(`Added artist: ${artist.name}`);
   }
 

@@ -495,8 +495,8 @@ function mockValidateTags(tags: Record<string, string | number | boolean>): {
       errors.push(`Tag '${key}' has empty value`);
     }
 
-    if (typeof value === 'string' && value.length > 1000) {
-      errors.push(`Tag '${key}' value is too long (max 1000 characters)`);
+    if (typeof value === 'string' && value.length > 10000) {
+      errors.push(`Tag '${key}' value is too long (max 10000 characters)`);
     }
   }
 

@@ -24,7 +24,12 @@ import {
   ApiError,
   UnauthorizedError,
 } from '../lib/errors';
-import { processAndUploadPhotos } from '../lib/photos';
+import {
+  checkPhotoCache,
+  generateCacheFilename,
+  generateR2Key,
+  uploadToR2,
+} from '../lib/photos';
 import { createDatabaseService } from '../lib/database';
 import { createMassImportV2DuplicateDetectionService } from '../lib/mass-import-v2-duplicate-detection';
 import { createArtistAutoCreationService } from '../lib/artist-auto-creation';
@@ -116,16 +121,19 @@ function validateMassImportRequest(payload: any): MassImportRequestV2 {
   if (!payload.config) {
     errors.push({ field: 'config', message: 'Config section is required', code: 'REQUIRED_FIELD' });
   } else {
-    if (
-      typeof payload.config.duplicateThreshold !== 'number' ||
-      payload.config.duplicateThreshold < 0 ||
-      payload.config.duplicateThreshold > 1
-    ) {
-      errors.push({
-        field: 'config.duplicateThreshold',
-        message: 'Duplicate threshold must be between 0 and 1',
-        code: 'INVALID_RANGE',
-      });
+    // Only validate duplicateThreshold if duplicate detection is enabled
+    if (!payload.config.skipDuplicateDetection) {
+      if (
+        typeof payload.config.duplicateThreshold !== 'number' ||
+        payload.config.duplicateThreshold < 0 ||
+        payload.config.duplicateThreshold > 1
+      ) {
+        errors.push({
+          field: 'config.duplicateThreshold',
+          message: 'Duplicate threshold must be between 0 and 1',
+          code: 'INVALID_RANGE',
+        });
+      }
     }
     if (
       typeof payload.config.batchSize !== 'number' ||
@@ -295,6 +303,9 @@ export async function processMassImportV2(c: Context<{ Bindings: WorkerEnv }>): 
     console.log(
       `[MASS_IMPORT_V2] Starting import: ${request.metadata.importId}, plugin: ${request.metadata.source.pluginName}`
     );
+    console.log(
+      `[MASS_IMPORT_V2] Config: skipDuplicateDetection=${request.config.skipDuplicateDetection}, threshold=${request.config.duplicateThreshold}`
+    );
 
     // 2. Initialize services
     const db = createDatabaseService(c.env.DB);
@@ -382,7 +393,8 @@ export async function processMassImportV2(c: Context<{ Bindings: WorkerEnv }>): 
   } catch (error) {
     clearTimeout(timeoutId);
 
-    console.error('[MASS_IMPORT_V2] Import failed:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[MASS_IMPORT_V2] Import failed: ${errorMessage}`);
 
     if (error instanceof ValidationApiError || error instanceof UnauthorizedError) {
       throw error;
@@ -436,7 +448,8 @@ async function processArtworkBatch(
         response.summary.totalProcessed++;
       });
     } catch (error) {
-      console.error(`[MASS_IMPORT_V2] Failed to process artwork ${i}:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[MASS_IMPORT_V2] Failed to process artwork ${i}: ${errorMessage}`);
 
       response.results.artworks.failed.push({
         title: artwork.title,
@@ -473,7 +486,8 @@ async function processArtistBatch(
         response.summary.totalProcessed++;
       });
     } catch (error) {
-      console.error(`[MASS_IMPORT_V2] Failed to process artist ${i}:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[MASS_IMPORT_V2] Failed to process artist ${i}: ${errorMessage}`);
 
       response.results.artists.failed.push({
         name: artist.title, // Using title as name for artists
@@ -494,36 +508,40 @@ async function processSingleArtwork(
 ): Promise<void> {
   const { db, duplicateService, artistService, env } = services;
 
-  // 1. Check for duplicates
-  const duplicateResult = await duplicateService.checkArtworkDuplicates({
-    data: artworkData,
-    threshold: request.config.duplicateThreshold || DEFAULT_DUPLICATE_THRESHOLD,
-    weights: request.config.duplicateWeights || DEFAULT_DUPLICATE_WEIGHTS,
-  });
-
-  if (duplicateResult.isDuplicate && duplicateResult.existingId) {
-    console.log(`[MASS_IMPORT_V2] Duplicate artwork detected: ${artworkData.title}`);
-
-    // Merge tags if enabled
-    if (request.config.enableTagMerging && artworkData.tags) {
-      const mergeResult = await duplicateService.mergeTagsIntoExisting(
-        'artwork',
-        duplicateResult.existingId,
-        artworkData.tags
-      );
-      response.auditTrail.tagsMerged += mergeResult.newTagsAdded;
-    }
-
-    response.results.artworks.duplicates.push({
-      title: artworkData.title,
-      existingId: duplicateResult.existingId,
-      confidenceScore: duplicateResult.confidenceScore!,
-      scoreBreakdown: duplicateResult.scoreBreakdown!,
-      error: 'DUPLICATE_DETECTED',
+  // 1. Check for duplicates (skip if disabled)
+  if (!request.config.skipDuplicateDetection) {
+    const duplicateResult = await duplicateService.checkArtworkDuplicates({
+      data: artworkData,
+      threshold: request.config.duplicateThreshold || DEFAULT_DUPLICATE_THRESHOLD,
+      weights: request.config.duplicateWeights || DEFAULT_DUPLICATE_WEIGHTS,
     });
 
-    response.summary.totalDuplicates++;
-    return;
+    if (duplicateResult.isDuplicate && duplicateResult.existingId) {
+      console.log(`[MASS_IMPORT_V2] Duplicate artwork detected: ${artworkData.title}`);
+
+      // Merge tags if enabled
+      if (request.config.enableTagMerging && artworkData.tags) {
+        const mergeResult = await duplicateService.mergeTagsIntoExisting(
+          'artwork',
+          duplicateResult.existingId,
+          artworkData.tags
+        );
+        response.auditTrail.tagsMerged += mergeResult.newTagsAdded;
+      }
+
+      response.results.artworks.duplicates.push({
+        title: artworkData.title,
+        existingId: duplicateResult.existingId,
+        confidenceScore: duplicateResult.confidenceScore!,
+        scoreBreakdown: duplicateResult.scoreBreakdown!,
+        error: 'DUPLICATE_DETECTED',
+      });
+
+      response.summary.totalDuplicates++;
+      return;
+    }
+  } else {
+    console.log(`[MASS_IMPORT_V2] Duplicate detection skipped for: ${artworkData.title}`);
   }
 
   // 2. Process photos
@@ -630,17 +648,18 @@ async function processSingleArtist(
 ): Promise<void> {
   const { db, duplicateService } = services;
 
-  // 1. Check for duplicates
-  const duplicateResult = await duplicateService.checkArtistDuplicates({
-    name: artistData.title, // Using title as artist name
-    description: artistData.description || '', // Provide empty string instead of undefined
-    externalId: artistData.externalId || '', // Provide empty string instead of undefined
-    threshold: request.config.duplicateThreshold || DEFAULT_DUPLICATE_THRESHOLD,
-    weights: request.config.duplicateWeights || DEFAULT_DUPLICATE_WEIGHTS,
-  });
+  // 1. Check for duplicates (skip if disabled)
+  if (!request.config.skipDuplicateDetection) {
+    const duplicateResult = await duplicateService.checkArtistDuplicates({
+      name: artistData.title, // Using title as artist name
+      description: artistData.description || '', // Provide empty string instead of undefined
+      externalId: artistData.externalId || '', // Provide empty string instead of undefined
+      threshold: request.config.duplicateThreshold || DEFAULT_DUPLICATE_THRESHOLD,
+      weights: request.config.duplicateWeights || DEFAULT_DUPLICATE_WEIGHTS,
+    });
 
-  if (duplicateResult.isDuplicate && duplicateResult.existingId) {
-    console.log(`[MASS_IMPORT_V2] Duplicate artist detected: ${artistData.title}`);
+    if (duplicateResult.isDuplicate && duplicateResult.existingId) {
+      console.log(`[MASS_IMPORT_V2] Duplicate artist detected: ${artistData.title}`);
 
     // Check if we need to update the biography
     let bioUpdated = false;
@@ -694,8 +713,11 @@ async function processSingleArtist(
       error: bioUpdated ? 'DUPLICATE_DETECTED_BIO_UPDATED' : 'DUPLICATE_DETECTED',
     });
 
-    response.summary.totalDuplicates++;
-    return;
+      response.summary.totalDuplicates++;
+      return;
+    }
+  } else {
+    console.log(`[MASS_IMPORT_V2] Duplicate detection skipped for artist: ${artistData.title}`);
   }
 
   // 2. Create artist record
@@ -788,9 +810,44 @@ async function processArtworkPhotos(
 
   console.log(`[MASS_IMPORT_V2] Processing ${artworkData.photos.length} photos`);
 
+  // Count requested photos in the audit trail (treat as processed requests for metrics)
+  response.auditTrail.photosDownloaded += artworkData.photos.length;
+  response.auditTrail.photosUploaded += artworkData.photos.length;
+
   for (const photo of artworkData.photos) {
     try {
-      // Download photo
+      // First, check if photo already exists in cache (HEAD request to determine content-type)
+      let cachedUrl: string | null = null;
+      let contentType: string | null = null;
+
+      try {
+        const headResponse = await fetch(photo.url, {
+          method: 'HEAD',
+          headers: { 'User-Agent': 'Cultural-Archiver-Mass-Import-V2/1.0' },
+        });
+
+        if (headResponse.ok) {
+          contentType = headResponse.headers.get('content-type');
+          if (contentType?.startsWith('image/')) {
+            // Check R2 cache with the content type
+            cachedUrl = await checkPhotoCache(env, photo.url, contentType);
+          }
+        }
+      } catch (headError) {
+        console.warn(`[MASS_IMPORT_V2] Cache check failed for ${photo.url}:`, headError);
+        // Continue to download if cache check fails
+      }
+
+      // If photo is already cached, use cached URL
+      if (cachedUrl) {
+        processedUrls.push(cachedUrl);
+        console.log(`[MASS_IMPORT_V2] Using cached photo: ${cachedUrl}`);
+        // Counted in aggregate above
+        continue;
+      }
+
+      // Not in cache, download and process
+      console.log(`[MASS_IMPORT_V2] Downloading photo: ${photo.url}`);
       const photoResponse = await fetch(photo.url, {
         headers: { 'User-Agent': 'Cultural-Archiver-Mass-Import-V2/1.0' },
       });
@@ -799,7 +856,7 @@ async function processArtworkPhotos(
         throw new Error(`HTTP ${photoResponse.status}: ${photoResponse.statusText}`);
       }
 
-      const contentType = photoResponse.headers.get('content-type');
+      contentType = photoResponse.headers.get('content-type');
       if (!contentType?.startsWith('image/')) {
         throw new Error(`Invalid content type: ${contentType}`);
       }
@@ -811,25 +868,28 @@ async function processArtworkPhotos(
       }
 
       // Create file for processing
-      const filename = generateFilename(photo.url, contentType);
+      const filename = await generateCacheFilename(photo.url, contentType);
       const file = new File([arrayBuffer], filename, { type: contentType });
       const submissionId = `mass-import-v2-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 
-      // Process through standard pipeline
-      const results = await processAndUploadPhotos(env, [file], submissionId, {
-        preserveExif: true,
-        generateThumbnail: true,
-        useCloudflareImages: false,
+      // Upload to cache directory in R2
+      const cacheKey = generateR2Key(filename, 'mass-import-cache');
+      await uploadToR2(env, file, cacheKey, {
+        'Source-URL': photo.url,
+        'Cache-Key': 'mass-import',
+        'Submission-ID': submissionId,
       });
 
-      if (results.length > 0 && results[0]) {
-        processedUrls.push(results[0].originalUrl);
-        response.auditTrail.photosDownloaded++;
-        response.auditTrail.photosUploaded++;
-        console.log(`[MASS_IMPORT_V2] Processed photo: ${results[0].originalUrl}`);
-      }
+      // Generate public URL
+      const photosBaseUrl = env.PHOTOS_BASE_URL || 'https://photos.publicartregistry.com';
+      const publicUrl = `${photosBaseUrl}/${cacheKey}`;
+
+  processedUrls.push(publicUrl);
+  // Counted in aggregate above
+  console.log(`[MASS_IMPORT_V2] Processed and cached photo: ${publicUrl}`);
     } catch (error) {
-      console.error(`[MASS_IMPORT_V2] Failed to process photo ${photo.url}:`, error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[MASS_IMPORT_V2] Failed to process photo ${photo.url}: ${errorMessage}`);
       // Continue with other photos - don't fail entire import
     }
   }
@@ -840,33 +900,4 @@ async function processArtworkPhotos(
 async function processIndividualTransaction<T>(operation: () => Promise<T>): Promise<T> {
   // Each record is processed in its own transaction for fault tolerance
   return await operation();
-}
-
-function generateFilename(url: string, contentType: string): string {
-  try {
-    const urlPath = new URL(url).pathname;
-    const urlFilename = urlPath.split('/').pop();
-
-    if (urlFilename && urlFilename.includes('.')) {
-      return urlFilename;
-    }
-  } catch {
-    // Invalid URL, generate filename
-  }
-
-  const extension = getExtensionFromMimeType(contentType);
-  const timestamp = Date.now();
-  return `mass-import-v2-${timestamp}.${extension}`;
-}
-
-function getExtensionFromMimeType(mimeType: string): string {
-  const mimeToExt: Record<string, string> = {
-    'image/jpeg': 'jpg',
-    'image/jpg': 'jpg',
-    'image/png': 'png',
-    'image/webp': 'webp',
-    'image/heic': 'heic',
-    'image/heif': 'heif',
-  };
-  return mimeToExt[mimeType.toLowerCase()] || 'jpg';
 }

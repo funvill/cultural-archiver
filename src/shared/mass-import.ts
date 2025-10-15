@@ -540,6 +540,7 @@ export interface MassImportRequestV2 {
   };
   config: {
     duplicateThreshold: number; // Default: 0.7
+    skipDuplicateDetection?: boolean; // Default: false - when true, imports all records without duplicate checking
     enableTagMerging: boolean; // Default: true
     createMissingArtists: boolean; // Default: true
     batchSize: number; // Default: 10, max: 10
