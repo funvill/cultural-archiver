@@ -128,3 +128,5 @@ src/lib/data-collection/richmond/output/artists.json
 production-server-logs.txt
 
 reports/*.json
+
+output/
