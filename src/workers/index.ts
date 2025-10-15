@@ -118,6 +118,7 @@ import { handleSearchRequest, handleSearchSuggestions } from './routes/search';
 import { processMassImportPhotos } from './routes/mass-import-photos';
 import { processMassImportV2 } from './routes/mass-import-v2';
 import { handleOSMImport, handleOSMValidate } from './routes/mass-import-osm';
+import { handleMassImportV3 } from './routes/mass-import-v3';
 import {
   requestMagicLink,
   verifyMagicLink,
@@ -1172,6 +1173,9 @@ app.post('/api/test-email', withErrorHandling(sendTestEmail));
 // ================================
 // Mass Import Endpoints
 // ================================
+
+// Mass Import V3 - Stateless endpoint for individual artwork/artist items
+app.post('/api/mass-import/v3', withErrorHandling(handleMassImportV3));
 
 // Mass Import V2 - Primary endpoint for CLI plugin system
 app.post('/api/mass-import/v2', withErrorHandling(processMassImportV2));

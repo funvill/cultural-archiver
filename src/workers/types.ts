@@ -435,6 +435,8 @@ export interface WorkerEnv
   CORS_ORIGINS?: string; // comma-separated origins from env
   // Enable extra verbose photo pipeline debug logging when set to '1' or 'true'
   PHOTO_DEBUG?: string;
+  // Enable verbose logging for mass import endpoint when set to '1' or 'true'
+  MASS_IMPORT_VERBOSE?: string;
 }
 
 // ================================

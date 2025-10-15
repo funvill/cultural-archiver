@@ -327,7 +327,184 @@ npx tsx src/mass-import/scraper/your-scraper/cli.ts --limit 10 --output ./output
 npx tsx src/mass-import/scraper/your-scraper/cli.ts --output ./output
 ```
 
-### 9. Common Pitfalls
+### 9. Artist ID Management (CRITICAL)
+
+**Problem:** Artist biographies were extracting correctly but not saving to output.
+
+**Root Cause:** Artist ID mismatch between `trackArtist()` and subsequent retrieval.
+
+#### ❌ Don't: Use different IDs for tracking and retrieval
+```typescript
+// BUG: Using artwork ID for tracking
+this.trackArtist(artistName, artworkId, url);
+
+// Then generating a different ID for retrieval
+const artistId = this.generateArtistId(artistName); // Creates NEW ID
+const existingArtist = this.artists.get(artistId); // Not found!
+```
+
+#### ✅ Do: Generate artist ID once and use consistently
+```typescript
+// CORRECT: Generate artist ID first
+const artistId = this.generateArtistId(artistName);
+this.trackArtist(artistName, artistId, url);
+
+// Use the same ID for retrieval
+const existingArtist = this.artists.get(artistId); // Found!
+if (existingArtist) {
+  existingArtist.properties.biography = artistBiography;
+}
+```
+
+**Lesson:** The `trackArtist()` method stores artists by the ID you provide. Always generate the artist ID before calling `trackArtist()` and reuse that same ID for any subsequent lookups.
+
+### 10. Conditional Properties (Clean Output)
+
+**Problem:** Output JSON contained many empty fields (`medium: "", technique: "", keywords: []`).
+
+#### ❌ Don't: Include all fields regardless of whether they have values
+```typescript
+properties: {
+  title,
+  artist: artistName,
+  medium: medium, // Often empty string
+  technique: '', // Always empty
+  dimensions: '', // Always empty
+  keywords: [], // Always empty array
+  accession_number: '', // Always empty
+}
+```
+
+#### ✅ Do: Use conditional spreading to only include non-empty fields
+```typescript
+properties: {
+  title,
+  artist: artistName,
+  ...(medium && { medium }), // Only if medium has a value
+  ...(artwork_type && { artwork_type }),
+  ...(start_date && { start_date }),
+  ...(neighbourhood && { category: neighbourhood }),
+  // Never include technique, dimensions, keywords if site doesn't have them
+}
+```
+
+**Result:** Clean, minimal JSON without clutter.
+
+**Lesson:** Don't include fields that are always empty or unavailable on the source site. Document unavailable fields in the scraper's README instead.
+
+### 11. Avoid Duplicate Properties
+
+**Problem:** Artist biography appeared twice in output - once at root level, once in properties.
+
+#### ❌ Don't: Set both root-level and properties fields
+```typescript
+if (artistBiography) {
+  existingArtist.biography = artistBiography; // ❌ Creates duplicate
+  existingArtist.properties.biography = artistBiography;
+}
+```
+
+#### ✅ Do: Only set properties fields
+```typescript
+if (artistBiography) {
+  existingArtist.properties.biography = artistBiography; // ✅ Single source
+}
+```
+
+**Why:** The `ArtistRecord` type defines properties inside a `properties` object. Setting both creates duplicate data and wastes space.
+
+### 12. Coordinates Extraction from JavaScript
+
+**Strategy:** Extract from embedded JavaScript map data when HTML doesn't contain coordinates.
+
+```typescript
+private async extractCoordinates($: cheerio.CheerioAPI): Promise<[number, number] | null> {
+  // Method 1: Look for map_markers JavaScript variable
+  const scripts = $('script');
+  for (let i = 0; i < scripts.length; i++) {
+    const scriptContent = $(scripts[i]).html();
+    if (!scriptContent) continue;
+    
+    // Match: map_markers = [{lat: 49.2000155, lng: -122.9117314}]
+    const mapPattern = /map_markers\s*=\s*\[\{lat:\s*(-?\d+\.?\d*),\s*lng:\s*(-?\d+\.?\d*)/;
+    const match = scriptContent.match(mapPattern);
+    
+    if (match) {
+      const lat = parseFloat(match[1]);
+      const lng = parseFloat(match[2]);
+      this.logger.info(`Coordinates extracted from map: [${lat}, ${lng}]`);
+      return [lat, lng];
+    }
+  }
+  
+  // Method 2: Look for data attributes
+  const mapContainer = $('[data-lat][data-lng]');
+  if (mapContainer.length > 0) {
+    const lat = parseFloat(mapContainer.attr('data-lat') || '0');
+    const lng = parseFloat(mapContainer.attr('data-lng') || '0');
+    return [lat, lng];
+  }
+  
+  return null;
+}
+```
+
+**Lesson:** Check script tags for embedded map data. Many sites include coordinates in JavaScript variables for map rendering.
+
+### 13. Section-Based Content Extraction
+
+**Strategy:** Extract content by section headings, stopping at known boundaries.
+
+```typescript
+private extractArtistBiography($: cheerio.CheerioAPI): string {
+  const paragraphs: string[] = [];
+  let foundMarker = false;
+  let paragraphCount = 0;
+  const maxParagraphs = 10;
+  
+  // Markers to start collecting
+  const startMarkers = ['About the Artist', 'Artist Biography', 'Artist Statement'];
+  
+  // Markers to stop collecting
+  const stopMarkers = ['Special Thanks', 'Back to Registry', 'Photo credit:', ''];
+  
+  $('p').each((_, element) => {
+    const text = $(element).text().trim();
+    
+    // Check if this is a start marker
+    if (!foundMarker) {
+      if (startMarkers.some(marker => text.includes(marker))) {
+        foundMarker = true;
+        this.logger.info(`Found "${text.substring(0, 30)}..." marker`);
+      }
+      return; // Continue to next paragraph
+    }
+    
+    // Check if we should stop
+    if (stopMarkers.some(marker => text.startsWith(marker)) || 
+        paragraphCount >= maxParagraphs) {
+      this.logger.info(`Stopped at: ${text.substring(0, 30) || '(empty)'}`);
+      return false; // Break out of loop
+    }
+    
+    // Collect paragraph
+    if (text.length > 20) { // Ignore very short paragraphs
+      paragraphs.push(text);
+      paragraphCount++;
+    }
+  });
+  
+  const biography = paragraphs.join('\n\n');
+  if (biography) {
+    this.logger.info(`Extracted artist biography: ${biography.length} characters`);
+  }
+  return biography;
+}
+```
+
+**Lesson:** Use marker-based extraction for sections that don't have consistent HTML structure. Define both start and stop markers.
+
+### 14. Common Pitfalls
 
 #### ❌ Don't: Assume consistent whitespace in concatenated text
 ```typescript
@@ -365,11 +542,14 @@ const artist = $('.artist').text().trim() ||
 medium: this.extractMedium($), // Returns empty string = wasted effort
 ```
 
-#### ✅ Do: Extract what's available, document what's missing
+#### ✅ Do: Use conditional spreading for optional fields
 ```typescript
-// Document in README which fields are available
-const medium = this.extractMetadataField($, 'Primary materials:');
-// Medium often empty on this site - field exists but rarely populated
+properties: {
+  title,
+  artist: artistName,
+  ...(medium && { medium }), // Only include if present
+  ...(artwork_type && { artwork_type }),
+}
 ```
 
 ## Scraper Development Checklist
@@ -417,7 +597,7 @@ const medium = this.extractMetadataField($, 'Primary materials:');
 | Scraper Name | Source | Status | Artworks | Notes |
 |-------------|--------|--------|----------|-------|
 | `burnaby-art-gallery` | [Burnaby Art Gallery](https://www.burnabyartgallery.ca/public-art) | ✅ Complete | ~100+ | Clean dt/dd structure |
-| `new-west-city` | [New Westminster](https://www.newwestcity.ca/public-art-registry) | ✅ Complete | 21+ | Concatenated metadata |
+| `new-west-city` | [New Westminster](https://www.newwestcity.ca/public-art-registry) | ✅ Complete | 74 | Concatenated metadata, JavaScript coordinates |
 
 ## Output Files
 
@@ -517,16 +697,47 @@ When implementing the next scraper:
 1. **Start with Playwright inspection** - Don't guess the HTML structure
 2. **Copy a similar scraper** - Use Burnaby for structured sites, New Westminster for text-heavy sites
 3. **Test incrementally** - `--limit 1`, then `--limit 5`, then full scrape
-4. **Document as you go** - Note any quirks or special handling in the README
-5. **Check artist tracking** - Verify artists are being deduplicated correctly
+4. **Generate artist ID once** - Use the same ID for both `trackArtist()` and subsequent lookups
+5. **Use conditional spreading** - Only include properties that have values
+6. **Check for JavaScript data** - Look in script tags for embedded coordinates or other data
+7. **Document as you go** - Note any quirks or special handling in the README
+8. **Verify artist tracking** - Check that biographies save correctly
+
+## Critical Debugging Checklist
+
+If something isn't working:
+
+- [ ] **Artist biography not saving?**
+  - Check artist ID generation - are you using the same ID for tracking and retrieval?
+  - Add logging to verify biography extraction length
+  - Verify `existingArtist` is not undefined before setting properties
+
+- [ ] **Empty fields in output?**
+  - Use conditional spreading: `...(field && { field })`
+  - Don't include fields that are always empty on the source site
+
+- [ ] **Coordinates missing?**
+  - Check script tags for JavaScript variables (map_markers, etc.)
+  - Look for data attributes on map containers
+  - Log when coordinates are found vs. when using fallback
+
+- [ ] **Metadata extraction failing?**
+  - Use split-based parsing instead of regex for concatenated text
+  - Log the raw metadata text to understand the format
+  - List all possible field names to find boundaries
+
+- [ ] **Photos not extracting?**
+  - Inspect actual image URLs with Playwright
+  - Update include/exclude patterns based on URL structure
+  - Check for thumbnail vs. full-size image URLs
 
 ## Resources
 
-- **ScraperBase**: `src/mass-import/scraper-base.ts`
-- **Shared Types**: `src/shared/types.ts`
-- **Cheerio Docs**: https://cheerio.js.org/
+- **ScraperBase**: `src/mass-import/scraper/shared/scraper-base.ts`
+- **Shared Types**: `src/mass-import/scraper/shared/types.ts`
+- **Cheerio Docs**: [https://cheerio.js.org/](https://cheerio.js.org/)
 - **Playwright-MCP**: Use in Copilot for DOM inspection
 
 ---
 
-*Last updated: October 14, 2025*
+**Last updated:** October 15, 2025
