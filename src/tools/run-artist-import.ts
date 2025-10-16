@@ -4,9 +4,9 @@ import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import chalk from 'chalk';
-import { ImporterRegistry } from '../lib/mass-import-system/lib/importer-registry.js';
-import { MassImportProcessor } from '../lib/mass-import-system/cli/processor.js';
-import type { MassImportConfig } from '../lib/mass-import-system/types/index.js';
+import { ImporterRegistry } from '../mass-import/lib/importer-registry.js';
+import { MassImportProcessor } from '../mass-import/cli/processor.js';
+import type { MassImportConfig } from '../mass-import/types/index.js';
 
 async function run(): Promise<void> {
   const importerName = 'artist-json';

@@ -838,10 +838,13 @@ async function processArtworkPhotos(
         // Continue to download if cache check fails
       }
 
-      // If photo is already cached, use cached URL
+      // If photo is already cached, use cached R2 key
       if (cachedUrl) {
         processedUrls.push(cachedUrl);
-        console.log(`[MASS_IMPORT_V2] Using cached photo: ${cachedUrl}`);
+        // Generate public URL for logging purposes only
+        const photosBaseUrl = env.PHOTOS_BASE_URL || 'https://photos.publicartregistry.com';
+        const publicUrl = `${photosBaseUrl}/${cachedUrl}`;
+        console.log(`[MASS_IMPORT_V2] Using cached photo: ${publicUrl}`);
         // Counted in aggregate above
         continue;
       }
@@ -880,13 +883,13 @@ async function processArtworkPhotos(
         'Submission-ID': submissionId,
       });
 
-      // Generate public URL
+      // Store R2 key instead of full URL - frontend will construct API URLs
+      processedUrls.push(cacheKey);
+      
+      // Generate public URL for logging purposes only
       const photosBaseUrl = env.PHOTOS_BASE_URL || 'https://photos.publicartregistry.com';
       const publicUrl = `${photosBaseUrl}/${cacheKey}`;
-
-  processedUrls.push(publicUrl);
-  // Counted in aggregate above
-  console.log(`[MASS_IMPORT_V2] Processed and cached photo: ${publicUrl}`);
+      console.log(`[MASS_IMPORT_V2] Processed and cached photo: ${publicUrl}`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`[MASS_IMPORT_V2] Failed to process photo ${photo.url}: ${errorMessage}`);

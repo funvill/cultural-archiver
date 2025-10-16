@@ -67,7 +67,9 @@ export const ArtworkPropertiesSchema = z.object({
   artwork_type: z.string().optional(),
   material: z.string().optional(),
   start_date: z.string().optional(),
+  // artist (string) is supported for backwards compatibility but prefer `artists` array
   artist: z.string().optional(),
+  artists: z.array(z.string()).optional(),
   photos: z.array(z.union([UrlSchema, PhotoUrlSchema])).max(10, 'Maximum 10 photos allowed').optional(),
   // Allow additional properties
 }).passthrough();

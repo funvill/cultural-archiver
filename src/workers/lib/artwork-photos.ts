@@ -17,9 +17,21 @@ export interface ArtworkPhotoSources {
 
 type PhotoPriority = 'artwork-first' | 'logbook-first';
 
-const addUniquePhoto = (target: string[], seen: Set<string>, candidate: unknown) => {
-  if (typeof candidate !== 'string') return;
-  const trimmed = candidate.trim();
+const addUniquePhoto = (target: string[], seen: Set<string>, candidate: unknown): void => {
+  // Handle both string URLs and object format { url, caption, credit }
+  let photoUrl: string | null = null;
+  
+  if (typeof candidate === 'string') {
+    photoUrl = candidate;
+  } else if (typeof candidate === 'object' && candidate !== null && 'url' in candidate) {
+    const urlValue = (candidate as { url: unknown }).url;
+    if (typeof urlValue === 'string') {
+      photoUrl = urlValue;
+    }
+  }
+  
+  if (!photoUrl) return;
+  const trimmed = photoUrl.trim();
   if (!trimmed || seen.has(trimmed)) return;
   seen.add(trimmed);
   target.push(trimmed);

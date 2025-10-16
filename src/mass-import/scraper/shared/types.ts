@@ -48,7 +48,7 @@ export interface ArtistRecord {
 	type: 'Artist';
 	id: string;
 	name: string;
-	biography?: string; // Biography in Markdown
+	description?: string; // Description/biography in Markdown (v3 format)
 	properties: ArtistProperties;
 }
 

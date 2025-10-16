@@ -149,7 +149,7 @@ export class NewWestCityScraper extends ScraperBase {
       properties: {
         title,
         description,
-        artist: artistName,
+        ...(artistName && { artists: [artistName] }), // Use artists array format for v3 API
         ...(artwork_type && { artwork_type }),
         location,
         ...(start_date && { start_date }),
@@ -180,7 +180,8 @@ export class NewWestCityScraper extends ScraperBase {
 
         if (existingArtist) {
           if (artistBiography) {
-            existingArtist.properties.biography = artistBiography;
+            existingArtist.description = artistBiography;
+            existingArtist.properties.biography = artistBiography; // Keep in properties for backwards compatibility
           }
           
           if (artistWebsite) {
@@ -305,8 +306,8 @@ export class NewWestCityScraper extends ScraperBase {
         const lat = parseFloat(markerMatch[1]);
         const lng = parseFloat(markerMatch[2]);
         if (!isNaN(lat) && !isNaN(lng)) {
-          logger.info(`Coordinates extracted from map: [${lat}, ${lng}]`);
-          return [lat, lng];
+          logger.info(`Coordinates extracted from map: [${lat}, ${lng}] -> GeoJSON [${lng}, ${lat}]`);
+          return [lng, lat]; // GeoJSON format: [longitude, latitude]
         }
       }
     }
@@ -498,12 +499,13 @@ export class NewWestCityScraper extends ScraperBase {
       const alt = $(element).attr('alt');
       
       if (src) {
-        // Filter out UI elements
+        // Filter out UI elements and generic placeholders
         const isUIElement = src.includes('logo') || 
                            src.includes('icon') || 
                            src.includes('banner') ||
                            src.includes('sprite') ||
                            src.includes('/assets/') ||
+                           src.includes('Anvil_Centre') || // Generic Anvil Centre placeholder
                            alt?.toLowerCase().includes('logo');
         
         // Include images that look like artwork photos
@@ -521,7 +523,8 @@ export class NewWestCityScraper extends ScraperBase {
       }
     });
 
-    return photos;
+    // Limit to 10 photos maximum (v3 endpoint validation requirement)
+    return photos.slice(0, 10);
   }
 
   /**

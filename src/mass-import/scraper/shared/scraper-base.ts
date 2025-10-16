@@ -131,6 +131,11 @@ export abstract class ScraperBase {
 		const artistPath = path.join(outputDir, `${this.scraperName}-artists.json`);
 		fs.writeFileSync(artistPath, JSON.stringify(artistCollection, null, 2));
 		logger.info(`Saved ${this.artists.size} artists to ${artistPath}`);
+
+		// Also write a flat array of artists (legacy importer/CLI expects a top-level array)
+		const artistFlatPath = path.join(outputDir, `${this.scraperName}-artists-flat.json`);
+		fs.writeFileSync(artistFlatPath, JSON.stringify(Array.from(this.artists.values()), null, 2));
+		logger.info(`Saved flat artists array to ${artistFlatPath}`);
 	}
 
 	/**

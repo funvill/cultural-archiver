@@ -51,6 +51,10 @@ artist: Marie Khouri
 
 This artwork has three photos.
 
+The artist bio is found in the "About the Artist" section and starts with "Marie Khouri has been creating public" ends with " is Histoire d'O and Flight of Doves."
+
+
+
 
 ----
 

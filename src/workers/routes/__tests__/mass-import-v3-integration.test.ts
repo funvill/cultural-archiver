@@ -30,12 +30,28 @@ const mockDb = {
           first: vi.fn().mockImplementation(async () => {
             // Handle SELECT queries
             if (sql.includes('SELECT') && sql.includes('FROM artists')) {
-              const artistName = boundParams[0]; // The bound name parameter
-              return mockDbData.artists.find((a: any) => a.name === artistName) || null;
+              // Handle batch SELECT with IN clause
+              if (sql.includes('IN (')) {
+                const results = mockDbData.artists.filter((a: any) => 
+                  boundParams.includes(a.name)
+                );
+                return null; // .first() not used for batch queries
+              } else {
+                const artistName = boundParams[0];
+                return mockDbData.artists.find((a: any) => a.name === artistName) || null;
+              }
             }
             return null;
           }),
           run: vi.fn().mockImplementation(async () => {
+            // Handle SELECT queries (batch lookup)
+            if (sql.includes('SELECT') && sql.includes('FROM artists') && sql.includes('IN (')) {
+              const results = mockDbData.artists.filter((a: any) => 
+                boundParams.includes(a.name)
+              );
+              return { results, success: true };
+            }
+            
             // Handle INSERT queries
             if (sql.includes('INSERT INTO artwork') && !sql.includes('artwork_artists')) {
               const [id, title, description, lat, lon, tags, photos, status, created_at, updated_at] = boundParams;
@@ -47,11 +63,18 @@ const mockDb = {
               const [artwork_id, artist_id, role, created_at] = boundParams;
               mockDbData.artwork_artists.push({ artwork_id, artist_id, role, created_at });
             }
-            return { success: true };
+            return { success: true, results: [] };
           }),
         };
       }),
     };
+  }),
+  batch: vi.fn().mockImplementation(async (statements: any[]) => {
+    // Execute each statement in the batch
+    for (const stmt of statements) {
+      await stmt.run();
+    }
+    return statements.map(() => ({ success: true }));
   }),
 };
 

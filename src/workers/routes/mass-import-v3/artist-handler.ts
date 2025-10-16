@@ -87,6 +87,19 @@ export async function handleArtistImport(
     // Artist already exists, return existing
     const duration = Date.now() - startTime;
     log.info('Artist already exists', { artistId: existingArtist.id, name: validatedData.name, duration });
+    // If incoming import requests auto-approval, update existing artist to approved
+    try {
+      const incomingStatus = (validatedData.properties && (validatedData.properties as any).status) || null;
+      if (incomingStatus === 'approved') {
+        await env.DB.prepare(`UPDATE artists SET status = ?, updated_at = ? WHERE id = ?`)
+          .bind('approved', Date.now(), existingArtist.id)
+          .run();
+        log.info('Upgraded existing artist to approved', { artistId: existingArtist.id });
+      }
+    } catch (err) {
+      // Non-fatal: log and continue returning existing record
+      log.warn('Failed to upgrade existing artist status', { error: err instanceof Error ? err.message : String(err), artistId: existingArtist.id });
+    }
     
     return {
       success: true,
@@ -125,10 +138,14 @@ export async function handleArtistImport(
   // Step 6: Create artist record
   if (verbose) log.debug('Step 6: Creating artist record', { artistId, name: validatedData.name });
   try {
+  // Determine desired status: mass-import-created artists should be approved by default
+  // Allow incoming request to explicitly request a status, otherwise default to 'approved'
+  const desiredStatus = (validatedData.properties && (validatedData.properties as any).status) || 'approved';
+
     await env.DB.prepare(
       `INSERT INTO artists 
-       (id, name, description, aliases, tags, created_at, updated_at) 
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+       (id, name, description, aliases, tags, status, created_at, updated_at) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
       .bind(
         artistId,
@@ -136,6 +153,7 @@ export async function handleArtistImport(
         validatedData.description || null,
         null, // No aliases for mass import
         tagsJson,
+        desiredStatus,
         now,
         now
       )

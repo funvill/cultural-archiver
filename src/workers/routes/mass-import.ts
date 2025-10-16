@@ -441,7 +441,7 @@ export async function processMassImport(c: Context<{ Bindings: WorkerEnv }>): Pr
     // Link artwork to artist if we found or created one
     if (artistId) {
       try {
-        await db.linkArtworkToArtist(artworkId, artistId, 'artist');
+  await db.linkArtworkToArtist(artworkId, artistId, 'primary');
         console.log(`[MASS_IMPORT] Successfully linked artwork ${artworkId} to artist ${artistId}`);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : String(error);

@@ -2,8 +2,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'node:url';
-import { DryRunAPIClient } from '../lib/mass-import-system/lib/api-client.js';
-import type { ProcessedImportData, PhotoInfo } from '../lib/mass-import-system/types/index.js';
+import { DryRunAPIClient } from '../mass-import/lib/api-client.js';
+import type { ProcessedImportData, PhotoInfo } from '../mass-import/types/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

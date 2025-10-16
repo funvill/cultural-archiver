@@ -229,16 +229,15 @@ export async function checkPhotoCache(
     const object = await bucket.head(cacheKey);
 
     if (object) {
-      // Photo exists in cache, return public URL
-      const photosBaseUrl = env.PHOTOS_BASE_URL || 'https://photos.publicartregistry.com';
-      const publicUrl = `${photosBaseUrl}/${cacheKey}`;
-      
+      // Photo exists in cache, return R2 key instead of full URL
       const debugEnabled = env.PHOTO_DEBUG === '1' || env.PHOTO_DEBUG === 'true';
       if (debugEnabled) {
+        const photosBaseUrl = env.PHOTOS_BASE_URL || 'https://photos.publicartregistry.com';
+        const publicUrl = `${photosBaseUrl}/${cacheKey}`;
         console.info('[PHOTO][CACHE]', 'Cache hit', { photoUrl, cacheKey, publicUrl });
       }
 
-      return publicUrl;
+      return cacheKey;
     }
 
     return null; // Not in cache
@@ -508,10 +507,11 @@ export async function processAndUploadPhotos(
         size: file.size,
       });
 
-      // Prepare result
+      // Prepare result - store R2 key as originalUrl for database storage
+      // The frontend will construct API URLs when displaying images
       const result: PhotoUploadResult = {
         originalKey: uploadResult.originalKey,
-        originalUrl: generatePhotoUrl(env, uploadResult.originalKey),
+        originalUrl: uploadResult.originalKey, // Store R2 key instead of full URL
         size: file.size,
         mimeType: file.type,
         uploadedAt: new Date().toISOString(),
@@ -519,14 +519,10 @@ export async function processAndUploadPhotos(
         permalinkInjected,
       };
 
-      // Add thumbnail information if available
+      // Add thumbnail information if available - store R2 key instead of full URL
       if (uploadResult.thumbnailKey) {
         result.thumbnailKey = uploadResult.thumbnailKey;
-        result.thumbnailUrl = generateThumbnailUrl(
-          env,
-          uploadResult.originalKey,
-          options.thumbnailSize
-        );
+        result.thumbnailUrl = uploadResult.thumbnailKey; // Store R2 key instead of full URL
       }
 
       // Add Cloudflare Images ID if used

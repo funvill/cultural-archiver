@@ -196,7 +196,8 @@ export class BurnabyArtGalleryScraper extends ScraperBase {
 			}
 
 			// Extract other fields
-			const artist = this.extractArtist($);
+			const rawArtist = this.extractArtist($);
+			const artist = this.normalizeArtistName(rawArtist);
 			const type = this.extractType($);
 			const location = this.extractLocation($);
 			const date = this.extractDate($);
@@ -218,13 +219,14 @@ export class BurnabyArtGalleryScraper extends ScraperBase {
 					type: 'Point',
 					coordinates,
 				},
-				properties: {
+							properties: {
 					source: this.baseUrl,
 					source_url: url,
 					title,
 					description: this.convertToMarkdown(description),
 					artwork_type: type?.toLowerCase(),
-					artist,
+								// Emit artists as an array (new v3-friendly shape). Keep single artist as one-element array.
+								...(artist ? { artists: [artist] } : {}),
 					location,
 					start_date: date,
 					photos,
@@ -244,7 +246,7 @@ export class BurnabyArtGalleryScraper extends ScraperBase {
 				this.stats.success++;
 				logger.debug(`Successfully scraped artwork`, { id, title });
 
-				// Track artist
+				// Track artist (use normalized name)
 				if (artist) {
 					const artistId = this.generateArtistId(artist);
 					const artistUrl = this.extractArtistBiographyLink($);
@@ -356,6 +358,30 @@ export class BurnabyArtGalleryScraper extends ScraperBase {
 		});
 
 		return artist;
+	}
+
+	/**
+	 * Normalize artist display name.
+	 * If the name is in "Last, First" form, swap to "First Last" and remove commas.
+	 * Otherwise return trimmed name.
+	 */
+	private normalizeArtistName(name: string): string {
+		if (!name) return '';
+		const trimmed = name.trim();
+		// Handle common case: "Last, First" -> "First Last"
+		if (trimmed.includes(',')) {
+			// Split on comma and remove empty tokens
+			const parts = trimmed.split(',').map(p => p.trim()).filter(Boolean);
+			// If there are at least two parts, assume first is last name and the next is first (may include middle names)
+			if (parts.length >= 2) {
+				const last = parts[0];
+				const rest = parts.slice(1).join(' ');
+				return `${rest} ${last}`.replace(/\s+/g, ' ').trim();
+			}
+			// Fallback: remove commas
+			return trimmed.replace(/,/g, '').replace(/\s+/g, ' ').trim();
+		}
+		return trimmed;
 	}
 
 	/**
@@ -610,7 +636,8 @@ export class BurnabyArtGalleryScraper extends ScraperBase {
 			}
 		});
 
-		return [...new Set(photos)]; // Remove duplicates
+		// Remove duplicates and limit to 10 photos maximum (v3 endpoint validation requirement)
+		return [...new Set(photos)].slice(0, 10);
 	}
 
 	/**
@@ -679,7 +706,8 @@ export class BurnabyArtGalleryScraper extends ScraperBase {
 			if (existingArtist) {
 				// Update with additional details
 				if (biography) {
-					existingArtist.biography = this.convertToMarkdown(biography);
+					existingArtist.description = this.convertToMarkdown(biography);
+					existingArtist.properties.biography = this.convertToMarkdown(biography); // Keep in properties for backwards compatibility
 				}
 				if (birthDate) {
 					existingArtist.properties.birth_date = birthDate;

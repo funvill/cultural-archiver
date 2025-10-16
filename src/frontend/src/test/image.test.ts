@@ -37,6 +37,18 @@ describe('Image Utils', () => {
       const url = getImageSizedURL('//photos.publicartregistry.com/photos/photo.jpg', 'thumbnail');
       expect(url).toBe('/api/images/thumbnail/photos/photo.jpg');
     });
+
+    it('should return external URLs unchanged for non-original variants', () => {
+      const externalUrl = 'https://collections.burnabyartgallery.ca/media/image.jpg?width=280';
+      expect(getImageSizedURL(externalUrl, 'thumbnail')).toBe(externalUrl);
+      expect(getImageSizedURL(externalUrl, 'medium')).toBe(externalUrl);
+      expect(getImageSizedURL(externalUrl, 'large')).toBe(externalUrl);
+    });
+
+    it('should return external URLs unchanged for original variant', () => {
+      const externalUrl = 'https://example.com/photos/external-photo.jpg';
+      expect(getImageSizedURL(externalUrl, 'original')).toBe(externalUrl);
+    });
   });
 
   describe('getImageVariantURLs', () => {

@@ -171,6 +171,24 @@ private extractPhotos($: cheerio.CheerioAPI): string[] {
 
 **Why:** More reliable than alt text or parent element inspection. URLs typically follow naming conventions.
 
+**Important:** Scrapers should output **external photo URLs**. The Mass Import v3 API automatically:
+- Downloads photos from external URLs during import
+- Uploads to Cloudflare R2 storage
+- Generates proper R2-based URLs
+- Stores metadata (original URL, upload timestamp, file size)
+- Eliminates hotlinking to external sources
+
+**Photo Output Format:**
+```typescript
+// Simple URL (will be downloaded and uploaded to R2)
+photos: ["https://example.com/photo1.jpg", "https://example.com/photo2.jpg"]
+
+// Or with metadata (optional)
+photos: [
+  { url: "https://example.com/photo1.jpg", caption: "Front view", credit: "Photographer" }
+]
+```
+
 ### 4. Artist Extraction Patterns
 
 #### Strategy 1: CSS Class Selector (Best)
@@ -504,15 +522,250 @@ private extractArtistBiography($: cheerio.CheerioAPI): string {
 
 **Lesson:** Use marker-based extraction for sections that don't have consistent HTML structure. Define both start and stop markers.
 
-### 14. Common Pitfalls
+### 14. ASP.NET Web Forms Pagination (ViewState)
+
+**Challenge:** Some older government sites use ASP.NET Web Forms with ViewState-based pagination. This requires sending POST requests with specific form fields to navigate pages.
+
+**Key Concepts:**
+
+- **ViewState:** Large encoded state field (`__VIEWSTATE`, `__EVENTVALIDATION`, `__VIEWSTATEGENERATOR`) that must be preserved across requests
+- **__doPostBack:** JavaScript function that triggers server-side pagination with control IDs
+- **Form Field Management:** Must include search/control fields but exclude result data fields
+
+#### Problem Pattern: Only First Page Works
+
+**Symptoms:**
+
+- Pagination appears to work (POST returns 200 OK)
+- All pages return identical results from page 1
+- Or pagination returns filtered subset (e.g., 17 of 382 total artworks)
+
+**Root Causes:**
+
+1. Missing ViewState fields → Server resets to default state
+2. Missing search form controls → Server applies default filters
+3. Including result data fields → Server returns page 1 repeatedly
+
+#### ✅ Solution: Essential Fields Only
+
+```typescript
+private extractNextPagePostData($: cheerio.CheerioAPI, targetPageNumber: number): string | null {
+  // CRITICAL: Extract ViewState fields (required for all ASP.NET postbacks)
+  const viewState = $('input[name="__VIEWSTATE"]').val();
+  const eventValidation = $('input[name="__EVENTVALIDATION"]').val();
+  const viewStateGenerator = $('input[name="__VIEWSTATEGENERATOR"]').val();
+
+  if (!viewState || !eventValidation) {
+    this.logger.error('Missing required ViewState fields');
+    return null;
+  }
+
+  // Find pagination button control ID (varies by page number)
+  const pageButton = $(`a[href*="__doPostBack"][href*="btnPage"]`)
+    .filter((_, el) => $(el).text().trim() === targetPageNumber.toString())
+    .first();
+
+  if (pageButton.length === 0) {
+    this.logger.warn(`No pagination link found for page ${targetPageNumber}`);
+    return null;
+  }
+
+  // Extract __doPostBack parameters from href
+  const href = pageButton.attr('href') || '';
+  const targetMatch = href.match(/__doPostBack\('([^']+)'/);
+  const argumentMatch = href.match(/'([^']*)'\)/);
+
+  if (!targetMatch) {
+    this.logger.error(`Could not extract __doPostBack target from: ${href}`);
+    return null;
+  }
+
+  const eventTarget = targetMatch[1];
+  const eventArgument = argumentMatch?.[1] || '';
+
+  // ESSENTIAL: Include search form controls (preserves filter state)
+  const searchControls = {
+    'ctl00$main$tbKeyword': $('input[name="ctl00$main$tbKeyword"]').val() || '',
+    'ctl00$main$tbArtist': $('input[name="ctl00$main$tbArtist"]').val() || '',
+    'ctl00$main$tbArtwork': $('input[name="ctl00$main$tbArtwork"]').val() || '',
+    'ctl00$main$ddlArea': $('select[name="ctl00$main$ddlArea"]').val() || '',
+    'ctl00$main$ddlYearFrom': $('select[name="ctl00$main$ddlYearFrom"]').val() || '',
+    'ctl00$main$ddlYearTo': $('select[name="ctl00$main$ddlYearTo"]').val() || '',
+  };
+
+  // Build POST data with ONLY essential fields
+  const formData = new URLSearchParams({
+    __EVENTTARGET: eventTarget,
+    __EVENTARGUMENT: eventArgument,
+    __VIEWSTATE: viewState as string,
+    __VIEWSTATEGENERATOR: viewStateGenerator as string,
+    __EVENTVALIDATION: eventValidation as string,
+    ...searchControls, // Include search controls
+    // ❌ DO NOT include result data fields (hdArtworkID, rptSearchResults, etc.)
+  });
+
+  this.logger.info(`Extracted POST data for page ${targetPageNumber}, target: ${eventTarget}`);
+  return formData.toString();
+}
+```
+
+#### Fetching Next Page (POST Request)
+
+```typescript
+protected async fetchNextPage(postData: string): Promise<string> {
+  const response = await fetch(this.getSourceUrl(), {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept': 'text/html,application/xhtml+xml',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)',
+      'Referer': this.getSourceUrl(),
+    },
+    body: postData,
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status} for ${this.getSourceUrl()}`);
+  }
+
+  return await response.text();
+}
+```
+
+#### Essential vs. Result Data Fields
+
+**✅ Essential Fields (Must Include):**
+
+- `__VIEWSTATE` - Server state (typically 100k+ characters)
+- `__EVENTVALIDATION` - Security validation (typically 2-3k characters)
+- `__VIEWSTATEGENERATOR` - State generator ID
+- `__EVENTTARGET` - Control ID from `__doPostBack()` (e.g., `ctl00$main$rptPager$ctl02$btnPage`)
+- `__EVENTARGUMENT` - Usually empty string
+- Search form controls - text inputs, dropdowns, filters (preserve search state)
+
+**❌ Result Data Fields (Must Exclude):**
+
+- `hdArtworkID` - Hidden fields with result IDs
+- `rptSearchResults$ctl00$*` - Repeater control result data
+- Any fields containing current page's artwork data
+
+**Why This Matters:**
+
+- Missing ViewState → Server resets to default state, pagination fails
+- Missing search controls → Server applies default filters, returns subset
+- Including result data → Server thinks you're submitting page 1 data, returns page 1
+
+#### Debugging with Playwright MCP
+
+When pagination fails, use Playwright to compare browser behavior vs. scraper:
+
+```typescript
+// 1. Navigate to page in Playwright
+await mcp_playwright_browser_navigate({ url: 'https://site.com/search.aspx' });
+
+// 2. Click pagination link
+await mcp_playwright_browser_click({
+  element: 'Page 2 link',
+  ref: 'a:has-text("2")'
+});
+
+// 3. Inspect form fields after navigation
+// Compare with scraper's POST data to identify missing fields
+```
+
+**Debugging Checklist:**
+
+- [ ] Verify ViewState fields are present and non-empty
+- [ ] Check that search form controls are included
+- [ ] Confirm result data fields are excluded
+- [ ] Compare POST data size with browser network tab
+- [ ] Use Playwright to inspect actual form state on page 2
+- [ ] Log extracted field names to verify essential fields whitelist
+
+#### Complete Pagination Implementation
+
+```typescript
+protected async scrapeListingPage(): Promise<void> {
+  let currentPage = 1;
+  const maxPages = 50; // Safety limit
+
+  // Fetch initial page
+  let html = await this.fetchWithRetry(this.getSourceUrl());
+  let $ = cheerio.load(html);
+
+  while (currentPage <= maxPages) {
+    this.logger.info(`Scraping page ${currentPage}...`);
+
+    // Extract artwork links from current page
+    const links = this.extractArtworkLinks($);
+    this.logger.info(`Found ${links.length} artwork links on page ${currentPage}`);
+
+    for (const link of links) {
+      await this.scrapeDetailPage(link);
+    }
+
+    // Check for next page
+    const nextPageNumber = currentPage + 1;
+    const postData = this.extractNextPagePostData($, nextPageNumber);
+
+    if (!postData) {
+      this.logger.info(`No more pages after page ${currentPage}`);
+      break;
+    }
+
+    // Fetch next page
+    html = await this.fetchNextPage(postData);
+    $ = cheerio.load(html);
+    currentPage++;
+  }
+}
+```
+
+#### Common Mistakes and Fixes
+
+| Mistake | Symptom | Fix |
+|---------|---------|-----|
+| Missing `__VIEWSTATE` | 500 error or reset to page 1 | Extract from `<input name="__VIEWSTATE">` |
+| Missing search controls | Returns filtered subset | Include all form inputs/selects from search panel |
+| Including result data | All pages return page 1 | Exclude fields with patterns like `rptSearchResults`, `hdArtworkID` |
+| Wrong `__EVENTTARGET` | No pagination | Extract from `__doPostBack('target', 'arg')` in href |
+| Missing `Content-Type` header | 400 error | Use `application/x-www-form-urlencoded` |
+| Missing `Referer` header | Security error | Set to source URL |
+
+#### Verification
+
+After implementing pagination:
+
+```powershell
+# Test with limit to verify pages are different
+npx tsx src/mass-import/scraper/your-scraper/cli.ts --limit 50 --output ./output
+
+# Check unique artwork count
+$artworks = Get-Content ./output/your-scraper-artworks.geojson | ConvertFrom-Json
+$artworks.features.Count  # Should match limit or total available
+$artworks.features.id | Sort-Object -Unique | Measure-Object  # Should have no duplicates
+```
+
+**Success Indicators:**
+
+- Each page returns different artwork links (use Set for deduplication)
+- Total artworks collected matches site's reported total
+- No duplicate artwork IDs in final output
+- Logs show progression through multiple pages
+
+**Lesson:** ASP.NET Web Forms pagination requires preserving ViewState and search form controls while excluding result data fields. Use Playwright MCP to debug by comparing browser form state with scraper POST data. When in doubt, include control fields but exclude data fields.
+
+### 15. Common Pitfalls
 
 #### ❌ Don't: Assume consistent whitespace in concatenated text
+
 ```typescript
 // This often fails
 const pattern = new RegExp(`${field}:\\s*([^]+?)(?=\\s{2,}\\w+:|$)`);
 ```
 
 #### ✅ Do: Split on known field names
+
 ```typescript
 const fieldIndex = fullText.indexOf(fieldName);
 const afterField = fullText.substring(fieldIndex + fieldName.length);
@@ -521,6 +774,7 @@ return afterField.substring(0, nextFieldIndex).trim();
 ```
 
 #### ❌ Don't: Complex DOM traversal without checking structure
+
 ```typescript
 // Fragile and hard to debug
 const artist = $('div').filter((_, el) => {
@@ -530,6 +784,7 @@ const artist = $('div').filter((_, el) => {
 ```
 
 #### ✅ Do: Use specific selectors or simple traversal
+
 ```typescript
 // Clear and maintainable
 const artist = $('.artist').text().trim() || 
@@ -537,12 +792,14 @@ const artist = $('.artist').text().trim() ||
 ```
 
 #### ❌ Don't: Hardcode field mappings without checking availability
+
 ```typescript
 // Some sites don't have all fields
 medium: this.extractMedium($), // Returns empty string = wasted effort
 ```
 
 #### ✅ Do: Use conditional spreading for optional fields
+
 ```typescript
 properties: {
   title,
@@ -555,12 +812,14 @@ properties: {
 ## Scraper Development Checklist
 
 ### Initial Setup
+
 - [ ] Create scraper directory with name matching source
 - [ ] Create `scraper.ts`, `cli.ts`, and `README.md`
 - [ ] Use Playwright-MCP to inspect target website DOM
 - [ ] Document the HTML structure and identify extraction patterns
 
 ### Implementation
+
 - [ ] Extend `ScraperBase` class
 - [ ] Implement `scrapeListingPage()` - extract artwork URLs
 - [ ] Implement `scrapeDetailPage()` - extract artwork data
@@ -575,6 +834,7 @@ properties: {
   - [ ] Metadata fields (type, year, medium, etc.)
 
 ### Testing
+
 - [ ] Test with `--limit 1` - verify basic extraction
 - [ ] Check output JSON/GeoJSON structure
 - [ ] Test with `--limit 5-10` - verify consistency
@@ -584,6 +844,7 @@ properties: {
 - [ ] Full scrape when confident
 
 ### Documentation
+
 - [ ] Update scraper README with:
   - [ ] Source URL
   - [ ] Available fields
@@ -598,6 +859,7 @@ properties: {
 |-------------|--------|--------|----------|-------|
 | `burnaby-art-gallery` | [Burnaby Art Gallery](https://www.burnabyartgallery.ca/public-art) | ✅ Complete | ~100+ | Clean dt/dd structure |
 | `new-west-city` | [New Westminster](https://www.newwestcity.ca/public-art-registry) | ✅ Complete | 74 | Concatenated metadata, JavaScript coordinates |
+| `richmond-ca` | [Richmond BC](https://www.richmond.ca/culture/howartworks/publicart/collection/Search.aspx) | ✅ Complete | 382 | ASP.NET Web Forms with ViewState pagination |
 
 ## Output Files
 

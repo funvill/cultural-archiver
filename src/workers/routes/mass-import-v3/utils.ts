@@ -107,10 +107,45 @@ export function parseArtistField(artistField?: string): string[] {
   if (!artistField) return [];
 
   // Split by comma and trim whitespace
-  const artists = artistField
-    .split(',')
-    .map(name => name.trim())
-    .filter(name => name.length > 0);
+  const rawTokens = artistField.split(',').map(t => t.trim()).filter(t => t.length > 0);
+
+  // Heuristics:
+  // - If there is a single comma (two tokens) and one or both tokens contain spaces,
+  //   assume it's two separate full names (e.g., "John Doe, Jane Smith").
+  // - If there is a single comma and both tokens have no spaces, treat as "Last, First" (single name).
+  // - If there are an even number of tokens and none of the tokens contain spaces,
+  //   assume pairs of [Last, First, Last, First] and reconstruct into Last, First pairs.
+  // - Otherwise, treat each token as a full artist name.
+
+  if (rawTokens.length === 0) return [];
+
+  if (rawTokens.length === 1) return [rawTokens[0] as string];
+
+  if (rawTokens.length === 2) {
+    const [aRaw, bRaw] = rawTokens;
+    const a = aRaw as string;
+    const b = bRaw as string;
+    const aHasSpace = a.includes(' ');
+    const bHasSpace = b.includes(' ');
+    // If either looks like a full name (contains space), treat as two artists
+    if (aHasSpace || bHasSpace) return [a, b];
+    // Otherwise it's likely "Last, First"
+    return [`${a}, ${b}`];
+  }
+
+  // More than 2 tokens
+  const anyTokenHasSpace = rawTokens.some(t => t.includes(' '));
+  if (!anyTokenHasSpace && rawTokens.length % 2 === 0) {
+    // Group into pairs: [Last, First, Last2, First2] -> ["Last, First", "Last2, First2"]
+    const pairs: string[] = [];
+    for (let i = 0; i < rawTokens.length; i += 2) {
+      pairs.push(`${rawTokens[i]}, ${rawTokens[i + 1]}`);
+    }
+    return pairs;
+  }
+
+  // Default: each token is an artist
+  const artists = rawTokens;
 
   return artists;
 }
