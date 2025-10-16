@@ -66,7 +66,72 @@ export class YourScraper extends ScraperBase {
 
 ## Lessons Learned
 
-### 1. Always Inspect the Live DOM First
+### 1. Output Format MUST Be OSM-Compatible
+
+**CRITICAL:** Scrapers MUST output OSM-compatible GeoJSON format directly. Do NOT create custom property formats that require conversion.
+
+**Required OSM Properties:**
+```typescript
+properties: {
+  '@id': string,           // Unique identifier (e.g., "surrey-ca/artwork-slug")
+  tourism: 'artwork',      // OSM tag for artwork
+  name: string,            // Artwork title
+  artist_name?: string,    // Comma-separated artist names
+  start_date?: string,     // Year installed/created
+  description?: string,    // Full description
+  image?: string,          // First/main photo URL
+  photos?: string[],       // Array of ALL photo URLs
+  'addr:full'?: string,    // Full address/location string
+  source: string,          // Source website URL
+  source_url: string,      // Direct link to artwork page
+  notes?: string,          // Additional metadata (category, developer, etc.)
+}
+```
+
+**Why OSM Format:**
+- Works directly with `osm-artwork` importer - no conversion needed
+- Standardized across all scrapers
+- Compatible with OpenStreetMap conventions
+- Eliminates conversion scripts and potential errors
+
+**Example:**
+```typescript
+const artwork: ArtworkFeature = {
+  type: 'Feature',
+  id: 'surrey-ca/abstract-mountains',
+  geometry: {
+    type: 'Point',
+    coordinates: [-122.84274, 49.178044]
+  },
+  properties: {
+    '@id': 'surrey-ca/abstract-mountains',
+    tourism: 'artwork',
+    name: 'Abstract Mountains',
+    artist_name: 'Marie Khouri',
+    start_date: '2018',
+    description: 'Made of stainless steel...',
+    image: 'https://www.example.com/photo1.jpg',
+    photos: [
+      'https://www.example.com/photo1.jpg',
+      'https://www.example.com/photo2.jpg',
+      'https://www.example.com/photo3.jpg'
+    ],
+    'addr:full': 'City Centre 2 (9639 137A Street)',
+    source: 'https://www.example.com/public-art/',
+    source_url: 'https://www.example.com/artwork/abstract-mountains',
+    notes: 'Category: Private collection\nDeveloper: Lark Group'
+  }
+};
+```
+
+**Common Mistakes to Avoid:**
+- ❌ Using `title` instead of `name`
+- ❌ Using `artists` array instead of `artist_name` string
+- ❌ Using `location` instead of `addr:full`
+- ❌ Only including `image` without `photos` array
+- ❌ Creating custom property names
+
+### 2. Always Inspect the Live DOM First
 
 **Use Playwright-MCP for DOM inspection:**
 
@@ -81,6 +146,11 @@ await mcp_playwright_browser_navigate({ url: "https://example.com/artwork/123" }
 - Artist name appeared in `<div class="artist">` in DOM
 - Simple selector `.artist` worked perfectly after DOM inspection
 - Initial complex iteration approaches were unnecessary
+
+**Example from Surrey:**
+- Metadata fields had trailing spaces in `<strong>` tags: `<strong>Artists: </strong>`
+- Required updating extraction logic to handle both `<strong>Artists:</strong>` and `<strong>Artists: </strong>`
+- DOM inspection revealed actual HTML structure vs. assumptions
 
 ### 2. Handle Different Metadata Structures
 
@@ -171,7 +241,24 @@ private extractPhotos($: cheerio.CheerioAPI): string[] {
 
 **Why:** More reliable than alt text or parent element inspection. URLs typically follow naming conventions.
 
+**CRITICAL - Photos Array:**
+
+Scrapers MUST include BOTH `image` and `photos` properties:
+
+- `image`: First/main photo URL (for OSM compatibility)
+- `photos`: Array of ALL photo URLs (for complete import)
+
+```typescript
+properties: {
+  // ... other properties
+  image: photos && photos.length > 0 ? photos[0] : undefined,
+  photos: photos, // Complete array of ALL photos
+  // ... other properties
+}
+```
+
 **Important:** Scrapers should output **external photo URLs**. The Mass Import v3 API automatically:
+
 - Downloads photos from external URLs during import
 - Uploads to Cloudflare R2 storage
 - Generates proper R2-based URLs
@@ -179,9 +266,14 @@ private extractPhotos($: cheerio.CheerioAPI): string[] {
 - Eliminates hotlinking to external sources
 
 **Photo Output Format:**
+
 ```typescript
-// Simple URL (will be downloaded and uploaded to R2)
-photos: ["https://example.com/photo1.jpg", "https://example.com/photo2.jpg"]
+// Simple URL array (recommended - will be downloaded and uploaded to R2)
+photos: [
+  "https://example.com/photo1.jpg",
+  "https://example.com/photo2.jpg",
+  "https://example.com/photo3.jpg"
+]
 
 // Or with metadata (optional)
 photos: [

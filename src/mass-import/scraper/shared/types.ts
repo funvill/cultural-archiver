@@ -16,23 +16,50 @@ export interface ArtworkFeature {
 export interface ArtworkProperties {
 	source: string; // Root domain
 	source_url: string; // Full URL to artwork page
-	title: string;
+	
+	// Title/Name (OSM uses 'name', legacy uses 'title')
+	title?: string;
+	name?: string; // OSM-style name
+	
+	// OSM-specific fields
+	'@id'?: string; // OSM ID
+	tourism?: string; // OSM tag (e.g., 'artwork')
+	historic?: string; // OSM historic tag
+	
 	description?: string; // Markdown
 	artwork_type?: string;
+	
+	// Artist information (supports both formats)
 	artist?: string; // Single artist name or comma-separated
-	artists?: string[]; // Multiple artists
+	artist_name?: string; // OSM-style artist name
+	artists?: string[]; // Multiple artists array
+	
+	// Location information
 	location?: string;
+	'addr:full'?: string; // OSM-style full address
+	
+	// Date information
 	start_date?: string;
 	end_date?: string;
+	
+	// Physical properties
 	material?: string;
 	medium?: string; // Materials used (e.g., "aluminum, concrete")
 	technique?: string; // Techniques used (e.g., "metal fabrication, concrete installation")
 	dimensions?: string;
+	
+	// Additional metadata
 	keywords?: string[]; // Tags/topics
 	owner?: string;
 	category?: string;
 	accession_number?: string;
+	
+	// Media
 	photos?: string[]; // Array of photo URLs
+	image?: string; // OSM-style single image URL
+	
+	notes?: string; // Additional notes
+	
 	[key: string]: unknown; // Allow additional properties
 }
 

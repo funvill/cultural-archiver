@@ -39,6 +39,7 @@ export class LocationCacheService {
         postcode TEXT,
         raw_response TEXT NOT NULL,
         created_at TEXT NOT NULL,
+        address_query TEXT,
         PRIMARY KEY (lat, lon)
       )
     `);
@@ -47,6 +48,12 @@ export class LocationCacheService {
     this.db.exec(`
       CREATE INDEX IF NOT EXISTS idx_location_cache_coords 
       ON location_cache (lat, lon)
+    `);
+
+    // Create index for address queries
+    this.db.exec(`
+      CREATE INDEX IF NOT EXISTS idx_location_cache_address 
+      ON location_cache (address_query)
     `);
 
     // Enable WAL mode for better concurrent access
@@ -73,6 +80,19 @@ export class LocationCacheService {
     `);
 
     const result = stmt.get(roundedLat, roundedLon) as LocationCacheRecord | undefined;
+    return result || null;
+  }
+
+  /**
+   * Get location from cache by address query
+   */
+  getLocationByAddress(address: string): LocationCacheRecord | null {
+    const stmt = this.db.prepare(`
+      SELECT * FROM location_cache 
+      WHERE address_query = ?
+    `);
+
+    const result = stmt.get(address) as LocationCacheRecord | undefined;
     return result || null;
   }
 
@@ -104,6 +124,41 @@ export class LocationCacheService {
       locationData.road,
       locationData.postcode,
       locationData.raw_response,
+      new Date().toISOString()
+    );
+  }
+
+  /**
+   * Store location in cache with address query
+   */
+  storeLocationWithAddress(
+    locationData: Omit<LocationCacheRecord, 'created_at'> & { address_query: string }
+  ): void {
+    const roundedLat = this.roundCoordinate(locationData.lat);
+    const roundedLon = this.roundCoordinate(locationData.lon);
+
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO location_cache (
+        lat, lon, version, display_name, country_code, country, state, city,
+        suburb, neighbourhood, road, postcode, raw_response, address_query, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    stmt.run(
+      roundedLat,
+      roundedLon,
+      locationData.version,
+      locationData.display_name,
+      locationData.country_code,
+      locationData.country,
+      locationData.state,
+      locationData.city,
+      locationData.suburb,
+      locationData.neighbourhood,
+      locationData.road,
+      locationData.postcode,
+      locationData.raw_response,
+      locationData.address_query,
       new Date().toISOString()
     );
   }

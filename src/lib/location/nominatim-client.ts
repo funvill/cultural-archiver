@@ -159,4 +159,61 @@ export class NominatimApiClient {
     const timeSinceLastRequest = now - this.lastRequestTime;
     return Math.max(0, this.rateLimitDelay - timeSinceLastRequest);
   }
+
+  /**
+   * Perform forward geocoding (address search) using Nominatim
+   */
+  async geocode(
+    query: string,
+    options: LocationLookupOptions = {}
+  ): Promise<LocationResult | null> {
+    await this.enforceRateLimit();
+
+    const timeout = options.timeout || 10000; // 10 second default timeout
+    const url = new URL(`${this.baseUrl}/search`);
+
+    url.searchParams.set('q', query);
+    url.searchParams.set('format', 'json');
+    url.searchParams.set('addressdetails', '1');
+    url.searchParams.set('limit', '1'); // Only get the best match
+    url.searchParams.set('accept-language', 'en');
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+    try {
+      const response = await fetch(url.toString(), {
+        headers: {
+          'User-Agent': this.userAgent,
+          Accept: 'application/json',
+        },
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        throw new Error(`Nominatim API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as NominatimResponse[];
+
+      if (!data || data.length === 0) {
+        return null; // No results found
+      }
+
+      return this.parseNominatimResponse(data[0] as NominatimResponse);
+    } catch (error) {
+      clearTimeout(timeoutId);
+
+      if (error instanceof Error) {
+        if (error.name === 'AbortError') {
+          throw new Error(`Nominatim request timed out after ${timeout}ms`);
+        }
+        throw error;
+      }
+
+      throw new Error('Unknown error occurred during Nominatim request');
+    }
+  }
 }
