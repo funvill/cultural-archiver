@@ -1,7 +1,0 @@
-# Output files
-artworks.geojson
-artists.json
-
-# Debug files
-debug/
-*.html

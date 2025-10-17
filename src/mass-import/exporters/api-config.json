@@ -1,0 +1,17 @@
+{
+  "apiEndpoint": "http://127.0.0.1:8787/api/mass-import/v3",
+  "method": "POST",
+  "headers": {
+    "Content-Type": "application/json"
+  },
+  "authentication": {
+    "type": "bearer",
+    "token": "a0000000-1000-4000-8000-000000000001"
+  },
+  "timeout": 30000,
+  "retryAttempts": 2,
+  "retryDelay": 1000,
+  "validateResponse": true,
+  "transformData": true,
+  "duplicateThreshold": 0.75
+}

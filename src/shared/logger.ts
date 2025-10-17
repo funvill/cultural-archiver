@@ -63,12 +63,37 @@ const discoverGlobalLevel = (): LogLevel | undefined => {
   return undefined;
 };
 
-const sanitizeArg = (value: unknown): unknown => {
-  if (!value || typeof value !== 'object') return value;
+const isPlainObject = (v: unknown): v is Record<string, unknown> => {
+  if (!v || typeof v !== 'object') return false;
+  const proto = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
+};
 
-  // Shallow clone to avoid mutating original references
+const sanitizeArg = (value: unknown, seen: WeakSet<object> = new WeakSet(), depth = 0): unknown => {
+  // Avoid deep recursion and circular refs
+  const MAX_DEPTH = 5;
+  if (depth > MAX_DEPTH) return '[MAX_DEPTH]';
+
+  if (value === null || typeof value !== 'object') return value;
+
+  // Protect against logging complex host objects (DOM nodes, Window, Map, Set, Function wrappers)
+  if (!isPlainObject(value) && !Array.isArray(value)) {
+    // For iterables like Map/Set, show size; for other host objects, show a brief type label
+    try {
+      if (value instanceof Map) return `[Map size=${value.size}]`;
+      if (value instanceof Set) return `[Set size=${value.size}]`;
+    } catch {
+      // ignore instanceof failures across realms
+    }
+    const ctorName = (value as any)?.constructor?.name;
+    return ctorName ? `[${ctorName}]` : '[Object]';
+  }
+
+  if (seen.has(value as object)) return '[Circular]';
+  seen.add(value as object);
+
   if (Array.isArray(value)) {
-    return value.map(sanitizeArg);
+    return (value as unknown[]).map(v => sanitizeArg(v, seen, depth + 1));
   }
 
   const entry = value as Record<string, unknown>;
@@ -79,14 +104,18 @@ const sanitizeArg = (value: unknown): unknown => {
     if (lowerKey.includes('token') || lowerKey.includes('authorization')) {
       clone[key] = '[REDACTED]';
     } else {
-      clone[key] = sanitizeArg(entry[key]);
+      try {
+        clone[key] = sanitizeArg(entry[key], seen, depth + 1);
+      } catch (err) {
+        clone[key] = `[SanitizeError:${(err as Error).message}]`;
+      }
     }
   });
 
   return clone;
 };
 
-const sanitizeArgs = (args: unknown[]): unknown[] => args.map(sanitizeArg);
+const sanitizeArgs = (args: unknown[]): unknown[] => args.map(v => sanitizeArg(v));
 
 const shouldLog = (configured: LogLevel, requested: LogLevel): boolean =>
   levelIndex(requested) >= levelIndex(configured);
@@ -96,7 +125,7 @@ export const createLogger = (options: LoggerOptions = {}): Logger => {
     options.level ?? discoverGlobalLevel() ?? DEFAULT_LEVEL;
   const moduleLabel = options.module ? `[${options.module}]` : '';
 
-  const emit = (level: LogLevel, ...args: unknown[]) => {
+  const emit = (level: LogLevel, ...args: unknown[]): void => {
     if (!shouldLog(resolvedLevel, level)) return;
 
     const payload = sanitizeArgs(args);

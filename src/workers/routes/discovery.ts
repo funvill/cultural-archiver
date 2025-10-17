@@ -308,9 +308,11 @@ export async function getArtworkDetails(c: Context<{ Bindings: WorkerEnv }>): Pr
     // Include photos from artwork.photos field (from mass import and direct uploads)
     try {
       if (artwork.photos) {
-        const artworkPhotos = safeJsonParse<string[]>(artwork.photos, []);
-        artworkPhotos.forEach(photoUrl => {
-          if (typeof photoUrl === 'string' && !allPhotos.includes(photoUrl)) {
+        const artworkPhotos = safeJsonParse<Array<string | { url: string; caption?: string | null; credit?: string | null }>>(artwork.photos, []);
+        artworkPhotos.forEach(photoItem => {
+          // Handle both string URLs and object format { url, caption, credit }
+          const photoUrl = typeof photoItem === 'string' ? photoItem : photoItem?.url;
+          if (photoUrl && typeof photoUrl === 'string' && !allPhotos.includes(photoUrl)) {
             allPhotos.push(photoUrl);
           }
         });

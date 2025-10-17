@@ -1,0 +1,45 @@
+
+I have run the "burnaby-art-gallery" scraper
+
+`npx tsx src/mass-import/scraper/burnaby-art-gallery/cli.ts --verbose --output src\mass-import\scraper\output`
+
+It produced the following outputs
+
+- Artist output: `src\mass-import\scraper\output\burnaby-art-gallery-artists.json`
+- Artwork output: `src\mass-import\scraper\output\burnaby-art-gallery-artworks.geojson`
+
+I have reset the local database `database:reset:local`
+
+I have started the local dev server `npm run devout`
+
+
+## burnaby-art-gallery
+
+[Done] - npx tsx src/mass-import/cli/cli-entry.ts import --importer artist-json --exporter api --input src\mass-import\scraper\output\burnaby-art-gallery-artists-flat.json --verbose --config src/mass-import/config/api-config-dev-v3.json
+
+[Done] - npx tsx src/mass-import/cli/cli-entry.ts import --importer osm-artwork --exporter api --input src\mass-import\scraper\output\burnaby-art-gallery-artworks.geojson --verbose --config src/mass-import/config/api-config-dev-v3.json
+
+## mapleridge-ca
+
+[Done] - npx tsx src/mass-import/cli/cli-entry.ts import --importer artist-json --exporter api --input src\mass-import\scraper\output\mapleridge-ca-artists-flat.json --verbose --config src/mass-import/config/api-config-production-v3.json
+
+[Done] - npx tsx src/mass-import/cli/cli-entry.ts import --importer osm-artwork --exporter api --input src\mass-import\scraper\output\mapleridge-ca-artworks.geojson --verbose --config src/mass-import/config/api-config-production-v3.json
+
+## new-west-city
+
+[Done] - npx tsx src/mass-import/cli/cli-entry.ts import --importer artist-json --exporter api --input src\mass-import\scraper\output\new-west-city-artists-flat.json --verbose --config src/mass-import/config/api-config-production-v3.json
+
+[Done] - npx tsx src/mass-import/cli/cli-entry.ts import --importer osm-artwork --exporter api --input src\mass-import\scraper\output\new-west-city-artworks.geojson --verbose --config src/mass-import/config/api-config-production-v3.json
+
+## richmond-ca
+
+[Done] - npx tsx src/mass-import/cli/cli-entry.ts import --importer artist-json --exporter api --input src\mass-import\scraper\output\richmond-ca-artists-flat.json --verbose --config src/mass-import/config/api-config-production-v3.json
+
+[Done] - npx tsx src/mass-import/cli/cli-entry.ts import --importer osm-artwork --exporter api --input src\mass-import\scraper\output\richmond-ca-artworks.geojson --verbose --config src/mass-import/config/api-config-production-v3.json
+
+
+## surrey-ca
+
+[Done] - npx tsx src/mass-import/cli/cli-entry.ts import --importer artist-json --exporter api --input src\mass-import\scraper\output\surrey-ca-artists-flat.json --verbose --config src/mass-import/config/api-config-production-v3.json
+
+[Done] - npx tsx src/mass-import/cli/cli-entry.ts import --importer osm-artwork --exporter api --input src\mass-import\scraper\output\surrey-ca-artworks.geojson --verbose --config src/mass-import/config/api-config-production-v3.json

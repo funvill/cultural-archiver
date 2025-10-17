@@ -1,6 +1,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue';
+import { useRouteMeta } from '@/lib/meta';
+import { getMetaForRoute } from '@/lib/seo-config';
 import { useRouter, useRoute } from 'vue-router';
 import MapComponent from '../components/MapComponent.vue';
 import MapFiltersModal from '../components/MapFiltersModal.vue';
@@ -139,6 +141,10 @@ onUnmounted(() => {
 
 // Ref for MapComponent so we can call exposed methods
 const mapComponentRef = ref<InstanceType<typeof MapComponent> | null>(null);
+
+// Initialize meta for map page
+const metadata = getMetaForRoute('map');
+useRouteMeta(metadata);
 
 // Ref for FirstTimeModal to programmatically open it
 const firstTimeModalRef = ref<InstanceType<typeof FirstTimeModal> | null>(null);

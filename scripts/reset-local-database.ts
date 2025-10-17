@@ -214,8 +214,10 @@ function applyMigrations(dryRun: boolean = false): void {
 
   try {
     console.log('🔧 Applying database migrations...');
+    // Use the development D1 database name defined in src/workers/wrangler.toml
+    // and run migrations against the local binding so wrangler uses the local SQLite files.
     execSync(
-      'npx wrangler d1 migrations apply public-art-registry --env development --config src/workers/wrangler.toml',
+      'npx wrangler d1 migrations apply development-public-art-registry --env development --local --config src/workers/wrangler.toml',
       {
         cwd: resolve(__dirname, '..'),
         stdio: 'inherit',
@@ -255,7 +257,7 @@ function createAdminUser(dryRun: boolean = false): void {
     
     writeFileSync(createUserFile, createUserSql, 'utf8');
 
-    execSync(`npx wrangler d1 execute public-art-registry --file="${createUserFile}" --env development --local --config src/workers/wrangler.toml`, {
+    execSync(`npx wrangler d1 execute development-public-art-registry --file="${createUserFile}" --env development --local --config src/workers/wrangler.toml`, {
       cwd: tmpDir,
       stdio: 'inherit',
     });
@@ -269,7 +271,7 @@ function createAdminUser(dryRun: boolean = false): void {
       
       writeFileSync(grantRoleFile, grantRoleSql, 'utf8');
 
-      execSync(`npx wrangler d1 execute public-art-registry --file="${grantRoleFile}" --env development --local --config src/workers/wrangler.toml`, {
+      execSync(`npx wrangler d1 execute development-public-art-registry --file="${grantRoleFile}" --env development --local --config src/workers/wrangler.toml`, {
         cwd: tmpDir,
         stdio: 'inherit',
       });
@@ -313,7 +315,7 @@ DELETE FROM users WHERE uuid LIKE '%0000000-%';
     
     writeFileSync(clearFile, clearSql, 'utf8');
 
-    execSync(`npx wrangler d1 execute public-art-registry --file="${clearFile}" --env development --local --config src/workers/wrangler.toml`, {
+    execSync(`npx wrangler d1 execute development-public-art-registry --file="${clearFile}" --env development --local --config src/workers/wrangler.toml`, {
       cwd: tmpDir,
       stdio: 'inherit',
     });

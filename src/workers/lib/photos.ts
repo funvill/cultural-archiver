@@ -178,6 +178,77 @@ export function generateSecureFilename(originalName: string, mimeType: string): 
 }
 
 /**
+ * Generate deterministic filename from photo URL for caching
+ * Uses SHA-256 hash of URL to create consistent key
+ */
+export async function generateCacheFilename(photoUrl: string, mimeType: string): Promise<string> {
+  // Extract file extension from MIME type
+  const extensionMap: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/heic': 'heic',
+    'image/heif': 'heif',
+  };
+
+  const extension = extensionMap[mimeType.toLowerCase()] || 'jpg';
+
+  // Generate SHA-256 hash of URL for deterministic key
+  const encoder = new TextEncoder();
+  const data = encoder.encode(photoUrl);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  // Use first 16 characters of hash for filename
+  const urlHash = hashHex.substring(0, 16);
+
+  return `cached-${urlHash}.${extension}`;
+}
+
+/**
+ * Check if photo already exists in R2 cache
+ * Returns the existing URL if found, null otherwise
+ */
+export async function checkPhotoCache(
+  env: WorkerEnv,
+  photoUrl: string,
+  mimeType: string
+): Promise<string | null> {
+  try {
+    const bucket = env.PHOTOS_BUCKET;
+    if (!bucket) {
+      return null; // No bucket configured, skip cache check
+    }
+
+    const filename = await generateCacheFilename(photoUrl, mimeType);
+    const cacheKey = generateR2Key(filename, 'mass-import-cache');
+
+    // Check if object exists in R2
+    const object = await bucket.head(cacheKey);
+
+    if (object) {
+      // Photo exists in cache, return R2 key instead of full URL
+      const debugEnabled = env.PHOTO_DEBUG === '1' || env.PHOTO_DEBUG === 'true';
+      if (debugEnabled) {
+        const photosBaseUrl = env.PHOTOS_BASE_URL || 'https://photos.publicartregistry.com';
+        const publicUrl = `${photosBaseUrl}/${cacheKey}`;
+        console.info('[PHOTO][CACHE]', 'Cache hit', { photoUrl, cacheKey, publicUrl });
+      }
+
+      return cacheKey;
+    }
+
+    return null; // Not in cache
+  } catch (error) {
+    // Cache check failed, return null to trigger download
+    console.warn('[PHOTO][CACHE] Cache check failed:', error);
+    return null;
+  }
+}
+
+/**
  * Generate date-based folder structure (YYYY/MM/DD)
  */
 export function generateDateFolder(): string {
@@ -436,10 +507,11 @@ export async function processAndUploadPhotos(
         size: file.size,
       });
 
-      // Prepare result
+      // Prepare result - store R2 key as originalUrl for database storage
+      // The frontend will construct API URLs when displaying images
       const result: PhotoUploadResult = {
         originalKey: uploadResult.originalKey,
-        originalUrl: generatePhotoUrl(env, uploadResult.originalKey),
+        originalUrl: uploadResult.originalKey, // Store R2 key instead of full URL
         size: file.size,
         mimeType: file.type,
         uploadedAt: new Date().toISOString(),
@@ -447,14 +519,10 @@ export async function processAndUploadPhotos(
         permalinkInjected,
       };
 
-      // Add thumbnail information if available
+      // Add thumbnail information if available - store R2 key instead of full URL
       if (uploadResult.thumbnailKey) {
         result.thumbnailKey = uploadResult.thumbnailKey;
-        result.thumbnailUrl = generateThumbnailUrl(
-          env,
-          uploadResult.originalKey,
-          options.thumbnailSize
-        );
+        result.thumbnailUrl = uploadResult.thumbnailKey; // Store R2 key instead of full URL
       }
 
       // Add Cloudflare Images ID if used

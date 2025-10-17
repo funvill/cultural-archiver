@@ -422,6 +422,7 @@ export function getImageSizedURL(originalUrl: string, size: PhotoVariant = 'orig
   }
   
   let cleanUrl = originalUrl;
+  let isExternalUrl = false;
   
   // Check if it's a full URL (http://, https://) or protocol-relative URL (//)
   if (originalUrl.startsWith('http://') || originalUrl.startsWith('https://') || originalUrl.startsWith('//')) {
@@ -430,19 +431,29 @@ export function getImageSizedURL(originalUrl: string, size: PhotoVariant = 'orig
     //       -> originals/2025/10/04/file.jpg
     const allowedPrefixes = ['originals/', 'photos/', 'artworks/', 'submissions/'];
     
+    let foundPrefix = false;
     for (const prefix of allowedPrefixes) {
       const idx = originalUrl.indexOf(prefix);
       if (idx >= 0) {
         cleanUrl = originalUrl.substring(idx);
+        foundPrefix = true;
         break;
       }
     }
     
-    // If no allowed prefix found, use the full URL as-is
-    // (the backend will handle extraction if needed)
+    // If no allowed prefix found, this is an external URL (not from our R2 storage)
+    // Return it as-is since we can't resize external images
+    if (!foundPrefix) {
+      isExternalUrl = true;
+    }
   } else {
     // Relative path - remove leading slash if present
     cleanUrl = originalUrl.replace(/^\//, '');
+  }
+  
+  // For external URLs, return them unchanged (can't resize what we don't host)
+  if (isExternalUrl) {
+    return originalUrl;
   }
   
   // Construct the API endpoint URL

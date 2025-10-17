@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useRouteMeta, createOrganizationSchema, createWebSiteSchema } from '@/lib/meta';
+import { getMetaForRoute } from '@/lib/seo-config';
 import { apiService, getErrorMessage } from '../services/api';
 import { getApiBaseUrl } from '../utils/api-config';
 
@@ -25,6 +27,18 @@ const checkWorkerStatus = async (): Promise<void> => {
 onMounted(() => {
   checkWorkerStatus();
 });
+
+// Initialize meta tags for home
+const metadata = getMetaForRoute('home');
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    createOrganizationSchema(),
+    createWebSiteSchema(),
+  ],
+};
+
+useRouteMeta(metadata, structuredData);
 </script>
 
 <template>

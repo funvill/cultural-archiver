@@ -5,6 +5,10 @@
 - [x] Artwork index is not showing images
 - [ ] The Artwork index page shows duplicate of artworks based on how many photos they have. See https://publicartregistry.com/artworks?page=37 for example.
 - [x] None of the artists have a bio even though the imports had bios assoicated with them.
+- [ ] Check the photo based on the hash to see if it has already been uploaded to a artwork. Deduplication
+- 
+
+
 - [ ] The map filters are not working as expected and are missing the "Show removed artworks"
 - [ ] Add filter for artworks with the following tags Physical Properties (1), Condition:removed
 - [ ] Allow for 5 or more photos to be uploaded at a time. or give a good warning if they have uploaded too many
@@ -75,8 +79,7 @@ date => start_date
 - Add a fixed field "country" with the value of "Canada"
 - Add a fixed field "province" with the value of "Britsh Columbia"
 
-
-The artist for https://collections.burnabyartgallery.ca/link/publicart46 is `Jacques Huet`. The artist detail page is https://collections.burnabyartgallery.ca/link/artists1272 
+The artist for https://collections.burnabyartgallery.ca/link/publicart46 is `Jacques Huet`. The artist detail page is https://collections.burnabyartgallery.ca/link/artists1272
 
 This artwork https://collections.burnabyartgallery.ca/link/publicart144 has a keywords list. "public art, Burnaby, permanent collection, sculpture, civic art, animal, horse, farm", but only "public art" is in the output.
 

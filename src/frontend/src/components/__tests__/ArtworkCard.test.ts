@@ -19,7 +19,7 @@ describe('ArtworkCard', () => {
       material: 'Paint',
       year: '2023',
     },
-    recent_photo: 'https://example.com/photo.jpg',
+    recent_photo: 'originals/2024/01/15/photo.jpg',
     photo_count: 3,
     distance_km: 0.5,
   };
@@ -48,7 +48,7 @@ describe('ArtworkCard', () => {
     const img = wrapper.find('img');
     expect(img.exists()).toBe(true);
     // ArtworkCard uses getImageSizedURL with 'thumbnail' variant
-    expect(img.attributes('src')).toBe('/api/images/thumbnail/https://example.com/photo.jpg');
+    expect(img.attributes('src')).toBe('/api/images/thumbnail/originals/2024/01/15/photo.jpg');
     expect(img.attributes('alt')).toContain('Beautiful Mural');
   });
 

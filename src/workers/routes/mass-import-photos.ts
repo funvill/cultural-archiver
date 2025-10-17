@@ -143,7 +143,8 @@ export async function processMassImportPhotos(
             console.log(`[MASS_IMPORT] Successfully processed photo: ${results[0].originalUrl}`);
           }
         } catch (error) {
-          console.error(`[MASS_IMPORT] Failed to process photo ${photoUrl}:`, error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          console.error(`[MASS_IMPORT] Failed to process photo ${photoUrl}: ${errorMessage}`);
           // Continue with other photos
         }
       }
@@ -222,7 +223,8 @@ export async function processMassImportPhotos(
     );
     return c.json(createSuccessResponse(response), 201);
   } catch (error) {
-    console.error('[MASS_IMPORT] Mass import submission error:', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error(`[MASS_IMPORT] Mass import submission error: ${errorMessage}`);
 
     if (error instanceof ValidationApiError) {
       throw error;

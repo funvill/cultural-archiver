@@ -14,25 +14,25 @@ The sitemap system generates the following sitemaps:
 ## URLs Generated
 
 ### Sitemap Index
-- URL: `https://publicartregistry.com/sitemap.xml`
+- URL: `https://api.publicartregistry.com/sitemap.xml`
 - Lists all sub-sitemaps with their last modification dates
 
 ### Artworks Sitemap
-- URL: `https://publicartregistry.com/sitemap-artworks.xml`
+- URL: `https://api.publicartregistry.com/sitemap-artworks.xml`
 - Format: `https://publicartregistry.com/artwork/{artwork_id}`
 - Priority: 0.8
 - Change frequency: weekly
 - Includes `lastmod` timestamp from database
 
 ### Artists Sitemap
-- URL: `https://publicartregistry.com/sitemap-artists.xml`
+- URL: `https://api.publicartregistry.com/sitemap-artists.xml`
 - Format: `https://publicartregistry.com/artist/{artist_id}`
 - Priority: 0.7
 - Change frequency: weekly
 - Includes `lastmod` timestamp from database
 
 ### Pages Sitemap
-- URL: `https://publicartregistry.com/sitemap-pages.xml`
+- URL: `https://api.publicartregistry.com/sitemap-pages.xml`
 - Includes:
   - Home page (priority: 1.0, daily)
   - Map page (priority: 0.9, daily)
@@ -72,18 +72,18 @@ The sitemap system generates the following sitemaps:
 
 ### Step 1: Verify Sitemap URLs
 
-Test each sitemap URL in your browser:
-- https://publicartregistry.com/sitemap.xml
-- https://publicartregistry.com/sitemap-artworks.xml
-- https://publicartregistry.com/sitemap-artists.xml
-- https://publicartregistry.com/sitemap-pages.xml
+   Test each sitemap URL in your browser:
+   - https://api.publicartregistry.com/sitemap.xml
+   - https://api.publicartregistry.com/sitemap-artworks.xml
+   - https://api.publicartregistry.com/sitemap-artists.xml
+   - https://api.publicartregistry.com/sitemap-pages.xml
 
 ### Step 2: Submit to Google Search Console
 
 1. Go to [Google Search Console](https://search.google.com/search-console)
 2. Select your property (publicartregistry.com)
 3. Navigate to **Sitemaps** in the left sidebar
-4. Enter the sitemap URL: `https://publicartregistry.com/sitemap.xml`
+4. Enter the sitemap URL: `https://api.publicartregistry.com/sitemap.xml`
 5. Click **Submit**
 
 Google will automatically discover and crawl the sub-sitemaps listed in the index.
@@ -100,7 +100,7 @@ Google will automatically discover and crawl the sub-sitemaps listed in the inde
 Add the following line to your `robots.txt` file:
 
 ```
-Sitemap: https://publicartregistry.com/sitemap.xml
+Sitemap: https://api.publicartregistry.com/sitemap.xml
 ```
 
 This helps search engines discover your sitemap automatically.
@@ -139,7 +139,7 @@ Dates use W3C Datetime format (YYYY-MM-DD) as specified in the sitemap protocol.
 
 ### Environment Variables
 
-The base URL is configured via the `FRONTEND_URL` environment variable in the worker configuration. Default: `https://publicartregistry.com`
+The base URL is configured via the `FRONTEND_URL` environment variable in the worker configuration. Sitemap host is `https://api.publicartregistry.com` for sitemap index entries.
 
 ## Testing
 

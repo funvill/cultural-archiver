@@ -216,23 +216,32 @@ export async function generatePagesSitemap(
 /**
  * Generate sitemap index
  */
-export function generateSitemapIndex(baseUrl: string): string {
+/**
+ * Generate sitemap index. The sitemap index itself should point at the
+ * API-hosted sitemap files (api.publicartregistry.com) because the Worker
+ * exposes sitemap endpoints on the API domain.
+ *
+ * If a specific sitemapHost is provided it will be used; otherwise
+ * defaults to 'https://api.publicartregistry.com'.
+ */
+export function generateSitemapIndex(_baseUrl: string, sitemapHost?: string): string {
   const now = formatDate(new Date());
-  
+  const host = (sitemapHost || 'https://api.publicartregistry.com').replace(/\/$/, '');
+
   const sitemaps = [
     {
-      loc: `${baseUrl}/sitemap-pages.xml`,
+      loc: `${host}/sitemap-pages.xml`,
       lastmod: now,
     },
     {
-      loc: `${baseUrl}/sitemap-artworks.xml`,
+      loc: `${host}/sitemap-artworks.xml`,
       lastmod: now,
     },
     {
-      loc: `${baseUrl}/sitemap-artists.xml`,
+      loc: `${host}/sitemap-artists.xml`,
       lastmod: now,
     },
   ];
-  
+
   return generateSitemapIndexXml(sitemaps);
 }

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue';
+import { useRouteMeta, createArtistSchema } from '@/lib/meta';
 import { marked } from 'marked';
 
 import { sanitizeHtml } from '../utils/sanitizeHtml';
@@ -295,6 +296,24 @@ onMounted(() => {
   loadArtist();
   checkPendingEdits();
 });
+
+// Set meta tags when artist data becomes available
+watch(
+  () => artist.value,
+  (a) => {
+    if (!a) return;
+    const metadata = {
+      title: `${a.name} - Public Art Registry`,
+      description: (a.description && String(a.description).substring(0, 160)) || `View artworks by ${a.name}.`,
+      canonical: `https://publicartregistry.com/artist/${a.id}`,
+      ogType: 'profile',
+    } as any;
+
+  const schema = createArtistSchema({ id: a.id, name: a.name, bio: a.description || undefined });
+    useRouteMeta(metadata, schema as any);
+  },
+  { immediate: true }
+);
 
 // duplicate removed by merge resolution
 </script>

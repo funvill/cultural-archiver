@@ -660,7 +660,7 @@ export class DatabaseService {
   async linkArtworkToArtist(
     artworkId: string,
     artistId: string,
-    role: string = 'artist'
+    role: string = 'primary'
   ): Promise<string> {
     const id = generateUUID();
     const now = new Date().toISOString();
