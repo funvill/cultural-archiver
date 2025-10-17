@@ -11,19 +11,56 @@ Metro Vancouver Regional District (MVRD) was renamed from Greater Vancouver Regi
 - [x] Burnaby - https://collections.burnabyartgallery.ca/
 - [x] Maple Ridge - https://www.mapleridge.ca/parks-recreation/arts-theatre/public-art
 - [x] New Westminster - https://www.newwestcity.ca/public-art-registry
-  - [ ] https://storymaps.arcgis.com/stories/e6e2e7cff5f3453ebadf939dfd37ba64 
+  - [ ] https://storymaps.arcgis.com/stories/e6e2e7cff5f3453ebadf939dfd37ba64
 - [x] Richmond - https://www.richmond.ca/culture/howartworks/publicart/collection/
 - [x] Surrey - https://www.surrey.ca/arts-culture/public-art/
 - [x] Vancouver - https://opendata.vancouver.ca/explore/dataset/public-art/information/
+- [x] Township of Langley - https://www.tol.ca/en/arts-culture/public-art.aspx
 
 ### Next
 
 These are the easy ones to do next
 
-- [ ] Port Coquitlam - https://www.portcoquitlam.ca/explore-poco/arts-culture/public-art 
+- [ ] Port Coquitlam - https://www.portcoquitlam.ca/explore-poco/arts-culture/public-art
 - [ ] Port Moody - https://www.portmoody.ca/arts-culture-and-heritage/art-in-public-spaces/public-art/
+
 - [ ] Coquitlam - https://www.coquitlam.ca/1428/Public-Art-Collection
-- [ ] Township of Langley - https://www.tol.ca/en/arts-culture/public-art.aspx
+
+All of these pages are different, manual is better then automated
+
+https://www.coquitlam.ca/1428/Public-Art-Collection
+
+Artwork permalink https://www.coquitlam.ca/792/Centennial-Totem-Pole
+
+Title: Centennial Totem Pole
+Artists: ["John Edward Neel", "Lloyd Wadhams Sr","Robert Whonnock"]
+Description: "Location / Status
+The original location of the pole was at Poirier Community Centre, 630 Poirier Street.
+
+Outdoor totem poles have a traditional lifespan of approximately 50 to 55 years. In March 2024, the Centennial Totem Pole was removed in a process called deaccession, as the totem pole had surpassed its expected lifespan and was no longer structurally sound due to natural deterioration.
+
+The City has engaged an Indigenous consultant to work with the families of the original carvers and will coordinate with the kʷikʷəƛ̓əm First Nation to ensure the deaccession process respects Indigenous culture and traditions.
+
+Statement of Significance
+In 1967, to commemorate Canada’s 100th birthday, the Columbian Newspaper initiated The Centennial Totem Pole (PDF) project and commissioned four totem poles to be carved, one for each of its service areas. 
+
+The pole is carved in the Kwakwaka’wakw tradition of North West Coast First Nations art, as local Coast Salish First Nations art practice was not publicly prevalent at the time. The figures on the pole represent from top to bottom, Thunderbird (with bear depicted on his chest), Raven with Salmon and Killer Whale with man on his back.
+
+Background
+On May 15, 2007, the totem pole was relocated slightly northwest of its original location, as part of the City’s Dogwood Pavilion expansion and improvement project.
+"
+
+Artist 
+Name: Lloyd Wadhams
+Bio: "Lloyd Wadhams Senior was the eldest child born to Don and Mary (Dawson) Wadhams. Lloyd learned to carve on the beaches of Alert Bay. Sitting on Charlie James’ carving shed, Mungo Martin and James Sewid taught him the traditional art form. As a child he used to watch them carve with his uncle Don Dawson and his cousin Amos Dawson. Every day they would carve little canoes and totem poles to sell to tourists.
+
+Lloyd carried on the tradition of teaching carving to his cousins, nieces and nephews of the Shaunessy and Sewid families. Lloyd sold most of his work to galleries. As a commercial artist he was constantly experimenting with tools and methods to produce his art. He worked mostly with wood, silver, gold and print media.
+
+At one time Wadhams lived in Maillardville, a neighbourhood within the City of Coquitlam known for its French heritage."
+
+
+
+
 
 ### Needs work
 
