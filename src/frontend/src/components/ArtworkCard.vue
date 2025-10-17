@@ -57,19 +57,32 @@ const artworkType = computed(() => {
     .replace(/\b\w/g, (l: string) => l.toUpperCase());
 });
 
-const hasPhoto = computed(() => !!props.artwork.recent_photo);
+// Normalize recent_photo to a URL string (handles string or { url } object shapes)
+const recentPhotoUrl = computed<string | null>(() => {
+  const rp: unknown = (props.artwork as any).recent_photo;
+  if (!rp) return null;
+  if (typeof rp === 'string') return rp;
+  if (typeof rp === 'object' && rp !== null && 'url' in rp) {
+    const urlVal = (rp as { url?: unknown }).url;
+    if (typeof urlVal === 'string') return urlVal;
+  }
+  return null;
+});
+
+const hasPhoto = computed(() => typeof recentPhotoUrl.value === 'string' && recentPhotoUrl.value.trim().length > 0);
 
 const photoUrl = computed(() => {
-  if (!props.artwork.recent_photo) return null;
+  const url = recentPhotoUrl.value;
+  if (!url) return null;
 
   // Handle different photo URL formats
-  if (props.artwork.recent_photo.startsWith('http')) {
+  if (url.startsWith('http')) {
     // Use thumbnail variant for card images
-    return getImageSizedURL(props.artwork.recent_photo, 'thumbnail');
+    return getImageSizedURL(url, 'thumbnail');
   }
 
   // Assume it's a relative path from the API
-  return getImageSizedURL(props.artwork.recent_photo, 'thumbnail');
+  return getImageSizedURL(url, 'thumbnail');
 });
 
 const distanceText = computed(() => {

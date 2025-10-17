@@ -56,7 +56,8 @@ export const useSearchStore = defineStore('search', () => {
 
   // Actions
   function setQuery(searchQuery: string): void {
-    query.value = searchQuery.trim();
+     // Preserve the original query including trailing spaces for typing
+     query.value = searchQuery;
   }
 
   function setResults(searchResults: SearchResult[]): void {
@@ -321,6 +322,19 @@ export const useSearchStore = defineStore('search', () => {
     append: boolean = false
   ): Promise<void> {
     const trimmedQuery = searchQuery.trim();
+
+    // Enforce minimum query length for server search
+    if (trimmedQuery.length > 0 && trimmedQuery.length < 3) {
+      setResults([]);
+      setPagination({
+        total: 0,
+        page: 1,
+        per_page: perPage.value,
+        total_pages: 0,
+        has_more: false,
+      });
+      return;
+    }
 
     // Parse list filters from the query
     const { listFilters, remainingQuery } = parseListFilters(trimmedQuery);

@@ -312,4 +312,21 @@ describe('ArtworkCard', () => {
 
     expect(wrapper.find('.absolute.top-2.right-2').exists()).toBe(false);
   });
+
+  it('should handle object-shaped recent_photo with url field', () => {
+    const artworkWithObjectPhoto: any = {
+      ...mockArtwork,
+      recent_photo: { url: 'originals/2024/01/15/photo2.jpg' },
+    };
+
+    const wrapper = mount(ArtworkCard, {
+      props: {
+        artwork: artworkWithObjectPhoto,
+      },
+    });
+
+    const img = wrapper.find('img');
+    expect(img.exists()).toBe(true);
+    expect(img.attributes('src')).toBe('/api/images/thumbnail/originals/2024/01/15/photo2.jpg');
+  });
 });

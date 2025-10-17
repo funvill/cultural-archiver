@@ -71,8 +71,9 @@ function debouncedSearch(query: string): void {
   }
 
   debounceTimer.value = window.setTimeout(() => {
-    if (query.trim().length > 0) {
-      emit('search', query.trim());
+    // Preserve original query including trailing spaces, but only emit when at least 3 chars
+    if (query.trim().length >= 3) {
+      emit('search', query);
     }
   }, props.debounceMs);
 }
@@ -136,8 +137,9 @@ function handleKeydown(event: KeyboardEvent): void {
         if (suggestion) {
           selectSuggestion(suggestion);
         }
-      } else if (localValue.value.trim().length > 0) {
-        emit('search', localValue.value.trim());
+      } else if (localValue.value.trim().length >= 3) {
+        // Preserve trailing spaces when user explicitly presses Enter
+        emit('search', localValue.value);
         hideSuggestions();
       }
       break;
@@ -221,7 +223,7 @@ defineExpose({
       <input
         ref="inputRef"
         :value="localValue"
-        type="search"
+        type="text"
         :placeholder="placeholder || 'Search artworks...'"
         :disabled="disabled || false"
         class="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-50 disabled:text-gray-500 disabled:cursor-not-allowed sm:text-sm"

@@ -5,12 +5,10 @@ import { PlusIcon } from '@heroicons/vue/24/outline';
 import SearchInput from '../components/SearchInput.vue';
 import MiniMap from '../components/MiniMap.vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
-import ArtworkTypeFilter from '../components/ArtworkTypeFilter.vue';
 import SkeletonCard from '../components/SkeletonCard.vue';
 import { useSearchStore } from '../stores/search';
 import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 import { useInfiniteScroll } from '../composables/useInfiniteScroll';
-import { useArtworkTypeFilters } from '../composables/useArtworkTypeFilters';
 import type { SearchResult, Coordinates } from '../types/index';
 import { formatListFilter } from '../utils/listFilters';
 
@@ -52,15 +50,22 @@ const recentQueries = computed(() => searchStore.recentQueries);
 const currentListFilters = computed(() => searchStore.currentListFilters);
 const baseQuery = computed(() => searchStore.baseQuery);
 
-// Artwork type filtering
-const { filterArtworks } = useArtworkTypeFilters();
+// Photos filter state
+const showOnlyWithPhotos = ref(false);
 
-// Filter search results by artwork type
+// Filter search results by photos
 const filteredResults = computed(() => {
   if (!hasResults.value) {
     return [];
   }
-  return filterArtworks(searchStore.results);
+  let results = searchStore.results;
+  
+  // Filter by photos if enabled
+  if (showOnlyWithPhotos.value) {
+    results = results.filter((artwork: SearchResult) => artwork.photo_count > 0);
+  }
+  
+  return results;
 });
 
 const filteredTotal = computed(() => filteredResults.value.length);
@@ -99,11 +104,18 @@ function handleSearch(query: string): void {
 
 function handleSearchInput(query: string): void {
   searchStore.setQuery(query);
-  performSearch(query); // Update results live as user types
+  // Only start searching when the query is at least 3 characters
+  if (query.trim().length >= 3) {
+    performSearch(query);
+  } else {
+    // Clear results and suggestions for short queries
+    searchStore.setResults([]);
+    showSearchTips.value = true;
+  }
 
-  // Get suggestions for non-empty queries
-  if (query.trim().length > 0) {
-    searchStore.fetchSuggestions(query.trim());
+  // Get suggestions for non-empty queries (trim for suggestion check only)
+  if (query.trim().length >= 3) {
+    searchStore.fetchSuggestions(query);
     showSearchTips.value = false;
   } else {
     showSearchTips.value = true;
@@ -443,7 +455,7 @@ onUnmounted(() => {
   <div class="search-view min-h-screen bg-gray-50">
     <!-- Header with Search Mode Tabs -->
     <div class="bg-white border-b border-gray-200 sticky top-0 z-10">
-      <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
         <!-- Search Mode Selector -->
         <div class="flex justify-center mb-4">
           <!-- Removed search mode selector (photo search) -->
@@ -488,7 +500,7 @@ onUnmounted(() => {
     </div>
 
     <!-- Main Content -->
-    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <!-- Photo search removed -->
 
       <!-- Fast Upload Results (from photo upload workflow) -->
@@ -642,7 +654,7 @@ onUnmounted(() => {
             <h3 class="text-lg font-semibold text-gray-900 mb-4">
               Nearby Artworks ({{ searchStore.totalResults }} found)
             </h3>
-            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               <ArtworkCard
                 v-for="artwork in searchStore.results"
                 :key="artwork.id"
@@ -656,7 +668,7 @@ onUnmounted(() => {
           </div>
 
           <!-- Loading State -->
-          <div v-else-if="isLoading" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div v-else-if="isLoading" class="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <SkeletonCard v-for="n in 6" :key="n" />
           </div>
 
@@ -763,7 +775,7 @@ onUnmounted(() => {
           <div class="text-center py-4">
             <p class="text-gray-600">Searching for "{{ searchStore.query }}"...</p>
           </div>
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <SkeletonCard :count="6" />
           </div>
         </div>
@@ -870,21 +882,20 @@ onUnmounted(() => {
             </button>
           </div>
 
-          <!-- Artwork Type Filters -->
+          <!-- Photo Filter -->
           <div class="bg-white border border-gray-200 rounded-lg p-4">
-            <ArtworkTypeFilter
-              title="Filter by Artwork Type"
-              description="Select which types of artworks to show in search results"
-              :columns="3"
-              :compact="false"
-              :collapsible="true"
-              :default-collapsed="true"
-              :show-control-buttons="true"
-            />
+            <label class="flex items-center gap-3 cursor-pointer">
+              <input
+                v-model="showOnlyWithPhotos"
+                type="checkbox"
+                class="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+              />
+              <span class="text-sm font-medium text-gray-900">Show only artworks with photos</span>
+            </label>
           </div>
 
           <!-- Results Grid -->
-          <div ref="searchResultsRef" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div ref="searchResultsRef" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <ArtworkCard
               v-for="artwork in filteredResults"
               :key="artwork.id"
