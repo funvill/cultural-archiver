@@ -39,11 +39,12 @@ describe('Search Store', () => {
   it('should set query correctly', () => {
     const store = useSearchStore();
 
-    store.setQuery('test query');
-    expect(store.query).toBe('test query');
+  store.setQuery('test query');
+  expect(store.query).toBe('test query');
 
-    store.setQuery('  spaced query  ');
-    expect(store.query).toBe('spaced query');
+  // setQuery now preserves spaces for UX reasons (trailing spaces allowed in input)
+  store.setQuery('  spaced query  ');
+  expect(store.query).toBe('  spaced query  ');
   });
 
   it('should compute hasResults correctly', () => {

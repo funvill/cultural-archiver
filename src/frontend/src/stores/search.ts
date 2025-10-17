@@ -3,6 +3,7 @@ import { defineStore } from 'pinia';
 import type { SearchResult } from '../types';
 import { apiService, getErrorMessage, isNetworkError } from '../services/api';
 import { parseListFilters, type ListFilter } from '../utils/listFilters';
+import { MIN_SEARCH_LENGTH } from '../../../shared/constants';
 
 /**
  * Search state management store
@@ -324,7 +325,7 @@ export const useSearchStore = defineStore('search', () => {
     const trimmedQuery = searchQuery.trim();
 
     // Enforce minimum query length for server search
-    if (trimmedQuery.length > 0 && trimmedQuery.length < 3) {
+    if (trimmedQuery.length > 0 && trimmedQuery.length < MIN_SEARCH_LENGTH) {
       setResults([]);
       setPagination({
         total: 0,
@@ -549,7 +550,7 @@ export const useSearchStore = defineStore('search', () => {
   async function fetchSuggestions(searchQuery: string): Promise<void> {
     const trimmedQuery = searchQuery.trim();
 
-    if (trimmedQuery.length < 2) {
+    if (trimmedQuery.length < Math.min(2, MIN_SEARCH_LENGTH)) {
       setSuggestions([]);
       return;
     }

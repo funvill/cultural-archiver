@@ -6,6 +6,13 @@
  */
 
 // ================================
+// Search Constants
+// ================================
+
+/** Minimum length for executing searches and fetching suggestions */
+export const MIN_SEARCH_LENGTH = 3 as const;
+
+// ================================
 // System User UUIDs
 // ================================
 

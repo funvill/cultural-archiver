@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
+import { MIN_SEARCH_LENGTH } from '../../../shared/constants';
 import { MagnifyingGlassIcon, XMarkIcon } from '@heroicons/vue/24/outline';
 
 // Props interface
@@ -71,8 +72,8 @@ function debouncedSearch(query: string): void {
   }
 
   debounceTimer.value = window.setTimeout(() => {
-    // Preserve original query including trailing spaces, but only emit when at least 3 chars
-    if (query.trim().length >= 3) {
+    // Preserve original query including trailing spaces, but only emit when at least MIN_SEARCH_LENGTH chars
+    if (query.trim().length >= MIN_SEARCH_LENGTH) {
       emit('search', query);
     }
   }, props.debounceMs);
@@ -111,7 +112,8 @@ function handleKeydown(event: KeyboardEvent): void {
   if (!hasSuggestions.value) {
     if (event.key === 'Enter') {
       event.preventDefault();
-      if (localValue.value.trim().length > 0) {
+      if (localValue.value.trim().length >= MIN_SEARCH_LENGTH) {
+        // Emit trimmed value on simple Enter when suggestions are not visible
         emit('search', localValue.value.trim());
         hideSuggestions();
       }
@@ -137,7 +139,7 @@ function handleKeydown(event: KeyboardEvent): void {
         if (suggestion) {
           selectSuggestion(suggestion);
         }
-      } else if (localValue.value.trim().length >= 3) {
+      } else if (localValue.value.trim().length >= MIN_SEARCH_LENGTH) {
         // Preserve trailing spaces when user explicitly presses Enter
         emit('search', localValue.value);
         hideSuggestions();

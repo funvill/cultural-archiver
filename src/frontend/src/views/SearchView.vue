@@ -11,6 +11,7 @@ import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 import { useInfiniteScroll } from '../composables/useInfiniteScroll';
 import type { SearchResult, Coordinates } from '../types/index';
 import { formatListFilter } from '../utils/listFilters';
+import { MIN_SEARCH_LENGTH } from '../../../shared/constants';
 
 const route = useRoute();
 const router = useRouter();
@@ -105,7 +106,7 @@ function handleSearch(query: string): void {
 function handleSearchInput(query: string): void {
   searchStore.setQuery(query);
   // Only start searching when the query is at least 3 characters
-  if (query.trim().length >= 3) {
+  if (query.trim().length >= MIN_SEARCH_LENGTH) {
     performSearch(query);
   } else {
     // Clear results and suggestions for short queries
@@ -114,7 +115,7 @@ function handleSearchInput(query: string): void {
   }
 
   // Get suggestions for non-empty queries (trim for suggestion check only)
-  if (query.trim().length >= 3) {
+  if (query.trim().length >= MIN_SEARCH_LENGTH) {
     searchStore.fetchSuggestions(query);
     showSearchTips.value = false;
   } else {
