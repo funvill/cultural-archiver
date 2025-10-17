@@ -2,6 +2,62 @@
 
 This directory contains web scrapers for various public art registries. Each scraper extracts artwork and artist data from municipal websites and outputs standardized GeoJSON and JSON files.
 
+## Cities in the MVRD
+
+Metro Vancouver Regional District (MVRD) was renamed from Greater Vancouver Regional District (GVRD) in 2017
+
+### Done
+
+- [x] Burnaby - https://collections.burnabyartgallery.ca/
+- [x] Maple Ridge - https://www.mapleridge.ca/parks-recreation/arts-theatre/public-art
+- [x] New Westminster - https://www.newwestcity.ca/public-art-registry
+  - [ ] https://storymaps.arcgis.com/stories/e6e2e7cff5f3453ebadf939dfd37ba64 
+- [x] Richmond - https://www.richmond.ca/culture/howartworks/publicart/collection/
+- [x] Surrey - https://www.surrey.ca/arts-culture/public-art/
+- [x] Vancouver - https://opendata.vancouver.ca/explore/dataset/public-art/information/
+
+### Next
+
+These are the easy ones to do next
+
+- [ ] Port Coquitlam - https://www.portcoquitlam.ca/explore-poco/arts-culture/public-art 
+- [ ] Port Moody - https://www.portmoody.ca/arts-culture-and-heritage/art-in-public-spaces/public-art/
+- [ ] Coquitlam - https://www.coquitlam.ca/1428/Public-Art-Collection
+- [ ] Township of Langley - https://www.tol.ca/en/arts-culture/public-art.aspx
+
+### Needs work
+
+These have some sites but no single soruce.
+
+- [ ] Anmore - Didn't find a registry of art. https://anmore.com/
+- [ ] Belcarra - Didn't find a registry of art. https://belcarra.ca/
+- [ ] Bowen Island
+  - https://bowenislandmunicipality.ca/parks-recreation-culture/snug-cove-gateway-mural/
+  - https://www.tourismbowenisland.com/destination/play/arts-culture/
+- [ ] Delta - https://www.delta.ca/community-culture/arts-culture
+- [ ] City of Langley - https://www.langleycity.ca/community-culture/arts-culture
+  - Mural walk https://www.downtownlangley.com/sites/default/files/ar_muralwalk_map.pdf
+- [ ] Lions Bay
+  - https://www.lionsbaywatershed.ca/post/indigenous-art-walk 
+- [ ] City of North Vancouver
+- [ ] District of North Vancouver
+- [ ] Pitt Meadows - https://www.pittmeadows.ca/arts-culture-heritage/art-public-places/collection
+- [ ] Tsawwassen
+  - Art around the mall https://www.tsawwassenmills.com/mall-artwalk/
+- [ ] West Vancouver
+  - https://westvanpublicartwalk.ca/
+  - https://westvancouver.ca/arts-culture/public-art
+  - Its a PDF https://www.westvancouver.ca/sites/default/files/dwv/assets/art-culture/docs/public-art/Public%20Art%20Inventory%20-%20updated%20Mar%2022%2C%202021.pdf 
+- [ ] White Rock
+  - https://explorewhiterock.com/public-art-in-white-rock/
+  - https://storymaps.arcgis.com/stories/224419e25785493b8db465911dadebba
+- [ ] Metro Vancouver
+
+Art walks
+
+- https://www.art-bc.com/events/category/art-walks/?etype=upcoming
+
+
 ## Quick Start
 
 ### Creating a New Scraper

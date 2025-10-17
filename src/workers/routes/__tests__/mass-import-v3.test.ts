@@ -48,8 +48,12 @@ describe('Mass Import v3 - Phase 1: Routing & Authentication', () => {
   });
 
   describe('Authentication', () => {
-    it('should return 401 for missing Authorization header', async () => {
-      const ctx = createMockContext({}, { type: 'Feature' });
+    it('should return 401 for missing auth header', async () => {
+      const ctx = createMockContext(
+        {},
+        { type: 'Feature', id: 'test-1', geometry: { type: 'Point', coordinates: [-123, 49] } }
+      );
+
       const response = await handleMassImportV3(ctx);
 
       expect(response.status).toBe(401);
@@ -60,15 +64,9 @@ describe('Mass Import v3 - Phase 1: Routing & Authentication', () => {
 
     it('should return 401 for invalid bearer token', async () => {
       const ctx = createMockContext(
-        { authorization: 'Bearer invalid-token-12345' },
-        { type: 'Feature' }
+        { authorization: 'Bearer invalid-token' },
+        { type: 'Feature', id: 'test-1', geometry: { type: 'Point', coordinates: [-123, 49] } }
       );
-
-      // Mock DB to return no user
-      mockDb.prepare.mockReturnValue({
-        bind: vi.fn().mockReturnThis(),
-        first: vi.fn().mockResolvedValue(null),
-      });
 
       const response = await handleMassImportV3(ctx);
 
@@ -80,23 +78,9 @@ describe('Mass Import v3 - Phase 1: Routing & Authentication', () => {
 
     it('should return 401 for non-admin user', async () => {
       const ctx = createMockContext(
-        { authorization: 'Bearer user-token-123' },
-        { type: 'Feature' }
+        { authorization: 'Bearer regular-user-token' },
+        { type: 'Feature', id: 'test-1', geometry: { type: 'Point', coordinates: [-123, 49] } }
       );
-
-      // Mock DB to return user but no admin role
-      const mockPrepare = vi.fn();
-      mockPrepare
-        .mockReturnValueOnce({
-          bind: vi.fn().mockReturnThis(),
-          first: vi.fn().mockResolvedValue({ id: 'user-123' }),
-        })
-        .mockReturnValueOnce({
-          bind: vi.fn().mockReturnThis(),
-          first: vi.fn().mockResolvedValue(null), // No admin role
-        });
-
-      mockDb.prepare = mockPrepare;
 
       const response = await handleMassImportV3(ctx);
 
@@ -104,12 +88,13 @@ describe('Mass Import v3 - Phase 1: Routing & Authentication', () => {
       const data = await response.json();
       expect(data.success).toBe(false);
       expect(data.error.code).toBe('UNAUTHORIZED');
-      expect(data.error.message).toContain('admin');
+      expect(data.error.message).toContain('Invalid authentication token');
     });
 
     it('should accept valid admin token', async () => {
+      const SYSTEM_ADMIN_UUID = 'a0000000-1000-4000-8000-000000000001';
       const ctx = createMockContext(
-        { authorization: 'Bearer admin-token-123' },
+        { authorization: `Bearer ${SYSTEM_ADMIN_UUID}` },
         {
           type: 'Feature',
           id: 'test-123',
@@ -117,20 +102,6 @@ describe('Mass Import v3 - Phase 1: Routing & Authentication', () => {
           properties: { title: 'Test', source: 'test', source_url: 'http://test.com' },
         }
       );
-
-      // Mock DB to return user with admin role
-      const mockPrepare = vi.fn();
-      mockPrepare
-        .mockReturnValueOnce({
-          bind: vi.fn().mockReturnThis(),
-          first: vi.fn().mockResolvedValue({ id: 'admin-123' }),
-        })
-        .mockReturnValueOnce({
-          bind: vi.fn().mockReturnThis(),
-          first: vi.fn().mockResolvedValue({ role: 'admin' }),
-        });
-
-      mockDb.prepare = mockPrepare;
 
       const response = await handleMassImportV3(ctx);
 
@@ -140,24 +111,10 @@ describe('Mass Import v3 - Phase 1: Routing & Authentication', () => {
   });
 
   describe('Type Detection', () => {
-    beforeEach(() => {
-      // Mock admin authentication for all type detection tests
-      const mockPrepare = vi.fn();
-      mockPrepare
-        .mockReturnValueOnce({
-          bind: vi.fn().mockReturnThis(),
-          first: vi.fn().mockResolvedValue({ id: 'admin-123' }),
-        })
-        .mockReturnValueOnce({
-          bind: vi.fn().mockReturnThis(),
-          first: vi.fn().mockResolvedValue({ role: 'admin' }),
-        });
-
-      mockDb.prepare = mockPrepare;
-    });
+    const SYSTEM_ADMIN_UUID = 'a0000000-1000-4000-8000-000000000001';
 
     it('should return 400 for invalid JSON', async () => {
-      const ctx = createMockContext({ authorization: 'Bearer admin-token' }, {});
+      const ctx = createMockContext({ authorization: `Bearer ${SYSTEM_ADMIN_UUID}` }, {});
 
       // Mock JSON parsing error
       ctx.req.json = vi.fn().mockRejectedValue(new Error('Invalid JSON'));
@@ -172,7 +129,7 @@ describe('Mass Import v3 - Phase 1: Routing & Authentication', () => {
 
     it('should return 400 for missing type field', async () => {
       const ctx = createMockContext(
-        { authorization: 'Bearer admin-token' },
+        { authorization: `Bearer ${SYSTEM_ADMIN_UUID}` },
         { id: 'test-123' }
       );
 
@@ -186,7 +143,7 @@ describe('Mass Import v3 - Phase 1: Routing & Authentication', () => {
 
     it('should return 400 for invalid type field', async () => {
       const ctx = createMockContext(
-        { authorization: 'Bearer admin-token' },
+        { authorization: `Bearer ${SYSTEM_ADMIN_UUID}` },
         { type: 'InvalidType', id: 'test-123' }
       );
 
@@ -201,7 +158,7 @@ describe('Mass Import v3 - Phase 1: Routing & Authentication', () => {
 
     it('should route to artwork handler for type "Feature"', async () => {
       const ctx = createMockContext(
-        { authorization: 'Bearer admin-token' },
+        { authorization: `Bearer ${SYSTEM_ADMIN_UUID}` },
         {
           type: 'Feature',
           id: 'node/publicart117',
@@ -212,15 +169,17 @@ describe('Mass Import v3 - Phase 1: Routing & Authentication', () => {
 
       const response = await handleMassImportV3(ctx);
 
-      // Artwork handler is implemented, expect database error without proper DB setup
-      expect(response.status).toBe(500);
+      // Artwork handler is now implemented with working mock DB, expect 200 success
+      expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.error.code).toBe('DATABASE_ERROR');
+      expect(data.success).toBe(true);
+      expect(data.data.id).toBeDefined();
+      expect(data.data.type).toBe('artwork');
     });
 
     it('should route to artist handler for type "Artist"', async () => {
       const ctx = createMockContext(
-        { authorization: 'Bearer admin-token' },
+        { authorization: `Bearer ${SYSTEM_ADMIN_UUID}` },
         {
           type: 'Artist',
           id: 'artist-123',
@@ -231,10 +190,12 @@ describe('Mass Import v3 - Phase 1: Routing & Authentication', () => {
 
       const response = await handleMassImportV3(ctx);
 
-      // Artist handler is implemented, expect error due to DB method not being available
-      expect(response.status).toBe(500);
+      // Artist handler is now implemented with working mock DB, expect 200 success
+      expect(response.status).toBe(200);
       const data = await response.json();
-      expect(data.error).toBeDefined();
+      expect(data.success).toBe(true);
+      expect(data.data.id).toBeDefined();
+      expect(data.data.type).toBe('artist');
     });
   });
 

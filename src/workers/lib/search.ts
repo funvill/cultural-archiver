@@ -5,7 +5,7 @@
 
 import type { D1Database } from '@cloudflare/workers-types';
 import type { ArtworkWithPhotos } from '../types';
-import { createDatabaseService } from './database';
+// Direct DB operations in this module; avoid creating a separate DatabaseService instance
 import { safeJsonParse } from './errors';
 
 export interface SearchOptions {
@@ -30,7 +30,7 @@ export async function searchArtworks(
   query: string,
   options: SearchOptions = {}
 ): Promise<SearchResult> {
-  const dbService = createDatabaseService(db);
+  // Use direct DB access for bulk operations in this function
 
   // Default options
   const { limit = 20, offset = 0, status = 'approved' } = options;
@@ -147,33 +147,53 @@ export async function searchArtworks(
     const artworks = results.results.slice(0, limit) as unknown as ArtworkWithPhotos[];
 
     // Format results with photos
-    const artworksWithPhotos: ArtworkWithPhotos[] = await Promise.all(
-      artworks.map(async artwork => {
-        // Get photos from both artwork and submissions
-        const allPhotos: string[] = [];
+    // Bulk-fetch submissions for all returned artworks to avoid N queries (one per artwork)
+    const allPhotosByArtwork: Record<string, string[]> = {};
 
-        // Add artwork's own photos first
-        if (artwork.photos) {
-          const artworkPhotos = safeJsonParse<string[]>(artwork.photos, []);
-          allPhotos.push(...artworkPhotos);
+    // Initialize with artwork-level photos
+    artworks.forEach(artwork => {
+      const photos: string[] = [];
+      if (artwork.photos) {
+        const artworkPhotos = safeJsonParse<string[]>(artwork.photos, []);
+        photos.push(...artworkPhotos);
+      }
+      allPhotosByArtwork[artwork.id] = photos;
+    });
+
+    // Bulk fetch approved logbook submissions for these artworks (if any)
+    const artworkIds = artworks.map(a => a.id).filter(Boolean);
+    if (artworkIds.length > 0) {
+      const placeholders = artworkIds.map(() => '?').join(',');
+      const subsSQL = `
+        SELECT * FROM submissions
+        WHERE artwork_id IN (${placeholders})
+          AND status = 'approved'
+          AND submission_type = 'logbook_entry'
+        ORDER BY artwork_id, created_at DESC
+      `;
+      const subsStmt = db.prepare(subsSQL);
+      const subsResults = await subsStmt.bind(...artworkIds).all();
+
+      (subsResults.results as any[] | undefined)?.forEach(sub => {
+        if (!sub || !sub.artwork_id) return;
+        const existing = allPhotosByArtwork[sub.artwork_id] || [];
+        if (sub.photos) {
+          const parsed = safeJsonParse<string[]>(sub.photos, []);
+          existing.push(...parsed);
         }
+        allPhotosByArtwork[sub.artwork_id] = existing;
+      });
+    }
 
-        // Add photos from logbook submissions
-        const logbookEntries = await dbService.getLogbookEntriesForArtwork(artwork.id);
-        logbookEntries.forEach(entry => {
-          if (entry.photos) {
-            const photos = safeJsonParse<string[]>(entry.photos, []);
-            allPhotos.push(...photos);
-          }
-        });
-
-        return {
-          ...artwork,
-          recent_photo: allPhotos.length > 0 ? allPhotos[0] : undefined,
-          photo_count: allPhotos.length,
-        } as ArtworkWithPhotos;
-      })
-    );
+    // Build final ArtworkWithPhotos array
+    const artworksWithPhotos: ArtworkWithPhotos[] = artworks.map(artwork => {
+      const photos = allPhotosByArtwork[artwork.id] || [];
+      return {
+        ...artwork,
+        recent_photo: photos.length > 0 ? photos[0] : undefined,
+        photo_count: photos.length,
+      } as ArtworkWithPhotos;
+    });
 
     // Get total count for pagination (without LIMIT and OFFSET)
     const countConditions = conditions.slice(); // Copy conditions

@@ -1,5 +1,7 @@
 {
-  "importer": {},
+  "importer": {
+    "includeUnknownFeatureTypes": true
+  },
   "exporter": {
     "apiEndpoint": "https://api.publicartregistry.com/api/mass-import/v3",
     "method": "POST",
@@ -8,18 +10,17 @@
     },
     "authentication": {
       "type": "bearer",
-      "token": "test-admin-token"
+      "token": "a0000000-1000-4000-8000-000000000001"
     },
     "timeout": 30000,
     "retryAttempts": 3,
     "retryDelay": 1000,
     "validateResponse": true,
-    "transformData": false,
+    "transformData": true,
     "logRequests": true,
     "logResponses": true,
-    "duplicateThreshold": 0.75,
     "photoCacheDir": ".cache/photos",
     "skipDuplicateDetection": false,
-    "autoApproveArtists": false
+    "autoApproveArtists": true
   }
 }

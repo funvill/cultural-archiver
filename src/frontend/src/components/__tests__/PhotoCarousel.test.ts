@@ -17,9 +17,9 @@ vi.mock('../../composables/useAnnouncer', () => ({
 
 describe('PhotoCarousel', () => {
   const mockPhotos = [
-    'https://example.com/photo1.jpg',
-    'https://example.com/photo2.jpg',
-    'https://example.com/photo3.jpg',
+    'originals/2024/01/15/photo1.jpg',
+    'originals/2024/01/15/photo2.jpg',
+    'originals/2024/01/15/photo3.jpg',
   ];
 
   beforeEach(() => {
@@ -183,7 +183,7 @@ describe('PhotoCarousel', () => {
 
       expect(wrapper.emitted('fullscreen')).toBeTruthy();
       // PhotoCarousel emits the large variant URL for fullscreen
-      expect(wrapper.emitted('fullscreen')?.[0]).toEqual(['/api/images/large/https://example.com/photo1.jpg']);
+      expect(wrapper.emitted('fullscreen')?.[0]).toEqual(['/api/images/large/originals/2024/01/15/photo1.jpg']);
     });
   });
 
@@ -292,7 +292,7 @@ describe('PhotoCarousel', () => {
 
       expect(wrapper.emitted('fullscreen')).toBeTruthy();
       // PhotoCarousel emits the large variant URL for fullscreen
-      expect(wrapper.emitted('fullscreen')?.[0]).toEqual(['/api/images/large/https://example.com/photo1.jpg']);
+      expect(wrapper.emitted('fullscreen')?.[0]).toEqual(['/api/images/large/originals/2024/01/15/photo1.jpg']);
     });
   });
 
