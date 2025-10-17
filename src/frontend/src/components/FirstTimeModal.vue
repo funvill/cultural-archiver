@@ -139,14 +139,22 @@ defineExpose({
                 </div>
                 <p class="text-sm text-gray-700 mb-4 flex-grow">
                   Your photo could be the last record of a mural before it vanishes. By capturing
-                  it now, you become the guardian of its memory.
+                  it now, you become the guardian of its memory. <button
+                    @click="closeModal(); goToMap('/pages/tutorial-take-photos')"
+                    class="text-blue-600 hover:text-blue-800 underline text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded"
+                  >
+                    More info
+                  </button>
                 </p>
-                <button
-                  @click="() => goToSubmit('/pages/tutorial-take-photos')"
-                  class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors text-sm"
-                >
-                  Safeguard Creativity
-                </button>
+                <div class="flex flex-col gap-2">
+                  <button
+                    @click="closeModal(); goToSubmit('/add')"
+                    class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors text-sm"
+                  >
+                    Safeguard Creativity
+                  </button>
+                  
+                </div>
               </div>
 
               <!-- Card 2: Update information -->
@@ -157,14 +165,22 @@ defineExpose({
                 </div>
                 <p class="text-sm text-gray-700 mb-4 flex-grow">
                   Every detail you add protects the truth of our shared culture. You ensure future
-                  generations know the stories behind the art.
+                  generations know the stories behind the art. <button
+                    @click="closeModal(); goToMap('/pages/tutorial-update-information')"
+                    class="text-green-700 hover:text-green-900 underline text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 rounded"
+                  >
+                    More info
+                  </button>
                 </p>
-                <button
-                  @click="() => goToMap('/pages/tutorial-update-information')"
-                  class="bg-green-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors text-sm"
-                >
-                  Protect History
-                </button>
+                <div class="flex flex-col gap-2">
+                  <button
+                    @click="closeModal(); goToMap('/')"
+                    class="bg-green-700 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-colors text-sm"
+                  >
+                    Protect History
+                  </button>
+                  
+                </div>
               </div>
 
               <!-- Card 3: Explore Art Nearby -->
@@ -175,14 +191,22 @@ defineExpose({
                 </div>
                 <p class="text-sm text-gray-700 mb-4 flex-grow">
                   Artists create for others to witness. Your journey completes their work and
-                  preserves it for the future - every visit keeps the art alive.
+                  preserves it for the future - every visit keeps the art alive. <button
+                    @click="closeModal(); goToMap('/pages/tutorial-explore-nearby-artworks')"
+                    class="text-purple-600 hover:text-purple-800 underline text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 rounded"
+                  >
+                    More info
+                  </button>
                 </p>
-                <button
-                  @click="() => goToMap('/pages/tutorial-explore-nearby-artworks')"
-                  class="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors text-sm"
-                >
-                  Discover Nearby Art
-                </button>
+                <div class="flex flex-col gap-2">
+                  <button
+                    @click="closeModal(); goToMap('/')"
+                    class="bg-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-colors text-sm"
+                  >
+                    Discover Nearby Art
+                  </button>
+                  
+                </div>
               </div>
 
               <!-- Card 4: Highlight Great Works -->
@@ -193,14 +217,22 @@ defineExpose({
                 </div>
                 <p class="text-sm text-gray-700 mb-4 flex-grow">
                   Art lives through connection. By choosing what inspires you, you pass that spark
-                  to those who follow - guiding them toward what matters most.
+                  to those who follow - guiding them toward what matters most. <button
+                    @click="closeModal(); goToMap('/pages/tutorial-rate-artworks')"
+                    class="text-orange-600 hover:text-orange-800 underline text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 rounded"
+                  >
+                    More info
+                  </button>
                 </p>
-                <button
-                  @click="() => goToMap('/pages/tutorial-rate-artworks')"
-                  class="bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors text-sm"
-                >
-                  Share What Moves You
-                </button>
+                <div class="flex flex-col gap-2">
+                  <button
+                    @click="closeModal(); goToMap('/')"
+                    class="bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-orange-700 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-colors text-sm"
+                  >
+                    Share What Moves You
+                  </button>
+                  
+                </div>
               </div>
             </div>
           </div>
