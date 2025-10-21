@@ -9,6 +9,8 @@
 - The project has been released. Double check and review all changes to the database. Check the `docs\database.md` document for field and table names. Keep this document up to date after each migration.
 - Artwork table is called "artwork" (singular) not artworks (plural) with a `s`
 - When I say "update documentation", review and update the `docs` folder. 
+- Use `npm run deploy` to deploy to production. Don't use wrangler directly.
+
 ## Settings
 
 - Primary domain: `publicartregistry.com`
