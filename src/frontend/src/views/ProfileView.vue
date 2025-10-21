@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue';
-import { useAuthStore } from '../stores/auth';
+import { useAuth, useUser } from '@clerk/vue';
 import { useRouter } from 'vue-router';
 import ArtworkCard from '../components/ArtworkCard.vue';
 import BadgeGrid from '../components/BadgeGrid.vue';
@@ -8,12 +8,16 @@ import ProfileNameEditor from '../components/ProfileNameEditor.vue';
 import { apiService } from '../services/api';
 import { useUserLists } from '../composables/useUserLists';
 import ThemeToggle from '../components/ThemeToggle.vue';
+import { useAnalytics } from '../composables/useAnalytics';
 import type { SubmissionRecord, UserBadgeResponse, ListApiResponse } from '../../../shared/types';
 import type {
   UserProfile,
   SearchResult,
   ArtworkDetailResponse as ArtworkDetails,
 } from '../types/index';
+
+// Initialize analytics
+const analytics = useAnalytics();
 
 type SubmissionWithData = SubmissionRecord & {
   data_parsed?: {
@@ -128,6 +132,11 @@ function onCardClick(artwork: SearchResult): void {
     artwork.id &&
     submissions.value.some((s: SubmissionWithData) => s.artwork_id === artwork.id)
   ) {
+    analytics.trackEvent('profile_submission_click', {
+      event_category: 'user',
+      event_label: artwork.id,
+      artwork_id: artwork.id,
+    });
     router.push(`/artwork/${artwork.id}`);
   }
 }
@@ -313,6 +322,11 @@ const customUserLists = computed(() => {
 
 // Lists management methods
 function handleListClick(list: ListApiResponse) {
+  analytics.trackEvent('profile_list_click', {
+    event_category: 'user',
+    event_label: list.name,
+    list_id: list.id,
+  });
   router.push(`/lists/${list.id}`);
 }
 
@@ -323,15 +337,16 @@ onMounted(() => {
   // Theme initialization moved to main.ts (applies saved localStorage theme on startup)
 });
 
-// Auth store for developer info (token & permissions)
-const authStore = useAuthStore();
+// Auth composables for developer info (token & permissions)
+const { isSignedIn } = useAuth();
+const { user } = useUser();
 
-// Computed display token (prefer store token, fallback to localStorage)
+// Computed display token (prefer Clerk user ID, fallback to localStorage)
 const displayToken = computed(() => {
   try {
-    return authStore.token || (typeof window !== 'undefined' ? localStorage.getItem('user-token') : null) || null;
+    return user.value?.id || (typeof window !== 'undefined' ? localStorage.getItem('user-token') : null) || null;
   } catch (e) {
-    return authStore.token || null;
+    return user.value?.id || null;
   }
 });
 </script>
@@ -403,7 +418,7 @@ const displayToken = computed(() => {
             </div>
             <div>
               <span class="font-medium">Permissions:</span>
-              <span class="ml-2">{{ authStore.permissions && authStore.permissions.length ? authStore.permissions.join(', ') : 'none' }}</span>
+              <span class="ml-2">{{ isSignedIn ? 'user' : 'anonymous' }}</span>
             </div>
           </div>
         </div>

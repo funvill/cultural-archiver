@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useNotificationsStore } from '../stores/notifications';
+import { useAnalytics } from '../composables/useAnalytics';
 import type { NotificationResponse } from '../../../shared/types';
 import { isBadgeNotificationMetadata } from '../../../shared/types';
+
+// Initialize analytics
+const analytics = useAnalytics();
 
 // Emits
 const emit = defineEmits<{
@@ -34,6 +38,12 @@ const displayedNotifications = computed(() => {
 
 // Methods
 function handleNotificationClick(notification: NotificationResponse) {
+  analytics.trackEvent('notification_click', {
+    event_category: 'user',
+    event_label: notification.type,
+    notification_type: notification.type,
+  });
+  
   emit('notificationAction', { type: 'click', notificationId: notification.id });
 
   // Mark as read if unread
@@ -43,6 +53,10 @@ function handleNotificationClick(notification: NotificationResponse) {
 }
 
 async function dismissNotification(notificationId: string) {
+  analytics.trackEvent('notification_dismiss', {
+    event_category: 'user',
+  });
+  
   try {
     await notificationsStore.dismissNotification(notificationId);
   } catch (error) {
@@ -51,6 +65,11 @@ async function dismissNotification(notificationId: string) {
 }
 
 async function markAllAsRead() {
+  analytics.trackEvent('notification_mark_all_read', {
+    event_category: 'user',
+    value: unreadCount.value,
+  });
+  
   try {
     await notificationsStore.markAllRead();
   } catch (error) {

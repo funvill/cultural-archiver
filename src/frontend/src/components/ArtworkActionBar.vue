@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import MChip from './MChip.vue';
 import AddToListDialog from './AddToListDialog.vue';
-import { useAuthStore } from '../stores/auth';
+import { useAuth } from '@clerk/vue';
 import { apiService } from '../services/api';
 import { useAnnouncer } from '../composables/useAnnouncer';
 import { createLogger } from '../../../shared/logger';
@@ -37,7 +37,7 @@ if (!props.permissions) (props as any).permissions = { canEdit: false };
 const emit = defineEmits<EmitMap>() as unknown as ((event: string, ...args: any[]) => void);
 
 // Composables
-const authStore = useAuthStore();
+const { isSignedIn, isLoaded } = useAuth();
 const { announceError, announceSuccess } = useAnnouncer();
 const log = createLogger({ module: 'frontend:ArtworkActionBar' });
 
@@ -78,7 +78,7 @@ const showAddToListDialog = ref(false);
 const pendingRequests = ref(new Set<string>());
 
 // Computed properties
-const isAuthenticated = computed(() => authStore.isAuthenticated);
+const isAuthenticated = computed(() => isSignedIn && isLoaded);
 
 const chipData = computed(() => [
   {
@@ -206,7 +206,7 @@ onMounted(async () => {
 });
 
 // Watch for authentication changes
-watch(() => authStore.isAuthenticated, async (newAuth: boolean) => {
+watch(isSignedIn, async (newAuth: boolean | undefined) => {
   if (newAuth && !props.initialListStates) {
     await fetchMembershipStates();
   }

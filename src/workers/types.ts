@@ -437,6 +437,9 @@ export interface WorkerEnv
   PHOTO_DEBUG?: string;
   // Enable verbose logging for mass import endpoint when set to '1' or 'true'
   MASS_IMPORT_VERBOSE?: string;
+  // Clerk authentication
+  CLERK_SECRET_KEY?: string;
+  CLERK_WEBHOOK_SECRET?: string;
 }
 
 // ================================

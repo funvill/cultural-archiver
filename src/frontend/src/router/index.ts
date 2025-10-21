@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import type { Component } from 'vue';
 import { useAuthStore } from '../stores/auth';
+import { useAnalytics } from '../composables/useAnalytics';
 
 // Lazy load components for better performance
 const HomeView = (): Promise<Component> => import('../views/HomeView.vue');
@@ -344,6 +345,20 @@ router.beforeEach(async (to, _from, next) => {
 
   // Allow navigation
   next();
+});
+
+// Track page views with Google Analytics
+router.afterEach((to) => {
+  const analytics = useAnalytics();
+  
+  // Track page view
+  const pageTitle = (to.meta.title as string) || document.title;
+  analytics.trackPageView(to.fullPath, pageTitle);
+  
+  // Update document title
+  if (to.meta.title) {
+    document.title = to.meta.title as string;
+  }
 });
 
 export default router;

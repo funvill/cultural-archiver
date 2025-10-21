@@ -15,6 +15,10 @@ import {
   ArrowRightOnRectangleIcon,
   ArrowLeftOnRectangleIcon,
 } from '@heroicons/vue/24/outline';
+import { useAnalytics } from '../../composables/useAnalytics';
+
+// Initialize analytics
+const analytics = useAnalytics();
 
 // Auth prop interface
 interface AuthProp {
@@ -178,10 +182,25 @@ const handleRailBackgroundClick = (evt: MouseEvent) => {
   emit('toggleExpanded');
 };
 
-const handleNotificationClick = () => emit('notificationClick');
-const handleProfileClick = () => emit('profileClick');
-const handleLoginClick = () => emit('loginClick');
-const handleLogoutClick = () => emit('logoutClick');
+const handleNotificationClick = () => {
+  analytics.trackNavigationClick('notifications');
+  emit('notificationClick');
+};
+
+const handleProfileClick = () => {
+  analytics.trackNavigationClick('profile');
+  emit('profileClick');
+};
+
+const handleLoginClick = () => {
+  analytics.trackNavigationClick('login');
+  emit('loginClick');
+};
+
+const handleLogoutClick = () => {
+  analytics.trackNavigationClick('logout');
+  emit('logoutClick');
+};
 </script>
 
 <template>

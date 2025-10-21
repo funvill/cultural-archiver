@@ -2,6 +2,64 @@ import { config } from '@vue/test-utils';
 import { vi, beforeEach } from 'vitest';
 import { createPinia, setActivePinia } from 'pinia';
 
+// Create global auth state that can be controlled by tests
+const mockAuthState = {
+  isSignedIn: { value: false },
+  isLoaded: { value: true },
+  signOut: vi.fn(),
+};
+
+const mockUserState = {
+  user: { value: null },
+  isLoaded: { value: true },
+};
+
+// Mock Clerk authentication before importing any components
+vi.mock('@clerk/vue', () => ({
+  useAuth: vi.fn(() => mockAuthState),
+  useUser: vi.fn(() => mockUserState),
+  useClerk: vi.fn(() => ({
+    signIn: { open: vi.fn() },
+    signUp: { open: vi.fn() },
+  })),
+  ClerkProvider: {
+    name: 'ClerkProvider',
+    template: '<div><slot /></div>',
+  },
+  SignIn: {
+    name: 'SignIn',
+    template: '<div class="clerk-sign-in">Sign In Form</div>',
+    props: ['appearance'],
+  },
+  SignUp: {
+    name: 'SignUp',
+    template: '<div class="clerk-sign-up">Sign Up Form</div>',
+    props: ['appearance'],
+  },
+  SignInButton: {
+    name: 'SignInButton', 
+    template: '<button><slot /></button>',
+  },
+  SignUpButton: {
+    name: 'SignUpButton',
+    template: '<button><slot /></button>',
+  },
+  SignOutButton: {
+    name: 'SignOutButton',
+    template: '<button><slot /></button>',
+  },
+  UserButton: {
+    name: 'UserButton',
+    template: '<div><slot /></div>',
+  },
+}));
+
+// Helper functions for tests to control authentication state
+(global as any).setMockAuthState = (isSignedIn: boolean, user: any = null) => {
+  mockAuthState.isSignedIn.value = isSignedIn;
+  mockUserState.user.value = user;
+};
+
 // Ensure an active Pinia exists as soon as the test setup module is loaded.
 // Some components access stores during their setup phase; creating an
 // active Pinia immediately prevents "no active Pinia" errors during

@@ -5,11 +5,15 @@ import { useAuthStore } from '../stores/auth';
 import { useArtworksStore } from '../stores/artworks';
 import { globalModal } from '../composables/useModal';
 import { useToasts } from '../composables/useToasts';
+import { useAnalytics } from '../composables/useAnalytics';
 import { apiService, getErrorMessage } from '../services/api';
 import { createApiUrl } from '../utils/api-config';
 import ArtworkEditDiffs from '../components/ArtworkEditDiffs.vue';
 import ArtistEditDiffs from '../components/ArtistEditDiffs.vue';
 import type { ArtworkEditReviewData, FeedbackRecord } from '../../../shared/types';
+
+// Initialize analytics
+const analytics = useAnalytics();
 
 // Types
 interface ReviewSubmission {
@@ -510,6 +514,13 @@ async function approveSubmission(submission: ReviewSubmission) {
 
     console.log('[ReviewView] Submission approved successfully with action:', approvalAction);
 
+    // Track approval
+    analytics.trackEvent('review_approve_submission', {
+      event_category: 'submission',
+      event_label: approvalAction,
+      submission_type: submission.type,
+    });
+
     // Remove from list
     submissions.value = submissions.value.filter((s: ReviewSubmission) => s.id !== submission.id);
     statistics.value.pending--;
@@ -549,6 +560,13 @@ async function rejectSubmission(submission: ReviewSubmission) {
     await apiService.rejectSubmission(submission.id, reason || undefined);
 
     console.log('[ReviewView] Submission rejected successfully');
+
+    // Track rejection
+    analytics.trackEvent('review_reject_submission', {
+      event_category: 'submission',
+      event_label: reason ? 'with_reason' : 'no_reason',
+      submission_type: submission.type,
+    });
 
     // Remove from list
     submissions.value = submissions.value.filter((s: ReviewSubmission) => s.id !== submission.id);

@@ -9,6 +9,33 @@
       name="description"
       content="A community-driven platform for documenting and preserving public art"
     />
+    
+    <!-- Google Analytics -->
+    <script>
+      // Only load Google Analytics in production
+      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        // Get GA ID from build-time environment variable
+        const gaId = '__VITE_GA_ID__'; // This will be replaced at build time
+        
+        if (gaId && gaId !== '__VITE_GA_ID__' && gaId !== '') {
+          // Create script element for gtag.js
+          const script = document.createElement('script');
+          script.async = true;
+          script.src = 'https://www.googletagmanager.com/gtag/js?id=' + gaId;
+          document.head.appendChild(script);
+          
+          // Initialize dataLayer and gtag
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          window.gtag = gtag;
+          gtag('js', new Date());
+          gtag('config', gaId, {
+            send_page_view: false, // We'll handle page views manually via Vue Router
+            cookie_flags: 'SameSite=None;Secure'
+          });
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>

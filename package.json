@@ -100,6 +100,9 @@
   },
   "homepage": "https://github.com/funvill/cultural-archiver#readme",
   "dependencies": {
+    "@clerk/backend": "^2.18.3",
+    "@clerk/types": "^4.95.0",
+    "@clerk/vue": "^1.14.7",
     "@types/cheerio": "^0.22.35",
     "axios": "^1.11.0",
     "better-sqlite3": "^11.3.0",
@@ -110,6 +113,7 @@
     "inquirer": "^12.9.4",
     "ora": "^8.2.0",
     "sqlite3": "^5.1.7",
+    "svix": "^1.77.0",
     "tsx": "^4.19.1"
   }
 }

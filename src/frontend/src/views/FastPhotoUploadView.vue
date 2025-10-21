@@ -5,7 +5,7 @@
  * 2. System detects location from EXIF/browser/IP
  * 3. Automatically redirects to search results with nearby artworks
  */
-import { ref, watch } from 'vue';
+import { ref, watch, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import {
   PhotoIcon,
@@ -15,6 +15,7 @@ import {
   XMarkIcon,
 } from '@heroicons/vue/24/outline';
 import { useGeolocation } from '../composables/useGeolocation';
+import { useAnalytics } from '../composables/useAnalytics';
 import { extractExifData, createImagePreview } from '../utils/image';
 import type { ExifData } from '../utils/image';
 import type { Coordinates } from '../types';
@@ -22,6 +23,14 @@ import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 
 const router = useRouter();
 const { getCurrentPosition } = useGeolocation();
+const analytics = useAnalytics();
+
+// Track submission start on mount
+onMounted(() => {
+  analytics.trackSubmissionStart({
+    submission_type: 'artwork',
+  });
+});
 
 // State for photo uploads
 interface PhotoFile {
@@ -81,6 +90,14 @@ async function processFiles(files: File[]) {
   isProcessing.value = true;
 
   const imageFiles = files.filter(file => file.type.startsWith('image/'));
+  
+  // Track photo upload
+  if (imageFiles.length > 0) {
+    analytics.trackEvent('photo_upload', {
+      event_category: 'submission',
+      photo_count: imageFiles.length,
+    });
+  }
 
   for (const file of imageFiles) {
     try {
@@ -173,6 +190,14 @@ function proceedToSearch() {
   if (!finalLocation.value) return;
   if (hasNavigated.value) return;
   hasNavigated.value = true;
+  
+  // Track successful location detection and navigation
+  analytics.trackEvent('photo_upload_proceed', {
+    event_category: 'submission',
+    photo_count: selectedFiles.value.length,
+    has_exif: locationSources.value.exif.detected,
+    has_browser_location: locationSources.value.browser.detected,
+  });
 
   const store = useFastUploadSessionStore();
   // Build metadata including preview for in-memory store (better UX on next screen)

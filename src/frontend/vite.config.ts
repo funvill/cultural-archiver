@@ -7,9 +7,22 @@ export default defineConfig(({ mode }) => {
   const debugMode = mode !== 'production';
 
   console.log(`[Vite Config] Mode: ${mode}, Debug Mode: ${debugMode}`);
+  
+  // Get Google Analytics tracking ID from environment
+  const gaTrackingId = process.env.VITE_GA_TRACKING_ID || '';
+  console.log(`[Vite Config] GA Tracking ID: ${gaTrackingId ? 'Set' : 'Not set'}`);
 
   return {
-    plugins: [vue()],
+    plugins: [
+      vue(),
+      // Custom plugin to replace GA tracking ID in HTML
+      {
+        name: 'html-transform',
+        transformIndexHtml(html: string): string {
+          return html.replace(/__VITE_GA_ID__/g, gaTrackingId);
+        },
+      },
+    ],
     resolve: {
       alias: {
         '@': resolve(__dirname, './src'),

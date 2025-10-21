@@ -7,9 +7,6 @@
 - [x] None of the artists have a bio even though the imports had bios assoicated with them.
 - [x] Search page is broken
 - [ ] Check the photo based on the hash to see if it has already been uploaded to a artwork. Deduplication
-- 
-
-
 - [ ] The map filters are not working as expected and are missing the "Show removed artworks"
 - [ ] Add filter for artworks with the following tags Physical Properties (1), Condition:removed
 - [ ] Allow for 5 or more photos to be uploaded at a time. or give a good warning if they have uploaded too many
@@ -58,7 +55,7 @@
 - [ ] 8.0 Create social media schedules and schedule 14 days of posts.
   - [ ] Instagram @publicartregistry
   - [ ] Bluesky https://bsky.app/profile/publicartregistry.com
-- [ ] 9.0 Website Usage Analytics
+- [ ] 9.0 Website Usage Analytics (Google tag G-Z006GGCPEK)
 
 - Possable Funding
   - https://www.vancouverfoundation.ca/

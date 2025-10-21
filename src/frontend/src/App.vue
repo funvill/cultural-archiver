@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, watch, ref, provide } from 'vue';
 import { useRoute } from 'vue-router';
+
 import AppShell from './components/AppShell.vue';
 import ErrorBoundary from './components/ErrorBoundary.vue';
 import FirstTimeModal from './components/FirstTimeModal.vue';
@@ -8,6 +9,8 @@ import Modal from './components/Modal.vue';
 import PromptModal from './components/PromptModal.vue';
 import { useAuth } from './composables/useAuth';
 import { globalModal } from './composables/useModal';
+
+
 
 const { initAuth } = useAuth();
 const route = useRoute();

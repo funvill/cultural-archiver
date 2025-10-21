@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import { useAuthStore } from '../stores/auth';
+import { useUser } from '@clerk/vue';
 import ArtworkCard from '../components/ArtworkCard.vue';
 import type { SearchResult } from '../types';
 import { apiService } from '../services/api';
@@ -15,7 +15,7 @@ const props = defineProps<Props>();
 
 // Stores and routing
 const router = useRouter();
-const authStore = useAuthStore();
+const { user } = useUser();
 
 // State
 const loading = ref(true);
@@ -49,7 +49,7 @@ const bulkRemoveLoading = ref(false);
 
 // Computed
 const isOwner = computed(() => {
-  return authStore.token && list.value && list.value.owner_user_id === authStore.token;
+  return user.value?.id && list.value && list.value.owner_user_id === user.value.id;
 });
 
 const canBulkRemove = computed(() => {

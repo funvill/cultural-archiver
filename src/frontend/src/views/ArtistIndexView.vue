@@ -7,10 +7,12 @@ import SortControls from '../components/SortControls.vue';
 import SkeletonCard from '../components/SkeletonCard.vue';
 import LoadingSpinner from '../components/LoadingSpinner.vue';
 import { apiService } from '../services/api';
+import { useAnalytics } from '../composables/useAnalytics';
 import type { ArtistApiResponse } from '../../../shared/types';
 
 const route = useRoute();
 const router = useRouter();
+const analytics = useAnalytics();
 
 // State
 const artists = ref<ArtistApiResponse[]>([]);
@@ -167,6 +169,12 @@ function handleSortChange(newSort: string): void {
 }
 
 function handleArtistClick(artist: ArtistApiResponse): void {
+  analytics.trackEvent('artist_index_click', {
+    event_category: 'user',
+    event_label: artist.name,
+    artist_id: artist.id,
+    artist_name: artist.name,
+  });
   // Navigate to artist detail page
   router.push(`/artist/${artist.id}`);
 }

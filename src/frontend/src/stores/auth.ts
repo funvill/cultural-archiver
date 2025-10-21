@@ -2,12 +2,16 @@ import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
 import type { User, MagicLinkRequest, MagicLinkConsumeRequest, Permission } from '../types';
 import { apiService, getErrorMessage } from '../services/api';
+import { useAnalytics } from '../composables/useAnalytics';
 
 /**
  * Authentication store for managing user state and tokens
  * Updated to work with the new UUID-based authentication system
  */
 export const useAuthStore = defineStore('auth', () => {
+  // Analytics
+  const analytics = useAnalytics();
+  
   // State
   const user = ref<User | null>(null);
   const token = ref<string | null>(null);
@@ -361,6 +365,12 @@ export const useAuthStore = defineStore('auth', () => {
       const response = await apiService.requestMagicLink(request);
 
       if (response.data) {
+        // Track magic link request
+        analytics.trackEvent(response.data.is_signup ? 'signup_started' : 'login_started', {
+          event_category: 'user',
+          event_label: 'magic_link',
+        });
+        
         return {
           success: true,
           message: response.data.message,
@@ -372,6 +382,10 @@ export const useAuthStore = defineStore('auth', () => {
     } catch (err: unknown) {
       const message = getErrorMessage(err);
       setError(message);
+      
+      // Track error
+      analytics.trackError('auth_magic_link_request_failed', message);
+      
       return { success: false, message };
     } finally {
       setLoading(false);
@@ -435,6 +449,13 @@ export const useAuthStore = defineStore('auth', () => {
           email: userData.email,
           emailVerified: userData.emailVerified,
         });
+
+        // Track successful authentication
+        if (response.data.is_new_account) {
+          analytics.trackSignup({ method: 'magic_link' });
+        } else {
+          analytics.trackLogin({ method: 'magic_link' });
+        }
 
         // SKIP initializeAuth() here to prevent race condition
         // Instead, manually update the authentication state
@@ -502,6 +523,9 @@ export const useAuthStore = defineStore('auth', () => {
         // Clear current auth state
         console.log('[AUTH DEBUG] Clearing authentication state');
         clearAuth();
+
+        // Track logout
+        analytics.trackLogout();
 
         // Set new anonymous token
         if (response.data.new_user_token) {

@@ -126,6 +126,8 @@ import {
   getAuthStatus,
   getDevMagicLink,
 } from './routes/auth';
+import { handleClerkWebhook } from './routes/clerk-webhooks';
+import { clerkUser } from './routes/clerk-user';
 import {
   getReviewQueue,
   getSubmissionForReview,
@@ -158,6 +160,7 @@ import {
   createAdminBadge,
   updateAdminBadge,
   deactivateAdminBadge,
+  migrateUserToClerk,
 } from './routes/admin';
 import {
   getSocialMediaSuggestions,
@@ -1247,6 +1250,16 @@ app.post(
 app.get('/api/auth/dev-magic-link', withErrorHandling(getDevMagicLink));
 
 // ================================
+// Webhook Endpoints
+// ================================
+
+// POST /api/webhooks/clerk - Handle Clerk user lifecycle events
+app.post('/api/webhooks/clerk', withErrorHandling(handleClerkWebhook));
+
+// Clerk user management
+app.route('/api/auth/clerk', clerkUser);
+
+// ================================
 // Review/Moderation Endpoints
 // ================================
 
@@ -1345,6 +1358,9 @@ app.get('/api/admin/audit', withErrorHandling(getAuditLogsEndpoint));
 
 // GET /api/admin/statistics - Get system and audit statistics
 app.get('/api/admin/statistics', withErrorHandling(getAdminStatistics));
+
+// POST /api/admin/migrate-user - Migrate existing user to Clerk authentication (one-time migration)
+app.post('/api/admin/migrate-user', withErrorHandling(migrateUserToClerk));
 
 // Badge management endpoints for administrators
 // GET /api/admin/badges - List all badges with statistics

@@ -11,6 +11,7 @@ import FirstTimeModal from '../components/FirstTimeModal.vue';
 import { useArtworksStore } from '../stores/artworks';
 import { useMapPreviewStore } from '../stores/mapPreview';
 import { useMapFilters } from '../composables/useMapFilters';
+import { useAnalytics } from '../composables/useAnalytics';
 import { apiService } from '../services/api';
 import type { ArtworkPin, Coordinates, MapPreview, SearchResult } from '../types';
 import { AdjustmentsHorizontalIcon, QuestionMarkCircleIcon } from '@heroicons/vue/24/outline';
@@ -20,6 +21,7 @@ const route = useRoute();
 const artworksStore = useArtworksStore();
 const mapPreviewStore = useMapPreviewStore();
 const mapFilters = useMapFilters();
+const analytics = useAnalytics();
 
 // List filtering state (legacy support for URL params)
 const currentListId = ref<string | null>(null);
@@ -274,6 +276,13 @@ try {
 
 // Event handlers
 function handleArtworkClick(artwork: ArtworkPin) {
+  // Track map marker click
+  analytics.trackMapMarkerClick({
+    artwork_id: artwork.id,
+    latitude: artwork.latitude,
+    longitude: artwork.longitude,
+  });
+  
   // Navigate to artwork details page
   router.push(`/artwork/${artwork.id}`);
 }
@@ -345,6 +354,11 @@ function clearListFilter() {
 
 // Map filters handlers
 const handleOpenFilters = () => {
+  // Track filters modal open
+  analytics.trackEvent('map_filters_open', {
+    event_category: 'map',
+  });
+  
   // Close any existing artwork preview dialog when opening map options
   mapPreviewStore.clearPreview();
   showFiltersModal.value = true;
@@ -424,6 +438,12 @@ function handleTelemetryUpdate(t: any) {
 function handlePreviewArtwork(preview: MapPreview) {
   console.log('[MAPVIEW DEBUG] handlePreviewArtwork called with:', preview);
   
+  // Track map preview interaction
+  analytics.trackEvent('map_preview_show', {
+    event_category: 'map',
+    artwork_id: preview.id,
+  });
+  
   // Check if this is a different artwork (trigger shake)
   if (lastPreviewId.value !== preview.id) {
     shouldShake.value = true;
@@ -491,12 +511,27 @@ function handleMapMove(data: { center: Coordinates; zoom: number }) {
 
 function handleLocationFound(location: Coordinates) {
   console.log('User location found:', location);
+  
+  // Track locate me usage
+  analytics.trackEvent('map_locate_me', {
+    event_category: 'map',
+    latitude: location.latitude,
+    longitude: location.longitude,
+  });
+  
   // Fetch nearby artworks
   artworksStore.fetchNearbyArtworks(location);
 }
 
 function handlePreviewClick(artwork: SearchResult) {
   console.log('[MAPVIEW DEBUG] handlePreviewClick called for artwork:', artwork.id);
+  
+  // Track preview card click
+  analytics.trackEvent('map_preview_click', {
+    event_category: 'map',
+    artwork_id: artwork.id,
+  });
+  
   // Navigate to artwork details page
   mapPreviewStore.hidePreview();
   router.push(`/artwork/${artwork.id}`);

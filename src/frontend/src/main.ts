@@ -1,6 +1,7 @@
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import { createHead } from '@vueuse/head';
+import { clerkPlugin } from '@clerk/vue';
 import App from './App.vue';
 import router from './router';
 import './style.css';
@@ -15,6 +16,14 @@ app.use(router);
 // Head manager for dynamic meta tags
 const head = createHead();
 app.use(head);
+
+// Configure Clerk
+const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+if (clerkPublishableKey) {
+  app.use(clerkPlugin, {
+    publishableKey: clerkPublishableKey,
+  });
+}
 
 // Try to apply a saved user theme first (from localStorage). This avoids a
 // brief flash of the default theme when a user has previously selected one.

@@ -1,16 +1,15 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue';
 import { RouterView, useRoute, useRouter } from 'vue-router';
+import { useAuth, useUser } from '@clerk/vue';
 import { useGeolocation } from '../composables/useGeolocation';
 import { extractExifData, createImagePreview } from '../utils/image';
 import type { ExifData } from '../utils/image';
 import type { Coordinates } from '../types';
 import { useFastUploadSessionStore } from '../stores/fastUploadSession';
-import { useAuthStore } from '../stores/auth';
 import { useNotificationsStore } from '../stores/notifications';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import { createLogger } from '../../../shared/logger';
-import AuthModal from './AuthModal.vue';
 import FeedbackDialog from './FeedbackDialog.vue';
 import LiveRegion from './LiveRegion.vue';
 import Toasts from './Toasts.vue';
@@ -20,6 +19,7 @@ import BottomNavigation from './navigation/BottomNavigation.vue';
 import NavigationRail from './navigation/NavigationRail.vue';
 import NavigationDrawer from './navigation/NavigationDrawer.vue';
 import AboutModal from './navigation/AboutModal.vue';
+import AuthModal from './AuthModal.vue';
 
 
 
@@ -32,14 +32,14 @@ defineProps<Props>();
 
 // State
 const showDrawer = ref(false);
-const showAuthModal = ref(false);
-const authMode = ref<'login' | 'signup'>('login');
 const showAboutModal = ref(false);
 const showFeedbackDialog = ref(false);
+const showAuthModal = ref(false);
 const feedbackDefaultNote = ref('');
 const route = useRoute();
 const router = useRouter();
-const authStore = useAuthStore();
+const { isSignedIn, isLoaded, signOut } = useAuth();
+const { user } = useUser();
 const notificationsStore = useNotificationsStore();
 const { showNavigationRail } = useBreakpoint();
 const log = createLogger({ module: 'frontend:AppShell' });
@@ -49,9 +49,9 @@ const navExpanded = ref(true);
 
 // Build auth object once for passing to navigation components
 const auth = computed(() => ({
-  isAuthenticated: authStore.isAuthenticated,
-  userDisplayName: authStore.user?.email ?? '',
-  userRole: (authStore.isAdmin ? 'admin' : (authStore.canReview ? 'moderator' : 'user')) as 'admin' | 'moderator' | 'user',
+  isAuthenticated: (isSignedIn.value && isLoaded.value) ?? false,
+  userDisplayName: user.value?.primaryEmailAddress?.emailAddress ?? user.value?.fullName ?? '',
+  userRole: 'user' as 'admin' | 'moderator' | 'user', // TODO: Implement role detection from Clerk Organizations
 }));
 
 function handleToggleRail(): void {
@@ -243,20 +243,29 @@ function maybeNavigateFast() {
   }
 }
 
+// Watch for login required query parameter
+watch(
+  () => route.query,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (query: any) => {
+    if (query.login === 'required') {
+      showAuthModal.value = true;
+      // Clean up the URL
+      const newQuery = { ...query };
+      delete newQuery.login;
+      router.replace({ 
+        path: route.path, 
+        query: newQuery
+      });
+    }
+  },
+  { immediate: true }
+);
+
 // Authentication methods
-function openAuthModal(mode: 'login' | 'signup' = 'login'): void {
-  authMode.value = mode;
+function redirectToClerkAuth(): void {
+  // Show the auth modal directly
   showAuthModal.value = true;
-}
-
-function closeAuthModal(): void {
-  showAuthModal.value = false;
-}
-
-function handleAuthSuccess(payload: { isNewAccount: boolean; email: string }): void {
-  closeAuthModal();
-  // Could show success toast here if needed
-  log.info('Authentication successful', { payload });
 }
 
 async function handleLogout(): Promise<void> {
@@ -267,7 +276,7 @@ async function handleLogout(): Promise<void> {
   }
 
   try {
-    await authStore.logout();
+    await signOut.value();
     // Could show logout success message here
   } catch (error) {
     log.error('Logout failed', { error });
@@ -286,7 +295,7 @@ function setShowDrawer(value: boolean): void {
 // Feedback handlers
 function handleFeedbackClick(): void {
   const currentUrl = window.location.href;
-  const userToken = authStore.token || 'anonymous';
+  const userToken = user.value?.id || 'anonymous';
   feedbackDefaultNote.value = `Feedback url: ${currentUrl}\nUser token: ${userToken}\n\n`;
   showFeedbackDialog.value = true;
 }
@@ -385,7 +394,7 @@ onMounted(() => {
   // No desktop navigation rail state to initialize; using unified bottom navigation.
   
   // Initialize notifications if user is authenticated
-  if (authStore.isAuthenticated) {
+  if (isSignedIn.value && isLoaded.value) {
     notificationsStore.startPolling();
   }
 });
@@ -401,7 +410,7 @@ watch(() => route.path, () => {
 });
 
 // Watch authentication state changes to manage notification polling
-watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
+watch(() => isSignedIn.value && isLoaded.value, (isAuthenticated: boolean | undefined) => {
   if (isAuthenticated) {
     notificationsStore.startPolling();
   } else {
@@ -428,12 +437,12 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
       v-if="showNavigationRail"
       :is-expanded="navExpanded"
       :notification-count="notificationsStore.unreadCount"
-      :show-notifications="authStore.isAuthenticated"
+      :show-notifications="auth.isAuthenticated"
       :auth="auth"
       @toggleExpanded="handleToggleRail"
       @notificationClick="handleNotificationClick"
       @profileClick="() => router.push('/profile')"
-      @loginClick="() => openAuthModal('login')"
+      @loginClick="redirectToClerkAuth"
       @logoutClick="handleLogout"
     />
 
@@ -441,14 +450,14 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
     <BottomNavigation
       :current-route="route.path"
       :notification-count="notificationsStore.unreadCount"
-      :show-notifications="authStore.isAuthenticated"
+      :show-notifications="auth.isAuthenticated"
       :auth="auth"
       @menuToggle="handleDrawerToggle"
       @fabClick="triggerFastAdd"
       @mapClick="handleMapClick"
       @notificationClick="handleNotificationClick"
       @profileClick="() => router.push('/profile')"
-      @loginClick="() => openAuthModal('login')"
+      @loginClick="redirectToClerkAuth"
       @feedbackClick="handleFeedbackClick"
     />
 
@@ -461,7 +470,7 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
       @searchSubmit="handleSearch"
       @profileClick="() => router.push('/profile')"
       @aboutModalOpen="handleAboutClick"
-      @loginClick="() => openAuthModal('login')"
+      @loginClick="redirectToClerkAuth"
       @logoutClick="handleLogout"
     />
 
@@ -492,14 +501,6 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
     <!-- Global Live Region for Screen Reader Announcements -->
     <LiveRegion />
 
-    <!-- Authentication Modal -->
-    <AuthModal
-      :is-open="showAuthModal"
-      :mode="authMode"
-      @close="closeAuthModal"
-      @success="handleAuthSuccess"
-    />
-
     <!-- About Modal -->
     <AboutModal
       :is-open="showAboutModal"
@@ -515,6 +516,13 @@ watch(() => authStore.isAuthenticated, (isAuthenticated: boolean) => {
       :default-note="feedbackDefaultNote"
       @close="closeFeedbackDialog"
       @success="handleFeedbackSuccess"
+    />
+
+    <!-- Global Auth Modal -->
+    <AuthModal
+      :is-open="showAuthModal"
+      @close="showAuthModal = false"
+      @success="showAuthModal = false"
     />
 
     <!-- Global Toasts -->

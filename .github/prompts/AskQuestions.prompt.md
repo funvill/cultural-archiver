@@ -17,6 +17,7 @@ The goal is to understand the **"what"** and **"why"** of the feature, not the *
 - If needed, include extra details in the choices to make the section more complete.
 - Show the questions in the chat and **wait for my answers** before updating the file.
 - After each set of answers, **append the output file** with the new information.
+- Ask me 20 questions at a time
 - Continue asking questions until I explicitly say "stop."
 
 # Loop

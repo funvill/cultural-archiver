@@ -11,11 +11,13 @@ import LoadingSpinner from '../components/LoadingSpinner.vue';
 import { apiService } from '../services/api';
 import { useArtworkTypeFilters } from '../composables/useArtworkTypeFilters';
 import { useArtworkFilters } from '../composables/useArtworkFilters';
+import { useAnalytics } from '../composables/useAnalytics';
 import type { ArtworkApiResponse } from '../../../shared/types';
 import type { SearchResult } from '../types';
 
 const route = useRoute();
 const router = useRouter();
+const analytics = useAnalytics();
 
 // State
 const artworks = ref<ArtworkApiResponse[]>([]);
@@ -213,6 +215,12 @@ function handleSortChange(newSort: string): void {
 }
 
 function handleArtworkClick(artwork: SearchResult): void {
+  analytics.trackEvent('artwork_index_click', {
+    event_category: 'artwork',
+    event_label: artwork.id,
+    artwork_id: artwork.id,
+    artwork_title: artwork.title || undefined,
+  });
   router.push(`/artwork/${artwork.id}`);
 }
 

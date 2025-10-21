@@ -9,6 +9,7 @@ import SkeletonCard from '../components/SkeletonCard.vue';
 import { useSearchStore } from '../stores/search';
 import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 import { useInfiniteScroll } from '../composables/useInfiniteScroll';
+import { useAnalytics } from '../composables/useAnalytics';
 import type { SearchResult, Coordinates } from '../types/index';
 import { formatListFilter } from '../utils/listFilters';
 import { MIN_SEARCH_LENGTH } from '../../../shared/constants';
@@ -16,6 +17,7 @@ import { MIN_SEARCH_LENGTH } from '../../../shared/constants';
 const route = useRoute();
 const router = useRouter();
 const searchStore = useSearchStore();
+const analytics = useAnalytics();
 
 // State
 const searchInputRef = ref<InstanceType<typeof SearchInput>>();
@@ -128,6 +130,12 @@ function handleSuggestionSelect(suggestion: string): void {
 }
 
 function handleArtworkClick(artwork: SearchResult): void {
+  // Track search result click
+  analytics.trackSearchResultClick({
+    search_term: currentQuery.value,
+    artwork_id: artwork.id,
+  });
+  
   if (isFromFastUpload.value) {
     // If from fast upload, this means adding a logbook entry to existing artwork
     router.push(`/artwork/${artwork.id}?action=add-logbook&from=fast-upload`);
@@ -179,6 +187,12 @@ function performSearch(query: string): void {
 
   showSearchTips.value = false;
   showEmptyState.value = false;
+  
+  // Track search query
+  analytics.trackSearch({
+    search_term: query.trim(),
+  });
+  
   searchStore.performSearch(query.trim());
 }
 

@@ -16,6 +16,7 @@ import AuthModal from '../components/AuthModal.vue';
 import { PencilIcon } from '@heroicons/vue/24/outline';
 // import LogbookTimeline from '../components/LogbookTimeline.vue';
 import { useAnnouncer } from '../composables/useAnnouncer';
+import { useAnalytics } from '../composables/useAnalytics';
 import { apiService } from '../services/api';
 import { useRouteMeta, createArtworkSchema } from '@/lib/meta';
 
@@ -31,6 +32,9 @@ const artworksStore = useArtworksStore();
 const authStore = useAuthStore();
 const router = useRouter();
 const route = useRoute();
+
+// Analytics
+const analytics = useAnalytics();
 
 // Announcer for screen reader feedback
 const { announceError, announceSuccess } = useAnnouncer();
@@ -447,6 +451,13 @@ onMounted(async () => {
 
     announceSuccess(`Loaded artwork details: ${artworkTitle.value}`);
 
+    // Track artwork view
+    analytics.trackArtworkView({
+      artwork_id: props.id,
+      artwork_title: artworkTitle.value,
+      artist_name: artworkCreators.value !== 'Unknown' ? artworkCreators.value : '',
+    });
+
     // Check for pending edits if user is authenticated
     if (authStore.isAuthenticated) {
       await checkPendingEdits();
@@ -496,6 +507,12 @@ onMounted(async () => {
 // Methods
 
 function handlePhotoFullscreen(photoUrl: string): void {
+  // Track photo view
+  analytics.trackArtworkPhotoView({
+    artwork_id: props.id,
+    photo_index: currentPhotoIndex.value,
+  });
+  
   fullscreenPhotoUrl.value = photoUrl;
   showFullscreenPhoto.value = true;
 }
@@ -668,6 +685,13 @@ async function saveEdit(): Promise<void> {
     const response = await apiService.submitArtworkEdit(artwork.value.id, edits);
 
     if (response.success) {
+      // Track successful edit submission
+      analytics.trackEvent('artwork_edit_submitted', {
+        event_category: 'submission',
+        artwork_id: artwork.value.id,
+        value: edits.length, // Number of fields edited
+      });
+      
       announceSuccess('Your changes have been submitted for review');
       showSuccessModal.value = true;
       exitEditMode();
@@ -675,6 +699,13 @@ async function saveEdit(): Promise<void> {
       throw new Error(response.message || 'Failed to submit edits');
     }
   } catch (err) {
+    // Track edit error
+    analytics.trackSubmissionError({
+      submission_type: 'edit',
+      error_message: err instanceof Error ? err.message : 'Unknown error',
+      artwork_id: artwork.value?.id,
+    });
+    
     const message = err instanceof Error ? err.message : 'Failed to save changes';
     editError.value = message;
     announceError('Failed to save changes: ' + message);
@@ -706,6 +737,12 @@ function handleActionBarAuthRequired(): void {
 }
 
 function handleActionBarEditArtwork(): void {
+  // Track edit initiation
+  analytics.trackEvent('edit_artwork_click', {
+    event_category: 'artwork',
+    artwork_id: props.id,
+  });
+  
   enterEditMode();
 }
 
@@ -715,27 +752,58 @@ function handleActionBarAddLog(): void {
     return;
   }
   
+  // Track logbook navigation
+  analytics.trackEvent('add_logbook_click', {
+    event_category: 'artwork',
+    artwork_id: props.id,
+  });
+  
   // Navigate to logbook page for this artwork
   router.push(`/logbook/${props.id}`);
 }
 
 function handleActionBarShare(): void {
+  // Track share action
+  analytics.trackArtworkShare({
+    artwork_id: props.id,
+    artwork_title: artworkTitle.value,
+  });
+  
   // Action bar handles the sharing logic
   announceSuccess('Artwork shared');
 }
 
 // Feedback Methods
 function handleReportMissing(): void {
+  // Track feedback initiation
+  analytics.trackEvent('report_missing', {
+    event_category: 'artwork',
+    artwork_id: props.id,
+  });
+  
   feedbackMode.value = 'missing';
   showFeedbackDialog.value = true;
 }
 
 function handleReportIssue(): void {
+  // Track feedback initiation
+  analytics.trackEvent('report_issue', {
+    event_category: 'artwork',
+    artwork_id: props.id,
+  });
+  
   feedbackMode.value = 'comment';
   showFeedbackDialog.value = true;
 }
 
 function handleFeedbackSuccess(): void {
+  // Track successful feedback
+  analytics.trackEvent('feedback_submitted', {
+    event_category: 'artwork',
+    artwork_id: props.id,
+    event_label: feedbackMode.value,
+  });
+  
   showFeedbackDialog.value = false;
   announceSuccess('Thank you for your feedback! Moderators will review it shortly.');
   toastSuccess('Feedback submitted successfully');

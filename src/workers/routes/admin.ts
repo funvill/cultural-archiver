@@ -847,3 +847,142 @@ export async function deactivateAdminBadge(
     throw new ApiError('Failed to deactivate badge', 'BADGE_DEACTIVATE_ERROR', 500);
   }
 }
+
+/**
+ * POST /api/admin/migrate-user
+ * Migrate an existing user to Clerk authentication (admin only, one-time migration)
+ */
+export async function migrateUserToClerk(
+  c: Context<{ Bindings: WorkerEnv; Variables: { authContext: AuthContext } }>
+): Promise<Response> {
+  try {
+    const authContext = c.get('authContext');
+    const db = c.env.DB;
+
+    // Check admin permissions
+    const adminCheck = await hasPermission(db, authContext.userToken, 'admin');
+    if (!adminCheck.hasPermission) {
+      throw new ApiError('Administrator permissions required', 'INSUFFICIENT_PERMISSIONS', 403);
+    }
+
+    const requestBody = await c.req.json();
+    const { oldUserId, clerkUserId, userEmail } = requestBody;
+
+    // Validation
+    if (!oldUserId || !clerkUserId || !userEmail) {
+      throw new ApiError(
+        'Missing required fields: oldUserId, clerkUserId, userEmail',
+        'MISSING_FIELDS',
+        400
+      );
+    }
+
+    if (!isValidUUID(oldUserId)) {
+      throw new ApiError('Invalid old user ID format', 'INVALID_USER_ID', 400);
+    }
+
+    // 1. Verify the old user exists and get their data
+    const oldUser = await db
+      .prepare('SELECT * FROM users WHERE uuid = ? AND email = ?')
+      .bind(oldUserId, userEmail)
+      .first();
+
+    if (!oldUser) {
+      throw new ApiError(
+        `User not found with ID ${oldUserId} and email ${userEmail}`,
+        'USER_NOT_FOUND',
+        404
+      );
+    }
+
+    // 2. Check if Clerk user already exists
+    const existingClerkUser = await db
+      .prepare('SELECT * FROM users WHERE clerk_user_id = ?')
+      .bind(clerkUserId)
+      .first();
+
+    if (existingClerkUser && existingClerkUser.uuid !== oldUserId) {
+      throw new ApiError(
+        `Clerk user ID ${clerkUserId} is already linked to a different user`,
+        'CLERK_ID_ALREADY_LINKED',
+        409
+      );
+    }
+
+    // 3. Count submissions to verify
+    const submissionCount = await db
+      .prepare('SELECT COUNT(*) as count FROM artwork WHERE user_id = ?')
+      .bind(oldUserId)
+      .first();
+
+    console.log(`[USER MIGRATION] Found ${(submissionCount as any)?.count || 0} artworks by this user`);
+
+    // 4. Update user record to link with Clerk
+    const updateResult = await db
+      .prepare(`
+        UPDATE users 
+        SET clerk_user_id = ?, 
+            email_verified_at = COALESCE(email_verified_at, datetime('now')),
+            updated_at = datetime('now')
+        WHERE uuid = ?
+      `)
+      .bind(clerkUserId, oldUserId)
+      .run();
+
+    if (!updateResult.success) {
+      throw new ApiError('Failed to update user record', 'UPDATE_FAILED', 500);
+    }
+
+    // 5. Log admin action for audit trail
+    const auditContext = createAdminAuditContext(c, authContext.userToken, 'grant_permission', {
+      reason: `Migrated user ${oldUserId} to Clerk authentication ${clerkUserId}`,
+    });
+
+    const auditResult = await logAdminAction(c.env.DB, auditContext);
+    if (!auditResult.success) {
+      console.warn('Failed to log migration action:', auditResult.error);
+    }
+
+    // 6. Verify the migration
+    const updatedUser = await db
+      .prepare('SELECT * FROM users WHERE uuid = ?')
+      .bind(oldUserId)
+      .first();
+
+    console.log('[USER MIGRATION] Migration completed successfully:', {
+      userId: oldUserId,
+      clerkUserId: clerkUserId,
+      email: userEmail,
+      submissionCount: (submissionCount as any)?.count || 0,
+    });
+
+    return c.json({
+      success: true,
+      message: 'User migration completed successfully',
+      data: {
+        userId: oldUserId,
+        clerkUserId: clerkUserId,
+        email: userEmail,
+        submissionCount: (submissionCount as any)?.count || 0,
+        updatedUser: {
+          id: (updatedUser as any)?.uuid,
+          clerk_user_id: (updatedUser as any)?.clerk_user_id,
+          email: (updatedUser as any)?.email,
+          email_verified: !!(updatedUser as any)?.email_verified_at,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('Migration failed:', error);
+
+    if (error instanceof ApiError) {
+      throw error;
+    }
+
+    throw new ApiError(
+      'Migration failed: ' + (error instanceof Error ? error.message : 'Unknown error'),
+      'MIGRATION_ERROR',
+      500
+    );
+  }
+}
