@@ -81,6 +81,7 @@ describe('Auth Store', () => {
       // Wait for initialization to complete
       await store.initializeAuth();
 
+      // The auth store checks for user-token first in legacy auth
       expect(localStorageMock.getItem).toHaveBeenCalledWith('user-token');
     });
   });

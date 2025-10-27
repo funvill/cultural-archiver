@@ -122,6 +122,12 @@ class ApiClient {
       return null;
     }
     try {
+      // Check clerk-user-id first (for production where Clerk SDK is broken)
+      const clerkUserId = window.localStorage.getItem('clerk-user-id');
+      if (clerkUserId) {
+        return clerkUserId;
+      }
+      // Fall back to legacy user-token
       return window.localStorage.getItem('user-token');
     } catch {
       return null;
@@ -133,59 +139,29 @@ class ApiClient {
    */
   private async getClerkToken(): Promise<string | null> {
     try {
-      console.log('[API DEBUG] getClerkToken called', {
-        timestamp: new Date().toISOString(),
-        clerkPublishableKey: import.meta.env.VITE_CLERK_PUBLISHABLE_KEY ? 'present' : 'missing',
-        environment: import.meta.env.MODE || 'unknown',
-        isSSR: typeof window === 'undefined'
-      });
-      
       // Only try to access the store in browser environment
       if (typeof window === 'undefined') {
-        console.log('[API DEBUG] SSR environment detected, returning null');
         return null;
       }
       
       // Try to access Clerk auth store first
       const authStore = useAuthStore();
-      console.log('[API DEBUG] Auth store accessed', {
-        hasStore: !!authStore,
-        hasGetClerkTokenMethod: typeof authStore.getClerkToken === 'function',
-        storeKeys: Object.getOwnPropertyNames(authStore).slice(0, 10) // Show first 10 keys for debugging
-      });
       
       // Check if the method exists and is callable
       if (typeof authStore.getClerkToken === 'function') {
-        console.log('[API DEBUG] Using auth store getClerkToken method');
         const token = await authStore.getClerkToken();
-        console.log('[API DEBUG] Token from auth store', { 
-          hasToken: !!token, 
-          tokenLength: token?.length || 0 
-        });
         return token;
       }
       
       // Fallback: Use Clerk directly if store method is not available
-      console.warn('[API DEBUG] getClerkToken method not available on auth store, using Clerk directly');
-      
       try {
         const { getToken } = useAuth();
-        console.log('[API DEBUG] Clerk useAuth accessed', {
-          hasGetToken: !!getToken,
-          hasGetTokenValue: !!getToken?.value,
-          getTokenType: typeof getToken?.value
-        });
         
         if (getToken?.value) {
           const token = await getToken.value();
-          console.log('[API DEBUG] Token from Clerk direct', { 
-            hasToken: !!token, 
-            tokenLength: token?.length || 0 
-          });
           return token;
         }
         
-        console.warn('[API DEBUG] No getToken.value available from Clerk');
         return null;
       } catch (clerkError) {
         console.error('[API DEBUG] Clerk direct access failed', {

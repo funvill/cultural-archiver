@@ -23,11 +23,14 @@ export const UUID_V4_PATTERN =
 /** Known UUID pattern for sample data */
 export const KNOWN_SAMPLE_UUID_PATTERN = /^[a-f]0000000-1000-4000-8000-[0-9a-f]{12}$/;
 
+/** Clerk user ID pattern (e.g., user_2abcdefg1234567890) */
+export const CLERK_USER_ID_PATTERN = /^user_[A-Za-z0-9]{24,}$/;
+
 /**
- * Validates if a string is a valid UUID v4
+ * Validates if a string is a valid UUID v4 or Clerk user ID
  */
 export function isValidUUID(uuid: string): boolean {
-  return UUID_V4_PATTERN.test(uuid);
+  return UUID_V4_PATTERN.test(uuid) || CLERK_USER_ID_PATTERN.test(uuid);
 }
 
 /**

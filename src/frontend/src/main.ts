@@ -19,21 +19,13 @@ app.use(head);
 
 // Configure Clerk
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-console.log('[MAIN DEBUG] Clerk configuration', {
-  hasClerkKey: !!clerkPublishableKey,
-  keyLength: clerkPublishableKey?.length || 0,
-  environment: import.meta.env.MODE,
-  allEnvKeys: Object.keys(import.meta.env).filter(key => key.includes('CLERK'))
-});
 
 if (clerkPublishableKey) {
-  console.log('[MAIN DEBUG] Installing Clerk plugin');
   app.use(clerkPlugin, {
     publishableKey: clerkPublishableKey,
   });
-  console.log('[MAIN DEBUG] Clerk plugin installed successfully');
 } else {
-  console.error('[MAIN DEBUG] No Clerk publishable key found - authentication will not work');
+  console.error('[MAIN] No Clerk publishable key found - authentication will not work');
 }
 
 // Try to apply a saved user theme first (from localStorage). This avoids a

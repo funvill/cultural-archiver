@@ -21,7 +21,7 @@ import {
   ValidationApiError,
   NotFoundError,
 } from '../lib/errors';
-import { getUserToken, getAuthContext } from '../middleware/auth';
+import { getUserToken, getAuthContext } from '../middleware/clerk-auth';
 import { getValidatedData } from '../middleware/validation';
 import { getRateLimitStatus } from '../middleware/rateLimit';
 import { safeJsonParse } from '../lib/errors';

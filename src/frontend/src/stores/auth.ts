@@ -21,21 +21,59 @@ export const useAuthStore = defineStore('auth', () => {
   
   // Initialize Clerk composables safely
   try {
-    console.log('[AUTH STORE DEBUG] Initializing Clerk composables');
     clerkAuth = useClerkAuth();
     clerkUser = useClerkUser();
-    console.log('[AUTH STORE DEBUG] Clerk composables initialized', {
-      hasClerkAuth: !!clerkAuth,
-      hasClerkUser: !!clerkUser,
-      clerkAuthType: typeof clerkAuth,
-      clerkUserType: typeof clerkUser
-    });
   } catch (error) {
-    console.error('[AUTH STORE DEBUG] Clerk initialization failed:', {
-      error: error instanceof Error ? error.message : String(error),
-      errorType: error instanceof Error ? error.constructor.name : typeof error
-    });
+    console.error('[AUTH] Clerk initialization failed:', error instanceof Error ? error.message : String(error));
     console.warn('[AUTH] Clerk not available, falling back to legacy auth');
+  }
+
+  /**
+   * Extract Clerk user ID from the session/token before minification issues occur
+   * This function tries multiple strategies to get the user ID and stores it in localStorage
+   */
+  function extractAndStoreClerkUserId(): string | null {
+    if (!clerkAuth) {
+      return null;
+    }
+
+    try {
+      // PRIMARY: Use Clerk's userId from useAuth composable (most reliable)
+      const clerkUserId = (clerkAuth as any).userId;
+      
+      if (clerkUserId && typeof clerkUserId === 'object' && 'value' in clerkUserId) {
+        // It's a ref, unwrap it
+        const id = clerkUserId.value;
+        if (id && typeof id === 'string' && id.startsWith('user_')) {
+          localStorage.setItem('clerk-user-id', id);
+          return id;
+        }
+      } else if (typeof clerkUserId === 'string' && clerkUserId.startsWith('user_')) {
+        // Direct value
+        localStorage.setItem('clerk-user-id', clerkUserId);
+        return clerkUserId;
+      }
+
+      // FALLBACK 1: Try session data
+      if ((clerkAuth as any).session) {
+        const sessionData = (clerkAuth as any).session.value || (clerkAuth as any).session;
+        if (sessionData && sessionData.userId && typeof sessionData.userId === 'string') {
+          localStorage.setItem('clerk-user-id', sessionData.userId);
+          return sessionData.userId;
+        }
+      }
+
+      // FALLBACK 2: Check localStorage for previously stored ID
+      const storedId = localStorage.getItem('clerk-user-id');
+      if (storedId && storedId.startsWith('user_')) {
+        return storedId;
+      }
+
+      return null;
+    } catch (error) {
+      console.error('[AUTH] Error extracting Clerk user ID:', error);
+      return null;
+    }
   }
 
   // State
@@ -58,7 +96,9 @@ export const useAuthStore = defineStore('auth', () => {
     return !!user.value && user.value.emailVerified;
   });
 
-  const isAnonymous = computed(() => !!token.value && !isAuthenticated.value);
+  const isAnonymous = computed(() => 
+    !!token.value && !(user.value && user.value.emailVerified)
+  );
   
   // Role flags
   const isAdmin = computed(() => permissions.value.includes('admin'));
@@ -69,7 +109,11 @@ export const useAuthStore = defineStore('auth', () => {
       (user.value?.isModerator ?? false)
   );
 
-  const canReview = computed(() => isModerator.value || isAdmin.value);
+  const canReview = computed(() => 
+    permissions.value.includes('admin') || 
+    permissions.value.includes('moderator') || 
+    (user.value?.canReview ?? false)
+  );
   const isEmailVerified = computed(() => {
     // If Clerk is available, user is always email verified if signed in
     if (clerkAuth && clerkReady.value && clerkAuth.isSignedIn) {
@@ -83,13 +127,6 @@ export const useAuthStore = defineStore('auth', () => {
   function setUser(userData: User): void {
     user.value = userData;
     error.value = null;
-    // Temporary debug: log user state after set
-    try {
-      // eslint-disable-next-line no-console
-      console.log('[TEST DEBUG] setUser called', { user: user.value, isAuthenticated: isAuthenticated.value, isAnonymous: isAnonymous.value });
-    } catch (e) {
-      /* ignore */
-    }
   }
 
   function setToken(tokenValue: string): void {
@@ -124,72 +161,43 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Clerk integration: Convert Clerk user to our User format
   function convertClerkUserToUser(): User | null {
-    if (!clerkUser?.user) {
-      console.log('[AUTH] No Clerk user available');
+    if (!clerkAuth) {
       return null;
     }
     
-    // clerkUser.user is a Vue ref, need to access .value
-    const clerkUserData = clerkUser.user.value || clerkUser.user;
-    
     try {
-      console.log('[AUTH] Clerk user data available:', !!clerkUserData);
-      console.log('[AUTH] Clerk user data keys:', Object.keys(clerkUserData));
-      console.log('[AUTH] Clerk user data type:', typeof clerkUserData);
-      
-      // Try to access properties safely
+      // Get user ID directly from useAuth() composable
+      const clerkUserId = (clerkAuth as any).userId;
       let id = '';
-      let email = '';
-      let createdAt = new Date().toISOString();
-      
-      // Try different ways to get ID
-      if (clerkUserData.id) {
-        id = clerkUserData.id;
-      } else if (clerkUserData.userId) {
-        id = clerkUserData.userId;
+      if (clerkUserId && typeof clerkUserId === 'object' && 'value' in clerkUserId) {
+        id = clerkUserId.value || '';
+      } else if (typeof clerkUserId === 'string') {
+        id = clerkUserId;
       }
-      
-      console.log('[AUTH] Extracted ID:', id);
-      
-      // Try multiple ways to get the email
-      if (clerkUserData.primaryEmailAddress?.emailAddress) {
-        email = clerkUserData.primaryEmailAddress.emailAddress;
-        console.log('[AUTH] Got email from primaryEmailAddress.emailAddress');
-      } else if (clerkUserData.emailAddresses && clerkUserData.emailAddresses[0]?.emailAddress) {
-        email = clerkUserData.emailAddresses[0].emailAddress;
-        console.log('[AUTH] Got email from emailAddresses[0].emailAddress');
-      } else if (clerkUserData.primaryEmailAddress && typeof clerkUserData.primaryEmailAddress === 'string') {
-        email = clerkUserData.primaryEmailAddress;
-        console.log('[AUTH] Got email from primaryEmailAddress as string');
-      } else {
-        console.log('[AUTH] Primary email address:', clerkUserData.primaryEmailAddress);
-        console.log('[AUTH] Email addresses:', clerkUserData.emailAddresses);
-        // Try to find email in any property
-        for (const [key, value] of Object.entries(clerkUserData)) {
-          if (typeof value === 'string' && value.includes('@')) {
-            email = value;
-            console.log('[AUTH] Found email in property:', key, '=', value);
-            break;
-          }
+
+      // Get primary email from useUser() composable
+      let email = '';
+      if (clerkUser?.user) {
+        const userData = clerkUser.user.value || clerkUser.user;
+        if (userData?.primaryEmailAddress?.emailAddress) {
+          email = userData.primaryEmailAddress.emailAddress;
+        } else if (userData?.emailAddresses?.[0]?.emailAddress) {
+          email = userData.emailAddresses[0].emailAddress;
         }
       }
-      
-      console.log('[AUTH] Final extracted email:', email);
-      
-      // Try to get created date
-      if (clerkUserData.createdAt?.toISOString) {
-        createdAt = clerkUserData.createdAt.toISOString();
-      } else if (clerkUserData.createdAt) {
-        createdAt = new Date(clerkUserData.createdAt).toISOString();
+
+      if (!id) {
+        console.warn('[AUTH] Could not extract user ID from Clerk');
+        return null;
       }
-      
+
       return {
         id: id,
         email: email,
         emailVerified: true, // Clerk handles email verification
         isModerator: false, // Will be set from backend permissions
         canReview: false, // Will be set from backend permissions
-        createdAt: createdAt,
+        createdAt: new Date().toISOString(),
       };
     } catch (error) {
       console.error('[AUTH] Error converting Clerk user data:', error);
@@ -199,193 +207,104 @@ export const useAuthStore = defineStore('auth', () => {
 
   // Get Clerk JWT token for API requests
   async function getClerkToken(): Promise<string | null> {
-    console.log('[AUTH STORE DEBUG] getClerkToken called', {
-      timestamp: new Date().toISOString(),
-      hasClerkAuth: !!clerkAuth,
-      hasGetTokenMethod: !!clerkAuth?.getToken,
-      clerkReady: clerkReady.value,
-      isSignedIn: clerkAuth?.isSignedIn
-    });
-    
     if (!clerkAuth) {
-      console.warn('[AUTH STORE DEBUG] No clerkAuth object available');
       return null;
     }
 
-    // Multiple strategies to get the token, handling production minification
-    const strategies: (() => Promise<string | null> | string | null)[] = [
-      // Strategy 1: Try the normal getToken method
-      (): Promise<string | null> | string | null => {
-        if (typeof clerkAuth.getToken === 'function') {
-          console.log('[AUTH STORE DEBUG] Using normal getToken method');
-          return clerkAuth.getToken();
-        }
-        throw new Error('getToken method not available');
-      },
-      
-      // Strategy 2: Try to access the session and get token from there
-      (): Promise<string | null> | string | null => {
-        if (clerkAuth.session?.getToken) {
-          console.log('[AUTH STORE DEBUG] Using session.getToken method');
-          return clerkAuth.session.getToken();
-        }
-        throw new Error('session.getToken method not available');
-      },
-
-      // Strategy 3: Try alternative method names that might exist in production
-      (): Promise<string | null> | string | null => {
-        const alternativeMethods = ['getAccessToken', 'getAuthToken', 'token', 'accessToken'];
-        for (const methodName of alternativeMethods) {
-          if (typeof clerkAuth[methodName] === 'function') {
-            console.log('[AUTH STORE DEBUG] Using alternative method:', methodName);
-            return clerkAuth[methodName]();
-          }
-        }
-        throw new Error('No alternative token methods available');
-      },
-
-      // Strategy 4: Try to find token in user object or session
-      (): string | null => {
-        if (clerkUser?.user?.primaryEmailAddress) {
-          // If we have user data, try to find token in various places
-          const tokenSources = [
-            clerkAuth.session?.lastActiveToken,
-            clerkAuth.session?.publicUserData?.token,
-            clerkUser.user.token,
-            clerkAuth.token
-          ];
-          
-          for (const token of tokenSources) {
-            if (token && typeof token === 'string' && token.length > 10) {
-              console.log('[AUTH STORE DEBUG] Found token in user/session data');
-              return token;
-            }
-          }
-        }
-        throw new Error('No token found in user/session data');
-      },
-      
-      // Strategy 5: For production builds where Clerk user is signed in but getToken is minified
-      // Skip the token entirely and return a placeholder - the legacy auth system will handle it
-      (): null => {
-        if (clerkAuth.isSignedIn) {
-          console.log('[AUTH STORE DEBUG] User is signed in but getToken unavailable, using fallback');
-          return null; // Let the legacy system handle authentication
-        }
-        throw new Error('User not signed in');
-      }
-    ];
-
-    // Try each strategy
-    for (let i = 0; i < strategies.length; i++) {
-      try {
-        const result = await strategies[i]();
-        console.log('[AUTH STORE DEBUG] Strategy', i + 1, 'succeeded:', {
-          hasToken: !!result,
-          tokenLength: result?.length || 0
-        });
-        return result;
-      } catch (error) {
-        console.log('[AUTH STORE DEBUG] Strategy', i + 1, 'failed:', {
-          error: error instanceof Error ? error.message : String(error)
-        });
-        // Continue to next strategy
-      }
-    }
-
-    console.warn('[AUTH STORE DEBUG] All strategies failed');
-    return null;
-  }
-
-  // Get or create backend user token based on Clerk authentication
-  async function ensureBackendUser(): Promise<string | null> {
-    if (!clerkAuth) return null;
-
     try {
-      // Get Clerk JWT token using our robust method
-      const clerkToken = await getClerkToken();
-      if (!clerkToken) {
-        console.log('[AUTH] No Clerk token available, skipping backend user sync');
-        return null;
+      // The correct way to get the token from useAuth()
+      const { getToken } = clerkAuth as any;
+      
+      if (getToken?.value && typeof getToken.value === 'function') {
+        const token = await getToken.value();
+        return token;
       }
-
-      console.log('[AUTH] Syncing with backend using Clerk token');
-
-      // Call our backend to get/create user with Clerk token
-      const response = await fetch('/api/auth/clerk/user', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${clerkToken}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Backend user creation failed: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-      console.log('[AUTH] Backend user sync successful');
-      return data.token;
+      
+      return null;
     } catch (error) {
-      console.error('[AUTH] Failed to ensure backend user:', error);
+      console.error('[AUTH] Error getting Clerk token:', error);
       return null;
     }
   }
 
   // Initialize auth - handles both Clerk and legacy authentication
   async function initializeAuth(): Promise<void> {
-    console.log('[AUTH] Starting authentication initialization');
-
     try {
       setLoading(true);
 
       // Check if Clerk is available and ready
       if (clerkAuth && clerkUser) {
+        // CRITICAL: Wait for Clerk to be fully loaded before accessing user data
+        const isLoaded = (clerkAuth as any).isLoaded;
+        const isLoadedValue = isLoaded?.value ?? isLoaded;
+        
+        if (!isLoadedValue) {
+          // Wait a bit for Clerk to initialize, then retry
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+        
         clerkReady.value = true;
         
+        // Check if signed in
+        const isSignedIn = (clerkAuth as any).isSignedIn;
+        const isSignedInValue = isSignedIn?.value ?? isSignedIn;
+        
         // If signed in with Clerk, sync with backend
-        if (clerkAuth.isSignedIn && clerkUser.user) {
-          console.log('[AUTH] Clerk user signed in, syncing with backend');
+        if (isSignedInValue) {
+          // CRITICAL: Try to extract and store Clerk user ID immediately before any minification issues
+          extractAndStoreClerkUserId();
           
           // Convert Clerk user to our format
-          const userData = convertClerkUserToUser();
-          console.log('[AUTH] Converted Clerk user data:', userData);
+          let userData = convertClerkUserToUser();
+          
+          // PRODUCTION FIX: If we can't extract user ID from Clerk (minification issue),
+          // but we know the user is signed in, try to use their Clerk user ID directly
+          // Check if we have a stored Clerk ID mapping
+          const storedClerkId = localStorage.getItem('clerk-user-id');
+          if (!userData?.id && storedClerkId) {
+            // Create minimal user data if conversion failed completely
+            if (!userData) {
+              userData = {
+                id: storedClerkId,
+                email: '', // Will be populated by backend
+                emailVerified: true,
+                isModerator: false,
+                canReview: false,
+                createdAt: new Date().toISOString(),
+              };
+            } else {
+              userData.id = storedClerkId;
+            }
+          }
+          
+          // If we still don't have an ID but Clerk says signed in, this is the minification bug
+          if (!userData?.id) {
+            console.error('[AUTH] CRITICAL: Clerk reports signed in but cannot extract user ID due to minification');
+            console.error('[AUTH] This is a known production build issue. Falling back to legacy auth.');
+            await initializeLegacyAuth();
+            return;
+          }
+          
           if (userData) {
             setUser(userData);
+            // Store the Clerk ID for future use
+            localStorage.setItem('clerk-user-id', userData.id);
           }
 
           // Get backend token for API calls
-          const backendToken = await ensureBackendUser();
-          if (backendToken) {
-            setToken(backendToken);
+          // For Clerk users, use their Clerk ID as the token
+          const clerkUserId = userData?.id;
+          if (clerkUserId) {
+            setToken(clerkUserId);
           } else {
-            // When Clerk JWT tokens are unavailable due to production minification,
-            // we need to use email-based mapping to known admin tokens
-            const emailToTokenMap: Record<string, string> = {
-              'steven@abluestar.com': '3db6be1e-0adb-44f5-862c-028987727018'
-            };
-            
-            console.log('[AUTH] Backend token unavailable, checking email mapping for:', userData?.email);
-            console.log('[AUTH] Available email mappings:', Object.keys(emailToTokenMap));
-            console.log('[AUTH] userData exists:', !!userData, 'has email:', !!userData?.email);
-            if (userData && userData.email && emailToTokenMap[userData.email]) {
-              console.log('[AUTH] Found email mapping! Using known admin token for email:', userData.email);
-              setToken(emailToTokenMap[userData.email]);
-            } else {
-              // For other users, fallback to legacy auth system
-              console.log('[AUTH] No email mapping found, falling back to legacy auth');
-              console.log('[AUTH] Fallback reason - userData:', !!userData, 'email:', userData?.email, 'hasMapping:', !!emailToTokenMap[userData?.email || '']);
-              await initializeLegacyAuth();
-              return;
-            }
+            // Fallback to legacy auth system
+            await initializeLegacyAuth();
+            return;
           }
 
           // Fetch permissions from backend
           try {
-            console.log('[AUTH] Fetching user permissions from backend with token:', token.value);
             const profileResponse = await apiService.getUserProfile();
-            console.log('[AUTH] Profile response received:', profileResponse);
             
             if (profileResponse.data?.is_reviewer) {
               if (user.value) {
@@ -403,27 +322,17 @@ export const useAuthStore = defineStore('auth', () => {
               const userPermissions = permissionObjects
                 .filter(p => p.is_active)
                 .map(p => p.permission as Permission);
-              console.log('[AUTH] Setting permissions:', userPermissions);
               setPermissions(userPermissions);
-            } else {
-              console.log('[AUTH] No permissions found in profile response');
             }
           } catch (profileError) {
             console.warn('[AUTH] Failed to fetch user permissions:', profileError);
-            // Fallback: if we know this is an admin email, set admin permissions directly
-            if (userData && userData.email === 'steven@abluestar.com') {
-              console.log('[AUTH] Setting admin permissions directly for known admin email');
-              setPermissions(['admin', 'reviewer']);
-            }
           }
 
-          console.log('[AUTH] Clerk authentication initialized successfully');
           return;
         }
       }
 
       // Fallback to legacy authentication system
-      console.log('[AUTH] Using legacy authentication system');
       await initializeLegacyAuth();
       
     } catch (error) {
@@ -482,9 +391,6 @@ export const useAuthStore = defineStore('auth', () => {
         createdAt: authStatus.user.created_at,
       };
       setUser(userData);
-
-      // DEBUG: log state after setting user
-      console.log('[TEST DEBUG] initializeLegacyAuth setUser:', { user: user.value, token: token.value, isAuthenticated: isAuthenticated.value });
 
       // Fetch permissions
       try {
@@ -593,7 +499,10 @@ export const useAuthStore = defineStore('auth', () => {
   if (clerkAuth) {
     watch(() => clerkAuth.isSignedIn, (isSignedIn: boolean) => {
       if (isSignedIn) {
-        console.log('[AUTH] Clerk sign-in detected, reinitializing auth');
+        console.log('[AUTH] Clerk sign-in detected, extracting and storing user ID');
+        // CRITICAL: Extract and store Clerk user ID immediately before minification issues occur
+        extractAndStoreClerkUserId();
+        console.log('[AUTH] Reinitializing auth after Clerk sign-in');
         initializeAuth();
       } else {
         console.log('[AUTH] Clerk sign-out detected, clearing auth');
@@ -621,20 +530,6 @@ export const useAuthStore = defineStore('auth', () => {
       return { success: false, message: msg };
     } finally {
       setLoading(false);
-      // DEBUG: log internal state after verify
-      try {
-        // eslint-disable-next-line no-console
-        console.log('[TEST DEBUG] verifyMagicLink end state', {
-          user: user.value,
-          token: token.value,
-          isAuthenticated: isAuthenticated.value,
-          isAnonymous: isAnonymous.value,
-          permissions: permissions.value,
-          isModerator: isModerator.value,
-        });
-      } catch (e) {
-        /* ignore */
-      }
     }
   }
 
@@ -660,14 +555,6 @@ export const useAuthStore = defineStore('auth', () => {
           setToken(response.data.user_token);
         }
 
-        // DEBUG: log end-state after verify
-        try {
-          // eslint-disable-next-line no-console
-          console.log('[TEST DEBUG] verifyMagicLink end state', { user: user.value, token: token.value, isAuthenticated: isAuthenticated.value, isAnonymous: isAnonymous.value, permissions: permissions.value });
-        } catch (e) {
-          /* ignore */
-        }
-
         return { success: true, message: response.data?.message || 'Verified', isNewAccount: !!response.data?.is_new_account };
       }
       return { success: false, message: response.message || 'Verification failed' };
@@ -689,6 +576,27 @@ export const useAuthStore = defineStore('auth', () => {
     await initializeAuth();
   }
 
+  // Try to extract and store Clerk user ID on store initialization (if user is already signed in)
+  if (clerkAuth && clerkUser) {
+    // Use a watcher to wait for Clerk's userId to be loaded
+    import('vue').then(({ watch }) => {
+      const userIdRef = (clerkAuth as any).userId;
+      if (userIdRef && typeof userIdRef === 'object' && 'value' in userIdRef) {
+        // Watch the userId ref until it has a value
+        const stopWatch = watch(
+          () => userIdRef.value,
+          (newUserId) => {
+            if (newUserId && typeof newUserId === 'string' && newUserId.startsWith('user_')) {
+              localStorage.setItem('clerk-user-id', newUserId);
+              stopWatch(); // Stop watching once we have the ID
+            }
+          },
+          { immediate: true } // Check immediately in case it's already loaded
+        );
+      }
+    });
+  }
+
   // Export the store interface
   return {
     // State
@@ -698,39 +606,13 @@ export const useAuthStore = defineStore('auth', () => {
     isLoading,
     error,
 
-    // Computed exposed as getters to return primitive values (avoid exposing refs directly)
-    get isAuthenticated() {
-      // Prefer Clerk when available and initialized
-      if (clerkAuth && clerkReady.value) {
-        const signedIn = clerkAuth.isSignedIn?.value ?? clerkAuth.isSignedIn;
-        return !!signedIn;
-      }
-      return !!(user.value && user.value.emailVerified);
-    },
-    get isAnonymous() {
-      // Anonymous when a token exists but no verified user is present
-      return !!token.value && !(user.value && user.value.emailVerified);
-    },
-    get isAdmin() {
-      return permissions.value.includes('admin');
-    },
-    get isModerator() {
-      return (
-        permissions.value.includes('moderator') ||
-        permissions.value.includes('admin') ||
-        (user.value?.isModerator ?? false)
-      );
-    },
-    get canReview() {
-      return permissions.value.includes('admin') || permissions.value.includes('moderator') || (user.value?.canReview ?? false);
-    },
-    get isEmailVerified() {
-      if (clerkAuth && clerkReady.value) {
-        const signedIn = clerkAuth.isSignedIn?.value ?? clerkAuth.isSignedIn;
-        return !!signedIn;
-      }
-      return !!(user.value?.emailVerified);
-    },
+    // Expose computed refs directly for reactivity
+    isAuthenticated,
+    isAnonymous,
+    isAdmin,
+    isModerator,
+    canReview,
+    isEmailVerified,
 
     // Actions
     setUser,

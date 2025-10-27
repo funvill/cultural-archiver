@@ -2,15 +2,21 @@
 import { ref, onMounted, onUnmounted, computed } from 'vue';
 import { computed as vueComputed } from 'vue';
 import { apiService, getErrorMessage } from '../services/api';
-import { getApiBaseUrl } from '../utils/api-config';
+import { getApiBaseUrl, createApiUrl } from '../utils/api-config';
 import { useNotificationsStore } from '../stores/notifications';
 import { useToasts } from '../composables/useToasts';
+import { useAuth } from '@clerk/vue';
 
 const isLoading = ref(true);
 const status = ref<string>('');
 const stats = ref<any>(null);
 const healthData = ref<any>(null);
 const error = ref<string>('');
+
+// Debug data
+const debugData = ref<any>(null);
+const isDebugLoading = ref(false);
+const debugError = ref<string>('');
 
 // Confetti state
 const isConfettiActive = ref(false);
@@ -24,6 +30,9 @@ const environment = import.meta.env.MODE;
 
 // Stores
 const notificationsStore = useNotificationsStore();
+
+// Get Clerk auth composable at the top level
+const { getToken } = useAuth();
 
 // Check for reduced motion preference
 const prefersReducedMotion = computed(() => {
@@ -80,6 +89,144 @@ const checkSystemHealth = async (): Promise<void> => {
     console.warn('API status check failed:', err);
   } finally {
     isLoading.value = false;
+  }
+};
+
+// Fetch debug data
+const fetchDebugData = async (): Promise<void> => {
+  isDebugLoading.value = true;
+  debugError.value = '';
+  
+  try {
+    // Get Clerk token for authentication
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    console.log('[DEBUG STATUS] Fetching debug data', {
+      hasGetToken: !!getToken,
+      hasGetTokenValue: !!getToken?.value,
+      getTokenType: typeof getToken?.value
+    });
+    
+    // Add Clerk JWT token if available
+    if (getToken?.value) {
+      try {
+        const clerkToken = await getToken.value();
+        console.log('[DEBUG STATUS] Got Clerk token', {
+          hasToken: !!clerkToken,
+          tokenLength: clerkToken?.length || 0,
+          tokenPreview: clerkToken ? `${clerkToken.substring(0, 20)}...` : 'null'
+        });
+        if (clerkToken) {
+          headers['Authorization'] = `Bearer ${clerkToken}`;
+        }
+      } catch (error) {
+        console.warn('[DEBUG STATUS] Failed to get Clerk token:', error);
+      }
+    } else {
+      console.warn('[DEBUG STATUS] getToken.value is not available');
+    }
+    
+    // Add user token from localStorage
+    const userToken = localStorage.getItem('user-token');
+    if (userToken) {
+      headers['X-User-Token'] = userToken;
+    }
+
+    console.log('[DEBUG STATUS] Request headers:', {
+      hasAuthorization: !!headers['Authorization'],
+      hasUserToken: !!headers['X-User-Token'],
+      headerKeys: Object.keys(headers)
+    });
+
+    const response = await fetch(createApiUrl('/debug/status'), {
+      method: 'GET',
+      credentials: 'include',
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    debugData.value = await response.json();
+  } catch (err) {
+    debugError.value = getErrorMessage(err);
+    console.error('Failed to fetch debug data:', err);
+  } finally {
+    isDebugLoading.value = false;
+  }
+};
+
+// Copy debug data to clipboard
+const copyDebugData = async (): Promise<void> => {
+  if (!debugData.value) return;
+  
+  try {
+    // Format the debug data as a comprehensive text report
+    const report = [
+      '=== PUBLIC ART REGISTRY - USER DEBUG REPORT ===',
+      `Generated: ${new Date().toLocaleString()}`,
+      '',
+      '--- AUTHENTICATION STATUS ---',
+      `User Token: ${debugData.value.authentication.user_token}`,
+      `Clerk User ID: ${debugData.value.authentication.clerk_user_id || 'N/A'}`,
+      `Clerk Authenticated: ${debugData.value.authentication.is_clerk_authenticated ? 'Yes' : 'No'}`,
+      `Email: ${debugData.value.authentication.clerk_email || 'N/A'}`,
+      `Email Verified: ${debugData.value.authentication.is_verified_email ? 'Yes' : 'No'}`,
+      '',
+      '--- USER DATABASE RECORD ---',
+      JSON.stringify(debugData.value.user.database_record, null, 2),
+      '',
+      '--- PERMISSIONS & ROLES ---',
+      `Admin: ${debugData.value.user.permissions.is_admin ? 'Yes' : 'No'}`,
+      `Moderator: ${debugData.value.user.permissions.is_moderator ? 'Yes' : 'No'}`,
+      `Can Review: ${debugData.value.user.permissions.can_review ? 'Yes' : 'No'}`,
+      '',
+      'Active Roles:',
+      debugData.value.user.roles && debugData.value.user.roles.length > 0
+        ? debugData.value.user.roles.map((r: any) => 
+            `  - ${r.role} (${r.is_active ? 'Active' : 'Inactive'}) - Granted: ${new Date(r.granted_at).toLocaleString()}${r.notes ? ` - ${r.notes}` : ''}`
+          ).join('\n')
+        : '  (No roles assigned)',
+      '',
+      '--- RECENT SUBMISSIONS ---',
+      debugData.value.recent_activity.submissions && debugData.value.recent_activity.submissions.length > 0
+        ? debugData.value.recent_activity.submissions.map((s: any) =>
+            [
+              `  Submission ID: ${s.id}`,
+              `    Type: ${s.type}`,
+              `    Status: ${s.status}`,
+              `    Created: ${new Date(s.created_at).toLocaleString()}`,
+              s.artwork_id ? `    Artwork ID: ${s.artwork_id}` : '',
+              s.artist_id ? `    Artist ID: ${s.artist_id}` : '',
+              `    Has Location: ${s.has_location ? 'Yes' : 'No'}`,
+              `    Has Notes: ${s.has_notes ? 'Yes' : 'No'}`,
+            ].filter(Boolean).join('\n')
+          ).join('\n\n')
+        : '  (No submissions found)',
+      '',
+      '--- USER LISTS ---',
+      debugData.value.lists && debugData.value.lists.length > 0
+        ? debugData.value.lists.map((l: any) =>
+            `  - ${l.name} (${l.item_count} items) - ${l.visibility}${l.is_system_list ? ' [System]' : ''}${l.is_readonly ? ' [Read-only]' : ''} - ID: ${l.id}`
+          ).join('\n')
+        : '  (No lists found)',
+      '',
+      '--- DEBUG METADATA ---',
+      JSON.stringify(debugData.value.debug_info, null, 2),
+      '',
+      '--- SYSTEM INFORMATION ---',
+      JSON.stringify(debugData.value.system, null, 2),
+      '',
+      '=== END OF REPORT ===',
+    ].join('\n');
+
+    await copyToClipboard(report);
+  } catch (err) {
+    console.error('Failed to copy debug data:', err);
+    alert('Failed to copy debug data to clipboard');
   }
 };
 
@@ -591,6 +738,226 @@ onUnmounted(() => {
                 <button @click="copyToClipboard(JSON.stringify(lastMapState))" class="text-xs px-2 py-1 border rounded">Copy JSON</button>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- User Debug Information Card -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold">User Debug Information</h2>
+            <div class="flex items-center space-x-2">
+              <button 
+                @click="fetchDebugData" 
+                class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="isDebugLoading"
+              >
+                {{ isDebugLoading ? 'Loading...' : 'Load Debug Data' }}
+              </button>
+              <button 
+                @click="copyDebugData" 
+                class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center space-x-2"
+                :disabled="!debugData || isDebugLoading"
+                :title="!debugData ? 'Load debug data first' : 'Copy all debug information to clipboard'"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <span>Copy All</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="debugError" class="p-4 bg-red-50 border border-red-200 rounded text-red-700 mb-4">
+            <strong>Error:</strong> {{ debugError }}
+          </div>
+
+          <div v-if="debugData && !isDebugLoading">
+            <!-- Authentication Status -->
+            <div class="mb-6">
+              <h3 class="font-semibold text-md mb-2 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                Authentication Status
+              </h3>
+              <div class="bg-gray-50 p-4 rounded space-y-2 text-sm">
+                <div class="flex justify-between">
+                  <span class="font-medium">User Token:</span>
+                  <code class="text-xs bg-white px-2 py-1 rounded">{{ debugData.authentication.user_token }}</code>
+                </div>
+                <div class="flex justify-between">
+                  <span class="font-medium">Clerk User ID:</span>
+                  <code class="text-xs bg-white px-2 py-1 rounded">{{ debugData.authentication.clerk_user_id || 'N/A' }}</code>
+                </div>
+                <div class="flex justify-between">
+                  <span class="font-medium">Clerk Authenticated:</span>
+                  <span :class="debugData.authentication.is_clerk_authenticated ? 'text-green-600' : 'text-gray-500'">
+                    {{ debugData.authentication.is_clerk_authenticated ? '✓ Yes' : '✗ No' }}
+                  </span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="font-medium">Email:</span>
+                  <span>{{ debugData.authentication.clerk_email || 'N/A' }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="font-medium">Email Verified:</span>
+                  <span :class="debugData.authentication.is_verified_email ? 'text-green-600' : 'text-gray-500'">
+                    {{ debugData.authentication.is_verified_email ? '✓ Yes' : '✗ No' }}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- User Database Record -->
+            <div class="mb-6">
+              <h3 class="font-semibold text-md mb-2 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4" />
+                </svg>
+                User Database Record
+              </h3>
+              <pre class="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-xs">{{ JSON.stringify(debugData.user.database_record, null, 2) }}</pre>
+            </div>
+
+            <!-- Permissions & Roles -->
+            <div class="mb-6">
+              <h3 class="font-semibold text-md mb-2 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                Permissions & Roles
+              </h3>
+              <div class="bg-gray-50 p-4 rounded space-y-3">
+                <div class="grid grid-cols-3 gap-4 text-sm">
+                  <div class="flex items-center space-x-2">
+                    <span :class="debugData.user.permissions.is_admin ? 'text-green-600' : 'text-gray-400'">
+                      {{ debugData.user.permissions.is_admin ? '✓' : '✗' }}
+                    </span>
+                    <span>Admin</span>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <span :class="debugData.user.permissions.is_moderator ? 'text-green-600' : 'text-gray-400'">
+                      {{ debugData.user.permissions.is_moderator ? '✓' : '✗' }}
+                    </span>
+                    <span>Moderator</span>
+                  </div>
+                  <div class="flex items-center space-x-2">
+                    <span :class="debugData.user.permissions.can_review ? 'text-green-600' : 'text-gray-400'">
+                      {{ debugData.user.permissions.can_review ? '✓' : '✗' }}
+                    </span>
+                    <span>Can Review</span>
+                  </div>
+                </div>
+                
+                <div v-if="debugData.user.roles && debugData.user.roles.length > 0" class="mt-4">
+                  <h4 class="text-sm font-semibold mb-2">Active Roles:</h4>
+                  <div class="space-y-2">
+                    <div v-for="role in debugData.user.roles" :key="role.role" class="bg-white p-3 rounded border">
+                      <div class="flex justify-between items-start">
+                        <div>
+                          <span class="font-mono text-sm font-semibold">{{ role.role }}</span>
+                          <div class="text-xs text-gray-600 mt-1">
+                            Granted: {{ new Date(role.granted_at).toLocaleString() }}
+                          </div>
+                          <div v-if="role.notes" class="text-xs text-gray-600 mt-1">
+                            {{ role.notes }}
+                          </div>
+                        </div>
+                        <span :class="role.is_active ? 'text-green-600' : 'text-gray-400'" class="text-xs">
+                          {{ role.is_active ? 'Active' : 'Inactive' }}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div v-else class="text-sm text-gray-500">
+                  No roles assigned
+                </div>
+              </div>
+            </div>
+
+            <!-- Recent Submissions -->
+            <div class="mb-6">
+              <h3 class="font-semibold text-md mb-2 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Recent Submissions (Last 3)
+              </h3>
+              <div v-if="debugData.recent_activity.submissions && debugData.recent_activity.submissions.length > 0" class="space-y-2">
+                <div v-for="submission in debugData.recent_activity.submissions" :key="submission.id" class="bg-gray-50 p-4 rounded">
+                  <div class="flex justify-between items-start mb-2">
+                    <div>
+                      <span class="font-semibold text-sm">{{ submission.type }}</span>
+                      <code class="text-xs text-gray-600 ml-2">{{ submission.id.substring(0, 8) }}</code>
+                    </div>
+                    <span :class="submission.status === 'approved' ? 'bg-green-100 text-green-800' : submission.status === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'" 
+                          class="px-2 py-1 rounded text-xs font-medium">
+                      {{ submission.status }}
+                    </span>
+                  </div>
+                  <div class="text-xs text-gray-600 space-y-1">
+                    <div>Created: {{ new Date(submission.created_at).toLocaleString() }}</div>
+                    <div v-if="submission.artwork_id">Artwork: {{ submission.artwork_id.substring(0, 8) }}</div>
+                    <div v-if="submission.artist_id">Artist: {{ submission.artist_id.substring(0, 8) }}</div>
+                    <div class="flex space-x-3">
+                      <span>{{ submission.has_location ? '✓ Has Location' : '✗ No Location' }}</span>
+                      <span>{{ submission.has_notes ? '✓ Has Notes' : '✗ No Notes' }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="text-sm text-gray-500 p-4 bg-gray-50 rounded">
+                No submissions found
+              </div>
+            </div>
+
+            <!-- User Lists -->
+            <div class="mb-6">
+              <h3 class="font-semibold text-md mb-2 flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+                User Lists
+              </h3>
+              <div v-if="debugData.lists && debugData.lists.length > 0" class="space-y-2">
+                <div v-for="list in debugData.lists" :key="list.id" class="bg-gray-50 p-4 rounded">
+                  <div class="flex justify-between items-start">
+                    <div>
+                      <span class="font-semibold text-sm">{{ list.name }}</span>
+                      <div class="flex space-x-3 text-xs text-gray-600 mt-1">
+                        <span>{{ list.item_count }} items</span>
+                        <span>{{ list.visibility }}</span>
+                        <span v-if="list.is_system_list">🔒 System</span>
+                        <span v-if="list.is_readonly">📖 Read-only</span>
+                      </div>
+                    </div>
+                    <code class="text-xs text-gray-600">{{ list.id.substring(0, 8) }}</code>
+                  </div>
+                </div>
+              </div>
+              <div v-else class="text-sm text-gray-500 p-4 bg-gray-50 rounded">
+                No lists found
+              </div>
+            </div>
+
+            <!-- Debug Metadata -->
+            <div class="mb-6">
+              <h3 class="font-semibold text-md mb-2">Debug Metadata</h3>
+              <pre class="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-xs">{{ JSON.stringify(debugData.debug_info, null, 2) }}</pre>
+            </div>
+
+            <!-- System Information -->
+            <div class="mb-6">
+              <h3 class="font-semibold text-md mb-2">System Information</h3>
+              <pre class="bg-gray-900 text-gray-100 p-4 rounded overflow-x-auto text-xs">{{ JSON.stringify(debugData.system, null, 2) }}</pre>
+            </div>
+          </div>
+
+          <div v-else-if="!debugData && !isDebugLoading" class="text-center text-gray-500 py-8">
+            Click "Load Debug Data" to view comprehensive user information
           </div>
         </div>
       </div>
