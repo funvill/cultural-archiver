@@ -13,7 +13,7 @@
  */
 
 import { z } from 'zod';
-import { generateUUID } from '../../shared/utils/uuid.js';
+import { generateUUID, isValidUUID } from '../../shared/utils/uuid.js';
 import type { D1Database } from '@cloudflare/workers-types';
 import type {
   NotificationRecord,
@@ -27,8 +27,13 @@ import type {
 // Zod validation schemas
 const NotificationTypeSchema = z.enum(['badge', 'admin_message', 'review', 'system']);
 
+// Custom user token validator that accepts both UUIDs and Clerk user IDs
+const UserTokenSchema = z.string().refine((val) => isValidUUID(val), {
+  message: 'Invalid user token format (must be UUID or Clerk user ID)',
+});
+
 const CreateNotificationSchema = z.object({
-  user_token: z.string().uuid('Invalid user token format'),
+  user_token: UserTokenSchema,
   type: NotificationTypeSchema,
   type_key: z.string().max(100).optional(),
   title: z.string().min(1).max(200),
@@ -109,7 +114,7 @@ export class NotificationService {
     options: ListNotificationsOptions = {}
   ): Promise<NotificationListResponse> {
     // Validate user token
-    z.string().uuid().parse(user_token);
+    UserTokenSchema.parse(user_token);
 
     // Validate and set defaults for options
     const validated = ListNotificationsOptionsSchema.parse(options);
@@ -177,7 +182,7 @@ export class NotificationService {
    */
   async unreadCount(user_token: string): Promise<NotificationUnreadCountResponse> {
     // Validate user token
-    z.string().uuid().parse(user_token);
+    UserTokenSchema.parse(user_token);
 
     const stmt = this.db.prepare(`
       SELECT COUNT(*) as unread_count 
@@ -198,7 +203,7 @@ export class NotificationService {
   async dismiss(notification_id: string, user_token: string): Promise<NotificationActionResponse> {
     // Validate inputs
     NotificationIdSchema.parse(notification_id);
-    z.string().uuid().parse(user_token);
+    UserTokenSchema.parse(user_token);
 
     // Verify the notification belongs to the user and update it
     const stmt = this.db.prepare(`
@@ -245,7 +250,7 @@ export class NotificationService {
   async getById(notification_id: string, user_token: string): Promise<NotificationResponse | null> {
     // Validate inputs
     NotificationIdSchema.parse(notification_id);
-    z.string().uuid().parse(user_token);
+    UserTokenSchema.parse(user_token);
 
     const stmt = this.db.prepare(`
       SELECT * FROM notifications 

@@ -19,10 +19,13 @@ app.use(head);
 
 // Configure Clerk
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
 if (clerkPublishableKey) {
   app.use(clerkPlugin, {
     publishableKey: clerkPublishableKey,
   });
+} else {
+  console.error('[MAIN] No Clerk publishable key found - authentication will not work');
 }
 
 // Try to apply a saved user theme first (from localStorage). This avoids a

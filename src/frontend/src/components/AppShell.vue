@@ -8,6 +8,7 @@ import type { ExifData } from '../utils/image';
 import type { Coordinates } from '../types';
 import { useFastUploadSessionStore } from '../stores/fastUploadSession';
 import { useNotificationsStore } from '../stores/notifications';
+import { useAuthStore } from '../stores/auth';
 import { useBreakpoint } from '../composables/useBreakpoint';
 import { createLogger } from '../../../shared/logger';
 import FeedbackDialog from './FeedbackDialog.vue';
@@ -40,6 +41,7 @@ const route = useRoute();
 const router = useRouter();
 const { isSignedIn, isLoaded, signOut } = useAuth();
 const { user } = useUser();
+const authStore = useAuthStore();
 const notificationsStore = useNotificationsStore();
 const { showNavigationRail } = useBreakpoint();
 const log = createLogger({ module: 'frontend:AppShell' });
@@ -48,11 +50,22 @@ const log = createLogger({ module: 'frontend:AppShell' });
 const navExpanded = ref(true);
 
 // Build auth object once for passing to navigation components
-const auth = computed(() => ({
-  isAuthenticated: (isSignedIn.value && isLoaded.value) ?? false,
-  userDisplayName: user.value?.primaryEmailAddress?.emailAddress ?? user.value?.fullName ?? '',
-  userRole: 'user' as 'admin' | 'moderator' | 'user', // TODO: Implement role detection from Clerk Organizations
-}));
+const auth = computed(() => {
+  // Determine user role from auth store permissions
+  let userRole: 'admin' | 'moderator' | 'user' = 'user';
+  
+  if (authStore.isAdmin) {
+    userRole = 'admin';
+  } else if (authStore.isModerator) {
+    userRole = 'moderator';
+  }
+  
+  return {
+    isAuthenticated: (isSignedIn.value && isLoaded.value) ?? false,
+    userDisplayName: user.value?.primaryEmailAddress?.emailAddress ?? user.value?.fullName ?? '',
+    userRole,
+  };
+});
 
 function handleToggleRail(): void {
   navExpanded.value = !navExpanded.value;

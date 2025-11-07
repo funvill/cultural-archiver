@@ -294,18 +294,6 @@ router.beforeEach(async (to, _from, next) => {
     await new Promise(resolve => setTimeout(resolve, 50));
   }
 
-  console.log('[ROUTER DEBUG] Route guard check:', {
-    route: to.path,
-    requiresModerator: to.meta.requiresModerator,
-    isAuthenticated: authStore.isAuthenticated,
-    canReview: authStore.canReview,
-    isModerator: authStore.isModerator,
-    isAdmin: authStore.isAdmin,
-    hasUser: !!authStore.user,
-    permissions: authStore.permissions,
-    loading: authStore.isLoading,
-  });
-
   // Check if route requires authentication
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     // Redirect to home with query parameter indicating login needed

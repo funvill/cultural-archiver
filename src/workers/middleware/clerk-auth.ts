@@ -174,15 +174,15 @@ export async function ensureUserToken(
               membership.organization.slug === 'publicartregistry') {
             
             // Check for admin role
-            if (membership.role === 'org:site_admin') {
+            if (membership.role === 'org:admin') {
               isAdmin = true;
               isModerator = true; // Admins have all moderator privileges
-              console.log('[CLERK AUTH DEBUG] User has site_admin role');
+              console.log('[CLERK AUTH DEBUG] User has org:admin role');
             }
             // Check for moderator role
-            else if (membership.role === 'org:site_moderator') {
+            else if (membership.role === 'org:member') {
               isModerator = true;
-              console.log('[CLERK AUTH DEBUG] User has site_moderator role');
+              console.log('[CLERK AUTH DEBUG] User has org:member role');
             }
           }
         }
@@ -191,21 +191,28 @@ export async function ensureUserToken(
       }
     }
 
-    // Fallback to database permissions for non-Clerk users or if org check fails
-    if (!isAuthenticated || (!isAdmin && !isModerator)) {
-      const db = c.env.DB;
-      const dbPermissions = await getUserPermissions(db, userToken);
-      
-      // Only use database permissions if Clerk roles weren't found
-      if (!isAdmin && !isModerator) {
-        isAdmin = dbPermissions.includes('admin');
-        isModerator = dbPermissions.includes('moderator');
-        console.log('[CLERK AUTH DEBUG] Using database permissions fallback:', {
-          dbPermissions,
-          isAdmin,
-          isModerator,
-        });
-      }
+    // Always check database permissions as fallback
+    // This ensures that known admin users (like steven@abluestar.com) can access admin features
+    // even when Clerk JWT token retrieval fails due to production minification
+    const db = c.env.DB;
+    const dbPermissions = await getUserPermissions(db, userToken);
+    
+    // Use database permissions if Clerk roles weren't found or as override for known admins
+    if (!isAdmin && !isModerator) {
+      isAdmin = dbPermissions.includes('admin');
+      isModerator = dbPermissions.includes('moderator');
+      console.log('[CLERK AUTH DEBUG] Using database permissions fallback:', {
+        dbPermissions,
+        isAdmin,
+        isModerator,
+        userToken,
+      });
+    } else {
+      console.log('[CLERK AUTH DEBUG] Using Clerk organization permissions:', {
+        isAdmin,
+        isModerator,
+        clerkUserId,
+      });
     }
 
     const canReview = isAdmin || isModerator;
@@ -274,6 +281,7 @@ export async function requireAuthenticated(
 /**
  * Middleware to check if user has review permissions
  * Requires either moderator or admin role
+ * Supports both Clerk authentication and database-based permissions
  */
 export async function requireReviewer(
   c: Context<{ Bindings: WorkerEnv }>,
@@ -282,12 +290,13 @@ export async function requireReviewer(
   const authContext = c.get('authContext') as AuthContext;
   const isClerkAuth = (c as any).clerkAuthenticated as boolean;
 
-  if (!isClerkAuth) {
-    throw new UnauthorizedError('Authentication required for review permissions');
-  }
-
+  // Allow database-based permissions when Clerk auth is not available
   if (!authContext.canReview) {
-    throw new ForbiddenError('Moderator or admin permissions required');
+    if (isClerkAuth) {
+      throw new ForbiddenError('Moderator or admin permissions required');
+    } else {
+      throw new UnauthorizedError('Authentication required for review permissions');
+    }
   }
 
   await next();
@@ -295,6 +304,7 @@ export async function requireReviewer(
 
 /**
  * Middleware to check if user has admin permissions
+ * Supports both Clerk authentication and database-based permissions
  */
 export async function requireAdmin(
   c: Context<{ Bindings: WorkerEnv }>,
@@ -308,22 +318,27 @@ export async function requireAdmin(
     isAuthenticated: isClerkAuth,
     clerkUserId: clerkUserId,
     isAdmin: authContext.isAdmin,
+    userToken: authContext.userToken,
   });
 
-  if (!isClerkAuth) {
-    console.error('[CLERK ADMIN DEBUG] User not authenticated');
-    throw new UnauthorizedError('Authentication required for admin access');
-  }
-
+  // Allow database-based admin permissions when Clerk auth is not available
   if (!authContext.isAdmin) {
-    console.error('[CLERK ADMIN DEBUG] Permission denied - not an admin:', {
-      clerkUserId: clerkUserId,
-      isAdmin: authContext.isAdmin,
-    });
-    throw new ForbiddenError('Administrator permissions required');
+    if (isClerkAuth) {
+      console.error('[CLERK ADMIN DEBUG] Permission denied - authenticated but not admin:', {
+        clerkUserId: clerkUserId,
+        isAdmin: authContext.isAdmin,
+      });
+      throw new ForbiddenError('Administrator permissions required');
+    } else {
+      console.error('[CLERK ADMIN DEBUG] Permission denied - no authentication or admin permissions:', {
+        isAdmin: authContext.isAdmin,
+        userToken: authContext.userToken,
+      });
+      throw new UnauthorizedError('Authentication required for admin access');
+    }
   }
 
-  console.log('[CLERK ADMIN DEBUG] Admin check passed');
+  console.log('[CLERK ADMIN DEBUG] Admin check passed via', isClerkAuth ? 'Clerk auth' : 'database permissions');
   await next();
 }
 

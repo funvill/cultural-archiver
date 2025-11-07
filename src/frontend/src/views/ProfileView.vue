@@ -9,6 +9,7 @@ import { apiService } from '../services/api';
 import { useUserLists } from '../composables/useUserLists';
 import ThemeToggle from '../components/ThemeToggle.vue';
 import { useAnalytics } from '../composables/useAnalytics';
+import { useAuthStore } from '../stores/auth';
 import type { SubmissionRecord, UserBadgeResponse, ListApiResponse } from '../../../shared/types';
 import type {
   UserProfile,
@@ -18,6 +19,9 @@ import type {
 
 // Initialize analytics
 const analytics = useAnalytics();
+
+// Initialize auth store
+const authStore = useAuthStore();
 
 type SubmissionWithData = SubmissionRecord & {
   data_parsed?: {
@@ -330,6 +334,37 @@ function handleListClick(list: ListApiResponse) {
   router.push(`/lists/${list.id}`);
 }
 
+// Debug function to test Clerk token
+const clerkTokenDebug = ref<{ hasToken: boolean; error?: string; tested: boolean }>({
+  hasToken: false,
+  tested: false
+});
+
+async function testClerkToken() {
+  try {
+    // Use the auth store instance
+    const token = await authStore.getClerkToken();
+    
+    if (token) {
+      clerkTokenDebug.value = {
+        hasToken: true,
+        tested: true
+      };
+    } else {
+      clerkTokenDebug.value = {
+        hasToken: false,
+        tested: true,
+        error: 'No token available'
+      };
+    }
+  } catch (error) {
+    clerkTokenDebug.value = {
+      hasToken: false,
+      tested: true,
+      error: `Error: ${String(error)}`
+    };
+  }
+}
 
 onMounted(() => {
   fetchUserProfile();
@@ -416,9 +451,58 @@ const displayToken = computed(() => {
               <span class="font-medium">User token:</span>
               <code class="ml-2 truncate block max-w-full">{{ displayToken || 'none' }}</code>
             </div>
-            <div>
+            <div class="mb-2">
               <span class="font-medium">Permissions:</span>
               <span class="ml-2">{{ isSignedIn ? 'user' : 'anonymous' }}</span>
+            </div>
+            
+            <!-- Clerk Organization Memberships -->
+            <div v-if="profile?.debug?.clerk_organizations && profile.debug.clerk_organizations.length > 0" class="mt-4">
+              <span class="font-medium">Clerk Organizations:</span>
+              <div class="ml-2 mt-2 space-y-2">
+                <div 
+                  v-for="org in profile.debug.clerk_organizations" 
+                  :key="org.orgId"
+                  class="p-3 bg-gray-50 rounded border text-xs"
+                >
+                  <div class="font-medium mb-1">{{ org.orgName || org.orgSlug || 'Unknown Org' }}</div>
+                  <div class="space-y-1">
+                    <div><span class="font-medium">Role:</span> {{ org.role }}</div>
+                    <div><span class="font-medium">Slug:</span> {{ org.orgSlug || 'N/A' }}</div>
+                    <div><span class="font-medium">Is Public Art Registry:</span> 
+                      <span :class="org.isPublicArtRegistry ? 'text-green-600 font-medium' : 'text-gray-600'">
+                        {{ org.isPublicArtRegistry ? 'YES' : 'No' }}
+                      </span>
+                    </div>
+                    <div><span class="font-medium">Org ID:</span> <code class="text-xs">{{ org.orgId }}</code></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-else-if="isSignedIn" class="mt-4">
+              <span class="font-medium">Clerk Organizations:</span>
+              <span class="ml-2 text-gray-500">No organization memberships found</span>
+            </div>
+            
+            <!-- Clerk Token Debug -->
+            <div class="mt-4">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="font-medium">Clerk Token Test:</span>
+                <button 
+                  @click="testClerkToken"
+                  class="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+                >
+                  Test Token
+                </button>
+              </div>
+              <div v-if="clerkTokenDebug.tested" class="ml-2 text-xs">
+                <div :class="clerkTokenDebug.hasToken ? 'text-green-600' : 'text-red-600'">
+                  Status: {{ clerkTokenDebug.hasToken ? 'Token Available' : 'No Token' }}
+                </div>
+                <div v-if="clerkTokenDebug.error" class="text-red-600 mt-1">
+                  {{ clerkTokenDebug.error }}
+                </div>
+              </div>
             </div>
           </div>
         </div>

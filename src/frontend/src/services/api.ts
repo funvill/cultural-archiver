@@ -3,6 +3,8 @@
  * Handles all HTTP communication with the backend API
  */
 
+import { useAuthStore } from '@/stores/auth';
+import { useAuth } from '@clerk/vue';
 import type {
   MagicLinkRequest,
   ApiResponse,
@@ -120,8 +122,62 @@ class ApiClient {
       return null;
     }
     try {
+      // Check clerk-user-id first (for production where Clerk SDK is broken)
+      const clerkUserId = window.localStorage.getItem('clerk-user-id');
+      if (clerkUserId) {
+        return clerkUserId;
+      }
+      // Fall back to legacy user-token
       return window.localStorage.getItem('user-token');
     } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Get Clerk JWT token for authenticated requests
+   */
+  private async getClerkToken(): Promise<string | null> {
+    try {
+      // Only try to access the store in browser environment
+      if (typeof window === 'undefined') {
+        return null;
+      }
+      
+      // Try to access Clerk auth store first
+      const authStore = useAuthStore();
+      
+      // Check if the method exists and is callable
+      if (typeof authStore.getClerkToken === 'function') {
+        const token = await authStore.getClerkToken();
+        return token;
+      }
+      
+      // Fallback: Use Clerk directly if store method is not available
+      try {
+        const { getToken } = useAuth();
+        
+        if (getToken?.value) {
+          const token = await getToken.value();
+          return token;
+        }
+        
+        return null;
+      } catch (clerkError) {
+        console.error('[API DEBUG] Clerk direct access failed', {
+          error: clerkError instanceof Error ? clerkError.message : String(clerkError),
+          errorType: clerkError instanceof Error ? clerkError.constructor.name : typeof clerkError,
+          stack: clerkError instanceof Error ? clerkError.stack : undefined
+        });
+        return null;
+      }
+      
+    } catch (error) {
+      console.error('[API DEBUG] Complete getClerkToken failure', {
+        error: error instanceof Error ? error.message : String(error),
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
+        stack: error instanceof Error ? error.stack : undefined
+      });
       return null;
     }
   }
@@ -143,7 +199,7 @@ class ApiClient {
   /**
    * Create request headers with authentication
    */
-  private createHeaders(customHeaders: Record<string, string> = {}): Headers {
+  private async createHeaders(customHeaders: Record<string, string> = {}): Promise<Headers> {
     // Do not set a default Content-Type here; let request() decide so FormData can set its own.
     const headers = new Headers({
       ...customHeaders,
@@ -152,10 +208,16 @@ class ApiClient {
       headers.set('Content-Type', 'application/json');
     }
 
+    // Add user token from localStorage
     const token = this.getUserToken();
-
     if (token) {
       headers.set('X-User-Token', token);
+    }
+    
+    // Add Clerk JWT token for backend authentication
+    const clerkToken = await this.getClerkToken();
+    if (clerkToken) {
+      headers.set('Authorization', `Bearer ${clerkToken}`);
     }
 
     return headers;
@@ -211,7 +273,7 @@ class ApiClient {
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
     try {
-      const headers = this.createHeaders(options.headers as Record<string, string>);
+      const headers = await this.createHeaders(options.headers as Record<string, string>);
       // If body is FormData remove any JSON content type so browser sets proper multipart boundary
       if (options.body instanceof FormData) {
         headers.delete('Content-Type');

@@ -21,7 +21,7 @@ import {
   ValidationApiError,
   NotFoundError,
 } from '../lib/errors';
-import { getUserToken, getAuthContext } from '../middleware/auth';
+import { getUserToken, getAuthContext } from '../middleware/clerk-auth';
 import { getValidatedData } from '../middleware/validation';
 import { getRateLimitStatus } from '../middleware/rateLimit';
 import { safeJsonParse } from '../lib/errors';
@@ -118,6 +118,33 @@ export async function getUserProfile(c: Context<{ Bindings: WorkerEnv }>): Promi
     const userDetailedInfo = await getUserDetailedInfo(c.env, userToken);
     const userPermissions = await getUserPermissionsInfo(c.env, userToken);
 
+    // Get Clerk organization memberships for debug info
+    let clerkOrgMemberships: any[] = [];
+    const clerkUserId = (c as any).clerkUserId as string | undefined;
+    if (clerkUserId && c.env.CLERK_SECRET_KEY) {
+      try {
+        const { createClerkClient } = await import('@clerk/backend');
+        const clerk = createClerkClient({
+          secretKey: c.env.CLERK_SECRET_KEY,
+        });
+        const orgMemberships = await clerk.users.getOrganizationMembershipList({
+          userId: clerkUserId,
+        });
+        clerkOrgMemberships = orgMemberships.data.map(membership => ({
+          orgId: membership.organization.id,
+          orgName: membership.organization.name,
+          orgSlug: membership.organization.slug,
+          role: membership.role,
+          isPublicArtRegistry: membership.organization.name === 'publicartregistry' || 
+                              membership.organization.slug === 'publicartregistry',
+          publicMetadata: membership.publicMetadata,
+          privateMetadata: membership.privateMetadata,
+        }));
+      } catch (error) {
+        console.warn('Failed to get organization memberships for debug info:', error);
+      }
+    }
+
     // Check database-backed permissions for accurate display
     const { isAdmin, isModerator } = await import('../lib/permissions');
     const database = c.env.DB;
@@ -167,6 +194,7 @@ export async function getUserProfile(c: Context<{ Bindings: WorkerEnv }>): Promi
           submissions_remaining: rateLimitStatus.submissions_remaining,
           queries_remaining: rateLimitStatus.queries_remaining,
         },
+        clerk_organizations: clerkOrgMemberships,
         timestamp: new Date().toISOString(),
       },
     };

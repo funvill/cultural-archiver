@@ -24,10 +24,10 @@ import type { WorkerEnv } from './types';
 import {
   ensureUserToken,
   addUserTokenToResponse,
-  checkEmailVerification,
   requireReviewer,
   requireAdmin,
-} from './middleware/auth';
+} from './middleware/clerk-auth';
+import { checkEmailVerification } from './middleware/auth';
 import { rateLimitSubmissions, rateLimitQueries, addRateLimitStatus } from './middleware/rateLimit';
 import {
   validateSubmissionFormData,
@@ -172,6 +172,7 @@ import {
   testSocialMediaSchedule,
 } from './routes/social-media-admin';
 import { debugStevenPermissions } from './routes/debug-permissions';
+import { debugStatus } from './routes/debug-status';
 import { fixPermissionsSchema } from './routes/fix-schema';
 import { createFeedback } from './routes/feedback';
 import { listFeedback, reviewFeedback } from './routes/moderation/feedback';
@@ -1258,6 +1259,9 @@ app.post('/api/webhooks/clerk', withErrorHandling(handleClerkWebhook));
 
 // Clerk user management
 app.route('/api/auth/clerk', clerkUser);
+
+// Debug status endpoint (comprehensive user information)
+app.route('/api/debug/status', debugStatus);
 
 // ================================
 // Review/Moderation Endpoints

@@ -321,6 +321,15 @@ export interface UserProfile {
       submissions_remaining: number;
       queries_remaining: number;
     };
+    clerk_organizations?: {
+      orgId: string;
+      orgName: string;
+      orgSlug: string;
+      role: string;
+      isPublicArtRegistry: boolean;
+      publicMetadata: Record<string, unknown>;
+      privateMetadata: Record<string, unknown>;
+    }[];
     timestamp: string;
   };
 }

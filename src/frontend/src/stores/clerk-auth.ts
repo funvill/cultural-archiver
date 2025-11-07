@@ -21,9 +21,20 @@ export const useAuthStore = defineStore('auth', () => {
   
   // Initialize Clerk composables safely
   try {
+    console.log('[AUTH STORE DEBUG] Initializing Clerk composables');
     clerkAuth = useClerkAuth();
     clerkUser = useClerkUser();
+    console.log('[AUTH STORE DEBUG] Clerk composables initialized', {
+      hasClerkAuth: !!clerkAuth,
+      hasClerkUser: !!clerkUser,
+      clerkAuthType: typeof clerkAuth,
+      clerkUserType: typeof clerkUser
+    });
   } catch (error) {
+    console.error('[AUTH STORE DEBUG] Clerk initialization failed:', {
+      error: error instanceof Error ? error.message : String(error),
+      errorType: error instanceof Error ? error.constructor.name : typeof error
+    });
     console.warn('[AUTH] Clerk not available, falling back to legacy auth');
   }
 
@@ -114,6 +125,37 @@ export const useAuthStore = defineStore('auth', () => {
       canReview: false, // Will be set from backend permissions
       createdAt: clerkUserData.createdAt?.toISOString() || new Date().toISOString(),
     };
+  }
+
+  // Get Clerk JWT token for API requests
+  async function getClerkToken(): Promise<string | null> {
+    console.log('[AUTH STORE DEBUG] getClerkToken called', {
+      timestamp: new Date().toISOString(),
+      hasClerkAuth: !!clerkAuth,
+      hasGetTokenMethod: !!clerkAuth?.getToken,
+      clerkReady: clerkReady.value,
+      isSignedIn: clerkAuth?.isSignedIn
+    });
+    
+    if (!clerkAuth?.getToken) {
+      console.warn('[AUTH STORE DEBUG] No clerkAuth.getToken method available');
+      return null;
+    }
+
+    try {
+      const clerkToken = await clerkAuth.getToken();
+      console.log('[AUTH STORE DEBUG] Clerk token retrieved', {
+        hasToken: !!clerkToken,
+        tokenLength: clerkToken?.length || 0
+      });
+      return clerkToken;
+    } catch (error) {
+      console.warn('[AUTH STORE DEBUG] Failed to get Clerk token:', {
+        error: error instanceof Error ? error.message : String(error),
+        errorType: error instanceof Error ? error.constructor.name : typeof error
+      });
+      return null;
+    }
   }
 
   // Get or create backend user token based on Clerk authentication
@@ -387,6 +429,7 @@ export const useAuthStore = defineStore('auth', () => {
     setLoading,
     initializeAuth,
     ensureUserToken,
+    getClerkToken,
     logout,
     requestMagicLink,
     verifyMagicLink,
